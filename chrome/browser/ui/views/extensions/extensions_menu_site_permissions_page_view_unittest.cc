@@ -21,6 +21,7 @@
 #include "extensions/test/permissions_manager_waiter.h"
 #include "extensions/test/test_extension_dir.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "ui/views/controls/button/radio_button.h"
 #include "ui/views/controls/button/toggle_button.h"
 #include "ui/views/test/views_test_utils.h"
 
@@ -167,6 +168,23 @@ TEST_F(ExtensionsSitePermissionsPageViewUnitTest,
   UninstallExtension(extensionA->id());
   EXPECT_FALSE(IsSitePermissionsPageOpened(extensionA->id()));
   EXPECT_TRUE(IsMainPageOpened());
+}
+
+// Tests that the extension name is elided if it is too long.
+TEST_F(ExtensionsSitePermissionsPageViewUnitTest, LongExtensionNameIsElided) {
+  std::string long_name =
+      "A very very very very very very very very long extension name";
+  auto extension =
+      InstallExtensionWithHostPermissions(long_name, {"<all_urls>"});
+
+  NavigateAndCommit("http://www.url.com");
+  ShowSitePermissionsPage(extension->id());
+  EXPECT_TRUE(IsSitePermissionsPageOpened(extension->id()));
+
+  views::Label* extension_name_label =
+      site_permissions_page()->GetExtensionNameForTesting();
+  ASSERT_TRUE(extension_name_label);
+  EXPECT_EQ(extension_name_label->GetElideBehavior(), gfx::ELIDE_TAIL);
 }
 
 // Tests that menu navigates back to the main page when an extension, whose site

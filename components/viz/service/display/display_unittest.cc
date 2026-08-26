@@ -138,12 +138,6 @@ class StubDisplayClient : public DisplayClient {
   void DisplayAddChildWindowToBrowser(
       gpu::SurfaceHandle child_window) override {}
   void SetWideColorEnabled(bool enabled) override {}
-  void SetPreferredFrameInterval(base::TimeDelta interval) override {}
-  base::TimeDelta GetPreferredFrameIntervalForFrameSinkId(
-      const FrameSinkId& id,
-      mojom::CompositorFrameSinkType* type) override {
-    return BeginFrameArgs::MinInterval();
-  }
 };
 
 void CopyCallback(bool* called,
@@ -156,10 +150,6 @@ void CopyCallback(bool* called,
 gfx::SwapTimings GetTestSwapTimings() {
   base::TimeTicks now = base::TimeTicks::Now();
   return gfx::SwapTimings{now, now};
-}
-
-std::string PostTestCaseName(const ::testing::TestParamInfo<bool>& info) {
-  return info.param ? "UseMapRect" : "RectExpansion";
 }
 
 }  // namespace
@@ -1351,27 +1341,7 @@ TEST_F(DisplayTest, DisplaySizeMismatch) {
   }
 }
 
-class UseMapRectDisplayTest : public DisplayTest,
-                              public testing::WithParamInterface<bool> {
- public:
-  UseMapRectDisplayTest();
-  ~UseMapRectDisplayTest() override = default;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-UseMapRectDisplayTest::UseMapRectDisplayTest() {
-  if (GetParam()) {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kUseMapRectForPixelMovement);
-  } else {
-    scoped_feature_list_.InitAndDisableFeature(
-        features::kUseMapRectForPixelMovement);
-  }
-}
-
-TEST_P(UseMapRectDisplayTest, PixelMovingForegroundFilterTest) {
+TEST_F(DisplayTest, PixelMovingForegroundFilterTest) {
   RendererSettings settings;
   settings.partial_swap_enabled = true;
   id_allocator_.GenerateId();
@@ -1477,9 +1447,8 @@ TEST_P(UseMapRectDisplayTest, PixelMovingForegroundFilterTest) {
       EXPECT_EQ(expected_damage, software_output_device_->damage_rect());
       // The scissor rect is expanded by direct_renderer to include the
       // overlapping pixel-moving foreground filter surface.
-      auto expected_scissor_rect = first_frame  ? gfx::Rect(display_size)
-                                   : GetParam() ? gfx::Rect(4, 5, 56, 55)
-                                                : gfx::Rect(0, 0, 60, 60);
+      auto expected_scissor_rect =
+          first_frame ? gfx::Rect(display_size) : gfx::Rect(4, 5, 56, 55);
       EXPECT_EQ(
           expected_scissor_rect,
           display_->renderer_for_testing()->GetLastRootScissorRectForTesting());
@@ -2358,10 +2327,5 @@ TEST_F(UnsupportedRendererDelegatedInkTest,
   display_->InitDelegatedInkPointRendererReceiver(
       ink_renderer_remote.BindNewPipeAndPassReceiver());
 }
-
-INSTANTIATE_TEST_SUITE_P(,
-                         UseMapRectDisplayTest,
-                         testing::Bool(),
-                         &PostTestCaseName);
 
 }  // namespace viz

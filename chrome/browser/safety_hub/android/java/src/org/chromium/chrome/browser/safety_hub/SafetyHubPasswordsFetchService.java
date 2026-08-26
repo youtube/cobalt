@@ -143,7 +143,8 @@ public class SafetyHubPasswordsFetchService {
 
     /** Returns true if a password fetch can be performed, namely if GMSCore can be called. */
     public boolean canPerformFetch() {
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.SAFETY_HUB) && canUseUpm();
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.SAFETY_HUB)
+                && PasswordManagerUtilBridge.isPasswordManagerAvailable(mPrefService);
     }
 
     public void clearPrefs() {
@@ -181,16 +182,10 @@ public class SafetyHubPasswordsFetchService {
     }
 
     private long getTimeSinceLastCheckupInMs() {
+        // TODO(crbug.com/420659257): Migrate to GMSCore API for the timestamp of the last check
+        // when it's available.
         return TimeUtils.currentTimeMillis()
                 - mPrefService.getLong(getLastTimeInMsCheckCompletedPreference());
-    }
-
-    private boolean canUseUpm() {
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID)) {
-            return PasswordManagerUtilBridge.isPasswordManagerAvailable(mPrefService);
-        }
-        return PasswordManagerUtilBridge.areMinUpmRequirementsMet()
-                && mPasswordManagerHelper.canUseUpm();
     }
 
     private String getBreachedPreference() {
@@ -210,8 +205,9 @@ public class SafetyHubPasswordsFetchService {
     }
 
     private String getLastTimeInMsCheckCompletedPreference() {
-        assert mAccount == null; // Not yet implemented for account passwords.
-        return Pref.LAST_TIME_IN_MS_LOCAL_PASSWORD_CHECK_COMPLETED;
+        return mAccount == null
+                ? Pref.LAST_TIME_IN_MS_LOCAL_PASSWORD_CHECK_COMPLETED
+                : Pref.LAST_TIME_IN_MS_ACCOUNT_PASSWORD_CHECK_COMPLETED;
     }
 
     /** Makes a call to GMSCore to fetch the latest leaked passwords count for `mAccount`. */

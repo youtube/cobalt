@@ -24,6 +24,7 @@ fuzzable_proto_library("proto") {
   sources = [
     "client_variations.proto",
     "layer.proto",
+    "stored_seed_info.proto",
     "study.proto",
     "variations_seed.proto",
   ]

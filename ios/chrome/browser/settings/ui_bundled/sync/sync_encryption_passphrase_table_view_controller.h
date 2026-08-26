@@ -12,6 +12,17 @@
 #import "ios/chrome/browser/sync/model/sync_observer_bridge.h"
 
 class Browser;
+@class SyncEncryptionPassphraseTableViewController;
+
+@protocol
+    SyncEncryptionPassphraseTableViewControllerPresentationDelegate <NSObject>
+
+// Called when the SyncEncryptionPassphraseTableViewController has been
+// dismissed.
+- (void)syncEncryptionPassphraseTableViewControllerDidDisappear:
+    (SyncEncryptionPassphraseTableViewController*)viewController;
+
+@end
 
 namespace sync_encryption_passphrase {
 typedef NS_ENUM(NSInteger, SectionIdentifier) {
@@ -30,6 +41,10 @@ typedef NS_ENUM(NSInteger, ItemType) {
 // It should not be instantiated in a scene that is blocked by a UIBlocker.
 @interface SyncEncryptionPassphraseTableViewController
     : SettingsRootTableViewController <SyncObserverModelBridge>
+
+@property(nonatomic, weak)
+    id<SyncEncryptionPassphraseTableViewControllerPresentationDelegate>
+        presentationDelegate;
 
 @property(weak, nonatomic, readonly) UITextField* passphrase;
 @property(nonatomic, copy) NSString* headerMessage;
@@ -53,8 +68,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
 // passphrase.
 - (BOOL)forDecryption;
 
-// User has pressed the Sign In button.
-- (void)signInPressed;
+// User has pressed the Enter button or key.
+- (void)enterPressed;
 
 // Clears all fields after displaying an error.
 - (void)clearFieldsOnError:(NSString*)errorMessage;

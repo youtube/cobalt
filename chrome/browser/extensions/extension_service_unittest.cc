@@ -110,6 +110,7 @@
 #include "content/public/browser/gpu_data_manager.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/app_sorting.h"
@@ -161,7 +162,6 @@
 #include "net/cookies/cookie_options.h"
 #include "net/cookies/cookie_store.h"
 #include "net/cookies/cookie_util.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
@@ -780,8 +780,6 @@ class ExtensionServiceTest : public ExtensionServiceTestWithInstall {
     loader.set_pack_extension(false);
     loader.LoadExtension(good_extension_dir.UnpackedPath());
 
-    histograms.ExpectTotalCount("Extensions.InstallType", 1);
-    histograms.ExpectTotalCount("Extensions.InstallSource", 1);
     histograms.ExpectTotalCount("Extensions.InstallType.NonUser",
                                 nonuser_expected_total_count);
     histograms.ExpectTotalCount("Extensions.InstallType.User",
@@ -4684,7 +4682,7 @@ TEST_F(ExtensionServiceTest, PolicyBlockedPermissionExtensionUpdate) {
   {
     // Block one of the required permissions of 'permissions_blocklist2'.
     ManagementPrefUpdater pref(profile_->GetTestingPrefService());
-    pref.AddBlockedPermission("*", "downloads");
+    pref.AddBlockedPermission("*", "cookies");
   }
 
   // Install 'permissions_blocklist' again, should be updated.
@@ -4748,22 +4746,20 @@ TEST_F(ExtensionServiceTest, PolicyBlockedPermissionPolicyUpdate) {
 
   std::unique_ptr<const PermissionSet> active_permissions =
       prefs()->GetDesiredActivePermissions(ext1);
-  EXPECT_TRUE(
-      active_permissions->HasAPIPermission(APIPermissionID::kDownloads));
+  EXPECT_TRUE(active_permissions->HasAPIPermission(APIPermissionID::kCookie));
 
-  // Set policy to block 'downloads' permission.
+  // Set policy to block 'cookies' permission.
   {
     ManagementPrefUpdater pref(profile_->GetTestingPrefService());
-    pref.AddBlockedPermission("*", "downloads");
+    pref.AddBlockedPermission("*", "cookies");
   }
 
   task_environment()->RunUntilIdle();
 
-  // 'ext1' should still be enabled, but with 'downloads' permission revoked.
+  // 'ext1' should still be enabled, but with 'cookies' permission revoked.
   EXPECT_TRUE(registry->enabled_extensions().GetByID(ext1));
   active_permissions = prefs()->GetDesiredActivePermissions(ext1);
-  EXPECT_FALSE(
-      active_permissions->HasAPIPermission(APIPermissionID::kDownloads));
+  EXPECT_FALSE(active_permissions->HasAPIPermission(APIPermissionID::kCookie));
 
   // 'ext2' should be disabled because one of its required permissions is
   // blocked.
@@ -5966,6 +5962,7 @@ TEST_F(ExtensionServiceTest, LoadExtension) {
 // Tests that --load-extension is ignored for users opted in to Enhanced Safe
 // Browsing (ESB).
 TEST_F(ExtensionServiceTest, WillNotLoadFromCommandLineForESBUsers) {
+  base::HistogramTester histograms;
   InitializeEmptyExtensionServiceWithTestingPrefs();
   // Enable ESB.
   profile()->GetPrefs()->SetBoolean(prefs::kSafeBrowsingEnabled, true);
@@ -5979,10 +5976,18 @@ TEST_F(ExtensionServiceTest, WillNotLoadFromCommandLineForESBUsers) {
   task_environment()->RunUntilIdle();
   ASSERT_EQ(0u, loaded_extensions().size());
   ValidatePrefKeyCount(0);
+
+  histograms.ExpectTotalCount("Extensions.LoadingFromCommandLine", 0);
 }
 
 // Tests --load-extension works for non-ESB users.
-TEST_F(ExtensionServiceTest, LoadsFromCommandLineForNonESBUsers) {
+// --load-extension was disabled in https://crbug.com/401529219
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_LoadsFromCommandLineForNonESBUsers DISABLED_LoadsFromCommandLineForNonESBUsers
+#else
+#define MAYBE_LoadsFromCommandLineForNonESBUsers LoadsFromCommandLineForNonESBUsers
+#endif
+TEST_F(ExtensionServiceTest, MAYBE_LoadsFromCommandLineForNonESBUsers) {
   base::HistogramTester histograms;
   InitializeEmptyExtensionServiceWithTestingPrefs();
   // Disable ESB.
@@ -5999,14 +6004,16 @@ TEST_F(ExtensionServiceTest, LoadsFromCommandLineForNonESBUsers) {
   ASSERT_EQ(1u, loaded_extensions().size());
   ValidatePrefKeyCount(1);
 
-  histograms.ExpectUniqueSample("Extensions.LoadingFromCommandLineBlocked",
-                                false, 1);
+  histograms.ExpectUniqueSample(
+      "Extensions.LoadingFromCommandLine",
+      ExtensionService::LoadExtensionFlag::kLoadExtension, 1);
 }
 
 // Tests that --load-extension is ignored for users with policy
 // ExtensionInstallTypeBlocklist containing command_line.
 TEST_F(ExtensionServiceTest,
        WillNotLoadFromCommandLineForUsersWithPolicyFalse) {
+  base::HistogramTester histograms;
   InitializeEmptyExtensionServiceWithTestingPrefs();
 
   profile()->GetPrefs()->SetList(pref_names::kExtensionInstallTypeBlocklist,
@@ -6021,11 +6028,21 @@ TEST_F(ExtensionServiceTest,
   task_environment()->RunUntilIdle();
   ASSERT_EQ(0u, loaded_extensions().size());
   ValidatePrefKeyCount(0);
+
+  histograms.ExpectTotalCount("Extensions.LoadingFromCommandLine", 0);
 }
 
-// Tests --load-extension works for users with policy
-// ExtensionInstallTypeBlocklist not containing "command_line" (default value)
-TEST_F(ExtensionServiceTest, LoadsFromCommandLineForUsersWithoutPolicy) {
+// Tests --load-extension and --disable-extensions-except work for users with
+// policy ExtensionInstallTypeBlocklist not containing "command_line" (default
+// value)
+// --load-extension was disabled in https://crbug.com/401529219
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_LoadsFromCommandLineForUsersWithoutPolicy DISABLED_LoadsFromCommandLineForUsersWithoutPolicy
+#else
+#define MAYBE_LoadsFromCommandLineForUsersWithoutPolicy LoadsFromCommandLineForUsersWithoutPolicy
+#endif
+TEST_F(ExtensionServiceTest, MAYBE_LoadsFromCommandLineForUsersWithoutPolicy) {
+  base::HistogramTester histograms;
   InitializeEmptyExtensionServiceWithTestingPrefs();
   // Not setting pref as false is default value.
   // Try to load an extension from command line.
@@ -6033,11 +6050,20 @@ TEST_F(ExtensionServiceTest, LoadsFromCommandLineForUsersWithoutPolicy) {
       base::MakeAbsoluteFilePath(data_dir().AppendASCII("good_unpacked"));
   base::CommandLine::ForCurrentProcess()->AppendSwitchPath(
       switches::kLoadExtension, path);
+  base::CommandLine::ForCurrentProcess()->AppendSwitchPath(
+      switches::kDisableExtensionsExcept, path);
   service()->Init();
   task_environment()->RunUntilIdle();
   EXPECT_EQ(0u, GetErrors().size());
   ASSERT_EQ(1u, loaded_extensions().size());
   ValidatePrefKeyCount(1);
+
+  histograms.ExpectBucketCount(
+      "Extensions.LoadingFromCommandLine",
+      ExtensionService::LoadExtensionFlag::kLoadExtension, 1);
+  histograms.ExpectBucketCount(
+      "Extensions.LoadingFromCommandLine",
+      ExtensionService::LoadExtensionFlag::kDisableExtensionsExcept, 1);
 }
 
 TEST_F(ExtensionServiceTest, DisableLoadExtensionCommandLineSwitch) {
@@ -6063,8 +6089,30 @@ TEST_F(ExtensionServiceTest, DisableLoadExtensionCommandLineSwitch) {
   ASSERT_EQ(0u, loaded_extensions().size());
   ValidatePrefKeyCount(0);
 
-  histograms.ExpectUniqueSample("Extensions.LoadingFromCommandLineBlocked",
-                                true, 1);
+  histograms.ExpectTotalCount("Extensions.LoadingFromCommandLine", 0);
+}
+
+TEST_F(ExtensionServiceTest, DisableDisableExtensionsExceptCommandLineSwitch) {
+  base::test::ScopedFeatureList feature_list(
+      /*enable_feature=*/extensions_features::
+          kDisableDisableExtensionsExceptCommandLineSwitch);
+  InitializeEmptyExtensionServiceWithTestingPrefs();
+
+  // Try to load an extension from command line.
+  base::FilePath path =
+      base::MakeAbsoluteFilePath(data_dir().AppendASCII("good_unpacked"));
+  base::CommandLine::ForCurrentProcess()->AppendSwitchPath(
+      switches::kDisableExtensionsExcept, path);
+  service()->Init();
+
+  ExtensionSystem* extension_system = ExtensionSystem::Get(profile());
+  // Wait until the extension system is ready.
+  base::RunLoop run_loop;
+  extension_system->ready().Post(FROM_HERE, run_loop.QuitClosure());
+  run_loop.Run();
+
+  ASSERT_EQ(0u, loaded_extensions().size());
+  ValidatePrefKeyCount(0);
 }
 
 // Tests that we generate IDs when they are not specified in the manifest for
@@ -8577,25 +8625,6 @@ TEST_F(ExtensionServiceTest, ReloadingExtensionFromNotification) {
   ASSERT_TRUE(registry_observer.WaitForExtensionLoaded());
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
-#if BUILDFLAG(ENABLE_PLUGINS)
-// Regression test for crbug.com/460699. Ensure PluginManager doesn't crash even
-// if OnExtensionUnloaded is invoked twice in succession.
-TEST_F(ExtensionServiceTest, PluginManagerCrash) {
-  InitializeEmptyExtensionService();
-  PluginManager manager(profile());
-
-  // Load an extension using a NaCl module.
-  const Extension* extension =
-      PackAndInstallCRX(data_dir().AppendASCII("native_client"), INSTALL_NEW);
-  registrar()->DisableExtension(extension->id(),
-                                {disable_reason::DISABLE_USER_ACTION});
-
-  // crbug.com/708230: This will cause OnExtensionUnloaded to be called
-  // redundantly for a disabled extension.
-  registrar()->BlockAllExtensions();
-}
-#endif  // BUILDFLAG(ENABLE_PLUGINS)
 
 // Test that blocking extension doesn't trigger unload notification for disabled
 // extensions. (crbug.com/708230)

@@ -413,6 +413,16 @@ AV1 data where film grain feature is used.
 This is the same as av1-1-b8-23-film\_grain-50.ivf in [libaom test vectors].
 The video license is [libaom LICENSE].
 
+#### bear_av1_720p_444_8bit.ivf
+AV1 high profile 8-bit stream containing two frames, created by the following command.
+`ffmpeg -i bear-1280x720.mp4 -frames:v 2 -c:v libaom-av1 -pix_fmt yuv444p \
+-crf 30 -b:v 0 -strict experimental -cpu-used 4 -profile:v 1 bear_av1_720p_444_8bit.ivf`
+
+#### bear_av1_720p_444_10bit.ivf
+AV1 high profile 10-bit stream containing two frames, created by the following command.
+`ffmpeg -i bear-1280x720.mp4 -frames:v 2 -c:v libaom-av1 -pix_fmt yuv444p10le \
+-crf 30 -b:v 0 -strict experimental -cpu-used 4 -profile:v 1 bear_av1_720p_444_10bit.ivf`
+
 ### Alpha Channel
 
 #### bear-vp8a.webm
@@ -1842,3 +1852,14 @@ Video stream for testing reference frame scaling in AV1 files where resolution c
 
 ### hls/ directory
 This directory contains all the HLS files needed to run pipeline integration tests against the HLS demuxer. The readme file in this directory contains specific steps to regenerate media and manifest files.
+
+### extra-nalu.ts
+This is a file more-or-less hand crafted with the `dd` tool from a file scraped
+from a website in https://issues.chromium.org/issues/427774381. I had to find a
+few places where I could cut the file on TS packet boundaries while preserving
+the important H264 NAL Units inside those packets. Then I stiched together those
+TS packets and to create a file which has a NALU sequence:
+AUD-SEI-SPS-PPS-IDR-AUD-nIDR
+and then I doubled the file by concatenating itself to it's own end. The h264
+megablocks inside are also scrambled up intentionally. This process was very
+manual.

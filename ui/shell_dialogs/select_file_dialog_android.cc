@@ -9,7 +9,7 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/check.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -61,7 +61,6 @@ SelectFileDialogImpl* SelectFileDialogImpl::Create(
 
 void SelectFileDialogImpl::OnFileSelected(
     JNIEnv* env,
-    const JavaParamRef<jobject>& java_object,
     const JavaParamRef<jstring>& filepath,
     const JavaParamRef<jstring>& display_name) {
   if (!listener_)
@@ -79,7 +78,6 @@ void SelectFileDialogImpl::OnFileSelected(
 
 void SelectFileDialogImpl::OnMultipleFilesSelected(
     JNIEnv* env,
-    const JavaParamRef<jobject>& java_object,
     const JavaParamRef<jobjectArray>& filepaths,
     const JavaParamRef<jobjectArray>& display_names) {
   if (!listener_)
@@ -87,17 +85,18 @@ void SelectFileDialogImpl::OnMultipleFilesSelected(
 
   std::vector<ui::SelectedFileInfo> selected_files;
 
-  jsize length = env->GetArrayLength(filepaths);
-  DCHECK(length == env->GetArrayLength(display_names));
+  jsize length = env->GetArrayLength(filepaths.obj());
+  DCHECK(length == env->GetArrayLength(display_names.obj()));
   for (int i = 0; i < length; ++i) {
-    ScopedJavaLocalRef<jstring> path_ref(
-        env, static_cast<jstring>(env->GetObjectArrayElement(filepaths, i)));
+    auto path_ref = ScopedJavaLocalRef<jstring>::Adopt(
+        env,
+        static_cast<jstring>(env->GetObjectArrayElement(filepaths.obj(), i)));
     base::FilePath file_path =
         base::FilePath(ConvertJavaStringToUTF8(env, path_ref));
 
-    ScopedJavaLocalRef<jstring> display_name_ref(
-        env,
-        static_cast<jstring>(env->GetObjectArrayElement(display_names, i)));
+    auto display_name_ref = ScopedJavaLocalRef<jstring>::Adopt(
+        env, static_cast<jstring>(
+                 env->GetObjectArrayElement(display_names.obj(), i)));
     std::string display_name =
         ConvertJavaStringToUTF8(env, display_name_ref.obj());
 
@@ -110,9 +109,7 @@ void SelectFileDialogImpl::OnMultipleFilesSelected(
   listener_->MultiFilesSelected(selected_files);
 }
 
-void SelectFileDialogImpl::OnFileNotSelected(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& java_object) {
+void SelectFileDialogImpl::OnFileNotSelected(JNIEnv* env) {
   if (listener_)
     listener_->FileSelectionCanceled();
 }
@@ -137,15 +134,14 @@ void SelectFileDialogImpl::SetOpenWritable(bool open_writable) {
   open_writable_ = open_writable;
 }
 
-void SelectFileDialogImpl::SelectFileImpl(
-    SelectFileDialog::Type type,
-    const std::u16string& title,
-    const base::FilePath& default_path,
-    const SelectFileDialog::FileTypeInfo* file_types,
-    int file_type_index,
-    const std::string& default_extension,
-    gfx::NativeWindow owning_window,
-    const GURL* caller) {
+void SelectFileDialogImpl::SelectFileImpl(Type type,
+                                          const std::u16string& title,
+                                          const base::FilePath& default_path,
+                                          const FileTypeInfo* file_types,
+                                          int file_type_index,
+                                          const std::string& default_extension,
+                                          gfx::NativeWindow owning_window,
+                                          const GURL* caller) {
   JNIEnv* env = base::android::AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> intent_action =

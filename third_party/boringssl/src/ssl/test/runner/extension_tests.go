@@ -15,25 +15,14 @@
 package runner
 
 import (
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"fmt"
-	"math/big"
-	"time"
 )
 
 func addExtensionTests() {
-	exampleCertificate := generateSingleCertChain(&x509.Certificate{
-		SerialNumber: big.NewInt(57005),
-		Subject: pkix.Name{
-			CommonName: "test cert",
-		},
-		NotBefore:             time.Now().Add(-time.Hour),
-		NotAfter:              time.Now().Add(time.Hour),
-		DNSNames:              []string{"example.com"},
-		IsCA:                  true,
-		BasicConstraintsValid: true,
-	}, &ecdsaP256Key)
+	exampleCertificate := rootCA.Issue(X509Info{
+		PrivateKey: &ecdsaP256Key,
+		DNSNames:   []string{"example.com"},
+	}).ToCredential()
 
 	// Repeat extensions tests at all versions.
 	for _, protocol := range []protocol{tls, dtls, quic} {
@@ -147,6 +136,26 @@ func addExtensionTests() {
 				},
 				flags:         []string{"-expect-server-name", "example.com"},
 				resumeSession: true,
+				expectations: connectionExpectations{
+					serverNameAck: ptrTo(true),
+				},
+			})
+			testCases = append(testCases, testCase{
+				protocol: protocol,
+				testType: serverTest,
+				name:     "ServerNameExtensionServer-NoACK-" + suffix,
+				config: Config{
+					MaxVersion: ver.version,
+					ServerName: "example.com",
+				},
+				flags: []string{
+					"-expect-server-name", "example.com",
+					"-no-server-name-ack",
+				},
+				resumeSession: true,
+				expectations: connectionExpectations{
+					serverNameAck: ptrTo(false),
+				},
 			})
 
 			// Test ALPN.

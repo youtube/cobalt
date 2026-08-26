@@ -57,8 +57,11 @@
         'dummy_audio_file_devices_no_protobuf':
         'dummy_audio_file_devices_no_protobuf_x64',
         'rtti_no_sctp': 'rtti_no_sctp_x64',
+        'disable_trace_events': 'disable_trace_events_x64',
+        'perfetto': 'perfetto_x64',
         'openssl': 'openssl_x64',
         'libstdcpp': 'libstdcpp_x64',
+        'no_lld': 'no_lld_x64',
       },
       'Linux Asan': 'asan_lsan_clang_release_bot_x64',
       'Linux MSan': 'msan_clang_release_bot_x64',
@@ -124,8 +127,7 @@
       'Perf Android32 (R Pixel5)': 'release_bot_x64',
       'Perf Android64 (R Pixel5)': 'release_bot_x64',
       'Perf Fuchsia': 'release_bot_x64_fuchsia',
-      'Perf Linux Bionic': 'release_bot_x64',
-      'Perf Linux Trusty': 'release_bot_x64',
+      'Perf Linux': 'release_bot_x64',
       'Perf Mac 11': 'release_bot_x64',
       'Perf Mac M1 Arm64 12': 'release_bot_x64',
       'Perf Win 10': 'release_bot_x64',
@@ -189,6 +191,7 @@
         'perfetto': 'perfetto_x64',
         'openssl': 'openssl_x64',
         'libstdcpp': 'libstdcpp_x64',
+        'no_lld': 'no_lld_x64',
       },
       'linux_msan': 'msan_clang_release_bot_x64',
       'linux_rel': 'release_bot_x64',
@@ -387,7 +390,6 @@
     ],
     'libfuzzer_asan_release_bot_x64': [
       'asan',
-      'chromium_base_dependency',
       'h265',
       'libfuzzer',
       'openh264',
@@ -407,6 +409,7 @@
     'msan_clang_release_bot_x64':
     ['msan', 'clang', 'openh264', 'pure_release_bot', 'x64', 'h265'],
     'no_h264_debug_bot_x86': ['debug_bot', 'x86'],
+    'no_lld_x64': ['debug_bot', 'x64', 'no_lld'],
     'openssl_x64': ['debug_bot', 'x64', 'no_build_ssl'],
     'perfetto_android_arm': [
       'android',
@@ -501,10 +504,6 @@
     'asan': {
       'gn_args': 'is_asan=true',
     },
-    # TODO(b/42223878): Remove this code when the dependency on base is gone.
-    'chromium_base_dependency': {
-      'mixins': ['enable_chromium_prelude', 'enable_rust']
-    },
     # is_clang=true by default, this is only to guard from upstream changes.
     'clang': {
       'gn_args': 'is_clang=true',
@@ -526,7 +525,6 @@
         'debug',
         'remoteexec',
         'strict_field_trials',
-        'disallow_deprecated_namespaces'
       ],
     },
     'debug_static_bot': {
@@ -535,24 +533,13 @@
         'minimal_symbols',
         'remoteexec',
         'strict_field_trials',
-        'disallow_deprecated_namespaces',
       ],
     },
     'disable_trace_events': {
       'gn_args': 'rtc_disable_trace_events=true',
     },
-    # TODO(b/42232595): Remove once the GN flag is removed.
-    'disallow_deprecated_namespaces': {
-      'gn_args': 'rtc_allow_deprecated_namespaces=false'
-    },
     'dummy_audio_file_devices': {
       'gn_args': 'rtc_use_dummy_audio_file_devices=true',
-    },
-    'enable_chromium_prelude': {
-      'gn_args': 'enable_chromium_prelude=true',
-    },
-    'enable_rust': {
-      'gn_args': 'enable_rust=true enable_rust_cxx=true',
     },
     'fuchsia': {
       'gn_args': 'target_os="fuchsia"'
@@ -576,8 +563,8 @@
       'gn_args': 'target_environment="simulator"'
     },
     'libfuzzer': {
-      # TODO(b/42223878): use_fuzztest_wrapper adds a dependency to //base.
-      'gn_args': 'use_libfuzzer=true use_fuzztest_wrapper=true',
+      # use_fuzztest_wrapper=false by default, this is only for visibility.
+      'gn_args': 'use_libfuzzer=true use_fuzztest_wrapper=false',
     },
     'lsan': {
       'gn_args': 'is_lsan=true',
@@ -596,6 +583,9 @@
     },
     'no_ios_code_signing': {
       'gn_args': 'ios_enable_code_signing=false',
+    },
+    'no_lld': {
+      'gn_args': 'use_lld=false',
     },
     'no_protobuf': {
       'gn_args': 'rtc_enable_protobuf=false',
@@ -630,7 +620,6 @@
         'pure_release_bot',
         'dcheck_always_on',
         'strict_field_trials',
-        'disallow_deprecated_namespaces',
       ],
     },
     'remoteexec': {

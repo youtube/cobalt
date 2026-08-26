@@ -5,7 +5,9 @@
 package org.chromium.chrome.browser.tasks.tab_management;
 
 import static org.chromium.chrome.browser.tasks.tab_management.MessageCardViewProperties.MESSAGE_TYPE;
+import static org.chromium.chrome.browser.tasks.tab_management.MessageService.MessageType.ARCHIVED_TABS_MESSAGE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_ALPHA;
+import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_ANIMATION_STATUS;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_TYPE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.MESSAGE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.TAB;
@@ -19,9 +21,9 @@ import androidx.annotation.IntDef;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
-import org.chromium.chrome.browser.tasks.tab_management.TabGridView.AnimationStatus;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyListModel;
@@ -39,13 +41,33 @@ import java.util.List;
  */
 @NullMarked
 class TabListModel extends ModelList {
+    @IntDef({
+        AnimationStatus.SELECTED_CARD_ZOOM_IN,
+        AnimationStatus.SELECTED_CARD_ZOOM_OUT,
+        AnimationStatus.HOVERED_CARD_ZOOM_IN,
+        AnimationStatus.HOVERED_CARD_ZOOM_OUT,
+        AnimationStatus.CARD_RESTORE
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface AnimationStatus {
+        int CARD_RESTORE = 0;
+        int SELECTED_CARD_ZOOM_OUT = 1;
+        int SELECTED_CARD_ZOOM_IN = 2;
+        int HOVERED_CARD_ZOOM_OUT = 3;
+        int HOVERED_CARD_ZOOM_IN = 4;
+        int NUM_ENTRIES = 5;
+    }
+
     /** Required properties for each {@link PropertyModel} managed by this {@link ModelList}. */
-    static class CardProperties {
+    public static class CardProperties {
+        static final long BASE_ANIMATION_DURATION_MS = 218;
+
         /** Supported Model type within this ModelList. */
         @IntDef({TAB, MESSAGE, TAB_GROUP})
         @Retention(RetentionPolicy.SOURCE)
         @Target(ElementType.TYPE_USE)
         public @interface ModelType {
+
             int TAB = 0;
             int MESSAGE = 1;
             int TAB_GROUP = 2;
@@ -57,6 +79,8 @@ class TabListModel extends ModelList {
 
         public static final PropertyModel.WritableFloatPropertyKey CARD_ALPHA =
                 new PropertyModel.WritableFloatPropertyKey();
+        public static final PropertyModel.WritableIntPropertyKey CARD_ANIMATION_STATUS =
+                new PropertyModel.WritableIntPropertyKey();
     }
 
     /**
@@ -313,28 +337,32 @@ class TabListModel extends ModelList {
     }
 
     /**
-     * This method gets indexes in the {@link TabListModel} of the two tabs that are merged into one
-     * group. When moving a Tab to a group, we always put it at the end of the group. For example:
-     * move tab1 to tab2 to form a group, tab1 is after tab2 in the TabModel (tab2, tab1); Then
-     * move another Tab tab3 to (tab2, tab1) group, tab3 is after tab1, (tab2, tab1, tab3). Thus,
-     * the last Tab in the related Tabs is the movedTab. When merging groups merge group1 to group2
-     * then the tab will exist in (group2, group1) order. However it is not guaranteed that the
-     * tab representing group1 in this model will be the last tab in the group. To account for this
-     * start at the front of the group in TabModel index order to find the desIndex of the group or
-     * tab to merge to. Then search the rest of the tabs that were merged for srcIndex that was
-     * merged from. For undoing multi-group merges the srcIndex may be invalid while the desIndex is
-     * always valid as the tab may be moving between existing groups and so has no index in this
-     * model of its own.
+     * This method gets indexes in the {@link TabListModel} of the tab cards that are merged into a
+     * group. This should always produce a valid destination index which is the index in the {@link
+     * TabListModel} that the moved tab should exist in. The source index may be invalid if a group
+     * of size 1 is created or the tab was moved between groups. In the case of moving between
+     * groups as the other group will be updated by {@link
+     * TabGroupModelFilterObserver#didMoveTabOutOfGroup(Tab, int)}.
      *
-     * @param tabModel   The tabModel that owns the tabs.
-     * @param tabs       The list that contains tabs of the newly merged group.
-     * @return A Pair with its first member as the index of the tab that is selected to merge to and
-     * the second member as the index of the tab that is being merged from.
+     * @param tabModel The tabModel that owns the tabs.
+     * @param movedTab The tab that is being merged.
+     * @param isDestinationTab Whether the moved tab is being merged to the group or is the
+     *     destination.
+     * @param tabs The list that contains tabs of the newly merged group.
+     * @return A Pair with its first member as the index that is merged to and the the second member
+     *     as the index that is being merged from.
      */
-    Pair<Integer, Integer> getIndexesForMergeToGroup(TabModel tabModel, List<Tab> tabs) {
-        int srcIndex = TabModel.INVALID_TAB_INDEX;
-        int desIndex = TabModel.INVALID_TAB_INDEX;
+    Pair<Integer, Integer> getIndexesForMergeToGroup(
+            TabModel tabModel, Tab movedTab, boolean isDestinationTab, List<Tab> tabs) {
+        // The moved tab is always involved in the merge, but it may not have an index if it was
+        // moved between groups.
+        int movedTabListModelIndex = indexFromTabId(movedTab.getId());
 
+        // TODO(crbug.com/433947821): The use of TabModel here is probably overkill. Consider
+        // iterating through just tabs.
+
+        // Find the other index that is involved in the merge it should be in the list of tabs.
+        int otherTabListModelIndex = TabModel.INVALID_TAB_INDEX;
         int startIndex = tabModel.indexOf(tabs.get(0));
         int endIndex = tabModel.indexOf(tabs.get(tabs.size() - 1));
         // Ensure the last tab is last in the model and the first tab is the first.
@@ -343,64 +371,90 @@ class TabListModel extends ModelList {
             Tab curTab = tabModel.getTabAtChecked(i);
             // Group should be contiguous.
             assert tabs.contains(curTab);
-            int index = indexFromTabId(curTab.getId());
-            if (index != TabModel.INVALID_TAB_INDEX && desIndex == TabModel.INVALID_TAB_INDEX) {
-                desIndex = index;
-            } else if (index != TabModel.INVALID_TAB_INDEX
-                    && srcIndex == TabModel.INVALID_TAB_INDEX) {
-                srcIndex = index;
-                break;
-            }
+            if (curTab == movedTab) continue;
+
+            otherTabListModelIndex = indexFromTabId(curTab.getId());
+            if (otherTabListModelIndex != TabModel.INVALID_TAB_INDEX) break;
+        }
+
+        // If nothing is found in the model early return, this might be a case of tab group undo.
+        if (movedTabListModelIndex == TabModel.INVALID_TAB_INDEX
+                && otherTabListModelIndex == TabModel.INVALID_TAB_INDEX) {
+            return new Pair<>(TabModel.INVALID_TAB_INDEX, TabModel.INVALID_TAB_INDEX);
+        }
+
+        final int desIndex;
+        final int srcIndex;
+        if (isDestinationTab || otherTabListModelIndex == TabModel.INVALID_TAB_INDEX) {
+            // We allow failing to find the other index as it might be a case of tab group undo
+            // which has a intermediate sequencing and model updates that can result in failing to
+            // find the tab among the related tabs.
+
+            // The moved tab is the destination tab and should always be in the model.
+            assert movedTabListModelIndex != TabModel.INVALID_TAB_INDEX;
+
+            desIndex = movedTabListModelIndex;
+            srcIndex = otherTabListModelIndex;
+        } else {
+            // The other tab is the destination tab and should always be in the model.
+            desIndex = otherTabListModelIndex;
+            srcIndex = movedTabListModelIndex;
         }
         return new Pair<>(desIndex, srcIndex);
     }
 
     /**
-     * This method updates the information in {@link TabListModel} of the selected tab when a merge
-     * related operation happens.
+     * This method updates the information in {@link TabListModel} of the selected card when it is
+     * selected or deselected.
      *
      * @param index The index of the item in {@link TabListModel} that needs to be updated.
-     * @param isSelected Whether the tab is selected or not in a merge related operation. If
-     *     selected, update the corresponding item in {@link TabListModel} to the selected state. If
-     *     not, restore it to original state.
+     * @param isSelected Whether the tab is selected or not. If selected, update the corresponding
+     *     item in {@link TabListModel} to the selected state. If not, restore it to original state.
      */
-    void updateSelectedTabForMergeToGroup(int index, boolean isSelected) {
-        @Nullable PropertyModel propertyModel = getTabPropertyModel(index);
+    void updateSelectedCardForSelection(int index, boolean isSelected) {
+        @Nullable PropertyModel propertyModel = getModelSupportingAnimations(index);
         if (propertyModel == null) return;
 
         int status =
                 isSelected
                         ? AnimationStatus.SELECTED_CARD_ZOOM_IN
                         : AnimationStatus.SELECTED_CARD_ZOOM_OUT;
-        propertyModel.set(TabProperties.CARD_ANIMATION_STATUS, status);
+        propertyModel.set(CARD_ANIMATION_STATUS, status);
         propertyModel.set(CARD_ALPHA, isSelected ? 0.8f : 1f);
     }
 
     /**
-     * This method updates the information in {@link TabListModel} of the hovered tab when a merge
-     * related operation happens.
+     * This method updates the information in {@link TabListModel} of a card when a selected card is
+     * hovered over it or moved off the previously hovered card.
      *
      * @param index The index of the item in {@link TabListModel} that needs to be updated.
-     * @param isHovered Whether the tab is hovered or not in a merge related operation. If hovered,
-     *     update the corresponding item in {@link TabListModel} to the hovered state. If not,
-     *     restore it to original state.
+     * @param isHovered Whether a card is hovered over the card represented by `index` or not. If
+     *     hovered, update the corresponding item in {@link TabListModel} to the hovered state. If
+     *     not, restore it to original state.
      */
-    void updateHoveredTabForMergeToGroup(int index, boolean isHovered) {
-        @Nullable PropertyModel propertyModel = getTabPropertyModel(index);
+    void updateHoveredCardForHover(int index, boolean isHovered) {
+        @Nullable PropertyModel propertyModel = getModelSupportingAnimations(index);
         if (propertyModel == null) return;
 
         int status =
                 isHovered
                         ? AnimationStatus.HOVERED_CARD_ZOOM_IN
                         : AnimationStatus.HOVERED_CARD_ZOOM_OUT;
-        propertyModel.set(TabProperties.CARD_ANIMATION_STATUS, status);
+        propertyModel.set(CARD_ANIMATION_STATUS, status);
     }
 
-    private @Nullable PropertyModel getTabPropertyModel(int index) {
+    private @Nullable PropertyModel getModelSupportingAnimations(int index) {
         if (index < 0 || index >= size()) return null;
 
-        PropertyModel propertyModel = get(index).model;
-        assert propertyModel.get(CARD_TYPE) == TAB;
-        return propertyModel;
+        PropertyModel model = get(index).model;
+
+        boolean isArchiveMessageCard =
+                model.get(CARD_TYPE) == MESSAGE && model.get(MESSAGE_TYPE) == ARCHIVED_TABS_MESSAGE;
+        if (isArchiveMessageCard && !ChromeFeatureList.sTabArchivalDragDropAndroid.isEnabled()) {
+            return null;
+        }
+
+        assert model.get(CARD_TYPE) == TAB || isArchiveMessageCard;
+        return model;
     }
 }

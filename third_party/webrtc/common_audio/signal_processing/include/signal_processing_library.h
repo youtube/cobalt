@@ -17,9 +17,8 @@
 #ifndef COMMON_AUDIO_SIGNAL_PROCESSING_INCLUDE_SIGNAL_PROCESSING_LIBRARY_H_
 #define COMMON_AUDIO_SIGNAL_PROCESSING_INCLUDE_SIGNAL_PROCESSING_LIBRARY_H_
 
+#include <stdint.h>
 #include <string.h>
-
-#include "common_audio/signal_processing/dot_product_with_scale.h"
 
 // Macros specific for the fixed point implementation
 #define WEBRTC_SPL_WORD16_MAX 32767
@@ -95,7 +94,7 @@ extern "C" {
   memcpy(v1, v2, (length) * sizeof(int16_t))
 
 // inline functions:
-#include "common_audio/signal_processing/include/spl_inl.h"
+#include "common_audio/signal_processing/include/spl_inl.h"  // IWYU pragma: keep
 
 // third party math functions
 #include "common_audio/third_party/spl_sqrt_floor/spl_sqrt_floor.h"

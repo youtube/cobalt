@@ -23,6 +23,7 @@
 #include "ui/base/window_open_disposition.h"
 
 class Browser;
+class BrowserWindowInterface;
 class CommandObserver;
 class GURL;
 class Profile;
@@ -36,6 +37,10 @@ class WebContents;
 namespace bookmarks {
 class BookmarkModel;
 }  // namespace bookmarks
+
+namespace split_tabs {
+enum class SplitTabCreatedSource;
+}
 
 namespace chrome {
 
@@ -152,7 +157,7 @@ void MoveGroupToExistingWindow(Browser* source,
 void MuteSite(Browser* browser);
 void PinTab(Browser* browser);
 void GroupTab(Browser* browser);
-void NewSplitTab(Browser* browser);
+void NewSplitTab(Browser* browser, split_tabs::SplitTabCreatedSource source);
 
 // Tab group commands
 // These values are persisted to logs. Entries should not be renumbered
@@ -208,7 +213,7 @@ void MoveTabsToReadLater(Browser* browser,
                          std::vector<content::WebContents*> web_contentses);
 bool MarkCurrentTabAsReadInReadLater(Browser* browser);
 bool IsCurrentTabUnreadInReadLater(Browser* browser);
-void ShowOffersAndRewardsForPage(Browser* browser);
+void ShowOffersAndRewardsForPage(BrowserWindowInterface* bwi);
 void SaveCreditCard(Browser* browser);
 void SaveIban(Browser* browser);
 void ShowMandatoryReauthOptInPrompt(Browser* browser);
@@ -272,6 +277,7 @@ void OpenFeedbackDialog(Browser* browser,
 void ToggleBookmarkBar(Browser* browser);
 void ToggleShowFullURLs(Browser* browser);
 void ToggleShowGoogleLensShortcut(Browser* browser);
+void ToggleShowSearchTools(Browser* browser);
 void ShowAppMenu(Browser* browser);
 void ShowAvatarMenu(Browser* browser);
 void OpenUpdateChromeDialog(Browser* browser);

@@ -18,6 +18,8 @@ class QualifiedName;
 class ScriptValue;
 class ScriptState;
 class V8UnionStringOrTrustedScript;
+class V8UnionStringOrTrustedHTML;
+class V8UnionStringLegacyNullToEmptyStringOrTrustedHTML;
 class V8UnionStringLegacyNullToEmptyStringOrTrustedScript;
 class V8UnionTrustedScriptURLOrUSVString;
 
@@ -35,8 +37,20 @@ TrustedTypesCheckFor(SpecificTrustedType type,
                      const V8TrustedType* trusted,
                      const ExecutionContext* execution_context,
                      const char* interface_name,
-                     const char* property_name,
+                     const AtomicString& property_name,
                      ExceptionState& exception_state);
+[[nodiscard]] CORE_EXPORT String TrustedTypesCheckForHTML(
+    const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* value,
+    const ExecutionContext* execution_context,
+    const char* interface_name,
+    const char* property_name,
+    ExceptionState& exception_state);
+[[nodiscard]] CORE_EXPORT String
+TrustedTypesCheckForHTML(const V8UnionStringOrTrustedHTML* value,
+                         const ExecutionContext* execution_context,
+                         const char* interface_name,
+                         const char* property_name,
+                         ExceptionState& exception_state);
 [[nodiscard]] CORE_EXPORT String
 TrustedTypesCheckForScript(const V8UnionStringOrTrustedScript* value,
                            const ExecutionContext* execution_context,
@@ -64,7 +78,7 @@ TrustedTypesCheckForScriptURL(const V8UnionTrustedScriptURLOrUSVString* value,
                                           String,
                                           const ExecutionContext*,
                                           const char* interface_name,
-                                          const char* property_name,
+                                          const AtomicString& property_name,
                                           ExceptionState&);
 [[nodiscard]] CORE_EXPORT String
 TrustedTypesCheckForHTML(const String&,

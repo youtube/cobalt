@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/containers/span.h"
+#include "base/strings/string_view_util.h"
 #include "base/time/time.h"
 #include "services/network/public/mojom/parsed_headers.mojom-blink.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_response.h"
@@ -25,9 +26,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   blink::CommaDelimitedHeaderSet set;
   base::TimeDelta delay;
-  String url;
+  blink::String url;
   blink::ResourceResponse response;
-  wtf_size_t end;
+  blink::wtf_size_t end;
 
   // SAFETY: libfuzzer provides a valid pointer and size pair.
   auto data_span = UNSAFE_BUFFERS(base::span(data, size));
@@ -38,8 +39,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   terminated.shrink_to_fit();
 
   blink::IsValidHTTPToken(terminated.c_str());
-  blink::ParseCacheControlDirectives(AtomicString(terminated.c_str()),
-                                     AtomicString());
+  blink::ParseCacheControlDirectives(blink::AtomicString(terminated.c_str()),
+                                     blink::AtomicString());
   blink::ParseCommaDelimitedHeader(terminated.c_str(), set);
   blink::ParseHTTPRefresh(terminated.c_str(), nullptr, delay, url);
 

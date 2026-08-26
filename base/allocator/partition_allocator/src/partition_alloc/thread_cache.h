@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_THREAD_CACHE_H_
 #define PARTITION_ALLOC_THREAD_CACHE_H_
 
@@ -13,7 +18,6 @@
 #include "partition_alloc/bucket_lookup.h"
 #include "partition_alloc/build_config.h"
 #include "partition_alloc/buildflags.h"
-#include "partition_alloc/lightweight_quarantine.h"
 #include "partition_alloc/partition_alloc-inl.h"
 #include "partition_alloc/partition_alloc_base/compiler_specific.h"
 #include "partition_alloc/partition_alloc_base/component_export.h"
@@ -27,6 +31,7 @@
 #include "partition_alloc/partition_lock.h"
 #include "partition_alloc/partition_stats.h"
 #include "partition_alloc/partition_tls.h"
+#include "partition_alloc/scheduler_loop_quarantine.h"
 
 #if PA_BUILDFLAG(PA_ARCH_CPU_X86_64) && PA_BUILDFLAG(HAS_64_BIT_POINTERS)
 #include "partition_alloc/partition_alloc_base/cxx_wrapper/algorithm.h"
@@ -270,6 +275,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) ThreadCache {
 #endif
   }
 
+  static ThreadCache* EnsureAndGet();
+
   static bool IsValid(ThreadCache* tcache) {
     // Do not MTE-untag, as it'd mess up the sentinel value.
     return reinterpret_cast<uintptr_t>(tcache) & kTombstoneMask;
@@ -378,12 +385,15 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) ThreadCache {
 
   ThreadCacheStats& stats_for_testing() { return stats_; }
 
+  PartitionRoot* GetRoot();
+
   Bucket& bucket_for_testing(size_t index) { return buckets_[index]; }
   void ClearBucketForTesting(Bucket& bucket, size_t limit) {
     ClearBucket(bucket, limit);
   }
 
-  internal::SchedulerLoopQuarantineBranch& GetSchedulerLoopQuarantineBranch() {
+  internal::ThreadBoundSchedulerLoopQuarantineBranch&
+  GetSchedulerLoopQuarantineBranch() {
     return scheduler_loop_quarantine_branch_;
   }
 
@@ -462,7 +472,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) ThreadCache {
   ThreadCache* prev_ PA_GUARDED_BY(ThreadCacheRegistry::GetLock());
 
   // Thread-Local version of `PartitionRoot::scheduler_loop_quarantine_branch_`.
-  internal::SchedulerLoopQuarantineBranch scheduler_loop_quarantine_branch_;
+  internal::ThreadBoundSchedulerLoopQuarantineBranch
+      scheduler_loop_quarantine_branch_;
 
   friend class ThreadCacheRegistry;
   friend class PartitionAllocThreadCacheTest;

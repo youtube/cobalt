@@ -4,6 +4,7 @@
 
 #include "components/autofill/core/browser/ui/addresses/autofill_address_util.h"
 
+#include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/uuid.h"
@@ -13,7 +14,6 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/base/resource/resource_bundle.h"
 
 namespace autofill {
 
@@ -21,23 +21,7 @@ using ::testing::ElementsAre;
 
 class AddressFormattingTest : public ::testing::Test {
  public:
-  void SetUp() override {
-    orig_resource_bundle_ =
-        ui::ResourceBundle::SwapSharedInstanceForTesting(nullptr);
-    ui::ResourceBundle::InitSharedInstanceWithLocale(
-        GetLocale(), /*delegate=*/nullptr,
-        ui::ResourceBundle::DO_NOT_LOAD_COMMON_RESOURCES);
-  }
-
-  void TearDown() override {
-    ui::ResourceBundle::CleanupSharedInstance();
-    ui::ResourceBundle::SwapSharedInstanceForTesting(orig_resource_bundle_);
-  }
-
-  std::string GetLocale() { return "en-US"; }
-
- private:
-  raw_ptr<ui::ResourceBundle> orig_resource_bundle_;
+  static std::string GetLocale() { return base::i18n::GetConfiguredLocale(); }
 };
 
 // This is a regression test from crbug.com/1259928. Address formats of
@@ -79,7 +63,8 @@ TEST_F(AddressFormattingTest, GetAddressComponentsWithExtensions) {
       i18n::TypeForField(::i18n::addressinput::AddressField::POSTAL_CODE));
 }
 
-TEST_F(AddressFormattingTest, GetEnvelopeStyleAddressSanity) {
+// TODO(crbug.com/433964259): Test is flaky.
+TEST_F(AddressFormattingTest, FLAKY_GetEnvelopeStyleAddressSanity) {
   AutofillProfile profile = test::GetFullProfile();
   std::u16string address =
       GetEnvelopeStyleAddress(profile, GetLocale(), /*include_recipient=*/true,

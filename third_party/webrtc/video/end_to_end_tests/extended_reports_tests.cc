@@ -8,9 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -34,7 +33,6 @@
 #include "test/gtest.h"
 #include "test/rtcp_packet_parser.h"
 #include "test/rtp_rtcp_observer.h"
-#include "test/scoped_key_value_config.h"
 #include "test/video_test_constants.h"
 #include "video/config/video_encoder_config.h"
 
@@ -244,8 +242,7 @@ TEST_F(ExtendedReportsEndToEndTest,
 
 TEST_F(ExtendedReportsEndToEndTest,
        TestExtendedReportsWithoutRrtrWithTargetBitrateExplicitlySet) {
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_, "WebRTC-Target-Bitrate-Rtcp/Enabled/");
+  field_trials().Set("WebRTC-Target-Bitrate-Rtcp", "Enabled");
   RtcpXrObserver test(/*enable_rrtr=*/false, /*expect_target_bitrate=*/true,
                       /*enable_zero_target_bitrate=*/false,
                       VideoEncoderConfig::ContentType::kRealtimeVideo);

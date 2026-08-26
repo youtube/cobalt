@@ -186,8 +186,9 @@ class ABSL_ATTRIBUTE_VIEW Span {
   // type C.
   template <typename C>
   using EnableIfConvertibleFrom =
-      typename std::enable_if<span_internal::HasData<T, C>::value &&
-                              span_internal::HasSize<C>::value>::type;
+      std::enable_if_t<!std::is_same_v<Span, std::remove_reference_t<C>> &&
+                       span_internal::HasData<T, C>::value &&
+                       span_internal::HasSize<C>::value>;
 
   // Used to SFINAE-enable a function when the slice elements are const.
   template <typename U>
@@ -499,8 +500,7 @@ class ABSL_ATTRIBUTE_VIEW Span {
   // Support for absl::Hash.
   template <typename H>
   friend H AbslHashValue(H h, Span v) {
-    return H::combine(H::combine_contiguous(std::move(h), v.data(), v.size()),
-                      hash_internal::WeaklyMixedInteger{v.size()});
+    return H::combine_contiguous(std::move(h), v.data(), v.size());
   }
 
  private:

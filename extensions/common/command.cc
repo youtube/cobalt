@@ -13,6 +13,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "build/android_buildflags.h"
@@ -117,10 +118,6 @@ std::string Command::CommandPlatform() {
 #elif BUILDFLAG(IS_CHROMEOS)
   return ui::kKeybindingPlatformChromeOs;
 #elif BUILDFLAG(IS_LINUX)
-  return ui::kKeybindingPlatformLinux;
-#elif BUILDFLAG(IS_FUCHSIA)
-  // TODO(crbug.com/40220501): Change this once we decide what string should be
-  // used for Fuchsia.
   return ui::kKeybindingPlatformLinux;
 #elif BUILDFLAG(IS_DESKTOP_ANDROID)
   // For now, we use linux keybindings on desktop android.

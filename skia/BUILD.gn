@@ -10,10 +10,10 @@ import("//build/config/rust.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/rust/rust_static_library.gni")
 import("//gpu/vulkan/features.gni")
-import("//skia/skia.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 import("//third_party/skia/gn/shared_sources.gni")
+import("//third_party/skia/modules/pathops/pathops.gni")
 import("//third_party/skia/modules/skcms/skcms.gni")
 import("features.gni")
 
@@ -23,14 +23,10 @@ if (current_cpu == "arm") {
 if (current_cpu == "mipsel" || current_cpu == "mips64el") {
   import("//build/config/mips.gni")
 }
-if (enable_rust_png) {
-  import("//build/rust/rust_static_library.gni")
-}
 
 buildflag_header("buildflags") {
   header = "buildflags.h"
   flags = [
-    "SKIA_BUILD_RUST_PNG=$enable_rust_png",
     "SKIA_SUPPORT_SKOTTIE=$skia_support_skottie",
     "SKIA_USE_DAWN=$skia_use_dawn",
     "SKIA_USE_METAL=$skia_use_metal",
@@ -48,9 +44,9 @@ rust_static_library("bridge_rust_side") {
   cxx_bindings = [ skia_fontations_bridge_root ]
   deps = [
     ":path_bridge",
-    "//third_party/rust/font_types/v0_8:lib",
-    "//third_party/rust/read_fonts/v0_27:lib",
-    "//third_party/rust/skrifa/v0_29:lib",
+    "//third_party/rust/font_types/v0_9:lib",
+    "//third_party/rust/read_fonts/v0_31:lib",
+    "//third_party/rust/skrifa/v0_33:lib",
   ]
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [
@@ -184,13 +180,15 @@ config("skia_library_config") {
     "SK_CODEC_ENCODES_PNG_WITH_LIBPNG",
   ]
 
+  if (use_blink) {
+    defines += [ "SK_TYPEFACE_FACTORY_FONTATIONS" ]
+  }
   if (use_blink && !use_system_freetype) {
     defines += [ "SK_FREETYPE_MINIMUM_RUNTIME_VERSION_IS_BUILD_VERSION" ]
   }
   if (use_blink && enable_freetype) {
     defines += [
       "SK_TYPEFACE_FACTORY_FREETYPE",
-      "SK_TYPEFACE_FACTORY_FONTATIONS",
       "SK_FONTMGR_FREETYPE_EMPTY_AVAILABLE",
     ]
   }
@@ -235,6 +233,7 @@ config("skia_library_config") {
 # code for the Fontations rust backend.
 source_set("skia_core_public_headers") {
   public = skia_core_public
+  public += skia_pathops_public
 }
 
 component("skia") {
@@ -259,7 +258,6 @@ component("skia") {
     "ext/skia_memory_dump_provider.h",
     "ext/skia_trace_memory_dump_impl.h",
     "ext/skia_utils_base.h",
-    "fontations_feature.h",
     "rusty_png_feature.h",
   ]
   sources = [
@@ -291,7 +289,6 @@ component("skia") {
     "ext/skia_memory_dump_provider.cc",
     "ext/skia_trace_memory_dump_impl.cc",
     "ext/skia_utils_base.cc",
-    "fontations_feature.cc",
     "rusty_png_feature.cc",
   ]
   if (is_ios) {
@@ -350,8 +347,10 @@ component("skia") {
   public += skia_utils_chromium
   public += skia_discardable_memory_chromium
   public += skia_codec_public
+  public += skia_codec_rust_png_public
   public += skia_encode_public
   public += skia_encode_png_public
+  public += skia_encode_rust_png_public
   public += skia_encode_webp_public
 
   # The imported Skia gni source paths are made absolute by gn.
@@ -362,12 +361,15 @@ component("skia") {
   sources += skia_codec_shared
   sources += skia_codec_png_base
   sources += skia_codec_libpng_srcs
+  sources += skia_codec_rust_png
   sources += skia_utils_private
   sources += skia_xps_sources
   sources += skia_encode_srcs
   sources += skia_encode_png_base
   sources += skia_encode_libpng_srcs
+  sources += skia_encode_rust_png_srcs
   sources += skia_encode_webp_srcs
+
   sources += [
     "//third_party/skia/src/sfnt/SkOTTable_name.cpp",
     "//third_party/skia/src/sfnt/SkOTUtils.cpp",
@@ -462,6 +464,7 @@ component("skia") {
     # fonts. See content/zygote/zygote_main_linux.cc
     # Note that this requires expat.
     sources += skia_ports_fontmgr_android_sources
+    sources += skia_ports_fontmgr_android_parser_sources
   }
 
   if (is_cobalt_hermetic_build) {
@@ -480,13 +483,19 @@ component("skia") {
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkStream_cobalt.h",
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.cc",
       "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt.cc",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt.h",
     ]
-    public += [ "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h" ]
+    public += [
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h",
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt.h",
+    ]
     deps += [
       "//cobalt/configuration",
       "//starboard:starboard_group",
       "//starboard/content/fonts:copy_font_data",
       "//third_party/libxml",
+      "//third_party/woff2:woff2_dec",
     ]
   }
 
@@ -516,6 +525,7 @@ component("skia") {
   all_dependent_configs = [ ":skia_config" ]
 
   deps += [
+    ":rust_png_ffi",
     ":skcms",
     ":skia_opts",
     ":skia_switches",
@@ -616,7 +626,8 @@ component("skia") {
     # Blink includes Skia's JPEG encoder and decoder which pdf uses.
     assert(use_blink)
     deps += [
-      "//third_party:freetype_harfbuzz",
+      # Needed for HarfBuzz hb_subet subsetting.
+      "//third_party/harfbuzz-ng",
       "//third_party/zlib",
     ]
     public += skia_pdf_public
@@ -643,13 +654,9 @@ component("skia") {
     ]
   }
 
-  if (enable_rust_png) {
-    deps += [ ":rust_png_ffi" ]
-    public += skia_codec_rust_png_public
-    sources += skia_codec_rust_png
-    public += skia_encode_rust_png_public
-    sources += skia_encode_rust_png_srcs
-  }
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 component("skia_switches") {
@@ -664,31 +671,29 @@ component("skia_switches") {
   deps = [ "//base" ]
 }
 
-if (enable_rust_png) {
-  rust_static_library("rust_png_ffi") {
-    visibility = [ ":*" ]
-    allow_unsafe = true  # For FFI
-    crate_root = skia_codec_rust_png_ffi_crate_root
-    sources = skia_codec_rust_png_ffi_rs_srcs
-    cxx_bindings = skia_codec_rust_png_ffi_cxx_bridge_srcs
-    public_deps = [ ":rust_png_ffi_cpp" ]
-    deps = [ "//third_party/rust/png/v0_18:lib" ]
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [
-      ":skia_config",
-      "//build/config/compiler:no_chromium_code",
-    ]
-  }
+rust_static_library("rust_png_ffi") {
+  visibility = [ ":*" ]
+  allow_unsafe = true  # For FFI
+  crate_root = skia_codec_rust_png_ffi_crate_root
+  sources = skia_codec_rust_png_ffi_rs_srcs
+  cxx_bindings = skia_codec_rust_png_ffi_cxx_bridge_srcs
+  public_deps = [ ":rust_png_ffi_cpp" ]
+  deps = [ "//third_party/rust/png/v0_18:lib" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    ":skia_config",
+    "//build/config/compiler:no_chromium_code",
+  ]
+}
 
-  source_set("rust_png_ffi_cpp") {
-    visibility = [ ":*" ]
-    public = skia_codec_rust_png_ffi_cpp_hdrs
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [
-      ":skia_config",
-      "//build/config/compiler:no_chromium_code",
-    ]
-  }
+source_set("rust_png_ffi_cpp") {
+  visibility = [ ":*" ]
+  public = skia_codec_rust_png_ffi_cpp_hdrs
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [
+    ":skia_config",
+    "//build/config/compiler:no_chromium_code",
+  ]
 }
 
 # Template for things that are logically part of :skia, but need to be split out
@@ -713,6 +718,10 @@ template("skia_source_set") {
       ":skia_library_config",
       "//build/config/compiler:no_chromium_code",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
     public_configs = [ ":skia_config" ]
 
     if (is_apple) {
@@ -744,6 +753,7 @@ skia_source_set("skia_core_and_effects") {
   sources += skia_colorfilters_sources
   sources += skia_effects_sources
   sources += skia_effects_imagefilter_sources
+  sources += skia_pathops_sources
   if (skia_support_gpu) {
     deps = [ "//gpu/config:workaround_list" ]
   }
@@ -1069,6 +1079,11 @@ test("skia_unittests") {
     "ext/skia_memory_dump_provider_unittest.cc",
     "ext/skia_utils_base_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "//cobalt/renderer/rasterizer/skia/skia/src/ports/SkWoff2FontCache_cobalt_unittest.cc",
+    ]
+  }
   if (is_ios) {
     sources += [ "ext/skia_utils_ios_unittest.mm" ]
   }

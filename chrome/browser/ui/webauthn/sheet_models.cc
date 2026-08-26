@@ -38,6 +38,8 @@
 #include "device/fido/pin.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
+#include "ui/views/layout/layout_provider.h"
+#include "ui/views/style/typography.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "device/fido/mac/util.h"
@@ -94,13 +96,15 @@ std::u16string PossibleAttestationWarning(
     case device::AttestationConveyancePreference::kDirect:
       return l10n_util::GetStringFUTF16(
           IDS_WEBAUTHN_ATTESTATION_WARNING,
-          AuthenticatorSheetModelBase::GetRelyingPartyIdString(dialog_model));
+          AuthenticatorSheetModelBase::GetRelyingPartyIdStringLabel(
+              dialog_model));
     case device::AttestationConveyancePreference::
         kEnterpriseIfRPListedOnAuthenticator:
     case device::AttestationConveyancePreference::kEnterpriseApprovedByBrowser:
       return l10n_util::GetStringFUTF16(
           IDS_WEBAUTHN_ENTERPRISE_ATTESTATION_WARNING,
-          AuthenticatorSheetModelBase::GetRelyingPartyIdString(dialog_model));
+          AuthenticatorSheetModelBase::GetRelyingPartyIdStringLabel(
+              dialog_model));
   }
 }
 
@@ -130,13 +134,38 @@ AuthenticatorSheetModelBase::~AuthenticatorSheetModelBase() {
 }
 
 // static
+int AuthenticatorSheetModelBase::GetPreferredContentWidth() {
+  views::LayoutProvider* layout_provider = views::LayoutProvider::Get();
+  return layout_provider->GetDistanceMetric(
+             views::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH) -
+         layout_provider->GetInsetsMetric(views::INSETS_DIALOG).width() -
+         layout_provider->GetInsetsMetric(views::INSETS_DIALOG_TITLE).width();
+}
+
+// static
 std::u16string AuthenticatorSheetModelBase::GetRelyingPartyIdString(
+    const AuthenticatorRequestDialogModel* dialog_model,
+    gfx::FontList font_list) {
+  return webauthn_ui_helpers::RpIdToElidedHost(
+      dialog_model->relying_party_id, GetPreferredContentWidth(), font_list);
+}
+
+// static
+std::u16string AuthenticatorSheetModelBase::GetRelyingPartyIdStringLabel(
     const AuthenticatorRequestDialogModel* dialog_model) {
-  // The preferred width of medium snap point modal dialog view is 448 dp, but
-  // we leave some room for padding between the text and the modal views.
-  static constexpr int kDialogWidth = 300;
-  return webauthn_ui_helpers::RpIdToElidedHost(dialog_model->relying_party_id,
-                                               kDialogWidth);
+  gfx::FontList font_list = views::TypographyProvider::Get().GetFont(
+      views::style::CONTEXT_LABEL, views::style::STYLE_PRIMARY);
+  return AuthenticatorSheetModelBase::GetRelyingPartyIdString(dialog_model,
+                                                              font_list);
+}
+
+// static
+std::u16string AuthenticatorSheetModelBase::GetRelyingPartyIdStringTitle(
+    const AuthenticatorRequestDialogModel* dialog_model) {
+  gfx::FontList font_list = views::TypographyProvider::Get().GetFont(
+      views::style::CONTEXT_DIALOG_TITLE, views::style::STYLE_HEADLINE_4);
+  return AuthenticatorSheetModelBase::GetRelyingPartyIdString(dialog_model,
+                                                              font_list);
 }
 
 bool AuthenticatorSheetModelBase::IsActivityIndicatorVisible() const {
@@ -216,7 +245,7 @@ std::u16string AuthenticatorMechanismSelectorSheetModel::GetStepTitle() const {
            device::FidoRequestType::kMakeCredential);
   return l10n_util::GetStringFUTF16(
       IDS_WEBAUTHN_CREATE_PASSKEY_CHOOSE_DEVICE_TITLE,
-      GetRelyingPartyIdString(dialog_model()));
+      GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string AuthenticatorMechanismSelectorSheetModel::GetStepDescription()
@@ -243,8 +272,8 @@ bool AuthenticatorInsertAndActivateUsbSheetModel::IsActivityIndicatorVisible()
 
 std::u16string AuthenticatorInsertAndActivateUsbSheetModel::GetStepTitle()
     const {
-  return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_GENERIC_TITLE,
-                                    GetRelyingPartyIdString(dialog_model()));
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_GENERIC_TITLE, GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string AuthenticatorInsertAndActivateUsbSheetModel::GetStepDescription()
@@ -299,8 +328,9 @@ std::u16string AuthenticatorNoAvailableTransportsErrorModel::GetStepTitle()
 
 std::u16string
 AuthenticatorNoAvailableTransportsErrorModel::GetStepDescription() const {
-  return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_ERROR_MISSING_CAPABILITY_DESC,
-                                    GetRelyingPartyIdString(dialog_model()));
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_ERROR_MISSING_CAPABILITY_DESC,
+      GetRelyingPartyIdStringLabel(dialog_model()));
 }
 
 // AuthenticatorNoPasskeysErrorModel ------------------------------------------
@@ -319,8 +349,9 @@ std::u16string AuthenticatorNoPasskeysErrorModel::GetStepTitle() const {
 }
 
 std::u16string AuthenticatorNoPasskeysErrorModel::GetStepDescription() const {
-  return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_ERROR_NO_PASSKEYS_DESCRIPTION,
-                                    GetRelyingPartyIdString(dialog_model()));
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_ERROR_NO_PASSKEYS_DESCRIPTION,
+      GetRelyingPartyIdStringLabel(dialog_model()));
 }
 
 // AuthenticatorNotRegisteredErrorModel ---------------------------------------
@@ -600,7 +631,7 @@ AuthenticatorTouchIdSheetModel::AuthenticatorTouchIdSheetModel(
 }
 
 std::u16string AuthenticatorTouchIdSheetModel::GetStepTitle() const {
-  const std::u16string rp_id = GetRelyingPartyIdString(dialog_model());
+  const std::u16string rp_id = GetRelyingPartyIdStringTitle(dialog_model());
   std::optional<int> id = std::nullopt;
   switch (dialog_model()->request_type) {
     case device::FidoRequestType::kMakeCredential:
@@ -628,7 +659,7 @@ std::u16string AuthenticatorTouchIdSheetModel::GetStepDescription() const {
                  ? std::u16string()
                  : l10n_util::GetStringFUTF16(
                        IDS_WEBAUTHN_TOUCH_ID_ASSERTION_DESC,
-                       GetRelyingPartyIdString(dialog_model()));
+                       GetRelyingPartyIdStringLabel(dialog_model()));
   }
 }
 
@@ -700,7 +731,7 @@ std::u16string AuthenticatorOffTheRecordInterstitialSheetModel::GetStepTitle()
     const {
   return l10n_util::GetStringFUTF16(
       IDS_WEBAUTHN_PLATFORM_AUTHENTICATOR_OFF_THE_RECORD_INTERSTITIAL_TITLE,
-      GetRelyingPartyIdString(dialog_model()));
+      GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string
@@ -757,26 +788,7 @@ std::u16string AuthenticatorPaaskSheetModel::GetStepTitle() const {
 }
 
 std::u16string AuthenticatorPaaskSheetModel::GetStepDescription() const {
-  switch (*dialog_model()->cable_ui_type) {
-    case AuthenticatorRequestDialogModel::CableUIType::CABLE_V1:
-    case AuthenticatorRequestDialogModel::CableUIType::CABLE_V2_SERVER_LINK:
-      // caBLEv1 and v2 server-link don't include device names.
-      return l10n_util::GetStringUTF16(IDS_WEBAUTHN_CABLE_ACTIVATE_DESCRIPTION);
-    case AuthenticatorRequestDialogModel::CableUIType::CABLE_V2_2ND_FACTOR: {
-      DCHECK(dialog_model()->selected_phone_name);
-      return l10n_util::GetStringFUTF16(
-          IDS_WEBAUTHN_CABLE_ACTIVATE_DEVICE_NAME_DESCRIPTION,
-          base::UTF8ToUTF16(dialog_model()->selected_phone_name.value_or("")));
-    }
-  }
-}
-
-bool AuthenticatorPaaskSheetModel::IsManageDevicesButtonVisible() const {
-  return true;
-}
-
-void AuthenticatorPaaskSheetModel::OnManageDevices() {
-  dialog_model()->OnManageDevicesClicked();
+  return l10n_util::GetStringUTF16(IDS_WEBAUTHN_CABLE_ACTIVATE_DESCRIPTION);
 }
 
 // AuthenticatorClientPinEntrySheetModel
@@ -876,6 +888,13 @@ void AuthenticatorClientPinEntrySheetModel::OnAccept() {
   }
 }
 
+bool AuthenticatorClientPinEntrySheetModel::IsOtherMechanismButtonVisible()
+    const {
+  // Always allow restarting the request to select a different security key or
+  // hybrid authenticator.
+  return true;
+}
+
 // AuthenticatorClientPinTapAgainSheetModel ----------------------
 
 AuthenticatorClientPinTapAgainSheetModel::
@@ -894,8 +913,8 @@ bool AuthenticatorClientPinTapAgainSheetModel::IsActivityIndicatorVisible()
 }
 
 std::u16string AuthenticatorClientPinTapAgainSheetModel::GetStepTitle() const {
-  return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_GENERIC_TITLE,
-                                    GetRelyingPartyIdString(dialog_model()));
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_GENERIC_TITLE, GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string AuthenticatorClientPinTapAgainSheetModel::GetStepDescription()
@@ -1044,7 +1063,7 @@ AuthenticatorGenericErrorSheetModel::ForMissingCapability(
       dialog_model,
       l10n_util::GetStringUTF16(IDS_WEBAUTHN_ERROR_MISSING_CAPABILITY_TITLE),
       l10n_util::GetStringFUTF16(IDS_WEBAUTHN_ERROR_MISSING_CAPABILITY_DESC,
-                                 GetRelyingPartyIdString(dialog_model))));
+                                 GetRelyingPartyIdStringLabel(dialog_model))));
 }
 
 // static
@@ -1133,8 +1152,8 @@ AuthenticatorResidentCredentialConfirmationSheetView::GetAcceptButtonLabel()
 
 std::u16string
 AuthenticatorResidentCredentialConfirmationSheetView::GetStepTitle() const {
-  return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_GENERIC_TITLE,
-                                    GetRelyingPartyIdString(dialog_model()));
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_GENERIC_TITLE, GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string
@@ -1186,15 +1205,17 @@ std::u16string AuthenticatorSelectAccountSheetModel::GetStepTitle() const {
   if (dialog_model()->creds.size() > 1) {
     return l10n_util::GetStringUTF16(IDS_WEBAUTHN_CHOOSE_PASSKEY_TITLE);
   }
-  return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_USE_PASSKEY_TITLE,
-                                    GetRelyingPartyIdString(dialog_model()));
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_USE_PASSKEY_TITLE,
+      GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string AuthenticatorSelectAccountSheetModel::GetStepDescription()
     const {
   if (dialog_model()->creds.size() > 1) {
-    return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_CHOOSE_PASSKEY_BODY,
-                                      GetRelyingPartyIdString(dialog_model()));
+    return l10n_util::GetStringFUTF16(
+        IDS_WEBAUTHN_CHOOSE_PASSKEY_BODY,
+        GetRelyingPartyIdStringLabel(dialog_model()));
   }
   return u"";
 }
@@ -1338,8 +1359,9 @@ AuthenticatorCreatePasskeySheetModel::~AuthenticatorCreatePasskeySheetModel() =
     default;
 
 std::u16string AuthenticatorCreatePasskeySheetModel::GetStepTitle() const {
-  return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_CREATE_PASSKEY_TITLE,
-                                    GetRelyingPartyIdString(dialog_model()));
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_CREATE_PASSKEY_TITLE,
+      GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string AuthenticatorCreatePasskeySheetModel::GetStepDescription()
@@ -1373,11 +1395,8 @@ void AuthenticatorCreatePasskeySheetModel::OnAccept() {
 
 AuthenticatorGPMErrorSheetModel::AuthenticatorGPMErrorSheetModel(
     AuthenticatorRequestDialogModel* dialog_model)
-    : AuthenticatorSheetModelBase(
-          dialog_model,
-          base::FeatureList::IsEnabled(device::kWebAuthnNoAccountTimeout)
-              ? OtherMechanismButtonVisibility::kVisible
-              : OtherMechanismButtonVisibility::kHidden) {
+    : AuthenticatorSheetModelBase(dialog_model,
+                                  OtherMechanismButtonVisibility::kVisible) {
   vector_illustrations_.emplace(kPasskeyErrorIcon, kPasskeyErrorDarkIcon);
   if (dialog_model->in_onboarding_flow) {
     RecordOnboardingEvent(webauthn::metrics::OnboardingEvents::kFailure);
@@ -1427,43 +1446,6 @@ std::u16string AuthenticatorGPMConnectingSheetModel::GetStepDescription()
   return u"";
 }
 
-// AuthenticatorPhoneConfirmationSheet --------------------------------
-
-AuthenticatorPhoneConfirmationSheet::AuthenticatorPhoneConfirmationSheet(
-    AuthenticatorRequestDialogModel* dialog_model)
-    : AuthenticatorSheetModelBase(dialog_model,
-                                  OtherMechanismButtonVisibility::kVisible) {
-  vector_illustrations_.emplace(kPasskeyPhoneIcon, kPasskeyPhoneDarkIcon);
-}
-
-AuthenticatorPhoneConfirmationSheet::~AuthenticatorPhoneConfirmationSheet() =
-    default;
-
-std::u16string AuthenticatorPhoneConfirmationSheet::GetStepTitle() const {
-  return l10n_util::GetStringFUTF16(
-      IDS_WEBAUTHN_PHONE_CONFIRMATION_TITLE,
-      base::UTF8ToUTF16(dialog_model()->paired_phone_names.at(0)),
-      GetRelyingPartyIdString(dialog_model()));
-}
-
-std::u16string AuthenticatorPhoneConfirmationSheet::GetStepDescription() const {
-  return u"";
-}
-
-AuthenticatorRequestSheetModel::AcceptButtonState
-AuthenticatorPhoneConfirmationSheet::GetAcceptButtonState() const {
-  return AcceptButtonState::kEnabled;
-}
-
-std::u16string AuthenticatorPhoneConfirmationSheet::GetAcceptButtonLabel()
-    const {
-  return l10n_util::GetStringUTF16(IDS_WEBAUTHN_CONTINUE);
-}
-
-void AuthenticatorPhoneConfirmationSheet::OnAccept() {
-  dialog_model()->ContactPriorityPhone();
-}
-
 // AuthenticatorMultiSourcePickerSheetModel --------------------------------
 
 AuthenticatorMultiSourcePickerSheetModel::
@@ -1499,57 +1481,22 @@ AuthenticatorMultiSourcePickerSheetModel::
     return;
   }
 
-  const std::optional<std::string>& phone_name =
-      dialog_model->priority_phone_name;
-  if (phone_name) {
-    primary_passkeys_label_ = l10n_util::GetStringFUTF16(
-        IDS_WEBAUTHN_FROM_PHONE_LABEL, base::UTF8ToUTF16(*phone_name));
-  }
   for (size_t i = 0; i < dialog_model->mechanisms.size(); ++i) {
-    const AuthenticatorRequestDialogModel::Mechanism& mech =
-        dialog_model->mechanisms[i];
-    if (std::holds_alternative<CredentialMech>(mech.type) &&
-        std::get<CredentialMech>(mech.type).value().source ==
-            device::AuthenticatorType::kPhone) {
-      // There should not be any phone passkeys if the phone name is empty.
-      CHECK(phone_name);
-      primary_passkey_indices_.push_back(i);
-    } else {
-      secondary_passkey_indices_.push_back(i);
-    }
+    secondary_passkey_indices_.push_back(i);
   }
 }
 
 AuthenticatorMultiSourcePickerSheetModel::
     ~AuthenticatorMultiSourcePickerSheetModel() = default;
 
-bool AuthenticatorMultiSourcePickerSheetModel::IsManageDevicesButtonVisible()
-    const {
-  using Mechanism = AuthenticatorRequestDialogModel::Mechanism;
-  // If any phones or passkeys from a phone are shown then also show a button
-  // that goes to the settings page to manage them.
-  return std::ranges::any_of(
-      dialog_model()->mechanisms, [](const Mechanism& mech) {
-        return std::holds_alternative<Mechanism::Phone>(mech.type) ||
-               (std::holds_alternative<Mechanism::Credential>(mech.type) &&
-                std::get<Mechanism::Credential>(mech.type).value().source ==
-                    device::AuthenticatorType::kPhone);
-      });
-}
-
-void AuthenticatorMultiSourcePickerSheetModel::OnManageDevices() {
-  if (dialog_model()) {
-    dialog_model()->OnManageDevicesClicked();
-  }
-}
-
 std::u16string AuthenticatorMultiSourcePickerSheetModel::GetStepTitle() const {
   if (has_passwords_) {
     return u"Use a saved credential for " +
-           GetRelyingPartyIdString(dialog_model()) + u" (UT)";
+           GetRelyingPartyIdStringTitle(dialog_model()) + u" (UT)";
   }
-  return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_CHOOSE_PASSKEY_FOR_RP_TITLE,
-                                    GetRelyingPartyIdString(dialog_model()));
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_CHOOSE_PASSKEY_FOR_RP_TITLE,
+      GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string AuthenticatorMultiSourcePickerSheetModel::GetStepDescription()
@@ -1574,8 +1521,9 @@ AuthenticatorPriorityMechanismSheetModel::
     ~AuthenticatorPriorityMechanismSheetModel() = default;
 
 std::u16string AuthenticatorPriorityMechanismSheetModel::GetStepTitle() const {
-  return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_USE_PASSKEY_TITLE,
-                                    GetRelyingPartyIdString(dialog_model()));
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_USE_PASSKEY_TITLE,
+      GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string AuthenticatorPriorityMechanismSheetModel::GetStepDescription()
@@ -1668,7 +1616,7 @@ std::u16string AuthenticatorGpmPinSheetModelBase::GetStepDescription() const {
     case Mode::kPinEntry:
       return l10n_util::GetStringFUTF16(
           IDS_WEBAUTHN_GPM_ENTER_PIN_DESC,
-          GetRelyingPartyIdString(dialog_model()));
+          GetRelyingPartyIdStringLabel(dialog_model()));
   }
 }
 
@@ -1836,7 +1784,7 @@ std::u16string AuthenticatorGpmArbitraryPinSheetModel::GetAccessibleName()
     case Mode::kPinEntry:
       return l10n_util::GetStringFUTF16(
           IDS_WEBAUTHN_GPM_ENTER_ALPHANUMERIC_PIN_ACCESSIBILITY_WITH_WEBSITE,
-          GetRelyingPartyIdString(dialog_model()));
+          base::UTF8ToUTF16(dialog_model()->relying_party_id));
   }
 }
 
@@ -1918,21 +1866,7 @@ bool AuthenticatorTrustThisComputerAssertionSheetModel::
 
 std::u16string AuthenticatorTrustThisComputerAssertionSheetModel::
     GetOtherMechanismButtonLabel() const {
-  const std::optional<std::string>& phone_name =
-      dialog_model()->priority_phone_name;
-  if (phone_name) {
-    return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_USE_PHONE_WITH_NAME,
-                                      base::UTF8ToUTF16(*phone_name));
-  }
   return l10n_util::GetStringUTF16(IDS_WEBAUTHN_USE_A_DIFFERENT_DEVICE);
-}
-
-void AuthenticatorTrustThisComputerAssertionSheetModel::OnBack() {
-  if (dialog_model()->priority_phone_name) {
-    dialog_model()->ContactPriorityPhone();
-  } else {
-    dialog_model()->StartOver();
-  }
 }
 
 void AuthenticatorTrustThisComputerAssertionSheetModel::OnAccept() {
@@ -1957,8 +1891,9 @@ AuthenticatorCreateGpmPasskeySheetModel::
     ~AuthenticatorCreateGpmPasskeySheetModel() = default;
 
 std::u16string AuthenticatorCreateGpmPasskeySheetModel::GetStepTitle() const {
-  return l10n_util::GetStringFUTF16(IDS_WEBAUTHN_GPM_CREATE_PASSKEY_TITLE,
-                                    GetRelyingPartyIdString(dialog_model()));
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_GPM_CREATE_PASSKEY_TITLE,
+      GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string AuthenticatorCreateGpmPasskeySheetModel::GetStepDescription()
@@ -2156,7 +2091,9 @@ void AuthenticatorGPMLockedPinSheetModel::OnAccept() {
 CombinedSelectorSheetModel::CombinedSelectorSheetModel(
     AuthenticatorRequestDialogModel* dialog_model)
     : AuthenticatorSheetModelBase(dialog_model,
-                                  OtherMechanismButtonVisibility::kHidden) {}
+                                  OtherMechanismButtonVisibility::kHidden) {
+  webauthn::user_actions::RecordCombinedSelectorShown();
+}
 
 CombinedSelectorSheetModel::SelectionStatus
 CombinedSelectorSheetModel::GetSelectionStatus(size_t index) const {
@@ -2176,7 +2113,9 @@ void CombinedSelectorSheetModel::SetSelectionIndex(size_t index) {
 }
 
 std::u16string CombinedSelectorSheetModel::GetStepTitle() const {
-  return u"";
+  return l10n_util::GetStringFUTF16(
+      IDS_WEBAUTHN_SIGN_IN_TO_WEBSITE_DIALOG_TITLE,
+      GetRelyingPartyIdStringTitle(dialog_model()));
 }
 
 std::u16string CombinedSelectorSheetModel::GetStepDescription() const {
@@ -2208,5 +2147,6 @@ std::u16string CombinedSelectorSheetModel::GetAcceptButtonLabel() const {
 
 void CombinedSelectorSheetModel::OnAccept() {
   const auto& mech = dialog_model()->mechanisms.at(selection_index_);
+  webauthn::user_actions::RecordMechanismClick(mech);
   mech.callback.Run();
 }

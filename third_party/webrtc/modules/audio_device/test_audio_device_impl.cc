@@ -9,31 +9,37 @@
  */
 #include "modules/audio_device/test_audio_device_impl.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <utility>
 
 #include "api/array_view.h"
+#include "api/environment/environment.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/units/time_delta.h"
+#include "modules/audio_device/audio_device_buffer.h"
+#include "modules/audio_device/audio_device_generic.h"
 #include "modules/audio_device/include/test_audio_device.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/task_utils/repeating_task.h"
+#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 namespace {
 
 constexpr int kFrameLengthUs = 10000;
 
-}
+}  // namespace
 
 TestAudioDevice::TestAudioDevice(
-    TaskQueueFactory* task_queue_factory,
+    const Environment& env,
     std::unique_ptr<TestAudioDeviceModule::Capturer> capturer,
     std::unique_ptr<TestAudioDeviceModule::Renderer> renderer,
     float speed)
-    : task_queue_factory_(task_queue_factory),
+    : env_(env),
       capturer_(std::move(capturer)),
       renderer_(std::move(renderer)),
       process_interval_us_(kFrameLengthUs / speed),
@@ -58,7 +64,7 @@ TestAudioDevice::TestAudioDevice(
 }
 
 AudioDeviceGeneric::InitStatus TestAudioDevice::Init() {
-  task_queue_ = task_queue_factory_->CreateTaskQueue(
+  task_queue_ = env_.task_queue_factory().CreateTaskQueue(
       "TestAudioDeviceModuleImpl", TaskQueueFactory::Priority::NORMAL);
 
   RepeatingTaskHandle::Start(task_queue_.get(), [this]() {

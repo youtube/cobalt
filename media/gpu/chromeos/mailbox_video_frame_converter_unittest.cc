@@ -11,7 +11,6 @@
 #include <array>
 #include <optional>
 
-#include "base/atomic_sequence_num.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
@@ -33,7 +32,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/gpu_fence.h"
 #include "ui/gfx/gpu_fence_handle.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 using ::testing::_;
 using ::testing::ByMove;
@@ -78,8 +77,6 @@ gfx::GpuMemoryBufferHandle CreatePixmapHandle(const gfx::Size& size,
   }
   native_pixmap_handle.modifier = gfx::NativePixmapHandle::kNoModifier;
   gfx::GpuMemoryBufferHandle handle(std::move(native_pixmap_handle));
-  static base::AtomicSequenceNumber buffer_id_generator;
-  handle.id = gfx::GpuMemoryBufferId(buffer_id_generator.GetNext());
   return handle;
 }
 
@@ -153,13 +150,14 @@ class MockSharedImageInterface : public gpu::SharedImageInterface {
   MOCK_METHOD1(ImportSharedImage,
                scoped_refptr<gpu::ClientSharedImage>(
                    gpu::ExportedSharedImage exported_shared_image));
-  MOCK_METHOD6(CreateSwapChain,
+  MOCK_METHOD7(CreateSwapChain,
                SwapChainSharedImages(viz::SharedImageFormat format,
                                      const gfx::Size& size,
                                      const gfx::ColorSpace& color_space,
                                      GrSurfaceOrigin surface_origin,
                                      SkAlphaType alpha_type,
-                                     gpu::SharedImageUsageSet usage));
+                                     gpu::SharedImageUsageSet usage,
+                                     std::string_view debug_label));
   MOCK_METHOD2(PresentSwapChain,
                void(const gpu::SyncToken& sync_token,
                     const gpu::Mailbox& mailbox));
@@ -329,8 +327,10 @@ TEST_P(MailboxVideoFrameConverterWithUnwrappedFramesTest,
     const auto si_usage = gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
                           gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 
+    auto shared_image_size =
+        needs_detiling ? kCodedSize : gfx::Size(kVisibleRect.size());
     auto shared_image = test_sii_->CreateSharedImage(
-        {viz::MultiPlaneFormat::kNV12, kCodedSize, gfx::ColorSpace(),
+        {viz::MultiPlaneFormat::kNV12, shared_image_size, gfx::ColorSpace(),
          gpu::SharedImageUsageSet(si_usage),
          "MailboxVideoFrameConverterWithUnwrappedFramesTest"},
         gpu::kNullSurfaceHandle, gfx::BufferUsage::GPU_READ,
@@ -360,10 +360,18 @@ TEST_P(MailboxVideoFrameConverterWithUnwrappedFramesTest,
                           shared_image_format,
                           needs_detiling ? kCodedSize : kVisibleRect.size()),
                       /*buffer_handle=*/Matcher<gfx::GpuMemoryBufferHandle>(_)))
-          .WillOnce([&mailboxes_seen_by_gpu_delegate, i](
+          .WillOnce([&mailboxes_seen_by_gpu_delegate, i, shared_image_size](
                         const gpu::SharedImageInfo& si_info,
                         gfx::GpuMemoryBufferHandle buffer_handle) {
-            auto shared_image = gpu::ClientSharedImage::CreateForTesting();
+            gpu::SharedImageMetadata metadata;
+            metadata.format = viz::SinglePlaneFormat::kRGBA_8888;
+            metadata.size = shared_image_size;
+            metadata.color_space = gfx::ColorSpace::CreateSRGB();
+            metadata.surface_origin = kTopLeft_GrSurfaceOrigin;
+            metadata.alpha_type = kOpaque_SkAlphaType;
+            metadata.usage = gpu::SharedImageUsageSet();
+            auto shared_image =
+                gpu::ClientSharedImage::CreateForTesting(metadata);
             mailboxes_seen_by_gpu_delegate[i] = shared_image->mailbox();
             return shared_image;
           });

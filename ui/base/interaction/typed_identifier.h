@@ -13,9 +13,11 @@ namespace ui {
 //
 // Use the DECLARE/DEFINE macros below to create unique identifiers, similarly
 // to how ElementIdentifier, etc. work.
-template <typename Type>
+template <typename T>
 class TypedIdentifier final {
  public:
+  using Type = T;
+
   constexpr TypedIdentifier() = default;
 
   explicit constexpr TypedIdentifier(ElementIdentifier identifier)
@@ -29,10 +31,10 @@ class TypedIdentifier final {
 
   constexpr bool operator!() const { return !identifier_; }
 
-  friend constexpr bool operator==(const TypedIdentifier<Type>&,
-                                   const TypedIdentifier<Type>&) = default;
-  friend constexpr auto operator<=>(const TypedIdentifier<Type>&,
-                                    const TypedIdentifier<Type>&) = default;
+  friend constexpr bool operator==(const TypedIdentifier<T>&,
+                                   const TypedIdentifier<T>&) = default;
+  friend constexpr auto operator<=>(const TypedIdentifier<T>&,
+                                    const TypedIdentifier<T>&) = default;
 
  private:
   ElementIdentifier identifier_;
@@ -40,14 +42,13 @@ class TypedIdentifier final {
 
 template <typename T>
 extern void PrintTo(TypedIdentifier<T> identifier, std::ostream* os) {
-  *os << "TypedIdentifier " << identifier.identifier().GetRawValue() << " ["
-      << identifier.identifier().GetName() << "]";
+  *os << "TypedIdentifier [" << identifier.identifier().GetName() << "]";
 }
 
 template <typename T>
 extern std::ostream& operator<<(std::ostream& os,
                                 TypedIdentifier<T> identifier) {
-  PrintTo(identifier, os);
+  PrintTo(identifier, &os);
   return os;
 }
 

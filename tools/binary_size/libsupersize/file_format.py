@@ -36,9 +36,11 @@ _SECTION_SORT_ORDER = {
     models.SECTION_DATA_REL_RO_LOCAL: 0,
     models.SECTION_DATA_REL_RO: 0,
     models.SECTION_RODATA: 0,
+    models.SECTION_TDATA: 0,
     models.SECTION_TEXT: 0,
     models.SECTION_BSS: 1,
     models.SECTION_BSS_REL_RO: 1,
+    models.SECTION_TBSS: 1,
     models.SECTION_RELRO_PADDING: 1,
     models.SECTION_PART_END: 1,
     models.SECTION_DEX: 2,
@@ -202,6 +204,7 @@ def _SaveSizeInfoToFile(size_info, file_obj):
   raw_symbols = size_info.raw_symbols
 
   num_containers = len(size_info.containers)
+  assert num_containers > 0, 'All containers were filtered out.'
   has_multi_containers = (num_containers > 1)
 
   file_obj.write(_COMMON_HEADER)

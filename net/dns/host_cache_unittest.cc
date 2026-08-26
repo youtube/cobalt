@@ -2509,7 +2509,7 @@ TEST(HostCacheTest, ConvertFromInternalMetadataResult) {
   const std::multimap<HttpsRecordPriority, ConnectionEndpointMetadata>
       kMetadatas{{1, ConnectionEndpointMetadata({"h2", "h3"},
                                                 /*ech_config_list=*/{},
-                                                "target.test")}};
+                                                "target.test", {})}};
   constexpr base::TimeDelta kTtl1 = base::Minutes(45);
   constexpr base::TimeDelta kTtl2 = base::Minutes(40);
   constexpr base::TimeDelta kTtl3 = base::Minutes(55);
@@ -2534,15 +2534,13 @@ TEST(HostCacheTest, ConvertFromInternalMetadataResult) {
   // Expect kTtl2 because it is the min TTL.
   HostCache::Entry expected(OK, kMetadatas, HostCache::Entry::SOURCE_DNS,
                             kTtl2);
-  expected.set_https_record_compatibility(std::vector<bool>{true});
 
   EXPECT_EQ(converted, expected);
 }
 
 // Test the case of compatible HTTPS records but no metadata of use to Chrome.
 // Represented in internal result type as an empty metadata result. Represented
-// in HostCache::Entry as empty metadata with at least one true in
-// `https_record_compatibility_`.
+// in HostCache::Entry as empty metadata.
 TEST(HostCacheTest, ConvertFromCompatibleOnlyInternalMetadataResult) {
   const std::multimap<HttpsRecordPriority, ConnectionEndpointMetadata>
       kMetadatas;
@@ -2570,7 +2568,6 @@ TEST(HostCacheTest, ConvertFromCompatibleOnlyInternalMetadataResult) {
   // Expect kTtl2 because it is the min TTL.
   HostCache::Entry expected(ERR_NAME_NOT_RESOLVED, kMetadatas,
                             HostCache::Entry::SOURCE_DNS, kTtl2);
-  expected.set_https_record_compatibility(std::vector<bool>{true});
 
   EXPECT_EQ(converted, expected);
 }
@@ -2664,11 +2661,57 @@ TEST(HostCacheTest, ConvertFromEmptyInternalResult) {
   EXPECT_EQ(converted, expected);
 }
 
+// Tests that a ConnectionEndpointMetadata containing Trust Anchor IDs can be
+// serialized and deserialized.
+TEST(HostCacheTest, SerializeTrustAnchorIDs) {
+  base::TimeTicks now;
+  base::TimeDelta ttl = base::Seconds(99);
+  HostCache::Key key(url::SchemeHostPort(url::kHttpsScheme, "example.com", 443),
+                     DnsQueryType::A, 0, HostResolverSource::DNS,
+                     NetworkAnonymizationKey());
+  std::string ipv6_alias = "ipv6_alias.test";
+
+  ConnectionEndpointMetadata metadata;
+  metadata.supported_protocol_alpns = {"h3", "h2"};
+  metadata.ech_config_list = {'f', 'o', 'o'};
+  metadata.target_name = ipv6_alias;
+  metadata.trust_anchor_ids = {{0x01, 0x02, 0x03}, {0x02, 0x02}};
+
+  HostCache::Entry metadata_entry(
+      OK,
+      std::multimap<HttpsRecordPriority, ConnectionEndpointMetadata>{
+          {1u, metadata}},
+      HostCache::Entry::SOURCE_DNS);
+
+  HostCache cache(kMaxCacheEntries);
+  cache.Set(key, metadata_entry, now, ttl);
+  ASSERT_EQ(1u, cache.size());
+
+  base::Value::List serialized_cache;
+  cache.GetList(serialized_cache, false /* include_staleness */,
+                HostCache::SerializationType::kRestorable);
+  HostCache restored_cache(kMaxCacheEntries);
+  ASSERT_TRUE(restored_cache.RestoreFromListValue(serialized_cache));
+
+  ASSERT_EQ(1u, restored_cache.size());
+  HostCache::EntryStaleness stale;
+  const std::pair<const HostCache::Key, HostCache::Entry>* result =
+      restored_cache.LookupStale(key, now, &stale);
+
+  ASSERT_TRUE(result);
+  EXPECT_THAT(result->second.GetMetadatas(),
+              testing::ElementsAre(ExpectConnectionEndpointMetadata(
+                  testing::ElementsAre("h3", "h2"),
+                  testing::ElementsAre('f', 'o', 'o'), ipv6_alias,
+                  testing::ElementsAre(std::vector<uint8_t>({0x01, 0x02, 0x03}),
+                                       std::vector<uint8_t>({0x02, 0x02})))));
+}
+
 TEST(HostCacheTest, ConvertFromInternalMergedResult) {
   const std::multimap<HttpsRecordPriority, ConnectionEndpointMetadata>
       kMetadatas{{1, ConnectionEndpointMetadata({"h2", "h3"},
                                                 /*ech_config_list=*/{},
-                                                "target.test")}};
+                                                "target.test", {})}};
   const IPEndPoint kIpv4 =
       IPEndPoint(IPAddress::FromIPLiteral("192.168.1.20").value(), 46);
   const IPEndPoint kIpv6 =
@@ -2712,7 +2755,6 @@ TEST(HostCacheTest, ConvertFromInternalMergedResult) {
   expected.set_ip_endpoints({kIpv6, kIpv4});
   expected.set_canonical_names(std::set<std::string>{"endpoint.test"});
   expected.set_aliases({"endpoint.test", "domain1.test"});
-  expected.set_https_record_compatibility(std::vector<bool>{true});
 
   EXPECT_EQ(converted, expected);
 }
@@ -2721,7 +2763,7 @@ TEST(HostCacheTest, ConvertFromInternalMergedResultWithPartialError) {
   const std::multimap<HttpsRecordPriority, ConnectionEndpointMetadata>
       kMetadatas{{1, ConnectionEndpointMetadata({"h2", "h3"},
                                                 /*ech_config_list=*/{},
-                                                "target.test")}};
+                                                "target.test", {})}};
   const IPEndPoint kIpv6 =
       IPEndPoint(IPAddress::FromIPLiteral("2001:db8:1::").value(), 46);
   constexpr base::TimeDelta kMinTtl = base::Minutes(30);
@@ -2764,7 +2806,6 @@ TEST(HostCacheTest, ConvertFromInternalMergedResultWithPartialError) {
   expected.set_ip_endpoints({kIpv6});
   expected.set_canonical_names(std::set<std::string>{"endpoint.test"});
   expected.set_aliases({"endpoint.test", "domain1.test"});
-  expected.set_https_record_compatibility(std::vector<bool>{true});
 
   EXPECT_EQ(converted, expected);
 }

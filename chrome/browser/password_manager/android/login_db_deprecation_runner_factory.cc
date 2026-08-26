@@ -45,12 +45,7 @@ LoginDbDeprecationRunnerFactory::BuildServiceInstanceForBrowserContext(
   PrefService* prefs = profile->GetPrefs();
 
   // If the client is already migrated there is no need for export.
-  if (password_manager::UsesSplitStoresAndUPMForLocal(prefs)) {
-    return nullptr;
-  }
-
-  if (!base::FeatureList::IsEnabled(
-          password_manager::features::kLoginDbDeprecationAndroid)) {
+  if (password_manager::GetLegacySplitStoresPref(prefs)) {
     return nullptr;
   }
 

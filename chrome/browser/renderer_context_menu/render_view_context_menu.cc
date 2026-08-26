@@ -44,6 +44,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/devtools/devtools_window.h"
+#include "chrome/browser/devtools/features.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_stats.h"
 #include "chrome/browser/glic/glic_enabling.h"
@@ -94,6 +95,7 @@
 #include "chrome/browser/ui/exclusive_access/keyboard_lock_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
+#include "chrome/browser/ui/lens/lens_string_utils.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
@@ -101,14 +103,17 @@
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/side_panel/read_anything/read_anything_side_panel_controller_utils.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webauthn/context_menu_helper.h"
 #include "chrome/browser/ui/webui/history/foreign_session_handler.h"
 #include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
@@ -192,6 +197,7 @@
 #include "content/public/browser/spare_render_process_host_manager.h"
 #include "content/public/browser/ssl_status.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/referrer.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/common/url_utils.h"
@@ -201,7 +207,6 @@
 #include "net/base/network_anonymization_key.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "pdf/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
@@ -247,6 +252,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "chrome/browser/extensions/context_menu_helpers.h"
 #include "chrome/browser/extensions/devtools_util.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/common/extensions/api/url_handlers/url_handlers_parser.h"
@@ -260,8 +266,8 @@
 #endif
 
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 #if BUILDFLAG(ENABLE_PDF)
@@ -657,15 +663,6 @@ PrefService* GetPrefs(content::BrowserContext* context) {
   return user_prefs::UserPrefs::Get(context);
 }
 
-bool ExtensionPatternMatch(const extensions::URLPatternSet& patterns,
-                           const GURL& url) {
-  // No patterns means no restriction, so that implicitly matches.
-  if (patterns.is_empty()) {
-    return true;
-  }
-  return patterns.MatchesURL(url);
-}
-
 content::Referrer CreateReferrer(const GURL& url,
                                  const content::ContextMenuParams& params) {
   const GURL& referring_url = params.frame_url;
@@ -878,10 +875,13 @@ RenderViewContextMenu::RenderViewContextMenu(
     content::RenderFrameHost& render_frame_host,
     const content::ContextMenuParams& params)
     : RenderViewContextMenuBase(render_frame_host, params),
-      extension_items_(browser_context_,
-                       this,
-                       &menu_model_,
-                       base::BindRepeating(MenuItemMatchesParams, params_)),
+      extension_items_(
+          browser_context_,
+          this,
+          &menu_model_,
+          base::BindRepeating(
+              extensions::context_menu_helpers::MenuItemMatchesParams,
+              params_)),
       current_url_(render_frame_host.GetLastCommittedURL()),
       main_frame_url_(render_frame_host.GetMainFrame()->GetLastCommittedURL()),
       profile_link_submenu_model_(this),
@@ -914,131 +914,6 @@ RenderViewContextMenu::~RenderViewContextMenu() = default;
 // Menu construction functions -------------------------------------------------
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-// static
-bool RenderViewContextMenu::ExtensionContextAndPatternMatch(
-    const content::ContextMenuParams& params,
-    const MenuItem::ContextList& contexts,
-    const extensions::URLPatternSet& target_url_patterns) {
-  const bool has_link = !params.link_url.is_empty();
-  const bool has_selection = !params.selection_text.empty();
-  const bool in_subframe = params.is_subframe;
-
-  if (contexts.Contains(MenuItem::ALL) ||
-      (has_selection && contexts.Contains(MenuItem::SELECTION)) ||
-      (params.is_editable && contexts.Contains(MenuItem::EDITABLE)) ||
-      (in_subframe && contexts.Contains(MenuItem::FRAME))) {
-    return true;
-  }
-
-  if (has_link && contexts.Contains(MenuItem::LINK) &&
-      ExtensionPatternMatch(target_url_patterns, params.link_url)) {
-    return true;
-  }
-
-  switch (params.media_type) {
-    case ContextMenuDataMediaType::kImage:
-      if (contexts.Contains(MenuItem::IMAGE) &&
-          ExtensionPatternMatch(target_url_patterns, params.src_url)) {
-        return true;
-      }
-      break;
-
-    case ContextMenuDataMediaType::kVideo:
-      if (contexts.Contains(MenuItem::VIDEO) &&
-          ExtensionPatternMatch(target_url_patterns, params.src_url)) {
-        return true;
-      }
-      break;
-
-    case ContextMenuDataMediaType::kAudio:
-      if (contexts.Contains(MenuItem::AUDIO) &&
-          ExtensionPatternMatch(target_url_patterns, params.src_url)) {
-        return true;
-      }
-      break;
-
-    default:
-      break;
-  }
-
-  // PAGE is the least specific context, so we only examine that if none of the
-  // other contexts apply (except for FRAME, which is included in PAGE for
-  // backwards compatibility).
-  if (!has_link && !has_selection && !params.is_editable &&
-      params.media_type == ContextMenuDataMediaType::kNone &&
-      contexts.Contains(MenuItem::PAGE)) {
-    return true;
-  }
-
-  return false;
-}
-
-// static
-bool RenderViewContextMenu::MenuItemMatchesParams(
-    const content::ContextMenuParams& params,
-    const extensions::MenuItem* item) {
-  bool match = ExtensionContextAndPatternMatch(params, item->contexts(),
-                                               item->target_url_patterns());
-  if (!match) {
-    return false;
-  }
-
-  return ExtensionPatternMatch(item->document_url_patterns(), params.frame_url);
-}
-
-void RenderViewContextMenu::AppendAllExtensionItems() {
-  extension_items_.Clear();
-  extensions::ExtensionRegistry* registry =
-      extensions::ExtensionRegistry::Get(browser_context_);
-
-  MenuManager* menu_manager = MenuManager::Get(browser_context_);
-  if (!menu_manager) {
-    return;
-  }
-
-  std::u16string printable_selection_text = PrintableSelectionText();
-  EscapeAmpersands(&printable_selection_text);
-
-  // Get a list of extension id's that have context menu items, and sort by the
-  // top level context menu title of the extension.
-  std::vector<std::u16string> sorted_menu_titles;
-  std::map<std::u16string, std::vector<const Extension*>>
-      title_to_extensions_map;
-  for (const auto& id : menu_manager->ExtensionIds()) {
-    const Extension* extension =
-        registry->enabled_extensions().GetByID(id.extension_id);
-    // Platform apps have their context menus created directly in
-    // AppendPlatformAppItems.
-    if (extension && !extension->is_platform_app()) {
-      std::u16string menu_title = extension_items_.GetTopLevelContextMenuTitle(
-          id, printable_selection_text);
-      title_to_extensions_map[menu_title].push_back(extension);
-      sorted_menu_titles.push_back(menu_title);
-    }
-  }
-  if (sorted_menu_titles.empty()) {
-    return;
-  }
-
-  const std::string app_locale = g_browser_process->GetApplicationLocale();
-  l10n_util::SortStrings16(app_locale, &sorted_menu_titles);
-  sorted_menu_titles.erase(
-      std::unique(sorted_menu_titles.begin(), sorted_menu_titles.end()),
-      sorted_menu_titles.end());
-
-  int index = 0;
-  for (const auto& title : sorted_menu_titles) {
-    const std::vector<const Extension*>& extensions =
-        title_to_extensions_map[title];
-    for (const Extension* extension : extensions) {
-      MenuItem::ExtensionKey extension_key(extension->id());
-      extension_items_.AppendExtensionItems(extension_key,
-                                            printable_selection_text, &index,
-                                            /*is_action_menu=*/false);
-    }
-  }
-}
-
 void RenderViewContextMenu::AppendCurrentExtensionItems() {
   // Avoid appending extension related items when |extension| is null.
   // For Panel, this happens when the panel is navigated to a url outside of the
@@ -1145,6 +1020,22 @@ void RenderViewContextMenu::IssuePreconnectionToUrl(
   loading_predictor->PreconnectURLIfAllowed(GURL(preconnect_url),
                                             /*allow_credentials=*/true,
                                             network_anonymization_key);
+}
+
+ui::IsNewFeatureAtValue RenderViewContextMenu::GetIsNewFeatureAtValue(
+    const std::string& feature_name) const {
+  Profile* profile = Profile::FromBrowserContext(browser_context_);
+  auto& feature_data =
+      UserEducationServiceFactory::GetForBrowserContext(profile)
+          ->new_badge_registry()
+          ->feature_data();
+  for (const auto& [feature, spec] : feature_data) {
+    if (feature_name == feature->name) {
+      return UserEducationService::MaybeShowNewBadge(browser_context_,
+                                                     *feature);
+    }
+  }
+  return ui::IsNewFeatureAtValue();
 }
 
 bool RenderViewContextMenu::IsInProgressiveWebApp() const {
@@ -1308,7 +1199,8 @@ void RenderViewContextMenu::InitMenu() {
           ContextMenuContentType::ITEM_GROUP_ALL_EXTENSION)) {
     DCHECK(!content_type_->SupportsGroup(
         ContextMenuContentType::ITEM_GROUP_CURRENT_EXTENSION));
-    AppendAllExtensionItems();
+    extensions::context_menu_helpers::PopulateExtensionItems(
+        browser_context_, params_, extension_items_);
   }
 
   if (content_type_->SupportsGroup(
@@ -1586,8 +1478,9 @@ bool RenderViewContextMenu::IsHTML5Fullscreen() const {
     return false;
   }
 
-  FullscreenController* controller =
-      browser->exclusive_access_manager()->fullscreen_controller();
+  FullscreenController* controller = browser->GetFeatures()
+                                         .exclusive_access_manager()
+                                         ->fullscreen_controller();
   return controller->IsTabFullscreen();
 }
 
@@ -1597,8 +1490,9 @@ bool RenderViewContextMenu::IsPressAndHoldEscRequiredToExitFullscreen() const {
     return false;
   }
 
-  KeyboardLockController* controller =
-      browser->exclusive_access_manager()->keyboard_lock_controller();
+  KeyboardLockController* controller = browser->GetFeatures()
+                                           .exclusive_access_manager()
+                                           ->keyboard_lock_controller();
   return controller->RequiresPressAndHoldEscToExit();
 }
 
@@ -2102,7 +1996,9 @@ void RenderViewContextMenu::AppendSearchWebForImageItems() {
         vector_icons::kSearchChromeRefreshIcon;
 #endif
     menu_model_.AddItemWithStringIdAndIcon(
-        search_for_image_idc, IDS_CONTENT_CONTEXT_LENS_OVERLAY,
+        search_for_image_idc,
+        lens::GetLensOverlayImageEntrypointLabelAltIds(
+            IDS_CONTENT_CONTEXT_LENS_OVERLAY),
         ui::ImageModel::FromVectorIcon(icon));
   } else {
     menu_model_.AddItem(
@@ -2179,7 +2075,9 @@ void RenderViewContextMenu::AppendVideoItems() {
           vector_icons::kSearchChromeRefreshIcon;
 #endif
       menu_model_.AddItemWithStringIdAndIcon(
-          search_for_video_frame_idc, IDS_CONTENT_CONTEXT_LENS_OVERLAY,
+          search_for_video_frame_idc,
+          lens::GetLensOverlayVideoEntrypointLabelAltIds(
+              IDS_CONTENT_CONTEXT_LENS_OVERLAY),
           ui::ImageModel::FromVectorIcon(icon));
     } else {
       const auto* provider = GetImageSearchProvider();
@@ -2292,7 +2190,8 @@ void RenderViewContextMenu::AppendExitFullscreenItem() {
   }
 
   // Only show item if in fullscreen mode.
-  if (!browser->exclusive_access_manager()
+  if (!browser->GetFeatures()
+           .exclusive_access_manager()
            ->fullscreen_controller()
            ->IsControllerInitiatedFullscreen()) {
     return;
@@ -2770,7 +2669,9 @@ void RenderViewContextMenu::AppendRegionSearchItem() {
 #endif
     menu_model_.AddItemWithStringIdAndIcon(
         IDC_CONTENT_CONTEXT_LENS_REGION_SEARCH,
-        IDS_CONTENT_CONTEXT_LENS_OVERLAY, ui::ImageModel::FromVectorIcon(icon));
+        lens::GetLensOverlayEntrypointLabelAltIds(
+            IDS_CONTENT_CONTEXT_LENS_OVERLAY),
+        ui::ImageModel::FromVectorIcon(icon));
     const int command_index =
         menu_model_.GetIndexOfCommandId(IDC_CONTENT_CONTEXT_LENS_REGION_SEARCH)
             .value();
@@ -4167,8 +4068,8 @@ void RenderViewContextMenu::ExecOpenCompose() {
         autofill::FieldGlobalId(
             frame_token, autofill::FieldRendererId(params_.field_renderer_id)),
         compose::ComposeManagerImpl::UiEntryPoint::kContextMenu);
-    GetBrowser()->window()->NotifyNewBadgeFeatureUsed(
-        compose::features::kEnableCompose);
+    BrowserUserEducationInterface::From(GetBrowser())
+        ->NotifyNewBadgeFeatureUsed(compose::features::kEnableCompose);
   } else {
     compose::LogOpenComposeDialogResult(
         compose::OpenComposeDialogResult::kNoContentAutofillDriver);
@@ -4339,7 +4240,7 @@ void RenderViewContextMenu::ExecExitFullscreen() {
     NOTREACHED();
   }
 
-  browser->exclusive_access_manager()->ExitExclusiveAccess();
+  browser->GetFeatures().exclusive_access_manager()->ExitExclusiveAccess();
 }
 
 void RenderViewContextMenu::ExecCopyLinkText() {
@@ -4379,15 +4280,19 @@ void RenderViewContextMenu::ExecSearchLensForImage(int event_flags) {
     return;
   }
 
-  bool entered_through_keyboard =
-      IsLensOptionEnteredThroughKeyboard(event_flags);
+  // TODO(crbug.com/428031945): Clean up once LensOverlayKeyboardSelection
+  // lands.
+  bool use_keyboard_accessibility_fallback =
+      IsLensOptionEnteredThroughKeyboard(event_flags) &&
+      !lens::features::IsLensOverlayKeyboardSelectionEnabled();
   bool lens_overlay_for_image_search_enabled =
       GetBrowser()
           ->GetFeatures()
           .lens_overlay_entry_point_controller()
           ->IsEnabled() &&
       lens::features::UseLensOverlayForImageSearch();
-  if (lens_overlay_for_image_search_enabled && !entered_through_keyboard) {
+  if (lens_overlay_for_image_search_enabled &&
+      !use_keyboard_accessibility_fallback) {
     lens::RecordAmbientSearchQuery(
         lens::AmbientSearchEntryPoint::
             CONTEXT_MENU_SEARCH_IMAGE_WITH_LENS_OVERLAY);
@@ -4409,9 +4314,10 @@ void RenderViewContextMenu::ExecSearchLensForImage(int event_flags) {
         weak_pointer_factory_.GetWeakPtr(), std::move(chrome_render_frame),
         tab_bounds, view_bounds, device_scale_factor));
   } else {
-    // When the Lens image search feature is entered via the context menu
-    // with a Keyboard action, use the Lens region search flow through
-    // core_tab_helper instead of the Lens Overlay flow.
+    // If keyboard selection in Lens Overlay is disabled, when the Lens image
+    // search feature is entered via the context menu with a Keyboard action,
+    // use the Lens region search flow through core_tab_helper instead of the
+    // Lens Overlay flow.
     lens::RecordAmbientSearchQuery(
         lens_overlay_for_image_search_enabled
             ? lens::AmbientSearchEntryPoint::
@@ -4454,17 +4360,18 @@ void RenderViewContextMenu::ExecRegionSearch(
           ->GetFeatures()
           .lens_overlay_entry_point_controller()
           ->IsEnabled();
-  // If Lens overlay is enabled, but the user triggered the context menu
-  // option via keyboard, use the Lens region search flow (with results
-  // forced into a new tab) instead of the Lens Overlay flow.
-  // TODO(crbug/353984457): Clean this branching when the new server
-  // results flow is ready.
-  bool entered_through_keyboard =
-      IsLensOptionEnteredThroughKeyboard(event_flags);
+  // If Lens overlay is enabled but keyboard selection is disabled and the user
+  // triggered the context menu option via keyboard, use the Lens region search
+  // flow (with results forced into a new tab) instead of the Lens Overlay flow.
+  // TODO(crbug.com/428031945): Clean up once LensOverlayKeyboardSelection
+  // lands.
+  bool use_keyboard_accessibility_fallback =
+      IsLensOptionEnteredThroughKeyboard(event_flags) &&
+      !lens::features::IsLensOverlayKeyboardSelectionEnabled();
   if (lens_overlay_for_region_search_enabled) {
     UserEducationService::MaybeNotifyNewBadgeFeatureUsed(
         GetBrowserContext(), lens::features::kLensOverlay);
-    if (!entered_through_keyboard) {
+    if (!use_keyboard_accessibility_fallback) {
       lens::RecordAmbientSearchQuery(
           lens::AmbientSearchEntryPoint::
               CONTEXT_MENU_SEARCH_REGION_WITH_LENS_OVERLAY);
@@ -4480,9 +4387,9 @@ void RenderViewContextMenu::ExecRegionSearch(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // If Lens fullscreen search is enabled, we want to send every region search
   // as a fullscreen capture.
-  // TODO(crbug/353984457): Clean this branching when the new server
-  // results flow is ready.
-  const bool use_fullscreen_capture = entered_through_keyboard;
+  // TODO(crbug.com/428031945): Clean up once LensOverlayKeyboardSelection
+  // lands.
+  const bool use_fullscreen_capture = use_keyboard_accessibility_fallback;
 
   if (!lens_region_search_controller_) {
     lens_region_search_controller_ =
@@ -4932,11 +4839,21 @@ void RenderViewContextMenu::OpenLinkInSplitView() {
     }
   } else {  // Create new split tab
     const int active_index = tab_strip_model->active_index();
+    // AddTabAt always adds an unpinned tab so if adding to an index within the
+    // pinned tabs, it will add to the first unpinned index instead.
+    // Additionally, it does not return a tab pointer or index, so we have to
+    // insert at the end of the tab strip, since it is the only place we can
+    // insert a tab and be guaranteed the final destination index is the same as
+    // the provided index.
+    const int new_tab_index = tab_strip_model->count();
     tab_strip_model->delegate()->AddTabAt(
-        params_.link_url, active_index + 1, true,
+        params_.link_url, new_tab_index, false,
         tab_strip_model->GetTabGroupForTab(active_index));
-    tab_strip_model->AddToNewSplit({active_index},
-                                   split_tabs::SplitTabVisualData());
+    tabs::TabInterface* new_tab = tab_strip_model->GetTabAtIndex(new_tab_index);
+    tab_strip_model->AddToNewSplit(
+        {new_tab_index}, split_tabs::SplitTabVisualData(),
+        split_tabs::SplitTabCreatedSource::kLinkContextMenu);
+    tab_strip_model->ActivateTabAt(tab_strip_model->GetIndexOfTab(new_tab));
   }
 }
 #endif  // !BUILDFLAG(IS_ANDROID)

@@ -7,6 +7,9 @@
 
 #import <UIKit/UIKit.h>
 
+// Large height for the keyboard accessory.
+extern const CGFloat kLargeKeyboardAccessoryHeight;
+
 @class FormInputAccessoryView;
 @class FormInputAccessoryViewTextData;
 
@@ -48,9 +51,6 @@
 @end
 
 extern NSString* const kFormInputAccessoryViewAccessibilityID;
-
-// Large height for the keyboard accessory.
-extern CGFloat const kFormInputAccessoryViewLargeHeight;
 
 extern NSString* const
     kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID;

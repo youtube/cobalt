@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/targets.star", "targets")
+load("@chromium-luci//targets.star", "targets")
 
 targets.compile_target(
     name = "all",
@@ -68,6 +68,13 @@ targets.compile_target(
 targets.compile_target(
     name = "cast_browser_apk",
     label = "//chromecast:cast_browser_apk",
+    # All references have been moved to starlark
+    skip_usage_check = True,
+)
+
+targets.compile_target(
+    name = "cast_browser_dist_aar",
+    label = "//chromecast:cast_browser_dist_aar",
     # All references have been moved to starlark
     skip_usage_check = True,
 )
@@ -204,6 +211,13 @@ targets.compile_target(
 targets.compile_target(
     name = "components/openscreen_platform",
     label = "//components/openscreen_platform",
+)
+
+targets.compile_target(
+    name = "content_shell",
+    label = "//content/shell:content_shell",
+    # All references have been moved to starlark
+    skip_usage_check = True,
 )
 
 targets.compile_target(
@@ -445,13 +459,6 @@ targets.compile_target(
 )
 
 targets.compile_target(
-    name = "video_encode_accelerator_tests",
-    label = "//media/gpu/test:video_encode_accelerator_tests",
-    # All references have been moved to starlark
-    skip_usage_check = True,
-)
-
-targets.compile_target(
     name = "video_encode_accelerator_perf_tests",
     label = "//media/gpu/test:video_encode_accelerator_perf_tests",
     # All references have been moved to starlark
@@ -466,13 +473,6 @@ targets.compile_target(
 targets.compile_target(
     name = "chrome/enterprise_companion:all",
     label = "//chrome/enterprise_companion:all",
-    # All references have been moved to starlark
-    skip_usage_check = True,
-)
-
-targets.compile_target(
-    name = "ipc_fuzzer",
-    label = "//tools/ipc_fuzzer/fuzzer:ipc_fuzzer",
     # All references have been moved to starlark
     skip_usage_check = True,
 )

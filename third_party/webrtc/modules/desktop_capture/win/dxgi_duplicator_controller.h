@@ -14,19 +14,21 @@
 #include <d3dcommon.h>
 
 #include <atomic>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "api/scoped_refptr.h"
 #include "modules/desktop_capture/desktop_geometry.h"
 #include "modules/desktop_capture/shared_desktop_frame.h"
-#include "modules/desktop_capture/win/d3d_device.h"
 #include "modules/desktop_capture/win/display_configuration_monitor.h"
 #include "modules/desktop_capture/win/dxgi_adapter_duplicator.h"
 #include "modules/desktop_capture/win/dxgi_context.h"
 #include "modules/desktop_capture/win/dxgi_frame.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/rtc_export.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
@@ -82,7 +84,7 @@ class RTC_EXPORT DxgiDuplicatorController {
   static std::string ResultName(Result result);
 
   // Returns the singleton instance of DxgiDuplicatorController.
-  static webrtc::scoped_refptr<DxgiDuplicatorController> Instance();
+  static scoped_refptr<DxgiDuplicatorController> Instance();
 
   // See ScreenCapturerWinDirectx::IsCurrentSessionSupported().
   static bool IsCurrentSessionSupported();
@@ -132,7 +134,7 @@ class RTC_EXPORT DxgiDuplicatorController {
 
   // scoped_refptr<DxgiDuplicatorController> accesses private AddRef() and
   // Release() functions.
-  friend class webrtc::scoped_refptr<DxgiDuplicatorController>;
+  friend class scoped_refptr<DxgiDuplicatorController>;
 
   // A private constructor to ensure consumers to use
   // DxgiDuplicatorController::Instance().

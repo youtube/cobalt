@@ -53,9 +53,6 @@ class TemplateInfo
 
   inline uint32_t GetHash() const;
 
-  inline bool TryGetIsolate(Isolate** isolate) const;
-  inline Isolate* GetIsolateChecked() const;
-
   using BodyDescriptor = StructBodyDescriptor;
 
   // Whether or not to cache every instance: when we materialize a getter or

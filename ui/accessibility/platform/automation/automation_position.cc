@@ -35,8 +35,9 @@ AutomationPosition::AutomationPosition(const AXNode& node,
 
 AutomationPosition::~AutomationPosition() = default;
 
-// static
-gin::WrapperInfo AutomationPosition::kWrapperInfo = {gin::kEmbedderNativeGin};
+const gin::WrapperInfo* AutomationPosition::wrapper_info() const {
+  return &kWrapperInfo;
+}
 
 gin::ObjectTemplateBuilder AutomationPosition::GetObjectTemplateBuilder(
     v8::Isolate* isolate) {

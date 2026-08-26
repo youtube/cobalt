@@ -42,9 +42,9 @@
 #include "content/browser/webid/test/webid_test_content_browser_client.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
-#include "content/public/browser/federated_auth_autofill_source.h"
-#include "content/public/browser/identity_request_account.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/federated_auth_autofill_source.h"
+#include "content/public/browser/webid/identity_request_account.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -53,7 +53,6 @@
 #include "content/public/test/content_browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/shell/browser/shell.h"
-#include "crypto/ec_private_key.h"
 #include "crypto/sha2.h"
 #include "net/base/features.h"
 #include "net/base/url_util.h"
@@ -113,11 +112,15 @@ constexpr char kJsErrorPrefix[] = "a JavaScript error:";
 // Extracts error from `result` removing `kJsErrorPrefix` and removing leading
 // and trailing whitespace and quotes.
 std::string ExtractJsError(const EvalJsResult& result) {
-  if (!base::StartsWith(result.error, kJsErrorPrefix)) {
-    return result.error;
+  if (result.is_ok()) {
+    return "";
+  }
+  if (!base::StartsWith(result.ExtractError(), kJsErrorPrefix)) {
+    return result.ExtractError();
   }
 
-  std::string error_message = result.error.substr(strlen(kJsErrorPrefix));
+  std::string error_message =
+      result.ExtractError().substr(strlen(kJsErrorPrefix));
   base::TrimString(error_message, "\n \"", &error_message);
   return error_message;
 }
@@ -1268,9 +1271,9 @@ class WebIdDigitalCredentialsBrowserTest : public WebIdBrowserTest {
 std::string BuildDigitalIdentityValidJsRequestDictionary() {
   return R"({
     digital: {
-      providers: [{
+      requests: [{
         protocol: "openid4vp",
-        request: JSON.stringify({
+        data: {
           // Based on https://github.com/openid/OpenID4VP/issues/125
           client_id: "client.example.org",
           client_id_scheme: "web-origin",
@@ -1278,7 +1281,7 @@ std::string BuildDigitalIdentityValidJsRequestDictionary() {
           presentation_definition: {
             // Presentation Exchange request, omitted for brevity
           }
-        })
+        }
       }],
     },
   })";
@@ -1299,7 +1302,7 @@ EvalJsResult EvalJsAndReturnToken(const ToRenderFrameHost& execution_target,
 EvalJsResult RunDigitalIdentityValidRequest(
     const ToRenderFrameHost& execution_target) {
   std::string script = base::StringPrintf(
-      "const {data} = await navigator.identity.get(%s);return data;",
+      "const {data} = await navigator.credentials.get(%s);return data;",
       BuildDigitalIdentityValidJsRequestDictionary().c_str());
   return EvalJsAndReturnToken(execution_target, script);
 }
@@ -1315,10 +1318,10 @@ MATCHER_P(JsonMatches, ref, "") {
   return ref_json.has_value() && (ref_json.value() == arg.ToValue());
 }
 
-// Test that a Verifiable Credential can be requested via the navigator.identity
-// JS API
+// Test that a Verifiable Credential can be requested via the
+// navigator.credentials JS API.
 IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
-                       NavigatorIdentityApi) {
+                       NavigatorCredentialsApi) {
   base::Value kIdentityProviderResponse =
       base::JSONReader::Read(
           R"({"vp_token": "token data" , "presentation_submission":"bar"})")
@@ -1331,15 +1334,15 @@ IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
 
   std::string_view request = R"(
   {
-   "providers": [ {
+   "requests": [ {
       "protocol": "openid4vp",
-      "request": "{
-        \"client_id\": \"client.example.org\",
-        \"client_id_scheme\": \"web-origin\",
-        \"nonce\": \"n-0S6_WzA2Mj\",
-        \"presentation_definition\": {
+      "data": {
+        "client_id": "client.example.org",
+        "client_id_scheme": "web-origin",
+        "nonce": "n-0S6_WzA2Mj",
+        "presentation_definition": {
         }
-      }",
+      },
    } ]
   }
   )";
@@ -1359,55 +1362,6 @@ IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
           }));
 
   EXPECT_EQ(kIdentityProviderResponse, RunDigitalIdentityValidRequest(shell()));
-}
-
-// Test that a Verifiable Credential can be requested via the
-// navigator.credentials JS API too.
-IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
-                       NavigatorCredentialsApi) {
-  base::Value kIdentityProviderResponse =
-      base::JSONReader::Read(
-          R"({"vp_token": "token data" , "presentation_submission":"bar"})")
-          .value();
-
-  idp_server()->SetConfigResponseDetails(BuildValidConfigDetails());
-  MockDigitalIdentityProvider* digital_identity_provider =
-      static_cast<MockDigitalIdentityProvider*>(
-          test_browser_client_->GetDigitalIdentityProviderForTests());
-
-  std::string_view request = R"(
-  {
-   "providers": [ {
-      "protocol": "openid4vp",
-      "request": "{
-        \"client_id\": \"client.example.org\",
-        \"client_id_scheme\": \"web-origin\",
-        \"nonce\": \"n-0S6_WzA2Mj\",
-        \"presentation_definition\": {
-        }
-      }",
-   } ]
-  }
-  )";
-
-  std::string json;
-  // Invalid whitespace and newlines are added to the request string to make it
-  // easier to read in this test, so we remove them before actually making the
-  // JSON comparison in IsJson below.
-  base::RemoveChars(request, "\n ", &json);
-
-  EXPECT_CALL(*digital_identity_provider, Get(_, _, JsonMatches(json), _))
-      .WillOnce(WithArg<3>(
-          [&kIdentityProviderResponse](
-              DigitalIdentityProvider::DigitalIdentityCallback callback) {
-            std::move(callback).Run(DigitalCredential(
-                "openid4vp", kIdentityProviderResponse.Clone()));
-          }));
-
-  std::string script = base::StringPrintf(
-      "const {data} = await navigator.credentials.get(%s);return data;",
-      BuildDigitalIdentityValidJsRequestDictionary().c_str());
-  EXPECT_EQ(kIdentityProviderResponse, EvalJsAndReturnToken(shell(), script));
 }
 
 // Test that when there's a pending mdoc request, a second `get` call should be
@@ -1940,8 +1894,6 @@ std::vector<uint8_t> TestSha256(std::string_view data) {
 class WebIdDelegationBrowserTest : public WebIdBrowserTest {
  public:
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    private_key_ = crypto::ECPrivateKey::Create();
-
     std::vector<base::test::FeatureRef> features;
     features.push_back(features::kFedCm);
     features.push_back(features::kFedCmDelegation);
@@ -2014,7 +1966,7 @@ class WebIdDelegationBrowserTest : public WebIdBrowserTest {
           sdjwt::Jwt jwt;
           jwt.header = *header.ToJson();
           jwt.payload = *payload.ToJson();
-          jwt.Sign(sdjwt::CreateJwtSigner(private_key_->Copy()));
+          jwt.Sign(sdjwt::CreateJwtSigner(private_key_));
 
           sdjwt::SdJwt sd_jwt;
           sd_jwt.jwt = jwt;
@@ -2028,7 +1980,8 @@ class WebIdDelegationBrowserTest : public WebIdBrowserTest {
     idp_server()->SetConfigResponseDetails(config_details);
   }
 
-  std::unique_ptr<crypto::ECPrivateKey> private_key_;
+  crypto::keypair::PrivateKey private_key_{
+      crypto::keypair::PrivateKey::GenerateEcP256()};
 };
 
 IN_PROC_BROWSER_TEST_F(WebIdDelegationBrowserTest, IssueVCs) {
@@ -2059,7 +2012,7 @@ IN_PROC_BROWSER_TEST_F(WebIdDelegationBrowserTest, IssueVCs) {
 
   auto token = EvalJs(shell(), script).ExtractString();
 
-  auto public_key = sdjwt::ExportPublicKey(*private_key_);
+  auto public_key = sdjwt::ExportPublicKey(private_key_);
 
   EXPECT_TRUE(public_key);
 
@@ -2073,8 +2026,9 @@ IN_PROC_BROWSER_TEST_F(WebIdDelegationBrowserTest, IssueVCs) {
   ASSERT_TRUE(ExecJs(shell(), "var aud = '" + BaseRpUrl() + "';"));
 
   // Verify the SD-JWT+KB.
-  EXPECT_THAT(EvalJs(shell(), "main(token, key, aud, '12345')").ExtractList(),
-              testing::UnorderedElementsAre("Sam"));
+  EXPECT_THAT(
+      EvalJs(shell(), "main(token, key, aud, '12345')").TakeValue().TakeList(),
+      testing::UnorderedElementsAre("Sam"));
 }
 
 IN_PROC_BROWSER_TEST_F(WebIdDelegationBrowserTest, ConditionalMediation) {
@@ -2154,7 +2108,7 @@ IN_PROC_BROWSER_TEST_F(WebIdDelegationBrowserTest, ConditionalMediation) {
   modal_loop.Run();
 
   // Verify that the token is correct.
-  auto public_key = sdjwt::ExportPublicKey(*private_key_);
+  auto public_key = sdjwt::ExportPublicKey(private_key_);
   EXPECT_TRUE(public_key);
 
   // Load the key into an object
@@ -2166,7 +2120,8 @@ IN_PROC_BROWSER_TEST_F(WebIdDelegationBrowserTest, ConditionalMediation) {
   // Verify the SD-JWT+KB.
   EXPECT_THAT(
       EvalJs(shell(), "(async () => main(await token, key, aud, '12345'))()")
-          .ExtractList(),
+          .TakeValue()
+          .TakeList(),
       testing::UnorderedElementsAre("Sam"));
 }
 

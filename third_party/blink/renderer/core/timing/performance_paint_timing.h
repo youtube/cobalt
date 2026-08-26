@@ -20,7 +20,7 @@ class CORE_EXPORT PerformancePaintTiming final : public PerformanceEntry {
   PerformancePaintTiming(PaintType,
                          const DOMPaintTimingInfo& paint_timing_info,
                          DOMWindow* source,
-                         bool is_triggered_by_soft_navigation);
+                         uint32_t navigation_id);
   ~PerformancePaintTiming() override;
 
   const AtomicString& entryType() const override;

@@ -23,7 +23,6 @@
 #include "extensions/browser/guest_view/web_view/web_view_permission_helper_delegate.h"
 #include "extensions/browser/guest_view/web_view/web_view_permission_types.h"
 #include "extensions/common/extension_features.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 
@@ -56,6 +55,10 @@ static std::string PermissionTypeToString(WebViewPermissionType type) {
       return webview::kPermissionTypeNewWindow;
     case WEB_VIEW_PERMISSION_TYPE_POINTER_LOCK:
       return webview::kPermissionTypePointerLock;
+    case WEB_VIEW_PERMISSION_TYPE_CLIPBOARD_READ_WRITE:
+      return webview::kPermissionTypeClipboardReadWrite;
+    case WEB_VIEW_PERMISSION_TYPE_CLIPBOARD_SANITIZED_WRITE:
+      return webview::kPermissionTypeClipboardSanitizedWrite;
     default:
       NOTREACHED();
   }
@@ -109,6 +112,14 @@ void RecordUserInitiatedUMA(
         base::RecordAction(
             UserMetricsAction("WebView.PermissionAllow.PointerLock"));
         break;
+      case WEB_VIEW_PERMISSION_TYPE_CLIPBOARD_READ_WRITE:
+        base::RecordAction(
+            UserMetricsAction("WebView.PermissionAllow.ClipboardReadWrite"));
+        break;
+      case WEB_VIEW_PERMISSION_TYPE_CLIPBOARD_SANITIZED_WRITE:
+        base::RecordAction(UserMetricsAction(
+            "WebView.PermissionAllow.ClipboardSanitizedWrite"));
+        break;
       default:
         break;
     }
@@ -151,6 +162,14 @@ void RecordUserInitiatedUMA(
       case WEB_VIEW_PERMISSION_TYPE_POINTER_LOCK:
         base::RecordAction(
             UserMetricsAction("WebView.PermissionDeny.PointerLock"));
+        break;
+      case WEB_VIEW_PERMISSION_TYPE_CLIPBOARD_READ_WRITE:
+        base::RecordAction(
+            UserMetricsAction("WebView.PermissionDeny.ClipboardReadWrite"));
+        break;
+      case WEB_VIEW_PERMISSION_TYPE_CLIPBOARD_SANITIZED_WRITE:
+        base::RecordAction(UserMetricsAction(
+            "WebView.PermissionDeny.ClipboardSanitizedWrite"));
         break;
       default:
         break;
@@ -334,6 +353,22 @@ void WebViewPermissionHelper::RequestFullscreenPermission(
     PermissionResponseCallback callback) {
   web_view_permission_helper_delegate_->RequestFullscreenPermission(
       requesting_origin, std::move(callback));
+}
+
+void WebViewPermissionHelper::RequestClipboardReadWritePermission(
+    const GURL& requesting_frame_url,
+    bool user_gesture,
+    base::OnceCallback<void(bool)> callback) {
+  web_view_permission_helper_delegate_->RequestClipboardReadWritePermission(
+      requesting_frame_url, user_gesture, std::move(callback));
+}
+
+void WebViewPermissionHelper::RequestClipboardSanitizedWritePermission(
+    const GURL& requesting_frame_url,
+    base::OnceCallback<void(bool)> callback) {
+  web_view_permission_helper_delegate_
+      ->RequestClipboardSanitizedWritePermission(requesting_frame_url,
+                                                 std::move(callback));
 }
 
 std::optional<content::PermissionResult>

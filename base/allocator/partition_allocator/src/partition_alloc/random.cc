@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/random.h"
 
 #include <type_traits>
@@ -16,12 +21,12 @@ class RandomGenerator {
  public:
   constexpr RandomGenerator() {}
 
-  uint32_t RandomValue() {
+  uint32_t RandomValue() PA_LOCKS_EXCLUDED(lock_) {
     ::partition_alloc::internal::ScopedGuard guard(lock_);
     return GetGenerator()->RandUint32();
   }
 
-  void SeedForTesting(uint64_t seed) {
+  void SeedForTesting(uint64_t seed) PA_LOCKS_EXCLUDED(lock_) {
     ::partition_alloc::internal::ScopedGuard guard(lock_);
     GetGenerator()->ReseedForTesting(seed);
   }

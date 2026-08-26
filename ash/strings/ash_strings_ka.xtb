@@ -21,7 +21,6 @@
 <translation id="1056898198331236512">გაფრთხილება</translation>
 <translation id="1058009965971887428">გამოხმაურება</translation>
 <translation id="1059120031266247284">თქვენთან გაზიარებული</translation>
-<translation id="1059194134494239015"><ph name="DISPLAY_NAME" />: <ph name="RESOLUTION" /></translation>
 <translation id="1060847216467038176"><ph name="ITEM_LABEL" /> ამოშლის ღილაკით</translation>
 <translation id="1062407476771304334">შეცვლა</translation>
 <translation id="1073899992769346247">გამოცვალეთ ან ხელახლა დამუხტეთ ბატარეა</translation>
@@ -540,7 +539,6 @@
 <translation id="2814448776515246190">ნაწილობრივი აღბეჭდვა</translation>
 <translation id="2819276065543622893">თქვენ ახლა გამოხვალთ.</translation>
 <translation id="2822551631199737692">კამერა გამოიყენება</translation>
-<translation id="2825224105325558319"><ph name="SPECIFIED_RESOLUTION" /> არ არის მხარდაჭერილი <ph name="DISPLAY_NAME" />-ის მიერ. გარჩევადობა შეიცვალა <ph name="FALLBACK_RESOLUTION" />-ზე.</translation>
 <translation id="2825619548187458965">თარო</translation>
 <translation id="2831035692318564937">ჩართული მზის ამოსვლამდე</translation>
 <translation id="2834813915651407382">ახლახან გახსნილი</translation>
@@ -605,8 +603,6 @@
 <translation id="3026897869154397692">დაემატა Calendar-ში</translation>
 <translation id="3033545621352269033">ჩართვა</translation>
 <translation id="3033912566804961911">„<ph name="DESK_NAME" />“-ით გაგრძელება</translation>
-<translation id="3036649622769666520">გახსენით ფაილები</translation>
-<translation id="3038571455154067151">სისტემაში შესასვლელად შეიყვანეთ Family Link-ის წვდომის კოდი მშობლებისთვის</translation>
 <translation id="3039939407102840004">სტილუსის ბატარეა <ph name="PERCENTAGE" /> პროცენტზეა.</translation>
 <translation id="304097922505898963">კლავიშების მალსახმობების აპის გახსნა</translation>
 <translation id="304417730895741346">თქვენ მიერ ჩამაგრებული და გახსნილი აპები თაროზეა. აპი თაროზე რომ ჩაამაგროთ, მარჯვენა ღილაკით დააწკაპუნეთ აპს, ან შეეხეთ სენსორულ პანელს ორი თითით.</translation>
@@ -761,6 +757,7 @@
 <translation id="3552189655002856821">Wi-Fi გამორთულია</translation>
 <translation id="3554215588514239132">დეველოპერის ხელსაწყოების კონსოლის პანელის ან დამალვა</translation>
 <translation id="3554637740840164787"><ph name="ITEM_TITLE" /> ჩამაგრებულია</translation>
+<translation id="3554928024630051016">დამატებით USB მოწყობილობის დასამატებლად ცადეთ ერთ-ერთის გამოერთება და შემდეგ შეაერთეთ ახალი</translation>
 <translation id="3558768885091059911">გსურთ, ჩართოთ წვდომა კამერასა და მიკროფონზე?</translation>
 <translation id="3560174576767922131">ვიდეოს ჩაწერა</translation>
 <translation id="3563775809269155755">ჩართეთ უსადენო ქსელი</translation>
@@ -868,6 +865,7 @@
 <translation id="3861651314799684201">ეკრანის სრულად ჩასაწერად დააჭირეთ Enter-ს</translation>
 <translation id="3870197372373144624">ცადეთ თქვენი მოწყობილობის გამორთვა.</translation>
 <translation id="3879748587602334249">ჩამოტვირთვის მენეჯერი</translation>
+<translation id="3884007280698606545">USB-ს ლიმიტი მიღწეულია</translation>
 <translation id="3886872229787704059">დღეს გახსნილი</translation>
 <translation id="3891340733213178823">დააჭირეთ Ctrl+Shift+Q ორჯერ, რათა გამოხვიდეთ.</translation>
 <translation id="3892148308691398805">ტექსტის კოპირება</translation>
@@ -1012,6 +1010,7 @@
 <translation id="4305817255990598646">გადართვა</translation>
 <translation id="4307713728991152670">თქვენი ტელეფონის ბოლოდროინდელი ფოტოების, მედიაფაილებისა და აპების ნახვის დაყენება</translation>
 <translation id="4312840429157639164">კამერა მიზიდულია ზედა მარჯვენა კუთხეში. ის კონფლიქტშია სისტემის ზედაპირთან.</translation>
+<translation id="4312935606722154789">ორი მომიჯნავე ფანჯრის დაჯგუფება ან დაჯგუფების გაუქმება</translation>
 <translation id="4316910396681052118">ყველა აპი</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Chrome ბრაუზერის ყველა შემოთავაზების დამალვა</translation>
@@ -1451,7 +1450,6 @@
 <translation id="5691772641933328258">თითის ანაბეჭდის ამოცნობა ვერ მოხერხდა</translation>
 <translation id="5693255400847650006">მიკროფონი გამოიყენება</translation>
 <translation id="5699366815052349604">აქტიური ფანჯრების მიმაგრება ყველა სამუშაო მაგიდაზე</translation>
-<translation id="5701785125601597013">სწრაფად გაგზავნეთ შეტყობინებები თქვენი ტელეფონიდან, ან უპასუხეთ მათ, ტელეფონის ცენტრის მეშვეობით</translation>
 <translation id="570390244361237317">ყველა აპი, ყველა აპზე წვდომისთვის ნავიგაცია შეგიძლიათ ისრებიანი კლავიშებით</translation>
 <translation id="5705197514573687092">ფოკუსირების რეჟიმის პარამეტრების ჩვენება. ტაიმერი დაყენებულია: <ph name="FOCUS_DURATION" />.</translation>
 <translation id="5707775774148071965">თქვენს მოწყობილობას აქვს მონაცემების გადაცემის უფრო მაღალი სიჩქარის მხარდაჭერა, ვიდრე თქვენს კაბელს. მოწყობილობის ეფექტურობა შეიძლება შეიზღუდოს.</translation>
@@ -1581,7 +1579,6 @@
 <translation id="6095425951508823973"><ph name="PROVIDER" />-თან კავშირის დამატება</translation>
 <translation id="6099678161144790572">თვის განმავლობაში რედაქტირებული</translation>
 <translation id="6103838137565245112">სისტემა</translation>
-<translation id="610395411842312282">ორი მომიჯნავე ფანჯრის დაჯგუფება</translation>
 <translation id="6108952804512516814">შექმენით ხელოვნური ინტელექტის მეშვეობით</translation>
 <translation id="6114505516289286752"><ph name="LANGUAGE" /> მეტყველების ფაილები ჩამოიტვირთა</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>
@@ -1605,7 +1602,6 @@
 <translation id="6166852626429024716">წამოიწყეთ ძიება თქვენს მოწყობილობაში, აპებში, პარამეტრებსა და ვებში...</translation>
 <translation id="6168318496333165060">დიაგნოსტიკის აპის გახსნა</translation>
 <translation id="6168622430237609329">თქვენი დაინსტალირებული აპები</translation>
-<translation id="6179832488876878285">აქ შეგიძლიათ მნიშვნელოვანი ფაილების ჩამაგრება. დასაწყებად გახსენით ფაილების აპი.</translation>
 <translation id="6180193585172850042">ღილაკი „უკან“</translation>
 <translation id="6180651297859206670">ღილაკი „წინ“</translation>
 <translation id="6182592640011875895">სამუშაო მაგიდის გახსნა</translation>
@@ -1638,7 +1634,6 @@
 <translation id="6267036997247669271"><ph name="NAME" />: გააქტიურება…</translation>
 <translation id="6274202259872570803">სკრინკასტი</translation>
 <translation id="6276708887952587684">გვერდის წყაროს ნახვა</translation>
-<translation id="6284232397434400372">გარჩევადობა შეიცვალა</translation>
 <translation id="6285871695023807425">Calendar-ში დამატება</translation>
 <translation id="6288235558961782912"><ph name="USER_EMAIL_ADDRESS" /> მოგვიანებით მშობლის ნებართვით შეგიძლიათ დაამატოთ.</translation>
 <translation id="6291221004442998378">არ იტენება</translation>
@@ -1686,7 +1681,6 @@
 <translation id="6452181791372256707">უარყოფა</translation>
 <translation id="6453179446719226835">ენა შეიცვალა</translation>
 <translation id="6456096448804832585">ხელმისაწვდომია მხოლოდ პორტრეტი</translation>
-<translation id="6459472438155181876">ეკრანის გაგრძელება <ph name="DISPLAY_NAME" />-მდე</translation>
 <translation id="6464094930452079790">სურათები</translation>
 <translation id="6467290994038932560">ჩართულია <ph name="GAME_APP_NAME" />-ისთვის</translation>
 <translation id="6468406072297048412">{0,plural, =1{დააბრუნეთ მოწყობილობის წინა ვერსია 1 წუთის განმავლობაში}other{დააბრუნეთ მოწყობილობის წინა ვერსია # წუთის განმავლობაში}}</translation>
@@ -1919,6 +1913,7 @@
 <translation id="7240636904654154599">Google Sheet შეიქმნა</translation>
 <translation id="7244725679040769470">დარჩენილია ბატარეის <ph name="PERCENTAGE" />%. მიაერთეთ თქვენი მოწყობილობა ელკვების წყაროს.</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />. გასაახლებლად ეს Chromebook საჭიროებს გადატვირთვას. ამას შეიძლება 1 წუთამდე დრო დასჭირდეს.</translation>
+<translation id="7248100343060254997">ჩემი ეკრანის ძიება</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">უკანა მიკროფონი</translation>
 <translation id="7258828758145722155">გუშინ რედაქტირებული</translation>
@@ -2418,7 +2413,6 @@
 <translation id="8876148469852588625">მოვლენა <ph name="EVENT_POSITION" /> / <ph name="EVENT_TOTAL_COUNT" />-დან</translation>
 <translation id="8876661425082386199">შეამოწმეთ კავშირი</translation>
 <translation id="8877788021141246043">შეხსენების დაყენება</translation>
-<translation id="8878886163241303700">ეკრანის გაშლა</translation>
 <translation id="8885424115080869847">YouTube Music-თან დაკავშირება ვერ მოხერხდა</translation>
 <translation id="888982883502837004">თქვენი მოწყობილობისთვის ხელმისაწვდომია ჩაშენებული პროგრამული უზრუნველყოფის განახლებები. დააწკაპუნეთ გადასახედად და გასაახლებლად.</translation>
 <translation id="8896630965521842259">„<ph name="DESK_TEMPLATE_NAME" />“ სამუდამოდ წაიშლება</translation>

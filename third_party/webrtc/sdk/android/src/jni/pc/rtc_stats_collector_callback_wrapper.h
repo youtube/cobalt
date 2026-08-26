@@ -13,8 +13,10 @@
 
 #include <jni.h>
 
-#include "api/peer_connection_interface.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats_collector_callback.h"
+#include "api/stats/rtc_stats_report.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {
 namespace jni {

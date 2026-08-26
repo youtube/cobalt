@@ -135,7 +135,7 @@ class WasmLoweringReducer : public Next {
     }
   }
 
-  V<Object> REDUCE(AnyConvertExtern)(V<Object> object) {
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, bool is_shared) {
     Label<Object> end_label(&Asm());
     Label<> null_label(&Asm());
     Label<> smi_label(&Asm());
@@ -170,8 +170,13 @@ class WasmLoweringReducer : public Next {
       GOTO(end_label, object);
 
       BIND(convert_to_heap_number_label);
-      V<Object> heap_number = __ template WasmCallBuiltinThroughJumptable<
-          BuiltinCallDescriptor::WasmInt32ToHeapNumber>({int_value});
+      V<Object> heap_number =
+          is_shared
+              ? __ template WasmCallBuiltinThroughJumptable<
+                    BuiltinCallDescriptor::WasmInt32ToSharedHeapNumber>(
+                    {int_value})
+              : __ template WasmCallBuiltinThroughJumptable<
+                    BuiltinCallDescriptor::WasmInt32ToHeapNumber>({int_value});
       GOTO(end_label, heap_number);
     }
 
@@ -296,7 +301,8 @@ class WasmLoweringReducer : public Next {
     return OpIndex::Invalid();
   }
 
-  V<Word> REDUCE(StructAtomicRMW)(V<WasmStructNullable> object, V<Word> value,
+  V<Word> REDUCE(StructAtomicRMW)(V<WasmStructNullable> object, OpIndex value,
+                                  OptionalOpIndex expected,
                                   StructAtomicRMWOp::BinOp bin_op,
                                   const wasm::StructType* type,
                                   wasm::ModuleTypeIndex type_index,
@@ -317,11 +323,18 @@ class WasmLoweringReducer : public Next {
 
     V<WordPtr> offset =
         __ WordPtrConstant(field_offset(type, field_index) - kHeapObjectTag);
-    return __ AtomicRMW(__ BitcastTaggedToWordPtr(object), offset, value,
-                        bin_op, repr.ToRegisterRepresentation(), repr,
-                        implicit_null_check
-                            ? MemoryAccessKind::kProtectedByTrapHandler
-                            : MemoryAccessKind::kNormal);
+    MemoryAccessKind kind = implicit_null_check
+                                ? MemoryAccessKind::kProtectedByTrapHandler
+                                : MemoryAccessKind::kNormal;
+    if (bin_op == StructAtomicRMWOp::BinOp::kCompareExchange) {
+      return __ AtomicCompareExchange(object, offset, expected.value(), value,
+                                      repr.ToRegisterRepresentation(), repr,
+                                      kind, RegisterRepresentation::Tagged());
+    } else {
+      return __ AtomicRMW(object, offset, value, bin_op,
+                          repr.ToRegisterRepresentation(), repr, kind,
+                          RegisterRepresentation::Tagged());
+    }
   }
 
   V<Any> REDUCE(ArrayGet)(V<WasmArrayNullable> array, V<Word32> index,
@@ -354,8 +367,9 @@ class WasmLoweringReducer : public Next {
     return {};
   }
 
-  V<Word> REDUCE(ArrayAtomicRMW)(V<WasmArrayNullable> array, V<Word32> index,
-                                 V<Word> value, ArrayAtomicRMWOp::BinOp bin_op,
+  OpIndex REDUCE(ArrayAtomicRMW)(V<WasmArrayNullable> array, V<Word32> index,
+                                 OpIndex value, OptionalOpIndex expected,
+                                 ArrayAtomicRMWOp::BinOp bin_op,
                                  wasm::ValueType element_type,
                                  AtomicMemoryOrder memory_order) {
     MemoryRepresentation repr = RepresentationFor(element_type, false);
@@ -364,9 +378,16 @@ class WasmLoweringReducer : public Next {
     V<WordPtr> offset = __ WordPtrAdd(
         index_scaled,
         __ WordPtrConstant(WasmArray::kHeaderSize - kHeapObjectTag));
-    return __ AtomicRMW(__ BitcastTaggedToWordPtr(array), offset, value, bin_op,
-                        repr.ToRegisterRepresentation(), repr,
-                        MemoryAccessKind::kNormal);
+    if (bin_op == StructAtomicRMWOp::BinOp::kCompareExchange) {
+      return __ AtomicCompareExchange(array, offset, expected.value(), value,
+                                      repr.ToRegisterRepresentation(), repr,
+                                      MemoryAccessKind::kNormal,
+                                      RegisterRepresentation::Tagged());
+    } else {
+      return __ AtomicRMW(
+          array, offset, value, bin_op, repr.ToRegisterRepresentation(), repr,
+          MemoryAccessKind::kNormal, RegisterRepresentation::Tagged());
+    }
   }
 
   V<Word32> REDUCE(ArrayLength)(V<WasmArrayNullable> array,
@@ -845,6 +866,22 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
+  V<Object> LoadImmediateSuperRTT(V<Map> map) {
+    V<Object> type_info = LoadWasmTypeInfo(map);
+    V<Word32> supertypes_length =
+        __ UntagSmi(__ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
+                            MemoryRepresentation::TaggedSigned(),
+                            WasmTypeInfo::kSupertypesLengthOffset));
+    // Instead of subtracting 1 from {supertypes_length}, subtract the size
+    // of one entry from the offset.
+    constexpr int kOffsetOfLastEntry =
+        WasmTypeInfo::kSupertypesOffset - kTaggedSize;
+    return __ Load(type_info, __ ChangeInt32ToIntPtr(supertypes_length),
+                   LoadOp::Kind::TaggedBase().Immutable(),
+                   MemoryRepresentation::TaggedPointer(), kOffsetOfLastEntry,
+                   kTaggedSizeLog2);
+  }
+
   V<Object> ReduceWasmTypeCastRtt(V<Object> object, OptionalV<Map> rtt,
                                   WasmTypeCheckConfig config) {
     DCHECK(rtt.has_value());
@@ -875,10 +912,20 @@ class WasmLoweringReducer : public Next {
     V<Map> map = __ LoadMapField(object);
 
     DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
-                   config.exactness == kExactMatchOnly);
+                   config.exactness != kMayBeSubtype);
 
     if (config.exactness == kExactMatchOnly) {
       __ TrapIfNot(__ TaggedEqual(map, rtt.value()), TrapId::kTrapIllegalCast);
+      GOTO(end_label);
+    } else if (config.exactness == kExactMatchLastSupertype) {
+      // Check if map instance type identifies a wasm object.
+      if (is_cast_from_any) {
+        V<Word32> is_wasm_obj = IsDataRefMap(map);
+        __ TrapIfNot(is_wasm_obj, TrapId::kTrapIllegalCast);
+      }
+      V<Object> maybe_match = LoadImmediateSuperRTT(map);
+      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt.value()),
+                   TrapId::kTrapIllegalCast);
       GOTO(end_label);
     } else {
       // First, check if types happen to be equal. This has been shown to give
@@ -947,10 +994,18 @@ class WasmLoweringReducer : public Next {
     V<Map> map = __ LoadMapField(object);
 
     DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
-                   config.exactness == kExactMatchOnly);
+                   config.exactness != kMayBeSubtype);
 
     if (config.exactness == kExactMatchOnly) {
       GOTO(end_label, __ TaggedEqual(map, rtt.value()));
+    } else if (config.exactness == kExactMatchLastSupertype) {
+      // Check if map instance type identifies a wasm object.
+      if (is_cast_from_any) {
+        V<Word32> is_wasm_obj = IsDataRefMap(map);
+        GOTO_IF_NOT(LIKELY(is_wasm_obj), end_label, __ Word32Constant(0));
+      }
+      V<Object> maybe_match = LoadImmediateSuperRTT(map);
+      GOTO(end_label, __ TaggedEqual(maybe_match, rtt.value()));
     } else {
       // First, check if types happen to be equal. This has been shown to give
       // large speedups.

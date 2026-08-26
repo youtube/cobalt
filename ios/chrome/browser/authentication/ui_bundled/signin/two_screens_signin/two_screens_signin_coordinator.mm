@@ -208,7 +208,10 @@ using base::UserMetricsAction;
     case kDockingPromo:
     case kBestFeatures:
     case kLensInteractivePromo:
+    case kLensAnimatedPromo:
     case kStepsCompleted:
+    case kGuidedTour:
+    case kSafariImport:
       break;
   }
   NOTREACHED() << static_cast<int>(type);

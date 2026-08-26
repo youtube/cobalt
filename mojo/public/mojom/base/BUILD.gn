@@ -139,6 +139,15 @@ mojom_component("base") {
     {
       types = [
         {
+          mojom = "mojo_base.mojom.Empty"
+          cpp = "::std::monostate"
+        }
+      ]
+      traits_headers = [ "//mojo/public/cpp/base/empty_mojom_traits.h" ]
+    },
+    {
+      types = [
+        {
           mojom = "mojo_base.mojom.FilePath"
           cpp = "::base::FilePath"
         },
@@ -237,17 +246,6 @@ mojom_component("base") {
     },
     {
       types = [
-        {
-          mojom = "mojo_base.mojom.PlatformSharedMemoryHandle"
-          cpp =
-              "::base::subtle::PlatformSharedMemoryRegion::ScopedPlatformHandle"
-          move_only = true
-        },
-        {
-          mojom = "mojo_base.mojom.PlatformSharedMemoryRegion"
-          cpp = "::base::subtle::PlatformSharedMemoryRegion"
-          move_only = true
-        },
         {
           mojom = "mojo_base.mojom.ReadOnlySharedMemoryRegion"
           cpp = "::base::ReadOnlySharedMemoryRegion"
@@ -432,7 +430,7 @@ mojom_component("base") {
     {
       types = [
         {
-          mojom = "mojom_base.mojom.MemoryAllocatorDumpCrossProcessUid"
+          mojom = "mojo_base.mojom.MemoryAllocatorDumpCrossProcessUid"
           cpp = "::base::trace_event::MemoryAllocatorDumpGuid"
         },
       ]
@@ -620,7 +618,7 @@ mojom_component("base") {
       types = [
         {
           mojom = "mojo_base.mojom.BigString"
-          cpp = "::WTF::String"
+          cpp = "::blink::String"
           nullable_is_same_type = true
         },
       ]
@@ -634,13 +632,13 @@ mojom_component("base") {
       types = [
         {
           mojom = "mojo_base.mojom.BigString16"
-          cpp = "::WTF::String"
+          cpp = "::blink::String"
           nullable_is_same_type = true
           force_serialize = true
         },
         {
           mojom = "mojo_base.mojom.String16"
-          cpp = "::WTF::String"
+          cpp = "::blink::String"
           nullable_is_same_type = true
           force_serialize = true
         },

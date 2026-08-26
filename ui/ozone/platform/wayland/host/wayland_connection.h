@@ -57,6 +57,7 @@ class WaylandDataDragController;
 class WaylandEventSource;
 class WaylandOutputManager;
 class WaylandSeat;
+class WaylandTabletManager;
 class WaylandWindowDragController;
 class WaylandZcrColorManager;
 class WaylandZwpPointerConstraints;
@@ -114,17 +115,10 @@ class WaylandConnection {
   zwp_text_input_manager_v1* text_input_manager_v1() const {
     return text_input_manager_v1_.get();
   }
-  zwp_linux_explicit_synchronization_v1* linux_explicit_synchronization_v1()
-      const {
-    return linux_explicit_synchronization_.get();
-  }
   wp_linux_drm_syncobj_manager_v1* linux_drm_syncobj_manager_v1() const {
     return linux_drm_syncobj_manager_.get();
   }
-  bool SupportsExplicitSync() const {
-    return !!linux_explicit_synchronization_v1() ||
-           !!linux_drm_syncobj_manager_v1();
-  }
+  bool SupportsExplicitSync() const { return !!linux_drm_syncobj_manager_v1(); }
   zxdg_decoration_manager_v1* xdg_decoration_manager_v1() const {
     return xdg_decoration_manager_.get();
   }
@@ -155,6 +149,8 @@ class WaylandConnection {
                        const gfx::Point& hotspot_in_dips,
                        int buffer_scale);
 
+  void ResetCursor();
+
   WaylandEventSource* event_source() const { return event_source_.get(); }
 
   WaylandSeat* seat() const { return seat_.get(); }
@@ -164,6 +160,8 @@ class WaylandConnection {
   WaylandOutputManager* wayland_output_manager() const {
     return output_manager_.get();
   }
+
+  WaylandTabletManager* tablet_manager() const { return tablet_manager_.get(); }
 
   // Returns the cursor position, which may be null.
   WaylandCursorPosition* wayland_cursor_position() const {
@@ -302,6 +300,7 @@ class WaylandConnection {
   struct wl_callback* GetSyncCallback();
 
   gl::EGLDisplayPlatform GetNativeDisplay();
+  void SetRenderNodePath(base::ScopedFD& drm_fd, const char* render_node_path);
 
   struct wl_registry* GetRegistry();
 
@@ -324,6 +323,7 @@ class WaylandConnection {
   friend class WaylandDataDeviceManager;
   friend class WaylandOutput;
   friend class WaylandSeat;
+  friend class WaylandTabletManager;
   friend class WaylandZwpPointerConstraints;
   friend class WaylandZwpPointerGestures;
   friend class WaylandZwpRelativePointerManager;
@@ -419,8 +419,6 @@ class WaylandConnection {
       keyboard_shortcuts_inhibit_manager_v1_;
   wl::Object<zwp_text_input_manager_v1> text_input_manager_v1_;
   wl::Object<zwp_text_input_manager_v3> text_input_manager_v3_;
-  wl::Object<zwp_linux_explicit_synchronization_v1>
-      linux_explicit_synchronization_;
   bool enable_linux_drm_syncobj_for_testing_ = false;
   wl::Object<wp_linux_drm_syncobj_manager_v1> linux_drm_syncobj_manager_;
   wl::Object<zxdg_decoration_manager_v1> xdg_decoration_manager_;
@@ -444,6 +442,7 @@ class WaylandConnection {
   std::unique_ptr<WaylandCursor> cursor_;
   std::unique_ptr<WaylandDataDeviceManager> data_device_manager_;
   std::unique_ptr<WaylandOutputManager> output_manager_;
+  std::unique_ptr<WaylandTabletManager> tablet_manager_;
   std::unique_ptr<WaylandCursorPosition> cursor_position_;
   std::unique_ptr<WaylandZcrColorManager> zcr_color_manager_;
   std::unique_ptr<WaylandCursorShape> cursor_shape_;

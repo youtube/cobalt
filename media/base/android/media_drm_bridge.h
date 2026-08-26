@@ -20,7 +20,6 @@
 #include "base/types/expected.h"
 #include "base/types/pass_key.h"
 #include "base/version.h"
-#include "media/base/android/android_util.h"
 #include "media/base/android/media_crypto_context.h"
 #include "media/base/android/media_crypto_context_impl.h"
 #include "media/base/android/media_drm_storage_bridge.h"
@@ -255,13 +254,11 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
   // Called by Java after a MediaCrypto object is created.
   void OnMediaCryptoReady(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_media_drm,
       const base::android::JavaParamRef<jobject>& j_media_crypto);
 
   // Called by Java when we need to send a provisioning request,
   void OnProvisionRequest(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_media_drm,
       const base::android::JavaParamRef<jstring>& j_default_url,
       const base::android::JavaParamRef<jbyteArray>& j_request_data);
 
@@ -269,17 +266,14 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
   // provision() request.
   void OnProvisioningComplete(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_media_drm,
       bool success);
 
   // Callbacks to resolve the promise for |promise_id|.
   void OnPromiseResolved(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_media_drm,
       jint j_promise_id);
   void OnPromiseResolvedWithSession(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_media_drm,
       jint j_promise_id,
       const base::android::JavaParamRef<jbyteArray>& j_session_id);
 
@@ -288,7 +282,6 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
   // TODO(xhwang): Implement Exception code.
   void OnPromiseRejected(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_media_drm,
       jint j_promise_id,
       jint j_system_code,
       const base::android::JavaParamRef<jstring>& j_error_message);
@@ -297,13 +290,11 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
 
   void OnSessionMessage(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_media_drm,
       const base::android::JavaParamRef<jbyteArray>& j_session_id,
       jint j_message_type,
       const base::android::JavaParamRef<jbyteArray>& j_message);
   void OnSessionClosed(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_media_drm,
       const base::android::JavaParamRef<jbyteArray>& j_session_id);
 
   // Called when key statuses of session are changed. |is_key_release| is set to
@@ -311,7 +302,6 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
   // mapped to CDM key status differently (e.g. EXPIRE -> RELEASED).
   void OnSessionKeysChange(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_media_drm,
       const base::android::JavaParamRef<jbyteArray>& j_session_id,
       // List<KeyStatus>
       const base::android::JavaParamRef<jobjectArray>& j_keys_info,
@@ -323,7 +313,6 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
   // indicates that the keys never expire.
   void OnSessionExpirationUpdate(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_media_drm,
       const base::android::JavaParamRef<jbyteArray>& j_session_id,
       jlong expiry_time_ms);
 
@@ -361,7 +350,8 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
   HdcpVersion GetCurrentHdcpLevel();
 
   // A helper method that is called when MediaCrypto is ready.
-  void NotifyMediaCryptoReady(JavaObjectPtr j_media_crypto);
+  void NotifyMediaCryptoReady(
+      base::android::ScopedJavaGlobalRef<jobject> j_media_crypto);
 
   // Sends HTTP provisioning request to a provisioning server.
   void SendProvisioningRequest(const GURL& default_url,
@@ -385,11 +375,10 @@ class MEDIA_EXPORT MediaDrmBridge : public ContentDecryptionModule,
   // Java MediaCrypto instance. Possible values are:
   // !j_media_crypto_:
   //   MediaCrypto creation has not been notified via NotifyMediaCryptoReady().
-  // !j_media_crypto_->is_null():
+  //   Or: MediaCrypto creation failed and it has been notified.
+  // !j_media_crypto_.is_null():
   //   MediaCrypto creation succeeded and it has been notified.
-  // j_media_crypto_->is_null():
-  //   MediaCrypto creation failed and it has been notified.
-  JavaObjectPtr j_media_crypto_;
+  base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 
   // The callback to create a ProvisionFetcher.
   CreateFetcherCB create_fetcher_cb_;

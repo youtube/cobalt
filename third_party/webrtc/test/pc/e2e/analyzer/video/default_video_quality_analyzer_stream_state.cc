@@ -10,9 +10,12 @@
 
 #include "test/pc/e2e/analyzer/video/default_video_quality_analyzer_stream_state.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <set>
 #include <unordered_map>
+#include <utility>
 
 #include "api/units/timestamp.h"
 #include "rtc_base/checks.h"

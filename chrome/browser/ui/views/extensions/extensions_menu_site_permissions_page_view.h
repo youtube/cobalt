@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_MENU_SITE_PERMISSIONS_PAGE_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_MENU_SITE_PERMISSIONS_PAGE_VIEW_H_
 
+#include "base/memory/raw_ptr.h"
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/common/extension_id.h"
 #include "ui/views/view.h"
@@ -18,7 +19,6 @@ class ImageView;
 class Label;
 class RadioButton;
 class ToggleButton;
-class RadioButton;
 }  // namespace views
 
 class Browser;
@@ -58,6 +58,7 @@ class ExtensionsMenuSitePermissionsPageView : public views::View {
   }
   views::RadioButton* GetSiteAccessButtonForTesting(
       extensions::PermissionsManager::UserSiteAccess site_access);
+  views::Label* GetExtensionNameForTesting();
 
  private:
   const raw_ptr<Browser> browser_;

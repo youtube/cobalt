@@ -14,17 +14,9 @@ namespace permissions {
 CapturedSurfaceControlPermissionContext::
     CapturedSurfaceControlPermissionContext(
         content::BrowserContext* browser_context)
-    : PermissionContextBase(
+    : ContentSettingPermissionContextBase(
           browser_context,
           ContentSettingsType::CAPTURED_SURFACE_CONTROL,
           network::mojom::PermissionsPolicyFeature::kCapturedSurfaceControl) {}
-
-void CapturedSurfaceControlPermissionContext::UpdateContentSetting(
-    const PermissionRequestData& request_data,
-    ContentSetting content_setting,
-    bool is_one_time) {
-  permissions::PermissionContextBase::UpdateContentSetting(
-      request_data, content_setting, is_one_time);
-}
 
 }  // namespace permissions

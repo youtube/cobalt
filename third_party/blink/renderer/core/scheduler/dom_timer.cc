@@ -34,6 +34,7 @@
 #include "base/time/time.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/task_type.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_string_trustedhtml.h"
 #include "third_party/blink/renderer/core/core_probes_inl.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
@@ -57,8 +58,6 @@ namespace {
 // that a timeout less than 4ms is increased to 4ms when the nesting level is
 // greater than 5. Since the counters in this file start at 1 (rather than the
 // 0 in the spec), we should use the value 6 here.
-// (The value is still 4 until StandardizedTimerClamping has shipped.)
-constexpr int kMaxTimerNestingLevel = 4;
 constexpr int kSpecCompliantMaxTimerNestingLevel = 6;
 constexpr base::TimeDelta kMinimumInterval = base::Milliseconds(4);
 
@@ -185,9 +184,25 @@ int DOMTimer::setTimeout(ScriptState* script_state,
 
 int DOMTimer::setTimeout(ScriptState* script_state,
                          ExecutionContext& context,
-                         const String& handler,
+                         const V8UnionStringOrTrustedScript* untrusted_handler,
                          int timeout,
-                         const HeapVector<ScriptValue>&) {
+                         const HeapVector<ScriptValue>&,
+                         ExceptionState& exception_state) {
+  // In the current version of the HTML spec, the two setTimeout variants have
+  // been unified, and the Trusted Types check is moved much further down. This
+  // is script-obervable if one tries hard enough, e.g. by having competing
+  // error conditions. Here, we emulate Chrome's existing behaviour precisely.
+  // We leave aligning with the current spec to crbug.com/330516530.
+  //
+  // Spec: https://html.spec.whatwg.org/#timer-initialisation-steps, 9.6.1.4
+  String handler = TrustedTypesCheckForScript(
+      untrusted_handler, &context,
+      context.IsWorkerGlobalScope() ? "WorkerGlobalScope" : "Window",
+      "setTimeout", exception_state);
+  if (exception_state.HadException()) {
+    return 0;
+  }
+
   if (!IsAllowed(context, true, handler)) {
     return 0;
   }
@@ -220,9 +235,20 @@ int DOMTimer::setInterval(ScriptState* script_state,
 
 int DOMTimer::setInterval(ScriptState* script_state,
                           ExecutionContext& context,
-                          const String& handler,
+                          const V8UnionStringOrTrustedScript* untrusted_handler,
                           int timeout,
-                          const HeapVector<ScriptValue>&) {
+                          const HeapVector<ScriptValue>&,
+                          ExceptionState& exception_state) {
+  // Also see DOMTimer::setTimeout.
+  // Spec: https://html.spec.whatwg.org/#timer-initialisation-steps, 9.6.1.4
+  String handler = TrustedTypesCheckForScript(
+      untrusted_handler, &context,
+      context.IsWorkerGlobalScope() ? "WorkerGlobalScope" : "Window",
+      "setInterval", exception_state);
+  if (exception_state.HadException()) {
+    return 0;
+  }
+
   if (!IsAllowed(context, true, handler)) {
     return 0;
   }
@@ -287,10 +313,7 @@ DOMTimer::DOMTimer(ExecutionContext& context,
   bool precise = (timeout < GetMaxHighResolutionInterval()) ||
                  scheduler::IsAlignWakeUpsDisabledForProcess();
 
-  const int max_timer_nesting_level =
-      RuntimeEnabledFeatures::StandardizedTimerClampingEnabled()
-          ? kSpecCompliantMaxTimerNestingLevel
-          : kMaxTimerNestingLevel;
+  const int max_timer_nesting_level = kSpecCompliantMaxTimerNestingLevel;
 
   // Step 11:
   if (nesting_level_ > max_timer_nesting_level && timeout < kMinimumInterval) {
@@ -379,10 +402,7 @@ void DOMTimer::Fired() {
   probe::AsyncTask async_task(context, &async_task_context_,
                               is_interval ? "fired" : nullptr);
 
-  const int max_timer_nesting_level =
-      RuntimeEnabledFeatures::StandardizedTimerClampingEnabled()
-          ? kSpecCompliantMaxTimerNestingLevel
-          : kMaxTimerNestingLevel;
+  const int max_timer_nesting_level = kSpecCompliantMaxTimerNestingLevel;
 
   // Simple case for non-one-shot timers.
   if (IsActive()) {

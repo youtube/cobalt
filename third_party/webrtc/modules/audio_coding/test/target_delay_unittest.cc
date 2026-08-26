@@ -26,7 +26,6 @@
 #include "modules/audio_coding/codecs/pcm16b/pcm16b.h"
 #include "modules/audio_coding/include/audio_coding_module.h"
 #include "test/gtest.h"
-#include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 
@@ -38,9 +37,9 @@ class TargetDelayTest : public ::testing::Test {
                                          NetEq::Config(),
                                          CreateBuiltinAudioDecoderFactory())) {}
 
-  ~TargetDelayTest() {}
+  ~TargetDelayTest() override {}
 
-  void SetUp() {
+  void SetUp() override {
     constexpr int pltype = 108;
     std::map<int, SdpAudioFormat> receive_codecs = {
         {pltype, {"L16", kSampleRateHz, 1}}};

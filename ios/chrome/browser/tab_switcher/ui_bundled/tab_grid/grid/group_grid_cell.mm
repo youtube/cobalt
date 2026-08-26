@@ -12,6 +12,7 @@
 #import "base/notreached.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
+#import "ios/chrome/browser/saved_tab_groups/ui/face_pile_providing.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -29,7 +30,7 @@
 namespace {
 
 // The size of symbol icons.
-NSInteger kIconSymbolPointSize = 13;
+const CGFloat kIconSymbolPointSize = 13;
 
 // Offsets the top and bottom snapshot views.
 const CGFloat kSnapshotViewLeadingOffset = 4;
@@ -41,6 +42,13 @@ const CGFloat kTopBarInset = 10;
 const CGFloat kTopBarLargeInset = 20;
 
 }  // namespace
+
+@interface GroupGridCell ()
+
+// The face pile view.
+@property(nonatomic, strong) UIView* facePile;
+
+@end
 
 @implementation GroupGridCell {
   // The dot/facepile container view constraints enabled under accessibility
@@ -89,10 +97,8 @@ const CGFloat kTopBarLargeInset = 20;
     contentView.layer.masksToBounds = YES;
     [self setupTopBar];
     _groupSnapshotsView = [[TabGroupSnapshotsView alloc]
-        initWithTabSnapshotsAndFavicons:nil
-                                   size:0
-                                  light:self.theme == GridThemeLight
-                                   cell:YES];
+        initWithLightInterface:self.theme == GridThemeLight
+                          cell:YES];
     _groupSnapshotsView.translatesAutoresizingMaskIntoConstraints = NO;
 
     _closeTapTargetButton =
@@ -155,40 +161,17 @@ const CGFloat kTopBarLargeInset = 20;
     [NSLayoutConstraint activateConstraints:constraints];
   }
 
-  if (@available(iOS 17, *)) {
-    [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
-                       withAction:@selector(updateTopBarConstraints)];
-  }
+  [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
+                     withAction:@selector(updateTopBarConstraints)];
   return self;
 }
 
 #pragma mark - UIView
 
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-
-  if (@available(iOS 17, *)) {
-    return;
-  }
-
-  BOOL isPreviousAccessibilityCategory =
-      UIContentSizeCategoryIsAccessibilityCategory(
-          previousTraitCollection.preferredContentSizeCategory);
-  BOOL isCurrentAccessibilityCategory =
-      UIContentSizeCategoryIsAccessibilityCategory(
-          self.traitCollection.preferredContentSizeCategory);
-  if (isPreviousAccessibilityCategory ^ isCurrentAccessibilityCategory) {
-    [self updateTopBarConstraints];
-  }
-}
-#endif
-
 - (void)didMoveToWindow {
+  [super didMoveToWindow];
   if (self.theme == GridThemeLight) {
-    if (@available(iOS 17, *)) {
-      [self updateInterfaceStyleForWindow:self.window];
-    }
+    [self updateInterfaceStyleForWindow:self.window];
   }
 }
 
@@ -205,7 +188,7 @@ const CGFloat kTopBarLargeInset = 20;
   self.selected = NO;
   self.opacity = 1.0;
   self.hidden = NO;
-  self.facePile = nil;
+  self.facePileProvider = nil;
 }
 
 #pragma mark - UIAccessibility
@@ -215,6 +198,8 @@ const CGFloat kTopBarLargeInset = 20;
   // title and close button.
   return YES;
 }
+
+#pragma mark - UIAccessibilityAction
 
 - (NSArray*)accessibilityCustomActions {
   if ([self isInSelectionMode]) {
@@ -233,6 +218,20 @@ const CGFloat kTopBarLargeInset = 20;
 
 #pragma mark - Public
 
+- (void)configureTabSnapshotAndFavicon:
+            (TabSnapshotAndFavicon*)tabSnapshotAndFavicon
+                              tabIndex:(NSInteger)tabIndex {
+  CHECK_LE(tabIndex, _tabsCount);
+  [_groupSnapshotsView configureTabSnapshotAndFavicon:tabSnapshotAndFavicon
+                                             tabIndex:tabIndex];
+}
+
+- (NSArray<UIView*>*)allGroupTabViews {
+  return [_groupSnapshotsView allGroupTabViews];
+}
+
+#pragma mark - Setters
+
 // Updates the theme to either dark or light. Updating is only done if the
 // current theme is not the desired theme.
 - (void)setTheme:(GridTheme)theme {
@@ -245,11 +244,7 @@ const CGFloat kTopBarLargeInset = 20;
   // enough here.
   switch (theme) {
     case GridThemeLight:
-      if (@available(iOS 17, *)) {
-        [self updateInterfaceStyleForWindow:self.window];
-      } else {
-        self.overrideUserInterfaceStyle = UIUserInterfaceStyleLight;
-      }
+      [self updateInterfaceStyleForWindow:self.window];
       _border.layer.borderColor =
           [UIColor colorNamed:kStaticBlue400Color].CGColor;
       break;
@@ -267,30 +262,11 @@ const CGFloat kTopBarLargeInset = 20;
   _groupColor = groupColor;
 }
 
-- (void)configureWithSnapshotsAndFavicons:
-            (NSArray<TabSnapshotAndFavicon*>*)snapshotsAndFavicons
-                           totalTabsCount:(NSInteger)totalTabsCount {
-  CHECK_LE((int)snapshotsAndFavicons.count, totalTabsCount);
-  [_groupSnapshotsView
-      configureTabGroupSnapshotsViewWithTabSnapshotsAndFavicons:
-          snapshotsAndFavicons
-                                                           size:totalTabsCount];
-}
-
-- (NSArray<UIView*>*)allGroupTabViews {
-  return [_groupSnapshotsView allGroupTabViews];
-}
-
-- (void)setTabsCount:(NSInteger)tabsCount {
-  _tabsCount = tabsCount;
-}
-
 - (void)setTitle:(NSString*)title {
   _titleLabel.text = title;
-  self.accessibilityLabel = l10n_util::GetNSStringF(
-      IDS_IOS_TAB_GROUP_CELL_ACCESSIBILITY_TITLE,
-      base::SysNSStringToUTF16(title), base::NumberToString16(_tabsCount));
   _title = [title copy];
+
+  [self updateAccessibilityLabel];
 }
 
 - (UIDragPreviewParameters*)dragPreviewParameters {
@@ -313,10 +289,29 @@ const CGFloat kTopBarLargeInset = 20;
   super.alpha = _opacity;
 }
 
+- (void)setFacePileProvider:(id<FacePileProviding>)facePileProvider {
+  if ([_facePileProvider isEqualFacePileProviding:facePileProvider]) {
+    return;
+  }
+  _facePileProvider = facePileProvider;
+
+  self.facePile = [_facePileProvider facePileView];
+}
+
 - (void)setFacePile:(UIView*)facePile {
   _dotContainer.facePile = facePile;
   _facePile = facePile;
   [self updateTopBarConstraints];
+}
+
+- (void)setTabsCount:(NSInteger)tabsCount {
+  _tabsCount = tabsCount;
+  _groupSnapshotsView.tabsCount = tabsCount;
+}
+
+- (void)setActivityLabelData:(ActivityLabelData*)activityLabelData {
+  [super setActivityLabelData:activityLabelData];
+  [self updateAccessibilityLabel];
 }
 
 #pragma mark - Private
@@ -529,15 +524,13 @@ const CGFloat kTopBarLargeInset = 20;
   if (!window) {
     return;
   }
-  if (@available(iOS 17, *)) {
-    [self.window.windowScene
-        registerForTraitChanges:@[ UITraitUserInterfaceStyle.class ]
-                     withTarget:self
-                         action:@selector(interfaceStyleChangedForWindow:
-                                                         traitCollection:)];
-    self.overrideUserInterfaceStyle =
-        self.window.windowScene.traitCollection.userInterfaceStyle;
-  }
+  [self.window.windowScene
+      registerForTraitChanges:@[ UITraitUserInterfaceStyle.class ]
+                   withTarget:self
+                       action:@selector(interfaceStyleChangedForWindow:
+                                                       traitCollection:)];
+  self.overrideUserInterfaceStyle =
+      self.window.windowScene.traitCollection.userInterfaceStyle;
 }
 
 // Callback for the observation of the user interface style trait of the window
@@ -561,6 +554,21 @@ const CGFloat kTopBarLargeInset = 20;
     [NSLayoutConstraint
         deactivateConstraints:_dotContainerAccessibilityConstraints];
     [NSLayoutConstraint activateConstraints:_dotContainerNormalConstraints];
+  }
+}
+
+// Updates the accessibility label.
+- (void)updateAccessibilityLabel {
+  if (self.activityLabelData) {
+    self.accessibilityLabel = l10n_util::GetNSStringF(
+        IDS_IOS_TAB_GROUP_CELL_UPDATED_ACCESSIBILITY_TITLE,
+        base::SysNSStringToUTF16(self.title),
+        base::NumberToString16(_tabsCount));
+  } else {
+    self.accessibilityLabel =
+        l10n_util::GetNSStringF(IDS_IOS_TAB_GROUP_CELL_ACCESSIBILITY_TITLE,
+                                base::SysNSStringToUTF16(self.title),
+                                base::NumberToString16(_tabsCount));
   }
 }
 

@@ -47,10 +47,27 @@
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/channel_layout.h"
 #include "media/base/limits.h"
-#include "media/base/mac/audio_latency_mac.h"
 #include "media/base/media_switches.h"
 
 namespace media {
+namespace {
+bool IsCatapLoopbackAudioEnabledForDevice(const std::string& device_id) {
+  // TODO(https://crbug.com/425902990): Remove check of
+  // `kLoopbackWithMuteDeviceIdCast` once CatapAudioInputStream is launched
+  // for both Cast and getDisplayMedia.
+  if (!IsMacCatapSystemLoopbackCaptureSupported()) {
+    return false;
+  }
+
+  if (device_id == AudioDeviceDescription::kLoopbackWithMuteDeviceIdCast) {
+    return base::FeatureList::IsEnabled(kMacCatapLoopbackAudioForCast);
+  }
+  if (device_id == AudioDeviceDescription::kLoopbackAllDevicesId) {
+    return base::FeatureList::IsEnabled(kSystemLoopbackAsAecReference);
+  }
+  return base::FeatureList::IsEnabled(kMacCatapLoopbackAudioForScreenShare);
+}
+}  // namespace
 
 // Maximum number of output streams that can be open simultaneously.
 static const int kMaxOutputStreams = 50;
@@ -669,14 +686,10 @@ AudioParameters AudioManagerMac::GetInputStreamParameters(
     const std::string& device_id) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   if (AudioDeviceDescription::IsLoopbackDevice(device_id)) {
-    if (IsMacCatapSystemAudioLoopbackCaptureEnabled()) {
-      AudioDeviceID default_output_device;
-      GetDefaultOutputDevice(&default_output_device);
-      const int loopback_sample_rate =
-          HardwareSampleRateForDevice(default_output_device);
-      return AudioParameters(
-          AudioParameters::AUDIO_PCM_LOW_LATENCY, ChannelLayoutConfig::Stereo(),
-          loopback_sample_rate, kCatapLoopbackFramesPerBuffer);
+    if (IsCatapLoopbackAudioEnabledForDevice(device_id)) {
+      return AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                             ChannelLayoutConfig::Stereo(), kLoopbackSampleRate,
+                             kCatapLoopbackDefaultFramesPerBuffer);
 
     } else {
       return AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
@@ -886,7 +899,7 @@ AudioInputStream* AudioManagerMac::MakeLowLatencyInputStream(
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
 
   if (AudioDeviceDescription::IsLoopbackDevice(device_id)) {
-    if (IsMacCatapSystemAudioLoopbackCaptureEnabled()) {
+    if (IsCatapLoopbackAudioEnabledForDevice(device_id)) {
       return CreateCatapAudioInputStream(
           params, device_id, log_callback,
           base::BindOnce(&AudioManagerBase::ReleaseInputStream,
@@ -1472,6 +1485,23 @@ AudioDeviceID AudioManagerMac::FindFirstOutputSubdevice(
   }
 
   return kAudioObjectUnknown;
+}
+
+// static
+int AudioManagerMac::GetMinAudioBufferSizeMacOS(int min_buffer_size,
+                                                int sample_rate) {
+  int buffer_size = min_buffer_size;
+  if (sample_rate > 48000) {
+    // The default buffer size is too small for higher sample rates and may lead
+    // to glitching.  Adjust upwards by multiples of the default size.
+    if (sample_rate <= 96000) {
+      buffer_size = 2 * limits::kMinAudioBufferSize;
+    } else if (sample_rate <= 192000) {
+      buffer_size = 4 * limits::kMinAudioBufferSize;
+    }
+  }
+  DCHECK_EQ(limits::kMaxWebAudioBufferSize % buffer_size, 0);
+  return buffer_size;
 }
 
 OSStatus AudioManagerMac::GetInputDeviceStreamFormat(

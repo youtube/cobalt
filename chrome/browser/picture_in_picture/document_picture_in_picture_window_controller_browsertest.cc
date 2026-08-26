@@ -12,6 +12,7 @@
 #include "base/path_service.h"
 #include "base/scoped_observation.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
@@ -21,6 +22,7 @@
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/platform_util.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -294,6 +296,10 @@ class DocumentPictureInPictureWindowControllerBrowserTest
   raw_ptr<content::DocumentPictureInPictureWindowController,
           AcrossTasksDanglingUntriaged>
       pip_window_controller_ = nullptr;
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -604,15 +610,18 @@ IN_PROC_BROWSER_TEST_F(DocumentPictureInPictureWindowControllerBrowserTest,
   LoadTabAndEnterPictureInPicture(browser(),
                                   maximum_window_size + gfx::Size(1000, 2000));
 
-  // Confirm that the size of the outer window bounds are equal to the maximum
-  // window size.
+  // Confirm that the size of the outer window bounds are equal to or less than
+  // the maximum size.
   auto* pip_web_contents = window_controller()->GetChildWebContents();
   ASSERT_NE(nullptr, pip_web_contents);
   WaitForPageLoad(pip_web_contents);
 
   auto* browser_view = static_cast<BrowserView*>(
       BrowserWindow::FindBrowserWindowWithWebContents(pip_web_contents));
-  ASSERT_EQ(maximum_window_size, browser_view->GetBounds().size());
+  EXPECT_LE(browser_view->GetBounds().size().width(),
+            maximum_window_size.width());
+  EXPECT_LE(browser_view->GetBounds().size().height(),
+            maximum_window_size.height());
 }
 
 // Context menu should not be shown when right clicking on a document picture in

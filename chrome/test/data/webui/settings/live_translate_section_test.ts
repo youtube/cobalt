@@ -5,17 +5,16 @@
 import 'chrome://settings/lazy_load.js';
 
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import type {LanguageHelper, SettingsLiveTranslateElement} from 'chrome://settings/lazy_load.js';
+import type {SettingsLiveTranslateElement} from 'chrome://settings/lazy_load.js';
 import {CaptionsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
 import {CrSettingsPrefs, loadTimeData} from 'chrome://settings/settings.js';
-import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {fakeDataBind} from 'chrome://webui-test/polymer_test_util.js';
 
 import {TestCaptionsBrowserProxy} from './test_captions_browser_proxy.js';
 
 
 suite('LiveTranslateSection', function() {
-  let languageHelper: LanguageHelper;
   let liveTranslateSection: SettingsLiveTranslateElement;
   let browserProxy: TestCaptionsBrowserProxy;
 
@@ -45,16 +44,14 @@ suite('LiveTranslateSection', function() {
     liveTranslateSection = document.createElement('settings-live-translate');
     liveTranslateSection.prefs = settingsPrefs.prefs;
     fakeDataBind(settingsPrefs, liveTranslateSection, 'prefs');
-    liveTranslateSection.languageHelper = settingsLanguages.languageHelper;
     fakeDataBind(settingsLanguages, liveTranslateSection, 'language-helper');
     document.body.appendChild(liveTranslateSection);
 
     flush();
-    languageHelper = liveTranslateSection.languageHelper;
-    return languageHelper.whenReady();
+    return settingsLanguages.whenReady();
   });
 
-  test('test translate.enable toggle', function() {
+  test('translate.enable toggle', function() {
     const settingsToggle =
         liveTranslateSection.shadowRoot!.querySelector<HTMLElement>(
             '#liveTranslateToggleButton');
@@ -75,5 +72,18 @@ suite('LiveTranslateSection', function() {
             .getPref('accessibility.captions.live_translate_enabled')
             .value;
     assertFalse(newToggleValue);
+  });
+
+  test('aria label for the target language dropdown menu', function() {
+    liveTranslateSection.setPrefValue(
+        'accessibility.captions.live_translate_enabled', true);
+    flush();
+
+    const dropdown = liveTranslateSection.shadowRoot!.querySelector(
+        '#targetLanguageDropdown')!;
+    const select = dropdown.shadowRoot!.querySelector('select')!;
+    const expectedLabel =
+        loadTimeData.getString('captionsLiveTranslateTargetLanguage');
+    assertEquals(expectedLabel, select.getAttribute('aria-label'));
   });
 });

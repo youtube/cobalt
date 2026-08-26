@@ -10,13 +10,14 @@
 
 #include "modules/audio_processing/aec3/echo_remover_metrics.h"
 
-#include <math.h>
-#include <stddef.h>
-
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstddef>
 #include <numeric>
 
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/aec_state.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 #include "system_wrappers/include/metrics.h"

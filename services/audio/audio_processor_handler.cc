@@ -18,6 +18,7 @@ AudioProcessorHandler::AudioProcessorHandler(
     const media::AudioParameters& output_format,
     LogCallback log_callback,
     DeliverProcessedAudioCallback deliver_processed_audio_callback,
+    ReferenceStreamErrorCallback reference_stream_error_callback,
     mojo::PendingReceiver<media::mojom::AudioProcessorControls>
         controls_receiver,
     media::AecdumpRecordingManager* aecdump_recording_manager)
@@ -32,6 +33,8 @@ AudioProcessorHandler::AudioProcessorHandler(
           output_format)),
       deliver_processed_audio_callback_(
           std::move(deliver_processed_audio_callback)),
+      reference_stream_error_callback_(
+          std::move(reference_stream_error_callback)),
       receiver_(this, std::move(controls_receiver)),
       aecdump_recording_manager_(aecdump_recording_manager) {
   DCHECK(settings.NeedWebrtcAudioProcessing());
@@ -67,6 +70,11 @@ void AudioProcessorHandler::OnPlayoutData(const media::AudioBus& audio_bus,
   TRACE_EVENT2("audio", "AudioProcessorHandler::OnPlayoutData", " this ",
                static_cast<void*>(this), "delay", delay.InMillisecondsF());
   audio_processor_->OnPlayoutData(audio_bus, sample_rate, delay);
+}
+
+void AudioProcessorHandler::OnReferenceStreamError() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+  reference_stream_error_callback_.Run();
 }
 
 void AudioProcessorHandler::GetStats(GetStatsCallback callback) {

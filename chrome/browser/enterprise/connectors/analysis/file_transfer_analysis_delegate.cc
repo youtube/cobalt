@@ -227,7 +227,7 @@ bool FileTransferAnalysisDelegate::FileTransferAnalysisResult::IsUnknown()
 // static
 std::unique_ptr<FileTransferAnalysisDelegate>
 FileTransferAnalysisDelegate::Create(
-    safe_browsing::DeepScanAccessPoint access_point,
+    DeepScanAccessPoint access_point,
     storage::FileSystemURL source_url,
     storage::FileSystemURL destination_url,
     Profile* profile,
@@ -347,7 +347,7 @@ void FileTransferAnalysisDelegate::UploadData(
 }
 
 FileTransferAnalysisDelegate::FileTransferAnalysisDelegate(
-    safe_browsing::DeepScanAccessPoint access_point,
+    DeepScanAccessPoint access_point,
     storage::FileSystemURL source_url,
     storage::FileSystemURL destination_url,
     Profile* profile,
@@ -450,8 +450,8 @@ std::string FileTransferAnalysisDelegate::email() const {
   return GetProfileEmail(profile_);
 }
 
-std::string FileTransferAnalysisDelegate::url() const {
-  return "";
+const GURL& FileTransferAnalysisDelegate::url() const {
+  return GURL::EmptyGURL();
 }
 
 const GURL& FileTransferAnalysisDelegate::tab_url() const {
@@ -471,6 +471,10 @@ FileTransferAnalysisDelegate::referrer_chain() const {
 google::protobuf::RepeatedPtrField<std::string>
 FileTransferAnalysisDelegate::frame_url_chain() const {
   return {};
+}
+
+content::WebContents* FileTransferAnalysisDelegate::web_contents() const {
+  return nullptr;
 }
 
 void FileTransferAnalysisDelegate::OnGotFileURLs(

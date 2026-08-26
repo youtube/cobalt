@@ -6,7 +6,6 @@
 
 #include "base/check.h"
 #include "build/build_config.h"
-#include "skia/fontations_feature.h"
 #include "third_party/skia/include/core/SkFont.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
@@ -19,6 +18,7 @@
 #include "base/path_service.h"
 #include "third_party/skia/include/ports/SkFontMgr_android.h"
 #include "third_party/skia/include/ports/SkFontScanner_Fontations.h"
+#include "third_party/skia/include/ports/SkFontScanner_FreeType.h"
 #endif
 
 #if BUILDFLAG(IS_APPLE)
@@ -29,6 +29,7 @@
 #include "third_party/skia/include/ports/SkFontConfigInterface.h"
 #include "third_party/skia/include/ports/SkFontMgr_FontConfigInterface.h"
 #include "third_party/skia/include/ports/SkFontScanner_Fontations.h"
+#include "third_party/skia/include/ports/SkFontScanner_FreeType.h"
 #endif
 
 #if BUILDFLAG(IS_FUCHSIA)
@@ -71,6 +72,7 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
   return SkFontMgr_New_Cobalt();
 #else
 #if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
   // When Cobalt optimized font loading is enabled, configure Skia to use hermetic custom
   // XML font fallbacks (`cobalt_android_fonts.xml`) extracted into the app data directory.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch("enable-optimized-font-loading")) {
@@ -78,34 +80,24 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
     if (base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
       std::string xml_path = app_data_dir.Append("storage").Append("cobalt_android_fonts.xml").value();
       SkFontMgr_Android_CustomFonts custom_fonts;
-      custom_fonts.fSystemFontUse = SkFontMgr_Android_CustomFonts::kOnlyCustom;
+      custom_fonts.fSystemFontUse = SkFontMgr_Android_CustomFonts::kPreferCustom;
       custom_fonts.fBasePath = "/system/fonts/";
       custom_fonts.fFontsXml = xml_path.c_str();
       custom_fonts.fFallbackFontsXml = nullptr;
       custom_fonts.fIsolated = true;
-      if (base::FeatureList::IsEnabled(skia::kFontationsAndroidSystemFonts)) {
-        return SkFontMgr_New_Android(&custom_fonts, SkFontScanner_Make_Fontations());
-      } else {
-        return SkFontMgr_New_Android(&custom_fonts);
-      }
+      return SkFontMgr_New_Android(&custom_fonts,
+                                   SkFontScanner_Make_Fontations());
     }
   }
-  if (base::FeatureList::IsEnabled(skia::kFontationsAndroidSystemFonts)) {
-    return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
-  } else {
-    return SkFontMgr_New_Android(nullptr);
-  }
+#endif  // BUILDFLAG(IS_COBALT)
+  return SkFontMgr_New_Android(nullptr, SkFontScanner_Make_Fontations());
 #elif BUILDFLAG(IS_APPLE)
   return SkFontMgr_New_CoreText(nullptr);
 #elif BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
   sk_sp<SkFontConfigInterface> fci(SkFontConfigInterface::RefGlobal());
-  if (base::FeatureList::IsEnabled(skia::kFontationsLinuxSystemFonts)) {
-    return fci ? SkFontMgr_New_FCI(std::move(fci),
-                                   SkFontScanner_Make_Fontations())
-               : nullptr;
-  } else {
-    return fci ? SkFontMgr_New_FCI(std::move(fci)) : nullptr;
-  }
+  return fci ? SkFontMgr_New_FCI(std::move(fci),
+                                 SkFontScanner_Make_Fontations())
+             : nullptr;
 #elif BUILDFLAG(IS_FUCHSIA)
   fuchsia::fonts::ProviderSyncPtr provider;
   base::ComponentContextForProcess()->svc()->Connect(provider.NewRequest());
@@ -122,12 +114,12 @@ static sk_sp<SkFontMgr> fontmgr_factory() {
 
 sk_sp<SkFontMgr> DefaultFontMgr() {
   static std::once_flag flag;
-  static sk_sp<SkFontMgr> mgr;
+  static SkFontMgr* mgr;
   std::call_once(flag, [] {
-    mgr = fontmgr_factory();
+    mgr = fontmgr_factory().release();
     g_factory_called = true;
   });
-  return mgr;
+  return sk_ref_sp(mgr);
 }
 
 void OverrideDefaultSkFontMgr(sk_sp<SkFontMgr> fontmgr) {

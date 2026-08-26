@@ -10,9 +10,8 @@
 
 #include "modules/audio_coding/neteq/decoder_database.h"
 
-#include <stdlib.h>
-
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 #include <string>
 #include <utility>

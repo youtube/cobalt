@@ -29,8 +29,8 @@ source_set("flags") {
     "//components/enterprise/connectors/core",
     "//components/feature_engagement/public",
     "//components/feed:feature_list",
+    "//components/fingerprinting_protection_filter/common:features",
     "//components/history/core/browser",
-    "//components/invalidation/impl:feature_list",
     "//components/ntp_tiles",
     "//components/omnibox/browser",
     "//components/omnibox/common",
@@ -43,6 +43,7 @@ source_set("flags") {
     "//components/payments/core",
     "//components/policy:generated",
     "//components/policy/core/common:common_constants",
+    "//components/regional_capabilities",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/ios/browser/web_ui:features",
     "//components/search",
@@ -106,7 +107,6 @@ source_set("flags") {
     "//ios/chrome/browser/start_surface/ui_bundled:feature_flags",
     "//ios/chrome/browser/tabs/model/inactive_tabs:features",
     "//ios/chrome/browser/text_selection/model:model_utils",
-    "//ios/chrome/browser/toolbar/ui_bundled/tab_groups:features_utils",
     "//ios/chrome/browser/web/model:feature_flags",
     "//ios/chrome/browser/whats_new/coordinator:util",
     "//ios/components/security_interstitials/https_only_mode:feature",
@@ -140,8 +140,11 @@ source_set("client_side") {
     "//components/variations",
     "//ios/chrome/app:tests_hook",
     "//ios/chrome/browser/first_run/ui_bundled:field_trial",
+    "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/paths",
+    "//ios/chrome/browser/shared/model/utils",
     "//ios/chrome/browser/variations/model:store",
+    "//ios/chrome/common",
   ]
 }
 

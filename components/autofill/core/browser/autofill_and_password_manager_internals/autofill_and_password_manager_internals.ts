@@ -250,7 +250,12 @@ function setUpStopRecording() {
   resetTimeout();
 }
 
-function setUpAutofillInternals(autofillAiEnabled: boolean) {
+interface OnLoadArgument {
+  autofillAiServerModelEnabled: boolean;
+  showDomNodeIDsEnabled: boolean;
+}
+
+function setUpAutofillInternals(onLoadArgument: OnLoadArgument) {
   document.title = 'Autofill Internals';
   getRequiredElement('h1-title').textContent = 'Autofill Internals';
   getRequiredElement('logging-note').innerText =
@@ -262,9 +267,12 @@ function setUpAutofillInternals(autofillAiEnabled: boolean) {
   setUpSettingCheckboxe();
   setUpMarker();
   setUpSubmittedFormsJSONDataDownload();
-  setUpButtonForDomNodeIdCapture();
+  setUpCheckAutofillAiPermissions();
+  if (onLoadArgument.showDomNodeIDsEnabled) {
+    setUpButtonForDomNodeIdCapture();
+  }
   setUpDownload('autofill');
-  if (autofillAiEnabled) {
+  if (onLoadArgument.autofillAiServerModelEnabled) {
     addAutofillTabs();
   }
   setUpStopRecording();
@@ -282,23 +290,11 @@ function setUpPasswordManagerInternals() {
   setUpMarker();
   setUpDownload('password-manager');
   setUpStopRecording();
-  // <if expr="is_android">
-  getRequiredElement('reset-upm-eviction-fake-button').style.display = 'inline';
-  addWebUiListener(
-      'enable-reset-upm-eviction-button', enableResetUpmEvictionButton);
-  // </if>
 }
 
 function enableResetCacheButton() {
   getRequiredElement('reset-cache-fake-button').style.display = 'inline';
 }
-
-// <if expr="is_android">
-function enableResetUpmEvictionButton(isEnabled: boolean) {
-  getRequiredElement('reset-upm-eviction-fake-button').innerText =
-      isEnabled ? 'Reset UPM eviction' : 'Evict from UPM';
-}
-// </if>
 
 function notifyAboutIncognito(isIncognito: boolean) {
   document.body.dataset['incognito'] = isIncognito.toString();
@@ -527,6 +523,16 @@ function setUpSubmittedFormsJSONDataDownload() {
   // </if>
 }
 
+function setUpCheckAutofillAiPermissions() {
+  // <if expr="not is_android and not is_ios" >
+  const button = document.getElementById('check-autofill-ai-permissions')!;
+  button.style.display = 'inline';
+  button.addEventListener('click', () => {
+    chrome.send('checkAutofillAiPermissions');
+  });
+  // </if>
+}
+
 function setUpButtonForDomNodeIdCapture() {
   // <if expr="not is_android and not is_ios" >
   const button = document.getElementById('set-dom-node-id')!;
@@ -725,6 +731,9 @@ document.addEventListener('DOMContentLoaded', () => {
   addWebUiListener('notify-about-variations', notifyAboutVariations);
   addWebUiListener(
       'notify-reset-done', (message: string) => showModalDialog(message));
+  addWebUiListener(
+      'on-autofill-ai-permission-check-done',
+      (message: string) => showModalDialog(message));
   addWebUiListener('add-structured-log', addStructuredLog);
   addWebUiListener('display-autofill-ai-cache', displayAutofillAiCache);
   addWebUiListener('setup-autofill-internals', setUpAutofillInternals);
@@ -736,11 +745,5 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetCacheFakeButton = getRequiredElement('reset-cache-fake-button');
   resetCacheFakeButton.addEventListener('click', () => {
     chrome.send('resetCache');
-  });
-
-  const resetUpmEvictionButton =
-      getRequiredElement('reset-upm-eviction-fake-button');
-  resetUpmEvictionButton.addEventListener('click', () => {
-    chrome.send('resetUpmEviction');
   });
 });

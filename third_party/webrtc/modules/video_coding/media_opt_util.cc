@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/media_opt_util.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>

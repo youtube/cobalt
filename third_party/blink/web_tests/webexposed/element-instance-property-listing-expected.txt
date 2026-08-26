@@ -111,10 +111,11 @@ namespace http://www.w3.org/1999/xhtml
     property computedRole
     property computedStyleMap
     property containerTiming
+    property containerTimingIgnore
     property contains
     property contentEditable
     property currentCSSZoom
-    property customElementRegistry
+    property currentPatch
     property dataset
     property dir
     property dispatchEvent
@@ -303,11 +304,17 @@ namespace http://www.w3.org/1999/xhtml
     property parentElement
     property parentNode
     property part
+    property patchAfter
+    property patchAll
+    property patchBefore
+    property patchBetween
+    property patchSelf
     property popover
     property prefix
     property prepend
     property previousElementSibling
     property previousSibling
+    property pseudo
     property querySelector
     property querySelectorAll
     property releasePointerCapture
@@ -329,6 +336,7 @@ namespace http://www.w3.org/1999/xhtml
     property scrollIntoView
     property scrollIntoViewIfNeeded
     property scrollLeft
+    property scrollParent
     property scrollTo
     property scrollTop
     property scrollWidth
@@ -370,7 +378,7 @@ html element a
     property href
     property hrefTranslate
     property hreflang
-    property interestTargetElement
+    property interestForElement
     property name
     property origin
     property password
@@ -400,7 +408,7 @@ html element area
     property host
     property hostname
     property href
-    property interestTargetElement
+    property interestForElement
     property noHref
     property origin
     property password
@@ -521,7 +529,7 @@ html element button
     property formMethod
     property formNoValidate
     property formTarget
-    property interestTargetElement
+    property interestForElement
     property labels
     property name
     property popoverTargetAction
@@ -674,6 +682,23 @@ html element frameset
     property onunhandledrejection
     property onunload
     property rows
+html element geolocation
+    property autolocate
+    property error
+    property initialPermissionStatus
+    property invalidReason
+    property isValid
+    property ondismiss
+    property onlocation
+    property onpromptaction
+    property onpromptdismiss
+    property onresolve
+    property onvalidationstatuschange
+    property permissionStatus
+    property position
+    property precise
+    property type
+    property watch
 html element h1
     property align
 html element h2
@@ -880,7 +905,8 @@ html element menu
 html element menubar
 html element menuitem
     property checked
-    property defaultChecked
+    property command
+    property commandForElement
     property disabled
 html element menulist
 html element meta
@@ -1121,7 +1147,6 @@ html element template
     property content
     property parseparts
     property shadowRootClonable
-    property shadowRootCustomElementRegistry
     property shadowRootDelegatesFocus
     property shadowRootMode
     property shadowRootSerializable
@@ -1400,9 +1425,10 @@ namespace http://www.w3.org/2000/svg
     property computedRole
     property computedStyleMap
     property containerTiming
+    property containerTimingIgnore
     property contains
     property currentCSSZoom
-    property customElementRegistry
+    property currentPatch
     property dataset
     property dispatchEvent
     property elementTiming
@@ -1575,10 +1601,16 @@ namespace http://www.w3.org/2000/svg
     property parentElement
     property parentNode
     property part
+    property patchAfter
+    property patchAll
+    property patchBefore
+    property patchBetween
+    property patchSelf
     property prefix
     property prepend
     property previousElementSibling
     property previousSibling
+    property pseudo
     property querySelector
     property querySelectorAll
     property releasePointerCapture
@@ -1629,7 +1661,7 @@ svg element a
     property getCTM
     property getScreenCTM
     property href
-    property interestTargetElement
+    property interestForElement
     property nearestViewportElement
     property rel
     property relList

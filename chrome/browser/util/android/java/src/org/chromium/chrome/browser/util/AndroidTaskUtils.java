@@ -12,13 +12,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import android.text.TextUtils;
-import android.util.Log;
 import android.util.Pair;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.Log;
 import org.chromium.base.PackageManagerUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -38,6 +36,8 @@ public class AndroidTaskUtils {
     // versions. However, theoretically this task list could be unbounded, so limit it to a number
     // that won't cause Chrome to blow up in degenerate cases.
     private static final int MAX_NUM_TASKS = 100;
+
+    @Nullable private static AppTask sAppTaskForTesting;
 
     /**
      * Finishes tasks other than the one with the given ID that were started with the given data in
@@ -200,18 +200,23 @@ public class AndroidTaskUtils {
      * @return The {@link AppTask} for a given taskId if found, {@code null} otherwise.
      */
     public static @Nullable AppTask getAppTaskFromId(Context context, int taskId) {
+        if (sAppTaskForTesting != null) {
+            return sAppTaskForTesting;
+        }
+
         ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         for (var appTask : am.getAppTasks()) {
             var taskInfo = appTask.getTaskInfo();
             if (taskInfo == null) continue;
-            int taskInfoId = taskInfo.id;
-            if (VERSION.SDK_INT >= VERSION_CODES.Q) {
-                taskInfoId = taskInfo.taskId;
-            }
+            int taskInfoId = taskInfo.taskId;
             if (taskInfoId == taskId) {
                 return appTask;
             }
         }
         return null;
+    }
+
+    public static void setAppTaskForTesting(@Nullable AppTask task) {
+        sAppTaskForTesting = task;
     }
 }

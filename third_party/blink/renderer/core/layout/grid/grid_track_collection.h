@@ -100,8 +100,14 @@ class CORE_EXPORT GridRangeBuilder {
                            wtf_size_t* grid_item_end_range_index);
 
   // Build the collection of ranges based on information provided through the
-  // specified tracks and |EnsureTrackCoverage|.
-  GridRangeVector FinalizeRanges();
+  // specified tracks and `EnsureTrackCoverage`. If `needs_auto_track_size` is
+  // true, that means we are in a track sizing pass to computed a repeat tack
+  // defintion of auto sized tracks. If `collapsed_track_indexes` is
+  // not nullptr, this method with populate it with the track indexes of all
+  // collapsed tracks.
+  GridRangeVector FinalizeRanges(
+      bool needs_auto_track_size = false,
+      Vector<wtf_size_t>* collapsed_track_indexes = nullptr);
 
  private:
   friend class GridTrackCollectionTest;
@@ -120,8 +126,8 @@ class CORE_EXPORT GridRangeBuilder {
     wtf_size_t* grid_item_range_index_to_cache;
   };
 
-  GridRangeBuilder(const NGGridTrackList& explicit_tracks,
-                   const NGGridTrackList& implicit_tracks,
+  GridRangeBuilder(const GridTrackList& explicit_tracks,
+                   const GridTrackList& implicit_tracks,
                    wtf_size_t auto_repetitions,
                    wtf_size_t start_offset = 0);
 
@@ -131,8 +137,8 @@ class CORE_EXPORT GridRangeBuilder {
   bool must_sort_grid_lines_{false};
 
   // Stores the grid's explicit and implicit tracks.
-  const NGGridTrackList& explicit_tracks_;
-  const NGGridTrackList& implicit_tracks_;
+  const GridTrackList& explicit_tracks_;
+  const GridTrackList& implicit_tracks_;
 
   // Starting and ending tracks mark where ranges will start and end.
   // The corresponding range_index will be written to during |FinalizeRanges|.
@@ -441,18 +447,25 @@ class CORE_EXPORT GridSizingTrackCollection final
   void SetMajorBaseline(wtf_size_t set_index, LayoutUnit candidate_baseline);
   void SetMinorBaseline(wtf_size_t set_index, LayoutUnit candidate_baseline);
 
+  // Return the index of the first auto sized track within an auto repeat
+  // definition.
+  wtf_size_t GetAutoSizedRepeaterTrackIndex() const {
+    return auto_sized_repeater_track_index_;
+  }
+
  private:
   friend class GridLayoutAlgorithmTest;
   friend class GridTrackCollectionTest;
   friend class MasonryLayoutAlgorithmTest;
 
   // These methods are internal implementations also used in testing.
-  void BuildSets(const NGGridTrackList& explicit_track_list,
-                 const NGGridTrackList& implicit_track_list,
+  void BuildSets(const GridTrackList& explicit_track_list,
+                 const GridTrackList& implicit_track_list,
                  bool is_available_size_indefinite = true);
   void InitializeSets(LayoutUnit grid_available_size = kIndefiniteSize);
 
   wtf_size_t non_collapsed_track_count_{0};
+  wtf_size_t auto_sized_repeater_track_index_{kNotFound};
 
   // A vector of every set element that compose the entire collection's ranges;
   // track definitions from the same set are stored in consecutive positions,

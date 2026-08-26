@@ -18,7 +18,7 @@ namespace webrtc {
 
 namespace {
 
-const size_t kHdPixels = 1280 * 720;
+constexpr size_t kHdPixels = 1280 * 720;
 
 const VideoSourceRestrictions kUnlimited;
 const VideoSourceRestrictions k15fps(std::nullopt, std::nullopt, 15.0);

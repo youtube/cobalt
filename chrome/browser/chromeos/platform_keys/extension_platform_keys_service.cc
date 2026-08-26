@@ -24,8 +24,8 @@
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/chromeos/platform_keys/extension_key_permissions_service.h"
 #include "chrome/browser/chromeos/platform_keys/extension_key_permissions_service_factory.h"
-#include "chrome/browser/chromeos/platform_keys/platform_keys.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chromeos/ash/components/platform_keys/platform_keys.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/crosapi/cpp/keystore_service_util.h"
 #include "chromeos/crosapi/mojom/keystore_error.mojom-shared.h"
@@ -878,7 +878,7 @@ class ExtensionPlatformKeysService::SelectTask : public Task {
         std::move(matches_pending_permissions_check_.front());
     matches_pending_permissions_check_.pop_front();
     std::vector<uint8_t> public_key_spki_der =
-        platform_keys::GetSubjectPublicKeyInfoBlob(certificate);
+        platform_keys::GetSubjectPublicKeyInfo(certificate);
 
     extension_key_permissions_service_->CanUseKey(
         public_key_spki_der, /*is_sign_operation=*/true,
@@ -963,7 +963,7 @@ class ExtensionPlatformKeysService::SelectTask : public Task {
       return;
     }
     extension_key_permissions_service_->SetUserGrantedSigningPermission(
-        platform_keys::GetSubjectPublicKeyInfoBlob(selected_cert_),
+        platform_keys::GetSubjectPublicKeyInfo(selected_cert_),
         base::BindOnce(&SelectTask::OnPermissionsUpdated,
                        weak_factory_.GetWeakPtr()));
   }

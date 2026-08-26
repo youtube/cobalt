@@ -14,15 +14,13 @@
 #include <memory>
 #include <string>
 #include <tuple>
-#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/data_channel_interface.h"
-#include "api/field_trials.h"
-#include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/rtc_error.h"
@@ -39,6 +37,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -69,12 +68,12 @@ class PeerConnectionDataChannelOpenTest
   }
 
   scoped_refptr<PeerConnectionTestWrapper> CreatePc(
-      std::unique_ptr<FieldTrialsView> field_trials = nullptr) {
+      absl::string_view field_trials = "") {
     auto pc_wrapper = make_ref_counted<PeerConnectionTestWrapper>(
         "pc", &vss_, background_thread_.get(), background_thread_.get());
     pc_wrapper->CreatePc({}, CreateBuiltinAudioEncoderFactory(),
                          CreateBuiltinAudioDecoderFactory(),
-                         std::move(field_trials));
+                         CreateTestFieldTrialsPtr(field_trials));
     return pc_wrapper;
   }
 
@@ -183,10 +182,8 @@ TEST_P(PeerConnectionDataChannelOpenTest, OpenAtCaller) {
   std::string role_string;
   ASSERT_TRUE(ConnectionRoleToString(role, &role_string));
 
-  scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper =
-      CreatePc(FieldTrials::CreateNoGlobal(trials));
-  scoped_refptr<PeerConnectionTestWrapper> remote_pc_wrapper =
-      CreatePc(FieldTrials::CreateNoGlobal(trials));
+  scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper = CreatePc(trials);
+  scoped_refptr<PeerConnectionTestWrapper> remote_pc_wrapper = CreatePc(trials);
 
   if (!skip_candidates_from_caller) {
     SignalIceCandidates(local_pc_wrapper, remote_pc_wrapper);

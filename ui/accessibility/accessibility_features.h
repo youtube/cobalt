@@ -75,6 +75,11 @@ AX_BASE_EXPORT BASE_DECLARE_FEATURE(
     kAccessibilityPerformanceMeasurementExperiment);
 AX_BASE_EXPORT bool IsAccessibilityPerformanceMeasurementExperimentEnabled();
 
+// Use AXBitset to save boolean attributes in ui/accessibility instead of a
+// vector.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityUseAXBitset);
+AX_BASE_EXPORT bool IsAccessibilityUseAXBitsetEnabled();
+
 enum class AccessibilityPerformanceMeasurementExperimentGroup {
   kAXModeComplete,
   kWebContentsOnly,
@@ -245,6 +250,9 @@ AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForEnhancedNetworkTts();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityManifestV3EspeakNGTts);
 AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForEspeakNGTts();
 
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityManifestV3GoogleTts);
+AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForGoogleTts();
+
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityManifestV3SelectToSpeak);
 AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForSelectToSpeak();
 
@@ -327,6 +335,13 @@ AX_BASE_EXPORT bool IsScreenAIOCREnabled();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kScreenAITestMode);
 AX_BASE_EXPORT bool IsScreenAITestModeEnabled();
 
+#if BUILDFLAG(IS_LINUX)
+// Enables advanced partition allocation checks in ScreenAI service.
+// TODO(crbug.com/418199684): Remove when the bug is fixed.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(
+    kScreenAIPartitionAllocAdvancedChecksEnabled);
+#endif  // BUILDFLAG(IS_LINUX)
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)
@@ -348,9 +363,9 @@ AX_BASE_EXPORT bool IsBlockRootWindowAccessibleNameChangeEventEnabled();
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-// Enable the component updater to download the wasm tts engine component.
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(kWasmTtsComponentUpdaterEnabled);
-AX_BASE_EXPORT bool IsWasmTtsComponentUpdaterEnabled();
+// Use the v3 version of the wasm tts engine component.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kWasmTtsComponentUpdaterV3Enabled);
+AX_BASE_EXPORT bool IsWasmTtsComponentUpdaterV3Enabled();
 // Disable the wasm tts engine component to use dev version local extension
 // files.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kWasmTtsEngineAutoInstallDisabled);

@@ -22,13 +22,11 @@
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "pc/media_factory.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/crypto_random.h"
 #include "rtc_base/internal/default_socket_server.h"
 #include "rtc_base/network.h"
 #include "rtc_base/socket_factory.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -139,8 +137,6 @@ ConnectionContext::ConnectionContext(
           }
         });
   }
-
-  InitRandom(Time32());
 
   SocketFactory* socket_factory = dependencies->socket_factory;
   if (socket_factory == nullptr) {

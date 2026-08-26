@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "device/fido/virtual_ctap2_device.h"
 
 #include <algorithm>
@@ -16,6 +11,7 @@
 #include <string>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
@@ -28,9 +24,9 @@
 #include "components/apdu/apdu_response.h"
 #include "components/cbor/reader.h"
 #include "components/cbor/writer.h"
-#include "crypto/ec_private_key.h"
 #include "crypto/hash.h"
-#include "crypto/sha2.h"
+#include "crypto/keypair.h"
+#include "crypto/sign.h"
 #include "device/fido/authenticator_get_assertion_response.h"
 #include "device/fido/authenticator_make_credential_response.h"
 #include "device/fido/authenticator_supported_options.h"
@@ -902,8 +898,8 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::CheckUserVerification(
   if (mutable_state()->pin_uv_token_rpid &&
       rp_id != mutable_state()->pin_uv_token_rpid) {
     // Invalidate the PIN token.
-    memset(mutable_state()->pin_token, 0xff,
-           sizeof(mutable_state()->pin_token));
+    UNSAFE_TODO(memset(mutable_state()->pin_token, 0xff,
+                       sizeof(mutable_state()->pin_token)));
     mutable_state()->pin_uv_token_permissions = 0;
     mutable_state()->pin_uv_token_rpid.reset();
   }
@@ -1203,7 +1199,7 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnMakeCredential(
   }
 
   // Our key handles are simple hashes of the public key.
-  const auto key_handle = crypto::SHA256Hash(public_key->cose_key_bytes);
+  const auto key_handle = crypto::hash::Sha256(public_key->cose_key_bytes);
 
   std::optional<cbor::Value> extensions;
   cbor::Value::MapValue extensions_map;
@@ -1314,14 +1310,14 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnMakeCredential(
   // deterministic behavior.
   std::vector<uint8_t> sig;
   if (!config_.none_attestation) {
-    std::unique_ptr<crypto::ECPrivateKey> attestation_private_key =
-        crypto::ECPrivateKey::CreateFromPrivateKeyInfo(GetAttestationKey());
+    auto key =
+        crypto::keypair::PrivateKey::FromPrivateKeyInfo(GetAttestationKey());
+    CHECK(key && key->IsEc());
     if (mutable_state()->ctap2_invalid_signature) {
       sig = {0x00};
     } else {
-      bool status =
-          Sign(attestation_private_key.get(), std::move(sign_buffer), &sig);
-      DCHECK(status);
+      sig = crypto::sign::Sign(crypto::sign::SignatureKind::ECDSA_SHA256, *key,
+                               sign_buffer);
     }
   }
 
@@ -1618,11 +1614,11 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnGetAssertion(
     }
 
     hmac_salt1.emplace();
-    memcpy(hmac_salt1->data(), salts.data(), hmac_salt1->size());
+    UNSAFE_TODO(memcpy(hmac_salt1->data(), salts.data(), hmac_salt1->size()));
     if (salts.size() == 64) {
       hmac_salt2.emplace();
-      memcpy(hmac_salt2->data(), salts.data() + hmac_salt1->size(),
-             hmac_salt2->size());
+      UNSAFE_TODO(memcpy(hmac_salt2->data(), salts.data() + hmac_salt1->size(),
+                         hmac_salt2->size()));
     }
 
     hmac_shared_key = std::move(shared_key);
@@ -2719,8 +2715,7 @@ CtapDeviceResponseCode VirtualCtap2Device::OnLargeBlobs(
       auto offset_vec = base::U32ToLittleEndian(offset);
       pinauth_bytes.insert(pinauth_bytes.end(), offset_vec.begin(),
                            offset_vec.end());
-      std::array<uint8_t, crypto::kSHA256Length> set_hash =
-          crypto::SHA256Hash(set);
+      auto set_hash = crypto::hash::Sha256(set);
       pinauth_bytes.insert(pinauth_bytes.end(), set_hash.begin(),
                            set_hash.end());
       CtapDeviceResponseCode pin_status = VerifyPINUVAuthToken(
@@ -2840,7 +2835,8 @@ CtapDeviceResponseCode VirtualCtap2Device::OnAuthenticatorGetInfo(
 AttestedCredentialData VirtualCtap2Device::ConstructAttestedCredentialData(
     base::span<const uint8_t> key_handle,
     std::unique_ptr<PublicKey> public_key) {
-  constexpr std::array<uint8_t, 2> sha256_length = {0, crypto::kSHA256Length};
+  constexpr std::array<uint8_t, 2> sha256_length = {0,
+                                                    crypto::hash::kSha256Size};
   constexpr std::array<uint8_t, 16> kZeroAaguid = {0, 0, 0, 0, 0, 0, 0, 0,
                                                    0, 0, 0, 0, 0, 0, 0, 0};
   base::span<const uint8_t, 16> aaguid(kDeviceAaguid);

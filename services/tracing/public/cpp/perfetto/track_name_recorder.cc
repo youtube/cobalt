@@ -8,7 +8,9 @@
 #include "base/no_destructor.h"
 #include "base/process/current_process.h"
 #include "base/rand_util.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
+#include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
 #include "services/tracing/public/cpp/perfetto/trace_string_lookup.h"
 #include "third_party/perfetto/include/perfetto/tracing/internal/track_event_internal.h"
@@ -49,6 +51,12 @@ void FillThreadTrack(const perfetto::ThreadTrack& track, const char* name) {
   if (thread_type != ChromeThreadDescriptor::THREAD_UNSPECIFIED) {
     desc.mutable_chrome_thread()->set_thread_type(thread_type);
   }
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_AIX)
+  if (base::GetCurrentProcId() !=
+      base::trace_event::TraceLog::GetInstance()->process_id()) {
+    desc.mutable_chrome_thread()->set_is_sandboxed_tid(true);
+  }
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_AIX)
 
   base::TrackEvent::SetTrackDescriptor(track, std::move(desc));
 }
@@ -127,6 +135,7 @@ void TrackNameRecorder::SetProcessTrackDescriptor(
 TrackNameRecorder::TrackNameRecorder()
     : process_start_timestamp_(
           TRACE_TIME_TICKS_NOW().since_origin().InNanoseconds()) {
+  perfetto::internal::TrackRegistry::InitializeInstance();
   base::ThreadIdNameManager::GetInstance()->AddObserver(this);
   base::CurrentProcess::GetInstance().SetDelegate(this, {});
   base::TrackEvent::AddSessionObserver(this);

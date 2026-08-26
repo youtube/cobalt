@@ -103,11 +103,24 @@ public class BuildConfig {
     public static String APK_ASSETS_SUFFIX = null;
 #endif
 
-    // Enable features that are more typically available on desktop.
+    // Use in conjunction with FEATURE_PC check to limit desktop-only
+    // features to devices with build flag. Should only be used in
+    // DeviceInfo.java since this is the source of truth for isDesktop check.
+    // (TODO: crbug.com/430983585) Clean up this flag once the desktop
+    // build is fully functional.
 #if defined(_IS_DESKTOP_ANDROID)
     public static boolean IS_DESKTOP_ANDROID = true;
 #else
     public static boolean IS_DESKTOP_ANDROID;
+#endif
+
+    // Controls whether or not native-only renderers are available. Note that this check isn't
+    // sufficient to determine whether they are enabled, but just whether they have been included
+    // in the build.
+#if defined(_JAVALESS_RENDERERS_AVAILABLE)
+    public static boolean JAVALESS_RENDERERS_AVAILABLE = true;
+#else
+    public static boolean JAVALESS_RENDERERS_AVAILABLE;
 #endif
 
     // Controls whether or not StrictModeContext is a no-op.

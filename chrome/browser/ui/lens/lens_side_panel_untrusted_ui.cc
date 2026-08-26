@@ -39,6 +39,7 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
           web_ui->GetWebContents()->GetBrowserContext(),
           chrome::kChromeUILensUntrustedSidePanelURL);
   html_source->AddLocalizedString("backButton", IDS_ACCNAME_BACK);
+  html_source->AddLocalizedString("close", IDS_CLOSE);
   html_source->AddLocalizedString("dismiss",
                                   IDS_LENS_OVERLAY_TOAST_DISMISS_MESSAGE);
   html_source->AddLocalizedString(
@@ -75,6 +76,9 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
                                   IDS_LENS_OVERLAY_FEEDBACK_TOAST_MESSAGE);
   html_source->AddLocalizedString("sendFeedbackButtonText",
                                   IDS_LENS_OVERLAY_SEND_FEEDBACK_BUTTON_LABEL);
+  html_source->AddLocalizedString(
+      "closeFeedbackToastAccessibilityLabel",
+      IDS_LENS_OVERLAY_CLOSE_FEEDBACK_TOAST_ACCESSIBILITY_LABEL);
   const bool dark_mode = lens::LensOverlayShouldUseDarkMode(
       ThemeServiceFactory::GetForProfile(Profile::FromWebUI(web_ui)));
 
@@ -99,11 +103,16 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "newFeedbackEnabled",
       lens::features::IsLensSearchSidePanelNewFeedbackEnabled());
-  html_source->AddBoolean(
-      "scrollToEnabled",
-      lens::features::IsLensSearchSidePanelScrollToAPIEnabled());
   html_source->AddString("resultsSearchURL",
                          lens::features::GetLensOverlayResultsSearchURL());
+  html_source->AddBoolean(
+      "enableCloseButtonTweaks",
+      lens::features::GetVisualSelectionUpdatesEnableCloseButtonTweaks());
+  html_source->AddBoolean(
+      "enableSummarizeSuggestionHint",
+      lens::features::ShouldEnableSummarizeHintForContextualSuggest());
+  html_source->AddBoolean("enableAimSearchbox",
+                          lens::features::GetAimSearchboxEnabled());
 
   // Allow FrameSrc from all Google subdomains as redirects can occur.
   GURL results_side_panel_url =
@@ -146,7 +155,19 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddLocalizedString("searchBoxHintMultimodal",
                                   IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MULTIMODAL);
   html_source->AddBoolean("isLensSearchbox", true);
+  html_source->AddBoolean(
+      "forceHideEllipsis",
+      lens::features::GetVisualSelectionUpdatesHideCsbEllipsis());
   html_source->AddBoolean("queryAutocompleteOnEmptyInput", true);
+  html_source->AddBoolean(
+      "enableCsbMotionTweaks",
+      lens::features::GetVisualSelectionUpdatesEnableCsbMotionTweaks());
+  html_source->AddBoolean(
+      "enableVisualSelectionUpdates",
+      lens::features::IsLensOverlayVisualSelectionUpdatesEnabled());
+  html_source->AddBoolean(
+      "enableThumbnailSizingTweaks",
+      lens::features::GetVisualSelectionUpdatesEnableThumbnailSizingTweaks());
 }
 
 void LensSidePanelUntrustedUI::BindInterface(

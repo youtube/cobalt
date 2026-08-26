@@ -83,7 +83,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         return 0;
     }
 
-    if (spec != SH_GLES2_SPEC && type != SH_WEBGL_SPEC && spec != SH_GLES3_SPEC &&
+    if (spec != SH_GLES2_SPEC && spec != SH_WEBGL_SPEC && spec != SH_GLES3_SPEC &&
         spec != SH_WEBGL2_SPEC)
     {
         return 0;
@@ -93,10 +93,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
     bool hasUnsupportedOptions = false;
 
-    const bool hasMacGLSLOptions = options.rewriteFloatUnaryMinusOperator ||
-                                   options.addAndTrueToLoopCondition ||
-                                   options.rewriteDoWhileLoops || options.unfoldShortCircuit ||
-                                   options.rewriteRowMajorMatrices;
+    const bool hasMacGLSLOptions = options.addAndTrueToLoopCondition ||
+                                   options.unfoldShortCircuit || options.rewriteRowMajorMatrices;
 
     if (!IsOutputGLSL(shaderOutput) && !IsOutputESSL(shaderOutput))
     {
@@ -113,6 +111,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         hasUnsupportedOptions = hasUnsupportedOptions || hasMacGLSLOptions;
 #endif
     }
+    if (!IsOutputESSL(shaderOutput))
+    {
+        hasUnsupportedOptions = hasUnsupportedOptions || options.skipAllValidationAndTransforms;
+    }
     if (!IsOutputSPIRV(shaderOutput))
     {
         hasUnsupportedOptions = hasUnsupportedOptions || options.addVulkanXfbEmulationSupportCode ||
@@ -125,6 +127,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
                                 options.expandSelectHLSLIntegerPowExpressions ||
                                 options.allowTranslateUniformBlockToStructuredBuffer ||
                                 options.rewriteIntegerUnaryMinusOperator;
+    }
+    if (!IsOutputMSL(shaderOutput))
+    {
+        hasUnsupportedOptions = hasUnsupportedOptions || options.ensureLoopForwardProgress;
     }
 
     // If there are any options not supported with this output, don't attempt to run the translator.

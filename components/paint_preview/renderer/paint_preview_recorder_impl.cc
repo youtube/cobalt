@@ -265,13 +265,13 @@ void PaintPreviewRecorderImpl::CapturePaintPreviewInternal(
 
   auto offset = frame->GetScrollOffset();
   auto document_size = frame->DocumentSize();
-  // If the special values of -1 are used for the initial position center about
-  // the scroll offset.
-  if (bounds.x() == -1) {
+  // If the special values of `paint_preview::mojom::kCenterOnScrollOffset` are
+  // used for the initial position center about the scroll offset.
+  if (bounds.x() == paint_preview::mojom::kCenterOnScrollOffset) {
     bounds.set_x(
         GetBoundOrigin(document_size.width(), bounds.width(), offset.x()));
   }
-  if (bounds.y() == -1) {
+  if (bounds.y() == paint_preview::mojom::kCenterOnScrollOffset) {
     bounds.set_y(
         GetBoundOrigin(document_size.height(), bounds.height(), offset.y()));
   }
@@ -395,6 +395,11 @@ void PaintPreviewRecorderImpl::CapturePaintPreviewInternal(
   auto* image_ctx = tracker->GetImageSerializationContext();
   image_ctx->max_decoded_image_size_bytes =
       params->max_decoded_image_size_bytes;
+
+  // The canvas holds a raw_ptr to the tracker, and when the tracker is moved to
+  // FinishRecordingOnUIThread, it's possible that it'll be released before
+  // returning, leading to a dangling pointer in the canvas.
+  canvas->SetPaintPreviewTracker(nullptr);
 
   FinishRecordingOnUIThread(recorder.finishRecordingAsPicture(), bounds,
                             std::move(tracker), params->persistence,

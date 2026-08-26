@@ -1254,11 +1254,15 @@ Type Typer::Visitor::TypeSetContinuationPreservedEmbedderData(Node* node) {
 #if V8_ENABLE_WEBASSEMBLY
 Type Typer::Visitor::TypeJSWasmCall(Node* node) {
   const JSWasmCallParameters& op_params = JSWasmCallParametersOf(node->op());
-  const wasm::CanonicalSig* wasm_signature = op_params.signature();
-  if (wasm_signature->return_count() > 0) {
-    return JSWasmCallNode::TypeForWasmReturnType(wasm_signature->GetReturn());
-  }
-  return Type::Any();
+  const wasm::WasmModule* module = op_params.native_module()->module();
+  const wasm::WasmFunction* func =
+      &module->functions[op_params.function_index()];
+  if (func->sig->return_count() == 0) return Type::Any();
+  DCHECK_EQ(1, func->sig->return_count());
+  wasm::ValueType return_type = func->sig->GetReturn();
+  DCHECK_IMPLIES(return_type.is_ref(),
+                 return_type.is_reference_to(wasm::HeapType::kExtern));
+  return JSWasmCallNode::TypeForWasmReturnKind(return_type.kind());
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2190,6 +2194,8 @@ Type Typer::Visitor::TypeJSForInPrepare(Node* node) {
   return Type::Tuple(cache_type, cache_array, cache_length, zone());
 }
 
+Type Typer::Visitor::TypeJSForOfNext(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeJSLoadMessage(Node* node) { return Type::Any(); }
 
 Type Typer::Visitor::TypeJSStoreMessage(Node* node) { UNREACHABLE(); }
@@ -2377,6 +2383,10 @@ Type Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
   return Type::Boolean();
 }
 
+Type Typer::Visitor::TypeStringOrOddballStrictEqual(Node* node) {
+  return Type::Boolean();
+}
+
 Type Typer::Visitor::StringFromSingleCharCodeTyper(Type type, Typer* t) {
   return Type::String();
 }
@@ -2483,6 +2493,11 @@ Type Typer::Visitor::TypeCheckString(Node* node) {
 Type Typer::Visitor::TypeCheckStringOrStringWrapper(Node* node) {
   Type arg = Operand(node, 0);
   return Type::Intersect(arg, Type::StringOrStringWrapper(), zone());
+}
+
+Type Typer::Visitor::TypeCheckStringOrOddball(Node* node) {
+  Type arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::StringOrOddball(), zone());
 }
 
 Type Typer::Visitor::TypeCheckSymbol(Node* node) {

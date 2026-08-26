@@ -14,6 +14,7 @@
 #include "components/user_education/common/feature_promo/feature_promo_specification.h"
 #include "components/user_education/common/help_bubble/custom_help_bubble.h"
 #include "components/user_education/common/help_bubble/help_bubble_params.h"
+#include "components/user_education/views/help_bubble_factory_views.h"
 #include "components/user_education/views/help_bubble_views.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -33,8 +34,7 @@ template <typename T>
   requires IsCustomHelpBubbleView<T>
 using CustomHelpBubbleViewFactoryCallback =
     base::RepeatingCallback<std::unique_ptr<T>(
-        ui::ElementContext from_context,
-        HelpBubbleArrow arrow,
+        const UserEducationContextPtr& from_context,
         FeaturePromoSpecification::BuildHelpBubbleParams build_params)>;
 
 // Convenience method that creates the callback to feed to
@@ -63,16 +63,31 @@ CreateCustomHelpBubbleViewFactoryCallback(
       [](const CustomHelpBubbleViewFactoryCallback<T>& bubble_factory_callback,
          std::optional<CustomHelpBubbleUi::UserAction> accept_button_action,
          std::optional<CustomHelpBubbleUi::UserAction> cancel_button_action,
-         ui::ElementContext from_context, HelpBubbleArrow arrow,
+         const UserEducationContextPtr& from_context,
          FeaturePromoSpecification::BuildHelpBubbleParams build_params) {
         auto* const anchor_element = build_params.anchor_element.get();
-        auto bubble = bubble_factory_callback.Run(from_context, arrow,
-                                                  std::move(build_params));
-        auto* const bubble_ptr = bubble.get();
+        const auto arrow = build_params.arrow;
+        auto bubble =
+            bubble_factory_callback.Run(from_context, std::move(build_params));
+        T* const bubble_ptr = bubble.get();
+
+        // Specific shadow types are required for help bubbles in order to
+        // properly render visible bubble arrows.
+        bubble_ptr->set_shadow(
+            HelpBubbleFactoryViews::GetDefaultBubbleShadow());
+
         auto widget =
             base::WrapUnique(views::BubbleDialogDelegateView::CreateBubble(
                 std::move(bubble),
                 views::Widget::InitParams::CLIENT_OWNS_WIDGET));
+
+        // Maybe set the arrow. This may require recalculating the bubble
+        // bounds.
+        if (arrow != HelpBubbleArrow::kNone) {
+          bubble_ptr->GetBubbleFrameView()->SetDisplayVisibleArrow(true);
+          bubble_ptr->SizeToContents();
+        }
+
         widget->Show();
         return std::make_unique<CustomHelpBubbleViews>(
             std::move(widget), bubble_ptr, anchor_element, accept_button_action,

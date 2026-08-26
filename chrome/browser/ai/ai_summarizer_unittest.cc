@@ -53,7 +53,8 @@ class MockCreateSummarizerClient
               (override));
   MOCK_METHOD(void,
               OnError,
-              (blink::mojom::AIManagerCreateClientError error),
+              (blink::mojom::AIManagerCreateClientError error,
+               blink::mojom::QuotaErrorInfoPtr quota_error_info),
               (override));
 
  private:
@@ -248,13 +249,30 @@ TEST_F(AISummarizerTest, CanCreateUnIsLanguagesSupported) {
                                                callback.Get());
 }
 
+TEST_F(AISummarizerTest, ToProtoOptionsLanguagesSupported) {
+  // Summarizer proto expects a limited set of BCP 47 base language codes.
+  std::vector<std::pair<std::string, std::string>> languages = {
+      {"en", "en"}, {"en-us", "en"}, {"en-uk", "en"},
+      {"es", "es"}, {"es-sp", "es"}, {"es-mx", "es"},
+      {"ja", "ja"}, {"ja-jp", "ja"}, {"ja-foo", "ja"},
+  };
+  blink::mojom::AISummarizerCreateOptionsPtr options = GetDefaultOptions();
+  for (const auto& language : languages) {
+    options->output_language = AILanguageCode::New(language.first);
+    const auto proto_options = AISummarizer::ToProtoOptions(options);
+    EXPECT_EQ(proto_options->output_language(), language.second);
+  }
+}
+
 TEST_F(AISummarizerTest, CreateSummarizerNoService) {
   SetupNullOptimizationGuideKeyedService();
   MockCreateSummarizerClient mock_create_summarizer_client;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_create_summarizer_client, OnError(_))
+  EXPECT_CALL(mock_create_summarizer_client, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::AIManagerCreateClientError
-                                        error) {
+                                        error,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         ASSERT_EQ(
             error,
             blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
@@ -285,9 +303,11 @@ TEST_F(AISummarizerTest, CreateSummarizerModelNotEligible) {
 
   MockCreateSummarizerClient mock_create_summarizer_client;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_create_summarizer_client, OnError(_))
+  EXPECT_CALL(mock_create_summarizer_client, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::AIManagerCreateClientError
-                                        error) {
+                                        error,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         ASSERT_EQ(
             error,
             blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
@@ -401,12 +421,19 @@ TEST_F(AISummarizerTest, CreateSummarizerContextLimitExceededError) {
 
   MockCreateSummarizerClient mock_create_summarizer_client;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_create_summarizer_client, OnError(_))
+  EXPECT_CALL(mock_create_summarizer_client, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::AIManagerCreateClientError
-                                        error) {
+                                        error,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         ASSERT_EQ(
             error,
             blink::mojom::AIManagerCreateClientError::kInitialInputTooLarge);
+        ASSERT_TRUE(quota_error_info);
+        ASSERT_EQ(quota_error_info->requested,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize + 1);
+        ASSERT_EQ(quota_error_info->quota,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize);
         run_loop.Quit();
       }));
 
@@ -527,12 +554,19 @@ TEST_F(AISummarizerTest, InputLimitExceededError) {
           }));
   AITestUtils::MockModelStreamingResponder mock_responder;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_responder, OnError(_))
+  EXPECT_CALL(mock_responder, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::ModelStreamingResponseStatus
-                                        status) {
+                                        status,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         EXPECT_EQ(
             status,
             blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge);
+        ASSERT_TRUE(quota_error_info);
+        ASSERT_EQ(quota_error_info->requested,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize + 1);
+        ASSERT_EQ(quota_error_info->quota,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize);
         run_loop.Quit();
       }));
 
@@ -562,9 +596,11 @@ TEST_F(AISummarizerTest, ModelExecutionError) {
   auto summarizer_remote = GetAISummarizerRemote();
   AITestUtils::MockModelStreamingResponder mock_responder;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_responder, OnError(_))
+  EXPECT_CALL(mock_responder, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::ModelStreamingResponseStatus
-                                        status) {
+                                        status,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         EXPECT_EQ(
             status,
             blink::mojom::ModelStreamingResponseStatus::kErrorPermissionDenied);
@@ -729,9 +765,11 @@ TEST_F(AISummarizerTest, SummarizerDisconnected) {
   auto summarizer_remote = GetAISummarizerRemote();
   AITestUtils::MockModelStreamingResponder mock_responder;
   base::RunLoop run_loop_for_response;
-  EXPECT_CALL(mock_responder, OnError(_))
+  EXPECT_CALL(mock_responder, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::ModelStreamingResponseStatus
-                                        status) {
+                                        status,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         EXPECT_EQ(
             status,
             blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);

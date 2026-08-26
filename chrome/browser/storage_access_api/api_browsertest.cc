@@ -14,11 +14,13 @@
 #include "base/path_service.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/types/optional_util.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/net/storage_test_utils.h"
@@ -332,8 +334,6 @@ class StorageAccessAPIBaseBrowserTest : public policy::PolicyTest {
     base::PathService::Get(content::DIR_TEST_DATA, &path);
     https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
     https_server_.ServeFilesFromDirectory(path);
-    https_server_.ServeFilesFromSourceDirectory(
-        net::GetWebSocketTestDataDirectory());
     https_server_.AddDefaultHandlers(GetChromeTestDataDir());
     https_server_.RegisterRequestHandler(
         base::BindRepeating(&HandleEchoCookiesWithCorsRequest));
@@ -626,7 +626,7 @@ class StorageAccessAPIBaseBrowserTest : public policy::PolicyTest {
 
     ASSERT_TRUE(content::NavigateToURLFromRenderer(
         frame, https_server()
-                   .GetURL(kHostB, "/connect_to.html")
+                   .GetURL(kHostB, "/websocket/connect_to.html")
                    .ReplaceComponents(replacements)));
   }
 
@@ -2194,9 +2194,14 @@ IN_PROC_BROWSER_TEST_P(StorageAccessAPIStorageBrowserTest,
   ExpectStorage(GetFrame(), DoesPermissionGrantStorage());
   EXPECT_FALSE(storage::test::HasStorageAccessForFrame(GetFrame()));
 }
-
+// TODO(crbug.com/430495897): Test is flaky on Windows ASAN builds.
+#if BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
+#define MAYBE_NestedThirdPartyIFrameStorage DISABLED_NestedThirdPartyIFrameStorage
+#else
+#define MAYBE_NestedThirdPartyIFrameStorage NestedThirdPartyIFrameStorage
+#endif
 IN_PROC_BROWSER_TEST_P(StorageAccessAPIStorageBrowserTest,
-                       NestedThirdPartyIFrameStorage) {
+                       MAYBE_NestedThirdPartyIFrameStorage) {
   EnsureUserInteractionOn(kHostC);
 
   NavigateToPageWithFrame(kHostA);

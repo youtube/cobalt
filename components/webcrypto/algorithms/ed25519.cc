@@ -2,23 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "components/webcrypto/algorithms/ed25519.h"
 
 #include <string.h>
 
 #include <string_view>
 
+#include "base/compiler_specific.h"
 #include "components/webcrypto/algorithms/asymmetric_key_util.h"
 #include "components/webcrypto/algorithms/util.h"
 #include "components/webcrypto/blink_key_handle.h"
 #include "components/webcrypto/generate_key_result.h"
 #include "components/webcrypto/jwk.h"
 #include "components/webcrypto/status.h"
+#include "crypto/evp.h"
 #include "crypto/openssl_util.h"
 #include "third_party/blink/public/platform/web_crypto_key_algorithm.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
@@ -379,8 +376,9 @@ Status Ed25519Implementation::ImportKeyJwk(
   if (!EVP_PKEY_get_raw_public_key(GetEVP_PKEY(private_key), raw_key, &len))
     return Status::OperationError();
   DCHECK_EQ(len, 32u);
-  if (memcmp(raw_public_key.data(), raw_key, 32) != 0)
+  if (UNSAFE_TODO(memcmp(raw_public_key.data(), raw_key, 32)) != 0) {
     return Status::DataError();
+  }
 
   *key = private_key;
   return Status::Success();
@@ -408,7 +406,8 @@ Status Ed25519Implementation::ExportKeyPkcs8(
   if (key.GetType() != blink::kWebCryptoKeyTypePrivate)
     return Status::ErrorUnexpectedKeyType();
 
-  return ExportPKeyPkcs8(GetEVP_PKEY(key), buffer);
+  *buffer = crypto::evp::PrivateKeyToBytes(GetEVP_PKEY(key));
+  return Status::Success();
 }
 
 Status Ed25519Implementation::ExportKeySpki(
@@ -417,7 +416,8 @@ Status Ed25519Implementation::ExportKeySpki(
   if (key.GetType() != blink::kWebCryptoKeyTypePublic)
     return Status::ErrorUnexpectedKeyType();
 
-  return ExportPKeySpki(GetEVP_PKEY(key), buffer);
+  *buffer = crypto::evp::PublicKeyToBytes(GetEVP_PKEY(key));
+  return Status::Success();
 }
 
 Status Ed25519Implementation::ExportKeyJwk(const blink::WebCryptoKey& key,

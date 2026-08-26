@@ -116,7 +116,10 @@ enum class SaveCardPromptOffer {
   // The prompt is not shown because the required delay since last strike has
   // not passed.
   kNotShownRequiredDelay = 2,
-  kMaxValue = kNotShownRequiredDelay,
+  // The prompt may have been for a card update instead of a new card upload, in
+  // which case CVC is required, but it was missing.
+  kCvcMissingForPotentialUpdate = 3,
+  kMaxValue = kCvcMissingForPotentialUpdate,
 };
 
 enum class SaveCardPromptResult {
@@ -204,6 +207,14 @@ void LogSaveCardCardholderNamePrefilled(bool prefilled);
 // from its prefilled value or not.
 void LogSaveCardCardholderNameWasEdited(bool edited);
 
+// Logs whether the save credit card prompt is shown or not. The metric logged
+// is platform-agnostic. Should not be called for prompt re-shows (e.g., prompt
+// reshown from the omnibox icon on desktop).
+void LogSaveCreditCardPromptOfferMetric(SaveCardPromptOffer metric,
+                                        bool is_upload_save);
+
+// TODO(crbug.com/430588721): Clean up this function once refactored save card
+// metrics have rolled out.
 void LogSaveCardPromptOfferMetric(
     SaveCardPromptOffer metric,
     bool is_uploading,

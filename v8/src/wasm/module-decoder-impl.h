@@ -31,8 +31,13 @@ namespace v8::internal::wasm {
 constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kInstTraceString[] = "metadata.code.trace_inst";
-constexpr char kCompilationHintsString[] = "compilationHints";
 constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
+#if V8_CC_GNU
+// TODO(miladfarca): remove once switched to using Clang.
+__attribute__((used))
+#endif
+constexpr char kCompilationPriorityString[] =
+    "metadata.code.compilation_priority";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 constexpr char kBuildIdString[] = "build_id";
@@ -140,9 +145,9 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
       {base::StaticCharVector(kSourceMappingURLString),
        kSourceMappingURLSectionCode},
       {base::StaticCharVector(kInstTraceString), kInstTraceSectionCode},
-      {base::StaticCharVector(kCompilationHintsString),
-       kCompilationHintsSectionCode},
       {base::StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
+      {base::StaticCharVector(kCompilationPriorityString),
+       kCompilationPrioritySectionCode},
       {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {base::StaticCharVector(kExternalDebugInfoString),
        kExternalDebugInfoSectionCode},
@@ -254,8 +259,7 @@ class WasmSectionIterator {
     }
 
     if (section_code == kUnknownSectionCode) {
-      // Check for the known "name", "sourceMappingURL", or "compilationHints"
-      // section.
+      // Check for known custom sections.
       // To identify the unknown section we set the end of the decoder bytes to
       // the end of the custom section, so that we do not read the section name
       // beyond the end of the section.
@@ -493,22 +497,18 @@ class ModuleDecoderImpl : public Decoder {
           consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
         }
         break;
-      case kCompilationHintsSectionCode:
-        // TODO(jkummerow): We're missing tracing support for well-known
-        // custom sections. This confuses `wami --full-hexdump` e.g.
-        // for the modules created by
-        // mjsunit/wasm/compilation-hints-streaming-compilation.js.
-        if (enabled_features_.has_compilation_hints()) {
-          DecodeCompilationHintsSection();
+      case kBranchHintsSectionCode:
+        if (enabled_features_.has_branch_hinting()) {
+          DecodeBranchHintsSection();
         } else {
           // Ignore this section when feature was disabled. It is an optional
           // custom section anyways.
           consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
         }
         break;
-      case kBranchHintsSectionCode:
-        if (enabled_features_.has_branch_hinting()) {
-          DecodeBranchHintsSection();
+      case kCompilationPrioritySectionCode:
+        if (enabled_features_.has_compilation_hints()) {
+          DecodeCompilationPrioritySection();
         } else {
           // Ignore this section when feature was disabled. It is an optional
           // custom section anyways.
@@ -632,13 +632,14 @@ class ModuleDecoderImpl : public Decoder {
         return {};
       }
       detected_features_->add_custom_descriptors();
-      consume_bytes(1, " described_by", tracer_);
+      consume_bytes(1, "", tracer_);
       const uint8_t* pos = pc();
-      uint32_t descriptor = consume_u32v("descriptor", tracer_);
+      uint32_t descriptor = consume_u32v(" descriptor", tracer_);
       if (descriptor >= module_->types.size()) {
         errorf(pos, "descriptor type index %u is out of bounds", descriptor);
         return {};
       }
+      if (tracer_) tracer_->Description(descriptor);
       if (tracer_) tracer_->NextLine();
       TypeDefinition type =
           consume_base_type_definition(is_descriptor, is_shared);
@@ -663,13 +664,14 @@ class ModuleDecoderImpl : public Decoder {
         return {};
       }
       detected_features_->add_custom_descriptors();
-      consume_bytes(1, " describes", tracer_);
+      consume_bytes(1, "", tracer_);
       const uint8_t* pos = pc();
-      uint32_t describes = consume_u32v("describes", tracer_);
+      uint32_t describes = consume_u32v(" describes", tracer_);
       if (describes >= current_type_index) {
         error(pos, "types can only describe previously-declared types");
         return {};
       }
+      if (tracer_) tracer_->Description(describes);
       if (tracer_) tracer_->NextLine();
       TypeDefinition type = consume_described_type(true, is_shared);
       if (type.kind != TypeDefinition::kStruct) {
@@ -1073,6 +1075,9 @@ class ModuleDecoderImpl : public Decoder {
       if (v8_flags.wasm_jitless) {
         error("Multiple memories not supported in Wasm jitless mode");
       }
+    }
+    if (module_->num_imported_mutable_globals > 0) {
+      detected_features_->add_mutable_globals();
     }
     UpdateComputedMemoryInformation();
     module_->type_feedback.well_known_imports.Initialize(
@@ -1695,102 +1700,6 @@ class ModuleDecoderImpl : public Decoder {
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 
-  void DecodeCompilationHintsSection() {
-    TRACE("DecodeCompilationHints module+%d\n", static_cast<int>(pc_ - start_));
-
-    // TODO(frgossen): Find a way to report compilation hint errors as warnings.
-    // All except first occurrence after function section and before code
-    // section are ignored.
-    const bool before_function_section =
-        next_ordered_section_ <= kFunctionSectionCode;
-    const bool after_code_section = next_ordered_section_ > kCodeSectionCode;
-    if (before_function_section || after_code_section ||
-        has_seen_unordered_section(kCompilationHintsSectionCode)) {
-      return;
-    }
-    set_seen_unordered_section(kCompilationHintsSectionCode);
-
-    // TODO(frgossen) Propagate errors to outer decoder in experimental phase.
-    // We should use an inner decoder later and propagate its errors as
-    // warnings.
-    Decoder& decoder = *this;
-    // Decoder decoder(start_, pc_, end_, buffer_offset_);
-
-    // Ensure exactly one compilation hint per function.
-    uint32_t hint_count = decoder.consume_u32v("compilation hint count");
-    if (hint_count != module_->num_declared_functions) {
-      decoder.errorf(decoder.pc(), "Expected %u compilation hints (%u found)",
-                     module_->num_declared_functions, hint_count);
-    }
-
-    // Decode sequence of compilation hints.
-    if (decoder.ok()) {
-      module_->compilation_hints.reserve(hint_count);
-    }
-    for (uint32_t i = 0; decoder.ok() && i < hint_count; i++) {
-      TRACE("DecodeCompilationHints[%d] module+%d\n", i,
-            static_cast<int>(pc_ - start_));
-
-      // Compilation hints are encoded in one byte each.
-      // +-------+----------+---------------+----------+
-      // | 2 bit | 2 bit    | 2 bit         | 2 bit    |
-      // | ...   | Top tier | Baseline tier | Strategy |
-      // +-------+----------+---------------+----------+
-      uint8_t hint_byte = decoder.consume_u8("compilation hint");
-      if (!decoder.ok()) break;
-
-      // Validate the hint_byte.
-      // For the compilation strategy, all 2-bit values are valid. For the tier,
-      // only 0x0, 0x1, and 0x2 are allowed.
-      static_assert(
-          static_cast<int>(WasmCompilationHintTier::kDefault) == 0 &&
-              static_cast<int>(WasmCompilationHintTier::kBaseline) == 1 &&
-              static_cast<int>(WasmCompilationHintTier::kOptimized) == 2,
-          "The check below assumes that 0x03 is the only invalid 2-bit number "
-          "for a compilation tier");
-      if (((hint_byte >> 2) & 0x03) == 0x03 ||
-          ((hint_byte >> 4) & 0x03) == 0x03) {
-        decoder.errorf(decoder.pc(),
-                       "Invalid compilation hint %#04x (invalid tier 0x03)",
-                       hint_byte);
-        break;
-      }
-
-      // Decode compilation hint.
-      WasmCompilationHint hint;
-      hint.strategy =
-          static_cast<WasmCompilationHintStrategy>(hint_byte & 0x03);
-      hint.baseline_tier =
-          static_cast<WasmCompilationHintTier>((hint_byte >> 2) & 0x03);
-      hint.top_tier =
-          static_cast<WasmCompilationHintTier>((hint_byte >> 4) & 0x03);
-
-      // Ensure that the top tier never downgrades a compilation result. If
-      // baseline and top tier are the same compilation will be invoked only
-      // once.
-      if (hint.top_tier < hint.baseline_tier &&
-          hint.top_tier != WasmCompilationHintTier::kDefault) {
-        decoder.errorf(decoder.pc(),
-                       "Invalid compilation hint %#04x (forbidden downgrade)",
-                       hint_byte);
-      }
-
-      // Happily accept compilation hint.
-      if (decoder.ok()) {
-        module_->compilation_hints.push_back(std::move(hint));
-      }
-    }
-
-    // If section was invalid reset compilation hints.
-    if (decoder.failed()) {
-      module_->compilation_hints.clear();
-    }
-
-    // @TODO(frgossen) Skip the whole compilation hints section in the outer
-    // decoder if inner decoder was used.
-    // consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
-  }
-
   void DecodeBranchHintsSection() {
     TRACE("DecodeBranchHints module+%d\n", static_cast<int>(pc_ - start_));
     detected_features_->add_branch_hinting();
@@ -1862,6 +1771,94 @@ class ModuleDecoderImpl : public Decoder {
       // If everything went well, accept the hints for the module.
       if (inner.ok()) {
         module_->branch_hints = std::move(branch_hints);
+      } else {
+        TRACE("DecodeBranchHints error: %s", inner.error().message().c_str());
+      }
+    }
+    // Skip the whole branch hints section in the outer decoder.
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeCompilationPrioritySection() {
+    TRACE("DecodeCompilationPriority module+%d\n",
+          static_cast<int>(pc_ - start_));
+    detected_features_->add_compilation_hints();
+    if (!has_seen_unordered_section(kCompilationPrioritySectionCode)) {
+      set_seen_unordered_section(kCompilationPrioritySectionCode);
+      // Use an inner decoder so that errors don't fail the outer decoder.
+      Decoder inner(start_, pc_, end_, buffer_offset_);
+      CompilationPriorities compilation_priorities;
+
+      uint32_t func_count = inner.consume_u32v("number of functions");
+
+      int64_t last_func_index = -1;
+
+      for (uint32_t i = 0; i < func_count; i++) {
+        uint32_t func_index = inner.consume_u32v("function index");
+        if (static_cast<int64_t>(func_index) <= last_func_index) {
+          inner.error("out of order functions");
+          break;
+        }
+        last_func_index = func_index;
+        uint32_t byte_offset = inner.consume_u32v("byte offset");
+        if (byte_offset != 0) {
+          inner.error("byte offset has to be 0 (function level only)");
+          break;
+        }
+        uint32_t hint_length = inner.consume_u32v("hint length");
+        const uint8_t* pc_after_hint_length = inner.pc();
+        uint32_t compilation_priority =
+            inner.consume_u32v("compilation priority");
+        if (static_cast<int64_t>(hint_length) <
+            inner.pc() - pc_after_hint_length) {
+          inner.error("Compilation priority longer than declared hint length");
+          break;
+        }
+        int optimization_priority = kOptimizationPriorityNotSpecifiedSentinel;
+
+        // If we exhausted the declared hint length, do not parse optimization
+        // priority.
+        if (static_cast<int64_t>(hint_length) >
+            inner.pc() - pc_after_hint_length) {
+          uint32_t parsed_priority =
+              inner.consume_u32v("optimization priority");
+          if (static_cast<int>(parsed_priority) >
+              kOptimizationPriorityExecutedOnceSentinel) {
+            inner.error("Optimization priority too large");
+            break;
+          }
+          optimization_priority = static_cast<int>(parsed_priority);
+          if (static_cast<int64_t>(hint_length) <
+              inner.pc() - pc_after_hint_length) {
+            inner.error("Optimization priority overflows declared hint length");
+            break;
+          }
+        }
+
+        // Ignore remaining hint bytes.
+        inner.consume_bytes(
+            hint_length -
+            static_cast<uint32_t>(inner.pc() - pc_after_hint_length));
+
+        if (!inner.ok()) break;
+
+        compilation_priorities.emplace(
+            func_index,
+            CompilationPriority{compilation_priority, optimization_priority});
+      }
+
+      // Extra unexpected bytes are an error.
+      if (inner.more()) {
+        inner.errorf("Unexpected extra bytes: %d\n",
+                     static_cast<int>(inner.pc() - inner.start()));
+      }
+      // If everything went well, accept the compilation priority hints for the
+      // module.
+      if (inner.ok()) {
+        module_->compilation_priorities = std::move(compilation_priorities);
+      } else {
+        TRACE("DecodeCompilationPriority error: %s",
+              inner.error().message().c_str());
       }
     }
     // Skip the whole branch hints section in the outer decoder.

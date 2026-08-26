@@ -84,12 +84,58 @@ struct RichAutocompletionParams {
   size_t autocomplete_shortcut_text_min_char;
 };
 
+struct SessionData {
+  SessionData();
+  SessionData(const SessionData& session_data);
+  ~SessionData();
+
+  SessionData& operator=(const SessionData& match);
+
+  // Whether zero-prefix suggestions could have been shown in the session.
+  bool zero_prefix_enabled = false;
+
+  // The number of zero-prefix suggestions shown in the session.
+  size_t num_zero_prefix_suggestions_shown = 0u;
+
+  // Whether at least one zero-prefix suggestion was shown in the
+  // session.
+  bool zero_prefix_suggestions_shown_in_session = false;
+
+  // Whether at least one typed suggestion was shown in the session.
+  bool typed_suggestions_shown_in_session = false;
+
+  // List of GWS event ID hashes accumulated during the course of the session.
+  std::vector<int64_t> gws_event_id_hashes;
+
+  // Whether at least one zero-prefix Search/URL suggestion was
+  // shown in the session. This is used in order to ensure that the relevant
+  // client-side metrics logging code emits the proper values.
+  bool zero_prefix_search_suggestions_shown_in_session = false;
+  bool zero_prefix_url_suggestions_shown_in_session = false;
+
+  // Whether at least one typed Search/URL suggestion was shown in
+  // the session. This is used in order to ensure that the relevant client-side
+  // metrics logging code emits the proper values.
+  bool typed_search_suggestions_shown_in_session = false;
+  bool typed_url_suggestions_shown_in_session = false;
+
+  // Whether at least one contextual search suggestion was shown in the
+  // session.
+  bool contextual_search_suggestions_shown_in_session = false;
+
+  // Whether the "Ask Google Lens about this page" action was shown at least
+  // once in the session.
+  bool lens_action_shown_in_session = false;
+};
+
 enum class IphType {
   kNone,
   // '@gemini' promo; shown in zero state.
   kGemini,
-  // Featured search promo; shown in zero state.
-  kFeaturedEnterpriseSearch,
+  // Enterprise search aggregator promo; shown in zero state.
+  kEnterpriseSearchAggregator,
+  // Featured enterprise site search promo; shown in zero state.
+  kFeaturedEnterpriseSiteSearch,
   // Embeddings' setting promo when embeddings are disabled; shown in '@history'
   // scope.
   kHistoryEmbeddingsSettingsPromo,
@@ -105,6 +151,24 @@ enum class FeedbackType {
   kNone,
   kThumbsUp,
   kThumbsDown,
+};
+
+// Used with `stripped_destination_url` to dedupe matches. Matches with the same
+// URL but different types won't be deduped. This'll allow showing e.g. both a
+// "1+1" normal query and a "1+1 = 2" calculator suggestion simultaneously.
+enum class AutocompleteMatchDedupeType {
+  kNormal,
+  kCalculator,        // E.g. "1+1 = 2" matches.
+  kVerbatimProvider,  // Matches that come from the verbatim provider, which
+                      // does not include the verbatim SWYT match.
+  kHistoryEmbeddingAnswer,  // Matches with type `HISTORY_EMBEDDINGS_ANSWER`.
+  kAiMode,  // Matches that activate the DSE's AI Mode. AIM suggestions' URLs
+            // are discerned by a query param `udm=50`. But deduping doesn't
+            // consider extra query params; `google.com/?q=query&udm=50` and
+            // `google.com/?q=query` would usually be deduped. `kAiMode` allows
+            // matches with `udm=50` in their suggest template to not be deduped
+            // with matches without it. But this does not apply to `udm=50` in
+            // the actual match URL; nor to udm values other than 50.
 };
 
 // AutocompleteMatch ----------------------------------------------------------
@@ -146,9 +210,11 @@ struct AutocompleteMatch {
       URL       = 1 << 0,  // A URL
       MATCH     = 1 << 1,  // A match for the user's search term
       DIM       = 1 << 2,  // "Helper text"
+      TOOLBELT  = 1 << 3,  // Toolbelt label
     };
     // clang-format on
 
+    ACMatchClassification() = default;
     ACMatchClassification(size_t offset, int style)
         : offset(offset), style(style) {}
 
@@ -156,10 +222,10 @@ struct AutocompleteMatch {
                            const ACMatchClassification&) = default;
 
     // Offset within the string that this classification starts
-    size_t offset;
+    size_t offset = 0;
 
     // Contains a bitmask of flags defined in enum Style.
-    int style;
+    int style = 0;
   };
 
   // SuggestTiles are used specifically with TILE_NAVSUGGEST matches.
@@ -283,7 +349,7 @@ struct AutocompleteMatch {
   // Update the Java object with clipboard content.
   void UpdateClipboardContent(JNIEnv* env);
   // Update the Java object with new destination URL.
-  void UpdateJavaDestinationUrl();
+  void UpdateJavaNavigationDetails();
   // Update the Java object with new Answer-in-Suggest.
   void UpdateJavaAnswer();
   // Update the Java object description.
@@ -358,6 +424,15 @@ struct AutocompleteMatch {
   // Convenience function to check if `type` is featured search type, e.g.
   // starter pack and featured site search engines created by policy.
   static bool IsFeaturedSearchType(Type type);
+
+  // Convenience function to check if `type` is preconnectable.
+  // Preconnecting allows connecting to an origin before requesting any
+  // resources from that origin, effectively "warming up" the connection. When a
+  // resource from that origin is requested, we can immediately use the
+  // established connection, saving valuable round-trips. This differs from
+  // preloading and prefetching in that it does not actually fetch any resources
+  // from the origin, it just establishes the connection to the origin earlier.
+  static bool IsPreconnectableType(Type type);
 
   // Convenience function to check if |type| is a search (as opposed to a URL or
   // an extension).
@@ -478,11 +553,21 @@ struct AutocompleteMatch {
 
   // Checks if this match is an informational IPH suggestion based on the match
   // and provider type.
-  bool IsIPHSuggestion() const;
+  bool IsIphSuggestion() const;
+
+  // Checks if this match has an attached action with the given `action_id`.
+  bool HasAction(OmniboxActionId action_id) const;
 
   // Checks if this match is a contextual search suggestion to be fulfilled
   // by lens in the side panel.
   bool IsContextualSearchSuggestion() const;
+
+  // Checks if this match is a specialized toolbelt match with actions on
+  // a button row.
+  bool IsToolbelt() const;
+
+  // Checks if this match is a AI mode suggestion.
+  bool IsSearchAimSuggestion() const;
 
   // Returns true if this match may attach one or more `actions`.
   // This method is used to keep actions off of matches with types that don't
@@ -524,11 +609,13 @@ struct AutocompleteMatch {
   std::u16string GetSubstitutingExplicitlyInvokedKeyword(
       TemplateURLService* template_url_service) const;
 
-  // Returns the placeholder text to display for the currently selected keyword
-  // match, returned for both hint and non-hint keyword modes.
-  std::u16string GetKeywordPlaceholder(
-      TemplateURLService* template_url_service,
-      bool is_history_embeddings_enabled) const;
+  // Returns the placeholder text to display for the given starter pack keyword
+  // TemplateURL, returned for both hint and non-hint keyword modes.
+  // The `template_url` may be nullptr and this method often defaults to
+  // returning the empty string.
+  static std::u16string GetKeywordPlaceholder(
+      const TemplateURL* template_url,
+      bool is_history_embeddings_enabled);
 
   // Returns the TemplateURL associated with this match.  This may be NULL if
   // the match has no keyword OR if the keyword no longer corresponds to a valid
@@ -785,9 +872,10 @@ struct AutocompleteMatch {
   // `ComputeStrippedDestinationURL()` computation.
   GURL stripped_destination_url;
 
-  // Extra headers to add to the navigation. See `NavigateParams::extra_headers`
-  // for how headers should be represented.
-  std::string extra_headers;
+  // Extra headers to add to the navigation. Keys of the map represent the
+  // header name, and values represent header value, e.g.
+  //   extra_headers["Content-Type"] = "application/json";
+  std::map<std::string, std::string> extra_headers;
 
   // Optional image information. Used for some types of suggestions, such as
   // entity suggestions, that want to display an associated image, which will be
@@ -945,28 +1033,9 @@ struct AutocompleteMatch {
   // True if this match is from a previous result.
   bool from_previous = false;
 
-  // Whether at least one zero-prefix suggestion was shown in the current
-  // Omnibox session. This is used for metrics logging.
-  bool zero_prefix_suggestions_shown_in_session = false;
-
-  // Whether at least one zero-prefix Search/URL suggestion was shown in the
-  // current Omnibox session. This is used in order to ensure that the relevant
-  // client-side metrics logging code emits the proper values.
-  bool zero_prefix_search_suggestions_shown_in_session = false;
-  bool zero_prefix_url_suggestions_shown_in_session = false;
-
-  // Whether at least one typed Search/URL suggestion was shown in the current
-  // Omnibox session. This is used in order to ensure that the relevant
-  // client-side metrics logging code emits the proper values.
-  bool typed_search_suggestions_shown_in_session = false;
-  bool typed_url_suggestions_shown_in_session = false;
-
-  // Whether at least one contextual search suggestion was shown in the session.
-  bool contextual_search_suggestions_shown_in_session = false;
-
-  // Whether the "Ask Google Lens about this page" action was shown at least
-  // once in the session.
-  bool lens_action_shown_in_session = false;
+  // Session-based metrics struct that tracks various bits of info during the
+  // course of a single Omnibox session (e.g. number of ZPS shown, etc.).
+  std::optional<SessionData> session;
 
   // Optional search terms args.  If present,
   // AutocompleteController::UpdateSearchboxStats() will incorporate this data

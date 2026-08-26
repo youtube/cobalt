@@ -42,6 +42,14 @@
 
 namespace net {
 
+HttpStreamPool::JobController::StreamWithProtocol::StreamWithProtocol(
+    std::unique_ptr<HttpStream> stream,
+    NextProto negotiated_protocol)
+    : stream(std::move(stream)), negotiated_protocol(negotiated_protocol) {}
+
+HttpStreamPool::JobController::StreamWithProtocol::~StreamWithProtocol() =
+    default;
+
 // static
 std::optional<HttpStreamPool::JobController::Alternative>
 HttpStreamPool::JobController::CalculateAlternative(
@@ -95,17 +103,17 @@ HttpStreamPool::JobController::JobController(
     HttpStreamPoolRequestInfo request_info,
     RequestPriority priority,
     std::vector<SSLConfig::CertAndStatus> allowed_bad_certs,
-    bool enable_ip_based_pooling,
+    bool enable_ip_based_pooling_for_h2,
     bool enable_alternative_services)
     : pool_(pool),
       priority_(priority),
       allowed_bad_certs_(std::move(allowed_bad_certs)),
-      enable_ip_based_pooling_(enable_ip_based_pooling),
+      enable_ip_based_pooling_for_h2_(enable_ip_based_pooling_for_h2),
       enable_alternative_services_(enable_alternative_services),
       respect_limits_(request_info.load_flags & LOAD_IGNORE_LIMITS
                           ? RespectLimits::kIgnore
                           : RespectLimits::kRespect),
-      is_http1_allowed_(request_info.is_http1_allowed),
+      allowed_alpns_(request_info.allowed_alpns),
       proxy_info_(request_info.proxy_info),
       alternative_service_info_(request_info.alternative_service_info),
       origin_stream_key_(request_info.destination,
@@ -130,7 +138,8 @@ HttpStreamPool::JobController::JobController(
           dict.Set("alternative_destination",
                    alternative_->stream_key.destination().Serialize());
         }
-        dict.Set("enable_ip_based_pooling", enable_ip_based_pooling_);
+        dict.Set("enable_ip_based_pooling_for_h2",
+                 enable_ip_based_pooling_for_h2_);
         dict.Set("enable_alternative_services", enable_alternative_services_);
         dict.Set("respect_limits", respect_limits_ == RespectLimits::kRespect);
         return dict;
@@ -147,21 +156,20 @@ HttpStreamPool::JobController::~JobController() {
   net_log_.EndEvent(NetLogEventType::HTTP_STREAM_POOL_JOB_CONTROLLER_ALIVE);
 }
 
-std::unique_ptr<HttpStreamRequest> HttpStreamPool::JobController::RequestStream(
-    HttpStreamRequest::Delegate* delegate,
-    const NetLogWithSource& net_log) {
+void HttpStreamPool::JobController::HandleStreamRequest(
+    HttpStreamRequest* stream_request,
+    HttpStreamRequest::Delegate* delegate) {
+  CHECK(stream_request);
   CHECK(!delegate_);
   CHECK(!stream_request_);
+
+  stream_request->SetHelperForSwitchingToPool(this);
+  delegate_ = delegate;
+  stream_request_ = stream_request;
 
   if (pool_->delegate_for_testing_) {
     pool_->delegate_for_testing_->OnRequestStream(origin_stream_key_);
   }
-
-  delegate_ = delegate;
-  auto stream_request = std::make_unique<HttpStreamRequest>(
-      this, /*websocket_handshake_stream_create_helper=*/nullptr, net_log,
-      HttpStreamRequest::HTTP_STREAM);
-  stream_request_ = stream_request.get();
 
   if (!IsPortAllowedForScheme(origin_stream_key_.destination().port(),
                               origin_stream_key_.destination().scheme())) {
@@ -170,52 +178,26 @@ std::unique_ptr<HttpStreamRequest> HttpStreamPool::JobController::RequestStream(
         base::BindOnce(&HttpStreamPool::JobController::CallOnStreamFailed,
                        weak_ptr_factory_.GetWeakPtr(), ERR_UNSAFE_PORT,
                        NetErrorDetails(), ResolveErrorInfo()));
-    return stream_request;
+    return;
   }
 
-  std::unique_ptr<HttpStream> quic_http_stream =
-      MaybeCreateStreamFromExistingQuicSession();
-  if (quic_http_stream) {
-    net_log_.AddEvent(
-        NetLogEventType::
-            HTTP_STREAM_POOL_JOB_CONTROLLER_FOUND_EXISTING_QUIC_SESSION);
+  auto stream_with_protocol = MaybeCreateStreamFromExistingSession();
+  if (stream_with_protocol) {
+    if (stream_with_protocol->negotiated_protocol != NextProto::kProtoQUIC &&
+        origin_quic_version_.IsKnown()) {
+      StartAltSvcQuicPreconnect();
+    }
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(
             &HttpStreamPool::JobController::CallRequestCompleteAndStreamReady,
-            weak_ptr_factory_.GetWeakPtr(), std::move(quic_http_stream),
-            NextProto::kProtoQUIC));
-    return stream_request;
+            weak_ptr_factory_.GetWeakPtr(),
+            std::move(stream_with_protocol->stream),
+            stream_with_protocol->negotiated_protocol));
+    return;
   }
 
-  SpdySessionKey spdy_session_key =
-      origin_stream_key_.CalculateSpdySessionKey();
-  base::WeakPtr<SpdySession> spdy_session = pool_->FindAvailableSpdySession(
-      origin_stream_key_, spdy_session_key, enable_ip_based_pooling_, net_log);
-  if (spdy_session) {
-    net_log_.AddEvent(
-        NetLogEventType::
-            HTTP_STREAM_POOL_JOB_CONTROLLER_FOUND_EXISTING_SPDY_SESSION);
-    auto http_stream = std::make_unique<SpdyHttpStream>(
-        spdy_session, net_log.source(),
-        spdy_session_pool()->GetDnsAliasesForSessionKey(spdy_session_key));
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            &HttpStreamPool::JobController::CallRequestCompleteAndStreamReady,
-            weak_ptr_factory_.GetWeakPtr(), std::move(http_stream),
-            NextProto::kProtoHTTP2));
-    return stream_request;
-  }
-
-  if (alternative_.has_value()) {
-    alternative_job_ =
-        pool_
-            ->GetOrCreateGroup(alternative_->stream_key, alternative_->quic_key)
-            .CreateJob(this, alternative_->quic_version, alternative_->protocol,
-                       net_log);
-    alternative_job_->Start();
-  } else {
+  if (!MaybeStartAlternativeJob()) {
     alternative_job_result_ = OK;
   }
 
@@ -223,13 +205,12 @@ std::unique_ptr<HttpStreamRequest> HttpStreamPool::JobController::RequestStream(
                                          alternative_job_result_.has_value() &&
                                          *alternative_job_result_ == OK;
   if (!alternative_job_succeeded) {
-    origin_job_ = pool_->GetOrCreateGroup(origin_stream_key_, origin_quic_key_)
-                      .CreateJob(this, origin_quic_version_,
-                                 NextProto::kProtoUnknown, net_log);
+    origin_job_ =
+        pool_->GetOrCreateGroup(origin_stream_key_, origin_quic_key_)
+            .CreateJob(this, origin_quic_version_, NextProto::kProtoUnknown,
+                       stream_request_->net_log());
     origin_job_->Start();
   }
-
-  return stream_request;
 }
 
 int HttpStreamPool::JobController::Preconnect(
@@ -249,10 +230,19 @@ int HttpStreamPool::JobController::Preconnect(
     return OK;
   }
 
+  // If the preconnect explicitly requests QUIC, start preconnecting before
+  // checking existing SpdySession and idle streams.
+  if (origin_quic_version_.IsKnown()) {
+    preconnect_callback_ = std::move(callback);
+    StartAltSvcQuicPreconnect();
+    return ERR_IO_PENDING;
+  }
+
   SpdySessionKey spdy_session_key =
       origin_stream_key_.CalculateSpdySessionKey();
-  if (pool_->FindAvailableSpdySession(origin_stream_key_, spdy_session_key,
-                                      /*enable_ip_based_pooling=*/true)) {
+  if (pool_->FindAvailableSpdySession(
+          origin_stream_key_, spdy_session_key,
+          /*enable_ip_based_pooling_for_h2=*/true)) {
     net_log_.AddEvent(
         NetLogEventType::
             HTTP_STREAM_POOL_JOB_CONTROLLER_FOUND_EXISTING_SPDY_SESSION);
@@ -275,9 +265,9 @@ int HttpStreamPool::JobController::Preconnect(
   }
 
   preconnect_callback_ = std::move(callback);
-  origin_job_ =
-      std::make_unique<Job>(this, &group, origin_quic_version_,
-                            NextProto::kProtoUnknown, net_log_, num_streams);
+  origin_job_ = std::make_unique<Job>(
+      this, JobType::kPreconnect, &group, origin_quic_version_,
+      NextProto::kProtoUnknown, net_log_, num_streams);
   origin_job_->Start();
   return ERR_IO_PENDING;
 }
@@ -296,16 +286,16 @@ HttpStreamPool::JobController::allowed_bad_certs() const {
   return allowed_bad_certs_;
 }
 
-bool HttpStreamPool::JobController::enable_ip_based_pooling() const {
-  return enable_ip_based_pooling_;
+bool HttpStreamPool::JobController::enable_ip_based_pooling_for_h2() const {
+  return enable_ip_based_pooling_for_h2_;
 }
 
 bool HttpStreamPool::JobController::enable_alternative_services() const {
   return enable_alternative_services_;
 }
 
-bool HttpStreamPool::JobController::is_http1_allowed() const {
-  return is_http1_allowed_;
+NextProtoSet HttpStreamPool::JobController::allowed_alpns() const {
+  return allowed_alpns_;
 }
 
 const ProxyInfo& HttpStreamPool::JobController::proxy_info() const {
@@ -446,6 +436,58 @@ SpdySessionPool* HttpStreamPool::JobController::spdy_session_pool() {
   return pool_->http_network_session()->spdy_session_pool();
 }
 
+std::optional<HttpStreamPool::JobController::StreamWithProtocol>
+HttpStreamPool::JobController::MaybeCreateStreamFromExistingSession() {
+  // Check QUIC session first.
+  std::unique_ptr<HttpStream> quic_http_stream =
+      MaybeCreateStreamFromExistingQuicSession();
+  if (quic_http_stream) {
+    net_log_.AddEvent(
+        NetLogEventType::
+            HTTP_STREAM_POOL_JOB_CONTROLLER_FOUND_EXISTING_QUIC_SESSION);
+    return std::optional<StreamWithProtocol>(
+        std::in_place, std::move(quic_http_stream), NextProto::kProtoQUIC);
+  }
+
+  // Check SPDY session next.
+  SpdySessionKey spdy_session_key =
+      origin_stream_key_.CalculateSpdySessionKey();
+  base::WeakPtr<SpdySession> spdy_session = pool_->FindAvailableSpdySession(
+      origin_stream_key_, spdy_session_key, enable_ip_based_pooling_for_h2_,
+      stream_request_->net_log());
+  if (spdy_session) {
+    net_log_.AddEvent(
+        NetLogEventType::
+            HTTP_STREAM_POOL_JOB_CONTROLLER_FOUND_EXISTING_SPDY_SESSION);
+    auto http_stream = std::make_unique<SpdyHttpStream>(
+        spdy_session, stream_request_->net_log().source(),
+        spdy_session_pool()->GetDnsAliasesForSessionKey(spdy_session_key));
+    return std::optional<StreamWithProtocol>(
+        std::in_place, std::move(http_stream), NextProto::kProtoHTTP2);
+  }
+
+  // Check idle HTTP/1.1 stream.
+  Group& origin_group =
+      pool_->GetOrCreateGroup(origin_stream_key_, origin_quic_key_);
+  std::unique_ptr<StreamSocket> idle_stream_socket =
+      origin_group.GetIdleStreamSocket();
+  if (idle_stream_socket) {
+    StreamSocketHandle::SocketReuseType reuse_type =
+        idle_stream_socket->WasEverUsed()
+            ? StreamSocketHandle::SocketReuseType::kReusedIdle
+            : StreamSocketHandle::SocketReuseType::kUnusedIdle;
+    NextProto negotiated_protocol = idle_stream_socket->GetNegotiatedProtocol();
+    std::unique_ptr<HttpStream> http_stream =
+        origin_group.CreateTextBasedStream(std::move(idle_stream_socket),
+                                           reuse_type,
+                                           LoadTimingInfo::ConnectTiming());
+    return std::optional<StreamWithProtocol>(
+        std::in_place, std::move(http_stream), negotiated_protocol);
+  }
+
+  return std::nullopt;
+}
+
 std::unique_ptr<HttpStream>
 HttpStreamPool::JobController::MaybeCreateStreamFromExistingQuicSession() {
   std::unique_ptr<HttpStream> stream =
@@ -466,31 +508,62 @@ std::unique_ptr<HttpStream>
 HttpStreamPool::JobController::MaybeCreateStreamFromExistingQuicSessionInternal(
     const QuicSessionAliasKey& key) {
   if (!key.destination().IsValid() ||
-      !pool_->CanUseQuic(
-          key.destination(), key.session_key().network_anonymization_key(),
-          enable_ip_based_pooling_, enable_alternative_services_)) {
+      !pool_->CanUseQuic(key.destination(),
+                         key.session_key().network_anonymization_key(),
+                         enable_alternative_services_)) {
     return nullptr;
   }
 
   QuicChromiumClientSession* quic_session =
       quic_session_pool()->FindExistingSession(key.session_key(),
                                                key.destination());
-  if (quic_session) {
-    return std::make_unique<QuicHttpStream>(
-        quic_session->CreateHandle(key.destination()),
-        quic_session->GetDnsAliasesForSessionKey(key.session_key()));
-  }
-
-  if (alternative_.has_value()) {
+  if (!quic_session) {
     return nullptr;
   }
 
-  return nullptr;
+  return std::make_unique<QuicHttpStream>(
+      quic_session->CreateHandle(key.destination()),
+      quic_session->GetDnsAliasesForSessionKey(key.session_key()));
+}
+
+bool HttpStreamPool::JobController::MaybeStartAlternativeJob() {
+  if (!alternative_.has_value()) {
+    return false;
+  }
+
+  Group& alternative_group =
+      pool_->GetOrCreateGroup(alternative_->stream_key, alternative_->quic_key);
+
+  // We never put streams that are negotiated to use HTTP/2 as idle streams.
+  // Don't start alternative job if there is an idle stream. See
+  // HttpNetworkTransactionTest.AlternativeServiceShouldNotPoolToHttp11 for a
+  // scenario where we don't want to start alternative job.
+  if (alternative_group.IdleStreamSocketCount() > 0) {
+    return false;
+  }
+
+  alternative_job_ = alternative_group.CreateJob(
+      this, alternative_->quic_version, alternative_->protocol,
+      stream_request_->net_log());
+  alternative_job_->Start();
+  return true;
 }
 
 bool HttpStreamPool::JobController::CanUseExistingQuicSession() {
-  return pool_->CanUseExistingQuicSession(
-      origin_quic_key_, enable_ip_based_pooling_, enable_alternative_services_);
+  return pool_->CanUseExistingQuicSession(origin_quic_key_,
+                                          enable_alternative_services_);
+}
+
+void HttpStreamPool::JobController::StartAltSvcQuicPreconnect() {
+  Group& group = pool_->GetOrCreateGroup(origin_stream_key_, origin_quic_key_);
+  if (preconnect_callback_.is_null()) {
+    preconnect_callback_ = pool_->GetAltSvcQuicPreconnectCallback();
+  }
+  origin_job_ = std::make_unique<Job>(this, JobType::kAltSvcQuicPreconnect,
+                                      &group, origin_quic_version_,
+                                      NextProto::kProtoQUIC, net_log_,
+                                      /*num_streams=*/1);
+  origin_job_->Start();
 }
 
 void HttpStreamPool::JobController::CallRequestCompleteAndStreamReady(

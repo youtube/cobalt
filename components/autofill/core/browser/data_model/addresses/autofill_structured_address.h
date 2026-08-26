@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "base/feature_list.h"
-#include "components/autofill/core/browser/data_model/addresses/autofill_feature_guarded_address_component.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
 #include "components/autofill/core/browser/field_types.h"
 
@@ -128,7 +127,7 @@ class StreetAddressNode : public AddressComponent {
 
   std::u16string GetValueForComparison(
       const std::u16string& value,
-      const AddressComponent& other) const override;
+      const AddressCountryCode& common_country_code) const override;
 
  protected:
   // Gives the component with the higher verification status precedence.
@@ -206,7 +205,7 @@ class StateNode : public AddressComponent {
 
   std::u16string GetValueForComparison(
       const std::u16string& value,
-      const AddressComponent& other) const override;
+      const AddressCountryCode& common_country_code) const override;
 };
 
 // Stores the postal code of an address.
@@ -217,7 +216,7 @@ class PostalCodeNode : public AddressComponent {
 
   std::u16string GetValueForComparison(
       const std::u16string& value,
-      const AddressComponent& other) const override;
+      const AddressCountryCode& common_country_code) const override;
 };
 
 // Stores the sorting code.

@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.ntp;
 
-import static org.chromium.base.test.transit.TransitAsserts.assertFinalDestination;
-
 import androidx.test.filters.MediumTest;
 
 import org.junit.BeforeClass;
@@ -18,16 +16,19 @@ import org.junit.runners.MethodSorters;
 
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.suggestions.SiteSuggestion;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
-import org.chromium.chrome.test.transit.ReusedCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ntp.MvtsFacility;
+import org.chromium.chrome.test.transit.ntp.MvtsTileContextMenuFacility;
 import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
-import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.NewTabPageTestUtils;
 import org.chromium.chrome.test.util.browser.suggestions.SuggestionsDependenciesRule;
 import org.chromium.chrome.test.util.browser.suggestions.mostvisited.FakeMostVisitedSites;
@@ -49,8 +50,8 @@ public class MostVisitedTilesPTTest {
     private static List<SiteSuggestion> sSiteSuggestions;
 
     @Rule
-    public ReusedCtaTransitTestRule<RegularNewTabPageStation> mCtaTestRule =
-            ChromeTransitTestRules.ntpStartReusedActivityRule();
+    public AutoResetCtaTransitTestRule mCtaTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
     @BeforeClass
     public static void beforeClass() {
@@ -63,34 +64,72 @@ public class MostVisitedTilesPTTest {
 
     @Test
     @MediumTest
-    public void test010_ClickFirstMVT() {
+    @DisableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
+    public void testClickFirstMVT_DisableMvtCustomization() {
         doClickMVTTest(0);
     }
 
     @Test
     @MediumTest
-    public void test020_ClickLastMVT() {
+    @EnableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
+    public void testClickFirstMVT_EnableMvtCustomization() {
+        doClickMVTTest(0);
+    }
+
+    @Test
+    @MediumTest
+    @DisableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
+    public void testClickLastMVT_DisableMvtCustomization() {
+        doClickMVTTest(7);
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
+    public void testClickLastMVT_EnableMvtCustomization() {
         doClickMVTTest(7);
     }
 
     private void doClickMVTTest(int index) {
-        RegularNewTabPageStation page = mCtaTestRule.start();
+        RegularNewTabPageStation page = mCtaTestRule.startOnNtp();
+
         MvtsFacility mvts = page.focusOnMvts(sSiteSuggestions);
-        WebPageStation mostVisitedPage;
         try (var histogram =
                 HistogramWatcher.newSingleRecordWatcher(
                         "NewTabPage.Module.Click", ModuleTypeOnStartAndNtp.MOST_VISITED_TILES)) {
-            mostVisitedPage = mvts.tileItems.get(index).scrollToAndSelect();
+            mvts.ensureTileIsDisplayedAndGet(index).clickToNavigateToWebPage();
         }
+    }
 
-        // Reset back to the NTP for batching
-        page =
-                mostVisitedPage.pressBack(
-                        RegularNewTabPageStation.newBuilder()
-                                .withIncognito(false)
-                                .withIsOpeningTabs(0)
-                                .withTabAlreadySelected(mostVisitedPage.loadedTabElement.get())
-                                .build());
-        assertFinalDestination(page);
+    @Test
+    @MediumTest
+    public void testOpenItemInIncognitoTab() {
+        RegularNewTabPageStation page = mCtaTestRule.startOnNtp();
+
+        MvtsFacility mvts = page.focusOnMvts(sSiteSuggestions);
+        MvtsTileContextMenuFacility menu = mvts.ensureTileIsDisplayedAndGet(1).openContextMenu();
+        HistogramWatcher histogram =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "NewTabPage.Module.Click", ModuleTypeOnStartAndNtp.MOST_VISITED_TILES);
+
+        menu.selectOpenInIncognitoTab();
+
+        histogram.assertExpected();
+    }
+
+    @Test
+    @MediumTest
+    public void testOpenItemInNewTab() {
+        RegularNewTabPageStation page = mCtaTestRule.startOnNtp();
+
+        MvtsFacility mvts = page.focusOnMvts(sSiteSuggestions);
+        MvtsTileContextMenuFacility menu = mvts.ensureTileIsDisplayedAndGet(1).openContextMenu();
+        HistogramWatcher histogram =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "NewTabPage.Module.Click", ModuleTypeOnStartAndNtp.MOST_VISITED_TILES);
+
+        menu.selectOpenInNewTab();
+
+        histogram.assertExpected();
     }
 }

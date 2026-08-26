@@ -15,7 +15,7 @@
 #include "mojo/public/cpp/bindings/struct_traits.h"
 #include "mojo/public/cpp/bindings/union_traits.h"
 #include "mojo/public/cpp/system/platform_handle.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/mojom/native_handle_types.mojom-shared.h"
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OZONE)
@@ -28,6 +28,9 @@
 #include "mojo/public/cpp/system/message_pipe.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_APPLE)
+#include "ui/gfx/mac/io_surface.h"
+#endif
 
 namespace mojo {
 
@@ -139,6 +142,51 @@ struct COMPONENT_EXPORT(GFX_NATIVE_HANDLE_TYPES_SHARED_MOJOM_TRAITS)
 };
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(IS_APPLE)
+struct COMPONENT_EXPORT(GFX_NATIVE_HANDLE_TYPES_SHARED_MOJOM_TRAITS)
+    IOSurfaceHandle {
+  IOSurfaceHandle();
+  IOSurfaceHandle(IOSurfaceHandle&&);
+  IOSurfaceHandle& operator=(IOSurfaceHandle&&);
+  ~IOSurfaceHandle();
+
+  base::apple::ScopedMachSendRight mach_send_right;
+#if BUILDFLAG(IS_IOS)
+  base::UnsafeSharedMemoryRegion shared_memory_region;
+  std::array<uint32_t, gfx::kMaxIOSurfacePlanes> plane_strides;
+  std::array<uint32_t, gfx::kMaxIOSurfacePlanes> plane_offsets;
+#endif
+};
+
+template <>
+struct COMPONENT_EXPORT(GFX_NATIVE_HANDLE_TYPES_SHARED_MOJOM_TRAITS)
+    StructTraits<gfx::mojom::IOSurfaceHandleDataView, IOSurfaceHandle> {
+  static PlatformHandle mach_send_right(IOSurfaceHandle& handle) {
+    return PlatformHandle(std::move(handle.mach_send_right));
+  }
+
+#if BUILDFLAG(IS_IOS)
+  static base::UnsafeSharedMemoryRegion& shared_memory_handle(
+      IOSurfaceHandle& handle) {
+    return handle.shared_memory_region;
+  }
+
+  static std::array<uint32_t, gfx::kMaxIOSurfacePlanes>& plane_strides(
+      IOSurfaceHandle& handle) {
+    return handle.plane_strides;
+  }
+
+  static std::array<uint32_t, gfx::kMaxIOSurfacePlanes>& plane_offsets(
+      IOSurfaceHandle& handle) {
+    return handle.plane_offsets;
+  }
+#endif  // BUILDFLAG(IS_IOS)
+
+  static bool Read(gfx::mojom::IOSurfaceHandleDataView data,
+                   IOSurfaceHandle* handle);
+};
+#endif  // BUILDFLAG(IS_APPLE)
+
 template <>
 struct COMPONENT_EXPORT(GFX_NATIVE_HANDLE_TYPES_SHARED_MOJOM_TRAITS)
     UnionTraits<gfx::mojom::GpuMemoryBufferPlatformHandleDataView,
@@ -156,7 +204,7 @@ struct COMPONENT_EXPORT(GFX_NATIVE_HANDLE_TYPES_SHARED_MOJOM_TRAITS)
   }
 
 #if BUILDFLAG(IS_APPLE)
-  static PlatformHandle mach_port(gfx::GpuMemoryBufferHandle& handle);
+  static IOSurfaceHandle io_surface_handle(gfx::GpuMemoryBufferHandle& handle);
 #endif  // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OZONE)

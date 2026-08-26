@@ -12,10 +12,14 @@
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "components/permissions/features.h"
+#include "components/permissions/permission_decision.h"
 #include "components/permissions/permission_util.h"
 #include "components/permissions/request_type.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/url_formatter/elide_url.h"
+#include "content/public/browser/permission_controller.h"
+#include "content/public/browser/render_frame_host.h"
+#include "ui/base/device_form_factor.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/text_elider.h"
 #include "ui/strings/grit/ui_strings.h"
@@ -94,6 +98,9 @@ PermissionRequest::GetDialogAnnotatedMessageText(
     case RequestType::kIdleDetection:
       message_id = IDS_IDLE_DETECTION_INFOBAR_TEXT;
       break;
+    case RequestType::kLocalNetworkAccess:
+      message_id = IDS_LOCAL_NETWORK_ACCESS_INFOBAR_TEXT;
+      break;
     case RequestType::kMicStream:
       message_id = IDS_MEDIA_CAPTURE_AUDIO_ONLY_INFOBAR_TEXT;
       break;
@@ -134,15 +141,19 @@ PermissionRequest::GetDialogAnnotatedMessageText(
     case RequestType::kIdentityProvider:
       message_id = IDS_IDENTITY_PROVIDER_INFOBAR_TEXT;
       break;
+    case RequestType::kWindowManagement:
+      message_id = IDS_WINDOW_MANAGEMENT_INFOBAR_TEXT;
+      break;
   }
   DCHECK_NE(0, message_id);
 
-  // Only format origins bold iff it's one time allowable (which uses a new
-  // prompt design on Clank)
+  // Only format origins bold if it's one time allowable or on tablet (which
+  // uses a new prompt design on Clank)
   return GetDialogAnnotatedMessageText(
       requesting_origin_string_formatted, message_id, /*format_origin_bold=*/
-      permissions::PermissionUtil::DoesSupportTemporaryGrants(
-          GetContentSettingsType()));
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET ||
+          permissions::PermissionUtil::DoesSupportTemporaryGrants(
+              GetContentSettingsType()));
 }
 
 // static
@@ -297,8 +308,9 @@ std::optional<std::u16string> PermissionRequest::GetRequestChipText(
          IDS_PERMISSIONS_WEB_INSTALL_NOT_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT}}});
 
   auto messages = kMessageIds->find(request_type());
-  if (messages != kMessageIds->end() && messages->second[type] != -1)
+  if (messages != kMessageIds->end() && messages->second[type] != -1) {
     return l10n_util::GetStringUTF16(messages->second[type]);
+  }
 
   return std::nullopt;
 }
@@ -414,26 +426,31 @@ bool PermissionRequest::ShouldUseTwoOriginPrompt() const {
 
 void PermissionRequest::PermissionGranted(bool is_one_time) {
   std::move(permission_decided_callback_)
-      .Run(CONTENT_SETTING_ALLOW, is_one_time,
+      .Run(is_one_time ? PermissionDecision::kAllowThisTime
+                       : PermissionDecision::kAllow,
            /*is_final_decision=*/true, /*request_data=*/*data_);
 }
 
 void PermissionRequest::PermissionDenied() {
   std::move(permission_decided_callback_)
-      .Run(CONTENT_SETTING_BLOCK, /*is_one_time=*/false,
+      .Run(PermissionDecision::kDeny,
            /*is_final_decision=*/true, /*request_data=*/*data_);
 }
 
 void PermissionRequest::Cancelled(bool is_final_decision) {
   if (permission_decided_callback_) {
-    permission_decided_callback_.Run(CONTENT_SETTING_DEFAULT,
-                                     /*is_one_time=*/false, is_final_decision,
+    permission_decided_callback_.Run(PermissionDecision::kNone,
+                                     is_final_decision,
                                      /*request_data=*/*data_);
   }
 }
 
 PermissionRequestGestureType PermissionRequest::GetGestureType() const {
   return PermissionUtil::GetGestureType(data_->user_gesture);
+}
+
+void PermissionRequest::SetPromptOptions(PromptOptions prompt_options) {
+  data_->prompt_options = std::move(prompt_options);
 }
 
 const std::vector<std::string>&
@@ -448,8 +465,9 @@ PermissionRequest::GetRequestedVideoCaptureDeviceIds() const {
 
 ContentSettingsType PermissionRequest::GetContentSettingsType() const {
   auto type = RequestTypeToContentSettingsType(request_type());
-  if (type.has_value())
+  if (type.has_value()) {
     return type.value();
+  }
   return ContentSettingsType::DEFAULT;
 }
 
@@ -486,6 +504,23 @@ void PermissionRequest::SetEmbeddedPermissionElementInitiatedForTesting(
     bool embedded_permission_element_initiated) {
   data_->embedded_permission_element_initiated =
       embedded_permission_element_initiated;
+}
+
+bool PermissionRequest::IsSourceSubscribedToPermissionChangeEvent(
+    content::PermissionController* controller) const {
+  DCHECK(controller);
+  content::RenderFrameHost* rfh =
+      content::RenderFrameHost::FromID(get_requesting_frame_id());
+
+  if (rfh == nullptr) {
+    return false;
+  }
+
+  blink::PermissionType permission_type =
+      permissions::PermissionUtil::ContentSettingsTypeToPermissionType(
+          GetContentSettingsType());
+
+  return controller->IsSubscribedToPermissionChangeEvent(permission_type, rfh);
 }
 
 }  // namespace permissions

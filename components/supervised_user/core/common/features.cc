@@ -10,6 +10,8 @@
 #include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/strings/string_util.h"
+#include "base/system/sys_info.h"
 #include "build/android_buildflags.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
@@ -20,11 +22,7 @@ namespace supervised_user {
 // user's device.
 BASE_FEATURE(kLocalWebApprovals,
              "LocalWebApprovals",
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT);
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 // TODO(crbug.com/391799078): Support local web approval for subframes on
 // Desktop.
@@ -56,9 +54,16 @@ BASE_FEATURE(kLocalWebApprovalsWidgetSupportsUrlPayload,
              "PacpWidgetSupportsUrlPayload",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// TODO(crbug.com/435635774): Release the interstitial v3 in all platforms.
 BASE_FEATURE(kSupervisedUserBlockInterstitialV3,
              "SupervisedUserBlockInterstitialV3",
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_IOS)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) ||
+        // BUILDFLAG(IS_IOS)
 
 bool IsGoogleBrandedBuild() {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -90,56 +95,10 @@ bool IsLocalWebApprovalsEnabledForSubframes() {
 }
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-BASE_FEATURE(kCustomProfileStringsForSupervisedUsers,
-             "CustomProfileStringsForSupervisedUsers",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kShowKiteForSupervisedUsers,
-             "ShowKiteForSupervisedUsers",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
-BASE_FEATURE(kForceSafeSearchForUnauthenticatedSupervisedUsers,
-             "ForceSafeSearchForUnauthenticatedSupervisedUsers",
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 BASE_FEATURE(kEnableSupervisedUserVersionSignOutDialog,
              "EnableSupervisedUserVersionSignOutDialog",
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
-
-// TODO: crbug.com/378636321 - Clean up the
-// kUncredentialedFilteringFallbackForSupervisedUsers and
-// kWaitUntilAccessTokenAvailableForClassifyUrl flags, by inlining the
-// platform #defines.
-BASE_FEATURE(kUncredentialedFilteringFallbackForSupervisedUsers,
-             "UncredentialedFilteringFallbackForSupervisedUsers",
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
-BASE_FEATURE(kWaitUntilAccessTokenAvailableForClassifyUrl,
-             "WaitUntilAccessTokenAvailableForClassifyUrl",
-#if BUILDFLAG(IS_ANDROID)
-             // Android enforces at the OS level that supervised users must have
-             // valid sign in credentials (and triggers a reauth if not). We can
-             // therefore wait for a valid access token to be available before
-             // calling ClassifyUrl, to avoid window conditions where the access
-             // token is not yet available (eg. during startup).
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             // Other platforms don't enforce this, and we therefore cannot
-             // wait for access tokens in Chrome.
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
 
 BASE_FEATURE(kAlignSafeSitesValueWithBrowserDefault,
              "AlignSafeSitesValueWithBrowserDefault",
@@ -147,5 +106,68 @@ BASE_FEATURE(kAlignSafeSitesValueWithBrowserDefault,
 BASE_FEATURE(kDecoupleSafeSitesFromMainSwitch,
              "DecoupleSafeSitesFromMainSwitch",
              base::FEATURE_ENABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kAllowNonFamilyLinkUrlFilterMode,
+             "AllowNonFamilyLinkUrlFilterMode",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPropagateDeviceContentFiltersToSupervisedUser,
+             "PropagateDeviceContentFiltersToSupervisedUser",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSupervisedUserBrowserContentFiltersKillSwitch,
+             "SupervisedUserBrowserContentFiltersKillSwitch",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kSupervisedUserSearchContentFiltersKillSwitch,
+             "SupervisedUserSearchContentFiltersKillSwitch",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kSupervisedUserClearDeviceContentFiltersPrefsOnStartup,
+             "SupervisedUserClearDeviceContentFiltersPrefsOnStartup",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSupervisedUserInterstitialWithoutApprovals,
+             "SupervisedUserInterstitialWithoutApprovals",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSupervisedUserLocalSupervisionPreview,
+             "SupervisedUserLocalSupervisionPreview",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<std::string>
+    kSupervisedUserLocalSupervisionPreviewBuildVersionMajor{
+        &kSupervisedUserLocalSupervisionPreview, "build_version_major", "BP41"};
+
+namespace {
+bool PlatformSupportsLocalSupervision() {
+  int32_t major, minor, bugfix;
+  base::SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
+  bool supported_by_os = (major == 16 && minor >= 1) || major > 16;
+
+  bool supported_by_build = base::StartsWith(
+      base::SysInfo::GetAndroidBuildID(),
+      kSupervisedUserLocalSupervisionPreviewBuildVersionMajor.Get(),
+      base::CompareCase::SENSITIVE);
+
+  return supported_by_os || supported_by_build;
+}
+
+bool IsLocalSupervisionEnabled() {
+  return PlatformSupportsLocalSupervision() &&
+         base::FeatureList::IsEnabled(kSupervisedUserLocalSupervisionPreview);
+}
+}  // namespace
+
+bool UseLocalSupervision() {
+  return IsLocalSupervisionEnabled() ||
+         base::FeatureList::IsEnabled(
+             kPropagateDeviceContentFiltersToSupervisedUser);
+}
+bool UseInterstitialForLocalSupervision() {
+  return IsLocalSupervisionEnabled() ||
+         base::FeatureList::IsEnabled(
+             kSupervisedUserInterstitialWithoutApprovals);
+}
+bool ClassifyUrlWithoutCredentialsForLocalSupervision() {
+  return IsLocalSupervisionEnabled() ||
+         base::FeatureList::IsEnabled(kAllowNonFamilyLinkUrlFilterMode);
+}
+
+#endif
 
 }  // namespace supervised_user

@@ -7,26 +7,32 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <map>
 #include <memory>
-#include <set>
+#include <optional>
 #include <string>
 #include <utility>
-#include <vector>
 
+#include "quiche/quic/core/congestion_control/loss_detection_interface.h"
 #include "quiche/quic/core/congestion_control/pacing_sender.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/congestion_control/uber_loss_algorithm.h"
-#include "quiche/quic/core/proto/cached_network_parameters_proto.h"
+#include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/frames/quic_ack_frame.h"
+#include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_sustained_bandwidth_recorder.h"
+#include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_transmission_info.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"
-#include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/core/session_notifier_interface.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_circular_deque.h"
 
 namespace quic {
@@ -431,11 +437,6 @@ class QUICHE_EXPORT QuicSentPacketManager {
     return initial_congestion_window_;
   }
 
-  QuicPacketNumber largest_packet_peer_knows_is_acked() const {
-    QUICHE_DCHECK(!supports_multiple_packet_number_spaces());
-    return largest_packet_peer_knows_is_acked_;
-  }
-
   size_t pending_timer_transmission_count() const {
     return pending_timer_transmission_count_;
   }
@@ -510,6 +511,14 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // - A minimum of kMinTrustedInitialRoundTripTimeUs if |trusted|, or
   // kMinUntrustedInitialRoundTripTimeUs if not |trusted|.
   void SetInitialRtt(QuicTime::Delta rtt, bool trusted);
+
+  // Enables QUIC overhead measurement.
+  void EnableOverheadMeasurement() { measure_overhead_ = true; }
+
+  // Returns an estimate of overhead added by QUIC as a fraction of application
+  // payload sent to total data sent (total data includes everything inside UDP
+  // packets sent by QUIC, but excludes UDP headers and above).
+  float GetOverheadEstimate() const;
 
  private:
   friend class test::QuicConnectionPeer;
@@ -621,6 +630,9 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // Update counters for the number of ECN-marked packets sent.
   void RecordEcnMarkingSent(QuicEcnCodepoint ecn_codepoint,
                             EncryptionLevel level);
+
+  // Updates the QUIC overhead measurements if those are enabled.
+  void UpdateOverheadMeasurements(const SerializedPacket& packet);
 
   // Newly serialized retransmittable packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is
@@ -737,6 +749,9 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // Whether to ignore the ack_delay in received ACKs.
   bool ignore_ack_delay_;
 
+  // Whether to record stats necessary for the QUIC overhead estimation.
+  bool measure_overhead_;
+
   // The total number of packets sent with ECT(0) or ECT(1) in each packet
   // number space over the life of the connection.
   QuicPacketCount ect0_packets_sent_[NUM_PACKET_NUMBER_SPACES] = {0, 0, 0};
@@ -744,6 +759,11 @@ class QUICHE_EXPORT QuicSentPacketManager {
 
   // Most recent ECN codepoint counts received in an ACK frame sent by the peer.
   QuicEcnCounts peer_ack_ecn_counts_[NUM_PACKET_NUMBER_SPACES];
+
+  // The numerator and denominator used for overhead measurements. Only recorded
+  // if `measure_overhead_` is true.
+  QuicByteCount overhead_good_bytes_ = 0;
+  QuicByteCount overhead_total_bytes_ = 0;
 
   std::optional<QuicTime::Delta> deferred_send_alarm_delay_;
 

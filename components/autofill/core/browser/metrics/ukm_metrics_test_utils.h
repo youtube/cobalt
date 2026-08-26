@@ -23,6 +23,8 @@ struct ExpectedUkmMetricsPair : public std::pair<std::string, int64_t> {
       : ExpectedUkmMetricsPair(str, static_cast<int64_t>(mode)) {}
   ExpectedUkmMetricsPair(std::string str, HtmlFieldType type)
       : ExpectedUkmMetricsPair(str, static_cast<int64_t>(type)) {}
+  ExpectedUkmMetricsPair(std::string str, bool b)
+      : ExpectedUkmMetricsPair(str, static_cast<int64_t>(b)) {}
 
   friend std::ostream& operator<<(std::ostream& os,
                                   const ExpectedUkmMetricsPair& ukm_pair) {
@@ -48,6 +50,11 @@ void VerifyDeveloperEngagementUkm(
     const bool is_for_credit_card,
     const DenseSet<FormTypeNameForLogging>& form_types,
     const std::vector<int64_t>& expected_metric_values);
+
+void AppendFormEventUkm(
+    const FormEvent& form_event,
+    const DenseSet<FormTypeNameForLogging>& form_types,
+    std::vector<std::vector<ExpectedUkmMetricsPair>>* expected_metrics);
 
 void AppendFieldFillStatusUkm(
     const FormData& form,

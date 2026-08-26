@@ -132,7 +132,8 @@ LiveCaptionSpeechRecognitionHost::LiveCaptionSpeechRecognitionHost(
 LiveCaptionSpeechRecognitionHost::~LiveCaptionSpeechRecognitionHost() {
   LiveCaptionController* live_caption_controller = GetLiveCaptionController();
   if (live_caption_controller)
-    live_caption_controller->OnAudioStreamEnd(GetWebContents(), context_.get());
+    live_caption_controller->OnAudioStreamEnd(&render_frame_host(),
+                                              context_.get());
   if (media::IsLiveTranslateEnabled() && characters_translated_ > 0) {
     base::UmaHistogramCounts10M(
         "Accessibility.LiveTranslate.CharactersTranslated",
@@ -162,6 +163,8 @@ void LiveCaptionSpeechRecognitionHost::OnSpeechRecognitionRecognitionEvent(
 
   std::string target_language =
       prefs_->GetString(prefs::kLiveTranslateTargetLanguageCode);
+  // TODO(crbug.com/413823334): Forward `result.timing_information` even we are
+  // live-translating a video.
   if (media::IsLiveTranslateEnabled() &&
       prefs_->GetBoolean(prefs::kLiveTranslateEnabled) &&
       l10n_util::GetLanguage(target_language) !=
@@ -186,17 +189,17 @@ void LiveCaptionSpeechRecognitionHost::OnSpeechRecognitionRecognitionEvent(
       // Dispatch the transcription immediately if the entire transcription was
       // cached.
       std::move(reply).Run(live_caption_controller->DispatchTranscription(
-          GetWebContents(), context_.get(),
+          &render_frame_host(), context_.get(),
           media::SpeechRecognitionResult(
               GetTextForDispatch(cached_translation, result.is_final),
               result.is_final)));
     }
   } else {
     std::move(reply).Run(live_caption_controller->DispatchTranscription(
-        GetWebContents(), context_.get(),
+        &render_frame_host(), context_.get(),
         media::SpeechRecognitionResult(
             GetTextForDispatch(result.transcription, result.is_final),
-            result.is_final)));
+            result.is_final, result.timing_information)));
   }
 }
 
@@ -243,7 +246,7 @@ void LiveCaptionSpeechRecognitionHost::OnLanguageIdentificationEvent(
   }
 
   live_caption_controller->OnLanguageIdentificationEvent(
-      GetWebContents(), context_.get(), std::move(event));
+      &render_frame_host(), context_.get(), std::move(event));
 }
 
 void LiveCaptionSpeechRecognitionHost::OnSpeechRecognitionError() {
@@ -259,7 +262,8 @@ void LiveCaptionSpeechRecognitionHost::OnSpeechRecognitionError() {
 void LiveCaptionSpeechRecognitionHost::OnSpeechRecognitionStopped() {
   LiveCaptionController* live_caption_controller = GetLiveCaptionController();
   if (live_caption_controller) {
-    live_caption_controller->OnAudioStreamEnd(GetWebContents(), context_.get());
+    live_caption_controller->OnAudioStreamEnd(&render_frame_host(),
+                                              context_.get());
   }
 }
 
@@ -279,7 +283,6 @@ void LiveCaptionSpeechRecognitionHost::OnTranslationCallback(
     const std::string& target_language,
     bool is_final,
     const captions::TranslateEvent& result) {
-  // TODO(384019306) Maybe report metrics on failure?
   if (!result.has_value()) {
     return;
   }
@@ -303,7 +306,7 @@ void LiveCaptionSpeechRecognitionHost::OnTranslationCallback(
 
   LiveCaptionController* live_caption_controller = GetLiveCaptionController();
   stop_transcriptions_ = !live_caption_controller->DispatchTranscription(
-      GetWebContents(), context_.get(),
+      &render_frame_host(), context_.get(),
       media::SpeechRecognitionResult(GetTextForDispatch(text, is_final),
                                      is_final));
 }

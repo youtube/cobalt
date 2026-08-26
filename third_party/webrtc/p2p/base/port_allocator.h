@@ -11,8 +11,7 @@
 #ifndef P2P_BASE_PORT_ALLOCATOR_H_
 #define P2P_BASE_PORT_ALLOCATOR_H_
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -548,7 +547,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   // Deprecated (by the next method).
   bool prune_turn_ports() const {
     CheckRunOnValidThreadIfInitialized();
-    return turn_port_prune_policy_ == webrtc::PRUNE_BASED_ON_PRIORITY;
+    return turn_port_prune_policy_ == PRUNE_BASED_ON_PRIORITY;
   }
 
   PortPrunePolicy turn_port_prune_policy() const {
@@ -619,7 +618,7 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
   std::vector<RelayServerConfig> turn_servers_;
   int candidate_pool_size_ = 0;  // Last value passed into SetConfiguration.
   std::vector<std::unique_ptr<PortAllocatorSession>> pooled_sessions_;
-  PortPrunePolicy turn_port_prune_policy_ = webrtc::NO_PRUNE;
+  PortPrunePolicy turn_port_prune_policy_ = NO_PRUNE;
 
   // Customizer for TURN messages.
   // The instance is owned by application and will be shared among
@@ -643,41 +642,5 @@ class RTC_EXPORT PortAllocator : public sigslot::has_slots<> {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::CF_ALL;
-using ::webrtc::CF_HOST;
-using ::webrtc::CF_NONE;
-using ::webrtc::CF_REFLEXIVE;
-using ::webrtc::CF_RELAY;
-using ::webrtc::IceRegatheringReason;
-using ::webrtc::kDefaultMaxIPv6Networks;
-using ::webrtc::kDefaultPortAllocatorFlags;
-using ::webrtc::kDefaultStepDelay;
-using ::webrtc::kMinimumStepDelay;
-using ::webrtc::PortAllocator;
-using ::webrtc::PORTALLOCATOR_DISABLE_ADAPTER_ENUMERATION;
-using ::webrtc::PORTALLOCATOR_DISABLE_COSTLY_NETWORKS;
-using ::webrtc::PORTALLOCATOR_DISABLE_DEFAULT_LOCAL_CANDIDATE;
-using ::webrtc::PORTALLOCATOR_DISABLE_LINK_LOCAL_NETWORKS;
-using ::webrtc::PORTALLOCATOR_DISABLE_RELAY;
-using ::webrtc::PORTALLOCATOR_DISABLE_STUN;
-using ::webrtc::PORTALLOCATOR_DISABLE_TCP;
-using ::webrtc::PORTALLOCATOR_DISABLE_UDP;
-using ::webrtc::PORTALLOCATOR_DISABLE_UDP_RELAY;
-using ::webrtc::PORTALLOCATOR_ENABLE_ANY_ADDRESS_PORTS;
-using ::webrtc::PORTALLOCATOR_ENABLE_IPV6;
-using ::webrtc::PORTALLOCATOR_ENABLE_IPV6_ON_WIFI;
-using ::webrtc::PORTALLOCATOR_ENABLE_SHARED_SOCKET;
-using ::webrtc::PORTALLOCATOR_ENABLE_STUN_RETRANSMIT_ATTRIBUTE;
-using ::webrtc::PortAllocatorSession;
-using ::webrtc::PortList;
-using ::webrtc::RelayCredentials;
-using ::webrtc::RelayServerConfig;
-using ::webrtc::TlsCertPolicy;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_PORT_ALLOCATOR_H_

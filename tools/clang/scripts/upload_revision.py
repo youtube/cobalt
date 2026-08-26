@@ -63,7 +63,7 @@ Cq-Include-Trybots: chromium/try:linux-chromeos-dbg
 Cq-Include-Trybots: chromium/try:linux_chromium_cfi_rel_ng
 Cq-Include-Trybots: chromium/try:linux_chromium_chromeos_msan_rel_ng
 Cq-Include-Trybots: chromium/try:linux_chromium_msan_rel_ng
-Cq-Include-Trybots: chromium/try:mac11-arm64-rel,mac_chromium_asan_rel_ng
+Cq-Include-Trybots: chromium/try:mac12-arm64-rel,mac_chromium_asan_rel_ng
 Cq-Include-Trybots: chromium/try:ios-catalyst,win-asan,android-official
 Cq-Include-Trybots: chromium/try:fuchsia-arm64-cast-receiver-rel
 Cq-Include-Trybots: chromium/try:mac-official,linux-official
@@ -76,7 +76,6 @@ Cq-Include-Trybots: chrome/try:iphone-device,ipad-device
 Cq-Include-Trybots: chrome/try:linux-chromeos-chrome
 Cq-Include-Trybots: chrome/try:win-chrome,win64-chrome,linux-chrome,mac-chrome
 Cq-Include-Trybots: chrome/try:linux-pgo,mac-pgo,win32-pgo,win64-pgo
-Cq-Include-Trybots: luci.chrome.try:fuchsia-x64-nest-sd
 Cq-Include-Trybots: luci.chromium.try:linux-cast-x64-rel'''
 
 RUST_BOTS = \

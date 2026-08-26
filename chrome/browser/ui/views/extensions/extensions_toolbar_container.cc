@@ -740,6 +740,21 @@ gfx::Size ExtensionsToolbarContainer::GetToolbarActionSize() {
              : kDefaultSize;
 }
 
+void ExtensionsToolbarContainer::MovePinnedActionBy(
+    const std::string& action_id,
+    int move_by) {
+  auto iter = std::ranges::find(model_->pinned_action_ids(), action_id);
+  CHECK(iter != model_->pinned_action_ids().cend());
+  int current_index = iter - model_->pinned_action_ids().cbegin();
+  int new_index =
+      std::clamp(current_index + move_by, 0,
+                 static_cast<int>(model_->pinned_action_ids().size()) - 1);
+  if (new_index == current_index) {
+    return;
+  }
+  model_->MovePinnedAction(action_id, new_index);
+}
+
 void ExtensionsToolbarContainer::WriteDragDataForView(
     View* sender,
     const gfx::Point& press_pt,
@@ -986,12 +1001,13 @@ void ExtensionsToolbarContainer::OnMenuOpening() {
   // Record IPH usage, which should only be shown when any extension has access.
   if (GetExtensionsButton()->state() ==
       ExtensionsToolbarButton::State::kAnyExtensionHasAccess) {
-    browser_->window()->NotifyFeaturePromoFeatureUsed(
-        feature_engagement::kIPHExtensionsMenuFeature,
-        FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+    BrowserUserEducationInterface::From(browser_)
+        ->NotifyFeaturePromoFeatureUsed(
+            feature_engagement::kIPHExtensionsMenuFeature,
+            FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
   } else {
     // Otherwise, just close the IPH if it's present.
-    browser_->window()->AbortFeaturePromo(
+    BrowserUserEducationInterface::From(browser_)->AbortFeaturePromo(
         feature_engagement::kIPHExtensionsMenuFeature);
   }
 

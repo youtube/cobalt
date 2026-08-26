@@ -7,13 +7,46 @@
 
 #import <UIKit/UIKit.h>
 
-@protocol GlicCommands;
+#import "ios/chrome/browser/reader_mode/ui/reader_mode_options_consumer.h"
+
+@protocol BWGCommands;
+@protocol LensOverlayCommands;
+@protocol PageActionMenuCommands;
+@protocol PageActionMenuViewControllerDelegate;
+@protocol ReaderModeCommands;
 
 // The view controller representing the presented page action menu UI.
-@interface PageActionMenuViewController : UIViewController
+@interface PageActionMenuViewController
+    : UIViewController <ReaderModeOptionsConsumer>
 
-// The handler for sending GLIC commands.
-@property(nonatomic, weak) id<GlicCommands> handler;
+// The delegate for this view controller.
+@property(nonatomic, weak) id<PageActionMenuViewControllerDelegate> delegate;
+
+// Initializes the view controller adapted to whether Reader Mode is currently
+// active.
+- (instancetype)initWithReaderModeActive:(BOOL)readerModeActive
+    NS_DESIGNATED_INITIALIZER;
+
+- (instancetype)init NS_UNAVAILABLE;
+- (instancetype)initWithCoder:(NSCoder*)aDecoder NS_UNAVAILABLE;
+- (instancetype)initWithNibName:(NSString*)nibNameOrNil
+                         bundle:(NSBundle*)nibBundleOrNil NS_UNAVAILABLE;
+
+// Returns the appropriate detent value for a sheet presentation in `context`.
+- (CGFloat)resolveDetentValueForSheetPresentation:
+    (id<UISheetPresentationControllerDetentResolutionContext>)context;
+
+// The handler for sending BWG commands.
+@property(nonatomic, weak) id<BWGCommands> BWGHandler;
+
+// The handler for sending page action menu commands.
+@property(nonatomic, weak) id<PageActionMenuCommands> pageActionMenuHandler;
+
+// The handler for sending lens overlay commands.
+@property(nonatomic, weak) id<LensOverlayCommands> lensOverlayHandler;
+
+// The handler for sending reader mode commands.
+@property(nonatomic, weak) id<ReaderModeCommands> readerModeHandler;
 
 @end
 

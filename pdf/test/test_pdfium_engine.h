@@ -160,12 +160,18 @@ class TestPDFiumEngine : public PDFiumEngine {
 
   MOCK_METHOD(void, SetFormHighlight, (bool), (override));
 
-  MOCK_METHOD(void,
-              HighlightTextFragments,
-              (const base::span<const std::string>),
+  MOCK_METHOD(bool,
+              FindAndHighlightTextFragments,
+              (base::span<const std::string>),
               (override));
 
+  MOCK_METHOD(void, ScrollToFirstTextFragment, (bool), (override));
+
+  MOCK_METHOD(void, RemoveTextFragments, (), (override));
+
   MOCK_METHOD(void, ClearTextSelection, (), (override));
+
+  MOCK_METHOD(void, SetCaretBrowsingEnabled, (bool), (override));
 
  protected:
   std::vector<DocumentAttachmentInfo>& doc_attachment_info_list() {

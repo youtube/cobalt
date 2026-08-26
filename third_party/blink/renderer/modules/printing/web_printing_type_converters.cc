@@ -501,11 +501,15 @@ void ProcessPrintColorMode(
 void ProcessPrintQuality(
     const mojom::blink::WebPrinterAttributes& new_attributes,
     WebPrinterAttributes* current_attributes) {
-  current_attributes->setPrintQualityDefault(
-      mojo::ConvertTo<V8Quality>(new_attributes.print_quality_default));
-  current_attributes->setPrintQualitySupported(
-      mojo::ConvertTo<Vector<V8Quality>>(
-          new_attributes.print_quality_supported));
+  if (new_attributes.print_quality_default) {
+    current_attributes->setPrintQualityDefault(
+        mojo::ConvertTo<V8Quality>(*new_attributes.print_quality_default));
+  }
+  if (!new_attributes.print_quality_supported.empty()) {
+    current_attributes->setPrintQualitySupported(
+        mojo::ConvertTo<Vector<V8Quality>>(
+            new_attributes.print_quality_supported));
+  }
 }
 
 void ProcessSides(const mojom::blink::WebPrinterAttributes& new_attributes,
@@ -547,7 +551,7 @@ TypeConverter<blink::WebPrinterAttributes*,
   attributes->setPrinterState(
       mojo::ConvertTo<V8PrinterState::Enum>(printer_attributes->printer_state));
   attributes->setPrinterStateReasons(
-      mojo::ConvertTo<Vector<V8PrinterStateReason>>(
+      mojo::ConvertTo<blink::Vector<V8PrinterStateReason>>(
           printer_attributes->printer_state_reasons));
   attributes->setPrinterStateMessage(printer_attributes->printer_state_message);
 

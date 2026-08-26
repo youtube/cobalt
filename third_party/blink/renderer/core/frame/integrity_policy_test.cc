@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/platform/testing/main_thread_isolate.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
+#include "third_party/blink/renderer/platform/wtf/text/base64.h"
 
 namespace blink {
 
@@ -59,9 +60,13 @@ class IntegrityPolicyTest : public testing::Test {
 };
 
 TEST_F(IntegrityPolicyTest, AllowRequestTest) {
+  Vector<uint8_t> decoded;
+  ASSERT_TRUE(Base64Decode("foobar", decoded));
   IntegrityMetadataSet kNonEmptyIntegrityMetadata;
-  kNonEmptyIntegrityMetadata.Insert(IntegrityMetadata(
-      "foobar", network::mojom::blink::IntegrityAlgorithm::kSha256));
+  IntegrityMetadata m(network::mojom::blink::IntegrityAlgorithm::kSha256,
+                      decoded);
+  kNonEmptyIntegrityMetadata.Insert(std::move(m));
+
   struct TestCase {
     network::mojom::RequestDestination destination;
     network::mojom::RequestMode mode;

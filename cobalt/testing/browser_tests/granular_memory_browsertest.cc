@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string_view>
+
 #include "base/files/file_util.h"
 #include "base/run_loop.h"
 #include "base/threading/thread_restrictions.h"
@@ -10,6 +12,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/detailed_metrics_delegate.h"
@@ -60,7 +63,7 @@ class TestDetailedMetricsDelegate
   ~TestDetailedMetricsDelegate() override = default;
 
   void OnSmapsEntry(
-      absl::string_view name,
+      std::string_view name,
       const memory_instrumentation::SmapsMetrics& metrics) override {
     stats_["Test"] += metrics.pss_kb;
     total_pss_kb_ += metrics.pss_kb;

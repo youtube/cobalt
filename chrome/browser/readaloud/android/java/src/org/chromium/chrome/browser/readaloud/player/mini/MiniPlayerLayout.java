@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.readaloud.player.mini;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.BUFFERING;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.ERROR;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.PAUSED;
+import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.PLAYBACK_CREATION;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.PLAYING;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.STOPPED;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.UNKNOWN;
@@ -16,6 +17,8 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
+import android.view.TouchDelegate;
 import android.view.View;
 import android.view.animation.Interpolator;
 import android.widget.FrameLayout;
@@ -67,6 +70,9 @@ public class MiniPlayerLayout extends LinearLayout {
     private @ColorInt int mBackgroundColorArgb;
     private int mYOffset;
     private PlaybackMode mRequestedPlaybackMode = PlaybackMode.UNSPECIFIED;
+    private @Nullable TouchDelegate mTouchDelegate;
+
+    private ProgressBar mSpinner;
 
     /** Constructor for inflating from XML. */
     public MiniPlayerLayout(Context context, AttributeSet attrs) {
@@ -95,6 +101,8 @@ public class MiniPlayerLayout extends LinearLayout {
         mErrorLayout = (LinearLayout) findViewById(R.id.error_layout);
 
         mLoadingMessage = (TextView) findViewById(R.id.loading_message);
+
+        mSpinner = (ProgressBar) findViewById(R.id.readaloud_spinner);
 
         // Set dynamic colors.
         Context context = getContext();
@@ -130,8 +138,14 @@ public class MiniPlayerLayout extends LinearLayout {
             mMediator.onHeightKnown(height);
         }
 
-        // Make the close button touch target bigger.
-        TouchDelegateUtil.setBiggerTouchTarget(findViewById(R.id.close_button));
+        if (mTouchDelegate == null) {
+            mTouchDelegate = TouchDelegateUtil.createTouchDelegate(this, mPlayPauseView);
+        }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        return mTouchDelegate != null && mTouchDelegate.onTouchEvent(event);
     }
 
     void changeOpacity(float startValue, float endValue) {
@@ -213,10 +227,23 @@ public class MiniPlayerLayout extends LinearLayout {
 
         assert yOffset <= 0;
 
-        mYOffset = -yOffset;
-        MarginLayoutParams mlp = (MarginLayoutParams) getLayoutParams();
-        mlp.bottomMargin = mYOffset;
-        setLayoutParams(mlp);
+        Runnable marginChangeRunnable =
+                () -> {
+                    if (mYOffset == yOffset) return;
+                    mYOffset = -yOffset;
+                    MarginLayoutParams mlp = (MarginLayoutParams) getLayoutParams();
+                    mlp.bottomMargin = mYOffset;
+                    setLayoutParams(mlp);
+                };
+
+        // Changing the margin in the middle of layout is not likely to work properly; changing
+        // layout-affecting properties mid-layout has undefined behavior. So defer the update until
+        // the next frame.
+        if (isInLayout()) {
+            postOnAnimation(marginChangeRunnable);
+        } else {
+            marginChangeRunnable.run();
+        }
     }
 
     void setInteractionHandler(InteractionHandler handler) {
@@ -232,6 +259,7 @@ public class MiniPlayerLayout extends LinearLayout {
     void onPlaybackStateChanged(@PlaybackListener.State int state) {
         switch (state) {
                 // UNKNOWN is currently the "reset" state and can be treated same as buffering.
+            case PLAYBACK_CREATION:
             case BUFFERING:
             case UNKNOWN:
                 showBufferingLayout();
@@ -282,8 +310,10 @@ public class MiniPlayerLayout extends LinearLayout {
         if (mRequestedPlaybackMode == PlaybackMode.OVERVIEW) {
             mLoadingMessage.setText(
                     mContext.getString(R.string.readaloud_mini_player_loading_ai_playback));
+            mSpinner.setContentDescription(mContext.getString(R.string.readaloud_mini_player_spinner_overview_content_description));
         } else {
             mLoadingMessage.setText(mContext.getString(R.string.readaloud_playback_loading));
+            mSpinner.setContentDescription(mContext.getString(R.string.readaloud_mini_player_spinner_classic_content_description));
         }
     }
 

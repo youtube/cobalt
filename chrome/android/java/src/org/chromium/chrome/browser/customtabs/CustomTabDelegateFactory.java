@@ -24,6 +24,7 @@ import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.browser.app.tab_activity_glue.ActivityTabWebContentsDelegateAndroid;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
+import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabsUiType;
 import org.chromium.chrome.browser.browserservices.intents.WebappExtras;
 import org.chromium.chrome.browser.browserservices.permissiondelegation.InstalledWebappPermissionManager;
 import org.chromium.chrome.browser.browserservices.ui.controller.AuthTabVerifier;
@@ -49,6 +50,7 @@ import org.chromium.chrome.browser.tab.TabStateBrowserControlsVisibilityDelegate
 import org.chromium.chrome.browser.tab.TabWebContentsDelegateAndroid;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.ui.ExclusiveAccessManager;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -178,6 +180,7 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
         private final @Nullable BrowserServicesIntentDataProvider mIntentDataProvider;
         private final @DisplayMode.EnumType int mDisplayMode;
         private final boolean mShouldEnableEmbeddedMediaExperience;
+        private final Supplier<Boolean> mHeaderControlsVisibilitySupplier;
 
         /** See {@link TabWebContentsDelegateAndroid}. */
         public CustomTabWebContentsDelegate(
@@ -195,7 +198,9 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
                 TabCreatorManager tabCreatorManager,
                 Supplier<TabModelSelector> tabModelSelectorSupplier,
                 Supplier<CompositorViewHolder> compositorViewHolderSupplier,
-                Supplier<ModalDialogManager> modalDialogManagerSupplier) {
+                Supplier<ModalDialogManager> modalDialogManagerSupplier,
+                Supplier<Boolean> headerControlsVisibilitySupplier,
+                ExclusiveAccessManager exclusiveAccessManager) {
             super(
                     tab,
                     activity,
@@ -206,13 +211,15 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
                     tabCreatorManager,
                     tabModelSelectorSupplier,
                     compositorViewHolderSupplier,
-                    modalDialogManagerSupplier);
+                    modalDialogManagerSupplier,
+                    exclusiveAccessManager);
             mActivity = activity;
             mActivityType = activityType;
             mWebApkScopeUrl = webApkScopeUrl;
             mIntentDataProvider = intentDataProvider;
             mDisplayMode = displayMode;
             mShouldEnableEmbeddedMediaExperience = shouldEnableEmbeddedMediaExperience;
+            mHeaderControlsVisibilitySupplier = headerControlsVisibilitySupplier;
         }
 
         @Override
@@ -248,6 +255,15 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
 
         @Override
         public @DisplayMode.EnumType int getDisplayMode() {
+            // Depending on the customizable caption bar area, minimal UI controls may not
+            // be supported even if the resolved display mode is `minimal-ui`. If the controls
+            // are not visible it is inaccurate for the display mode to be `minimal-ui` so
+            // we need to use `standalone`.
+            if (mDisplayMode == DisplayMode.MINIMAL_UI
+                    && !mHeaderControlsVisibilitySupplier.get()) {
+                return DisplayMode.STANDALONE;
+            }
+
             return mDisplayMode;
         }
 
@@ -270,6 +286,11 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
                         != null;
             }
             return false;
+        }
+
+        @Override
+        protected boolean isPopup() {
+            return mIntentDataProvider.getUiType() == CustomTabsUiType.POPUP;
         }
     }
 
@@ -298,10 +319,12 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
     private final Supplier<BottomSheetController> mBottomSheetController;
     private final AuthTabVerifier mAuthTabVerifier;
     private final boolean mContextMenuEnabled;
+    private final Supplier<Boolean> mHeaderControlsVisibilitySupplier;
 
     private TabWebContentsDelegateAndroid mWebContentsDelegateAndroid;
     private ExternalNavigationDelegateImpl mNavigationDelegate;
     private Supplier<EphemeralTabCoordinator> mEphemeralTabCoordinatorSupplier;
+    @Nullable private final ExclusiveAccessManager mExclusiveAccessManager;
 
     /**
      * @param activity {@link Activity} instance.
@@ -329,6 +352,7 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
      * @param bottomSheetController Controls the bottom sheet.
      * @param contextMenuEnabled Whether the context menu will be enabled.
      * @param browserControlsManager Manages the browser controls.
+     * @param exclusiveAccessManager The fullscreen, pointer and keyboard lock controller
      */
     public CustomTabDelegateFactory(
             Activity activity,
@@ -347,7 +371,9 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
             @ActivityType int activityType,
             Supplier<BottomSheetController> bottomSheetController,
             AuthTabVerifier authTabVerifier,
-            BrowserControlsManager browserControlsManager) {
+            BrowserControlsManager browserControlsManager,
+            Supplier<Boolean> headerControlsVisibilitySupplier,
+            @Nullable ExclusiveAccessManager exclusiveAccessManager) {
         mIntentDataProvider = intentDataProvider;
         if (mIntentDataProvider != null) {
             mShouldHideBrowserControls = mIntentDataProvider.shouldEnableUrlBarHiding();
@@ -382,6 +408,8 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
         mBottomSheetController = bottomSheetController;
         mAuthTabVerifier = authTabVerifier;
         mBrowserControlsManager = browserControlsManager;
+        mHeaderControlsVisibilitySupplier = headerControlsVisibilitySupplier;
+        mExclusiveAccessManager = exclusiveAccessManager;
     }
 
     /**
@@ -406,6 +434,8 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
                 ActivityType.CUSTOM_TAB,
                 null,
                 null,
+                null,
+                () -> false,
                 null);
     }
 
@@ -451,7 +481,9 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
                         mTabCreatorManager,
                         mTabModelSelectorSupplier,
                         mCompositorViewHolderSupplier,
-                        mModalDialogManagerSupplier);
+                        mModalDialogManagerSupplier,
+                        mHeaderControlsVisibilitySupplier,
+                        mExclusiveAccessManager);
         return mWebContentsDelegateAndroid;
     }
 
@@ -472,6 +504,7 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
         TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
         return new TabContextMenuItemDelegate(
                 mActivity,
+                mActivityType,
                 tab,
                 tabModelSelector,
                 mEphemeralTabCoordinatorSupplier,
@@ -487,7 +520,10 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
         @ChromeContextMenuPopulator.ContextMenuMode
         int contextMenuMode = getContextMenuMode(mIntentDataProvider, mActivityType);
         return new ChromeContextMenuPopulatorFactory(
-                createTabContextMenuItemDelegate(tab), mShareDelegateSupplier, contextMenuMode);
+                createTabContextMenuItemDelegate(tab),
+                mShareDelegateSupplier,
+                contextMenuMode,
+                mIntentDataProvider.getCustomContentActions());
     }
 
     @Override

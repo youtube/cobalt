@@ -49,7 +49,6 @@
 #include "chromeos/crosapi/mojom/mahi.mojom.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "components/feedback/feedback_constants.h"
-#include "components/manta/features.h"
 #include "components/manta/manta_service.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/image/image_skia.h"
@@ -85,7 +84,7 @@ enum class CacheHit {
 // Provider creation -----------------------------------------------------------
 enum class ProviderCreationStatus {
   kOk = 0,
-  kMantaServiceDisabled = 1,
+  // kMantaServiceDisabled = 1,
   kProfileUnavailable = 2,
   kMantaServiceIsNull = 3,
   kMantaServiceFailedToCreate = 4,
@@ -185,11 +184,6 @@ MahiResponseStatus GetMahiResponseStatusFromMantaStatus(
 }
 
 std::unique_ptr<manta::MahiProvider> CreateProvider() {
-  if (!manta::features::IsMantaServiceEnabled()) {
-    LogProviderCreationStatus(ProviderCreationStatus::kMantaServiceDisabled);
-    return nullptr;
-  }
-
   Profile* profile = ProfileManager::GetActiveUserProfile();
   if (!profile) {
     LogProviderCreationStatus(ProviderCreationStatus::kProfileUnavailable);
@@ -213,13 +207,13 @@ std::unique_ptr<manta::MahiProvider> CreateProvider() {
   return nullptr;
 }
 
-// Returns true if:
-// 1. The magic boost feature is disabled; OR
-// 2. The Mahi feature has been approved before.
+// Returns true if the Mahi feature has been approved to be used.
 bool IsMahiApproved() {
-  return !chromeos::MagicBoostState::Get()->IsMagicBoostAvailable() ||
-         chromeos::MagicBoostState::Get()->hmr_consent_status() ==
-             chromeos::HMRConsentStatus::kApproved;
+  auto* magic_boost_state = chromeos::MagicBoostState::Get();
+  CHECK(magic_boost_state->IsMagicBoostAvailable())
+      << "GenAI feature surfaced to non-eligible user.";
+  return magic_boost_state->hmr_consent_status() ==
+         chromeos::HMRConsentStatus::kApproved;
 }
 
 }  // namespace
@@ -639,7 +633,8 @@ void MahiManagerImpl::OpenMahiPanelForElucidation(
 }
 
 bool MahiManagerImpl::IsEnabled() {
-  return mahi_availability::IsMahiAvailable() &&
+  return (mahi_availability::IsMahiAvailable().has_value() &&
+          mahi_availability::IsMahiAvailable().value()) &&
          chromeos::MagicBoostState::Get()->hmr_enabled().value_or(false);
 }
 

@@ -19,12 +19,10 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/scoped_refptr.h"
 #include "api/video/corruption_detection_filter_settings.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
-#include "api/video/video_frame_buffer.h"
 #include "api/video/video_frame_type.h"
 #include "api/video_codecs/video_codec.h"
 #include "common_video/frame_instrumentation_data.h"
@@ -184,16 +182,6 @@ FrameInstrumentationGenerator::OnEncodedImage(
     return std::nullopt;
   }
 
-  scoped_refptr<I420BufferInterface> captured_frame_buffer_as_i420 =
-      captured_frame->video_frame_buffer()->ToI420();
-  if (!captured_frame_buffer_as_i420) {
-    RTC_LOG(LS_ERROR) << "Failed to convert "
-                      << VideoFrameBufferTypeToString(
-                             captured_frame->video_frame_buffer()->type())
-                      << " image to I420.";
-    return std::nullopt;
-  }
-
   FrameInstrumentationData data = {
       .sequence_index = sequence_index,
       .communicate_upper_bits = communicate_upper_bits,
@@ -201,9 +189,8 @@ FrameInstrumentationGenerator::OnEncodedImage(
       .luma_error_threshold = filter_settings->luma_error_threshold,
       .chroma_error_threshold = filter_settings->chroma_error_threshold};
   std::vector<FilteredSample> samples = GetSampleValuesForFrame(
-      captured_frame_buffer_as_i420, sample_coordinates,
-      encoded_image._encodedWidth, encoded_image._encodedHeight,
-      filter_settings->std_dev);
+      *captured_frame, sample_coordinates, encoded_image._encodedWidth,
+      encoded_image._encodedHeight, filter_settings->std_dev);
   data.sample_values.reserve(samples.size());
   absl::c_transform(samples, std::back_inserter(data.sample_values),
                     [](const FilteredSample& sample) { return sample.value; });

@@ -1347,6 +1347,18 @@ constexpr bool IsDynamicDescriptor(VkDescriptorType descriptorType)
     }
 }
 
+constexpr bool IsUniformBuffer(const VkDescriptorType descriptorType)
+{
+    return descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
+           descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+}
+
+constexpr bool IsStorageBuffer(const VkDescriptorType descriptorType)
+{
+    return descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER ||
+           descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+}
+
 void ApplyPipelineCreationFeedback(ErrorContext *context,
                                    const VkPipelineCreationFeedback &feedback);
 
@@ -1481,6 +1493,8 @@ vk::LevelIndex GetLevelIndex(gl::LevelIndex levelGL, gl::LevelIndex baseLevel);
 
 VkImageTiling GetTilingMode(gl::TilingMode tilingMode);
 
+VkFormat GetAstcDecodeMode(const GLenum astcDecodePrecision);
+
 VkImageCompressionFixedRateFlagsEXT ConvertEGLFixedRateToVkFixedRate(
     const EGLenum eglCompressionRate,
     const angle::FormatID actualFormatID);
@@ -1610,6 +1624,9 @@ enum class RenderPassClosureReason
     // In case of memory budget issues, pending garbage needs to be freed.
     ExcessivePendingGarbage,
     OutOfMemory,
+
+    // In case of reaching the render pass limit in the command buffer, it should be submitted.
+    RenderPassCountLimitReached,
 
     InvalidEnum,
     EnumCount = InvalidEnum,

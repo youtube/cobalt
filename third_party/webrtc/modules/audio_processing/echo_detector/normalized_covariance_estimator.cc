@@ -10,7 +10,7 @@
 
 #include "modules/audio_processing/echo_detector/normalized_covariance_estimator.h"
 
-#include <math.h>
+#include <cmath>
 
 #include "rtc_base/checks.h"
 

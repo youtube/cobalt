@@ -22,6 +22,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/safety_checks.h"
 #include "base/observer_list.h"
 #include "base/time/clock.h"
 #include "base/time/tick_clock.h"
@@ -44,9 +45,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/service_worker_client_info.h"
-#include "ipc/ipc_message.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -134,6 +133,10 @@ class CONTENT_EXPORT ServiceWorkerVersion
       public blink::mojom::AssociatedInterfaceProvider,
       public base::RefCounted<ServiceWorkerVersion>,
       public EmbeddedWorkerInstance::Listener {
+  // TODO(crbug.com/40864997): Remove this macro once we identified the cause of
+  // the bug.
+  ADVANCED_MEMORY_SAFETY_CHECKS();
+
  public:
   using StatusCallback =
       base::OnceCallback<void(blink::ServiceWorkerStatusCode)>;
@@ -727,13 +730,18 @@ class CONTENT_EXPORT ServiceWorkerVersion
   // handler.
   blink::mojom::ControllerServiceWorkerMode GetControllerMode() const;
 
-  void SetResponseHeadForSyntheticResponse(
-      const network::mojom::URLResponseHead& response_head) {
-    synthetic_response_head_ = response_head.Clone();
+  void ResetResponseHeadForSyntheticResponse() {
+    synthetic_response_head_.reset();
   }
 
-  network::mojom::URLResponseHeadPtr GetResponseHeadForSyntheticResponse() {
-    return synthetic_response_head_.Clone();
+  void SetResponseHeadForSyntheticResponse(
+      network::mojom::URLResponseHeadPtr response_head) {
+    synthetic_response_head_ = std::move(response_head);
+  }
+
+  const network::mojom::URLResponseHeadPtr&
+  GetResponseHeadForSyntheticResponse() const {
+    return synthetic_response_head_;
   }
 
   // Timeout for a request to be handled.
@@ -857,6 +865,11 @@ class CONTENT_EXPORT ServiceWorkerVersion
   // Keeps track of the status of each request, which starts at StartRequest()
   // and ends at FinishRequest().
   struct InflightRequest {
+    // TODO(crbug.com/40864997): Remove this macro once we identified the cause
+    // of the bug.
+    ADVANCED_MEMORY_SAFETY_CHECKS();
+
+   public:
     InflightRequest(StatusCallback error_callback,
                     base::Time time,
                     const base::TimeTicks& time_ticks,

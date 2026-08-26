@@ -9,6 +9,7 @@
 
 #include "base/check_op.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
@@ -59,6 +60,7 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/table_layout.h"
+#include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "url/origin.h"
 #include "url/url_constants.h"
@@ -99,16 +101,88 @@ SkColor GetContrastingGoogleColor(SkColor light_mode_color,
 
 }  // namespace
 
-// The close ('X') button used in the PaymentHandler header UX. See
-// |PopulateSheetHeaderView|.
+// The progress bar used in the Payment Handler UI.
+class PaymentHandlerProgressBar : public views::ProgressBar {
+  METADATA_HEADER(PaymentHandlerProgressBar, views::ProgressBar)
+
+ public:
+  PaymentHandlerProgressBar() { SetPreferredHeight(2); }
+  ~PaymentHandlerProgressBar() override = default;
+
+  // Set the progress bar colors based on the header background color. The
+  // progress bar's background color serves as a separator between the header
+  // and content.
+  void SetColorBasedOnBackground(SkColor background_color) {
+    // Get the closest progress bar color to kColorProgressBar, with a minimum
+    // contrast ratio used for glyphs.
+    const SkColor progress_bar_color = GetContrastingGoogleColor(
+        gfx::kGoogleBlue600, gfx::kGoogleBlue300, background_color,
+        color_utils::kMinimumVisibleContrastRatio);
+
+    // Get the closest separator color to kColorSeparator, with a minimum
+    // contrast ratio of the default light separator contrast on white, which is
+    // less than color_utils::kMinimumVisibleContrastRatio.
+    const SkColor separator_color = GetContrastingGoogleColor(
+        gfx::kGoogleGrey300, gfx::kGoogleGrey800, background_color,
+        color_utils::GetContrastRatio(gfx::kGoogleGrey300, SK_ColorWHITE));
+
+    SetForegroundColor(progress_bar_color);
+    SetBackgroundColor(separator_color);
+  }
+
+  base::WeakPtr<PaymentHandlerProgressBar> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  base::WeakPtrFactory<PaymentHandlerProgressBar> weak_ptr_factory_{this};
+};
+
+BEGIN_METADATA(PaymentHandlerProgressBar)
+END_METADATA
+
+// The origin label used in the header of the Payment Handler UI.
+class PaymentHandlerOriginLabel : public views::Label {
+  METADATA_HEADER(PaymentHandlerOriginLabel, views::Label)
+
+ public:
+  PaymentHandlerOriginLabel() {
+    SetElideBehavior(gfx::ELIDE_HEAD);
+    SetID(static_cast<int>(DialogViewID::SHEET_TITLE));
+    SetFocusBehavior(views::View::FocusBehavior::ACCESSIBLE_ONLY);
+  }
+  ~PaymentHandlerOriginLabel() override = default;
+
+  // Set the color based on the background color of the header.
+  void SetColorBasedOnBackground(SkColor background_color) {
+    // Get the closest label color to kColorPrimaryForeground, with a minimum
+    // readable contrast ratio.
+    SkColor foreground = GetContrastingGoogleColor(
+        gfx::kGoogleGrey900, gfx::kGoogleGrey200, background_color,
+        color_utils::kMinimumReadableContrastRatio);
+    SetAutoColorReadabilityEnabled(false);
+    SetEnabledColor(foreground);
+    SetBackgroundColor(background_color);
+  }
+
+  base::WeakPtr<PaymentHandlerOriginLabel> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  base::WeakPtrFactory<PaymentHandlerOriginLabel> weak_ptr_factory_{this};
+};
+
+BEGIN_METADATA(PaymentHandlerOriginLabel)
+END_METADATA
+
+// The close ('X') button used in the header of the Payment Handler UI.
 class PaymentHandlerCloseButton : public views::ImageButton {
   METADATA_HEADER(PaymentHandlerCloseButton, views::ImageButton)
 
  public:
   explicit PaymentHandlerCloseButton(
-      views::Button::PressedCallback pressed_callback,
-      const SkColor enabled_color,
-      const SkColor disabled_color)
+      views::Button::PressedCallback pressed_callback)
       : views::ImageButton(std::move(pressed_callback)) {
     ConfigureVectorImageButton(this);
     views::InstallCircleHighlightPathGenerator(this);
@@ -118,6 +192,18 @@ class PaymentHandlerCloseButton : public views::ImageButton {
     SetID(static_cast<int>(DialogViewID::CANCEL_BUTTON));
     GetViewAccessibility().SetName(
         l10n_util::GetStringUTF16(IDS_PAYMENTS_CLOSE));
+  }
+  ~PaymentHandlerCloseButton() override = default;
+
+  // Set the colors based on the header's background color.
+  void SetColorBasedOnBackground(SkColor background_color) {
+    // Get the closest icon color to kColorIcon, with a minimum contrast ratio
+    // used for glyphs.
+    const SkColor enabled_color = GetContrastingGoogleColor(
+        gfx::kGoogleGrey500, gfx::kGoogleGrey700, background_color,
+        color_utils::kMinimumVisibleContrastRatio);
+    const SkColor disabled_color = color_utils::AlphaBlend(
+        enabled_color, background_color, gfx::kDisabledControlAlpha);
 
     // This view does not set its color using the browser theme color, as this
     // may differ from the header color, which is based on the web view theme.
@@ -212,9 +298,10 @@ void PaymentHandlerWebFlowViewController::FillContentView(
   if (!progress_bar_) {
     // Add the progress bar to the separator container. The progress bar
     // colors will be set in PopulateSheetHeaderView.
-    progress_bar_ = header_content_separator_container()->AddChildView(
-        std::make_unique<views::ProgressBar>());
-    progress_bar_->SetPreferredHeight(2);
+    progress_bar_ =
+        header_content_separator_container()
+            ->AddChildView(std::make_unique<PaymentHandlerProgressBar>())
+            ->GetWeakPtr();
   }
 
   content_view->SetLayoutManager(std::make_unique<views::FillLayout>());
@@ -277,7 +364,6 @@ void PaymentHandlerWebFlowViewController::PopulateSheetHeaderView(
   // +-----------------------------------------+
 
   container->SetID(static_cast<int>(DialogViewID::PAYMENT_APP_HEADER));
-  container->SetBackground(GetHeaderBackground(container));
   constexpr int kVerticalInset = 8;
   constexpr int kHeaderHorizontalInset = 16;
   container->SetBorder(views::CreateEmptyBorder(
@@ -340,71 +426,20 @@ void PaymentHandlerWebFlowViewController::PopulateSheetHeaderView(
   }
 
   // Add the origin label.
-  const url::Origin origin =
-      web_contents()
-          ? web_contents()->GetPrimaryMainFrame()->GetLastCommittedOrigin()
-          : url::Origin::Create(target_);
-  auto* origin_label = container->AddChildView(std::make_unique<views::Label>(
-      url_formatter::FormatOriginForSecurityDisplay(
-          origin, url_formatter::SchemeDisplay::OMIT_CRYPTOGRAPHIC)));
-  origin_label->SetElideBehavior(gfx::ELIDE_HEAD);
-  origin_label->SetID(static_cast<int>(DialogViewID::SHEET_TITLE));
-  origin_label->SetFocusBehavior(views::View::FocusBehavior::ACCESSIBLE_ONLY);
-
-  // Turn off auto-readability because the computed foreground color takes
-  // contrast into account.
-  SkColor background_color = gfx::kPlaceholderColor;
-  if (container->GetWidget()) {
-    const auto* background = container->background();
-    background_color =
-        background->color().ResolveToSkColor(container->GetColorProvider());
-  }
-
-  // Get the closest label color to kColorPrimaryForeground, with a minimum
-  // readable contrast ratio.
-  SkColor foreground = GetContrastingGoogleColor(
-      gfx::kGoogleGrey900, gfx::kGoogleGrey200, background_color,
-      color_utils::kMinimumReadableContrastRatio);
-  origin_label->SetAutoColorReadabilityEnabled(false);
-  origin_label->SetEnabledColor(foreground);
-  origin_label->SetBackgroundColor(background_color);
-
-  if (progress_bar_) {
-    // Set the progress bar colors based on the header background color. The
-    // progress bar's background color serves as a separator between the header
-    // and content.
-
-    // Get the closest progress bar color to kColorProgressBar, with a minimum
-    // contrast ratio used for glyphs.
-    const SkColor progress_bar_color = GetContrastingGoogleColor(
-        gfx::kGoogleBlue600, gfx::kGoogleBlue300, background_color,
-        color_utils::kMinimumVisibleContrastRatio);
-
-    // Get the closest separator color to kColorSeparator, with a minimum
-    // contrast ratio of the default light separator contrast on white, which is
-    // less than color_utils::kMinimumVisibleContrastRatio.
-    const SkColor separator_color = GetContrastingGoogleColor(
-        gfx::kGoogleGrey300, gfx::kGoogleGrey800, background_color,
-        color_utils::GetContrastRatio(gfx::kGoogleGrey300, SK_ColorWHITE));
-
-    progress_bar_->SetForegroundColor(progress_bar_color);
-    progress_bar_->SetBackgroundColor(separator_color);
-  }
+  origin_label_ =
+      container->AddChildView(std::make_unique<PaymentHandlerOriginLabel>())
+          ->GetWeakPtr();
 
   // Finally, add the close button.
-  // Get the closest icon color to kColorIcon, with a minimum contrast ratio
-  // used for glyphs.
-  const SkColor close_icon_color = GetContrastingGoogleColor(
-      gfx::kGoogleGrey500, gfx::kGoogleGrey700, background_color,
-      color_utils::kMinimumVisibleContrastRatio);
-  const SkColor close_icon_disabled_color = color_utils::AlphaBlend(
-      close_icon_color, background_color, gfx::kDisabledControlAlpha);
-  auto close_button = std::make_unique<PaymentHandlerCloseButton>(
-      base::BindRepeating(&PaymentRequestSheetController::CloseButtonPressed,
-                          GetWeakPtr()),
-      close_icon_color, close_icon_disabled_color);
-  close_button_ = close_button->GetWeakPtr();
-  container->AddChildView(std::move(close_button));
+  close_button_ =
+      container
+          ->AddChildView(
+              std::make_unique<PaymentHandlerCloseButton>(base::BindRepeating(
+                  &PaymentRequestSheetController::CloseButtonPressed,
+                  GetWeakPtr())))
+          ->GetWeakPtr();
+
+  SetHeaderColorsAndOriginLabelText();
 }
 
 views::View* PaymentHandlerWebFlowViewController::GetFirstFocusedView() {
@@ -440,7 +475,7 @@ void PaymentHandlerWebFlowViewController::VisibleSecurityStateChanged(
   if (!SslValidityChecker::IsValidPageInPaymentHandlerWindow(source)) {
     AbortPayment();
   } else {
-    UpdateHeaderView();
+    SetHeaderColorsAndOriginLabelText();
   }
 }
 
@@ -507,10 +542,14 @@ void PaymentHandlerWebFlowViewController::DidFinishNavigation(
              web_contents()->GetPrimaryMainFrame()->GetRoutingID());
   }
 
-  UpdateHeaderView();
+  SetHeaderColorsAndOriginLabelText();
 }
 
 void PaymentHandlerWebFlowViewController::LoadProgressChanged(double progress) {
+  if (!progress_bar_) {
+    return;
+  }
+
   // The progress bar reflects the load progress until it reaches 1.0, at
   // which point it's reset to 0 to just show the separator color.
   progress_bar_->SetValue(progress < 1.0 ? progress : 0);
@@ -523,7 +562,7 @@ void PaymentHandlerWebFlowViewController::LoadProgressChanged(double progress) {
 
 void PaymentHandlerWebFlowViewController::TitleWasSet(
     content::NavigationEntry* entry) {
-  UpdateHeaderView();
+  SetHeaderColorsAndOriginLabelText();
 
   std::u16string title = GetPaymentHandlerDialogTitle(web_contents());
   if (!title.empty()) {
@@ -539,19 +578,40 @@ void PaymentHandlerWebFlowViewController::AbortPayment() {
   state()->OnPaymentResponseError(errors::kPaymentHandlerInsecureNavigation);
 }
 
-std::unique_ptr<views::Background>
-PaymentHandlerWebFlowViewController::GetHeaderBackground(
-    views::View* header_view) {
-  DCHECK(header_view);
-  auto default_header_background =
-      views::CreateSolidBackground(ui::kColorDialogBackground);
-  if (web_contents() && header_view->GetWidget()) {
-    auto* color_provider = header_view->GetColorProvider();
-    return views::CreateSolidBackground(color_utils::GetResultingPaintColor(
-        web_contents()->GetThemeColor().value_or(SK_ColorTRANSPARENT),
-        color_provider->GetColor(ui::kColorDialogBackground)));
+void PaymentHandlerWebFlowViewController::SetHeaderColorsAndOriginLabelText() {
+  // Calculates the header background based on the web contents theme, if any,
+  // otherwise the Chrome theme.
+  header_view()->SetBackground(
+      web_contents() && header_view()->GetWidget()
+          ? views::CreateSolidBackground(color_utils::GetResultingPaintColor(
+                web_contents()->GetThemeColor().value_or(SK_ColorTRANSPARENT),
+                header_view()->GetColorProvider()->GetColor(
+                    ui::kColorDialogBackground)))
+          : views::CreateSolidBackground(ui::kColorDialogBackground));
+
+  SkColor background_color =
+      header_view()->GetWidget()
+          ? header_view()->background()->color().ResolveToSkColor(
+                header_view()->GetColorProvider())
+          : gfx::kPlaceholderColor;
+
+  if (origin_label_) {
+    origin_label_->SetText(url_formatter::FormatOriginForSecurityDisplay(
+        web_contents()
+            ? web_contents()->GetPrimaryMainFrame()->GetLastCommittedOrigin()
+            : url::Origin::Create(target_),
+        url_formatter::SchemeDisplay::OMIT_CRYPTOGRAPHIC));
+
+    origin_label_->SetColorBasedOnBackground(background_color);
   }
-  return default_header_background;
+
+  if (progress_bar_) {
+    progress_bar_->SetColorBasedOnBackground(background_color);
+  }
+
+  if (close_button_) {
+    close_button_->SetColorBasedOnBackground(background_color);
+  }
 }
 
 }  // namespace payments

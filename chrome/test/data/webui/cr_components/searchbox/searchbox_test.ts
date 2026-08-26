@@ -6,13 +6,13 @@ import 'chrome://new-tab-page/new_tab_page.js';
 
 import type {SearchboxElement, SearchboxIconElement, SearchboxMatchElement} from 'chrome://new-tab-page/new_tab_page.js';
 import {$$, BrowserProxyImpl, MetricsReporterImpl, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
-import {NavigationPredictor} from 'chrome://resources/cr_components/searchbox/omnibox.mojom-webui.js';
-import type {AutocompleteMatch} from 'chrome://resources/cr_components/searchbox/searchbox.mojom-webui.js';
-import {RenderType, SideType} from 'chrome://resources/cr_components/searchbox/searchbox.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageMetricsCallbackRouter} from 'chrome://resources/js/metrics_reporter.mojom-webui.js';
 import {mojoString16ToString, stringToMojoString16} from 'chrome://resources/js/mojo_type_util.js';
 import {getDeepActiveElement} from 'chrome://resources/js/util.js';
+import {NavigationPredictor} from 'chrome://resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
+import type {AutocompleteMatch} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {RenderType, SideType} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
@@ -23,6 +23,13 @@ import {TestSearchboxBrowserProxy} from './test_searchbox_browser_proxy.js';
 
 enum Attributes {
   SELECTED = 'selected',
+}
+
+interface ComposeClickEventDetail {
+  button: number;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
 }
 
 function createClipboardEvent(name: string): ClipboardEvent {
@@ -72,7 +79,7 @@ function createCalculatorMatch(modifiers: Partial<AutocompleteMatch>):
         destinationUrl: {url: 'https://www.google.com/search?q=2+%2B+3'},
         fillIntoEdit: stringToMojoString16('5'),
         type: 'search-calculator-answer',
-        iconUrl: 'calculator.svg',
+        iconPath: 'calculator.svg',
       },
       modifiers);
 }
@@ -85,16 +92,29 @@ function verifyMatch(match: AutocompleteMatch, matchEl: SearchboxMatchElement) {
   const matchDescription = mojoString16ToString(
       match.answer ? match.answer.secondLine : match.description);
   const separatorText =
-      matchDescription ? loadTimeData.getString('searchboxSeparator') : '';
-  const contents = matchEl.$['contents'].textContent!.trim();
-  const separator = matchEl.$['separator'].textContent!.trim();
-  const description = matchEl.$['description'].textContent!.trim();
-  const text = (contents + ' ' + separator + ' ' + description).trim();
+      (match.swapContentsAndDescription ? match.contents : match.description) ?
+      loadTimeData.getString('searchboxSeparator') :
+      '';
+  const contents = matchEl.$['contents'].textContent!;
+  const separator = matchEl.$['separator'].textContent!;
+  const description = matchEl.$['description'].textContent!;
+  const text = contents + separator + description;
   assertEquals(
       match.swapContentsAndDescription ?
           matchDescription + separatorText + matchContents :
           matchContents + separatorText + matchDescription,
       text);
+}
+
+function arrowDown(realbox: SearchboxElement): KeyboardEvent {
+  const arrowDownEvent = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    composed: true,  // So it propagates across shadow DOM boundary.
+    key: 'ArrowDown',
+  });
+  realbox.$.input.dispatchEvent(arrowDownEvent);
+  return arrowDownEvent;
 }
 
 suite('NewTabPageRealboxTest', () => {
@@ -255,47 +275,230 @@ suite('NewTabPageRealboxTest', () => {
     });
   });
 
-  test('Color source baseline search icon has background image', async () => {
+  const webkitTestCases = [
+    {
+      description: 'theming refresh disabled',
+      properties: {
+        composeButtonEnabled: false,
+        searchboxChromeRefreshTheming: false,
+        colorSourceIsBaseline: true,
+      },
+      shouldUseWebkit: false,
+    },
+    {
+      description: 'theming refresh with baseline color',
+      properties: {
+        composeButtonEnabled: false,
+        searchboxChromeRefreshTheming: true,
+        colorSourceIsBaseline: true,
+      },
+      shouldUseWebkit: false,
+    },
+    {
+      description: 'theming refresh with non-baseline color',
+      properties: {
+        composeButtonEnabled: false,
+        searchboxChromeRefreshTheming: true,
+        colorSourceIsBaseline: false,
+      },
+      shouldUseWebkit: true,
+    },
+    {
+      description: 'compose button enabled',
+      properties: {
+        composeButtonEnabled: true,
+        searchboxChromeRefreshTheming: false,
+        colorSourceIsBaseline: false,
+      },
+      shouldUseWebkit: true,
+    },
+  ];
+  webkitTestCases.forEach(({description, properties, shouldUseWebkit}) => {
+    test(`useWebkitSearchIcons ${description}`, async () => {
+      // Arrange.
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      realbox = document.createElement('cr-searchbox');
+
+      // Act.
+      Object.assign(realbox, properties);
+      document.body.appendChild(realbox);
+      await waitAfterNextRender(realbox);
+
+      // Assert
+      const [iconProperty, nonIconProperty] = shouldUseWebkit ?
+          ['-webkit-mask-image', 'background-image'] :
+          ['background-image', '-webkit-mask-image'];
+      const buttonsToTest = [
+        {
+          selector: '#voiceSearchButton',
+          iconUrl:
+              'url("chrome://resources/cr_components/searchbox/icons/mic.svg")',
+        },
+        {
+          selector: '#lensSearchButton',
+          iconUrl: 'url("chrome://resources/cr_components/searchbox/icons/' +
+              'camera.svg")',
+        },
+      ];
+      for (const {selector, iconUrl} of buttonsToTest) {
+        const button = realbox.shadowRoot!.querySelector<HTMLElement>(selector);
+        assertTrue(!!button);
+        assertStyle(button, iconProperty, iconUrl);
+        assertStyle(button, nonIconProperty, 'none');
+      }
+    });
+  });
+
+  test('Compose button is not enabled by default.', async () => {
     // Arrange.
-    loadTimeData.overrideValues({searchboxCr23Theming: true});
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     realbox = document.createElement('cr-searchbox');
-    realbox.colorSourceIsBaseline = true;
     document.body.appendChild(realbox);
     await waitAfterNextRender(realbox);
 
     // Assert.
-    const voiceSearchButton =
-        realbox.shadowRoot!.querySelector<HTMLElement>('#voiceSearchButton');
-    assertTrue(!!voiceSearchButton);
-    assertStyle(
-        voiceSearchButton, 'background-image',
-        'url("chrome://resources/cr_components/searchbox/icons/mic.svg")');
-
-    // Restore.
-    loadTimeData.overrideValues({searchboxCr23Theming: false});
+    const composeButton =
+        realbox.shadowRoot!.querySelector<HTMLElement>('#composeButton');
+    assertFalse(!!composeButton);
   });
 
-  test('Color source not baseline search icon has mask image', async () => {
+  test('clicking composebox button emits an event.', async () => {
     // Arrange.
-    loadTimeData.overrideValues({searchboxCr23Theming: true});
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     realbox = document.createElement('cr-searchbox');
-    realbox.colorSourceIsBaseline = false;
+    realbox.composeButtonEnabled = true;
+    realbox.composeboxEnabled = true;
     document.body.appendChild(realbox);
     await waitAfterNextRender(realbox);
 
-    // Assert.
-    const voiceSearchButton =
-        realbox.shadowRoot!.querySelector<HTMLElement>('#voiceSearchButton');
-    assertTrue(!!voiceSearchButton);
-    assertStyle(
-        voiceSearchButton, '-webkit-mask-image',
-        'url("chrome://resources/cr_components/searchbox/icons/mic.svg")');
+    const whenOpenComposeBox = eventToPromise('open-composebox', realbox);
 
-    // Restore.
-    loadTimeData.overrideValues({searchboxCr23Theming: false});
+    // Act.
+    const composeButton =
+        realbox.shadowRoot!.querySelector<HTMLElement>('#composeButton');
+    assertTrue(!!composeButton);
+
+    // Dispatch the 'compose-click' event directly, which cr-searchbox
+    // listens for. This simulates the `cr-searchbox-compose-button`
+    // child `cr-button` being clicked and its `onClick_` function being
+    // called.
+    const eventDetail: ComposeClickEventDetail = {
+      button: 0,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    };
+    composeButton.dispatchEvent(new CustomEvent('compose-click', {
+      detail: eventDetail,
+      bubbles: true,
+      composed: true,
+    }));
+
+    // Assert.
+    await whenOpenComposeBox;
   });
+
+  test('hovering on composebox button plays the animation.', async () => {
+    // Arrange.
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    realbox = document.createElement('cr-searchbox');
+    realbox.composeButtonEnabled = true;
+    realbox.composeboxEnabled = true;
+    document.body.appendChild(realbox);
+    await waitAfterNextRender(realbox);
+
+    // Act.
+    const composeButton =
+        realbox.shadowRoot!.querySelector('cr-searchbox-compose-button');
+    assertTrue(!!composeButton);
+
+    await composeButton.updateComplete;
+
+    const glowAnimationWrapper =
+        composeButton.shadowRoot.querySelector<HTMLElement>(
+            '#glowAnimationWrapper');
+    assertTrue(!!glowAnimationWrapper);
+
+    // Assert.
+    glowAnimationWrapper.classList.remove('play');
+    assertFalse(glowAnimationWrapper.classList.contains('play'));
+
+    // Simulate mouseenter event
+    glowAnimationWrapper.dispatchEvent(new MouseEvent('mouseenter'));
+    await waitAfterNextRender(glowAnimationWrapper);
+
+    const gradient = glowAnimationWrapper.querySelector('.gradient');
+    const mask = glowAnimationWrapper.querySelector('.mask');
+
+    const gradientBeforeStyle = getComputedStyle(gradient!, '::before');
+    const maskBeforeStyle = getComputedStyle(mask!, '::before');
+
+    assertEquals('running', gradientBeforeStyle.animationPlayState);
+    assertEquals('running', maskBeforeStyle.animationPlayState);
+  });
+
+  test('animation plays on page load.', async () => {
+    // Arrange.
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+    loadTimeData.overrideValues({
+      searchboxShowComposeAnimation: true,
+    });
+
+    realbox = document.createElement('cr-searchbox');
+    realbox.composeButtonEnabled = true;
+    realbox.composeboxEnabled = true;
+    document.body.appendChild(realbox);
+    await waitAfterNextRender(realbox);
+
+    // Act.
+    const composeButton =
+        realbox.shadowRoot!.querySelector('cr-searchbox-compose-button');
+    assertTrue(!!composeButton);
+
+    await composeButton.updateComplete;
+
+    const glowAnimationWrapper =
+        composeButton.shadowRoot.querySelector<HTMLElement>(
+            '#glowAnimationWrapper');
+    assertTrue(!!glowAnimationWrapper);
+
+    // Assert.
+    // Animation should play if `searchboxShowComposeAnimation` is true
+    assertTrue(glowAnimationWrapper.classList.contains('play'));
+  });
+
+  test('animation does not play on page load.', async () => {
+    // Arrange.
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+    loadTimeData.overrideValues({
+      searchboxShowComposeAnimation: false,
+    });
+
+    realbox = document.createElement('cr-searchbox');
+    realbox.composeButtonEnabled = true;
+    realbox.composeboxEnabled = true;
+    document.body.appendChild(realbox);
+    await waitAfterNextRender(realbox);
+
+    // Act.
+    const composeButton =
+        realbox.shadowRoot!.querySelector('cr-searchbox-compose-button');
+    assertTrue(!!composeButton);
+
+    await composeButton.updateComplete;
+
+    const glowAnimationWrapper =
+        composeButton.shadowRoot.querySelector<HTMLElement>(
+            '#glowAnimationWrapper');
+    assertTrue(!!glowAnimationWrapper);
+
+    // Assert.
+    // Animation should not play if `searchboxShowComposeAnimation` is false
+    assertFalse(glowAnimationWrapper.classList.contains('play'));
+  });
+
 
   //============================================================================
   // Test Querying Autocomplete
@@ -328,6 +531,9 @@ suite('NewTabPageRealboxTest', () => {
     assertEquals(2, matchEls.length);
 
     // Left click does not query autocomplete when matches are showing.
+    // Need to manually focus in order to trigger `onFocusChanged()` since
+    // `autocompleteResultChanged` does not focus input.
+    realbox.$.input.focus();
     realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
     assertEquals(0, testProxy.handler.getCallCount('queryAutocomplete'));
     await testProxy.handler.whenCalled('onFocusChanged');
@@ -642,7 +848,8 @@ suite('NewTabPageRealboxTest', () => {
   test(
       'autocomplete triggers on focus on non-empty input with thumbnail',
       async () => {
-        testProxy.callbackRouterRemote.setThumbnail('foo.png');
+        testProxy.callbackRouterRemote.setThumbnail(
+            'foo.png', /*isDeletable=*/ true);
         await waitAfterNextRender(realbox);
         const thumbnail = realbox.$.inputWrapper.querySelector('#thumbnail');
         assertTrue(thumbnail !== null);
@@ -928,6 +1135,30 @@ suite('NewTabPageRealboxTest', () => {
     });
   });
 
+  test('autocomplete result change does not impact focus', async () => {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    realbox = document.createElement('cr-searchbox');
+    document.body.appendChild(realbox);
+    await waitAfterNextRender(realbox);
+
+    realbox.$.input.value = 'he';
+    realbox.$.input.dispatchEvent(new InputEvent('input'));
+
+    realbox.shadowRoot!.querySelector<HTMLElement>(
+                           '#voiceSearchButton')!.focus();
+    assertEquals('voiceSearchButton', getDeepActiveElement()!.id);
+
+    const matches = [createSearchMatch(), createUrlMatch()];
+    testProxy.callbackRouterRemote.autocompleteResultChanged({
+      input: stringToMojoString16(realbox.$.input.value.trimStart()),
+      matches,
+      suggestionGroupsMap: {},
+    });
+    assertTrue(await areMatchesShowing());
+
+    assertEquals('voiceSearchButton', getDeepActiveElement()!.id);
+  });
+
   //============================================================================
   // Test Cut/Copy
   //============================================================================
@@ -1101,7 +1332,7 @@ suite('NewTabPageRealboxTest', () => {
         realbox.$.input.dispatchEvent(new InputEvent('input'));
 
         const matches =
-            [createSearchMatch({iconUrl: 'clock.svg'}), createUrlMatch()];
+            [createSearchMatch({iconPath: 'clock.svg'}), createUrlMatch()];
         testProxy.callbackRouterRemote.autocompleteResultChanged({
           input: stringToMojoString16(realbox.$.input.value.trimStart()),
           matches,
@@ -1212,7 +1443,7 @@ suite('NewTabPageRealboxTest', () => {
         realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
 
         const matches =
-            [createSearchMatch({iconUrl: 'clock.svg'}), createUrlMatch()];
+            [createSearchMatch({iconPath: 'clock.svg'}), createUrlMatch()];
         testProxy.callbackRouterRemote.autocompleteResultChanged({
           input: stringToMojoString16(realbox.$.input.value.trimStart()),
           matches,
@@ -1454,13 +1685,7 @@ suite('NewTabPageRealboxTest', () => {
     assertFalse(deleteEvent.defaultPrevented);
     assertEquals(0, testProxy.handler.getCallCount('deleteAutocompleteMatch'));
 
-    const arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      composed: true,  // So it propagates across shadow DOM boundary.
-      key: 'ArrowDown',
-    });
-    realbox.$.input.dispatchEvent(arrowDownEvent);
+    const arrowDownEvent = arrowDown(realbox);
     assertTrue(arrowDownEvent.defaultPrevented);
 
     // Second match is selected.
@@ -1531,13 +1756,7 @@ suite('NewTabPageRealboxTest', () => {
     // First match is not selected.
     assertFalse(matchEls[0]!.hasAttribute(Attributes.SELECTED));
 
-    const arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      composed: true,  // So it propagates across shadow DOM boundary.
-      key: 'ArrowDown',
-    });
-    realbox.$.input.dispatchEvent(arrowDownEvent);
+    const arrowDownEvent = arrowDown(realbox);
     assertTrue(arrowDownEvent.defaultPrevented);
 
     // First match is selected.
@@ -1690,13 +1909,7 @@ suite('NewTabPageRealboxTest', () => {
         realbox.$.matches.shadowRoot!.querySelectorAll('cr-searchbox-match');
     assertEquals(2, matchEls.length);
 
-    let arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      composed: true,  // So it propagates across shadow DOM boundary.
-      key: 'ArrowDown',
-    });
-    realbox.$.input.dispatchEvent(arrowDownEvent);
+    let arrowDownEvent = arrowDown(realbox);
     assertTrue(arrowDownEvent.defaultPrevented);
 
     // First match is selected but does not get focus while focus is in the
@@ -1722,13 +1935,7 @@ suite('NewTabPageRealboxTest', () => {
     assertEquals('hello world', realbox.$.input.value);
     assertEquals(realbox.$.input, realbox.shadowRoot!.activeElement);
 
-    arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      composed: true,  // So it propagates across shadow DOM boundary.
-      key: 'ArrowDown',
-    });
-    realbox.$.input.dispatchEvent(arrowDownEvent);
+    arrowDownEvent = arrowDown(realbox);
     assertTrue(arrowDownEvent.defaultPrevented);
 
     // Second match gets selected but does not get focus while focus is in the
@@ -1780,7 +1987,7 @@ suite('NewTabPageRealboxTest', () => {
         a11yLabel: stringToMojoString16(''),
         hint: stringToMojoString16('Clear Browsing History'),
         suggestionContents: stringToMojoString16(''),
-        iconUrl: 'chrome://theme/current-channel-logo',
+        iconPath: 'chrome://theme/current-channel-logo',
       }],
       fillIntoEdit: stringToMojoString16('clear browsing history'),
       supportsDeletion: true,
@@ -1798,13 +2005,7 @@ suite('NewTabPageRealboxTest', () => {
     const focusIndicator = matchEls[0]!.$['focus-indicator'];
 
     // Select the first match
-    const arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      composed: true,  // So it propagates across shadow DOM boundary.
-      key: 'ArrowDown',
-    });
-    realbox.$.input.dispatchEvent(arrowDownEvent);
+    const arrowDownEvent = arrowDown(realbox);
     assertTrue(arrowDownEvent.defaultPrevented);
 
     assertTrue(matchEls[0]!.hasAttribute(Attributes.SELECTED));
@@ -1920,8 +2121,8 @@ suite('NewTabPageRealboxTest', () => {
         realbox.$.input.dispatchEvent(new InputEvent('input'));
 
         const matches = [
-          createSearchMatch({iconUrl: 'clock.svg'}),
-          createUrlMatch({iconUrl: 'page.svg'}),
+          createSearchMatch({iconPath: 'clock.svg'}),
+          createUrlMatch({iconPath: 'page.svg'}),
         ];
         testProxy.callbackRouterRemote.autocompleteResultChanged({
           input: stringToMojoString16(realbox.$.input.value.trimStart()),
@@ -1939,13 +2140,7 @@ suite('NewTabPageRealboxTest', () => {
         assertIconMaskImageUrl(realbox.$.icon, 'search.svg');  // Default icon.
 
         // Select the first match.
-        let arrowDownEvent = new KeyboardEvent('keydown', {
-          bubbles: true,
-          cancelable: true,
-          composed: true,  // So it propagates across shadow DOM boundary.
-          key: 'ArrowDown',
-        });
-        realbox.$.input.dispatchEvent(arrowDownEvent);
+        let arrowDownEvent = arrowDown(realbox);
         assertTrue(arrowDownEvent.defaultPrevented);
 
         // First match is selected.
@@ -1956,13 +2151,7 @@ suite('NewTabPageRealboxTest', () => {
         assertIconMaskImageUrl(realbox.$.icon, 'clock.svg');
 
         // Select the second match.
-        arrowDownEvent = new KeyboardEvent('keydown', {
-          bubbles: true,
-          cancelable: true,
-          composed: true,  // So it propagates across shadow DOM boundary.
-          key: 'ArrowDown',
-        });
-        realbox.$.input.dispatchEvent(arrowDownEvent);
+        arrowDownEvent = arrowDown(realbox);
         assertTrue(arrowDownEvent.defaultPrevented);
 
         // Second match is selected.
@@ -1998,7 +2187,7 @@ suite('NewTabPageRealboxTest', () => {
         realbox.$.input.dispatchEvent(new InputEvent('input'));
 
         const matches = [createUrlMatch(
-            {allowedToBeDefaultMatch: true, iconUrl: 'page.svg'})];
+            {allowedToBeDefaultMatch: true, iconPath: 'page.svg'})];
 
         testProxy.callbackRouterRemote.autocompleteResultChanged({
           input: stringToMojoString16(realbox.$.input.value.trimStart()),
@@ -2026,9 +2215,9 @@ suite('NewTabPageRealboxTest', () => {
         realbox.$.input.dispatchEvent(new InputEvent('input'));
 
         const matches = [
-          createUrlMatch({iconUrl: 'page.svg'}),
+          createUrlMatch({iconPath: 'page.svg'}),
           createSearchMatch({
-            iconUrl: 'clock.svg',
+            iconPath: 'clock.svg',
             imageUrl: 'https://gstatic.com/',
             imageDominantColor: '#757575',
             isRichSuggestion: true,
@@ -2050,13 +2239,7 @@ suite('NewTabPageRealboxTest', () => {
         assertIconMaskImageUrl(realbox.$.icon, 'search.svg');  // Default icon.
 
         // Select the first match.
-        let arrowDownEvent = new KeyboardEvent('keydown', {
-          bubbles: true,
-          cancelable: true,
-          composed: true,  // So it propagates across shadow DOM boundary.
-          key: 'ArrowDown',
-        });
-        realbox.$.input.dispatchEvent(arrowDownEvent);
+        let arrowDownEvent = arrowDown(realbox);
         assertTrue(arrowDownEvent.defaultPrevented);
 
         // First match is selected.
@@ -2068,13 +2251,7 @@ suite('NewTabPageRealboxTest', () => {
         // assertFavicon(matchEls[0]!.$.icon, matches[0]!.destinationUrl.url);
 
         // Select the second match.
-        arrowDownEvent = new KeyboardEvent('keydown', {
-          bubbles: true,
-          cancelable: true,
-          composed: true,  // So it propagates across shadow DOM boundary.
-          key: 'ArrowDown',
-        });
-        realbox.$.input.dispatchEvent(arrowDownEvent);
+        arrowDownEvent = arrowDown(realbox);
         assertTrue(arrowDownEvent.defaultPrevented);
 
         // Second match is selected.
@@ -2118,6 +2295,250 @@ suite('NewTabPageRealboxTest', () => {
         // TODO(crbug.com/328270499): Uncomment once flakiness is fixed.
         // assertFavicon(realbox.$.icon, matches[0]!.destinationUrl.url);
       });
+
+  test(
+      'match icons are updated when external icons become available',
+      async () => {
+        // Helper function to assert icon states.
+        function assertIconState(
+            element: SearchboxElement|SearchboxMatchElement|undefined,
+            hasEntityImage: boolean, expectUseIconImg: boolean,
+            expectedSrc: string|null) {
+          assertTrue(!!element!.$.icon.$.icon, 'Icon element does not exists');
+          assertEquals(
+              !element!.$.icon.$.icon.hidden, !expectUseIconImg,
+              'Icon visibility is incorrect');
+          assertTrue(
+              !!element!.$.icon.$.iconImg, 'Icon image element does not exist');
+          assertEquals(
+              !element!.$.icon.$.iconImg.hidden, expectUseIconImg,
+              'Icon image visibility is incorrect');
+          // If there is an entity image, icon and iconImg should both have
+          // 'display' overridden to 'none'.
+          if (hasEntityImage) {
+            assertStyle(element!.$.icon.$.icon, 'display', 'none');
+            assertStyle(element!.$.icon.$.iconImg, 'display', 'none');
+          }
+          if (expectedSrc) {
+            assertEquals(
+                element!.$.icon.$.iconImg.getAttribute('src'), expectedSrc,
+                'Icon image src is incorrect');
+          }
+        }
+
+        // Helper function to assert and dispatch load event.
+        function assertAndLoadIcon(
+            element: SearchboxElement|SearchboxMatchElement|undefined,
+            hasEntityImage: boolean, expectedSrc: string|null) {
+          // Before load: icon image hidden.
+          assertIconState(
+              element, hasEntityImage, /*expectUseIconImg=*/ false,
+              expectedSrc);
+          element!.$.icon.$.iconImg.dispatchEvent(new Event('load'));
+          // After load: icon image visible.
+          assertIconState(
+              element, hasEntityImage, /*expectUseIconImg=*/ true, expectedSrc);
+        }
+
+        realbox.$.input.value = 'hello';
+        realbox.$.input.dispatchEvent(new InputEvent('input'));
+
+        const matches = [
+          createUrlMatch({
+            iconUrl: {url: 'https://helloworld.com/url.png'},
+            iconPath: 'page.svg',
+          }),
+          createSearchMatch({
+            iconUrl: {url: 'https://helloworld.com/search.png'},
+            iconPath: 'clock.svg',
+            imageUrl: 'https://gstatic.com/',
+            imageDominantColor: '#757575',
+            isRichSuggestion: true,
+          }),
+        ];
+        testProxy.callbackRouterRemote.autocompleteResultChanged({
+          input: stringToMojoString16(realbox.$.input.value.trimStart()),
+          matches,
+          suggestionGroupsMap: {},
+        });
+        assertTrue(await areMatchesShowing());
+
+        const matchEls = realbox.$.matches.shadowRoot!.querySelectorAll(
+            'cr-searchbox-match');
+        assertEquals(2, matchEls.length);
+
+        // Test initial icon state for the first match: icon image not used.
+        assertIconState(
+            matchEls[0], /*hasEntityImage=*/ false, /*expectUseIconImg=*/ false,
+            `//image?staticEncode=true&encodeType=webp&url=${
+                matches[0]!.iconUrl.url}`);
+        // Test initial icon state for the second match: icon image not used.
+        assertIconState(
+            matchEls[1], /*hasEntityImage=*/ true, /*expectUseIconImg=*/ false,
+            `//image?staticEncode=true&encodeType=webp&url=${
+                matches[1]!.iconUrl.url}`);
+
+        // Select the first match.
+        let arrowDownEvent = arrowDown(realbox);
+        assertTrue(arrowDownEvent.defaultPrevented);
+
+        // First match is selected.
+        assertTrue(matchEls[0]!.hasAttribute(Attributes.SELECTED));
+        // Input is updated.
+        assertEquals('https://helloworld.com', realbox.$.input.value);
+        // Realbox icon is updated, but icon image remains not used.
+        assertIconState(
+            realbox, /*hasEntityImage=*/ false, /*expectUseIconImg=*/ false,
+            `//image?staticEncode=true&encodeType=webp&url=${
+                matches[0]!.iconUrl.url}`);
+
+        // Mock icon image finishing loading for the first match and the realbox
+        // itself. The icon image should be used icon.
+        assertAndLoadIcon(
+            matchEls[0], /*hasEntityImage=*/ false,
+            `//image?staticEncode=true&encodeType=webp&url=${
+                matches[0]!.iconUrl.url}`);
+        assertAndLoadIcon(
+            realbox, /*hasEntityImage=*/ false,
+            `//image?staticEncode=true&encodeType=webp&url=${
+                matches[0]!.iconUrl.url}`);
+
+        // Select the second match.
+        arrowDownEvent = arrowDown(realbox);
+        assertTrue(arrowDownEvent.defaultPrevented);
+
+        // Second match is selected.
+        assertTrue(matchEls[1]!.hasAttribute(Attributes.SELECTED));
+        // Input is updated.
+        assertEquals('hello world', realbox.$.input.value);
+        // Realbox icon is updated, but icon image is not used.
+        assertIconState(
+            realbox, /*hasEntityImage=*/ false, /*expectUseIconImg=*/ false,
+            `//image?staticEncode=true&encodeType=webp&url=${
+                matches[1]!.iconUrl.url}`);
+        // Mock icon image finishing loading for the second match and the
+        // realbox itself. The icon image should be used.
+        assertAndLoadIcon(
+            matchEls[1], /*hasEntityImage=*/ true,
+            `//image?staticEncode=true&encodeType=webp&url=${
+                matches[1]!.iconUrl.url}`);
+        assertAndLoadIcon(
+            realbox, /*hasEntityImage=*/ false,
+            `//image?staticEncode=true&encodeType=webp&url=${
+                matches[1]!.iconUrl.url}`);
+
+        // Select the first match by pressing 'Escape'.
+        const escapeEvent = new KeyboardEvent('keydown', {
+          bubbles: true,
+          cancelable: true,
+          composed: true,  // So it propagates across shadow DOM boundary.
+          key: 'Escape',
+        });
+        realbox.$.input.dispatchEvent(escapeEvent);
+        assertTrue(escapeEvent.defaultPrevented);
+
+        // First match is selected.
+        assertTrue(matchEls[0]!.hasAttribute(Attributes.SELECTED));
+        // Input is updated.
+        assertEquals('https://helloworld.com', realbox.$.input.value);
+        // Realbox icon is updated, but icon image is not used.
+        assertIconState(
+            realbox, /*hasEntityImage=*/ false, /*expectUseIconImg=*/ false,
+            `//image?staticEncode=true&encodeType=webp&url=${
+                matches[0]!.iconUrl.url}`);
+        // Mock icon image finishing loading for the realbox (now showing the
+        // first match's icon image again).
+        assertAndLoadIcon(
+            realbox, /*hasEntityImage=*/ false,
+            `//image?staticEncode=true&encodeType=webp&url=${
+                matches[0]!.iconUrl.url}`);
+      });
+
+
+  test('search aggregator people matches use fallback icons', async () => {
+    realbox.$.input.value = 'hello';
+    realbox.$.input.dispatchEvent(new InputEvent('input'));
+
+    const fallbackIconPath =
+        '//resources/cr_components/searchbox/icons/google_agentspace_logo.svg';
+    const matches = [
+      createUrlMatch({
+        iconPath: fallbackIconPath,
+        isEnterpriseSearchAggregatorPeopleType: true,
+      }),
+      createUrlMatch({
+        iconUrl: {url: 'https://helloworld-2.com/url.png'},
+        iconPath: fallbackIconPath,
+        isEnterpriseSearchAggregatorPeopleType: true,
+        contents: stringToMojoString16('helloworld-2.com'),
+        destinationUrl: {url: 'https://helloworld-2.com/'},
+        fillIntoEdit: stringToMojoString16('https://helloworld-2.com'),
+      }),
+    ];
+    testProxy.callbackRouterRemote.autocompleteResultChanged({
+      input: stringToMojoString16(realbox.$.input.value.trimStart()),
+      matches,
+      suggestionGroupsMap: {},
+    });
+    assertTrue(await areMatchesShowing());
+
+    const matchEls =
+        realbox.$.matches.shadowRoot!.querySelectorAll('cr-searchbox-match');
+    assertEquals(2, matchEls.length);
+
+    // Test initial icon state for the first match: Google Agentspace logo set
+    // as background image.
+    assertStyle(
+        matchEls[0]!.$.icon.$.icon, 'background-image',
+        `url("chrome:${fallbackIconPath}")`);
+    assertStyle(matchEls[0]!.$.icon.$.icon, '-webkit-mask-image', 'none');
+
+    // Test initial icon state for the second match: Google Agentspace logo set
+    // as background image.
+    assertStyle(
+        matchEls[1]!.$.icon.$.icon, 'background-image',
+        `url("chrome:${fallbackIconPath}")`);
+    assertStyle(matchEls[1]!.$.icon.$.icon, '-webkit-mask-image', 'none');
+
+    // Select the first match.
+    let arrowDownEvent = arrowDown(realbox);
+    assertTrue(arrowDownEvent.defaultPrevented);
+
+    // First match is selected.
+    assertTrue(matchEls[0]!.hasAttribute(Attributes.SELECTED));
+    // Input is updated.
+    assertEquals('https://helloworld.com', realbox.$.input.value);
+    // Realbox icon is updated.
+    assertStyle(
+        realbox.$.icon.$.icon, 'background-image',
+        `url("chrome:${fallbackIconPath}")`);
+    assertStyle(realbox.$.icon.$.icon, '-webkit-mask-image', 'none');
+    assertFalse(realbox.$.icon.$.icon.hidden);
+    assertTrue(realbox.$.icon.$.iconImg.hidden);
+
+    // Select the second match.
+    arrowDownEvent = arrowDown(realbox);
+    assertTrue(arrowDownEvent.defaultPrevented);
+
+    // Second match is selected.
+    assertTrue(matchEls[1]!.hasAttribute(Attributes.SELECTED));
+    // Input is updated.
+    assertEquals('https://helloworld-2.com', realbox.$.input.value);
+    // Realbox icon is updated.
+    assertStyle(
+        realbox.$.icon.$.icon, 'background-image',
+        `url("chrome:${fallbackIconPath}")`);
+    assertStyle(realbox.$.icon.$.icon, '-webkit-mask-image', 'none');
+    assertFalse(realbox.$.icon.$.icon.hidden);
+    assertTrue(realbox.$.icon.$.iconImg.hidden);
+
+    // Mock icon image finishing loading for the the realbox
+    // itself. The icon image should be used and the logo should be hidden.
+    realbox.$.icon.$.iconImg.dispatchEvent(new Event('load'));
+    assertTrue(realbox.$.icon.$.icon.hidden);
+    assertFalse(realbox.$.icon.$.iconImg.hidden);
+  });
+
   test('lens searchboxes always use default icons in searchbox', async () => {
     // Arrange.
     loadTimeData.overrideValues({
@@ -2135,7 +2556,7 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     const matches = [
-      createUrlMatch({iconUrl: 'page.svg'}),
+      createUrlMatch({iconPath: 'page.svg'}),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged({
       input: stringToMojoString16(realbox.$.input.value.trimStart()),
@@ -2149,13 +2570,7 @@ suite('NewTabPageRealboxTest', () => {
     assertEquals(1, matchEls.length);
 
     // Select the first match.
-    const arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      composed: true,  // So it propagates across shadow DOM boundary.
-      key: 'ArrowDown',
-    });
-    realbox.$.input.dispatchEvent(arrowDownEvent);
+    const arrowDownEvent = arrowDown(realbox);
     assertTrue(arrowDownEvent.defaultPrevented);
 
     // First match is selected.
@@ -2232,13 +2647,7 @@ suite('NewTabPageRealboxTest', () => {
     assertEquals(
         window.getComputedStyle(matchEls[0]!.$.separator).display, 'none');
 
-    const arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      composed: true,  // So it propagates across shadow DOM boundary.
-      key: 'ArrowDown',
-    });
-    realbox.$.input.dispatchEvent(arrowDownEvent);
+    const arrowDownEvent = arrowDown(realbox);
     assertTrue(arrowDownEvent.defaultPrevented);
 
     assertTrue(matchEls[0]!.hasAttribute(Attributes.SELECTED));
@@ -2276,13 +2685,7 @@ suite('NewTabPageRealboxTest', () => {
     assertEquals(
         window.getComputedStyle(matchEls[0]!.$.separator).display, 'none');
 
-    const arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      composed: true,  // So it propagates across shadow DOM boundary.
-      key: 'ArrowDown',
-    });
-    realbox.$.input.dispatchEvent(arrowDownEvent);
+    const arrowDownEvent = arrowDown(realbox);
     assertTrue(arrowDownEvent.defaultPrevented);
 
     assertTrue(matchEls[0]!.hasAttribute(Attributes.SELECTED));
@@ -2303,7 +2706,7 @@ suite('NewTabPageRealboxTest', () => {
           a11yLabel: stringToMojoString16(''),
           hint: stringToMojoString16('Open Email'),
           suggestionContents: stringToMojoString16(''),
-          iconUrl: 'data:image/random',
+          iconPath: 'data:image/random',
         }],
       }),
       createSearchMatch({
@@ -2311,7 +2714,7 @@ suite('NewTabPageRealboxTest', () => {
           a11yLabel: stringToMojoString16(''),
           hint: stringToMojoString16('Open Email'),
           suggestionContents: stringToMojoString16(''),
-          iconUrl: 'icon.png',
+          iconPath: 'icon.png',
         }],
       }),
     ];
@@ -2359,7 +2762,7 @@ suite('NewTabPageRealboxTest', () => {
         a11yLabel: stringToMojoString16(''),
         hint: stringToMojoString16('Clear Browsing History'),
         suggestionContents: stringToMojoString16(''),
-        iconUrl: 'chrome://theme/current-channel-logo',
+        iconPath: 'chrome://theme/current-channel-logo',
       }],
     })];
     testProxy.callbackRouterRemote.autocompleteResultChanged({
@@ -2404,13 +2807,13 @@ suite('NewTabPageRealboxTest', () => {
             a11yLabel: stringToMojoString16(''),
             hint: stringToMojoString16('Clear Browsing History'),
             suggestionContents: stringToMojoString16(''),
-            iconUrl: 'chrome://theme/current-channel-logo',
+            iconPath: 'chrome://theme/current-channel-logo',
           },
           {
             a11yLabel: stringToMojoString16(''),
             hint: stringToMojoString16('Tab Switch'),
             suggestionContents: stringToMojoString16(''),
-            iconUrl: 'chrome://theme/current-channel-logo',
+            iconPath: 'chrome://theme/current-channel-logo',
           },
         ],
       }),
@@ -2476,13 +2879,7 @@ suite('NewTabPageRealboxTest', () => {
     });
     assertTrue(await areMatchesShowing());
 
-    const arrowDownEvent = new KeyboardEvent('keydown', {
-      bubbles: true,
-      cancelable: true,
-      composed: true,  // So it propagates across shadow DOM boundary.
-      key: 'ArrowDown',
-    });
-    realbox.$.input.dispatchEvent(arrowDownEvent);
+    arrowDown(realbox);
 
     const args = await testProxy.handler.whenCalled('onNavigationLikely');
     assertEquals(0, args.line);
@@ -2507,7 +2904,8 @@ suite('NewTabPageRealboxTest', () => {
   test('thumbnail appears on page call from browser', async () => {
     assertTrue(
         realbox.$.inputWrapper.querySelector('#thumbnailContainer') === null);
-    testProxy.callbackRouterRemote.setThumbnail('foo.png');
+    testProxy.callbackRouterRemote.setThumbnail(
+        'foo.png', /*isDeletable=*/ true);
     await waitAfterNextRender(realbox);
     const thumbnailContainer =
         realbox.$.inputWrapper.querySelector('#thumbnailContainer');
@@ -2516,7 +2914,8 @@ suite('NewTabPageRealboxTest', () => {
   });
 
   test('thumbnail clicked deletion', async () => {
-    testProxy.callbackRouterRemote.setThumbnail('foo.png');
+    testProxy.callbackRouterRemote.setThumbnail(
+        'foo.png', /*isDeletable=*/ true);
     await waitAfterNextRender(realbox);
     const thumbnail = realbox.$.inputWrapper.querySelector('#thumbnail');
     assertTrue(thumbnail !== null);
@@ -2543,7 +2942,8 @@ suite('NewTabPageRealboxTest', () => {
 
   test('thumbnail keyboard deletion', async () => {
     realbox.$.input.value = '';
-    testProxy.callbackRouterRemote.setThumbnail('foo.png');
+    testProxy.callbackRouterRemote.setThumbnail(
+        'foo.png', /*isDeletable=*/ true);
     await waitAfterNextRender(realbox);
     const thumbnail = realbox.$.inputWrapper.querySelector('#thumbnail');
     assertTrue(thumbnail !== null);
@@ -2581,7 +2981,8 @@ suite('NewTabPageRealboxTest', () => {
   });
 
   test('keyboard deletion with non-empty input', async () => {
-    testProxy.callbackRouterRemote.setThumbnail('foo.png');
+    testProxy.callbackRouterRemote.setThumbnail(
+        'foo.png', /*isDeletable=*/ true);
     await waitAfterNextRender(realbox);
     const thumbnail = realbox.$.inputWrapper.querySelector('#thumbnail');
     assertTrue(thumbnail !== null);

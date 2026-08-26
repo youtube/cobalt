@@ -40,6 +40,7 @@
 #include "components/autofill/core/browser/payments/payments_network_interface.h"
 #include "components/autofill/core/browser/payments/payments_util.h"
 #include "components/autofill/core/browser/payments/payments_window_manager.h"
+#include "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #include "components/autofill/core/browser/payments/webauthn_callback_types.h"
 #include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator.h"
 #include "components/autofill/core/common/autofill_clock.h"
@@ -273,7 +274,7 @@ void CreditCardAccessManager::LogMetricsAndFillFormForServerUnmaskFlows(
     autofill_metrics::LogCardInfoRetrievalEnrolledUnmaskResult(
         CardInfoRetrievalEnrolledUnmaskResult::kAuthenticationUnmasked);
   }
-  std::move(on_credit_card_fetched_callback_).Run(*card_);
+  OnCreditCardFetched(*card_, /*card_was_fetched_from_cache=*/false);
 }
 
 void CreditCardAccessManager::OnDidGetUnmaskDetails(
@@ -341,6 +342,7 @@ void CreditCardAccessManager::FetchCreditCard(
 
   // Get the card's record type to correctly handle its fetching.
   CreditCard::RecordType record_type = card->record_type();
+  on_credit_card_fetched_callback_ = std::move(on_credit_card_fetched);
 
   // Log the server card unmasking attempt, and differentiate based on server
   // card or virtual card.
@@ -351,17 +353,30 @@ void CreditCardAccessManager::FetchCreditCard(
             : PaymentsRpcCardType::kServerCard);
   }
 
+  // If the to-be-unmasked card is a virtual card eligible card (this also
+  // implicitly checks the RecordType to be masked server card), send the
+  // virtual card enrollment preflight call early.
+  auto* virtual_card_enrollment_manager =
+      payments_autofill_client().GetVirtualCardEnrollmentManager();
+  if (card->virtual_card_enrollment_state() ==
+          CreditCard::VirtualCardEnrollmentState::kUnenrolledAndEligible &&
+      virtual_card_enrollment_manager &&
+      base::FeatureList::IsEnabled(
+          features::
+              kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollment)) {
+    // Set empty callback as we need to wait for form submission & card
+    // extraction from the form, before we start the next step.
+    virtual_card_enrollment_manager->InitVirtualCardEnroll(
+        *card, VirtualCardEnrollmentSource::kDownstream,
+        /*virtual_card_enrollment_fields_loaded_callback=*/base::DoNothing());
+  }
+
   // If card has been previously unmasked, use cached data.
   std::unordered_map<std::string, CachedServerCardInfo>::iterator it =
       unmasked_card_cache_.find(GetKeyForUnmaskedCardsCache(*card));
   if (it != unmasked_card_cache_.end()) {  // key is in cache
     it->second.card.set_cvc(it->second.cvc);
-    std::move(on_credit_card_fetched).Run(/*credit_card=*/it->second.card);
-    std::string metrics_name =
-        record_type == CreditCard::RecordType::kVirtualCard
-            ? "Autofill.UsedCachedVirtualCard"
-            : "Autofill.UsedCachedServerCard";
-    base::UmaHistogramCounts1000(metrics_name, ++it->second.cache_uses);
+    OnCreditCardFetched(it->second.card, /*card_was_fetched_from_cache=*/true);
 
     autofill_metrics::LogServerCardUnmaskResult(
         ServerCardUnmaskResult::kLocalCacheHit, record_type,
@@ -372,8 +387,6 @@ void CreditCardAccessManager::FetchCreditCard(
   }
 
   card_ = std::make_unique<CreditCard>(*card);
-  on_credit_card_fetched_callback_ = std::move(on_credit_card_fetched);
-
   switch (record_type) {
     case CreditCard::RecordType::kVirtualCard:
       return FetchVirtualCard();
@@ -390,6 +403,13 @@ void CreditCardAccessManager::FetchCreditCard(
 }
 
 bool CreditCardAccessManager::IsMaskedServerCardRiskBasedAuthAvailable() const {
+  // On some particular platforms (iOS WebView i.e.), Hagrid (risk based
+  // authentication) is not supported. This check if the current platform
+  // supports Hagrid.
+  if (!payments_autofill_client().IsRiskBasedAuthEffectivelyAvailable()) {
+    return false;
+  }
+
   bool isCardInfoRetrievalEnrolled =
       base::FeatureList::IsEnabled(
           features::kAutofillEnableCardInfoRuntimeRetrieval) &&
@@ -659,7 +679,7 @@ void CreditCardAccessManager::Authenticate(
       payments_autofill_client()
           .GetOtpAuthenticator()
           ->OnChallengeOptionSelected(
-              card_.get(), *selected_challenge_option_, GetWeakPtr(),
+              *card_, *selected_challenge_option_, GetWeakPtr(),
               risk_based_authentication_response_.context_token,
               payments::GetBillingCustomerId(payments_data_manager()));
       break;
@@ -731,7 +751,7 @@ void CreditCardAccessManager::OnCvcAuthenticationComplete(
   if (ShouldRespondImmediately(response)) {
     DCHECK(!should_register_card_with_fido);
     if (response.did_succeed) {
-      std::move(on_credit_card_fetched_callback_).Run(*card_);
+      OnCreditCardFetched(*card_, /*card_was_fetched_from_cache=*/false);
     }
     unmask_auth_flow_type_ = UnmaskAuthFlowType::kNone;
   } else if (should_register_card_with_fido) {
@@ -870,7 +890,7 @@ void CreditCardAccessManager::OnFIDOAuthenticationComplete(
 
 void CreditCardAccessManager::OnFidoAuthorizationComplete(bool did_succeed) {
   if (did_succeed) {
-    std::move(on_credit_card_fetched_callback_).Run(*card_);
+    OnCreditCardFetched(*card_, /*card_was_fetched_from_cache=*/false);
     form_event_logger_->LogCardUnmaskAuthenticationPromptCompleted(
         unmask_auth_flow_type_);
   }
@@ -1287,7 +1307,7 @@ void CreditCardAccessManager::FetchLocalCard() {
     }
     // Fill immediately if local card, as we do not need to authenticate the
     // user.
-    std::move(on_credit_card_fetched_callback_).Run(*card_);
+    OnCreditCardFetched(*card_, /*card_was_fetched_from_cache=*/false);
 
     // This local card autofill flow did not have any interactive
     // authentication, so notify the FormDataImporter of this.
@@ -1417,7 +1437,7 @@ void CreditCardAccessManager::OnNonInteractiveAuthenticationSuccess(
     payments_autofill_client().CloseAutofillProgressDialog(
         /*show_confirmation_before_closing=*/true,
         /*no_interactive_authentication_callback=*/base::OnceClosure());
-    std::move(on_credit_card_fetched_callback_).Run(*card_);
+    OnCreditCardFetched(*card_, /*card_was_fetched_from_cache=*/false);
 
     // If the server returned a successful response along with the card's
     // real PAN without requiring interactive authentication, set the
@@ -1651,7 +1671,7 @@ void CreditCardAccessManager::StartDeviceAuthenticationForFilling(
             card->record_type()),
         authentication_method,
         autofill_metrics::MandatoryReauthAuthenticationFlowEvent::kFlowSkipped);
-    std::move(on_credit_card_fetched_callback_).Run(*card);
+    OnCreditCardFetched(*card, /*card_was_fetched_from_cache=*/false);
     return;
   }
 
@@ -1711,7 +1731,7 @@ void CreditCardAccessManager::OnDeviceAuthenticationResponseForFilling(
       record_type, ServerCardUnmaskFlowType::kDeviceUnlock);
 
   if (successful_auth) {
-    std::move(on_credit_card_fetched_callback_).Run(*card);
+    OnCreditCardFetched(*card, /*card_was_fetched_from_cache=*/false);
   }
   // `on_credit_card_fetched_callback_` makes a copy of `card` and `cvc` before
   // it asynchronously fills them into the form. Thus we can safely call
@@ -1725,7 +1745,8 @@ void CreditCardAccessManager::OnVcn3dsAuthenticationComplete(
   if (response.result ==
       payments::PaymentsWindowManager::Vcn3dsAuthenticationResult::kSuccess) {
     CHECK(response.card.has_value());
-    std::move(on_credit_card_fetched_callback_).Run(response.card.value());
+    OnCreditCardFetched(response.card.value(),
+                        /*card_was_fetched_from_cache=*/false);
     autofill_metrics::LogServerCardUnmaskResult(
         ServerCardUnmaskResult::kAuthenticationUnmasked,
         PaymentsRpcCardType::kVirtualCard,
@@ -1742,6 +1763,14 @@ void CreditCardAccessManager::OnVcn3dsAuthenticationComplete(
         ServerCardUnmaskFlowType::kThreeDomainSecure);
   }
   Reset();
+}
+
+void CreditCardAccessManager::OnCreditCardFetched(
+    const CreditCard& card,
+    bool card_was_fetched_from_cache) {
+  autofill_client().GetFormDataImporter()->set_card_was_fetched_from_cache(
+      card_was_fetched_from_cache);
+  std::move(on_credit_card_fetched_callback_).Run(card);
 }
 
 }  // namespace autofill

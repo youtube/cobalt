@@ -30,6 +30,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -38,13 +40,14 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
-#include "components/ip_protection/common/ip_protection_telemetry.h"
-#include "components/ip_protection/common/masked_domain_list_manager.h"
-#include "components/ip_protection/common/probabilistic_reveal_token_registry.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "components/ip_protection/common/ip_protection_telemetry.h"            // nogncheck
+#include "components/ip_protection/common/masked_domain_list_manager.h"        // nogncheck
+#include "components/ip_protection/common/probabilistic_reveal_token_registry.h"// nogncheck
+#include "components/privacy_sandbox/masked_domain_list/masked_domain_list.pb.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "components/network_session_configurator/common/network_features.h"
 #include "components/os_crypt/sync/os_crypt.h"
-#include "components/privacy_sandbox/masked_domain_list/masked_domain_list.pb.h"
-#include "mojo/public/cpp/base/proto_wrapper.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/scoped_message_error_crash_key.h"
@@ -69,6 +72,7 @@
 #include "net/dns/public/doh_provider_entry.h"
 #include "net/dns/system_dns_config_change_notifier.h"
 #include "net/dns/test_dns_config_service.h"
+#include "net/filter/filter_source_stream.h"
 #include "net/first_party_sets/global_first_party_sets.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/log/file_net_log_observer.h"
@@ -87,14 +91,17 @@
 #include "services/network/network_context.h"
 #include "services/network/public/cpp/content_decoding_interceptor.h"
 #include "services/network/public/cpp/crash_keys.h"
+#include "services/network/public/cpp/data_pipe_to_source_stream.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/initiator_lock_compatibility.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/cpp/parsed_headers.h"
+#include "services/network/public/cpp/source_stream_to_data_pipe.h"
 #include "services/network/public/mojom/key_pinning.mojom.h"
 #include "services/network/public/mojom/network_service_test.mojom.h"
 #include "services/network/public/mojom/system_dns_resolution.mojom-forward.h"
 #include "services/network/restricted_cookie_manager.h"
+#include "services/network/scheduler/network_service_task_scheduler.h"
 #include "services/network/tpcd/metadata/manager.h"
 #include "services/network/url_loader.h"
 
@@ -379,6 +386,10 @@ NetworkService::NetworkService(
   DCHECK(!g_network_service);
   g_network_service = this;
 
+  if (base::FeatureList::IsEnabled(features::kNetworkServiceTaskScheduler)) {
+    NetworkServiceTaskScheduler::MaybeCreate();
+  }
+
   ContentDecodingInterceptor::SetIsNetworkServiceRunningInTheCurrentProcess(
       true, {});
 
@@ -478,7 +489,9 @@ void NetworkService::Initialize(mojom::NetworkServiceParamsPtr params,
 
   doh_probe_activator_ = std::make_unique<DelayedDohProbeActivator>(this);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   trust_token_key_commitments_ = std::make_unique<TrustTokenKeyCommitments>();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   if (params->default_observer) {
     default_url_loader_network_service_observer_.Bind(
@@ -490,12 +503,14 @@ void NetworkService::Initialize(mojom::NetworkServiceParamsPtr params,
 
   tpcd_metadata_manager_ = std::make_unique<network::tpcd::metadata::Manager>();
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   masked_domain_list_manager_ =
       std::make_unique<ip_protection::MaskedDomainListManager>(
           params->ip_protection_proxy_bypass_policy);
 
   probabilistic_reveal_token_registry_ =
       std::make_unique<ip_protection::ProbabilisticRevealTokenRegistry>();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 #if BUILDFLAG(IS_CT_SUPPORTED)
   constexpr size_t kMaxSCTAuditingCacheEntries = 1024;
@@ -899,7 +914,9 @@ void NetworkService::SetEnvironment(
 void NetworkService::SetTrustTokenKeyCommitments(
     const std::string& raw_commitments,
     base::OnceClosure done) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   trust_token_key_commitments_->ParseAndSet(raw_commitments);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   std::move(done).Run();
 }
 
@@ -983,34 +1000,26 @@ void NetworkService::UpdateKeyPinsList(mojom::PinListPtr pin_list,
 }
 
 void NetworkService::UpdateMaskedDomainList(
-    mojo_base::ProtoWrapper masked_domain_list,
-    const std::vector<std::string>& exclusion_list) {
-  const base::Time start_time = base::Time::Now();
-  auto mdl = masked_domain_list.As<masked_domain_list::MaskedDomainList>();
-  if (mdl.has_value()) {
-    ip_protection::Telemetry().MdlSize(mdl->ByteSizeLong());
-    masked_domain_list_manager_->UpdateMaskedDomainList(mdl.value(),
-                                                        exclusion_list);
-  }
-
-  base::UmaHistogramTimes(
-      "NetworkService.IpProtection.ProxyAllowList.UpdateProcessTime",
-      base::Time::Now() - start_time);
-}
-
-void NetworkService::UpdateMaskedDomainListFlatbuffer(
     base::File default_file,
     uint64_t default_file_size,
     base::File regular_browsing_file,
     uint64_t regular_browsing_file_size) {
-  masked_domain_list_manager_->UpdateMaskedDomainListFlatbuffer(
-      std::move(default_file), default_file_size,
-      std::move(regular_browsing_file), regular_browsing_file_size);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  if (masked_domain_list_manager_) {
+    masked_domain_list_manager_->UpdateMaskedDomainList(
+        std::move(default_file), default_file_size,
+        std::move(regular_browsing_file), regular_browsing_file_size);
+  }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
 void NetworkService::UpdateProbabilisticRevealTokenRegistry(
     base::Value::Dict registry) {
-  probabilistic_reveal_token_registry_->UpdateRegistry(std::move(registry));
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  if (probabilistic_reveal_token_registry_) {
+    probabilistic_reveal_token_registry_->UpdateRegistry(std::move(registry));
+  }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1067,6 +1076,39 @@ void NetworkService::InterceptUrlLoaderForBodyDecoding(
       std::move(dest_url_loader), std::move(dest_url_loader_client),
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::TaskPriority::USER_BLOCKING}));
+}
+
+void NetworkService::DecodeContentEncoding(
+    const std::vector<net::SourceStreamType>& content_encoding_types,
+    mojo::ScopedDataPipeConsumerHandle source_body,
+    mojo::ScopedDataPipeProducerHandle dest_body,
+    DecodeContentEncodingCallback callback) {
+  auto worker_task_runner = base::ThreadPool::CreateSequencedTaskRunner(
+      {base::TaskPriority::USER_BLOCKING});
+  worker_task_runner->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](scoped_refptr<base::SequencedTaskRunner> worker_task_runner,
+             const std::vector<net::SourceStreamType>& content_encoding_types,
+             mojo::ScopedDataPipeConsumerHandle source_body,
+             mojo::ScopedDataPipeProducerHandle dest_body,
+             DecodeContentEncodingCallback callback) {
+            auto source_stream_to_data_pipe =
+                std::make_unique<SourceStreamToDataPipe>(
+                    net::FilterSourceStream::CreateDecodingSourceStream(
+                        std::make_unique<DataPipeToSourceStream>(
+                            std::move(source_body), worker_task_runner),
+                        content_encoding_types),
+                    std::move(dest_body), worker_task_runner);
+            auto* source_stream_to_data_pipe_ptr =
+                source_stream_to_data_pipe.get();
+            source_stream_to_data_pipe_ptr->Start(std::move(callback).Then(
+                base::OnceClosure(base::DoNothingWithBoundArgs(
+                    std::move(source_stream_to_data_pipe)))));
+          },
+          worker_task_runner, std::move(content_encoding_types),
+          std::move(source_body), std::move(dest_body),
+          base::BindPostTaskToCurrentDefault(std::move(callback))));
 }
 
 void NetworkService::SetTLS13EarlyDataEnabled(bool enabled) {

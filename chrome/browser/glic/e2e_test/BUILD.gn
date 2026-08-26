@@ -44,6 +44,10 @@ source_set("e2e_test_support") {
   } else {
     public_deps += [ ":internal_test_placeholder_constants" ]
   }
+
+  # TODO(crbug.com/432285114): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 test("glic_internal_e2e_interactive_ui_tests") {
@@ -76,7 +80,8 @@ test("glic_internal_e2e_interactive_ui_tests") {
 
     # TODO(crbug.com/399665693): Remove unneeded deps after refactoring.
     # Required for translate_bubble_test_utils_views.cc
-    "//chrome/browser/ui/browser_window:browser_window",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/translate:test_support",
     "//chrome/test:chrome_test_launcher",
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",

@@ -265,7 +265,7 @@ class CORE_EXPORT LineBreaker {
   bool CanBreakAfter(const InlineItem& item) const;
   // Returns true when text content at |offset| is
   //    kObjectReplacementCharacter (U+FFFC), or
-  //    kNoBreakSpaceCharacter (U+00A0) if |sticky_images_quirk_|.
+  //    kNoBreakSpace (U+00A0) if |sticky_images_quirk_|.
   bool MayBeAtomicInline(wtf_size_t offset) const;
   const InlineItem* TryGetAtomicInlineItemAfter(const InlineItem& item) const;
   unsigned IgnorableBidiControlLength(const InlineItem& item) const;
@@ -464,7 +464,7 @@ class CORE_EXPORT LineBreaker {
 
    public:
     InlineItemResults* item_results = nullptr;
-    wtf_size_t item_result_index = WTF::kNotFound;
+    wtf_size_t item_result_index = kNotFound;
     const ShapeResultView* collapsed_shape_result = nullptr;
     // Ancestors of `item_result`. ancestor_ruby_columns[0] is the parent of
     // `item_result`, and ancestor_ruby_columns[n+1] is the parent of

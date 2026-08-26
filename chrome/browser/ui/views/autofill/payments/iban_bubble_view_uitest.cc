@@ -481,7 +481,7 @@ IN_PROC_BROWSER_TEST_F(IbanBubbleViewFullFormBrowserTest,
       "Autofill.SaveIbanPromptOffer.Local.FirstShow",
       autofill_metrics::SaveIbanPromptOffer::kShown, 1);
   histogram_tester.ExpectUniqueSample(
-      "Autofill.SaveIbanPromptResult.Local.FirstShow",
+      "Autofill.SaveIbanPromptResult2.Local.FirstShow",
       autofill_metrics::SaveIbanPromptResult::kCancelled, 1);
 }
 
@@ -507,7 +507,7 @@ IN_PROC_BROWSER_TEST_F(IbanBubbleViewFullFormBrowserTest,
       "Autofill.SaveIbanPromptOffer.Local.FirstShow",
       autofill_metrics::SaveIbanPromptOffer::kShown, 1);
   histogram_tester.ExpectUniqueSample(
-      "Autofill.SaveIbanPromptResult.Local.FirstShow",
+      "Autofill.SaveIbanPromptResult2.Local.FirstShow",
       autofill_metrics::SaveIbanPromptResult::kClosed, 1);
 }
 
@@ -588,7 +588,7 @@ IN_PROC_BROWSER_TEST_F(IbanBubbleViewFullFormBrowserTest,
       "Autofill.SaveIbanPromptOffer.Local.FirstShow",
       autofill_metrics::SaveIbanPromptOffer::kShown, 1);
   histogram_tester.ExpectUniqueSample(
-      "Autofill.SaveIbanPromptResult.Local.FirstShow",
+      "Autofill.SaveIbanPromptResult2.Local.FirstShow",
       autofill_metrics::SaveIbanPromptResult::kAccepted, 1);
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveIbanPromptResult.Local.SavedWithNickname", false, 1);
@@ -612,7 +612,7 @@ IN_PROC_BROWSER_TEST_F(IbanBubbleViewFullFormBrowserTest,
       "Autofill.SaveIbanPromptOffer.Local.FirstShow",
       autofill_metrics::SaveIbanPromptOffer::kShown, 1);
   histogram_tester.ExpectUniqueSample(
-      "Autofill.SaveIbanPromptResult.Local.FirstShow",
+      "Autofill.SaveIbanPromptResult2.Local.FirstShow",
       autofill_metrics::SaveIbanPromptResult::kAccepted, 1);
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveIbanPromptResult.Local.SavedWithNickname", true, 1);
@@ -633,7 +633,7 @@ IN_PROC_BROWSER_TEST_F(IbanBubbleViewFullFormBrowserTest,
       "Autofill.SaveIbanPromptOffer.Local.FirstShow",
       autofill_metrics::SaveIbanPromptOffer::kShown, 1);
   histogram_tester.ExpectUniqueSample(
-      "Autofill.SaveIbanPromptResult.Local.FirstShow",
+      "Autofill.SaveIbanPromptResult2.Local.FirstShow",
       autofill_metrics::SaveIbanPromptResult::kClosed, 1);
 }
 
@@ -705,18 +705,7 @@ class IbanBubbleViewSyncTransportFullFormBrowserTest
   IbanBubbleViewSyncTransportFullFormBrowserTest() = default;
 
   void SetUpForSyncTransportModeTest() {
-    // On ChromeOS, the test profile starts with a primary account already set,
-    // so below tests doesn't apply.
-#if !BUILDFLAG(IS_CHROMEOS)
-    // Signing in (without granting sync consent or explicitly setting up Sync)
-    // should trigger starting the Sync machinery in standalone transport mode.
-    secondary_account_helper::SignInUnconsentedAccount(
-        GetProfile(0), test_url_loader_factory(), "user@gmail.com");
-#endif  // !BUILDFLAG(IS_CHROMEOS)
     ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount());
-    ASSERT_NE(syncer::SyncService::TransportState::DISABLED,
-              GetSyncService(0)->GetTransportState());
-
     ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
     ASSERT_EQ(syncer::SyncService::TransportState::ACTIVE,
               GetSyncService(0)->GetTransportState());

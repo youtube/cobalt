@@ -142,22 +142,22 @@ base::TimeDelta PrefetchCacheableDuration() {
 
 bool PrefetchProbingEnabled() {
   return base::GetFieldTrialParamByFeatureAsBool(
-      features::kPrefetchUseContentRefactor, "must_probe_origin", true);
+      features::kPrefetchCanaryCheckerParams, "must_probe_origin", true);
 }
 
 bool PrefetchCanaryCheckEnabled() {
   return base::GetFieldTrialParamByFeatureAsBool(
-      features::kPrefetchUseContentRefactor, "do_canary", true);
+      features::kPrefetchCanaryCheckerParams, "do_canary", true);
 }
 
 bool PrefetchTLSCanaryCheckEnabled() {
   return base::GetFieldTrialParamByFeatureAsBool(
-      features::kPrefetchUseContentRefactor, "do_tls_canary", false);
+      features::kPrefetchCanaryCheckerParams, "do_tls_canary", false);
 }
 
 GURL PrefetchTLSCanaryCheckURL(const GURL& default_tls_canary_check_url) {
   GURL url(base::GetFieldTrialParamValueByFeature(
-      features::kPrefetchUseContentRefactor, "tls_canary_url"));
+      features::kPrefetchCanaryCheckerParams, "tls_canary_url"));
   if (url.is_valid())
     return url;
 
@@ -166,7 +166,7 @@ GURL PrefetchTLSCanaryCheckURL(const GURL& default_tls_canary_check_url) {
 
 GURL PrefetchDNSCanaryCheckURL(const GURL& default_dns_canary_check_url) {
   GURL url(base::GetFieldTrialParamValueByFeature(
-      features::kPrefetchUseContentRefactor, "dns_canary_url"));
+      features::kPrefetchCanaryCheckerParams, "dns_canary_url"));
   if (url.is_valid())
     return url;
 
@@ -175,22 +175,29 @@ GURL PrefetchDNSCanaryCheckURL(const GURL& default_dns_canary_check_url) {
 
 base::TimeDelta PrefetchCanaryCheckCacheLifetime() {
   return base::Hours(base::GetFieldTrialParamByFeatureAsInt(
-      features::kPrefetchUseContentRefactor, "canary_cache_hours", 24));
+      features::kPrefetchCanaryCheckerParams, "canary_cache_hours", 24));
 }
 
 base::TimeDelta PrefetchCanaryCheckTimeout() {
   return base::Milliseconds(base::GetFieldTrialParamByFeatureAsInt(
-      features::kPrefetchUseContentRefactor, "canary_check_timeout_ms",
+      features::kPrefetchCanaryCheckerParams, "canary_check_timeout_ms",
       5 * 1000 /* 5 seconds */));
 }
 
 int PrefetchCanaryCheckRetries() {
   return base::GetFieldTrialParamByFeatureAsInt(
-      features::kPrefetchUseContentRefactor, "canary_check_retries", 1);
+      features::kPrefetchCanaryCheckerParams, "canary_check_retries", 1);
 }
 
-base::TimeDelta PrefetchBlockUntilHeadTimeout(const PrefetchType& prefetch_type,
-                                              bool is_nav_prerender) {
+base::TimeDelta PrefetchBlockUntilHeadTimeout(
+    const PrefetchType& prefetch_type,
+    bool should_disable_block_until_head_timeout,
+    bool is_nav_prerender) {
+  // If the caller of prefetches requests to disable the timeout, follow that.
+  if (should_disable_block_until_head_timeout) {
+    return base::Seconds(0);
+  }
+
   // Don't set a timeout for prerender because
   //
   // - The intention of prefetch ahead of prerender is not sending additional
@@ -209,6 +216,11 @@ base::TimeDelta PrefetchBlockUntilHeadTimeout(const PrefetchType& prefetch_type,
   int timeout_in_milliseconds = 0;
   if (IsSpeculationRuleType(prefetch_type.trigger_type())) {
     switch (prefetch_type.GetEagerness()) {
+      case blink::mojom::SpeculationEagerness::kImmediate:
+        timeout_in_milliseconds = base::GetFieldTrialParamByFeatureAsInt(
+            features::kPrefetchUseContentRefactor,
+            "block_until_head_timeout_immediate_prefetch", 1000);
+        break;
       case blink::mojom::SpeculationEagerness::kEager:
         timeout_in_milliseconds = base::GetFieldTrialParamByFeatureAsInt(
             features::kPrefetchUseContentRefactor,
@@ -234,15 +246,17 @@ base::TimeDelta PrefetchBlockUntilHeadTimeout(const PrefetchType& prefetch_type,
 }
 
 // These strings (including `embedder_histogram_suffix`) are persisted to logs.
-// LINT.IfChange
+// LINT.IfChange(GetMetricsSuffixTriggerTypeAndEagerness)
 std::string GetMetricsSuffixTriggerTypeAndEagerness(
     const PrefetchType prefetch_type,
     const std::optional<std::string>& embedder_histogram_suffix) {
   switch (prefetch_type.trigger_type()) {
     case PreloadingTriggerType::kSpeculationRule:
       switch (prefetch_type.GetEagerness()) {
+        case blink::mojom::SpeculationEagerness::kImmediate:
+          return "SpeculationRule_Immediate2";
         case blink::mojom::SpeculationEagerness::kEager:
-          return "SpeculationRule_Eager";
+          return "SpeculationRule_Eager2";
         case blink::mojom::SpeculationEagerness::kModerate:
           return "SpeculationRule_Moderate";
         case blink::mojom::SpeculationEagerness::kConservative:
@@ -250,8 +264,10 @@ std::string GetMetricsSuffixTriggerTypeAndEagerness(
       }
     case PreloadingTriggerType::kSpeculationRuleFromIsolatedWorld:
       switch (prefetch_type.GetEagerness()) {
+        case blink::mojom::SpeculationEagerness::kImmediate:
+          return "SpeculationRule_Immediate2";
         case blink::mojom::SpeculationEagerness::kEager:
-          return "SpeculationRuleFromIsolatedWorld_Eager";
+          return "SpeculationRule_Eager2";
         case blink::mojom::SpeculationEagerness::kModerate:
           return "SpeculationRuleFromIsolatedWorld_Moderate";
         case blink::mojom::SpeculationEagerness::kConservative:
@@ -259,8 +275,10 @@ std::string GetMetricsSuffixTriggerTypeAndEagerness(
       }
     case PreloadingTriggerType::kSpeculationRuleFromAutoSpeculationRules:
       switch (prefetch_type.GetEagerness()) {
+        case blink::mojom::SpeculationEagerness::kImmediate:
+          return "SpeculationRule_Immediate2";
         case blink::mojom::SpeculationEagerness::kEager:
-          return "SpeculationRuleFromAutoSpeculationRules_Eager";
+          return "SpeculationRule_Eager2";
         case blink::mojom::SpeculationEagerness::kModerate:
           return "SpeculationRuleFromAutoSpeculationRules_Moderate";
         case blink::mojom::SpeculationEagerness::kConservative:
@@ -273,18 +291,6 @@ std::string GetMetricsSuffixTriggerTypeAndEagerness(
 }
 // LINT.ThenChange(//tools/metrics/histograms/metadata/prefetch/histograms.xml:TriggerTypeAndEagerness)
 
-size_t MaxNumberOfEagerPrefetchesPerPage() {
-  int max = base::GetFieldTrialParamByFeatureAsInt(features::kPrefetchNewLimits,
-                                                   "max_eager_prefetches", 50);
-  return std::max(0, max);
-}
-
-size_t MaxNumberOfNonEagerPrefetchesPerPage() {
-  int max = base::GetFieldTrialParamByFeatureAsInt(
-      features::kPrefetchNewLimits, "max_non_eager_prefetches", 2);
-  return std::max(0, max);
-}
-
 bool PrefetchNIKScopeEnabled() {
   return base::FeatureList::IsEnabled(features::kPrefetchNIKScope);
 }
@@ -295,15 +301,17 @@ bool PrefetchBrowserInitiatedTriggersEnabled() {
 }
 
 size_t GetPrefetchDataPipeTeeBodySizeLimit() {
-  return std::max(
-      static_cast<size_t>(features::kPrefetchReusableBodySizeLimit.Get()),
-      features::kPrerender2FallbackBodySizeLimit.Get());
+  return static_cast<size_t>(features::kPrefetchReusableBodySizeLimit.Get());
 }
 
 bool UsePrefetchScheduler() {
   return base::FeatureList::IsEnabled(features::kPrefetchScheduler) ||
          features::kPrerender2FallbackPrefetchSchedulerPolicy.Get() !=
-             features::Prerender2FallbackPrefetchSchedulerPolicy::kNotUse;
+             features::Prerender2FallbackPrefetchSchedulerPolicy::kNotUse ||
+         base::FeatureList::IsEnabled(
+             features::kWebViewPrefetchHighestPrefetchPriority) ||
+         base::FeatureList::IsEnabled(
+             features::kPrefetchMultipleActiveSetSizeLimitForBase);
 }
 
 }  // namespace content

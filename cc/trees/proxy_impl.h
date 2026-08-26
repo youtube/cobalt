@@ -25,7 +25,7 @@
 class GURL;
 
 namespace viz {
-struct FrameTimingDetails;
+class FrameTimingDetails;
 class LocalSurfaceId;
 }
 
@@ -94,7 +94,6 @@ class CC_EXPORT ProxyImpl : public LayerTreeHostImplClient,
                                  std::unique_ptr<CommitState> commit_state,
                                  const ThreadUnsafeCommitState* unsafe_state,
                                  base::TimeTicks main_thread_start_time,
-                                 const viz::BeginFrameArgs& commit_args,
                                  bool scroll_and_viewport_changes_synced,
                                  CommitTimestamps* commit_timestamps,
                                  bool commit_timeout = false);
@@ -104,8 +103,6 @@ class CC_EXPORT ProxyImpl : public LayerTreeHostImplClient,
   bool SpeculativeDecodeRequestInFlight() const;
   void SetSpeculativeDecodeRequestInFlight(bool value);
   void SetSourceURL(ukm::SourceId source_id, const GURL& url);
-  void SetUkmSmoothnessDestination(
-      base::WritableSharedMemoryMapping ukm_smoothness_data);
   void SetUkmDroppedFramesDestination(
       base::WritableSharedMemoryMapping ukm_dropped_frames_data);
   void SetRenderFrameObserver(
@@ -124,6 +121,8 @@ class CC_EXPORT ProxyImpl : public LayerTreeHostImplClient,
     return smoothness_priority_expiration_notifier_;
   }
   void SetShouldThrottleFrameRate(bool flag);
+
+  void NotifyNewLocalSurfaceIdExpectedWhilePaused();
 
  private:
   // LayerTreeHostImplClient implementation

@@ -14,10 +14,14 @@
 #include "chromeos/ash/experiences/arc/video_accelerator/video_frame_plane.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/config/gpu_preferences.h"
-#include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "media/video/video_encode_accelerator.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "ui/ozone/public/client_native_pixmap_factory_ozone.h"
+
+namespace gpu {
+class ArcSharedImageInterface;
+}
 
 namespace arc {
 
@@ -27,7 +31,11 @@ class GpuArcVideoEncodeAccelerator
     : public ::arc::mojom::VideoEncodeAccelerator,
       public media::VideoEncodeAccelerator::Client {
  public:
-  explicit GpuArcVideoEncodeAccelerator(
+  // NOTE: Null will be passed in if the creator was not able to create an
+  // ArcSII. In that case, this class should fail at Initialize() if mappable
+  // SharedImages are being used.
+  GpuArcVideoEncodeAccelerator(
+      scoped_refptr<gpu::ArcSharedImageInterface> sii,
       const gpu::GpuPreferences& gpu_preferences,
       const gpu::GpuDriverBugWorkarounds& gpu_workarounds);
 
@@ -82,6 +90,7 @@ class GpuArcVideoEncodeAccelerator
   // |client_count_| without lock.
   static size_t client_count_;
 
+  scoped_refptr<gpu::ArcSharedImageInterface> sii_;
   gpu::GpuPreferences gpu_preferences_;
   gpu::GpuDriverBugWorkarounds gpu_workarounds_;
   std::unique_ptr<media::VideoEncodeAccelerator> accelerator_;
@@ -90,7 +99,7 @@ class GpuArcVideoEncodeAccelerator
   gfx::Size visible_size_;
   int32_t bitstream_buffer_serial_;
   std::unordered_map<uint32_t, UseBitstreamBufferCallback> use_bitstream_cbs_;
-  gpu::GpuMemoryBufferSupport support_;
+  std::unique_ptr<gfx::ClientNativePixmapFactory> client_native_pixmap_factory_;
 };
 
 }  // namespace arc

@@ -10,8 +10,7 @@
 
 #include "modules/video_coding/video_receiver2.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <utility>

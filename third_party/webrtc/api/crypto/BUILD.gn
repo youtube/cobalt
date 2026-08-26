@@ -59,8 +59,9 @@ if (rtc_include_tests) {
     sources = [ "crypto_options_unittest.cc" ]
     deps = [
       ":options",
+      "..:field_trials",
       "../../rtc_base:ssl_adapter",
-      "../../test:scoped_key_value_config",
+      "../../test:create_test_field_trials",
       "../../test:test_support",
       "//testing/gtest",
     ]

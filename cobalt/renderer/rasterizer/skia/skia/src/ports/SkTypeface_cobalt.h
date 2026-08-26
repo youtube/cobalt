@@ -45,9 +45,8 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
  protected:
   sk_sp<SkTypeface> onMakeClone(const SkFontArguments& args) const override;
 
-  void onCharsToGlyphs(const SkUnichar uni[],
-                       int count,
-                       SkGlyphID glyphs[]) const override;
+  void onCharsToGlyphs(SkSpan<const SkUnichar> uni,
+                       SkSpan<SkGlyphID> glyphs) const override;
 
   void onGetFamilyName(SkString* family_name) const override;
 
@@ -79,7 +78,10 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
       SkFontStyle style,
       bool is_fixed_pitch,
       const SkString& family_name,
-      scoped_refptr<font_character_map::CharacterMap> character_map);
+      scoped_refptr<font_character_map::CharacterMap> character_map,
+      bool disable_synthetic_bolding = false,
+      const ComputedVariationPosition& computed_variation_position =
+          ComputedVariationPosition());
 
   void onGetFontDescriptor(SkFontDescriptor* descriptor,
                            bool* serialize) const override;

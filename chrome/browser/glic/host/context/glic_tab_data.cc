@@ -4,38 +4,49 @@
 
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 
+#include <cstdint>
 #include <optional>
 #include <utility>
+// #include <cstring>
 
-#include "base/functional/overloaded.h"
+#include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/common/chrome_features.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/favicon/core/favicon_driver_observer.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/web_contents.h"
+#include "skia/ext/codec_utils.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_rep.h"
 
 namespace glic {
+
 namespace {
-// Returns whether `a` and `b` both point to the same web contents.
-// Note that if both `a` and `b` are invalidated, this returns true, even if the
-// web contents they once pointed to is different. For our purposes, this is OK.
-bool IsWeakWebContentsEqual(base::WeakPtr<content::WebContents> a,
-                            base::WeakPtr<content::WebContents> b) {
-  return std::make_pair(a.get(), a.WasInvalidated()) ==
-         std::make_pair(b.get(), b.WasInvalidated());
+
+bool IsForeground(content::Visibility visibility) {
+  return visibility != content::Visibility::HIDDEN;
 }
+
 }  // namespace
 
 TabDataObserver::TabDataObserver(
     content::WebContents* web_contents,
-    bool observe_current_page_only,
+    base::RepeatingCallback<void(glic::mojom::TabDataPtr)> tab_data_changed)
+    : TabDataObserver(web_contents
+                          ? tabs::TabInterface::GetFromContents(web_contents)
+                          : nullptr,
+                      web_contents,
+                      std::move(tab_data_changed)) {}
+
+TabDataObserver::TabDataObserver(
+    tabs::TabInterface* tab,
+    content::WebContents* web_contents,
     base::RepeatingCallback<void(glic::mojom::TabDataPtr)> tab_data_changed)
     : content::WebContentsObserver(web_contents),
-      observe_current_page_only_(observe_current_page_only),
       tab_data_changed_(std::move(tab_data_changed)) {
   if (web_contents) {
     auto* favicon_driver =
@@ -43,6 +54,8 @@ TabDataObserver::TabDataObserver(
     if (favicon_driver) {
       favicon_driver->AddObserver(this);
     }
+    tab_detach_subscription_ = tab->RegisterWillDetach(base::BindRepeating(
+        &TabDataObserver::OnTabWillDetach, base::Unretained(this)));
   }
 }
 
@@ -64,14 +77,11 @@ void TabDataObserver::ClearObservation() {
     }
   }
   Observe(nullptr);
+  tab_detach_subscription_ = {};
 }
 
 void TabDataObserver::PrimaryPageChanged(content::Page& page) {
-  if (observe_current_page_only_) {
-    ClearObservation();
-  } else {
-    SendUpdate();
-  }
+  SendUpdate();
 }
 
 void TabDataObserver::TitleWasSetForMainFrame(
@@ -92,36 +102,21 @@ void TabDataObserver::OnFaviconUpdated(
   SendUpdate();
 }
 
-NoFocusedTabData::NoFocusedTabData() = default;
-NoFocusedTabData::NoFocusedTabData(std::string_view reason,
-                                   content::WebContents* tab)
-    : active_tab(tab ? tab->GetWeakPtr() : nullptr), no_focus_reason(reason) {}
-NoFocusedTabData::~NoFocusedTabData() = default;
-NoFocusedTabData::NoFocusedTabData(const NoFocusedTabData& other) = default;
-NoFocusedTabData& NoFocusedTabData::operator=(const NoFocusedTabData& other) =
-    default;
-
-base::expected<content::WebContents*, std::string_view>
-FocusedTabData::GetFocus() const {
-  using ResultType = decltype(GetFocus());
-  return std::visit(
-      base::Overloaded{
-          [](const base::WeakPtr<content::WebContents>& focused_tab)
-              -> ResultType {
-            if (focused_tab) {
-              return focused_tab.get();
-            }
-            return base::unexpected(std::string_view("focused tab removed"));
-          },
-          [](const NoFocusedTabData& no_focus) -> ResultType {
-            return base::unexpected(std::string_view(no_focus.no_focus_reason));
-          },
-      },
-      *this);
+void TabDataObserver::OnTabWillDetach(tabs::TabInterface* tab,
+                                      tabs::TabInterface::DetachReason reason) {
+  if (reason == tabs::TabInterface::DetachReason::kDelete) {
+    ClearObservation();
+  }
 }
 
 int GetTabId(content::WebContents* web_contents) {
-  return sessions::SessionTabHelper::IdForTab(web_contents).id();
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(web_contents);
+  if (tab) {
+    return tab->GetHandle().raw_value();
+  } else {
+    return tabs::TabHandle::Null().raw_value();
+  }
 }
 
 const GURL& GetTabUrl(content::WebContents* web_contents) {
@@ -137,55 +132,78 @@ glic::mojom::TabDataPtr CreateTabData(content::WebContents* web_contents) {
   SkBitmap favicon;
   auto* favicon_driver =
       favicon::ContentFaviconDriver::FromWebContents(web_contents);
+  std::optional<GURL> favicon_url;
   if (favicon_driver && favicon_driver->FaviconIsValid()) {
     // Attempt to get a 32x32 favicon by default (16x16 DIP at 2x scale).
     favicon = favicon_driver->GetFavicon()
                   .ToImageSkia()
                   ->GetRepresentation(2.0f)
                   .GetBitmap();
+    if (base::FeatureList::IsEnabled(features::kGlicFaviconDataUrls)) {
+      favicon_url = GURL(skia::EncodePngAsDataUri(favicon.pixmap()));
+    }
   }
+
+  // TODO(b/426644734): investigate triggering updates due to changes to
+  // observability for focused tab data.
+  bool is_audible = web_contents->IsCurrentlyAudible();
+  bool is_tab_content_captured = web_contents->IsBeingCaptured();
+  bool is_foreground = IsForeground(web_contents->GetVisibility());
+  bool is_observable = is_audible || is_foreground;
   return glic::mojom::TabData::New(
       GetTabId(web_contents),
       sessions::SessionTabHelper::IdForWindowContainingTab(web_contents).id(),
       GetTabUrl(web_contents), base::UTF16ToUTF8(web_contents->GetTitle()),
-      favicon, web_contents->GetContentsMimeType());
+      favicon, favicon_url, web_contents->GetContentsMimeType(), is_observable,
+      is_audible, is_tab_content_captured);
 }
 
 // CreateFocusedTabData Implementation:
 glic::mojom::FocusedTabDataPtr CreateFocusedTabData(
     const FocusedTabData& focused_tab_data) {
-  return std::visit(
-      base::Overloaded{
-          [](const base::WeakPtr<content::WebContents>& focused_tab) {
-            return mojom::FocusedTabData::NewFocusedTab(
-                CreateTabData(focused_tab.get()));
-          },
-          [](const NoFocusedTabData& no_focus) {
-            return mojom::FocusedTabData::NewNoFocusedTabData(
-                mojom::NoFocusedTabData::New(
-                    CreateTabData(no_focus.active_tab.get()),
-                    std::string(no_focus.no_focus_reason)));
-          },
-      },
-      focused_tab_data);
+  if (focused_tab_data.is_focus()) {
+    return mojom::FocusedTabData::NewFocusedTab(
+        CreateTabData(focused_tab_data.focus()->GetContents()));
+  }
+  return mojom::FocusedTabData::NewNoFocusedTabData(
+      mojom::NoFocusedTabData::New(
+          CreateTabData(focused_tab_data.unfocused_tab()
+                            ? focused_tab_data.unfocused_tab()->GetContents()
+                            : nullptr),
+          focused_tab_data.GetFocus().error()));
 }
 
-bool FocusedTabData::IsSame(const FocusedTabData& new_data) const {
-  if (index() != new_data.index()) {
+FocusedTabData::FocusedTabData(tabs::TabInterface* tab) : data_(tab) {}
+FocusedTabData::FocusedTabData(const std::string& error,
+                               tabs::TabInterface* unfocused_tab)
+    : data_(error), unfocused_tab_(unfocused_tab) {}
+FocusedTabData::~FocusedTabData() = default;
+
+base::expected<tabs::TabInterface*, std::string> FocusedTabData::GetFocus()
+    const {
+  if (is_focus()) {
+    return focus();
+  }
+  return base::unexpected(std::get<1>(data_));
+}
+
+bool FaviconEquals(const ::SkBitmap& a, const ::SkBitmap& b) {
+  if (&a == &b) {
+    return true;
+  }
+  // Compare image properties.
+  if (a.info() != b.info()) {
     return false;
   }
-  switch (index()) {
-    case 0:
-      return IsWeakWebContentsEqual(std::get<0>(*this), std::get<0>(new_data));
-    case 1:
-      return std::get<1>(*this).IsSame(std::get<1>(new_data));
+  // Compare image pixels.
+  for (int y = 0; y < a.height(); ++y) {
+    for (int x = 0; x < a.width(); ++x) {
+      if (a.getColor(x, y) != b.getColor(x, y)) {
+        return false;
+      }
+    }
   }
-  NOTREACHED();
-}
-
-bool NoFocusedTabData::IsSame(const NoFocusedTabData& other) const {
-  return IsWeakWebContentsEqual(active_tab, other.active_tab) &&
-         no_focus_reason == other.no_focus_reason;
+  return true;
 }
 
 }  // namespace glic

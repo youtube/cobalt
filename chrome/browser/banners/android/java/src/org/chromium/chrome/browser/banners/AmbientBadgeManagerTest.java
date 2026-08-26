@@ -54,7 +54,9 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeActivityTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.browser.TabLoadObserver;
 import org.chromium.chrome.test.util.browser.TabTitleObserver;
 import org.chromium.chrome.test.util.browser.webapps.WebappTestPage;
@@ -83,8 +85,8 @@ import java.util.Observer;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class AmbientBadgeManagerTest {
     @Rule
-    public ChromeTabbedActivityTestRule mTabbedActivityTestRule =
-            new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mTabbedActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Rule
     public CustomTabActivityTestRule mCustomTabActivityTestRule = new CustomTabActivityTestRule();
@@ -126,6 +128,7 @@ public class AmbientBadgeManagerTest {
     private static final String INSTALL_PATH_HISTOGRAM_NAME = "WebApk.Install.PathToInstall";
 
     private static final String EXPECTED_DIALOG_TITLE = "Install app";
+    private WebPageStation mPage;
 
     private class MockAppDetailsDelegate extends AppDetailsDelegate {
         private Observer mObserver;
@@ -182,7 +185,7 @@ public class AmbientBadgeManagerTest {
                     }
                 });
 
-        mTabbedActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mTabbedActivityTestRule.startOnBlankPage();
         // Must be set after native has loaded.
         mDetailsDelegate = new MockAppDetailsDelegate();
 
@@ -193,9 +196,7 @@ public class AmbientBadgeManagerTest {
 
         AppBannerManager.ignoreChromeChannelForTesting();
         AppBannerManager.setOverrideSegmentationResultForTesting(true);
-        mTestServer =
-                EmbeddedTestServer.createAndStartServer(
-                        ApplicationProvider.getApplicationContext());
+        mTestServer = mTabbedActivityTestRule.getTestServer();
         mUiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
     }
 
@@ -209,7 +210,7 @@ public class AmbientBadgeManagerTest {
     }
 
     private void assertAppBannerPipelineStatus(int expectedValue) {
-        Tab tab = mTabbedActivityTestRule.getActivity().getActivityTab();
+        Tab tab = mTabbedActivityTestRule.getActivityTab();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     Assert.assertEquals(
@@ -221,7 +222,7 @@ public class AmbientBadgeManagerTest {
 
     private void navigateToUrlAndWaitForBannerManager(
             ChromeActivityTestRule<? extends ChromeActivity> rule, String url) throws Exception {
-        Tab tab = rule.getActivity().getActivityTab();
+        Tab tab = rule.getActivityTab();
         new TabLoadObserver(tab).fullyLoadUrl(url);
         waitForBannerManager(tab);
     }
@@ -231,8 +232,7 @@ public class AmbientBadgeManagerTest {
         CriteriaHelper.pollUiThread(
                 () -> {
                     AppBannerManager manager =
-                            getAppBannerManager(
-                                    rule.getActivity().getActivityTab().getWebContents());
+                            getAppBannerManager(rule.getActivityTab().getWebContents());
                     Criteria.checkThat(mDetailsDelegate.mNumRetrieved, Matchers.is(numExpected));
                     Criteria.checkThat(manager.isRunningForTesting(), Matchers.is(false));
                 });
@@ -372,12 +372,12 @@ public class AmbientBadgeManagerTest {
                         .build();
 
         triggerInstallWebApp(
-                mTabbedActivityTestRule,
+                mTabbedActivityTestRule.getActivityTestRule(),
                 WebappTestPage.getTestUrlWithAction(mTestServer, "verify_appinstalled"));
 
         // The appinstalled event should fire (and cause the title to change).
         new TabTitleObserver(
-                        mTabbedActivityTestRule.getActivity().getActivityTab(),
+                        mTabbedActivityTestRule.getActivityTab(),
                         "Got appinstalled: listener, attr")
                 .waitForTitleUpdate(3);
 
@@ -405,7 +405,7 @@ public class AmbientBadgeManagerTest {
 
         // The appinstalled event should fire (and cause the title to change).
         new TabTitleObserver(
-                        mCustomTabActivityTestRule.getActivity().getActivityTab(),
+                        mCustomTabActivityTestRule.getActivityTab(),
                         "Got appinstalled: listener, attr")
                 .waitForTitleUpdate(3);
 
@@ -419,7 +419,7 @@ public class AmbientBadgeManagerTest {
                 HistogramWatcher.newBuilder().expectNoRecords(INSTALL_PATH_HISTOGRAM_NAME).build();
 
         triggerInstallNative(
-                mTabbedActivityTestRule,
+                mTabbedActivityTestRule.getActivityTestRule(),
                 WebappTestPage.getTestUrlWithManifest(mTestServer, NATIVE_APP_MANIFEST_WITH_ID),
                 NATIVE_APP_BLANK_REFERRER);
 
@@ -454,9 +454,9 @@ public class AmbientBadgeManagerTest {
 
         // Visit a site that is a PWA. The ambient badge should show.
         String webBannerUrl = WebappTestPage.getTestUrl(mTestServer);
-        Tab tab = mTabbedActivityTestRule.getActivity().getActivityTab();
+        Tab tab = mTabbedActivityTestRule.getActivityTab();
         new TabLoadObserver(tab).fullyLoadUrl(webBannerUrl);
-        waitUntilAmbientBadgePromptAppears(mTabbedActivityTestRule);
+        waitUntilAmbientBadgePromptAppears(mTabbedActivityTestRule.getActivityTestRule());
 
         WindowAndroid windowAndroid = mTabbedActivityTestRule.getActivity().getWindowAndroid();
 
@@ -518,9 +518,10 @@ public class AmbientBadgeManagerTest {
         // The ambient badge should show if there is play app in related applications list but
         // preferred_related_applications is false.
         String webBannerUrl = WebappTestPage.getTestUrl(mTestServer);
-        navigateToUrlAndWaitForBannerManager(mTabbedActivityTestRule, webBannerUrl);
+        navigateToUrlAndWaitForBannerManager(
+                mTabbedActivityTestRule.getActivityTestRule(), webBannerUrl);
 
-        waitUntilAmbientBadgePromptAppears(mTabbedActivityTestRule);
+        waitUntilAmbientBadgePromptAppears(mTabbedActivityTestRule.getActivityTestRule());
     }
 
     private static class TestContext extends ContextWrapper {
@@ -556,12 +557,12 @@ public class AmbientBadgeManagerTest {
         final Context contextToRestore = ContextUtils.getApplicationContext();
         ContextUtils.initApplicationContextForTests(new TestContext(contextToRestore));
 
-        navigateToUrlAndWaitForBannerManager(mTabbedActivityTestRule, url);
+        navigateToUrlAndWaitForBannerManager(mTabbedActivityTestRule.getActivityTestRule(), url);
 
         assertAppBannerPipelineStatus(AppBannerManagerState.COMPLETE);
 
         // The web app banner not show if a play app in related applications list is installed.
-        checkAmbientBadgePromptNotExist(mTabbedActivityTestRule);
+        checkAmbientBadgePromptNotExist(mTabbedActivityTestRule.getActivityTestRule());
 
         ContextUtils.initApplicationContextForTests(contextToRestore);
     }
@@ -572,23 +573,23 @@ public class AmbientBadgeManagerTest {
         String url = WebappTestPage.getTestUrl(mTestServer);
         AppBannerManager.setOverrideSegmentationResultForTesting(false);
 
-        navigateToUrlAndWaitForBannerManager(mTabbedActivityTestRule, url);
+        navigateToUrlAndWaitForBannerManager(mTabbedActivityTestRule.getActivityTestRule(), url);
 
         assertAppBannerPipelineStatus(AppBannerManagerState.PENDING_PROMPT_NOT_CANCELED);
 
-        Tab tab = mTabbedActivityTestRule.getActivity().getActivityTab();
+        Tab tab = mTabbedActivityTestRule.getActivityTab();
 
         // Blocked by segmentation result.
         waitForBadgeStatus(tab, AmbientBadgeState.SEGMENTATION_BLOCK);
-        checkAmbientBadgePromptNotExist(mTabbedActivityTestRule);
+        checkAmbientBadgePromptNotExist(mTabbedActivityTestRule.getActivityTestRule());
 
         // Advance 3 days and navigate to |url| again
         AppBannerManager.setTimeDeltaForTesting(3);
         AppBannerManager.setOverrideSegmentationResultForTesting(true);
         mTabbedActivityTestRule.loadUrl(ContentUrlConstants.ABOUT_BLANK_DISPLAY_URL);
-        navigateToUrlAndWaitForBannerManager(mTabbedActivityTestRule, url);
+        navigateToUrlAndWaitForBannerManager(mTabbedActivityTestRule.getActivityTestRule(), url);
 
         waitForBadgeStatus(tab, AmbientBadgeState.SHOWING);
-        waitUntilAmbientBadgePromptAppears(mTabbedActivityTestRule);
+        waitUntilAmbientBadgePromptAppears(mTabbedActivityTestRule.getActivityTestRule());
     }
 }

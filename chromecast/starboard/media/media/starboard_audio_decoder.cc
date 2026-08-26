@@ -18,6 +18,7 @@
 #include "chromecast/starboard/chromecast/starboard_cast_api/cast_starboard_api_types.h"
 #include "chromecast/starboard/media/media/drm_util.h"
 #include "chromecast/starboard/media/media/starboard_api_wrapper.h"
+#include "chromecast/starboard/media/media/starboard_resampler.h"
 
 namespace chromecast {
 namespace media {
@@ -226,6 +227,12 @@ StarboardAudioDecoder::GetAudioTrackTimestamp() {
 
 int StarboardAudioDecoder::GetStartThresholdInFrames() {
   return 0;
+}
+
+// This must return false, so that AudioPipelineImpl does not clear the
+// encryption field of the audio config.
+bool MediaPipelineBackend::AudioDecoder::RequiresDecryption() {
+  return false;
 }
 
 }  // namespace media

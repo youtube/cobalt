@@ -19,6 +19,7 @@
 #include "api/video/encoded_image.h"
 #include "api/video/recordable_encoded_frame.h"
 #include "api/video/video_codec_type.h"
+#include "api/video/video_rotation.h"
 #include "api/video/video_sink_interface.h"
 #include "test/gmock.h"
 #include "test/gtest.h"

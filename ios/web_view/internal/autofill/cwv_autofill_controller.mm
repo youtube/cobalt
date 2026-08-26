@@ -9,9 +9,10 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/functional/callback.h"
-#import "base/notreached.h"
+#import "base/notimplemented.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/values.h"
+#import "components/autofill/core/browser/autofill_field.h"
 #import "components/autofill/core/browser/form_structure.h"
 #import "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #import "components/autofill/core/browser/payments/legal_message_line.h"
@@ -514,9 +515,10 @@ using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
 
 #pragma mark - AutofillDriverIOSBridge
 
-- (void)fillData:(const std::vector<autofill::FormFieldData::FillData>&)form
+- (void)fillData:(const std::vector<autofill::FormFieldData::FillData>&)fields
+         section:(const autofill::Section&)section
          inFrame:(web::WebFrame*)frame {
-  [_autofillAgent fillData:form inFrame:frame];
+  [_autofillAgent fillData:fields section:section inFrame:frame];
 }
 
 - (void)fillSpecificFormField:(const autofill::FieldRendererId&)field
@@ -781,6 +783,10 @@ using UserDecision = autofill::AutofillClient::AddressPromptUserDecision;
 
 - (void)showCredentialProviderPromo:(CredentialProviderPromoTrigger)trigger {
   // No op
+}
+
+- (void)showSignedInWithSavedCredentialMessage {
+  [self didLoginWithExistingPassword];
 }
 
 - (void)didLoginWithExistingPassword {

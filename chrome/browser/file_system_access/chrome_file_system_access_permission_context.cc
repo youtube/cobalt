@@ -269,13 +269,23 @@ constexpr const int kNoBasePathKey = -1;
 // A wrapper around `base::NormalizeFilePath` that returns its result instead of
 // using an out parameter.
 base::FilePath NormalizeFilePath(const base::FilePath& path) {
-  CHECK(path.IsAbsolute());
+  base::FilePath absolute_path = path;
+  if (!absolute_path.IsAbsolute()) {
+    absolute_path = base::MakeAbsoluteFilePath(absolute_path);
+  }
+
+  if (absolute_path.empty()) {
+    return absolute_path;
+  }
+
   // TODO(crbug.com/368130513O): On Windows, this call will fail if the target
   // file path is greater than MAX_PATH. We should decide how to handle this
   // scenario.
+  // If the path is invalid, the `base::NormalizeFilePath` will also return
+  // false, so we return the empty path.
   base::FilePath normalized_path;
-  if (!base::NormalizeFilePath(path, &normalized_path)) {
-    return path;
+  if (!base::NormalizeFilePath(absolute_path, &normalized_path)) {
+    return absolute_path;
   }
   CHECK_EQ(path.empty(), normalized_path.empty());
   return normalized_path;
@@ -303,10 +313,8 @@ GenerateBlockPaths(bool should_normalize_file_path) {
           {base::DIR_MODULE, nullptr, BlockType::kBlockAllChildren},
           {base::DIR_ASSETS, nullptr, BlockType::kBlockAllChildren},
           // And neither should the configuration of at least the currently
-          // running
-          // Chrome instance (note that this does not take --user-data-dir
-          // command
-          // line overrides into account).
+          // running Chrome instance (note that this does not take
+          // --user-data-dir command line overrides into account).
           {chrome::DIR_USER_DATA, nullptr, BlockType::kBlockAllChildren},
           // ~/.ssh is pretty sensitive on all platforms, so block access to
           // that.
@@ -478,8 +486,8 @@ bool ShouldBlockAccessToPath(
   auto should_block_with_rule = [&](const base::FilePath& block_path,
                                     BlockType block_type) -> bool {
     if (path == block_path || path.IsParent(block_path)) {
-      VLOG(1) << "Blocking access to " << path << " because it is a parent of "
-              << block_path;
+      LOG(ERROR) << "Blocking access to " << path
+                 << " because it is a parent of " << block_path;
       return true;
     }
 
@@ -953,6 +961,8 @@ class ChromeFileSystemAccessPermissionContext::PermissionGrantImpl
           base::Value::Dict grant = AsValue();
           context_->GrantObjectPermission(origin_, std::move(grant));
         }
+        // Update visibility of icon when permission status is granted.
+        context_->ScheduleUsageIconUpdate();
       } else if (object) {
         // Permission is not granted anymore. Remove the grant object entirely
         // if only this grant type exists in the grant object; otherwise, remove
@@ -1888,7 +1898,7 @@ void ChromeFileSystemAccessPermissionContext::CheckPathsAgainstEnterprisePolicy(
       base::BindOnce(
           &ChromeFileSystemAccessPermissionContext::OnContentAnalysisComplete,
           weak_factory_.GetWeakPtr(), std::move(entries), std::move(callback)),
-      safe_browsing::DeepScanAccessPoint::UPLOAD);
+      enterprise_connectors::DeepScanAccessPoint::UPLOAD);
 #else
   std::move(callback).Run(std::move(entries));
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
@@ -2255,16 +2265,16 @@ std::u16string ChromeFileSystemAccessPermissionContext::GetPickerTitle(
     const blink::mojom::FilePickerOptionsPtr& options) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // TODO(asully): Consider adding custom strings for invocations of the file
-  // picker, as well. Returning the empty string will fall back to the platform
-  // default for the given picker type.
+  // Returning the empty string will fall back to the platform default for the
+  // given picker type.
   std::u16string title;
   switch (options->type_specific_options->which()) {
     case blink::mojom::TypeSpecificFilePickerOptionsUnion::Tag::
         kDirectoryPickerOptions:
       title = l10n_util::GetStringUTF16(
           options->type_specific_options->get_directory_picker_options()
-                  ->request_writable
+                      ->permission_mode ==
+                  blink::mojom::FileSystemAccessPermissionMode::kReadWrite
               ? IDS_FILE_SYSTEM_ACCESS_CHOOSER_OPEN_WRITABLE_DIRECTORY_TITLE
               : IDS_FILE_SYSTEM_ACCESS_CHOOSER_OPEN_READABLE_DIRECTORY_TITLE);
       break;
@@ -2275,6 +2285,11 @@ std::u16string ChromeFileSystemAccessPermissionContext::GetPickerTitle(
       break;
     case blink::mojom::TypeSpecificFilePickerOptionsUnion::Tag::
         kOpenFilePickerOptions:
+      title = l10n_util::GetStringUTF16(
+          options->type_specific_options->get_open_file_picker_options()
+                  ->can_select_multiple_files
+              ? IDS_FILE_SYSTEM_ACCESS_CHOOSER_OPEN_READABLE_FILES_TITLE
+              : IDS_FILE_SYSTEM_ACCESS_CHOOSER_OPEN_READABLE_FILE_TITLE);
       break;
   }
   return title;

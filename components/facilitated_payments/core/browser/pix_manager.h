@@ -24,9 +24,10 @@
 #include "components/facilitated_payments/core/metrics/facilitated_payments_metrics.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_utils.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "url/origin.h"
 
 class GURL;
 
@@ -53,9 +54,11 @@ class PixManager {
   // `pix_code` before trigger the Pix payments flow. Note: If the Pix payment
   // flow has already been triggered by the other code detection methods like
   // DOM search then this method is a no-op.
-  virtual void OnPixCodeCopiedToClipboard(const GURL& render_frame_host_url,
-                                          const std::string& pix_code,
-                                          ukm::SourceId ukm_source_id);
+  virtual void OnPixCodeCopiedToClipboard(
+      const GURL& render_frame_host_url,
+      const url::Origin& render_frame_host_origin,
+      const std::string& pix_code,
+      ukm::SourceId ukm_source_id);
 
  private:
   friend class PixManagerTest;
@@ -79,84 +82,109 @@ class PixManager {
       PixManagerPaymentsNetworkInterfaceTest,
       OnInitiatePaymentResponseReceived_NoCoreAccountInfo_ErrorScreenShown);
   FRIEND_TEST_ALL_PREFIXES(PixManagerPaymentsNetworkInterfaceTest, Reset);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, ApiClientInitializedLazily);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           ApiClientInitializedLazily);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            ApiClientTriggeredAfterPixCodeValidation);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            CopyTrigger_UrlInAllowlist_PixValidationTriggered);
   FRIEND_TEST_ALL_PREFIXES(
-      PixManagerTest,
+      PixManagerTestWithAccountLinkingEnabled,
       CopyTrigger_UrlNotInAllowlist_PixValidationNotTriggered);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, DismissPrompt);
   FRIEND_TEST_ALL_PREFIXES(
-      PixManagerTest,
+      PixManagerTestWithAccountLinkingEnabled,
+      CopyTrigger_UrlNotInAllowlist_PayflowExitedHistogramLogged);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           DismissPrompt);
+  FRIEND_TEST_ALL_PREFIXES(
+      PixManagerTestWithAccountLinkingEnabled,
       ErrorScreenNotAutoDismissedAfterInvokingPurchaseAction);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            HandlesFailureToLazilyInitializeApiClient);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            LogApiAvailabilityCheckResultAndLatency);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, LogGetClientTokenResultAndLatency);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, LogInitiatePurchaseActionAttempt);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           LogGetClientTokenResultAndLatency);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           LogInitiatePurchaseActionAttempt);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            LogInitiatePurchaseActionResultAndLatency);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, LogTransactionResultAndLatency);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
-                           NoPaymentsDataManager_NoApiClientTriggered);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, NoPixAccounts_NoApiClientTriggered);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           LogTransactionResultAndLatency);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           NoPaymentsDataManager_PixFlowsAbandoned);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           PaymentsAutofillTurnedOff_PixFlowsAbandoned);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           PayflowExitedReason_PaymentsAutofillTurnedOff);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           UserOptedOut_PixFlowsAbandoned);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           NoPixAccounts_NoApiClientTriggered);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            NoPixPaymentPromptWhenApiClientNotAvailable);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            OnGetClientToken_ClientTokenEmpty_ErrorScreenShown);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, OnPixAccountSelected);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           OnPixAccountSelected);
   FRIEND_TEST_ALL_PREFIXES(
-      PixManagerTest,
+      PixManagerTestWithAccountLinkingEnabled,
       OnPurchaseActionResult_CouldNotInvoke_ErrorScreenShown);
   FRIEND_TEST_ALL_PREFIXES(
-      PixManagerTest,
+      PixManagerTestWithAccountLinkingEnabled,
       OnPurchaseActionResult_ResultCanceled_UiScreenDismissed);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            OnPurchaseActionResult_ResultOk_UiScreenDismissed);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            PayflowExitedReason_ApiClientNotAvailable);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            PayflowExitedReason_ClientTokenNotAvailable);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            PayflowExitedReason_CodeValidatorFailed);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, PayflowExitedReason_InvalidCode);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, PayflowExitedReason_NoLinkedAccount);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           PayflowExitedReason_InvalidCode);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           PayflowExitedReason_NoLinkedAccount);
   FRIEND_TEST_ALL_PREFIXES(
-      PixManagerTest,
+      PixManagerTestWithAccountLinkingEnabled,
       NoLinkedAccount_AccountLinkingFlagDisabled_AccountLinkingFlowNotTriggered);
-  FRIEND_TEST_ALL_PREFIXES(
-      PixManagerTest,
-      NoLinkedAccount_AccountLinkingFlagEnabled_AccountLinkingFlowTriggered);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, PayflowExitedReason_RiskDataEmpty);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, PayflowExitedReason_UserOptedOut);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
-                           PixCodeValidationFailed_NoApiClientTriggered);
-  FRIEND_TEST_ALL_PREFIXES(
-      PixManagerTest,
-      PixCodeValidatorTerminatedUnexpectedly_NoApiClientTriggered);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           NoLinkedAccount_AccountLinkingFlowTriggered);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           PayflowExitedReason_RiskDataEmpty);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           PayflowExitedReason_UserOptedOut);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           InvalidCode_PixFlowsAbandoned);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           CodeValidatorFailed_PixFlowsAbandoned);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            PixFopSelectorShown_HistogramsLogged);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
-                           PixPrefTurnedOff_NoApiClientTriggered);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           UserOptedOut_PixPayflowAbandoned);
   FRIEND_TEST_ALL_PREFIXES(
-      PixManagerTest,
+      PixManagerTestWithAccountLinkingEnabled,
       ProgressScreenAutoDismissedAfterInvokingPurchaseAction);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, RegisterPixAllowlist);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, ResettingPreventsPayment);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           RegisterPixAllowlist);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           ResettingPreventsPayment);
   FRIEND_TEST_ALL_PREFIXES(
-      PixManagerTest,
+      PixManagerTestWithAccountLinkingEnabled,
       RiskDataEmpty_GetClientTokenNotCalled_ErrorScreenShown);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, RiskDataEmpty_HistogramsLogged);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           RiskDataEmpty_HistogramsLogged);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            RiskDataNotEmpty_GetClientTokenCalled);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, RiskDataNotEmpty_HistogramsLogged);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, ShowErrorScreen);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, ShowPixPaymentPrompt);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest, ShowProgressScreen);
-  FRIEND_TEST_ALL_PREFIXES(PixManagerTest,
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           RiskDataNotEmpty_HistogramsLogged);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           ShowErrorScreen);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           ShowPixPaymentPrompt);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
+                           ShowProgressScreen);
+  FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            ShowsPixPaymentPromptWhenApiClientAvailable);
   FRIEND_TEST_ALL_PREFIXES(PixManagerTestForUiScreens,
                            NewScreenCouldNotBeShown);
@@ -231,6 +259,7 @@ class PixManager {
   void OnPurchaseActionResult(base::TimeTicks start_time,
                               PurchaseActionResult result);
 
+  // TODO(crbug.com/420735186): Rename to OnUiScreenEvent.
   // Called by the view to communicate UI events.
   void OnUiEvent(UiEvent ui_event_type);
 
@@ -295,6 +324,9 @@ class PixManager {
   // the latter case, the UI state is always updated to reflect the current
   // state via a callback.
   UiState ui_state_ = UiState::kHidden;
+
+  // The origin of the Pix payment page that triggered the payment flow.
+  url::Origin pix_payment_page_origin_;
 
   base::WeakPtrFactory<PixManager> weak_ptr_factory_{this};
 };

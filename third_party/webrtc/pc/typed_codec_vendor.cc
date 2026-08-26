@@ -10,8 +10,7 @@
 
 #include "pc/typed_codec_vendor.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <functional>
 #include <map>
 #include <vector>

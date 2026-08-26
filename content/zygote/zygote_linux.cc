@@ -39,6 +39,7 @@
 #include "base/process/set_process_title.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
 #include "content/common/zygote/zygote_commands_linux.h"
 #include "content/public/common/content_descriptors.h"
@@ -110,8 +111,7 @@ bool Zygote::ProcessRequests() {
 
   // We need to accept SIGCHLD, even though our handler is a no-op because
   // otherwise we cannot wait on children. (According to POSIX 2001.)
-  struct sigaction action;
-  UNSAFE_TODO(memset(&action, 0, sizeof(action)));
+  struct sigaction action = {};
   action.sa_handler = &SIGCHLDHandler;
   PCHECK(sigaction(SIGCHLD, &action, nullptr) == 0);
 
@@ -247,7 +247,7 @@ bool Zygote::HandleRequestFromBrowser(int fd) {
   }
 
   base::Pickle pickle = base::Pickle::WithUnownedBuffer(
-      UNSAFE_TODO(base::span(buf, base::checked_cast<size_t>(len))));
+      base::span(buf).first(base::checked_cast<size_t>(len)));
   base::PickleIterator iter(pickle);
 
   int kind;
@@ -500,7 +500,7 @@ int Zygote::ForkWithRealPid(const std::string& process_type,
       CHECK(recv_fds.empty());
 
       base::Pickle pickle = base::Pickle::WithUnownedBuffer(
-          UNSAFE_TODO(base::span(buf, base::checked_cast<size_t>(len))));
+          base::span(buf).first(base::checked_cast<size_t>(len)));
       base::PickleIterator iter(pickle);
 
       int kind;

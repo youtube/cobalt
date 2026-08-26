@@ -11,6 +11,8 @@
 #ifndef RTC_BASE_TEST_CERTIFICATE_VERIFIER_H_
 #define RTC_BASE_TEST_CERTIFICATE_VERIFIER_H_
 
+#include <cstddef>
+
 #include "rtc_base/ssl_certificate.h"
 
 namespace webrtc {
@@ -31,12 +33,5 @@ class TestCertificateVerifier : public SSLCertificateVerifier {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::TestCertificateVerifier;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_TEST_CERTIFICATE_VERIFIER_H_

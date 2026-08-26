@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Nu kan du bara använda lektionsverktyg</translation>
 <translation id="1762483337755424125">Transkription</translation>
 <translation id="1765169783255151332">Byt snabbt tangenter</translation>
 <translation id="1768959921651994223">Autentiseringstyp</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Tangenten som byter tangentbordslayout</translation>
 <translation id="224421911978987610">lång exponering</translation>
 <translation id="2244834438220057800">grön</translation>
+<translation id="2248689665683494517">ett minimalistiskt stilleben med några Papaver rhoeas-blommor i en glasvas mot en svart bakgrund</translation>
 <translation id="225692081236532131">Aktiveringsstatus</translation>
 <translation id="2267285889943769271">Lägg till skärmdump</translation>
 <translation id="2268044343513325586">Finjustera</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Misslyckades – skrivaren har stannat</translation>
 <translation id="3102119246920354026">Cacheminne</translation>
 <translation id="3103783611481501187">surrealistisk</translation>
+<translation id="3119672627216736407">Översättning är tillgängligt</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">pooler</translation>
 <translation id="3122883569442693641">Mer information</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">chiffong</translation>
 <translation id="4310735698903592804">De senaste bakgrunderna som drivs av Google AI</translation>
 <translation id="4320904097188876154">neonrosa</translation>
+<translation id="432961742358282111">Högerklicka eller håll nedtryckt för att få definitioner, översättningar eller enhetskonverteringar. Hantera den här funktionen med vänster- och högerpil.</translation>
 <translation id="4333390807948134856"><ph name="KEY_NAME" /> har tryckts ned</translation>
 <translation id="4334293042716981313">Du kan även <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />skriva en egen prompt<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">tangent</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">Slutför genom att ange det gamla och det nya lösenordet</translation>
 <translation id="6061772781719867950">Misslyckade HTTP-förfrågningar</translation>
 <translation id="6073292342939316679">minska ljusstyrkan på tangentbordet</translation>
+<translation id="6074608334942655098">Sluta översätt</translation>
 <translation id="6074752328838739425">Dölj sammanfattning</translation>
 <translation id="6075872808778243331">(Android) HTTP-latens</translation>
 <translation id="6078323886959318429">Lägg till genväg</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Fråga experterna på hjälpforumet för Chromebook</translation>
-<translation id="7309823890857024809">ett minimalistiskt stilleben med några Papaver rhoeas-stjälkar i en glasvas mot en svart bakgrund</translation>
 <translation id="7311368985037279727">tangentbordsfärg</translation>
 <translation id="7317831949569936035">Registrering i skolan</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@ Ladda ned transkriptionsmodellen (upp till 100 MB) för att få transkriptioner
 <translation id="8088963492174775412">Tryck för att spela in</translation>
 <translation id="8094062939584182041">Tillåt att Google skickar e-post till dig om det här problemet</translation>
 <translation id="8104083085214006426">Du använder ett öppet och osäkert nätverk</translation>
+<translation id="8108879170356113798">Om <ph name="NUM_SECONDS" /> sekunder kan du bara använda lektionsverktyg</translation>
 <translation id="811820734797650957">(Android) Gateway går att pinga</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Bekräfta</translation>

@@ -28,10 +28,10 @@ public interface SettingsNavigation {
         SettingsFragment.SAFETY_CHECK,
         SettingsFragment.SITE,
         SettingsFragment.ACCESSIBILITY,
-        SettingsFragment.PASSWORDS,
         SettingsFragment.GOOGLE_SERVICES,
         SettingsFragment.MANAGE_SYNC,
-        SettingsFragment.FINANCIAL_ACCOUNTS
+        SettingsFragment.FINANCIAL_ACCOUNTS,
+        SettingsFragment.NON_CARD_PAYMENT_METHODS
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SettingsFragment {
@@ -47,14 +47,14 @@ public interface SettingsNavigation {
         int SITE = 4;
         /// Accessibility settings.
         int ACCESSIBILITY = 5;
-        /// Password settings.
-        int PASSWORDS = 6;
         /// Google services.
-        int GOOGLE_SERVICES = 7;
+        int GOOGLE_SERVICES = 6;
         /// Manage sync.
-        int MANAGE_SYNC = 8;
+        int MANAGE_SYNC = 7;
         /// Financial accounts.
-        int FINANCIAL_ACCOUNTS = 9;
+        int FINANCIAL_ACCOUNTS = 8;
+        /// Non-card payment methods.
+        int NON_CARD_PAYMENT_METHODS = 9;
     }
 
     /**

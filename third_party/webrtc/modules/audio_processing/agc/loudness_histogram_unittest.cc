@@ -12,10 +12,9 @@
 
 #include "modules/audio_processing/agc/loudness_histogram.h"
 
-#include <stdio.h>
-
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <memory>
 #include <string>
 
@@ -33,7 +32,7 @@ struct InputOutput {
   double loudness;
 };
 
-const double kRelativeErrTol = 1e-10;
+constexpr double kRelativeErrTol = 1e-10;
 
 class LoudnessHistogramTest : public ::testing::Test {
  protected:

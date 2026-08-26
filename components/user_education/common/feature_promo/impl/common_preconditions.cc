@@ -13,7 +13,9 @@
 #include "components/user_education/common/feature_promo/feature_promo_precondition.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "components/user_education/common/feature_promo/feature_promo_specification.h"
+#include "components/user_education/common/user_education_context.h"
 #include "ui/base/interaction/element_tracker.h"
+#include "ui/base/interaction/typed_data_collection.h"
 #include "ui/base/interaction/typed_identifier.h"
 
 namespace user_education {
@@ -23,6 +25,7 @@ DEFINE_FEATURE_PROMO_PRECONDITION_IDENTIFIER_VALUE(
     kFeatureEngagementTrackerInitializedPrecondition);
 DEFINE_FEATURE_PROMO_PRECONDITION_IDENTIFIER_VALUE(
     kMeetsFeatureEngagementCriteriaPrecondition);
+DEFINE_FEATURE_PROMO_PRECONDITION_IDENTIFIER_VALUE(kContextValidPrecondition);
 DEFINE_FEATURE_PROMO_PRECONDITION_IDENTIFIER_VALUE(kAnchorElementPrecondition);
 DEFINE_FEATURE_PROMO_PRECONDITION_IDENTIFIER_VALUE(kLifecyclePrecondition);
 DEFINE_FEATURE_PROMO_PRECONDITION_IDENTIFIER_VALUE(kSessionPolicyPrecondition);
@@ -92,7 +95,7 @@ MeetsFeatureEngagementCriteriaPrecondition::
 
 FeaturePromoResult
 MeetsFeatureEngagementCriteriaPrecondition::CheckPrecondition(
-    ComputedData& data) const {
+    ui::UnownedTypedDataCollection& data) const {
   if (tracker_->IsInitialized()) {
     // Note: if we don't have access to `ListEvents()` this is a no-op.
 #if !BUILDFLAG(IS_ANDROID)
@@ -104,6 +107,22 @@ MeetsFeatureEngagementCriteriaPrecondition::CheckPrecondition(
 #endif
   }
   return FeaturePromoResult::Success();
+}
+
+ContextValidPrecondition::ContextValidPrecondition(
+    const UserEducationContextPtr& context)
+    : FeaturePromoPreconditionBase(kContextValidPrecondition, "Context Valid"),
+      context_(context) {
+  CHECK(context_) << "Must specify a context when creating precondition.";
+  CHECK(context_->IsValid())
+      << "Context must be valid when precondition is created.";
+}
+ContextValidPrecondition::~ContextValidPrecondition() = default;
+
+FeaturePromoResult ContextValidPrecondition::CheckPrecondition(
+    ui::UnownedTypedDataCollection&) const {
+  return context_->IsValid() ? FeaturePromoResult::Success()
+                             : FeaturePromoResult::kAnchorNotVisible;
 }
 
 DEFINE_CLASS_TYPED_IDENTIFIER_VALUE(AnchorElementPrecondition,
@@ -129,8 +148,8 @@ AnchorElementPrecondition::AnchorElementPrecondition(
 AnchorElementPrecondition::~AnchorElementPrecondition() = default;
 
 FeaturePromoResult AnchorElementPrecondition::CheckPrecondition(
-    ComputedData& data) const {
-  const auto& lifecycle = data.Get(LifecyclePrecondition::kLifecycle);
+    ui::UnownedTypedDataCollection& data) const {
+  const auto& lifecycle = data[LifecyclePrecondition::kLifecycle];
   std::optional<int> index;
   if (lifecycle->promo_type() ==
       FeaturePromoSpecification::PromoType::kRotating) {
@@ -164,7 +183,7 @@ LifecyclePrecondition::LifecyclePrecondition(
 LifecyclePrecondition::~LifecyclePrecondition() = default;
 
 FeaturePromoResult LifecyclePrecondition::CheckPrecondition(
-    ComputedData& data) const {
+    ui::UnownedTypedDataCollection& data) const {
   auto* const lifecycle = GetCachedDataForComputation(data, kLifecycle).get();
   return for_demo_ ? FeaturePromoResult::Success() : lifecycle->CanShow();
 }
@@ -184,7 +203,7 @@ SessionPolicyPrecondition::~SessionPolicyPrecondition() = default;
 
 // FeaturePromoPrecondition:
 FeaturePromoResult SessionPolicyPrecondition::CheckPrecondition(
-    ComputedData& data) const {
+    ui::UnownedTypedDataCollection& data) const {
   return session_policy_->CanShowPromo(priority_info_,
                                        get_current_promo_info_callback_.Run());
 }

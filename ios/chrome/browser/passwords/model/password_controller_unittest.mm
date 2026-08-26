@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "ios/chrome/browser/passwords/model/password_controller.h"
 
 #import <Foundation/Foundation.h>
@@ -58,7 +63,6 @@
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/navigation/navigation_item.h"
 #import "ios/web/public/navigation/navigation_manager.h"
-#import "ios/web/public/test/fakes/fake_browser_state.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
 #import "ios/web/public/test/fakes/fake_web_client.h"
 #import "ios/web/public/test/fakes/fake_web_frame.h"
@@ -482,8 +486,8 @@ class PasswordControllerTest : public PlatformTest {
   id ExecuteJavaScriptInFeatureWorld(NSString* java_script) {
     password_manager::PasswordManagerJavaScriptFeature* feature =
         password_manager::PasswordManagerJavaScriptFeature::GetInstance();
-    return web::test::ExecuteJavaScriptForFeature(web_state(), java_script,
-                                                  feature);
+    return web::test::ExecuteJavaScriptForFeatureAndReturnResult(
+        web_state(), java_script, feature);
   }
 
   web::ScopedTestingWebClient web_client_;
@@ -586,10 +590,8 @@ void PasswordControllerTest::FillFormAndValidate(TestPasswordFormData test_data,
                frameID:SysUTF8ToNSString(frame->GetFrameId())
           onlyPassword:NO];
 
-  NSString* suggestion_text = [NSString
-      stringWithFormat:@"%@ ••••••••",
-                       [NSString stringWithUTF8String:test_data.user_value]];
-
+  NSString* suggestion_text =
+      [NSString stringWithUTF8String:test_data.user_value];
   [passwordController_.sharedPasswordController
       retrieveSuggestionsForForm:form_query
                         webState:web_state()
@@ -600,7 +602,7 @@ void PasswordControllerTest::FillFormAndValidate(TestPasswordFormData test_data,
                    [suggestion_values addObject:suggestion.value];
                  }
                  EXPECT_NSEQ((@[
-                               @"user0 ••••••••",
+                               @"user0",
                                suggestion_text,
                              ]),
                              suggestion_values);
@@ -1117,7 +1119,7 @@ TEST_F(PasswordControllerTest, SuggestionUpdateTests) {
       @[(@"var evt = document.createEvent('Events');"
          "username_.focus();"),
         @";"],
-      @[@"user0 ••••••••", @"abc ••••••••"],
+      @[@"user0", @"abc"],
       @"[]=, onkeyup=false, onchange=false"
     },
     {
@@ -1125,7 +1127,7 @@ TEST_F(PasswordControllerTest, SuggestionUpdateTests) {
       @[(@"var evt = document.createEvent('Events');"
          "password_.focus();"),
         @";"],
-      @[@"user0 ••••••••", @"abc ••••••••"],
+      @[@"user0", @"abc"],
       @"[]=, onkeyup=false, onchange=false"
     },
     {
@@ -1133,7 +1135,7 @@ TEST_F(PasswordControllerTest, SuggestionUpdateTests) {
       @[(@"username_.value='ab';"
          "username_.focus();"),
         @";"],
-      @[@"user0 ••••••••", @"abc ••••••••"],
+      @[@"user0", @"abc"],
       @"ab[]=, onkeyup=false, onchange=false"
     },
     {
@@ -1144,7 +1146,7 @@ TEST_F(PasswordControllerTest, SuggestionUpdateTests) {
          "var ev = new KeyboardEvent('keyup', {bubbles:true});"
          "username_.dispatchEvent(ev);"),
         @";"],
-      @[@"abc ••••••••"],
+      @[@"abc"],
       @"ab[]=, onkeyup=true, onchange=false"
     },
     {
@@ -1231,8 +1233,8 @@ class PasswordControllerTestSimple : public PlatformTest {
  public:
   PasswordControllerTestSimple()
       : web_client_(std::make_unique<web::FakeWebClient>()),
-        browser_state_(std::make_unique<web::FakeBrowserState>()) {
-    web_state_.SetBrowserState(browser_state_.get());
+        profile_(TestProfileIOS::Builder().Build()) {
+    web_state_.SetBrowserState(profile_.get());
   }
 
   ~PasswordControllerTestSimple() override {
@@ -1253,7 +1255,7 @@ class PasswordControllerTestSimple : public PlatformTest {
     ON_CALL(*store_, IsAbleToSavePasswords).WillByDefault(Return(true));
 
     web::test::OverrideJavaScriptFeatures(
-        browser_state_.get(),
+        profile_.get(),
         {autofill::FormUtilJavaScriptFeature::GetInstance(),
          password_manager::PasswordManagerJavaScriptFeature::GetInstance()});
 
@@ -1286,7 +1288,7 @@ class PasswordControllerTestSimple : public PlatformTest {
   web::ScopedTestingWebClient web_client_;
 
   sync_preferences::TestingPrefServiceSyncable pref_service_;
-  std::unique_ptr<web::FakeBrowserState> browser_state_;
+  std::unique_ptr<TestProfileIOS> profile_;
   web::FakeWebState web_state_;
   std::unique_ptr<autofill::TestAutofillClientIOS> autofill_client_;
   PasswordController* passwordController_;
@@ -1302,7 +1304,7 @@ TEST_F(PasswordControllerTestSimple, SaveOnNonHTMLLandingPage) {
       passwordController_.sharedPasswordController;
 
   auto web_frame = web::FakeWebFrame::CreateMainWebFrame();
-  web_frame->set_browser_state(browser_state_.get());
+  web_frame->set_browser_state(profile_.get());
   web::WebFrame* main_web_frame = web_frame.get();
   web_frames_manager_->AddWebFrame(std::move(web_frame));
 
@@ -1633,7 +1635,7 @@ TEST_F(PasswordControllerTest, CheckPasswordGenerationSuggestion) {
       @[(@"var evt = document.createEvent('Events');"
          "username_.focus();"),
         @";"],
-      @[@"user0 ••••••••", @"abc ••••••••"],
+      @[@"user0", @"abc"],
       @"[]=, onkeyup=false, onchange=false"
     },
     {
@@ -1641,7 +1643,7 @@ TEST_F(PasswordControllerTest, CheckPasswordGenerationSuggestion) {
       @[(@"var evt = document.createEvent('Events');"
          "password_.focus();"),
         @";"],
-      @[@"user0 ••••••••", @"abc ••••••••", @"Suggest strong password"],
+      @[@"user0", @"abc", @"Suggest strong password"],
       @"[]=, onkeyup=false, onchange=false"
     },
   };

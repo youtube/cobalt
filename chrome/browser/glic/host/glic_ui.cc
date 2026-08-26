@@ -9,14 +9,18 @@
 #include "base/command_line.h"
 #include "base/version_info/version_info.h"
 #include "chrome/browser/glic/glic_enabling.h"
+#include "chrome/browser/glic/glic_net_log.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
 #include "chrome/browser/glic/host/guest_util.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/resources/glic_resources.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/glic_resources.h"
 #include "chrome/grit/glic_resources_map.h"
@@ -48,6 +52,15 @@ GlicUI::GlicUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
       {"errorNotice", IDS_GLIC_ERROR_NOTICE},
       {"errorNoticeActionButton", IDS_GLIC_ERROR_NOTICE_ACTION_BUTTON},
       {"errorNoticeHeader", IDS_GLIC_ERROR_NOTICE_HEADER},
+      {"ineligibleProfileNotice", IDS_GLIC_INELIGIBLE_PROFILE_NOTICE},
+      {"ineligibleProfileNoticeActionButton",
+       IDS_GLIC_INELIGIBLE_PROFILE_NOTICE_ACTION_BUTTON},
+      {"ineligibleProfileNoticeHeader",
+       IDS_GLIC_INELIGIBLE_PROFILE_NOTICE_HEADER},
+      {"disabledByAdminNotice", IDS_GLIC_DISABLED_BY_ADMIN_NOTICE},
+      {"disabledByAdminNoticeCloseButton",
+       IDS_GLIC_DISABLED_BY_ADMIN_NOTICE_CLOSE_BUTTON},
+      {"disabledByAdminNoticeHeader", IDS_GLIC_DISABLED_BY_ADMIN_NOTICE_HEADER},
       {"offlineNoticeAction", IDS_GLIC_OFFLINE_NOTICE_ACTION},
       {"offlineNoticeActionButton", IDS_GLIC_OFFLINE_NOTICE_ACTION_BUTTON},
       {"offlineNoticeHeader", IDS_GLIC_OFFLINE_NOTICE_HEADER},
@@ -83,8 +96,12 @@ GlicUI::GlicUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
                     version_info::GetChannelString(chrome::GetChannel()));
   source->AddBoolean("loggingEnabled",
                      command_line->HasSwitch(::switches::kGlicHostLogging));
+
   // Set up guest URL via cli flag or default to finch param value.
-  source->AddString("glicGuestURL", GetGuestURL().spec());
+  const GURL guest_url = GetGuestURL();
+  source->AddString("glicGuestURL", guest_url.spec());
+  net_log::LogDummyNetworkRequestForTrafficAnnotation(guest_url,
+                                                      net_log::GlicPage::kGlic);
 
   // Set up loading notice timeout values.
   source->AddInteger("preLoadingTimeMs", features::kGlicPreLoadingTimeMs.Get());
@@ -97,7 +114,7 @@ GlicUI::GlicUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
   source->AddInteger("maxLoadingTimeMs", max_loading_time_ms);
   source->AddBoolean("simulateNoConnection", simulate_no_connection_);
 
-  source->AddResourcePath("glic_logo.svg", IDR_GLIC_LOGO);
+  source->AddResourcePath("glic_logo.svg", GetResourceID(IDR_GLIC_LOGO));
 
   // Set up guest api source.
   // This comes from 'glic_api_injection' in
@@ -134,6 +151,12 @@ GlicUI::GlicUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
                      features::kGlicClientResponsivenessCheckTimeoutMs.Get());
   source->AddInteger("clientUnresponsiveUiMaxTimeMs",
                      features::kGlicClientUnresponsiveUiMaxTimeMs.Get());
+  source->AddBoolean(
+      "clientResponsivenessCheckIgnoreWhenDebuggerAttached",
+      features::kGlicClientResponsivenessCheckIgnoreWhenDebuggerAttached.Get());
+  source->AddBoolean("enableWebClientUnresponsiveMetrics",
+                     base::FeatureList::IsEnabled(
+                         features::kGlicWebClientUnresponsiveMetrics));
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(GlicUI)

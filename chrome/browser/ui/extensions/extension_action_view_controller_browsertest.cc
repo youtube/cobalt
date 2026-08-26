@@ -13,6 +13,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
@@ -1215,7 +1216,6 @@ IN_PROC_BROWSER_TEST_P(ExtensionActionViewControllerFeatureRolloutBrowserTest,
   scoped_refptr<const extensions::Extension> extension =
       extensions::ExtensionBuilder("just side panel")
           .SetLocation(ManifestLocation::kInternal)
-          .SetManifestVersion(3)
           .AddAPIPermission("sidePanel")
           .Build();
 

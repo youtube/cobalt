@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "url/origin.h"
 
 #include <stdint.h>
@@ -22,13 +17,14 @@
 #include "base/base64.h"
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/debug/crash_logging.h"
 #include "base/pickle.h"
 #include "base/strings/strcat.h"
-#include "base/trace_event/base_tracing.h"
 #include "base/trace_event/memory_usage_estimator.h"
+#include "base/trace_event/trace_event.h"
 #include "base/unguessable_token.h"
 #include "url/gurl.h"
 #include "url/scheme_host_port.h"
@@ -253,13 +249,7 @@ bool Origin::CanBeDerivedFrom(const GURL& url) const {
     return true;
 
   // However, when there is precursor present, that must match.
-  if (IsUsingStandardCompliantNonSpecialSchemeURLParsing()) {
-    return SchemeHostPort(url) == tuple_;
-  } else {
-    // Match only the scheme because host and port are unavailable for
-    // non-special URLs when the flag is disabled.
-    return url.scheme() == tuple_.scheme();
-  }
+  return SchemeHostPort(url) == tuple_;
 }
 
 bool Origin::DomainIs(std::string_view canonical_domain) const {
@@ -345,8 +335,8 @@ std::optional<std::string> Origin::SerializeWithNonceImpl() const {
     pickle.WriteUInt64(0);
   }
 
-  base::span<const uint8_t> data(static_cast<const uint8_t*>(pickle.data()),
-                                 pickle.size());
+  base::span<const uint8_t> UNSAFE_TODO(
+      data(static_cast<const uint8_t*>(pickle.data()), pickle.size()));
   // Base64 encode the data to make it nicer to play with.
   return base::Base64Encode(data);
 }
@@ -481,19 +471,5 @@ bool Origin::Nonce::operator==(const Origin::Nonce& other) const {
   // object.
   return (other.token_ == token_) && !(token_.is_empty() && (&other != this));
 }
-
-namespace debug {
-
-ScopedOriginCrashKey::ScopedOriginCrashKey(
-    base::debug::CrashKeyString* crash_key,
-    const url::Origin* value)
-    : scoped_string_value_(
-          crash_key,
-          value ? value->GetDebugString(false /* include_nonce */)
-                : "nullptr") {}
-
-ScopedOriginCrashKey::~ScopedOriginCrashKey() = default;
-
-}  // namespace debug
 
 }  // namespace url

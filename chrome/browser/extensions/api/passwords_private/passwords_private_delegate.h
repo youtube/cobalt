@@ -102,6 +102,10 @@ class PasswordsPrivateDelegate
       int id,
       api::passwords_private::PasswordStoreSet from_stores) = 0;
 
+  // Removes the credential entry corresponding to the |id|. Any invalid id will
+  // be ignored.
+  virtual void RemoveBackupPassword(int id) = 0;
+
   // Removes the password exception entry corresponding to |id|. Any invalid id
   // will be ignored.
   virtual void RemovePasswordException(int id) = 0;
@@ -122,6 +126,18 @@ class PasswordsPrivateDelegate
       api::passwords_private::PlaintextReason reason,
       PlaintextPasswordCallback callback,
       content::WebContents* web_contents) = 0;
+
+  // Copies the plain text backup password for entry corresponding to the |id|
+  // generated for each entry of the password list.
+  // |id| the id created when going over the list of saved passwords.
+  // |callback| The callback that gets invoked with true if the copy was
+  // successful, or false otherwise.
+  // |web_contents| The web content object used as the UI; will be used to show
+  //     an OS-level authentication dialog if necessary.
+  virtual void CopyPlaintextBackupPassword(
+      int id,
+      content::WebContents* web_contents,
+      base::OnceCallback<void(bool)> callback) = 0;
 
   // Requests the full PasswordUiEntry (with filled password) with the given id.
   // Returns the full PasswordUiEntry with |callback|. Returns |std::nullopt|
@@ -198,6 +214,9 @@ class PasswordsPrivateDelegate
   // Enables/disables use of the Google account storage for passwords
   virtual void SetAccountStorageEnabled(bool enabled,
                                         content::WebContents* web_contents) = 0;
+
+  // Whether the account-storage in settings should be shown.
+  virtual bool ShouldShowAccountStorageSettingToggle() = 0;
 
   // Obtains information about insecure credentials. This includes the last
   // time a check was run, as well as all insecure credentials that are present

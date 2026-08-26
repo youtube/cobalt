@@ -14,6 +14,7 @@
 #include "base/memory/ref_counted_memory.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/devtools/devtools_ui_bindings.h"
 #include "chrome/browser/devtools/url_constants.h"
@@ -220,8 +221,16 @@ std::string DevToolsDataSource::GetMimeType(const GURL& url) {
   return GetMimeTypeForUrl(url);
 }
 
-bool DevToolsDataSource::ShouldAddContentSecurityPolicy() {
-  return false;
+std::string DevToolsDataSource::GetContentSecurityPolicy(
+    network::mojom::CSPDirectiveName directive) {
+  switch (directive) {
+    case network::mojom::CSPDirectiveName::ObjectSrc:
+      return "object-src 'none';";
+    case network::mojom::CSPDirectiveName::ScriptSrc:
+      return "script-src 'self' https://chrome-devtools-frontend.appspot.com;";
+    default:
+      return std::string();
+  }
 }
 
 bool DevToolsDataSource::ShouldDenyXFrameOptions() {

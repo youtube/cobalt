@@ -11,11 +11,9 @@
 #ifndef RTC_BASE_GUNIT_H_
 #define RTC_BASE_GUNIT_H_
 
-#include "absl/strings/string_view.h"
-#include "rtc_base/fake_clock.h"
-#include "rtc_base/logging.h"
-#include "rtc_base/thread.h"
-#include "test/gtest.h"
+// TODO(bugs.webrtc.org/42226242): remove transitive includes
+#include "rtc_base/thread.h"  // IWYU pragma: keep
+#include "test/gtest.h"       // IWYU pragma: keep
 
 // Wait until "ex" is true, or "timeout" expires.
 #define WAIT(ex, timeout)                                                 \

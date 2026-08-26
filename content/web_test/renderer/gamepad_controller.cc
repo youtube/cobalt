@@ -2,26 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "content/web_test/renderer/gamepad_controller.h"
 
 #include <string>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "content/public/renderer/render_frame.h"
 #include "gin/arguments.h"
-#include "gin/handle.h"
 #include "gin/object_template_builder.h"
 #include "gin/wrappable.h"
 #include "mojo/public/cpp/system/platform_handle.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/web/web_local_frame.h"
+#include "v8/include/cppgc/allocation.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8.h"
 
 using device::Gamepad;
@@ -41,10 +38,14 @@ int64_t CurrentTimeInMicroseconds() {
 
 }  // namespace
 
-class GamepadControllerBindings
+class GamepadControllerBindings final
     : public gin::Wrappable<GamepadControllerBindings> {
  public:
-  static gin::WrapperInfo kWrapperInfo;
+  static constexpr gin::WrapperInfo kWrapperInfo = {
+      {gin::kEmbedderNativeGin},
+      gin::kGamepadControllerBindings};
+
+  const gin::WrapperInfo* wrapper_info() const override { return &kWrapperInfo; }
 
   GamepadControllerBindings(const GamepadControllerBindings&) = delete;
   GamepadControllerBindings& operator=(const GamepadControllerBindings&) =
@@ -53,11 +54,10 @@ class GamepadControllerBindings
   static void Install(base::WeakPtr<GamepadController> controller,
                       blink::WebLocalFrame* frame);
 
- private:
   explicit GamepadControllerBindings(
       base::WeakPtr<GamepadController> controller);
-  ~GamepadControllerBindings() override;
 
+ private:
   // gin::Wrappable.
   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
       v8::Isolate* isolate) override;
@@ -82,9 +82,6 @@ class GamepadControllerBindings
   base::WeakPtr<GamepadController> controller_;
 };
 
-gin::WrapperInfo GamepadControllerBindings::kWrapperInfo = {
-    gin::kEmbedderNativeGin};
-
 // static
 void GamepadControllerBindings::Install(
     base::WeakPtr<GamepadController> controller,
@@ -97,22 +94,18 @@ void GamepadControllerBindings::Install(
 
   v8::Context::Scope context_scope(context);
 
-  gin::Handle<GamepadControllerBindings> bindings =
-      gin::CreateHandle(isolate, new GamepadControllerBindings(controller));
-  if (bindings.IsEmpty())
-    return;
+  auto* bindings = cppgc::MakeGarbageCollected<GamepadControllerBindings>(
+      isolate->GetCppHeap()->GetAllocationHandle(), controller);
   v8::Local<v8::Object> global = context->Global();
   global
       ->Set(context, gin::StringToV8(isolate, "gamepadController"),
-            bindings.ToV8())
+            gin::ConvertToV8(isolate, bindings).ToLocalChecked())
       .Check();
 }
 
 GamepadControllerBindings::GamepadControllerBindings(
     base::WeakPtr<GamepadController> controller)
     : controller_(controller) {}
-
-GamepadControllerBindings::~GamepadControllerBindings() {}
 
 gin::ObjectTemplateBuilder GamepadControllerBindings::GetObjectTemplateBuilder(
     v8::Isolate* isolate) {
@@ -302,7 +295,7 @@ void GamepadController::Reset() {
   if (!gamepads_)
     return;  // Shared memory failed.
 
-  memset(gamepads_, 0, sizeof(*gamepads_));
+  UNSAFE_TODO(memset(gamepads_, 0, sizeof(*gamepads_)));
   for (auto& monitor : monitors_)
     monitor->Reset();
 }
@@ -389,9 +382,9 @@ void GamepadController::SetId(int index, const std::string& src) {
   const int64_t now = CurrentTimeInMicroseconds();
   gamepads_->seqlock.WriteBegin();
   Gamepad& pad = gamepads_->data.items[index];
-  memset(pad.id, 0, sizeof(pad.id));
+  UNSAFE_TODO(memset(pad.id, 0, sizeof(pad.id)));
   for (unsigned i = 0; *p && i < Gamepad::kIdLengthCap - 1; ++i)
-    pad.id[i] = *p++;
+    UNSAFE_TODO(pad.id[i]) = *UNSAFE_TODO(p++);
   pad.timestamp = now;
   gamepads_->seqlock.WriteEnd();
 }
@@ -417,8 +410,8 @@ void GamepadController::SetButtonData(int index, int button, double data) {
   const int64_t now = CurrentTimeInMicroseconds();
   gamepads_->seqlock.WriteBegin();
   Gamepad& pad = gamepads_->data.items[index];
-  pad.buttons[button].value = data;
-  pad.buttons[button].pressed = data > kButtonPressedThreshold;
+  UNSAFE_TODO(pad.buttons[button]).value = data;
+  UNSAFE_TODO(pad.buttons[button]).pressed = data > kButtonPressedThreshold;
   pad.timestamp = now;
   gamepads_->seqlock.WriteEnd();
 }
@@ -444,7 +437,7 @@ void GamepadController::SetAxisData(int index, int axis, double data) {
   const int64_t now = CurrentTimeInMicroseconds();
   gamepads_->seqlock.WriteBegin();
   Gamepad& pad = gamepads_->data.items[index];
-  pad.axes[axis] = data;
+  UNSAFE_TODO(pad.axes[axis]) = data;
   pad.timestamp = now;
   gamepads_->seqlock.WriteEnd();
 }
@@ -508,9 +501,9 @@ void GamepadController::SetTouchData(int index,
   gamepads_->seqlock.WriteBegin();
   Gamepad& pad = gamepads_->data.items[index];
   pad.supports_touch_events_ = true;
-  pad.touch_events[touch].touch_id = touch_id;
-  pad.touch_events[touch].x = position_x;
-  pad.touch_events[touch].y = position_y;
+  UNSAFE_TODO(pad.touch_events[touch]).touch_id = touch_id;
+  UNSAFE_TODO(pad.touch_events[touch]).x = position_x;
+  UNSAFE_TODO(pad.touch_events[touch]).y = position_y;
   pad.timestamp = now;
   gamepads_->seqlock.WriteEnd();
 }

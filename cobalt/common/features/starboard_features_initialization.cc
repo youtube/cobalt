@@ -18,6 +18,7 @@
 #include <utility>
 #include <variant>
 
+#include "base/logging.h"
 #include "cobalt/common/features/features.h"
 #include "starboard/common/log.h"
 #include "starboard/extension/features.h"

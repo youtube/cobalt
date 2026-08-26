@@ -81,6 +81,8 @@ public class NativeBackgroundTaskTest {
                 @LibraryProcessType int libraryProcessType,
                 boolean startGpuProcess,
                 boolean startMinimalBrowser,
+                boolean singleProcess,
+                boolean scheduleFlushStartupTasks,
                 final StartupCallback callback) {}
 
         @Override
@@ -115,6 +117,16 @@ public class NativeBackgroundTaskTest {
         public int getStartupMode(boolean startMinimalBrowser) {
             assertFalse(isNativeStarted());
             return 0 /*ServicificationStartupUma.ServicificationStartup.CHROME_COLD*/;
+        }
+
+        @Override
+        public long getContentStartDuration() {
+            return 0L;
+        }
+
+        @Override
+        public long getStartupTasksLongestBlockingDuration() {
+            return 0L;
         }
 
         public void setIsStartupSuccessfullyCompleted(boolean flag) {
@@ -266,7 +278,7 @@ public class NativeBackgroundTaskTest {
         switch (setup) {
             case SUCCESS:
                 doAnswer(
-                                new Answer<Void>() {
+                                new Answer<>() {
                                     @Override
                                     public Void answer(InvocationOnMock invocation) {
                                         mBrowserParts.getValue().finishNativeInitialization();
@@ -278,7 +290,7 @@ public class NativeBackgroundTaskTest {
                 break;
             case FAILURE:
                 doAnswer(
-                                new Answer<Void>() {
+                                new Answer<>() {
                                     @Override
                                     public Void answer(InvocationOnMock invocation) {
                                         mBrowserParts.getValue().onStartupFailure(null);

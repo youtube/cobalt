@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.share;
 
 import android.content.Context;
-import android.os.Build;
 
 import org.chromium.base.ResettersForTesting;
 import org.chromium.chrome.browser.IntentHandler;
@@ -23,10 +22,10 @@ public class LensUtils {
     /** See function for details. */
     private static boolean sFakePassableLensEnvironmentForTesting;
 
-    /*
+    /**
      * If true, short-circuit the version name intent check to always return a high enough version.
-     * Also hardcode the device OS check to return true.
-     * Used by test cases.
+     * Also hardcode the device OS check to return true. Used by test cases.
+     *
      * @param shouldFake Whether to fake the version check.
      */
     public static void setFakePassableLensEnvironmentForTesting(final boolean shouldFake) {
@@ -72,21 +71,6 @@ public class LensUtils {
     }
 
     /**
-     * Checks whether the device is below Android O. We restrict to these versions
-     * to limit to OS"s where image processing vulnerabilities can be retroactively
-     * fixed if they are discovered in the future.
-     *
-     * @return Whether the device is below Android O.
-     */
-    public static boolean isDeviceOsBelowMinimum() {
-        if (sFakePassableLensEnvironmentForTesting) {
-            return false;
-        }
-
-        return Build.VERSION.SDK_INT < Build.VERSION_CODES.O;
-    }
-
-    /**
      * Checks whether the GSA package on the device is guaranteed to be an official GSA build.
      *
      * @return Whether the package is valid.
@@ -107,10 +91,10 @@ public class LensUtils {
         return shouldLogUkmByFeature(ChromeFeatureList.CONTEXT_MENU_TRANSLATE_WITH_GOOGLE_LENS);
     }
 
-    /*
-     * Whether to log UKM pings for lens-related behavior.
-     * If in the experiment will log by default and will only be disabled
-     * if the parameter is not absent and set to true.
+    /**
+     * Whether to log UKM pings for lens-related behavior. If in the experiment will log by default
+     * and will only be disabled if the parameter is not absent and set to true.
+     *
      * @param featureName The feature that uses the UKM reporting.
      */
     public static boolean shouldLogUkmByFeature(String featureName) {

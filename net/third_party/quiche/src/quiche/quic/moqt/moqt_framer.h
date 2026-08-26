@@ -33,6 +33,7 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeObjectHeader(const MoqtObject& message,
                                              MoqtDataStreamType message_type,
                                              bool is_first_in_stream);
+  // Serializes both OBJECT and OBJECT_STATUS datagrams.
   quiche::QuicheBuffer SerializeObjectDatagram(const MoqtObject& message,
                                                absl::string_view payload);
   quiche::QuicheBuffer SerializeClientSetup(const MoqtClientSetup& message);
@@ -49,11 +50,11 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeAnnounce(const MoqtAnnounce& message);
   quiche::QuicheBuffer SerializeAnnounceOk(const MoqtAnnounceOk& message);
   quiche::QuicheBuffer SerializeAnnounceError(const MoqtAnnounceError& message);
+  quiche::QuicheBuffer SerializeUnannounce(const MoqtUnannounce& message);
   quiche::QuicheBuffer SerializeAnnounceCancel(
       const MoqtAnnounceCancel& message);
   quiche::QuicheBuffer SerializeTrackStatusRequest(
       const MoqtTrackStatusRequest& message);
-  quiche::QuicheBuffer SerializeUnannounce(const MoqtUnannounce& message);
   quiche::QuicheBuffer SerializeTrackStatus(const MoqtTrackStatus& message);
   quiche::QuicheBuffer SerializeGoAway(const MoqtGoAway& message);
   quiche::QuicheBuffer SerializeSubscribeAnnounces(
@@ -71,6 +72,9 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeFetchError(const MoqtFetchError& message);
   quiche::QuicheBuffer SerializeRequestsBlocked(
       const MoqtRequestsBlocked& message);
+  quiche::QuicheBuffer SerializePublish(const MoqtPublish& message);
+  quiche::QuicheBuffer SerializePublishOk(const MoqtPublishOk& message);
+  quiche::QuicheBuffer SerializePublishError(const MoqtPublishError& message);
   quiche::QuicheBuffer SerializeObjectAck(const MoqtObjectAck& message);
 
  private:

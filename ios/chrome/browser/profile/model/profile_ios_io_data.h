@@ -40,6 +40,10 @@ class SystemCookieStore;
 class URLRequestContextBuilder;
 }  // namespace net
 
+namespace web {
+class SystemCookieStoreHandle;
+}
+
 // Conceptually speaking, the ProfileIOSIOData represents data that
 // lives on the IO thread that is owned by a ProfileIOS, such as, but
 // not limited to, network objects like CookieMonster, HttpTransactionFactory,
@@ -58,7 +62,7 @@ class ProfileIOSIOData {
 
   // Initializes the ProfileIOSIOData object and primes the
   // RequestContext generation. Must be called prior to any of the Get*()
-  // methods other than GetResouceContext or GetMetricsEnabledStateOnIOThread.
+  // methods.
   void Init(ProtocolHandlerMap* protocol_handlers) const;
 
   net::URLRequestContext* GetMainRequestContext() const;
@@ -71,15 +75,6 @@ class ProfileIOSIOData {
   ProfileIOSType profile_type() const { return profile_type_; }
 
   bool IsOffTheRecord() const;
-
-  // Initialize the member needed to track the metrics enabled state. This is
-  // only to be called on the UI thread.
-  void InitializeMetricsEnabledStateOnUIThread();
-
-  // Returns whether or not metrics reporting is enabled in the browser instance
-  // on which this profile resides. This is safe for use from the IO
-  // thread, and should only be called from there.
-  bool GetMetricsEnabledStateOnIOThread() const;
 
  protected:
   // Created on the UI thread, read on the IO thread during
@@ -151,14 +146,16 @@ class ProfileIOSIOData {
   // Tracks whether or not we've been lazily initialized.
   mutable bool initialized_;
 
+  // The handle for the UI part of the SystemCookieStore. Must be deleted
+  // on the UI thread during shutdown.
+  std::unique_ptr<web::SystemCookieStoreHandle> cookie_store_handle_;
+
   // Data from the UI thread from the ProfileIOS, used to initialize
   // ProfileIOSIOData. Deleted after lazy initialization.
   mutable std::unique_ptr<ProfileParams> profile_params_;
 
   // Member variables which are pointed to by the various context objects.
-  mutable BooleanPrefMember enable_referrers_;
 
-  BooleanPrefMember enable_metrics_;
   std::unique_ptr<AcceptLanguagePrefWatcher> accept_language_pref_watcher_;
 
   // These are only valid in between LazyInitialize() and their accessor being

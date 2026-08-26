@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/page_allocator.h"
 
 #include <algorithm>
@@ -579,7 +584,7 @@ TEST(PartitionAllocPageAllocatorTest, DecommitAndZero) {
   FAULT_TEST_BEGIN()
 
   // Reading from buffer should now fault.
-  int* buffer0 = reinterpret_cast<int*>(buffer);
+  volatile int* buffer0 = reinterpret_cast<int*>(buffer);
   int buffer0_contents = *buffer0;
   EXPECT_EQ(buffer0_contents, *buffer0);
   EXPECT_TRUE(false);

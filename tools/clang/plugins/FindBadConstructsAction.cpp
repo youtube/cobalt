@@ -8,6 +8,7 @@
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "llvm/Support/TimeProfiler.h"
 
+#include "FilteredASTConsumer.h"
 #include "FindBadConstructsConsumer.h"
 
 using namespace clang;
@@ -28,7 +29,7 @@ namespace chrome_checker {
 
 namespace {
 
-class PluginConsumer : public ASTConsumer {
+class PluginConsumer : public FilteredASTConsumer {
  public:
   PluginConsumer(CompilerInstance* instance, const Options& options)
       : visitor_(*instance, options) {}
@@ -36,6 +37,7 @@ class PluginConsumer : public ASTConsumer {
   void HandleTranslationUnit(clang::ASTContext& context) override {
     llvm::TimeTraceScope TimeScope(
         "HandleTranslationUnit for find-bad-constructs plugin");
+    ApplyFilter(context);
     visitor_.Traverse(context);
   }
 
@@ -69,10 +71,6 @@ bool FindBadConstructsAction::ParseArgs(const CompilerInstance& instance,
       options_.check_ipc = true;
     } else if (arg == "check-layout-object-methods") {
       options_.check_layout_object_methods = true;
-    } else if (arg == "raw-ref-template-as-trivial-member") {
-      // TODO(crbug.com/394919686): Remove once plugin is rolled and GN updated.
-    } else if (arg == "raw-span-template-as-trivial-member") {
-      // TODO(crbug.com/394919686): Remove once plugin is rolled and GN updated.
     } else if (arg == "check-stack-allocated") {
       options_.check_stack_allocated = true;
     } else if (arg == "check-ptrs-to-non-string-literals") {
@@ -93,8 +91,6 @@ bool FindBadConstructsAction::ParseArgs(const CompilerInstance& instance,
       options_.check_span_fields = true;
     } else if (arg == "enable-match-profiling") {
       options_.enable_match_profiling = true;
-    } else if (arg == "span-ctor-from-string-literal") {
-      // TODO(crbug.com/394919686): Remove once plugin is rolled and GN updated.
     } else {
       llvm::errs() << "Unknown clang plugin argument: " << arg << "\n";
       return false;

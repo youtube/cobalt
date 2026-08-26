@@ -108,12 +108,6 @@ class CONTENT_EXPORT Transaction : public blink::mojom::IDBTransaction {
   // the highest priority (0).
   bool IsTransactionBlockingOtherClients(bool consider_priority = false) const;
 
-  // Returns the locks required for this transaction to start. NB: this is only
-  // relevant to readonly and readwrite transactions. Lock requests for version
-  // change transactions are created by the `ConnectionCoordinator`.
-  std::vector<PartitionedLockManager::PartitionedLockRequest>
-  BuildLockRequests() const;
-
   void OnSchedulingPriorityUpdated(int new_priority);
 
   blink::mojom::IDBTransactionMode mode() const { return mode_; }
@@ -202,6 +196,10 @@ class CONTENT_EXPORT Transaction : public blink::mojom::IDBTransaction {
            blink::mojom::IDBPutMode mode,
            std::vector<blink::IndexedDBIndexKeys> index_keys,
            blink::mojom::IDBTransaction::PutCallback callback) override;
+  void SetIndexKeys(int64_t object_store_id,
+                    blink::IndexedDBKey primary_key,
+                    blink::IndexedDBIndexKeys index_keys) override;
+  void SetIndexKeysDone() override;
   void Commit(int64_t num_errors_handled) override;
 
   void OnQuotaCheckDone(bool allowed);
@@ -221,6 +219,11 @@ class CONTENT_EXPORT Transaction : public blink::mojom::IDBTransaction {
                std::vector<blink::IndexedDBIndexKeys> index_keys,
                blink::mojom::IDBTransaction::PutCallback callback,
                Transaction* transaction);
+
+  Status DoSetIndexKeys(int64_t object_store_id,
+                        blink::IndexedDBKey primary_key,
+                        blink::IndexedDBIndexKeys index_keys,
+                        Transaction* transaction);
 
   // Helper for posting a task to call Transaction::CommitPhaseTwo when
   // we know the transaction had no requests and therefore the commit must
@@ -285,6 +288,7 @@ class CONTENT_EXPORT Transaction : public blink::mojom::IDBTransaction {
   TaskQueue task_queue_;
   TaskQueue preemptive_task_queue_;
 
+  // Will be null after the transaction is finished.
   std::unique_ptr<BackingStore::Transaction> backing_store_transaction_;
   bool backing_store_transaction_begun_ = false;
 

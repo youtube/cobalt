@@ -22,6 +22,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "url/gurl.h"
 
 class AutocompleteController;
 class AutocompleteResult;
@@ -65,11 +66,12 @@ class OmniboxPageHandler : public AutocompleteController::Observer,
                          const std::string& current_url,
                          int32_t page_classification) override;
   void GetMlModelVersion(GetMlModelVersionCallback callback) override;
-  void StartMl(mojom::SignalsPtr signals, StartMlCallback callback) override;
+  void StartMl(const ::AutocompleteMatch::ScoringSignals& signals,
+               StartMlCallback callback) override;
 
  private:
   void OnBitmapFetched(mojom::AutocompleteControllerType type,
-                       const std::string& image_url,
+                       const GURL& image_url,
                        const SkBitmap& bitmap);
 
   // Looks up whether the hostname is a typed host (i.e., has received

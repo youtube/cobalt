@@ -91,6 +91,7 @@ import("//build/rust/rust_static_library.gni")
 #  cargo_pkg_version
 #  cargo_pkg_name
 #  cargo_pkg_description
+#  cargo_pkg_repository
 #    Strings as found within 'version' and similar fields within Cargo.toml.
 #    Converted to environment variables passed to rustc, in case the crate
 #    uses clap `crate_version!` or `crate_authors!` macros (fairly common in
@@ -154,6 +155,9 @@ template("cargo_crate") {
   if (defined(invoker.cargo_pkg_description)) {
     _rustenv += [ "CARGO_PKG_DESCRIPTION=${invoker.cargo_pkg_description}" ]
   }
+  if (defined(invoker.cargo_pkg_repository)) {
+    _rustenv += [ "CARGO_PKG_REPOSITORY=${invoker.cargo_pkg_repository}" ]
+  }
 
   # Try to determine the CARGO_MANIFEST_DIR, preferring the directory
   # with build.rs and otherwise assuming that the target contains a
@@ -195,7 +199,7 @@ template("cargo_crate") {
     # Proc macros are output to a top level directory (for the host toolchain).
     # Since multiple versions of the same crate may coexist, the output file
     # name must include the epoch to disambiguate.
-    _output_name = "${_crate_name}_${_epochlabel}"
+    _output_name = "${_crate_name}_${_epochlabel}_${_orig_target_name}"
   } else if (_crate_type != "bin") {
     # Note that file names of libraries must start with the crate name in
     # order for the compiler to find transitive dependencies in the
@@ -307,8 +311,7 @@ template("cargo_crate") {
       if (defined(invoker.allow_unsafe)) {
         allow_unsafe = invoker.allow_unsafe
       }
-      rustflags +=
-          [ "-Awarnings" ]  # Suppress other warnings in 3rd-party crates.
+      configs += [ "//build/rust/gni_impl:allow_all_warnings" ]
 
       if (!defined(build_native_rust_unit_tests)) {
         build_native_rust_unit_tests = _crate_type != "proc-macro"
@@ -408,7 +411,7 @@ template("cargo_crate") {
     action("${_build_script_name}_write_rustflags") {
       _rustflags_txt = "$_build_script_env_out_dir/rustflags.txt"
       outputs = [ _rustflags_txt ]
-      script = rebase_path("//build/rust/write_rustflags.py")
+      script = rebase_path("//build/rust/gni_impl/write_rustflags.py")
       args = [
         "--output",
         rebase_path(_rustflags_txt, root_build_dir),
@@ -427,7 +430,7 @@ template("cargo_crate") {
 
     # Extra targets required to make build script work
     action("${_build_script_name}_output") {
-      script = rebase_path("//build/rust/run_build_script.py")
+      script = rebase_path("//build/rust/gni_impl/run_build_script.py")
       _write_rustflags_outputs =
           get_target_outputs(":${_build_script_name}_write_rustflags")
       _rustflags_txt = _write_rustflags_outputs[0]

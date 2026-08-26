@@ -11,6 +11,7 @@
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/ui/popup/omnibox_icon_view.h"
 #import "ios/chrome/browser/omnibox/ui/popup/row/omnibox_popup_row_delegate.h"
+#import "ios/chrome/browser/omnibox/ui/popup/row/omnibox_popup_row_trailing_button.h"
 #import "ios/chrome/browser/omnibox/ui/popup/row/omnibox_popup_row_util.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/elements/fade_truncating_label.h"
@@ -32,8 +33,7 @@ const CGFloat kMultilineTextTopMargin = 12.0;
 const CGFloat kTextTrailingMargin = 0.0;
 const CGFloat kMultilineTextTrailingMargin = 4.0;
 const CGFloat kMultilineLineSpacing = 2.0;
-const CGFloat kTrailingButtonSize = 16;
-const CGFloat kTrailingButtonTrailingMargin = 18;
+const CGFloat kTrailingButtonTrailingMargin = 7.0;
 /// Trailing button trailing margin with popout omnibox.
 const CGFloat kTrailingButtonTrailingMarginPopout = 26.0;
 const CGFloat kTextSpacing = 2.0f;
@@ -45,18 +45,6 @@ const CGFloat kTextIconSpace = 14.0f;
 /// Top color opacity of the `_selectedBackgroundView`.
 const CGFloat kTopGradientColorOpacity = 0.85;
 
-// Multiplier values for supported content sizes.
-const double kContentSizeMultiplierXS = 0.8;
-const double kContentSizeMultiplierS = 0.9;
-const double kContentSizeMultiplierM = 1.0;
-const double kContentSizeMultiplierL = 1.2;
-const double kContentSizeMultiplierXL = 1.4;
-const double kContentSizeMultiplier2XL = 1.6;
-const double kContentSizeMultiplier3XL = 1.8;
-// Single maximum zoom level for accessibility. This value is only slightly
-// higher than the 3XL zoom avoid visually breaking the UI.
-const double kContentSizeMultiplierAccesibility = 2.0;
-
 }  // namespace
 
 @implementation OmniboxPopupRowContentView {
@@ -64,7 +52,7 @@ const double kContentSizeMultiplierAccesibility = 2.0;
   FadeTruncatingLabel* _secondaryLabelFading;
   UILabel* _secondaryLabelTruncating;
   OmniboxIconView* _leadingIconView;
-  ExtendedTouchTargetButton* _trailingButton;
+  OmniboxPopupRowTrailingButton* _trailingButton;
   UIStackView* _textStackView;
   UIView* _separator;
   UIView* _selectedBackgroundView;
@@ -80,7 +68,6 @@ const double kContentSizeMultiplierAccesibility = 2.0;
 
   /// Constraint change for the leading icon and trailing button.
   NSLayoutConstraint* _leadingIconViewWidthConstraint;
-  NSLayoutConstraint* _trailingButtonWidthConstraint;
 }
 
 - (instancetype)initWithConfiguration:
@@ -147,13 +134,17 @@ const double kContentSizeMultiplierAccesibility = 2.0;
 
     // Trailing Button.
     _trailingButton =
-        [ExtendedTouchTargetButton buttonWithType:UIButtonTypeCustom];
+        [[OmniboxPopupRowTrailingButton alloc] initWithFrame:CGRectZero];
     _trailingButton.translatesAutoresizingMaskIntoConstraints = NO;
     _trailingButton.isAccessibilityElement = NO;
+    [_trailingButton
+        setContentCompressionResistancePriority:UILayoutPriorityRequired
+                                        forAxis:
+                                            UILayoutConstraintAxisHorizontal];
+
     [_trailingButton addTarget:self
                         action:@selector(trailingButtonTapped)
               forControlEvents:UIControlEventTouchUpInside];
-    _trailingButton.hidden = YES;  // Optional view.
     [self addSubview:_trailingButton];
 
     // Bottom separator.
@@ -195,8 +186,6 @@ const double kContentSizeMultiplierAccesibility = 2.0;
 
     _leadingIconViewWidthConstraint = [_leadingIconView.widthAnchor
         constraintEqualToConstant:kLeadingIconViewSize];
-    _trailingButtonWidthConstraint = [_trailingButton.widthAnchor
-        constraintEqualToConstant:kTrailingButtonSize];
 
     [NSLayoutConstraint activateConstraints:@[
       // Row has a minimum height.
@@ -220,7 +209,6 @@ const double kContentSizeMultiplierAccesibility = 2.0;
                          constant:kTextIconSpace],
 
       // Trailing button constraints.
-      _trailingButtonWidthConstraint,
       [_trailingButton.heightAnchor
           constraintEqualToAnchor:_trailingButton.widthAnchor],
 
@@ -250,34 +238,11 @@ const double kContentSizeMultiplierAccesibility = 2.0;
 }
 
 - (void)adjustIconDimensionsForContentSize {
-  UIContentSizeCategory currentCategory =
-      self.traitCollection.preferredContentSizeCategory;
-
-  NSDictionary<NSString*, NSNumber*>* sizeMapping = @{
-    UIContentSizeCategoryExtraSmall : @(kContentSizeMultiplierXS),
-    UIContentSizeCategorySmall : @(kContentSizeMultiplierS),
-    UIContentSizeCategoryMedium : @(kContentSizeMultiplierM),
-    UIContentSizeCategoryLarge : @(kContentSizeMultiplierL),
-    UIContentSizeCategoryExtraLarge : @(kContentSizeMultiplierXL),
-    UIContentSizeCategoryExtraExtraLarge : @(kContentSizeMultiplier2XL),
-    UIContentSizeCategoryExtraExtraExtraLarge : @(kContentSizeMultiplier3XL),
-    UIContentSizeCategoryAccessibilityMedium :
-        @(kContentSizeMultiplierAccesibility),
-    UIContentSizeCategoryAccessibilityLarge :
-        @(kContentSizeMultiplierAccesibility),
-    UIContentSizeCategoryAccessibilityExtraLarge :
-        @(kContentSizeMultiplierAccesibility),
-    UIContentSizeCategoryAccessibilityExtraExtraLarge :
-        @(kContentSizeMultiplierAccesibility),
-    UIContentSizeCategoryAccessibilityExtraExtraExtraLarge :
-        @(kContentSizeMultiplierAccesibility),
-  };
-
-  CGFloat multiplier = [sizeMapping[currentCategory] doubleValue];
+  CGFloat multiplier = OmniboxPopupRowContentSizeMultiplierForCategory(
+      self.traitCollection.preferredContentSizeCategory);
   if (multiplier) {
     _leadingIconViewWidthConstraint.constant =
         kLeadingIconViewSize * multiplier;
-    _trailingButtonWidthConstraint.constant = kTrailingButtonSize * multiplier;
   }
 }
 
@@ -328,6 +293,8 @@ const double kContentSizeMultiplierAccesibility = 2.0;
   _secondaryLabelFading.textAlignment = forcedTextAlignment;
   _secondaryLabelTruncating.textAlignment = forcedTextAlignment;
 }
+
+#pragma mark - UIAccessibility
 
 - (NSString*)accessibilityLabel {
   return _primaryLabel.attributedText.string;
@@ -397,24 +364,9 @@ const double kContentSizeMultiplierAccesibility = 2.0;
   }
 
   // Trailing Button.
-  if (configuration.trailingIcon) {
-    [_trailingButton setImage:configuration.trailingIcon
-                     forState:UIControlStateNormal];
-    _trailingButton.contentMode = UIViewContentModeScaleAspectFit;
-    _trailingButton.contentHorizontalAlignment =
-        UIControlContentHorizontalAlignmentFill;
-    _trailingButton.contentVerticalAlignment =
-        UIControlContentVerticalAlignmentFill;
-    _trailingButton.hidden = NO;
-    _trailingButton.tintColor = configuration.trailingIconTintColor;
-    _trailingButton.accessibilityIdentifier =
-        configuration.trailingButtonAccessibilityIdentifier;
-    _textTrailingToButtonConstraint.active = YES;
-  } else {
-    _textTrailingToButtonConstraint.active = NO;
-    _trailingButton.hidden = YES;
-    _trailingButton.accessibilityIdentifier = nil;
-  }
+  _trailingButton.trailingIconType = configuration.trailingIconType;
+  _trailingButton.isHighlighted = configuration.isBackgroundHighlighted;
+  _textTrailingToButtonConstraint.active = !_trailingButton.hidden;
 
   // Separator.
   _separator.hidden = !configuration.showSeparator;
@@ -459,6 +411,11 @@ const double kContentSizeMultiplierAccesibility = 2.0;
 
 /// Handles tap on trailing button.
 - (void)trailingButtonTapped {
+  if (_configuration.trailingIconType == TrailingIconType::kSearchWithAim ||
+      _configuration.trailingIconType == TrailingIconType::kOpenExistingTab) {
+    TriggerHapticFeedbackForSelectionChange();
+  }
+
   [self.configuration.delegate
       omniboxPopupRowWithConfiguration:self.configuration
        didTapTrailingButtonAtIndexPath:self.configuration.indexPath];

@@ -13,8 +13,8 @@
 #import "ios/chrome/browser/favicon/ui_bundled/favicon_attributes_provider.h"
 #import "ios/chrome/browser/favicon/ui_bundled/favicon_attributes_with_payload.h"
 #import "ios/chrome/browser/net/model/crurl.h"
-#import "ios/chrome/browser/omnibox/model/autocomplete_suggestion.h"
-#import "ios/chrome/browser/omnibox/model/suggest_action.h"
+#import "ios/chrome/browser/omnibox/model/suggestions/autocomplete_suggestion.h"
+#import "ios/chrome/browser/omnibox/model/suggestions/suggest_action.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_popup_accessibility_identifier_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
@@ -280,6 +280,8 @@ const CGFloat kHeaderTopPadding = 16.0f;
          forCellReuseIdentifier:OmniboxPopupRowCellReuseIdentifier];
   [self.tableView registerClass:[UITableViewCell class]
          forCellReuseIdentifier:OmniboxPopupActionsRowCellReuseIdentifier];
+  [self.tableView registerClass:[UITableViewCell class]
+         forCellReuseIdentifier:OmniboxPopupAIModeRowCellReuseIdentifier];
   [self.tableView registerClass:[UITableViewHeaderFooterView class]
       forHeaderFooterViewReuseIdentifier:NSStringFromClass(
                                              [UITableViewHeaderFooterView
@@ -901,6 +903,14 @@ const CGFloat kHeaderTopPadding = 16.0f;
                                                     forIndexPath:indexPath];
         configuration =
             [OmniboxPopupActionsRowContentConfiguration cellConfiguration];
+      } else if (suggestion.hasAimShortcut) {
+        // Use a specific reusable cell to cache the AIM animation progress,
+        // preventing it from restarting when the aim suggestion position is
+        // shifted.
+        cell = [self.tableView dequeueReusableCellWithIdentifier:
+                                   OmniboxPopupAIModeRowCellReuseIdentifier
+                                                    forIndexPath:indexPath];
+        configuration = [OmniboxPopupRowContentConfiguration cellConfiguration];
       } else {
         cell = [self.tableView
             dequeueReusableCellWithIdentifier:OmniboxPopupRowCellReuseIdentifier

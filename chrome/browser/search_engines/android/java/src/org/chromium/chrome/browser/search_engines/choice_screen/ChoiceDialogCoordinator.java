@@ -19,17 +19,18 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.CommandLine;
 import org.chromium.base.Log;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.search_engines.R;
 import org.chromium.chrome.browser.search_engines.choice_screen.ChoiceDialogMediator.DialogType;
 import org.chromium.components.search_engines.SearchEngineChoiceService;
 import org.chromium.components.search_engines.SearchEnginesFeatureUtils;
-import org.chromium.components.search_engines.SearchEnginesFeatures;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogManagerObserver;
@@ -47,6 +48,11 @@ import java.util.function.Function;
 @NullMarked
 public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
     private static final String TAG = "ChoiceDialogCoordntr";
+
+    // Number of blocked Chrome sessions after which we suppress the blocking dialog. This is
+    // intended as an escape hatch to mitigate potential bugs.
+    @VisibleForTesting
+    public static final int ESCAPE_HATCH_BLOCK_LIMIT = 10;
 
     // TODO(b/365100489): Refactor this coordinator to implement the dialog's custom view fully
     // using the standard chromium MVC patterns. This class is a temporary shortcut.
@@ -116,10 +122,10 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
         var searchEngineChoiceService = SearchEngineChoiceService.getInstance();
         final boolean canShow =
                 searchEngineChoiceService != null
-                        && searchEngineChoiceService.isDeviceChoiceDialogEligible();
+                        && searchEngineChoiceService.isDeviceChoiceDialogEligible()
+                        && !CommandLine.getInstance().hasSwitch(ChromeSwitches.NO_FIRST_RUN);
 
-        if (SearchEnginesFeatureUtils.clayBlockingEnableVerboseLogging()) {
-            // TODO(b/355186707): Temporary log to be removed after e2e validation.
+        if (SearchEnginesFeatureUtils.getInstance().isChoiceApisDebugEnabled()) {
             Log.i(TAG, "maybeShow() - Client eligible for the device choice dialog: %b", canShow);
         }
 
@@ -171,15 +177,14 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
 
     @Override
     public void updateDialogType(@DialogType int dialogType) {
-        if (SearchEnginesFeatureUtils.clayBlockingEnableVerboseLogging()) {
-            // TODO(b/355186707): Temporary log to be removed after e2e validation.
+        if (SearchEnginesFeatureUtils.getInstance().isChoiceApisDebugEnabled()) {
             Log.i(TAG, "updateDialogType(%d)", dialogType);
         }
 
         mViewHolder.updateViewForType(dialogType);
 
         switch (dialogType) {
-            case DialogType.LOADING, DialogType.CHOICE_LAUNCH -> {
+            case DialogType.CHOICE_LAUNCH -> {
                 mModel.set(ModalDialogProperties.CANCEL_ON_TOUCH_OUTSIDE, false);
                 mModel.set(
                         ModalDialogProperties.APP_MODAL_DIALOG_BACK_PRESS_HANDLER,
@@ -189,16 +194,12 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
                 mModel.set(
                         ModalDialogProperties.POSITIVE_BUTTON_TEXT,
                         mContext.getString(R.string.next));
-                mModel.set(
-                        ModalDialogProperties.POSITIVE_BUTTON_DISABLED,
-                        dialogType == DialogType.LOADING);
             }
             case DialogType.CHOICE_CONFIRM -> {
                 mModel.set(ModalDialogProperties.CANCEL_ON_TOUCH_OUTSIDE, true);
                 mModel.set(
                         ModalDialogProperties.POSITIVE_BUTTON_TEXT,
                         mContext.getString(R.string.done));
-                mModel.set(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, false);
                 mEmptyBackPressedCallback.remove();
                 RecordUserAction.record("OsDefaultsChoiceDialogUnblocked");
             }
@@ -208,7 +209,6 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
 
     @Override
     public void showDialog() {
-        assert SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING);
         @DialogSuppressionStatus int suppressionStatus = computeDialogSuppressionStatus();
         recordShowDialogStatus(suppressionStatus);
         if (suppressionStatus != DialogSuppressionStatus.CAN_SHOW) {
@@ -235,7 +235,6 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
 
     @IntDef({
         DialogSuppressionStatus.CAN_SHOW,
-        DialogSuppressionStatus.SUPPRESSED_DARK_LAUNCH,
         DialogSuppressionStatus.SUPPRESSED_ESCAPE_HATCH,
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -245,7 +244,7 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
         // should never be reused.
         // LINT.IfChange(DialogSuppressionStatus)
         int CAN_SHOW = 0;
-        int SUPPRESSED_DARK_LAUNCH = 1;
+        // int SUPPRESSED_DARK_LAUNCH = 1; // Deprecated.
         int SUPPRESSED_ESCAPE_HATCH = 2;
         int COUNT = 3;
         // LINT.ThenChange(//tools/metrics/histograms/metadata/search/enums.xml:OsDefaultsChoiceDialogSuppressionStatus)
@@ -253,27 +252,17 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
 
     @DialogSuppressionStatus
     private static int computeDialogSuppressionStatus() {
-        if (SearchEnginesFeatureUtils.clayBlockingIsDarkLaunch()) {
-            if (SearchEnginesFeatureUtils.clayBlockingEnableVerboseLogging()) {
-                // TODO(b/355186707): Temporary log to be removed after e2e validation.
-                Log.i(TAG, "The dialog is suppressed: Dark Launch mode.");
-            }
-            return DialogSuppressionStatus.SUPPRESSED_DARK_LAUNCH;
-        }
-
         int blockCount =
                 ChromeSharedPreferences.getInstance()
                         .readInt(SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS);
-        int blockLimit = SearchEnginesFeatureUtils.clayBlockingEscapeHatchBlockLimit();
-        if (blockLimit > 0 && blockCount >= blockLimit) {
-            if (SearchEnginesFeatureUtils.clayBlockingEnableVerboseLogging()) {
-                // TODO(b/355186707): Temporary log to be removed after e2e validation.
+        if (blockCount >= ESCAPE_HATCH_BLOCK_LIMIT) {
+            if (SearchEnginesFeatureUtils.getInstance().isChoiceApisDebugEnabled()) {
                 Log.i(
                         TAG,
                         "The dialog is suppressed: Escape Hatch triggered, blocked %d times"
                                 + " (limit=%d).",
                         blockCount,
-                        blockLimit);
+                        ESCAPE_HATCH_BLOCK_LIMIT);
             }
             return DialogSuppressionStatus.SUPPRESSED_ESCAPE_HATCH;
         }
@@ -329,7 +318,7 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
             TextView message = mView.findViewById(R.id.choice_dialog_message);
 
             switch (dialogType) {
-                case DialogType.LOADING, DialogType.CHOICE_LAUNCH -> {
+                case DialogType.CHOICE_LAUNCH -> {
                     illustration.setImageResource(R.drawable.blocking_choice_dialog_illustration);
                     title.setText(R.string.blocking_choice_dialog_first_title);
                     message.setText(R.string.blocking_choice_dialog_first_message);

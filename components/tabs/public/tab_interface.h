@@ -14,7 +14,11 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "components/tab_groups/tab_group_id.h"
-#include "components/tabs/public/supports_handles.h"
+#include "components/tabs/public/tab_handle_factory.h"
+
+namespace ui {
+class UnownedUserDataHost;
+}
 
 namespace content {
 class WebContents;
@@ -53,7 +57,7 @@ class ScopedTabModalUI {
 // Ping erikchen for assistance if this class does not have the functionality
 // your feature needs. This comment will be deleted after there are 10+ features
 // in TabFeatures.
-class TabInterface : public SupportsHandles<TabInterface> {
+class TabInterface : public SupportsTabHandles {
  public:
   // This method exists to ease the transition from WebContents to TabInterface.
   // This method should only be called on instances of WebContents that are
@@ -93,9 +97,16 @@ class TabInterface : public SupportsHandles<TabInterface> {
   // };
   virtual base::WeakPtr<TabInterface> GetWeakPtr() = 0;
 
-  // When a tab is in the background, the WebContents may be discarded to save
-  // memory. When a tab is in the foreground it is guaranteed to have a
-  // WebContents.
+  // Returns the WebContents that is currently associated with this tab.
+  //
+  // The returned pointer is guaranteed to be non-null.
+  //
+  // However, the WebContents object *itself* can be replaced, most notably
+  // when a background tab's contents are discarded to save memory.
+  // Callers who need to observe the tab for its entire lifetime should not
+  // cache the WebContents pointer directly. Instead, they should hold a
+  // reference to the TabInterface and call GetContents() when needed, or use
+  // RegisterWillDiscardContents() to be notified of swaps.
   virtual content::WebContents* GetContents() const = 0;
 
   // Closes the tab.
@@ -133,6 +144,11 @@ class TabInterface : public SupportsHandles<TabInterface> {
   // provide multiple visible tabs per window. This state is not related to
   // widget visibility or occlusion of the window.
   virtual bool IsVisible() const = 0;
+
+  // Returns true if the tab is selected in its browser window. Note that
+  // "selected" is distinct from "activated" -- multiple tabs may be selected at
+  // a time, and a selected tab is not necessarily active.
+  virtual bool IsSelected() const = 0;
 
   // Register for these two callbacks to detect changes to IsVisible().
   using DidBecomeVisibleCallback = base::RepeatingCallback<void(TabInterface*)>;
@@ -255,6 +271,12 @@ class TabInterface : public SupportsHandles<TabInterface> {
 
   // Must be called whenever any of this tab's ancestor collections change.
   virtual void OnAncestorChanged(base::PassKey<TabCollection>) = 0;
+
+  // Returns the UnownedUserDataHost associated with this tab. This is used to
+  // retrieve arbitrary features from the tab without requiring TabModel to have
+  // knowledge of them.
+  virtual ui::UnownedUserDataHost& GetUnownedUserDataHost() = 0;
+  virtual const ui::UnownedUserDataHost& GetUnownedUserDataHost() const = 0;
 };
 
 using TabHandle = TabInterface::Handle;

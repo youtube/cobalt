@@ -13,6 +13,7 @@
 #include "services/network/public/mojom/ip_address_space.mojom-blink.h"
 #include "services/network/public/mojom/trust_tokens.mojom-blink.h"
 #include "third_party/blink/public/common/blob/blob_utils.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
@@ -167,9 +168,9 @@ FetchRequestData* CreateCopyOfFetchRequestDataForFetch(
   request->SetFetchPriorityHint(original->FetchPriorityHint());
   request->SetPriority(original->Priority());
   request->SetKeepalive(original->Keepalive());
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   request->SetBrowsingTopics(original->BrowsingTopics());
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   request->SetAdAuctionHeaders(original->AdAuctionHeaders());
   request->SetSharedStorageWritable(original->SharedStorageWritable());
   request->SetIsHistoryNavigation(original->IsHistoryNavigation());
@@ -210,9 +211,9 @@ static bool AreAnyMembersPresent(const RequestInit* init) {
          init->hasTargetAddressSpace() || init->hasCredentials() ||
          init->hasCache() || init->hasRedirect() || init->hasIntegrity() ||
          init->hasKeepalive() ||
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
          init->hasBrowsingTopics() ||
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
          init->hasAdAuctionHeaders() || init->hasSharedStorageWritable() ||
          init->hasPriority() || init->hasSignal() || init->hasDuplex() ||
          init->hasPrivateToken() || init->hasAttributionReporting() ||
@@ -593,12 +594,16 @@ Request* Request::CreateRequestWithRequestOrString(
   // - "Let |targetAddressSpace| be |init|'s targetAddressSpace member if it is
   // present, and |unknown| otherwise."
   if (init->hasTargetAddressSpace()) {
-    if (init->targetAddressSpace() == "local") {
+    // 'private' is kept as an alias to 'local'; the previous PNA spec had
+    // 'private' for what LNA considers to be 'local'.
+    if (init->targetAddressSpace() == "loopback") {
+      request->SetTargetAddressSpace(network::mojom::IPAddressSpace::kLoopback);
+    } else if (init->targetAddressSpace() == "local") {
       request->SetTargetAddressSpace(network::mojom::IPAddressSpace::kLocal);
     } else if (init->targetAddressSpace() == "private") {
       UseCounter::Count(execution_context,
                         WebFeature::kLocalNetworkAccessPrivateAliasUse);
-      request->SetTargetAddressSpace(network::mojom::IPAddressSpace::kPrivate);
+      request->SetTargetAddressSpace(network::mojom::IPAddressSpace::kLocal);
     } else if (init->targetAddressSpace() == "public") {
       request->SetTargetAddressSpace(network::mojom::IPAddressSpace::kPublic);
     } else if (init->targetAddressSpace() == "unknown") {
@@ -656,6 +661,7 @@ Request* Request::CreateRequestWithRequestOrString(
     request->SetKeepalive(init->keepalive());
 
   if (init->hasRetryOptions()) {
+    UseCounter::Count(execution_context, WebFeature::kFetchRetry);
     network::FetchRetryOptions options;
     RetryOptions* retry_options = init->retryOptions();
     options.max_attempts = retry_options->maxAttempts();
@@ -667,14 +673,16 @@ Request* Request::CreateRequestWithRequestOrString(
       options.backoff_factor = retry_options->backoffFactor();
     }
     if (retry_options->hasMaxAge()) {
-      options.max_age = base::Milliseconds(retry_options->maxAge().value());
+      options.max_age = base::Milliseconds(retry_options->maxAge());
     }
     options.retry_after_unload = retry_options->retryAfterUnload();
     options.retry_non_idempotent = retry_options->retryNonIdempotent();
+    options.retry_only_if_server_unreached =
+        retry_options->retryOnlyIfServerUnreached();
     request->SetRetryOptions(options);
   }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (init->hasBrowsingTopics()) {
     if (!execution_context->IsSecureContext()) {
       exception_state.ThrowTypeError(
@@ -692,7 +700,7 @@ Request* Request::CreateRequestWithRequestOrString(
                         mojom::blink::WebFeature::kTopicsAPIAll);
     }
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   if (init->hasAdAuctionHeaders()) {
     if (!execution_context->IsSecureContext()) {
@@ -1056,6 +1064,21 @@ Request::Request(ScriptState* script_state,
               Headers::Create(request->HeaderList()),
               signal) {
   headers_->SetGuard(Headers::kRequestGuard);
+
+  // This is currently only meant to allow certain contexts to bypass request
+  // forbidden header setting in the renderer. For example in Chromium:
+  // extension
+  // (https://www.chromium.org/developers/design-documents/extensions/) script
+  // contexts are an example of a context depending on their configuration.
+  if (base::FeatureList::IsEnabled(
+          features::kBypassRequestForbiddenHeadersCheck)) {
+    bool bypass_forbidden_fetch_request_headers =
+        SecurityPolicy::IsOriginAccessToURLAllowed(
+            ExecutionContext::From(script_state)->GetSecurityOrigin(),
+            request_->Url());
+    headers_->SetBypassRequestForbiddenHeaderCheck(
+        bypass_forbidden_fetch_request_headers);
+  }
 }
 
 String Request::method() const {
@@ -1189,10 +1212,10 @@ bool Request::keepalive() const {
 
 V8IPAddressSpace Request::targetAddressSpace() const {
   switch (request_->TargetAddressSpace()) {
+    case network::mojom::IPAddressSpace::kLoopback:
+      return V8IPAddressSpace(V8IPAddressSpace::Enum::kLoopback);
     case network::mojom::IPAddressSpace::kLocal:
       return V8IPAddressSpace(V8IPAddressSpace::Enum::kLocal);
-    case network::mojom::IPAddressSpace::kPrivate:
-      return V8IPAddressSpace(V8IPAddressSpace::Enum::kPrivate);
     case network::mojom::IPAddressSpace::kPublic:
       return V8IPAddressSpace(V8IPAddressSpace::Enum::kPublic);
     case network::mojom::IPAddressSpace::kUnknown:
@@ -1262,7 +1285,7 @@ mojom::blink::FetchAPIRequestPtr Request::CreateFetchAPIRequest() const {
     HTTPHeaderMap::AddResult result = headers.Add(key, value);
     if (!result.is_new_entry) {
       result.stored_value->value =
-          AtomicString(WTF::StrCat({result.stored_value->value, ", ", value}));
+          AtomicString(StrCat({result.stored_value->value, ", ", value}));
     }
   }
   for (const auto& pair : headers)

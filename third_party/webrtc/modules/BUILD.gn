@@ -79,7 +79,7 @@ if (rtc_include_tests && !build_with_chromium) {
   rtc_test("modules_unittests") {
     testonly = true
     defines = []
-    sources = [ "module_common_types_unittest.cc" ]
+    sources = [ "module_common_types_public_unittest.cc" ]
 
     deps = [
       ":module_api",

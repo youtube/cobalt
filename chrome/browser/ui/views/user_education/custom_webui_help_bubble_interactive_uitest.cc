@@ -11,6 +11,8 @@
 #include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
+#include "chrome/browser/ui/views/toolbar/browser_app_menu_button.h"
+#include "chrome/browser/ui/views/user_education/browser_user_education_service.h"
 #include "chrome/browser/ui/views/user_education/custom_webui_help_bubble.h"
 #include "chrome/browser/ui/views/user_education/custom_webui_help_bubble_controller.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
@@ -23,7 +25,9 @@
 #include "components/user_education/common/help_bubble/custom_help_bubble.h"
 #include "components/user_education/common/help_bubble/help_bubble.h"
 #include "components/user_education/common/help_bubble/help_bubble_params.h"
+#include "components/user_education/common/user_education_class_properties.h"
 #include "components/user_education/common/user_education_data.h"
+#include "components/user_education/views/help_bubble_delegate.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_controller.h"
@@ -44,6 +48,9 @@
 #include "ui/events/event_modifiers.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/native_widget_types.h"
+#include "ui/views/animation/ink_drop.h"
+#include "ui/views/animation/ink_drop_host.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/webui/resources/cr_components/help_bubble/custom_help_bubble.mojom.h"
 #include "ui/webui/webui_util.h"
 
@@ -145,13 +152,12 @@ class TestContentBrowserClient : public ChromeContentBrowserClient {
     // This code is copied loosely from
     // `content::RegisterWebUIControllerInterfaceBinder()`.
     using Interface = custom_help_bubble::mojom::CustomHelpBubbleHandlerFactory;
-    map->Add<Interface>(
-        base::BindRepeating([](content::RenderFrameHost* host,
-                               mojo::PendingReceiver<Interface> receiver) {
-          CHECK(!host->GetParentOrOuterDocument());
-          CHECK((content::internal::SafeDownCastAndBindInterface<
-                 Interface, TestWebUIHelpBubbleController>(host, receiver)));
-        }));
+    map->Add<Interface>([](content::RenderFrameHost* host,
+                           mojo::PendingReceiver<Interface> receiver) {
+      CHECK(!host->GetParentOrOuterDocument());
+      CHECK((content::internal::SafeDownCastAndBindInterface<
+             Interface, TestWebUIHelpBubbleController>(host, receiver)));
+    });
   }
 };
 
@@ -238,6 +244,42 @@ class CustomWebUIHelpBubbleUiTest : public InteractiveFeaturePromoTest {
         .SetDescription("CheckIsDismissed()");
   }
 
+  static auto CheckIsAnchor(ElementSpecifier el, bool is_anchor) {
+    return Steps(CheckView(
+                     kToolbarAppMenuButtonElementId,
+                     [](BrowserAppMenuButton* button) {
+                       return button->GetProperty(
+                           user_education::kHasInProductHelpPromoKey);
+                     },
+                     is_anchor)
+                     .SetDescription("Check IPH key property."),
+                 CheckView(
+                     kToolbarAppMenuButtonElementId,
+                     [](BrowserAppMenuButton* button) {
+                       return views::InkDrop::Get(button)
+                           ->in_attention_state_for_testing();
+                     },
+                     is_anchor)
+                     .SetDescription("Check in attention state."));
+  }
+
+  static auto CheckFrame() {
+    return Steps(
+        CheckView(
+            CustomWebUIHelpBubble::kHelpBubbleIdForTesting,
+            [](views::BubbleDialogDelegateView* bubble) {
+              return bubble->GetBubbleFrameView()->GetDisplayVisibleArrow();
+            })
+            .SetDescription("Check frame has visible arrow."),
+        CheckView(
+            CustomWebUIHelpBubble::kHelpBubbleIdForTesting,
+            [](views::BubbleDialogDelegateView* bubble) {
+              return bubble->GetBubbleFrameView()->background_color();
+            },
+            GetHelpBubbleDelegate()->GetHelpBubbleBackgroundColorId())
+            .SetDescription("Check frame color."));
+  }
+
   const DeepQuery kCancelButton{"test-custom-help-bubble", "#cancel"};
   const DeepQuery kDismissButton{"test-custom-help-bubble", "#dismiss"};
   const DeepQuery kSnoozeButton{"test-custom-help-bubble", "#snooze"};
@@ -254,6 +296,8 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest,
   DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kCallbackEvent);
   std::unique_ptr<CustomWebUIHelpBubble> help_bubble;
   base::CallbackListSubscription sub;
+  auto context = BrowserUserEducationInterface::From(browser())
+                     ->GetUserEducationContextForTesting();
   RunTestSequence(
       CheckElement(
           kToolbarAppMenuButtonElementId,
@@ -262,9 +306,8 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest,
                 params;
             params.anchor_element = el;
             help_bubble = CustomWebUIHelpBubble::CreateForController<
-                TestWebUIHelpBubbleController>(
-                GURL(kTestWebUIHostUrl), el->context(),
-                user_education::HelpBubbleArrow::kTopRight, params);
+                TestWebUIHelpBubbleController>(GURL(kTestWebUIHostUrl), context,
+                                               params);
             sub = help_bubble->custom_bubble_ui()->AddUserActionCallback(
                 base::BindLambdaForTesting(
                     [=](user_education::CustomHelpBubbleUi::UserAction action) {
@@ -277,12 +320,14 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest,
             return help_bubble && help_bubble->is_open();
           }),
       WaitForShow(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
+      CheckIsAnchor(kToolbarAppMenuButtonElementId, true), CheckFrame(),
       InstrumentNonTabWebView(kWebViewElementId,
                               CustomWebUIHelpBubble::kWebViewIdForTesting),
       ClickElement(kWebViewElementId, kCancelButton),
       WaitForEvent(kToolbarAppMenuButtonElementId, kCallbackEvent),
       Do([&help_bubble]() { help_bubble->Close(); }),
-      WaitForHide(CustomWebUIHelpBubble::kHelpBubbleIdForTesting));
+      WaitForHide(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
+      CheckIsAnchor(kToolbarAppMenuButtonElementId, false));
 }
 
 IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_Cancel) {
@@ -334,7 +379,7 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_Snooze) {
 }
 
 IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_PressEsc) {
-  gfx::NativeView native_view = gfx::NativeView();
+  const views::Widget* widget = nullptr;
   RunTestSequence(
       MaybeShowPromo(kCustomWebUIHelpBubbleTestFeature,
                      CustomHelpBubbleShown{
@@ -343,13 +388,12 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_PressEsc) {
                               CustomWebUIHelpBubble::kWebViewIdForTesting),
       IfView(
           CustomWebUIHelpBubble::kHelpBubbleIdForTesting,
-          [&native_view](const views::View* view) {
-            native_view = view->GetWidget()->GetNativeView();
-            return !view->GetWidget()->IsActive();
+          [&widget](const views::View* view) {
+            widget = view->GetWidget();
+            return !widget->IsActive();
           },
           Then(ObserveState(views::test::kCurrentWidgetFocus),
-               WaitForState(views::test::kCurrentWidgetFocus,
-                            std::ref(native_view)))),
+               WaitForState(views::test::kCurrentWidgetFocus, widget))),
       SendAccelerator(CustomWebUIHelpBubble::kHelpBubbleIdForTesting,
                       ui::Accelerator(ui::VKEY_ESCAPE, ui::MODIFIER_NONE)),
       WaitForHide(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
@@ -364,8 +408,8 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_Abort) {
       WaitForShow(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
       WithView(kBrowserViewElementId,
                [](BrowserView* browser_view) {
-                 browser_view->AbortFeaturePromo(
-                     kCustomWebUIHelpBubbleTestFeature);
+                 BrowserUserEducationInterface::From(browser_view->browser())
+                     ->AbortFeaturePromo(kCustomWebUIHelpBubbleTestFeature);
                }),
       WaitForHide(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
       CheckIsDismissed(kCustomWebUIHelpBubbleTestFeature, false));
@@ -379,9 +423,10 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_FeatureUsed) {
       WaitForShow(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
       WithView(kBrowserViewElementId,
                [](BrowserView* browser_view) {
-                 browser_view->NotifyFeaturePromoFeatureUsed(
-                     kCustomWebUIHelpBubbleTestFeature,
-                     FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+                 BrowserUserEducationInterface::From(browser_view->browser())
+                     ->NotifyFeaturePromoFeatureUsed(
+                         kCustomWebUIHelpBubbleTestFeature,
+                         FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
                }),
       WaitForHide(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
       CheckIsDismissed(kCustomWebUIHelpBubbleTestFeature, true));

@@ -93,7 +93,7 @@ void ScreenCapturerFuchsia::CaptureFrame() {
     return;
   }
 
-  int64_t capture_start_time_nanos = webrtc::TimeNanos();
+  int64_t capture_start_time_nanos = TimeNanos();
 
   zx::event event;
   zx::event dup;
@@ -148,8 +148,8 @@ void ScreenCapturerFuchsia::CaptureFrame() {
                       << release_result.err();
   }
 
-  int capture_time_ms = (webrtc::TimeNanos() - capture_start_time_nanos) /
-                        webrtc::kNumNanosecsPerMillisec;
+  int capture_time_ms =
+      (TimeNanos() - capture_start_time_nanos) / kNumNanosecsPerMillisec;
   frame->set_capture_time_ms(capture_time_ms);
   callback_->OnCaptureResult(Result::SUCCESS, std::move(frame));
 }
@@ -303,9 +303,8 @@ void ScreenCapturerFuchsia::SetupBuffers() {
 
   fuchsia::ui::composition::RegisterBufferCollectionArgs buffer_collection_args;
   buffer_collection_args.set_export_token(std::move(export_token));
-  buffer_collection_args.set_buffer_collection_token(
-      fuchsia::sysmem::BufferCollectionTokenHandle(
-          flatland_token.Unbind().TakeChannel()));
+  buffer_collection_args.set_buffer_collection_token2(
+      std::move(flatland_token));
   buffer_collection_args.set_usage(
       fuchsia::ui::composition::RegisterBufferCollectionUsage::SCREENSHOT);
 

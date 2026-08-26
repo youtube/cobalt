@@ -14,7 +14,6 @@
 #include "extensions/renderer/api/messaging/gin_port.h"
 #include "extensions/renderer/api/messaging/one_time_message_handler.h"
 #include "extensions/renderer/bindings/api_binding_types.h"
-#include "gin/handle.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "v8/include/v8-forward.h"
 
@@ -117,7 +116,7 @@ class NativeRendererMessagingService : public GinPort::Delegate {
                             content::RenderFrame* restrict_to_render_frame);
 
   // Creates and opens a new message port in the specified context.
-  gin::Handle<GinPort> Connect(ScriptContext* script_context,
+  GinPort* Connect(ScriptContext* script_context,
                                const MessageTarget& target,
                                const std::string& name,
                                mojom::SerializationFormat format);
@@ -140,7 +139,7 @@ class NativeRendererMessagingService : public GinPort::Delegate {
   void ClosePort(v8::Local<v8::Context> context,
                  const PortId& port_id) override;
 
-  gin::Handle<GinPort> CreatePortForTesting(
+  GinPort* CreatePortForTesting(
       ScriptContext* script_context,
       const std::string& channel_name,
       const mojom::ChannelType channel_type,
@@ -148,7 +147,7 @@ class NativeRendererMessagingService : public GinPort::Delegate {
       mojo::PendingAssociatedRemote<mojom::MessagePort>& message_port_remote,
       mojo::PendingAssociatedReceiver<mojom::MessagePortHost>&
           message_port_host_receiver);
-  gin::Handle<GinPort> GetPortForTesting(ScriptContext* script_context,
+  GinPort* GetPortForTesting(ScriptContext* script_context,
                                          const PortId& port_id);
   bool HasPortForTesting(ScriptContext* script_context, const PortId& port_id);
 
@@ -159,9 +158,20 @@ class NativeRendererMessagingService : public GinPort::Delegate {
       mojo::PendingAssociatedReceiver<mojom::MessagePortHost>&
           message_port_host_receiver);
 
+  // Closes the message port with the given `port_id` in the given
+  // `script_context`. If `close_channel` is true, the entire communication
+  // channel is torn down, which also disconnects the port on the other side.
   void CloseMessagePort(ScriptContext* script_context,
                         const PortId& port_id,
                         bool close_channel);
+
+  // Same as above, but it allows passing an error message that will be provided
+  // to the message port opener.
+  void CloseMessagePort(ScriptContext* script_context,
+                        const PortId& port_id,
+                        bool close_channel,
+                        const std::optional<std::string>& error_message);
+
   // Returns the associated MessagePortHost. This method asserts that it
   // exists.
   mojom::MessagePortHost* GetMessagePortHost(ScriptContext* script_context,
@@ -229,14 +239,14 @@ class NativeRendererMessagingService : public GinPort::Delegate {
 
   // Creates a new port in the given context, with the specified `channel_name`
   // and `port_id`. Assumes no such port exists.
-  gin::Handle<GinPort> CreatePort(ScriptContext* script_context,
+  GinPort* CreatePort(ScriptContext* script_context,
                                   const std::string& channel_name,
                                   const mojom::ChannelType channel_type,
                                   const PortId& port_id);
 
   // Returns the port with the given `port_id` in the given `script_context`;
   // requires that such a port exists.
-  gin::Handle<GinPort> GetPort(ScriptContext* script_context,
+  GinPort* GetPort(ScriptContext* script_context,
                                const PortId& port_id);
 
   MessagePortScope* GetMessagePortScope(content::RenderFrame* render_frame);

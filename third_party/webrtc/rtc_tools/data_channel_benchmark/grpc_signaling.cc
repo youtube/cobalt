@@ -9,16 +9,26 @@
  */
 #include "rtc_tools/data_channel_benchmark/grpc_signaling.h"
 
-#include <grpc/support/log.h>
 #include <grpcpp/grpcpp.h>
+#include <grpcpp/security/credentials.h>
+#include <grpcpp/security/server_credentials.h>
+#include <grpcpp/support/status.h>
+#include <grpcpp/support/sync_stream.h>
 
+#include <functional>
+#include <memory>
 #include <string>
 #include <utility>
 
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
 #include "rtc_tools/data_channel_benchmark/peer_connection_signaling.grpc.pb.h"
+#include "rtc_tools/data_channel_benchmark/peer_connection_signaling.pb.h"
+#include "rtc_tools/data_channel_benchmark/signaling_interface.h"
 
 namespace webrtc {
 namespace {
@@ -35,14 +45,9 @@ class SessionData : public SignalingInterface {
   explicit SessionData(T* stream) : stream_(stream) {}
   void SetStream(T* stream) { stream_ = stream; }
 
-  void SendIceCandidate(const IceCandidateInterface* candidate) override {
+  void SendIceCandidate(const ::webrtc::IceCandidate* candidate) override {
     RTC_LOG(LS_INFO) << "SendIceCandidate";
-    std::string serialized_candidate;
-    if (!candidate->ToString(&serialized_candidate)) {
-      RTC_LOG(LS_ERROR) << "Failed to serialize ICE candidate";
-      return;
-    }
-
+    std::string serialized_candidate = candidate->ToString();
     SignalingMessage message;
     IceCandidate* proto_candidate = message.mutable_candidate();
     proto_candidate->set_description(serialized_candidate);
@@ -76,7 +81,7 @@ class SessionData : public SignalingInterface {
   }
 
   void OnIceCandidate(
-      std::function<void(std::unique_ptr<IceCandidateInterface> candidate)>
+      std::function<void(std::unique_ptr<webrtc::IceCandidate> candidate)>
           callback) override {
     RTC_LOG(LS_INFO) << "OnIceCandidate";
     ice_candidate_callback_ = callback;
@@ -84,9 +89,9 @@ class SessionData : public SignalingInterface {
 
   T* stream_;
 
-  std::function<void(std::unique_ptr<webrtc::IceCandidateInterface>)>
+  std::function<void(std::unique_ptr<webrtc::IceCandidate>)>
       ice_candidate_callback_;
-  std::function<void(std::unique_ptr<webrtc::SessionDescriptionInterface>)>
+  std::function<void(std::unique_ptr<SessionDescriptionInterface>)>
       remote_description_callback_;
 };
 
@@ -103,10 +108,10 @@ void ProcessMessages(StreamReader* stream, SessionData* session) {
     switch (message.Content_case()) {
       case SignalingMessage::ContentCase::kCandidate: {
         SdpParseError error;
-        auto jsep_candidate = std::make_unique<JsepIceCandidate>(
-            message.candidate().mid(), message.candidate().mline_index());
-        if (!jsep_candidate->Initialize(message.candidate().description(),
-                                        &error)) {
+        auto jsep_candidate = ::webrtc::IceCandidate::Create(
+            message.candidate().mid(), message.candidate().mline_index(),
+            message.candidate().description(), &error);
+        if (!jsep_candidate) {
           RTC_LOG(LS_ERROR) << "Failed to deserialize ICE candidate '"
                             << message.candidate().description() << "'";
           RTC_LOG(LS_ERROR)

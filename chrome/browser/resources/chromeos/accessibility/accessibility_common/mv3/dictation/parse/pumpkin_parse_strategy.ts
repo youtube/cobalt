@@ -21,6 +21,7 @@ import {SmartReplacePhraseMacro} from '/common/action_fulfillment/macros/smart_r
 import {SmartSelectBetweenMacro} from '/common/action_fulfillment/macros/smart_select_between_macro.js';
 import {ToggleDictationMacro} from '/common/action_fulfillment/macros/toggle_dictation_macro.js';
 
+import {Messenger} from '../../messenger.js';
 import {OffscreenCommandType} from '../../offscreen_command_type.js';
 import {LocaleInfo} from '../locale_info.js';
 import {ListCommandsMacro} from '../macros/list_commands_macro.js';
@@ -43,20 +44,18 @@ export class PumpkinParseStrategy extends ParseStrategy {
   private locale_: PumpkinConstants.PumpkinLocale|null = null;
   private requestedPumpkinInstall_ = false;
   private onPumpkinTaggerReadyChangedForTesting_: VoidFunction|null = null;
-  private offscreenMessageListenerRegistered_ = false;
 
-  private init_(): void {
+  private async init_(): Promise<void> {
     this.refreshLocale_();
     if (!this.locale_) {
       return;
     }
 
     this.requestedPumpkinInstall_ = true;
-    chrome.accessibilityPrivate.installPumpkinForDictation(data => {
-      // TODO(crbug.com/259352407): Consider retrying installation at a later
-      // time if it failed.
-      this.onPumpkinInstalled_(data);
-    });
+    const data = await chrome.accessibilityPrivate.installPumpkinForDictation();
+    // TODO(crbug.com/259352407): Consider retrying installation at a later
+    // time if it failed.
+    this.onPumpkinInstalled_(data);
   }
 
   private onPumpkinInstalled_(data: PumpkinConstants.PumpkinData): void {
@@ -83,24 +82,11 @@ export class PumpkinParseStrategy extends ParseStrategy {
     // Register the offscreen document's message listener when
     // pumpkin data is available and we are ready to communicate with
     // the tagger worker via the offscreen document.
-    if (!this.offscreenMessageListenerRegistered_) {
-      chrome.runtime.onMessage.addListener(
-          (message: any|undefined, _sender: chrome.runtime.MessageSender,
-           _sendResponse: (value: any) => void) =>
-              this.handleMessageFromOffscreen_(message));
-      this.offscreenMessageListenerRegistered_ = true;
-    }
+    Messenger.registerHandler(
+        OffscreenCommandType.DICTATION_PUMPKIN_RECEIVE,
+        (message: any|undefined) => this.onMessage_(message.fromPumpkinTagger));
 
     this.sendToOffscreen_(OffscreenCommandType.DICTATION_PUMPKIN_INSTALL);
-  }
-
-  private handleMessageFromOffscreen_(message: any|undefined) {
-    switch (message['command']) {
-      case OffscreenCommandType.DICTATION_PUMPKIN_RECEIVE:
-        this.onMessage_(message['fromPumpkinTagger']);
-        break;
-    }
-    return false;
   }
 
   /**
@@ -145,8 +131,8 @@ export class PumpkinParseStrategy extends ParseStrategy {
     }
   }
 
-  private sendToSandboxedPumpkinTagger_(
-      toPumpkinTagger: PumpkinConstants.ToPumpkinTagger): void {
+  private async sendToSandboxedPumpkinTagger_(
+      toPumpkinTagger: PumpkinConstants.ToPumpkinTagger): Promise<void> {
     // Seriazlie ArrayBuffer fields in pumpkinData to send it to the offscren
     // document.
     // 1. Traverse pumpkinData object keys and convert each ArrayBuffer value to
@@ -154,10 +140,11 @@ export class PumpkinParseStrategy extends ParseStrategy {
     // serializable.
     // 2. Construct a new object with the same keys but serialized values.
     const pumpkinData = toPumpkinTagger.pumpkinData ?
-        Object.fromEntries(
+        Object.fromEntries(await Promise.all(
             Object.entries(toPumpkinTagger.pumpkinData)
-                .map(([key,
-                       buffer]) => [key, Array.from(new Uint8Array(buffer))])) :
+                .map(async ([key, buffer]) => {
+                  return [key, await Messenger.arrayBufferToBase64(buffer)];
+                }))) :
         null;
 
     this.sendToOffscreen_(
@@ -385,6 +372,6 @@ export class PumpkinParseStrategy extends ParseStrategy {
   }
 
   private sendToOffscreen_(command: OffscreenCommandType, data = {}): void {
-    chrome.runtime.sendMessage(undefined, Object.assign({command}, data));
+    Messenger.send(command, data);
   }
 }

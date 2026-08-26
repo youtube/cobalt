@@ -48,7 +48,7 @@ void GetExtensionId(v8::Local<v8::Name> property_name,
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context =
-      info.Holder()->GetCreationContextChecked(isolate);
+      info.HolderV2()->GetCreationContextChecked(isolate);
 
   ScriptContext* script_context = GetScriptContextFromV8Context(context);
   // This could potentially be invoked after the script context is removed
@@ -66,7 +66,7 @@ void GetDynamicId(v8::Local<v8::Name> property_name,
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context =
-      info.Holder()->GetCreationContextChecked(isolate);
+      info.HolderV2()->GetCreationContextChecked(isolate);
 
   ScriptContext* script_context = GetScriptContextFromV8Context(context);
   // This could potentially be invoked after the script context is removed
@@ -155,7 +155,7 @@ v8::LocalVector<v8::Value> MassageRequestUpdateCheckResults(
   DCHECK(success);
 
   // Version is wrapped as a parameter on a details object.
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Object> details = v8::Object::New(isolate);
   auto key = gin::StringToV8(isolate, "version");
   details->CreateDataProperty(context, key, version).Check();
@@ -254,7 +254,7 @@ RequestResult RuntimeHooksDelegate::HandleRequest(
   }
 
   if (should_massage) {
-    messaging_util::MassageSendMessageArguments(context->GetIsolate(),
+    messaging_util::MassageSendMessageArguments(v8::Isolate::GetCurrent(),
                                                 allow_options, arguments);
   }
 
@@ -423,15 +423,16 @@ RequestResult RuntimeHooksDelegate::HandleConnect(
         messaging_util::PARSE_CHANNEL_NAME);
   }
 
-  gin::Handle<GinPort> port = messaging_service_->Connect(
+  GinPort* port = messaging_service_->Connect(
       script_context, MessageTarget::ForExtension(target_id),
       options.channel_name,
       messaging_util::GetSerializationFormat(*script_context));
-  DCHECK(!port.IsEmpty());
+  DCHECK(port);
   DCHECK_EQ(binding::AsyncResponseType::kNone, parse_result.async_type);
 
   RequestResult result(RequestResult::HANDLED);
-  result.return_value = port.ToV8();
+  result.return_value =
+      port->GetWrapper(script_context->isolate()).ToLocalChecked();
   return result;
 }
 
@@ -449,12 +450,13 @@ RequestResult RuntimeHooksDelegate::HandleConnectNative(
   // Native messaging always uses JSON since a native host doesn't understand
   // structured cloning serialization.
   auto format = mojom::SerializationFormat::kJson;
-  gin::Handle<GinPort> port = messaging_service_->Connect(
+  GinPort* port = messaging_service_->Connect(
       script_context, MessageTarget::ForNativeApp(application_name),
       std::string(), format);
 
   RequestResult result(RequestResult::HANDLED);
-  result.return_value = port.ToV8();
+  result.return_value =
+      port->GetWrapper(script_context->isolate()).ToLocalChecked();
   return result;
 }
 

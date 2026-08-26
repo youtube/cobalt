@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "ash/shell.h"
 
@@ -160,7 +156,6 @@
 #include "ash/system/camera/camera_effects_controller.h"
 #include "ash/system/caps_lock_notification_controller.h"
 #include "ash/system/diagnostics/diagnostics_log_controller.h"
-#include "ash/system/federated/federated_service_controller_impl.h"
 #include "ash/system/firmware_update/firmware_update_notification_controller.h"
 #include "ash/system/focus_mode/focus_mode_controller.h"
 #include "ash/system/geolocation/geolocation_controller.h"
@@ -172,7 +167,6 @@
 #include "ash/system/input_device_settings/input_device_settings_controller_impl.h"
 #include "ash/system/input_device_settings/input_device_settings_dispatcher.h"
 #include "ash/system/input_device_settings/input_device_tracker.h"
-#include "ash/system/input_device_settings/keyboard_modifier_metrics_recorder.h"
 #include "ash/system/input_device_settings/touchscreen_metrics_recorder.h"
 #include "ash/system/keyboard_brightness/keyboard_backlight_color_controller.h"
 #include "ash/system/keyboard_brightness/keyboard_brightness_controller.h"
@@ -253,6 +247,7 @@
 #include "ash/wm_mode/wm_mode_controller.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/containers/adapters.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
@@ -824,6 +819,10 @@ Shell::~Shell() {
   views::ViewsTextServicesContextMenuChromeos::SetImplFactory(
       base::NullCallback());
 
+  // Close and destroy all application windows here, so that the window manager
+  // related objects, which app windows relies on, can be sefely deleted.
+  CloseAllAppWindows();
+
   wm_mode_controller_.reset();
 
   // `shortcut_input_handler_` must be cleaned up before
@@ -843,7 +842,6 @@ Shell::~Shell() {
   // to ensure proper teardown.
   AccessibilityController::Get()->StopObservingInputDeviceSettings();
   event_rewriter_controller_.reset();
-  keyboard_modifier_metrics_recorder_.reset();
   touchscreen_metrics_recorder_.reset();
   input_device_settings_dispatcher_.reset();
   input_device_tracker_.reset();
@@ -981,7 +979,8 @@ Shell::~Shell() {
   // are needed for proper deletion of RoundedDisplayProviders.
   window_tree_host_manager_->ShutdownRoundedDisplays();
 
-  // Close all widgets (including the shelf) and destroy all window containers.
+  // Close all windows and associated widgets (including system UI) and destroy
+  // all containers.
   CloseAllRootWindowChildWindows();
 
   glanceables_controller_.reset();
@@ -1212,7 +1211,6 @@ Shell::~Shell() {
   multi_capture_service_.reset();
 
   // Observes `SessionController` and must be destroyed before it.
-  federated_service_controller_.reset();
   brightness_control_delegate_.reset();
   keyboard_brightness_control_delegate_.reset();
 
@@ -1431,7 +1429,6 @@ void Shell::Init(
   // must be initialized first:
   //  - `EventRewriterController`
   //  - `InputDeviceTracker`
-  //  - `KeyboardModifierMetricsRecorder`
   //  - `InputDeviceSettingsDispatcher`
   input_device_settings_controller_ =
       std::make_unique<InputDeviceSettingsControllerImpl>(local_state_);
@@ -1440,8 +1437,6 @@ void Shell::Init(
   input_device_settings_dispatcher_ =
       std::make_unique<InputDeviceSettingsDispatcher>(
           ui::OzonePlatform::GetInstance()->GetInputController());
-  keyboard_modifier_metrics_recorder_ =
-      std::make_unique<KeyboardModifierMetricsRecorder>();
   touchscreen_metrics_recorder_ =
       std::make_unique<TouchscreenMetricsRecorder>();
   event_rewriter_controller_ = std::make_unique<EventRewriterControllerImpl>();
@@ -1590,10 +1585,8 @@ void Shell::Init(
       mouse_cursor_filter_.get(),
       AccessibilityEventHandlerManager::HandlerType::kCursor);
 
-  if (features::IsAdaptiveChargingEnabled()) {
-    adaptive_charging_controller_ =
-        std::make_unique<AdaptiveChargingController>();
-  }
+  adaptive_charging_controller_ =
+      std::make_unique<AdaptiveChargingController>();
 
   // Create Controllers that may need root window.
   // TODO(oshima): Move as many controllers before creating
@@ -1821,9 +1814,6 @@ void Shell::Init(
   multitask_menu_nudge_delegate_ =
       std::make_unique<MultitaskMenuNudgeDelegateAsh>();
 
-  federated_service_controller_ =
-      std::make_unique<federated::FederatedServiceControllerImpl>();
-
   if (features::IsUserEducationEnabled()) {
     user_education_controller_ = std::make_unique<UserEducationController>(
         shell_delegate_->CreateUserEducationDelegate());
@@ -1973,6 +1963,21 @@ void Shell::InitRootWindow(aura::Window* root_window) {
   ::wm::SetWindowMoveClient(root_window, toplevel_window_event_handler_.get());
   root_window->AddPreTargetHandler(toplevel_window_event_handler_.get());
   root_window->AddPostTargetHandler(toplevel_window_event_handler_.get());
+}
+
+void Shell::CloseAllAppWindows() {
+  auto list = mru_window_tracker_->BuildAppWindowList(DesksMruType::kAllDesks);
+  aura::WindowTracker tracker;
+  for (auto window : list) {
+    tracker.Add(window.get());
+  }
+  // Delete from the bottom of mru list so that it won't affect activation.
+  for (auto window : base::Reversed(list)) {
+    // Make sure that the window in the `list` is still alive.
+    if (tracker.Contains(window)) {
+      delete window;
+    }
+  }
 }
 
 void Shell::CloseAllRootWindowChildWindows() {

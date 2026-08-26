@@ -21,18 +21,15 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "third_party/boringssl/src/include/openssl/crypto.h"
+#include "third_party/boringssl/src/include/openssl/rand.h"
 
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "third_party/lss/linux_syscall_support.h"
 #elif BUILDFLAG(IS_MAC)
 // TODO(crbug.com/995996): Waiting for this header to appear in the iOS SDK.
 // (See below.)
 #include <sys/random.h>
-#endif
-
-#if !BUILDFLAG(IS_NACL)
-#include "third_party/boringssl/src/include/openssl/crypto.h"
-#include "third_party/boringssl/src/include/openssl/rand.h"
 #endif
 
 namespace base {
@@ -66,7 +63,7 @@ class URandomFd {
 
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
      BUILDFLAG(IS_ANDROID)) &&                        \
-    !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+    !BUILDFLAG(IS_STARBOARD)
 // TODO(pasko): Unify reading kernel version numbers in:
 // mojo/core/channel_linux.cc
 // chrome/browser/android/seccomp_support_detector.cc
@@ -117,7 +114,7 @@ bool GetRandomSyscall(void* output, size_t output_length) {
   return false;
 }
 #endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
-        // BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+        // BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(IS_ANDROID)
 std::atomic<bool> g_use_getrandom;
@@ -131,7 +128,8 @@ BASE_FEATURE(kUseGetrandomForRandBytes,
 bool UseGetrandom() {
   return g_use_getrandom.load(std::memory_order_relaxed);
 }
-#elif (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+#elif (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
+    !BUILDFLAG(IS_STARBOARD)
 bool UseGetrandom() {
   return true;
 }
@@ -150,7 +148,6 @@ void ConfigureRandBytesFieldTrial() {
 
 namespace {
 
-#if !BUILDFLAG(IS_NACL)
 // The BoringSSl helpers are duplicated in rand_util_fuchsia.cc and
 // rand_util_win.cc.
 std::atomic<bool> g_use_boringssl;
@@ -169,14 +166,12 @@ void ConfigureBoringSSLBackedRandBytesFieldTrial() {
 bool UseBoringSSLForRandBytes() {
   return g_use_boringssl.load(std::memory_order_relaxed);
 }
-#endif
 
 }  // namespace internal
 
 namespace {
 
 void RandBytes(void* output, size_t output_length, bool avoid_allocation) {
-#if !BUILDFLAG(IS_NACL)
   // The BoringSSL experiment takes priority over everything else.
   if (!avoid_allocation && internal::UseBoringSSLForRandBytes()) {
     // Ensure BoringSSL is initialized so it can use things like RDRAND.
@@ -185,10 +180,9 @@ void RandBytes(void* output, size_t output_length, bool avoid_allocation) {
     (void)RAND_bytes(static_cast<uint8_t*>(output), output_length);
     return;
   }
-#endif
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
      BUILDFLAG(IS_ANDROID)) &&                        \
-    !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+    !BUILDFLAG(IS_STARBOARD)
   if (avoid_allocation || UseGetrandom()) {
     // On Android it is mandatory to check that the kernel _version_ has the
     // support for a syscall before calling. The same check is made on Linux and

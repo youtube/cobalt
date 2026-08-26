@@ -21,6 +21,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/logging/log_buffer.h"
+#include "components/autofill/core/common/logging/stream_operator_util.h"
 
 // TODO(crbug.com/41422062): Clean up the (de)serialization code.
 
@@ -258,90 +259,6 @@ bool DeserializeSection11(base::PickleIterator* iter,
 
 }  // namespace
 
-Section Section::FromAutocomplete(Section::Autocomplete autocomplete) {
-  Section section;
-  if (autocomplete.section.empty() && autocomplete.mode == HtmlFieldMode::kNone)
-    return section;
-  section.value_ = std::move(autocomplete);
-  return section;
-}
-
-Section Section::FromFieldIdentifier(
-    const FormFieldData& field,
-    base::flat_map<LocalFrameToken, size_t>& frame_token_ids) {
-  Section section;
-  // Set the section's value based on the field identifiers: the field's name,
-  // mapped frame id, renderer id. We do not use LocalFrameTokens but instead
-  // map them to consecutive integers using `frame_token_ids`, which uniquely
-  // identify a frame within a given FormStructure. Since we do not intend to
-  // compare sections from different FormStructures, this is sufficient.
-  //
-  // We intentionally do not include the LocalFrameToken in the section
-  // because frame tokens should not be sent to a renderer.
-  //
-  // TODO(crbug.com/40200532): Remove special handling of FrameTokens.
-  size_t generated_frame_id =
-      frame_token_ids.emplace(field.host_frame(), frame_token_ids.size())
-          .first->second;
-  section.value_ = FieldIdentifier(base::UTF16ToUTF8(field.name()),
-                                   generated_frame_id, field.renderer_id());
-  return section;
-}
-
-Section::Section() = default;
-
-Section::Section(const Section& section) = default;
-
-Section::~Section() = default;
-
-Section::operator bool() const {
-  return !is_default();
-}
-
-bool Section::is_from_autocomplete() const {
-  return std::holds_alternative<Autocomplete>(value_);
-}
-
-bool Section::is_from_fieldidentifier() const {
-  return std::holds_alternative<FieldIdentifier>(value_);
-}
-
-bool Section::is_default() const {
-  return std::holds_alternative<Default>(value_);
-}
-
-std::string Section::ToString() const {
-  static constexpr char kDefaultSection[] = "-default";
-
-  std::string section_name;
-  if (const Autocomplete* autocomplete = std::get_if<Autocomplete>(&value_)) {
-    // To prevent potential section name collisions, append `kDefaultSection`
-    // suffix to fields without a `HtmlFieldMode`. Without this, 'autocomplete'
-    // attribute values "section--shipping street-address" and "shipping
-    // street-address" would have the same prefix.
-    section_name = autocomplete->section +
-                   (autocomplete->mode != HtmlFieldMode::kNone
-                        ? "-" + HtmlFieldModeToString(autocomplete->mode)
-                        : kDefaultSection);
-  } else if (const FieldIdentifier* f = std::get_if<FieldIdentifier>(&value_)) {
-    FieldIdentifier field_identifier = *f;
-    section_name = base::StrCat(
-        {field_identifier.field_name, "_",
-         base::NumberToString(field_identifier.local_frame_id), "_",
-         base::NumberToString(field_identifier.field_renderer_id.value())});
-  }
-
-  return section_name.empty() ? kDefaultSection : section_name;
-}
-
-LogBuffer& operator<<(LogBuffer& buffer, const Section& section) {
-  return buffer << section.ToString();
-}
-
-std::ostream& operator<<(std::ostream& os, const Section& section) {
-  return os << section.ToString();
-}
-
 LogBuffer& operator<<(LogBuffer& buffer, FormControlType type) {
   return buffer << FormControlTypeToString(type);
 }
@@ -398,7 +315,7 @@ bool FormFieldData::IsSelectElement() const {
 
 // static
 bool FormFieldData::DeepEqual(const FormFieldData& a, const FormFieldData& b) {
-  return a.renderer_id() == b.renderer_id() && a.SameFieldAs(b);
+  return a.global_id() == b.global_id() && a.SameFieldAs(b);
 }
 
 FormFieldData::FillData::FillData() = default;
@@ -409,7 +326,6 @@ FormFieldData::FillData::FillData(const FormFieldData& field)
     : value(field.value()),
       renderer_id(field.renderer_id()),
       host_form_id(field.host_form_id()),
-      section(field.section()),
       is_autofilled(field.is_autofilled()),
       force_override(field.force_override()) {}
 
@@ -458,7 +374,11 @@ std::optional<FormControlType> StringToFormControlTypeDiscouraged(
        i <= base::to_underlying(FormControlType::kMaxValue); ++i) {
     FormControlType type = static_cast<FormControlType>(i);
     if (mojom::IsKnownEnumValue(type) &&
-        type_string == FormControlTypeToString(type)) {
+        type_string == FormControlTypeToString(type) &&
+        ((type != FormControlType::kInputCheckbox &&
+          type != FormControlType::kInputRadio) ||
+         !base::FeatureList::IsEnabled(
+             features::kAutofillIgnoreCheckableElements))) {
       return type;
     }
   }
@@ -628,33 +548,56 @@ bool DeserializeFormFieldData(base::PickleIterator* iter,
 }
 
 std::ostream& operator<<(std::ostream& os, const FormFieldData& field) {
-  return os << "label='" << field.label() << "' "
-            << "unique_Id=" << field.global_id() << " " << "origin='"
-            << field.origin().Serialize() << "' " << "name='" << field.name()
-            << "' " << "id_attribute='" << field.id_attribute() << "' "
-            << "name_attribute='" << field.name_attribute() << "' " << "value='"
-            << field.value() << "' " << "control='" << field.form_control_type()
-            << "' " << "autocomplete='" << field.autocomplete_attribute()
-            << "' " << "parsed_autocomplete='"
-            << (field.parsed_autocomplete()
-                    ? field.parsed_autocomplete()->ToString()
-                    : "")
-            << "' " << "placeholder='" << field.placeholder() << "' "
-            << "max_length=" << field.max_length() << " " << "css_classes='"
-            << field.css_classes() << "' "
-            << "autofilled=" << field.is_autofilled() << " "
-            << "check_status=" << field.check_status() << " "
-            << "is_focusable=" << field.is_focusable() << " "
-            << "should_autocomplete=" << field.should_autocomplete() << " "
-            << "role=" << field.role() << " "
-            << "text_direction=" << field.text_direction() << " "
-            << "is_enabled=" << field.is_enabled() << " "
-            << "is_readonly=" << field.is_readonly() << " "
-            << "user_input=" << field.user_input() << " "
-            << "properties_mask=" << field.properties_mask() << " "
-            << "label_source=" << field.label_source() << " "
-            << "bounds=" << field.bounds().ToString();
+  return internal::PrintWithIndentation(os, field, /*indentation=*/0);
 }
+
+namespace internal {
+
+std::ostream& PrintWithIndentation(std::ostream& os,
+                                   const FormFieldData& field,
+                                   int indentation,
+                                   std::string_view title) {
+  std::string space = std::string(indentation, ' ');
+  os << space << "{";
+  if (!title.empty()) {
+    os << " /*" << title << "*/";
+  }
+  os << '\n';
+#define PRINT_PROPERTY(property)                                             \
+  os << space << "  " << #property << ": " << PrintWrapper(field.property()) \
+     << ",\n"
+  PRINT_PROPERTY(global_id);
+  PRINT_PROPERTY(label);
+  PRINT_PROPERTY(origin);
+  PRINT_PROPERTY(name);
+  PRINT_PROPERTY(id_attribute);
+  PRINT_PROPERTY(name_attribute);
+  PRINT_PROPERTY(value);
+  PRINT_PROPERTY(form_control_type);
+  PRINT_PROPERTY(autocomplete_attribute);
+  PRINT_PROPERTY(parsed_autocomplete);
+  PRINT_PROPERTY(placeholder);
+  PRINT_PROPERTY(max_length);
+  PRINT_PROPERTY(css_classes);
+  PRINT_PROPERTY(is_autofilled);
+  PRINT_PROPERTY(check_status);
+  PRINT_PROPERTY(is_focusable);
+  PRINT_PROPERTY(should_autocomplete);
+  PRINT_PROPERTY(role);
+  PRINT_PROPERTY(text_direction);
+  PRINT_PROPERTY(is_enabled);
+  PRINT_PROPERTY(is_readonly);
+  PRINT_PROPERTY(is_focusable);
+  PRINT_PROPERTY(is_visible);
+  PRINT_PROPERTY(user_input);
+  PRINT_PROPERTY(label_source);
+  PRINT_PROPERTY(bounds);
+#undef PRINT_PROPERTY
+  os << space << "}";
+  return os;
+}
+
+}  // namespace internal
 
 LogBuffer& operator<<(LogBuffer& buffer, const FormFieldData& field) {
   buffer << Tag{"table"};
@@ -682,7 +625,6 @@ LogBuffer& operator<<(LogBuffer& buffer, const FormFieldData& field) {
                  : "");
   buffer << Tr{} << "Aria label:" << field.aria_label();
   buffer << Tr{} << "Aria description:" << field.aria_description();
-  buffer << Tr{} << "Section:" << field.section();
   buffer << Tr{} << "Is focusable:" << field.is_focusable();
   buffer << Tr{} << "Is enabled:" << field.is_enabled();
   buffer << Tr{} << "Is readonly:" << field.is_readonly();

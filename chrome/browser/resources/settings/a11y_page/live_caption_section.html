@@ -74,7 +74,10 @@
               [[item.downloadProgress]]
             </span>
             <cr-icon-button class="icon-more-vert" title="$i18n{moreActions}"
-                id="more-[[item.language.code]]" on-click="onDotsClick_">
+                id="more-[[item.language.code]]" on-click="onDotsClick_"
+                aria-label="[[computeMoreButtonAriaLabel_(item.displayName,
+              item.code,
+              prefs.accessibility.captions.live_caption_language.value)]]">
             </cr-icon-button>
           </div>
         </template>
@@ -87,16 +90,13 @@
     </settings-toggle-button>
   </cr-collapse>
   <template is="dom-if" if="[[enableLiveTranslate_]]">
-    <settings-live-translate prefs="{{prefs}}" languages="{{languages}}"
-        language-helper="[[languageHelper]]">
-    </settings-live-translate>
+    <settings-live-translate prefs="{{prefs}}"></settings-live-translate>
   </template>
 </template>
 <template is="dom-if" if="[[showAddLanguagesDialog_]]" restamp>
-  <settings-add-languages-dialog
+  <settings-add-languages-dialog id="addLanguagesDialog"
       languages="[[filterAvailableLanguagePacks_(availableLanguagePacks_,
                    installedLanguagePacks_)]]"
-      language-helper="[[languageHelper]]" id="addLanguagesDialog"
       on-close="onAddLanguagesDialogClose_"
       on-languages-added="onLanguagesAdded_">
   </settings-add-languages-dialog>

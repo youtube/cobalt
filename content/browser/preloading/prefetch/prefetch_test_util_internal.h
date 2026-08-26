@@ -10,6 +10,7 @@
 #include <string>
 
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/test_future.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/preloading/prefetch/prefetch_streaming_url_loader_common_types.h"
@@ -34,24 +35,62 @@ class RunLoop;
 
 namespace content {
 
-enum class PrefetchReusableForTests { kDisabled, kEnabled };
-std::ostream& operator<<(std::ostream& ostream, PrefetchReusableForTests);
+using OnPrefetchCompleteTestFuture =
+    base::test::TestFuture<network::URLLoaderCompletionStatus>;
+using OnPrefetchReceiveRedirectTestFuture =
+    base::test::TestFuture<net::RedirectInfo,
+                           network::mojom::URLResponseHeadPtr>;
 
-std::vector<PrefetchReusableForTests> PrefetchReusableValuesForTests();
+struct NotReachedTagForTests {};
+
+// Used to specify the test behavior on a specific callback.
+// - If `NotReachedTagForTests()`: the callback shouldn't be called.
+// - Otherwise: `T` (either `RunLoop*` or `TestFuture*`) is unblocked when the
+//   callback is called, if non-nullptr.
+template <typename T>
+using NotReachedTagForTestsOr = std::variant<T, NotReachedTagForTests>;
+
+// The centralized helper to create `PrefetchStreamingURLLoader` and its
+// corresponding `PrefetchResponseReader`, without `PrefetchContainer`.
+std::tuple<scoped_refptr<PrefetchResponseReader>,
+           base::WeakPtr<PrefetchStreamingURLLoader>>
+CreateStreamingURLLoaderWithoutPrefetchContainerForTests(
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const network::ResourceRequest& prefetch_request,
+    NotReachedTagForTestsOr<base::RunLoop*> on_response_received,
+    NotReachedTagForTestsOr<OnPrefetchCompleteTestFuture*> on_complete,
+    NotReachedTagForTestsOr<OnPrefetchReceiveRedirectTestFuture*>
+        on_receive_redirect,
+    NotReachedTagForTestsOr<base::RunLoop*> on_head_received,
+    std::optional<PrefetchErrorOnResponseReceived> error_on_response_received =
+        std::nullopt,
+    base::TimeDelta timeout_duration = {});
+
+// The centralized helper to create `PrefetchStreamingURLLoader` associated with
+// - `PrefetchContainer` (possibly nullptr) and
+// - `PrefetchResponseReader` (always non-nullptr).
+base::WeakPtr<PrefetchStreamingURLLoader> CreateStreamingURLLoaderForTests(
+    base::WeakPtr<PrefetchContainer> prefetch_container,
+    base::WeakPtr<PrefetchResponseReader> response_reader,
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const network::ResourceRequest& prefetch_request,
+    NotReachedTagForTestsOr<base::RunLoop*> on_response_received,
+    NotReachedTagForTestsOr<OnPrefetchReceiveRedirectTestFuture*>
+        on_receive_redirect,
+    std::optional<PrefetchErrorOnResponseReceived> error_on_response_received =
+        std::nullopt,
+    base::TimeDelta timeout_duration = {});
 
 void MakeServableStreamingURLLoaderForTest(
     PrefetchContainer* prefetch_container,
     network::mojom::URLResponseHeadPtr head,
-    const std::string body);
+    const std::string body,
+    network::URLLoaderCompletionStatus status =
+        network::URLLoaderCompletionStatus(net::OK));
 
 network::TestURLLoaderFactory::PendingRequest
 MakeManuallyServableStreamingURLLoaderForTest(
     PrefetchContainer* prefetch_container);
-
-OnPrefetchRedirectCallback CreatePrefetchRedirectCallbackForTest(
-    base::RunLoop* on_receive_redirect_loop,
-    net::RedirectInfo* out_redirect_info,
-    network::mojom::URLResponseHeadPtr* out_redirect_head);
 
 void MakeServableStreamingURLLoaderWithRedirectForTest(
     PrefetchContainer* prefetch_container,
@@ -174,6 +213,10 @@ class TestPrefetchService final : public PrefetchService {
 
   void PrefetchUrl(
       base::WeakPtr<PrefetchContainer> prefetch_container) override;
+  void OnPrefetchCompletedOrFailed(
+      PrefetchContainer& prefetch_container,
+      const network::URLLoaderCompletionStatus& completion_status,
+      const std::optional<int>& response_code) override;
   void EvictPrefetch(size_t index);
 
   std::vector<base::WeakPtr<PrefetchContainer>> prefetches_;
@@ -227,7 +270,7 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
       const base::HistogramTester& histogram_tester,
       int expected_net_error_code,
       blink::mojom::SpeculationEagerness eagerness =
-          blink::mojom::SpeculationEagerness::kEager,
+          blink::mojom::SpeculationEagerness::kImmediate,
       bool is_accurate_triggering = false,
       bool browser_initiated_prefetch = false);
 
@@ -242,7 +285,7 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
   void ExpectPrefetchSuccess(const base::HistogramTester& histogram_tester,
                              int expected_body_length,
                              blink::mojom::SpeculationEagerness eagerness =
-                                 blink::mojom::SpeculationEagerness::kEager,
+                                 blink::mojom::SpeculationEagerness::kImmediate,
                              bool is_accurate = false);
 
   // `navigate_url` is used as `MockNavigationHandle`'s URL to simulate a
@@ -258,7 +301,7 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
     bool is_accurate = false;
     bool expect_ready_time = false;
     blink::mojom::SpeculationEagerness eagerness =
-        blink::mojom::SpeculationEagerness::kEager;
+        blink::mojom::SpeculationEagerness::kImmediate;
   };
   void ExpectCorrectUkmLogs(
       ExpectCorrectUkmLogsArgs args,

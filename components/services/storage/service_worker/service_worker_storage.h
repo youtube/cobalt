@@ -20,18 +20,23 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/synchronization/lock.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/service_worker_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/storage_policy_update.mojom.h"
 #include "components/services/storage/service_worker/service_worker_database.h"
-#include "components/services/storage/service_worker/service_worker_resource_ops.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "url/gurl.h"
 
 namespace storage {
 
+class ServiceWorkerDiskCache;
+class ServiceWorkerResourceMetadataWriterImpl;
+class ServiceWorkerResourceReaderImpl;
+class ServiceWorkerResourceWriterImpl;
 class ServiceWorkerStorageControlImplTest;
 
 namespace service_worker_storage_unittest {
@@ -58,6 +63,60 @@ void OverrideMaxServiceWorkerScopeUrlCountForTesting(
 // restarted.
 class ServiceWorkerStorage {
  public:
+  // This class is a communication channel between the UI thread and the thread
+  // pool. This class is thread safe.
+  class StorageSharedBuffer
+      : public base::RefCountedThreadSafe<StorageSharedBuffer> {
+   public:
+    StorageSharedBuffer();
+    StorageSharedBuffer(bool enable_registered_storage_keys,
+                        bool enable_registration_scopes,
+                        bool enable_find_registration_result);
+    StorageSharedBuffer(const StorageSharedBuffer&) = delete;
+    StorageSharedBuffer& operator=(const StorageSharedBuffer&) = delete;
+
+    void PutRegisteredKeys(
+        const std::vector<blink::StorageKey>& registered_keys)
+        LOCKS_EXCLUDED(lock_);
+    std::optional<std::vector<blink::StorageKey>> TakeRegisteredKeys()
+        LOCKS_EXCLUDED(lock_);
+
+    void PutRegistrationScopes(const blink::StorageKey& storage_key,
+                               const std::vector<GURL>& scopes)
+        LOCKS_EXCLUDED(lock_);
+    std::map<blink::StorageKey, std::vector<GURL>> TakeRegistrationScopes()
+        LOCKS_EXCLUDED(lock_);
+
+    void PutFindRegistrationResult(
+        const GURL& client_url,
+        const blink::StorageKey& key,
+        mojom::ServiceWorkerFindRegistrationResultPtr find_registration_result)
+        LOCKS_EXCLUDED(lock_);
+    mojom::ServiceWorkerFindRegistrationResultPtr TakeFindRegistrationResult(
+        const GURL& client_url,
+        const blink::StorageKey& key) LOCKS_EXCLUDED(lock_);
+
+    bool enable_find_registration_result() const {
+      return enable_find_registration_result_;
+    }
+
+   private:
+    friend class base::RefCountedThreadSafe<StorageSharedBuffer>;
+    ~StorageSharedBuffer();
+
+    const bool enable_registered_storage_keys_;
+    const bool enable_registration_scopes_;
+    const bool enable_find_registration_result_;
+    std::optional<std::vector<blink::StorageKey>> GUARDED_BY(lock_)
+        registered_keys_;
+    std::map<blink::StorageKey, std::vector<GURL>> GUARDED_BY(lock_)
+        registration_scopes_;
+    std::map<std::pair<GURL, blink::StorageKey>,
+             mojom::ServiceWorkerFindRegistrationResultPtr>
+        GUARDED_BY(lock_) find_registration_results_;
+    base::Lock lock_;
+  };
+
   using StorageKeyState = mojom::ServiceWorkerStorageStorageKeyState;
   using RegistrationList = std::vector<mojom::ServiceWorkerRegistrationDataPtr>;
   using ResourceList = std::vector<mojom::ServiceWorkerResourceRecordPtr>;
@@ -113,7 +172,8 @@ class ServiceWorkerStorage {
   ~ServiceWorkerStorage();
 
   static std::unique_ptr<ServiceWorkerStorage> Create(
-      const base::FilePath& user_data_directory);
+      const base::FilePath& user_data_directory,
+      scoped_refptr<StorageSharedBuffer> storage_shared_buffer);
 
   // Returns all StorageKeys which have service worker registrations.
   void GetRegisteredStorageKeys(GetRegisteredStorageKeysCallback callback);
@@ -312,6 +372,10 @@ class ServiceWorkerStorage {
   void GetPurgingResourceIdsForTest(ResourceIdsCallback callback);
   void GetPurgeableResourceIdsForTest(ResourceIdsCallback callback);
   void GetUncommittedResourceIdsForTest(ResourceIdsCallback callback);
+  StorageSharedBuffer& storage_shared_buffer() {
+    // storage_shared_buffer_  always exists.
+    return *storage_shared_buffer_;
+  }
 
  private:
   friend class ServiceWorkerStorageControlImplTest;
@@ -351,7 +415,9 @@ class ServiceWorkerStorage {
     ~DidDeleteRegistrationParams();
   };
 
-  explicit ServiceWorkerStorage(const base::FilePath& user_data_directory);
+  ServiceWorkerStorage(
+      const base::FilePath& user_data_directory,
+      scoped_refptr<StorageSharedBuffer> storage_shared_buffer);
 
   base::FilePath GetDatabasePath();
   base::FilePath GetDiskCachePath();
@@ -454,6 +520,8 @@ class ServiceWorkerStorage {
   bool expecting_done_with_disk_on_disable_;
 
   base::FilePath user_data_directory_;
+
+  scoped_refptr<StorageSharedBuffer> storage_shared_buffer_;
 
   std::unique_ptr<ServiceWorkerDatabase> database_;
 

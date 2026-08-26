@@ -7,6 +7,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/values_test_util.h"
 #include "content/browser/direct_sockets/direct_sockets_service_impl.h"
 #include "content/browser/direct_sockets/direct_sockets_test_utils.h"
 #include "content/public/browser/browser_context.h"
@@ -69,8 +70,8 @@ class DirectSocketsUdpBrowserTest : public ContentBrowserTest {
         )",
         kLocalhostAddress, port);
 
-    ASSERT_TRUE(
-        EvalJs(shell(), content::test::WrapAsync(open_socket)).value.is_none());
+    ASSERT_EQ(EvalJs(shell(), content::test::WrapAsync(open_socket)),
+              base::Value());
   }
 
  protected:
@@ -323,8 +324,8 @@ IN_PROC_BROWSER_TEST_F(DirectSocketsBoundUdpBrowserTest, HasFirewallHole) {
       std::make_unique<DelegateImpl>(local_port, run_loop.QuitClosure());
   client->AttachDelegate(delegate.get());
 
-  EXPECT_TRUE(EvalJs(shell(), content::test::WrapAsync("socket.close()"))
-                  .error.empty());
+  EXPECT_TRUE(
+      EvalJs(shell(), content::test::WrapAsync("socket.close()")).is_ok());
   run_loop.Run();
 }
 

@@ -24,10 +24,10 @@ import android.view.Display;
 import android.view.WindowManager;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /** Utility functions for querying display attributes. */
 public class DisplayUtil {

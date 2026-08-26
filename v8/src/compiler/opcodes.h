@@ -235,6 +235,7 @@
   V(JSForInNext)                       \
   V(JSForInPrepare)                    \
   V(JSGetIterator)                     \
+  V(JSForOfNext)                       \
   V(JSLoadMessage)                     \
   V(JSStoreMessage)                    \
   V(JSLoadModule)                      \
@@ -307,6 +308,7 @@
   V(CheckedInt64Mod)                     \
   V(CheckedInt32ToTaggedSigned)          \
   V(CheckedInt64ToInt32)                 \
+  V(CheckedInt64ToAdditiveSafeInteger)   \
   V(CheckedInt64ToTaggedSigned)          \
   V(CheckedUint32Bounds)                 \
   V(CheckedUint32ToInt32)                \
@@ -342,6 +344,7 @@
   V(StringEqual)                         \
   V(StringLessThan)                      \
   V(StringLessThanOrEqual)               \
+  V(StringOrOddballStrictEqual)          \
   V(BigIntEqual)                         \
   V(BigIntLessThan)                      \
   V(BigIntLessThanOrEqual)               \
@@ -475,6 +478,7 @@
   V(CheckSmi)                               \
   V(CheckString)                            \
   V(CheckStringOrStringWrapper)             \
+  V(CheckStringOrOddball)                   \
   V(CheckSymbol)                            \
   V(CheckTurboshaftTypeOf)                  \
   V(CompareMaps)                            \
@@ -1474,6 +1478,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSForInNext:
       case kJSForInPrepare:
       case kJSGetIterator:
+      case kJSForOfNext:
       case kJSGetTemplateObject:
       case kJSHasProperty:
       case kJSInstanceOf:

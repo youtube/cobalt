@@ -132,13 +132,11 @@ class COMPONENT_EXPORT(AX_PLATFORM) AXPlatformNodeDelegate {
   float GetFloatAttribute(ax::mojom::FloatAttribute attribute) const;
   bool GetFloatAttribute(ax::mojom::FloatAttribute attribute,
                          float* value) const;
-  const std::vector<std::pair<ax::mojom::IntAttribute, int32_t>>&
-  GetIntAttributes() const;
+  const AXIntAttributes& GetIntAttributes() const;
   bool HasIntAttribute(ax::mojom::IntAttribute attribute) const;
   int GetIntAttribute(ax::mojom::IntAttribute attribute) const;
   bool GetIntAttribute(ax::mojom::IntAttribute attribute, int* value) const;
-  const std::vector<std::pair<ax::mojom::StringAttribute, std::string>>&
-  GetStringAttributes() const;
+  const AXStringAttributes& GetStringAttributes() const;
   bool HasStringAttribute(ax::mojom::StringAttribute attribute) const;
   const std::string& GetStringAttribute(
       ax::mojom::StringAttribute attribute) const;
@@ -157,9 +155,7 @@ class COMPONENT_EXPORT(AX_PLATFORM) AXPlatformNodeDelegate {
       ax::mojom::StringAttribute attribute) const;
   std::u16string GetInheritedString16Attribute(
       ax::mojom::StringAttribute attribute) const;
-  const std::vector<
-      std::pair<ax::mojom::IntListAttribute, std::vector<int32_t>>>&
-  GetIntListAttributes() const;
+  const AXIntListAttributes& GetIntListAttributes() const;
   bool HasIntListAttribute(ax::mojom::IntListAttribute attribute) const;
   const std::vector<int32_t>& GetIntListAttribute(
       ax::mojom::IntListAttribute attribute) const;
@@ -175,8 +171,8 @@ class COMPONENT_EXPORT(AX_PLATFORM) AXPlatformNodeDelegate {
                               std::vector<std::string>* value) const;
   const base::StringPairs& GetHtmlAttributes() const;
   AXTextAttributes GetTextAttributes() const;
+  AXStates GetStates() const;
   bool HasState(ax::mojom::State state) const;
-  ax::mojom::State GetState() const;
   bool HasAction(ax::mojom::Action action) const;
   bool HasDefaultActionVerb() const;
   std::vector<ax::mojom::Action> GetSupportedActions() const;

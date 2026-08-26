@@ -16,7 +16,6 @@ import static org.mockito.Mockito.verify;
 
 import android.app.Activity;
 
-import androidx.annotation.Nullable;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
@@ -94,7 +93,7 @@ public class TabTest {
 
     @Before
     public void setUp() throws Exception {
-        mTab = mActivityTestRule.getActivity().getActivityTab();
+        mTab = mActivityTestRule.getActivityTab();
         ThreadUtils.runOnUiThreadBlocking(() -> mTab.addObserver(mTabObserver));
         mOnTitleUpdatedHelper = new CallbackHelper();
         mRootIdForReset = mTab.getRootId();
@@ -354,14 +353,11 @@ public class TabTest {
         String secondUrl =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/test.html");
         checkFreezingAndAppendingPendingNavigation(
-                this::createSecondFrozenTab, firstUrl, secondUrl, null);
+                this::createSecondFrozenTab, firstUrl, secondUrl, "");
     }
 
     private void checkFreezingAndAppendingPendingNavigation(
-            TestTabCreator tabCreator,
-            String firstUrl,
-            String secondUrl,
-            @Nullable String secondTitle) {
+            TestTabCreator tabCreator, String firstUrl, String secondUrl, String secondTitle) {
         TabObserver observer = Mockito.mock(TabObserver.class);
         Tab bgTab = tabCreator.createTab(firstUrl);
         boolean wasFrozen = bgTab.isFrozen();

@@ -50,7 +50,7 @@ class CloseTabsAction : public Action {
     for (Browser* browser :
          browser_list->BrowsersOfType(BrowserList::BrowserType::kAll)) {
       CloseAllWebStates(*browser->GetWebStateList(),
-                        WebStateList::CLOSE_NO_FLAGS);
+                        WebStateList::ClosingReason::kDefault);
     }
 
     metrics::RecordActionsSuccess(metrics::IdleTimeoutActionType::kCloseTabs,
@@ -201,8 +201,9 @@ class ClearBrowsingDataAction : public Action,
 
     for (Browser* browser :
          browser_list_->BrowsersOfType(BrowserList::BrowserType::kAll)) {
-      WebUsageEnablerBrowserAgent::FromBrowser(browser)->SetWebUsageEnabled(
-          enabled);
+      if (auto* agent = WebUsageEnablerBrowserAgent::FromBrowser(browser)) {
+        agent->SetWebUsageEnabled(enabled);
+      }
     }
   }
 

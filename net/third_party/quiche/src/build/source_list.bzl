@@ -336,6 +336,7 @@ quiche_core_hdrs = [
     "quic/core/quic_framer.h",
     "quic/core/quic_generic_session.h",
     "quic/core/quic_idle_network_detector.h",
+    "quic/core/quic_inlined_string_view.h",
     "quic/core/quic_interval.h",
     "quic/core/quic_interval_deque.h",
     "quic/core/quic_interval_set.h",
@@ -362,6 +363,8 @@ quiche_core_hdrs = [
     "quic/core/quic_stream_id_manager.h",
     "quic/core/quic_stream_priority.h",
     "quic/core/quic_stream_send_buffer.h",
+    "quic/core/quic_stream_send_buffer_base.h",
+    "quic/core/quic_stream_send_buffer_inlining.h",
     "quic/core/quic_stream_sequencer.h",
     "quic/core/quic_stream_sequencer_buffer.h",
     "quic/core/quic_sustained_bandwidth_recorder.h",
@@ -684,6 +687,8 @@ quiche_core_srcs = [
     "quic/core/quic_stream_id_manager.cc",
     "quic/core/quic_stream_priority.cc",
     "quic/core/quic_stream_send_buffer.cc",
+    "quic/core/quic_stream_send_buffer_base.cc",
+    "quic/core/quic_stream_send_buffer_inlining.cc",
     "quic/core/quic_stream_sequencer.cc",
     "quic/core/quic_stream_sequencer_buffer.cc",
     "quic/core/quic_sustained_bandwidth_recorder.cc",
@@ -767,6 +772,7 @@ quiche_tool_support_srcs = [
 ]
 quiche_test_support_hdrs = [
     "common/platform/api/quiche_expect_bug.h",
+    "common/platform/api/quiche_fuzztest.h",
     "common/platform/api/quiche_test.h",
     "common/platform/api/quiche_test_loopback.h",
     "common/platform/api/quiche_test_output.h",
@@ -1310,6 +1316,8 @@ quiche_tests_srcs = [
     "quic/core/quic_framer_test.cc",
     "quic/core/quic_generic_session_test.cc",
     "quic/core/quic_idle_network_detector_test.cc",
+    "quic/core/quic_inlined_string_view_fuzz_test.cc",
+    "quic/core/quic_inlined_string_view_test.cc",
     "quic/core/quic_interval_deque_test.cc",
     "quic/core/quic_interval_set_test.cc",
     "quic/core/quic_interval_test.cc",
@@ -1503,6 +1511,7 @@ default_platform_impl_tool_support_srcs = [
 ]
 default_platform_impl_test_support_hdrs = [
     "common/platform/default/quiche_platform_impl/quiche_expect_bug_impl.h",
+    "common/platform/default/quiche_platform_impl/quiche_fuzztest_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_test_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_test_loopback_impl.h",
     "common/platform/default/quiche_platform_impl/quiche_test_output_impl.h",
@@ -1548,8 +1557,8 @@ moqt_hdrs = [
     "quic/moqt/moqt_session_interface.h",
     "quic/moqt/moqt_subscribe_windows.h",
     "quic/moqt/moqt_track.h",
-    "quic/moqt/test_tools/mock_moqt_session.h",
     "quic/moqt/test_tools/moqt_framer_utils.h",
+    "quic/moqt/test_tools/moqt_parser_test_visitor.h",
     "quic/moqt/test_tools/moqt_session_peer.h",
     "quic/moqt/test_tools/moqt_simulator_harness.h",
     "quic/moqt/test_tools/moqt_test_message.h",
@@ -1575,6 +1584,7 @@ moqt_srcs = [
     "quic/moqt/moqt_outgoing_queue.cc",
     "quic/moqt/moqt_outgoing_queue_test.cc",
     "quic/moqt/moqt_parser.cc",
+    "quic/moqt/moqt_parser_fuzz_test.cc",
     "quic/moqt/moqt_parser_test.cc",
     "quic/moqt/moqt_priority.cc",
     "quic/moqt/moqt_priority_test.cc",
@@ -1586,8 +1596,6 @@ moqt_srcs = [
     "quic/moqt/moqt_subscribe_windows_test.cc",
     "quic/moqt/moqt_track.cc",
     "quic/moqt/moqt_track_test.cc",
-    "quic/moqt/test_tools/mock_moqt_session.cc",
-    "quic/moqt/test_tools/mock_moqt_session_test.cc",
     "quic/moqt/test_tools/moqt_framer_utils.cc",
     "quic/moqt/test_tools/moqt_simulator_harness.cc",
     "quic/moqt/tools/chat_client.cc",
@@ -1702,6 +1710,7 @@ blind_sign_auth_hdrs = [
     "blind_sign_auth/blind_sign_auth.h",
     "blind_sign_auth/blind_sign_auth_interface.h",
     "blind_sign_auth/blind_sign_auth_protos.h",
+    "blind_sign_auth/blind_sign_auth_test_data.h",
     "blind_sign_auth/blind_sign_message_interface.h",
     "blind_sign_auth/blind_sign_message_response.h",
     "blind_sign_auth/cached_blind_sign_auth.h",
@@ -1710,6 +1719,7 @@ blind_sign_auth_hdrs = [
 ]
 blind_sign_auth_srcs = [
     "blind_sign_auth/blind_sign_auth.cc",
+    "blind_sign_auth/blind_sign_auth_test_data.cc",
     "blind_sign_auth/blind_sign_message_response.cc",
     "blind_sign_auth/cached_blind_sign_auth.cc",
 ]
@@ -1717,10 +1727,12 @@ blind_sign_auth_tests_hdrs = [
 ]
 blind_sign_auth_tests_srcs = [
     "blind_sign_auth/blind_sign_auth_test.cc",
+    "blind_sign_auth/blind_sign_auth_test_data_test.cc",
     "blind_sign_auth/cached_blind_sign_auth_test.cc",
 ]
 protobuf_blind_sign_auth = [
     "blind_sign_auth/proto/any.proto",
+    "blind_sign_auth/proto/attest_and_sign.proto",
     "blind_sign_auth/proto/attestation.proto",
     "blind_sign_auth/proto/auth_and_sign.proto",
     "blind_sign_auth/proto/blind_sign_auth_options.proto",

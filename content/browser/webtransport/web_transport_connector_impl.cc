@@ -14,6 +14,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_client.h"
+#include "ipc/constants.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 
@@ -74,10 +75,20 @@ class InterceptingHandshakeClient final : public WebTransportHandshakeClient {
   ~InterceptingHandshakeClient() override = default;
 
   // WebTransportHandshakeClient implementation:
+  void OnBeforeConnect(const net::IPEndPoint& server_address) override {
+    if (tracker_) {
+      tracker_->OnBeforeConnect(server_address);
+    }
+
+    // Here we pass an invalid IPEndPoint instance because it is dangerous to
+    // pass the error details to the initiator renderer.
+    remote_->OnBeforeConnect(net::IPEndPoint());
+  }
   void OnConnectionEstablished(
       mojo::PendingRemote<network::mojom::WebTransport> transport,
       mojo::PendingReceiver<network::mojom::WebTransportClient> client,
       const scoped_refptr<net::HttpResponseHeaders>& response_headers,
+      const std::optional<std::string>& selected_applicaton_protocol,
       network::mojom::WebTransportStatsPtr initial_stats) override {
     if (tracker_) {
       tracker_->OnHandshakeEstablished();
@@ -88,7 +99,7 @@ class InterceptingHandshakeClient final : public WebTransportHandshakeClient {
         std::move(transport), std::move(client),
         base::MakeRefCounted<net::HttpResponseHeaders>(
             /*raw_headers=*/""),
-        std::move(initial_stats));
+        selected_applicaton_protocol, std::move(initial_stats));
   }
   void OnHandshakeFailed(
       const std::optional<net::WebTransportError>& error) override {
@@ -135,6 +146,7 @@ void WebTransportConnectorImpl::Connect(
     const GURL& url,
     std::vector<network::mojom::WebTransportCertificateFingerprintPtr>
         fingerprints,
+    const std::vector<std::string>& application_protocols,
     mojo::PendingRemote<network::mojom::WebTransportHandshakeClient>
         handshake_client) {
   DCHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
@@ -145,9 +157,10 @@ void WebTransportConnectorImpl::Connect(
   }
 
   if (throttle_context_) {
-    auto result = throttle_context_->PerformThrottle(base::BindOnce(
-        &WebTransportConnectorImpl::OnThrottleDone, weak_factory_.GetWeakPtr(),
-        url, std::move(fingerprints), std::move(handshake_client)));
+    auto result = throttle_context_->PerformThrottle(
+        base::BindOnce(&WebTransportConnectorImpl::OnThrottleDone,
+                       weak_factory_.GetWeakPtr(), url, std::move(fingerprints),
+                       application_protocols, std::move(handshake_client)));
     if (result ==
         WebTransportThrottleContext::ThrottleResult::kTooManyPendingSessions) {
       if (frame_) {
@@ -162,7 +175,8 @@ void WebTransportConnectorImpl::Connect(
       // `handshake_client` was destroyed when the callback was discarded.
     }
   } else {
-    OnThrottleDone(url, std::move(fingerprints), std::move(handshake_client),
+    OnThrottleDone(url, std::move(fingerprints), application_protocols,
+                   std::move(handshake_client),
                    /*tracker=*/nullptr);
   }
 }
@@ -171,6 +185,7 @@ void WebTransportConnectorImpl::OnThrottleDone(
     const GURL& url,
     std::vector<network::mojom::WebTransportCertificateFingerprintPtr>
         fingerprints,
+    const std::vector<std::string>& application_protocols,
     mojo::PendingRemote<network::mojom::WebTransportHandshakeClient>
         handshake_client,
     std::unique_ptr<WebTransportThrottleContext::Tracker> tracker) {
@@ -192,17 +207,19 @@ void WebTransportConnectorImpl::OnThrottleDone(
       std::move(client_receiver));
 
   GetContentClient()->browser()->WillCreateWebTransport(
-      process_id_, frame_ ? frame_->GetRoutingID() : MSG_ROUTING_NONE, url,
-      origin_, std::move(handshake_client_to_pass),
+      process_id_, frame_ ? frame_->GetRoutingID() : IPC::mojom::kRoutingIdNone,
+      url, origin_, std::move(handshake_client_to_pass),
       base::BindOnce(
           &WebTransportConnectorImpl::OnWillCreateWebTransportCompleted,
-          weak_factory_.GetWeakPtr(), url, std::move(fingerprints)));
+          weak_factory_.GetWeakPtr(), url, std::move(fingerprints),
+          application_protocols));
 }
 
 void WebTransportConnectorImpl::OnWillCreateWebTransportCompleted(
     const GURL& url,
     std::vector<network::mojom::WebTransportCertificateFingerprintPtr>
         fingerprints,
+    const std::vector<std::string>& application_protocols,
     mojo::PendingRemote<network::mojom::WebTransportHandshakeClient>
         handshake_client,
     std::optional<network::mojom::WebTransportErrorPtr> error) {
@@ -225,7 +242,7 @@ void WebTransportConnectorImpl::OnWillCreateWebTransportCompleted(
 
   process->GetStoragePartition()->GetNetworkContext()->CreateWebTransport(
       url, origin_, network_anonymization_key_, std::move(fingerprints),
-      std::move(handshake_client));
+      application_protocols, std::move(handshake_client));
 }
 
 }  // namespace content

@@ -630,7 +630,7 @@ class ChromeFileSystemAccessPermissionContext
   // The initialization of `block_path_rules_` needs to be done in a blocking
   // sequence so it's asynchronous. When we need to check if a path should be
   // blocked, we need to wait until the initialization completes, hence the
-  // `WaitableEvent` and `OnceCallbackList`.
+  // `CallbackListSubscription` and `OnceCallbackList`.
   std::unique_ptr<BlockPathRules> block_path_rules_;
   bool is_block_path_rules_init_complete_ = false;
   std::vector<base::CallbackListSubscription> block_rules_check_subscription_;

@@ -28,6 +28,7 @@
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_options.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller.h"
@@ -198,6 +199,8 @@ static void JNI_PeerConnectionFactory_InitializeAndroidGlobals(JNIEnv* jni) {
   }
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 static void JNI_PeerConnectionFactory_InitializeFieldTrials(
     JNIEnv* jni,
     const jni_zero::JavaParamRef<jstring>& j_trials_init_string) {
@@ -214,6 +217,7 @@ static void JNI_PeerConnectionFactory_InitializeFieldTrials(
   RTC_LOG(LS_INFO) << "initializeFieldTrials: " << *field_trials_init_string;
   field_trial::InitFieldTrialsFromString(field_trials_init_string->c_str());
 }
+#pragma clang diagnostic pop
 
 static void JNI_PeerConnectionFactory_InitializeInternalTracer(JNIEnv* jni) {
   tracing::SetupInternalTracer();
@@ -374,7 +378,10 @@ JNI_PeerConnectionFactory_CreatePeerConnectionFactory(
 
 static void JNI_PeerConnectionFactory_FreeFactory(JNIEnv*, jlong j_p) {
   delete reinterpret_cast<OwnedFactoryAndThreads*>(j_p);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   field_trial::InitFieldTrialsFromString(nullptr);
+#pragma clang diagnostic pop
   GetStaticObjects().field_trials_init_string = nullptr;
 }
 

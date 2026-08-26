@@ -17,6 +17,7 @@
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/permissions/test/mock_permission_request.h"
 #include "media/base/media_switches.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/events/test/test_event.h"
 
 namespace {
@@ -128,7 +129,7 @@ TEST_F(PermissionPromptBaseViewTest, IncludedInTrackedPictureInPictureWidgets) {
   Browser::CreateParams params(&profile, /*user_gesture=*/true);
   params.type = Browser::TYPE_PICTURE_IN_PICTURE;
   params.window = &browser_window;
-  browser.reset(Browser::Create(params));
+  browser = Browser::DeprecatedCreateOwnedForTesting(params);
 
   // Create the bubble for a picture-in-picture-window.
   auto prompt_unique = std::make_unique<TestPermissionPromptBaseView>(

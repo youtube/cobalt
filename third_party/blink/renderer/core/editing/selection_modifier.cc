@@ -500,26 +500,14 @@ VisiblePositionInFlatTree SelectionModifier::ModifyMovingForward(
     case TextGranularity::kLine: {
       const VisiblePositionInFlatTree& pos = EndForPlatform();
       DCHECK(pos.IsValid()) << pos;
-      if (RuntimeEnabledFeatures::
-              UseSelectionFocusNodeForCaretNavigationEnabled()) {
-        return CreateVisiblePosition(NextLinePosition(
-            pos.ToPositionWithAffinity(),
-            LineDirectionPointForBlockDirectionNavigation(selection_.Focus())));
-      }
       return CreateVisiblePosition(NextLinePosition(
           pos.ToPositionWithAffinity(),
-          LineDirectionPointForBlockDirectionNavigation(selection_.Start())));
+          LineDirectionPointForBlockDirectionNavigation(selection_.Focus())));
     }
     case TextGranularity::kParagraph:
-      if (RuntimeEnabledFeatures::
-              UseSelectionFocusNodeForCaretNavigationEnabled()) {
-        return NextParagraphPosition(
-            EndForPlatform(),
-            LineDirectionPointForBlockDirectionNavigation(selection_.Focus()));
-      }
       return NextParagraphPosition(
           EndForPlatform(),
-          LineDirectionPointForBlockDirectionNavigation(selection_.Start()));
+          LineDirectionPointForBlockDirectionNavigation(selection_.Focus()));
     case TextGranularity::kSentenceBoundary:
       return EndOfSentence(EndForPlatform());
     case TextGranularity::kLineBoundary:
@@ -704,29 +692,15 @@ VisiblePositionInFlatTree SelectionModifier::ModifyMovingBackward(
     case TextGranularity::kLine: {
       const VisiblePositionInFlatTree& start = StartForPlatform();
       DCHECK(start.IsValid()) << start;
-      if (RuntimeEnabledFeatures::
-              UseSelectionFocusNodeForCaretNavigationEnabled()) {
-        pos = CreateVisiblePosition(PreviousLinePosition(
-            start.ToPositionWithAffinity(),
-            LineDirectionPointForBlockDirectionNavigation(selection_.Focus())));
-      } else {
-        pos = CreateVisiblePosition(PreviousLinePosition(
-            start.ToPositionWithAffinity(),
-            LineDirectionPointForBlockDirectionNavigation(selection_.Start())));
-      }
+      pos = CreateVisiblePosition(PreviousLinePosition(
+          start.ToPositionWithAffinity(),
+          LineDirectionPointForBlockDirectionNavigation(selection_.Focus())));
       break;
     }
     case TextGranularity::kParagraph:
-      if (RuntimeEnabledFeatures::
-              UseSelectionFocusNodeForCaretNavigationEnabled()) {
-        pos = PreviousParagraphPosition(
-            StartForPlatform(),
-            LineDirectionPointForBlockDirectionNavigation(selection_.Focus()));
-      } else {
-        pos = PreviousParagraphPosition(
-            StartForPlatform(),
-            LineDirectionPointForBlockDirectionNavigation(selection_.Start()));
-      }
+      pos = PreviousParagraphPosition(
+          StartForPlatform(),
+          LineDirectionPointForBlockDirectionNavigation(selection_.Focus()));
       break;
     case TextGranularity::kSentenceBoundary:
       pos = CreateVisiblePosition(
@@ -1015,7 +989,7 @@ bool SelectionModifier::ModifyWithPageGranularity(
 
 // Abs x/y position of the caret ignoring transforms.
 // TODO(yosin) navigation with transforms should be smarter.
-static LayoutUnit LineDirectionPointForBlockDirectionNavigationOf(
+LayoutUnit SelectionModifier::LineDirectionPointForBlockDirectionNavigationOf(
     const VisiblePositionInFlatTree& visible_position) {
   if (visible_position.IsNull())
     return LayoutUnit();

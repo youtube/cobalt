@@ -24,6 +24,7 @@
 
 #include "third_party/blink/renderer/core/html/html_object_element.h"
 
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_trustedscripturl_usvstring.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/dom/attribute.h"
 #include "third_party/blink/renderer/core/dom/document.h"
@@ -32,6 +33,7 @@
 #include "third_party/blink/renderer/core/dom/tag_collection.h"
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/exported/web_plugin_container_impl.h"
+#include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
@@ -61,8 +63,10 @@ void HTMLObjectElement::Trace(Visitor* visitor) const {
 const AttrNameToTrustedType& HTMLObjectElement::GetCheckedAttributeTypes()
     const {
   DEFINE_STATIC_LOCAL(AttrNameToTrustedType, attribute_map,
-                      ({{"data", SpecificTrustedType::kScriptURL},
-                        {"codebase", SpecificTrustedType::kScriptURL}}));
+                      ({{"data", std::pair{SpecificTrustedType::kScriptURL,
+                                           "HTMLObjectElement"}},
+                        {"codebase", std::pair{SpecificTrustedType::kScriptURL,
+                                               "HTMLObjectElement"}}}));
   return attribute_map;
 }
 
@@ -220,7 +224,8 @@ void HTMLObjectElement::UpdatePluginInternal() {
       GetDocument().GetFrame()->Client()->OverrideFlashEmbedWithHTML(
           GetDocument().CompleteURL(url_));
   if (!overriden_url.IsEmpty()) {
-    UseCounter::Count(GetDocument(), WebFeature::kOverrideFlashEmbedwithHTML);
+    Deprecation::CountDeprecation(GetDocument().GetExecutionContext(),
+                                  WebFeature::kOverrideFlashEmbedwithHTML);
     url_ = overriden_url.GetString();
     SetServiceType("text/html");
   }
@@ -327,6 +332,41 @@ void HTMLObjectElement::RenderFallbackContent(
   UseCounter::Count(GetDocument(), WebFeature::kHTMLObjectElementFallback);
   use_fallback_content_ = true;
   ReattachFallbackContent();
+}
+
+V8UnionTrustedScriptURLOrUSVString* HTMLObjectElement::data() {
+  return MakeGarbageCollected<V8UnionTrustedScriptURLOrUSVString>(
+      GetURLAttribute(html_names::kDataAttr));
+}
+
+void HTMLObjectElement::setData(const V8UnionTrustedScriptURLOrUSVString* value,
+                                ExceptionState& exception_state) {
+  String compliant_value = TrustedTypesCheckForScriptURL(
+      value, GetExecutionContext(), "HTMLObjectElement", "data",
+      exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  SetAttributeWithoutValidation(html_names::kDataAttr,
+                                AtomicString(compliant_value));
+}
+
+V8UnionTrustedScriptURLOrUSVString* HTMLObjectElement::codeBase() {
+  return MakeGarbageCollected<V8UnionTrustedScriptURLOrUSVString>(
+      GetURLAttribute(html_names::kCodebaseAttr));
+}
+
+void HTMLObjectElement::setCodeBase(
+    const V8UnionTrustedScriptURLOrUSVString* value,
+    ExceptionState& exception_state) {
+  String compliant_value = TrustedTypesCheckForScriptURL(
+      value, GetExecutionContext(), "HTMLObjectElement", "codeBase",
+      exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  SetAttributeWithoutValidation(html_names::kCodebaseAttr,
+                                AtomicString(compliant_value));
 }
 
 bool HTMLObjectElement::IsExposed() const {

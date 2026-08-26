@@ -19,11 +19,11 @@
 namespace webrtc {
 namespace {
 // Max frame rate for VP8 and VP9 video.
-const char kVPxFmtpMaxFrameRate[] = "max-fr";
+constexpr char kVPxFmtpMaxFrameRate[] = "max-fr";
 // Max frame size for VP8 and VP9 video.
-const char kVPxFmtpMaxFrameSize[] = "max-fs";
+constexpr char kVPxFmtpMaxFrameSize[] = "max-fs";
 // Nonstandard per-layer PLI for video.
-const char kCodecParamPerLayerPictureLossIndication[] =
+constexpr char kCodecParamPerLayerPictureLossIndication[] =
     "x-google-per-layer-pli";
 }  // namespace
 

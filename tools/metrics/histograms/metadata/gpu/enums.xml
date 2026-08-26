@@ -74,6 +74,12 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Missing serial number"/>
 </enum>
 
+<enum name="BooleanANGLECanEmulateGLES3">
+  <summary>Whether ANGLE can emulate GLES3.</summary>
+  <int value="0" label="false"/>
+  <int value="1" label="true"/>
+</enum>
+
 <enum name="BooleanDisplayIdCollision">
   <int value="0" label="No display ID collision"/>
   <int value="1" label="Display ID collision detected"/>
@@ -240,6 +246,16 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="D3D_SHADER_MODEL_6_6"/>
   <int value="9" label="D3D_SHADER_MODEL_6_7"/>
 </enum>
+
+<!-- LINT.IfChange(DawnAdapterFeatureLevel) -->
+
+<enum name="DawnAdapterFeatureLevel">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Compatibility"/>
+  <int value="2" label="Core"/>
+</enum>
+
+<!-- LINT.ThenChange(//gpu/command_buffer/service/dawn_context_provider.cc:DawnAdapterFeatureLevel) -->
 
 <enum name="DCLayerResult">
   <int value="0" label="Success"/>

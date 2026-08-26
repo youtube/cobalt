@@ -10,7 +10,6 @@
 #include "base/time/time.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
 #include "third_party/blink/renderer/core/paint/timing/lcp_objects.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_visualizer.h"
 #include "third_party/blink/renderer/core/scroll/scroll_types.h"
@@ -23,15 +22,15 @@ namespace blink {
 
 class Image;
 class ImagePaintTimingDetector;
-class ImageRecord;
 class ImageResourceContent;
 class LargestContentfulPaintCalculator;
+class LayoutBoxModelObject;
 class LayoutObject;
 class LocalFrameView;
+class Node;
 class PropertyTreeStateOrAlias;
 class MediaTiming;
 class TextPaintTimingDetector;
-class TextRecord;
 class StyleImage;
 
 // PaintTimingDetector receives signals regarding text and image paints and
@@ -70,14 +69,23 @@ class CORE_EXPORT PaintTimingDetector
       const MediaTiming& media_timing,
       const PropertyTreeStateOrAlias& current_paint_chunk_properties,
       const gfx::Rect& image_border);
+  static void NotifyFirstVideoFrame(
+      const LayoutObject&,
+      const gfx::Size& intrinsic_size,
+      const MediaTiming& media_timing,
+      const PropertyTreeStateOrAlias& current_paint_chunk_properties,
+      const gfx::Rect& image_border);
   inline static void NotifyTextPaint(const gfx::Rect& text_visual_rect);
+
+  // Called when the "src" attribute changes on a <video> element and the change
+  // is attributable to an interaction.
+  static void NotifyInteractionTriggeredVideoSrcChange(const LayoutObject&);
 
   void NotifyImageFinished(const LayoutObject&, const MediaTiming*);
   void LayoutObjectWillBeDestroyed(const LayoutObject&);
   void NotifyImageRemoved(const LayoutObject&, const ImageResourceContent*);
   void NotifyPaintFinished();
   void NotifyInputEvent(WebInputEvent::Type);
-  bool NeedToNotifyInputOrScroll() const;
   void NotifyScroll(mojom::blink::ScrollType);
 
   void DidChangePerformanceTiming();
@@ -100,25 +108,11 @@ class CORE_EXPORT PaintTimingDetector
     DCHECK(image_paint_timing_detector_);
     return *image_paint_timing_detector_;
   }
-  void RestartRecordingLCP();
-  void SoftNavigationDetected(LocalDOMWindow*);
-  bool IsSoftNavigationDetected() const {
-    return soft_navigation_was_detected_;
-  }
-  bool WasLCPRestarted() const { return lcp_was_restarted_; }
-
-  void RestartRecordingLCPToUkm();
-
   LargestContentfulPaintCalculator* GetLargestContentfulPaintCalculator();
 
   const LargestContentfulPaintDetails& LargestContentfulPaintDetailsForMetrics()
       const {
     return lcp_details_for_metrics_;
-  }
-
-  const LargestContentfulPaintDetails&
-  SoftNavigationLargestContentfulPaintDetailsForMetrics() const {
-    return soft_navigation_lcp_details_for_metrics_;
   }
 
   const LargestContentfulPaintDetails& LatestLcpDetailsForTest();
@@ -134,7 +128,6 @@ class CORE_EXPORT PaintTimingDetector
   void ReportIgnoredContent();
 
   std::optional<PaintTimingVisualizer>& Visualizer() { return visualizer_; }
-  bool IsUnrelatedSoftNavigationPaint(const Node&);
 
   void Trace(Visitor* visitor) const;
 
@@ -167,22 +160,6 @@ class CORE_EXPORT PaintTimingDetector
 
   // The LCP details reported to metrics (UKM).
   LargestContentfulPaintDetails lcp_details_for_metrics_;
-  // The soft navigation LCP details reported to metrics (UKM).
-  LargestContentfulPaintDetails soft_navigation_lcp_details_for_metrics_;
-  // Ensures LCP stops being reported as a hard navigation metric once we start
-  // reporting soft navigation ones.
-  bool record_lcp_to_metrics_ = true;
-  // LCP was restarted, due to a potential soft navigation.
-  bool lcp_was_restarted_ = false;
-  // The soft navigation was detected, so the LCP entries can be updated.
-  bool soft_navigation_was_detected_ = false;
-  // Records of entries discovered after LCP was restarted but before a soft
-  // navigation was detected.
-  Member<TextRecord> potential_soft_navigation_text_record_;
-  Member<ImageRecord> potential_soft_navigation_image_record_;
-
-  // This flag indicates if LCP is being reported to UKM.
-  bool record_soft_navigation_lcp_for_metrics_ = false;
 };
 
 // Largest Text Paint and Text Element Timing aggregate text nodes by these

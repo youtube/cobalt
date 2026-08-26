@@ -32,9 +32,6 @@ class AppLaunchSplashScreen : public BaseScreen {
  public:
   class Delegate {
    public:
-    // Invoked when the configure network control is clicked.
-    virtual void OnConfigureNetwork() = 0;
-
     // Invoked when the network config did prepare network and is closed.
     virtual void OnNetworkConfigFinished() = 0;
   };
@@ -67,9 +64,6 @@ class AppLaunchSplashScreen : public BaseScreen {
 
   ~AppLaunchSplashScreen() override;
 
-  // Sets whether configure network control is visible.
-  void ToggleNetworkConfig(bool visible);
-
   virtual void HideThrobber();
 
   // Continues app launch after error screen is shown.
@@ -97,7 +91,6 @@ class AppLaunchSplashScreen : public BaseScreen {
   // BaseScreen:
   void ShowImpl() override;
   void HideImpl() override;
-  void OnUserAction(const base::Value::List& args) override;
 
   AppLaunchSplashScreenView::AppLaunchState state_ =
       AppLaunchSplashScreenView::AppLaunchState::kPreparingProfile;
@@ -108,7 +101,7 @@ class AppLaunchSplashScreen : public BaseScreen {
   raw_ptr<Delegate> delegate_ = nullptr;
 
  private:
-  void HandleConfigureNetwork();
+  void OnErrorScreenHidden();
 
   base::WeakPtr<AppLaunchSplashScreenView> view_;
 
@@ -116,9 +109,7 @@ class AppLaunchSplashScreen : public BaseScreen {
 
   base::RepeatingClosure exit_callback_;
 
-  // If this has value it will be populated through ToggleNetworkConfig(value)
-  // after screen is shown. Cleared after screen was shown.
-  std::optional<bool> toggle_network_config_on_show_;
+  base::WeakPtrFactory<AppLaunchSplashScreen> weak_factory_{this};
 };
 
 }  // namespace ash

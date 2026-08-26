@@ -37,6 +37,7 @@ import org.chromium.chrome.browser.autofill.AutofillUiUtils;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.CreditCard;
 import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.components.autofill.ImageSize;
 import org.chromium.components.browser_ui.settings.ChromeBasePreference;
@@ -81,6 +82,9 @@ public class AutofillCardBenefitsFragment extends ChromeBaseSettingsFragment
 
         // Create blank preference screen.
         PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(getStyledContext());
+        // Suppresses unwanted animations while Preferences are removed from and re-added to the
+        // screen.
+        screen.setShouldUseGeneratedIds(false);
         setPreferenceScreen(screen);
         if (sObserverForTest != null) {
             sObserverForTest.onResult(this);
@@ -123,7 +127,13 @@ public class AutofillCardBenefitsFragment extends ChromeBaseSettingsFragment
     private void createCardBenefitSwitch() {
         ChromeSwitchPreference cardBenefitSwitch = new ChromeSwitchPreference(getStyledContext());
         cardBenefitSwitch.setTitle(R.string.autofill_settings_page_card_benefits_label);
-        cardBenefitSwitch.setSummary(R.string.autofill_settings_page_card_benefits_toggle_summary);
+        int summaryText =
+                ChromeFeatureList.isEnabled(
+                                ChromeFeatureList.AUTOFILL_ENABLE_NEW_CARD_BENEFITS_TOGGLE_TEXT)
+                        ? R.string
+                                .autofill_settings_page_card_benefits_toggle_summary_with_issuer_terms_apply_text
+                        : R.string.autofill_settings_page_card_benefits_toggle_summary;
+        cardBenefitSwitch.setSummary(summaryText);
         cardBenefitSwitch.setKey(PREF_KEY_ENABLE_CARD_BENEFIT);
         cardBenefitSwitch.setChecked(mPersonalDataManager.isCardBenefitEnabled());
         cardBenefitSwitch.setOnPreferenceChangeListener(this);
@@ -156,27 +166,30 @@ public class AutofillCardBenefitsFragment extends ChromeBaseSettingsFragment
     }
 
     private void createPreferencesForCardBenefitTerms() {
-        HashSet<Pair<String, String>> issuersAndProductDescriptions = new HashSet<>();
+        HashSet<Pair<String, String>> benefitSourcesAndProductDescriptions = new HashSet<>();
 
         // List the card for product terms redirect if:
-        // 1. The card has a valid product term url.
-        // 2. Same issuer and card product combination is not listed before.
+        // 1. The card is eligible for benefits.
+        // 2. The card has a valid product term url.
+        // 3. Same benefit source and card product combination is not listed before.
         for (CreditCard card : mPersonalDataManager.getCreditCardsForSettings()) {
-            Pair<String, String> issuerAndProductDescriptionPair =
-                    Pair.create(card.getIssuerId(), card.getProductDescription());
+            Pair<String, String> benefitSourceAndProductDescriptionPair =
+                    Pair.create(card.getBenefitSource(), card.getProductDescription());
 
-            if (issuersAndProductDescriptions.contains(issuerAndProductDescriptionPair)
+            if (!mPersonalDataManager.isCardEligibleForBenefits(card.getGUID())
+                    || benefitSourcesAndProductDescriptions.contains(
+                            benefitSourceAndProductDescriptionPair)
                     || GURL.isEmptyOrInvalid(card.getProductTermsUrl())) {
                 continue;
             }
 
-            issuersAndProductDescriptions.add(issuerAndProductDescriptionPair);
+            benefitSourcesAndProductDescriptions.add(benefitSourceAndProductDescriptionPair);
 
             // Add a preference for the credit card.
             ChromeBasePreference cardPref = new ChromeBasePreference(getStyledContext());
             cardPref.setDividerAllowedAbove(false);
             cardPref.setDividerAllowedBelow(false);
-            cardPref.setTitle(issuerAndProductDescriptionPair.second);
+            cardPref.setTitle(benefitSourceAndProductDescriptionPair.second);
             cardPref.setSummary(R.string.autofill_settings_page_card_benefits_issuer_term_text);
             cardPref.setKey(PREF_KEY_CARD_BENEFIT_TERM);
 

@@ -125,8 +125,7 @@ class SSLStreamAdapter : public StreamInterface {
   // Caller is responsible for freeing the returned object.
   static std::unique_ptr<SSLStreamAdapter> Create(
       std::unique_ptr<StreamInterface> stream,
-      absl::AnyInvocable<void(webrtc::SSLHandshakeError)> handshake_error =
-          nullptr,
+      absl::AnyInvocable<void(SSLHandshakeError)> handshake_error = nullptr,
       const FieldTrialsView* field_trials = nullptr);
 
   SSLStreamAdapter() = default;
@@ -247,7 +246,7 @@ class SSLStreamAdapter : public StreamInterface {
 
   static std::set<uint16_t> GetSupportedEphemeralKeyExchangeCipherGroups();
   static std::optional<std::string> GetEphemeralKeyExchangeCipherGroupName(
-      uint16_t);
+      uint16_t group_id);
   static std::vector<uint16_t> GetDefaultEphemeralKeyExchangeCipherGroups(
       const FieldTrialsView* field_trials);
 
@@ -294,50 +293,5 @@ class SSLStreamAdapter : public StreamInterface {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::GetSrtpKeyAndSaltLengths;
-using ::webrtc::IsGcmCryptoSuite;
-using ::webrtc::kCsAeadAes128Gcm;
-using ::webrtc::kCsAeadAes256Gcm;
-using ::webrtc::kCsAesCm128HmacSha1_32;
-using ::webrtc::kCsAesCm128HmacSha1_80;
-using ::webrtc::kDtls10VersionBytes;
-using ::webrtc::kDtls12VersionBytes;
-using ::webrtc::kDtls13VersionBytes;
-using ::webrtc::kSrtpAeadAes128Gcm;
-using ::webrtc::kSrtpAeadAes256Gcm;
-using ::webrtc::kSrtpAes128CmSha1_32;
-using ::webrtc::kSrtpAes128CmSha1_80;
-using ::webrtc::kSrtpCryptoSuiteMaxValue;
-using ::webrtc::kSrtpInvalidCryptoSuite;
-using ::webrtc::kSslCipherSuiteMaxValue;
-using ::webrtc::kSslSignatureAlgorithmMaxValue;
-using ::webrtc::kSslSignatureAlgorithmUnknown;
-using ::webrtc::kTlsNullWithNullNull;
-using ::webrtc::SrtpCryptoSuiteToName;
-using ::webrtc::SSE_MSG_TRUNC;
-using ::webrtc::SSL_CLIENT;
-using ::webrtc::SSL_MODE_DTLS;
-using ::webrtc::SSL_MODE_TLS;
-using ::webrtc::SSL_PROTOCOL_DTLS_10;
-using ::webrtc::SSL_PROTOCOL_DTLS_12;
-using ::webrtc::SSL_PROTOCOL_DTLS_13;
-using ::webrtc::SSL_PROTOCOL_NOT_GIVEN;
-using ::webrtc::SSL_PROTOCOL_TLS_10;
-using ::webrtc::SSL_PROTOCOL_TLS_11;
-using ::webrtc::SSL_PROTOCOL_TLS_12;
-using ::webrtc::SSL_PROTOCOL_TLS_13;
-using ::webrtc::SSL_SERVER;
-using ::webrtc::SSLHandshakeError;
-using ::webrtc::SSLMode;
-using ::webrtc::SSLPeerCertificateDigestError;
-using ::webrtc::SSLProtocolVersion;
-using ::webrtc::SSLRole;
-using ::webrtc::SSLStreamAdapter;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_SSL_STREAM_ADAPTER_H_

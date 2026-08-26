@@ -135,30 +135,5 @@ struct TransportDescription {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::ConnectionRole;
-using ::webrtc::CONNECTIONROLE_ACTIVE;
-using ::webrtc::CONNECTIONROLE_ACTPASS;
-using ::webrtc::CONNECTIONROLE_HOLDCONN;
-using ::webrtc::CONNECTIONROLE_NONE;
-using ::webrtc::CONNECTIONROLE_PASSIVE;
-using ::webrtc::ConnectionRoleToString;
-using ::webrtc::ICE_OPTION_RENOMINATION;
-using ::webrtc::ICE_OPTION_TRICKLE;
-using ::webrtc::IceMode;
-using ::webrtc::ICEMODE_FULL;
-using ::webrtc::ICEMODE_LITE;
-using ::webrtc::IceParameters;
-using ::webrtc::IceRole;
-using ::webrtc::ICEROLE_CONTROLLED;
-using ::webrtc::ICEROLE_CONTROLLING;
-using ::webrtc::ICEROLE_UNKNOWN;
-using ::webrtc::StringToConnectionRole;
-using ::webrtc::TransportDescription;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_TRANSPORT_DESCRIPTION_H_

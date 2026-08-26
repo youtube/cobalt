@@ -20,9 +20,6 @@ const char kContextLossReason[] = "context-loss-reason";
 
 const char kSupportLibraryWebkitVersion[] = "androidx-webkit-version";
 
-extern const char kWeblayerWebViewCompatMode[] =
-    "WEBLAYER_WEB_VIEW_COMPAT_MODE";
-
 // clang-format off
 const char* const kWebViewCrashKeyAllowList[] = {
     kAppPackageName,
@@ -170,8 +167,7 @@ const char* const kWebViewCrashKeyAllowList[] = {
 
     // sandbox/linux
     "seccomp-sigsys",
-
-    kWeblayerWebViewCompatMode,
+    "seccomp-sigsys-ioctl",
 
     // Used to report switches/feature flags overridden in the DevUI
     "commandline-enabled-feature-*",
@@ -209,6 +205,14 @@ const char* const kWebViewCrashKeyAllowList[] = {
     "OriginCalc-origin_to_commit_local",
     "OriginCalc-origin_blcok",
     "OriginCalc-origin_to_commit_block",
+
+    // crbug.com/423037052
+    "SIFactory-DebugLabel",
+    "SIFactory-Format",
+    "SIFactory-GMBType",
+    "SIFactory-SharedBwThreads",
+    "SIFactory-Usage",
+    "SIFactory-Size",
 
     nullptr};
 // clang-format on

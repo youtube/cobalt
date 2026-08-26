@@ -11,7 +11,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/functional/overloaded.h"
+#include "base/memory/safety_checks.h"
 #include "build/build_config.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/broadcast_channel/broadcast_channel_provider.h"
@@ -28,6 +28,7 @@
 #include "content/browser/renderer_host/private_network_access_util.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/service_worker/service_worker_client.h"
+#include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_main_resource_handle.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/browser/url_loader_factory_params_helper.h"
@@ -55,6 +56,7 @@
 #include "services/network/public/mojom/blocked_by_response_reason.mojom.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "storage/browser/blob/blob_url_store_impl.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/service_worker/service_worker_scope_match.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -108,6 +110,11 @@ DedicatedWorkerHost::DedicatedWorkerHost(
   DCHECK(worker_process_host_->IsInitializedAndNotDead());
   DCHECK(creator_client_security_state_);
 
+  // This function is known to be heap allocation heavy and performance
+  // critical. Extra memory safety checks can introduce regression
+  // (https://crbug.com/414710225) and these are disabled here.
+  base::ScopedSafetyChecksExclusion scoped_unsafe;
+
   // TODO(https://crbug.com/11990077): Once we add more stuff to
   // `blink::StorageKey`, DCHECK that `storage_key` is consistent with
   // `isolation_info_` here (i.e. their origin and top frame origin match).
@@ -126,6 +133,11 @@ DedicatedWorkerHost::DedicatedWorkerHost(
 }
 
 DedicatedWorkerHost::~DedicatedWorkerHost() {
+  // This function is known to be heap allocation heavy and performance
+  // critical. Extra memory safety checks can introduce regression
+  // (https://crbug.com/414710225) and these are disabled here.
+  base::ScopedSafetyChecksExclusion scoped_unsafe;
+
   // If this instance is being destroyed because its mojo connection was
   // disconnected, then the destruction of the `service_worker_handle_` could
   // end up causing this instance to be deleted again through
@@ -188,12 +200,22 @@ void DedicatedWorkerHost::CreateContentSecurityNotifier(
 }
 
 void DedicatedWorkerHost::OnMojoDisconnect() {
+  // This function is known to be heap allocation heavy and performance
+  // critical. Extra memory safety checks can introduce regression
+  // (https://crbug.com/414710225) and these are disabled here.
+  base::ScopedSafetyChecksExclusion scoped_unsafe;
+
   delete this;
 }
 
 void DedicatedWorkerHost::RenderProcessExited(
     RenderProcessHost* render_process_host,
     const ChildProcessTerminationInfo& info) {
+  // This function is known to be heap allocation heavy and performance
+  // critical. Extra memory safety checks can introduce regression
+  // (https://crbug.com/414710225) and these are disabled here.
+  base::ScopedSafetyChecksExclusion scoped_unsafe;
+
   DCHECK_EQ(worker_process_host_, render_process_host);
 
   delete this;
@@ -201,6 +223,11 @@ void DedicatedWorkerHost::RenderProcessExited(
 
 void DedicatedWorkerHost::InProcessRendererExiting(
     RenderProcessHost* render_process_host) {
+  // This function is known to be heap allocation heavy and performance
+  // critical. Extra memory safety checks can introduce regression
+  // (https://crbug.com/414710225) and these are disabled here.
+  base::ScopedSafetyChecksExclusion scoped_unsafe;
+
   DCHECK_EQ(worker_process_host_, render_process_host);
 
   delete this;
@@ -260,7 +287,7 @@ void DedicatedWorkerHost::StartScriptLoad(
   RenderFrameHostImpl* creator_render_frame_host = nullptr;
   DedicatedWorkerHost* creator_worker = nullptr;
 
-  std::visit(base::Overloaded(
+  std::visit(absl::Overload(
                  [&](const GlobalRenderFrameHostId& render_frame_host_id) {
                    creator_render_frame_host =
                        RenderFrameHostImpl::FromID(render_frame_host_id);
@@ -362,6 +389,11 @@ void DedicatedWorkerHost::DidStartScriptLoad(
   TRACE_EVENT("loading", "DedicatedWorkerHost::DidStartScriptLoad",
               "final_response_url", script_request_url_);
 
+  // This function is known to be heap allocation heavy and performance
+  // critical. Extra memory safety checks can introduce regression
+  // (https://crbug.com/414710225) and these are disabled here.
+  base::ScopedSafetyChecksExclusion scoped_unsafe;
+
   if (!result) {
     ScriptLoadStartFailed(network::URLLoaderCompletionStatus(net::ERR_ABORTED));
     return;
@@ -414,10 +446,18 @@ void DedicatedWorkerHost::DidStartScriptLoad(
       worker_client_security_state_->is_web_secure_context =
           network::IsUrlPotentiallyTrustworthy(result->final_response_url) &&
           creator_client_security_state_->is_web_secure_context;
+      // Deprecation trial status allowing LNA requests on non-http
+      bool allow_non_secure_local_network_access =
+          ancestor_render_frame_host->policy_container_host() &&
+          ancestor_render_frame_host->policy_container_host()
+              ->policies()
+              .allow_non_secure_local_network_access;
+
       worker_client_security_state_->private_network_request_policy =
           DerivePrivateNetworkRequestPolicy(
               worker_client_security_state_->ip_address_space,
               worker_client_security_state_->is_web_secure_context,
+              allow_non_secure_local_network_access,
               PrivateNetworkRequestContext::kWorker);
     } else {
       // Preserve incorrect functionality if PNA is not enabled.
@@ -811,6 +851,15 @@ void DedicatedWorkerHost::CreateBlobUrlStoreProvider(
   storage_partition_impl->GetBlobUrlRegistry()->AddReceiver(
       GetStorageKey(), renderer_origin_, GetProcessHost()->GetDeprecatedID(),
       std::move(receiver),
+      /*context_type_for_debugging=*/"Dedicated Worker",
+      base::BindRepeating(
+          [](base::WeakPtr<DedicatedWorkerHost> host) -> std::string {
+            if (!host) {
+              return "destroyed DedicatedWorkerHost";
+            }
+            return host->GetStorageKey().GetDebugString();
+          },
+          weak_factory_.GetWeakPtr()),
       base::BindRepeating(
           [](base::WeakPtr<DedicatedWorkerHost> host) -> bool {
             if (!host) {

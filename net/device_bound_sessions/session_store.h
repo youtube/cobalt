@@ -11,6 +11,7 @@
 
 #include "base/functional/callback.h"
 #include "net/device_bound_sessions/session.h"
+#include "net/device_bound_sessions/session_key.h"
 
 namespace base {
 class FilePath;
@@ -34,15 +35,14 @@ class NET_EXPORT SessionStore {
   SessionStore(const SessionStore&) = delete;
   SessionStore& operator=(const SessionStore&) = delete;
 
-  using SessionsMap = std::multimap<SchemefulSite, std::unique_ptr<Session>>;
+  using SessionsMap = std::map<SessionKey, std::unique_ptr<Session>>;
   using LoadSessionsCallback = base::OnceCallback<void(SessionsMap)>;
   virtual void LoadSessions(LoadSessionsCallback callback) = 0;
 
   virtual void SaveSession(const SchemefulSite& site,
                            const Session& session) = 0;
 
-  virtual void DeleteSession(const SchemefulSite& site,
-                             const Session::Id& session_id) = 0;
+  virtual void DeleteSession(const SessionKey& key) = 0;
 
   // Returns session objects created from currently cached store data.
   virtual SessionsMap GetAllSessions() const = 0;
@@ -52,8 +52,7 @@ class NET_EXPORT SessionStore {
   using RestoreSessionBindingKeyCallback = base::OnceCallback<void(
       unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>)>;
   virtual void RestoreSessionBindingKey(
-      const SchemefulSite& site,
-      const Session::Id& session_id,
+      const SessionKey& session_key,
       RestoreSessionBindingKeyCallback callback) = 0;
 
  protected:

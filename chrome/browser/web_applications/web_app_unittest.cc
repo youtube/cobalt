@@ -17,9 +17,10 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/path_service.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/values.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/test/web_app_test.h"
@@ -34,7 +35,8 @@
 #include "components/web_package/signed_web_bundles/ecdsa_p256_public_key.h"
 #include "components/web_package/signed_web_bundles/ecdsa_p256_sha256_signature.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_signature_stack_entry.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -389,6 +391,7 @@ TEST(WebAppTest, IsolationDataDebugValue) {
         },
         "version": "1.0.0",
         "controlled_frame_partitions (on-disk)": [],
+        "opened_tabs_counter_notification_state": null,
         "pending_update_info": null,
         "integrity_block_data": null
       })|")
@@ -443,6 +446,7 @@ TEST(WebAppTest, IsolationDataPendingUpdateInfoDebugValue) {
         },
         "version": "1.0.0",
         "controlled_frame_partitions (on-disk)": [],
+        "opened_tabs_counter_notification_state": null,
         "pending_update_info": {
           "isolated_web_app_location": {
             "unowned_bundle": {

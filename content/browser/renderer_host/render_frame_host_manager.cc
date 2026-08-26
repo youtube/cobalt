@@ -24,9 +24,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/timer/elapsed_timer.h"
-#include "base/trace_event/base_tracing.h"
 #include "base/trace_event/named_trigger.h"
-#include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/types/expected.h"
@@ -34,6 +32,7 @@
 #include "build/build_config.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
+#include "content/browser/fenced_frame/fenced_frame_viewport_observer.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/process_lock.h"
 #include "content/browser/process_reuse_policy.h"
@@ -81,6 +80,7 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/common/url_utils.h"
+#include "ipc/constants.mojom.h"
 #include "net/base/url_util.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
@@ -91,6 +91,7 @@
 #include "third_party/blink/public/mojom/frame/fullscreen.mojom.h"
 #include "third_party/blink/public/mojom/frame/user_activation_update_types.mojom.h"
 #include "third_party/blink/public/mojom/security_context/insecure_request_policy.mojom.h"
+#include "url/gurl_debug.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "ui/gfx/mac/scoped_cocoa_disable_screen_updates.h"
@@ -704,7 +705,7 @@ void RenderFrameHostManager::InitRoot(
       site_instance, frame_tree_node_, is_new_site_instance_for_init_root);
   SetRenderFrameHost(CreateRenderFrameHost(
       CreateFrameCase::kInitRoot, site_instance,
-      /*frame_routing_id=*/MSG_ROUTING_NONE,
+      /*frame_routing_id=*/IPC::mojom::kRoutingIdNone,
       mojo::PendingAssociatedRemote<mojom::Frame>(), blink::LocalFrameToken(),
       blink::DocumentToken(), devtools_frame_token, renderer_initiated_creation,
       browsing_context_state,
@@ -1272,6 +1273,19 @@ void RenderFrameHostManager::UnloadOldFrame(
         base::debug::DumpWithoutCrashing();
       }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+      // If the outermost main frame is about to enter bfcache, log UMA metrics
+      // about how many same-site fenced frames are in the viewport.
+      if (old_render_frame_host->IsOutermostMainFrame()) {
+        auto* monitor =
+            PageUserData<FencedFrameViewportMonitor>::GetOrCreateForPage(
+                old_render_frame_host->GetPage());
+        if (monitor) {
+          monitor->OnPrimaryPageEnteringBFCache();
+        }
+      }
+#endif
+
       auto stored_page = CollectPage(std::move(old_render_frame_host));
       auto entry =
           std::make_unique<BackForwardCacheImpl::Entry>(std::move(stored_page));
@@ -1546,7 +1560,7 @@ void RenderFrameHostManager::DidCreateNavigationRequest(
           request, &ignored_bcg_swap_info,
           ProcessAllocationContext::CreateForNavigationRequest(
               ProcessAllocationNavigationStage::kBeforeNetworkRequest,
-              request->GetNavigationId()));
+              request->GetNavigationId(), request->IsInOutermostMainFrame()));
       if (result.has_value()) {
         DCHECK(result.value());
       } else if (result.error() ==
@@ -1769,12 +1783,19 @@ RenderFrameHostManager::GetFrameHostForNavigation(
   // The appropriate RenderFrameHost to commit the navigation.
   RenderFrameHostImpl* navigation_rfh = nullptr;
 
-  // First compute the SiteInstance to use for the navigation.
+  // Get ready to compute the SiteInstance to use for navigation.
   SiteInstanceImpl* current_site_instance =
       render_frame_host_->GetSiteInstance();
+  BrowserContext* browser_context = current_site_instance->GetIsolationContext()
+                                        .browser_or_resource_context()
+                                        .ToBrowserContext();
+  // Notify the embedder that the SiteInstance will be computed soon.
+  GetContentClient()->browser()->WillComputeSiteForNavigation(
+      browser_context, request->GetURL());
   bool is_same_site =
       render_frame_host_->IsNavigationSameSite(request->GetUrlInfo());
 
+  // Now compute the SiteInstance to use for the navigation.
   IsSameSiteGetter is_same_site_getter(is_same_site);
   std::string site_instance_reason;
   std::string* reason_output =
@@ -2307,9 +2328,9 @@ void RenderFrameHostManager::DiscardSpeculativeRFH(
     }
     DiscardUnusedFrame(UnsetSpeculativeRenderFrameHost(reason));
     // If we were navigating away from a crashed main frame then we will have
-    // set the RVH's main frame routing ID to MSG_ROUTING_NONE. We need to set
-    // it back to the crashed frame to avoid having a situation where it's
-    // pointing to nothing even though there is no pending commit.
+    // set the RVH's main frame routing ID to IPC::mojom::kRoutingIdNone. We
+    // need to set it back to the crashed frame to avoid having a situation
+    // where it's pointing to nothing even though there is no pending commit.
     if (ShouldSkipEarlyCommitPendingForCrashedFrame() &&
         frame_tree_node_->IsMainFrame() &&
         !render_frame_host_->IsRenderFrameLive()) {
@@ -3049,11 +3070,10 @@ RenderFrameHostManager::GetSiteInstanceForNavigation(
   // TODO(crbug.com/395036622): Always apply this check once error pages in COI
   // subframes are committed in the isolated error process.
   if (error_page_process != NavigationRequest::kCurrentProcess) {
-    CHECK(!new_instance->GetSiteInfo().agent_cluster_key() ||
-          new_instance->GetSiteInfo()
-                  .agent_cluster_key()
-                  ->GetCrossOriginIsolationKey() ==
-              dest_url_info.cross_origin_isolation_key);
+    CHECK(new_instance->GetSiteInfo()
+              .agent_cluster_key()
+              .GetCrossOriginIsolationKey() ==
+          dest_url_info.cross_origin_isolation_key);
   }
 
   // If `should_swap_result.ShouldSwap()` is true, we must use a different
@@ -3668,11 +3688,10 @@ bool RenderFrameHostManager::CanUseDestinationInstance(
     return false;
   }
 
-  if (dest_instance->GetSiteInfo().agent_cluster_key() &&
-      dest_instance->GetSiteInfo()
-              .agent_cluster_key()
-              ->GetCrossOriginIsolationKey() !=
-          dest_url_info.cross_origin_isolation_key) {
+  if (dest_instance->GetSiteInfo()
+          .agent_cluster_key()
+          .GetCrossOriginIsolationKey() !=
+      dest_url_info.cross_origin_isolation_key) {
     return false;
   }
 
@@ -3940,11 +3959,10 @@ bool RenderFrameHostManager::CanUseSourceSiteInstance(
     return false;
   }
 
-  if (source_instance->GetSiteInfo().agent_cluster_key() &&
-      source_instance->GetSiteInfo()
-              .agent_cluster_key()
-              ->GetCrossOriginIsolationKey() !=
-          dest_url_info.cross_origin_isolation_key) {
+  if (source_instance->GetSiteInfo()
+          .agent_cluster_key()
+          .GetCrossOriginIsolationKey() !=
+      dest_url_info.cross_origin_isolation_key) {
     AppendReason(reason,
                  "CanUseSourceSiteInstance => false "
                  "(cross-origin-isolation-key)");
@@ -3977,12 +3995,11 @@ bool RenderFrameHostManager::IsCandidateSameSite(RenderFrameHostImpl* candidate,
     return false;
   }
 
-  if (candidate->GetSiteInstance()->GetSiteInfo().agent_cluster_key() &&
-      candidate->GetSiteInstance()
-              ->GetSiteInfo()
-              .agent_cluster_key()
-              ->GetCrossOriginIsolationKey() !=
-          dest_url_info.cross_origin_isolation_key) {
+  if (candidate->GetSiteInstance()
+          ->GetSiteInfo()
+          .agent_cluster_key()
+          .GetCrossOriginIsolationKey() !=
+      dest_url_info.cross_origin_isolation_key) {
     return false;
   }
 
@@ -4027,7 +4044,7 @@ void RenderFrameHostManager::CreateProxiesForNewRenderFrameHost(
     if (frame_tree_node_->IsMainFrame()) {
       frame_tree_node_->frame_tree()
           .GetRenderViewHost(new_group)
-          ->SetMainFrameRoutingId(MSG_ROUTING_NONE);
+          ->SetMainFrameRoutingId(IPC::mojom::kRoutingIdNone);
     }
 
     // As there is an explicit check for |render_frame_host_|'s SiteInstance
@@ -4100,8 +4117,8 @@ RenderFrameHostManager::CreateRenderFrameHost(
 
   // Only the kInitChild case passes in a frame routing id.
   DCHECK_EQ(create_frame_case != CreateFrameCase::kInitChild,
-            frame_routing_id == MSG_ROUTING_NONE);
-  if (frame_routing_id == MSG_ROUTING_NONE) {
+            frame_routing_id == IPC::mojom::kRoutingIdNone);
+  if (frame_routing_id == IPC::mojom::kRoutingIdNone) {
     frame_routing_id =
         site_instance->GetOrCreateProcess(process_allocation_context)
             ->GetNextRoutingID();
@@ -4364,7 +4381,7 @@ RenderFrameHostManager::CreateSpeculativeRenderFrame(
   std::unique_ptr<RenderFrameHostImpl> new_render_frame_host =
       CreateRenderFrameHost(
           CreateFrameCase::kCreateSpeculative, instance,
-          /*frame_routing_id=*/MSG_ROUTING_NONE,
+          /*frame_routing_id=*/IPC::mojom::kRoutingIdNone,
           mojo::PendingAssociatedRemote<mojom::Frame>(),
           blink::LocalFrameToken(), blink::DocumentToken(),
           render_frame_host_->devtools_frame_token(),
@@ -4499,7 +4516,7 @@ void RenderFrameHostManager::CreateRenderFrameProxy(
       // Before creating a new RenderFrameProxyHost, ensure a RenderViewHost
       // exists for |group|, as it creates the page level structure in Blink.
       render_view_host = frame_tree_node_->frame_tree().CreateRenderViewHost(
-          group, /*main_frame_routing_id=*/MSG_ROUTING_NONE,
+          group, /*main_frame_routing_id=*/IPC::mojom::kRoutingIdNone,
           /*renderer_initiated_creation=*/false,
           features::GetBrowsingContextMode() ==
                   features::BrowsingContextStateImplementationType::
@@ -4924,7 +4941,7 @@ int RenderFrameHostManager::GetRoutingIdForSiteInstanceGroup(
   if (proxy)
     return proxy->GetRoutingID();
 
-  return MSG_ROUTING_NONE;
+  return IPC::mojom::kRoutingIdNone;
 }
 
 std::optional<blink::FrameToken>
@@ -5282,7 +5299,7 @@ void RenderFrameHostManager::CommitPending(
   // The RenderViewHost keeps track of the main RenderFrameHost routing id.
   // If this is committing a main frame navigation, update it and set the
   // routing id in the RenderViewHost associated with the old RenderFrameHost
-  // to MSG_ROUTING_NONE.
+  // to IPC::mojom::kRoutingIdNone.
   if (is_main_frame) {
     // If the RenderViewHost is transitioning from an inactive to active state,
     // it was reused, so dispatch a RenderViewReady event. For example, this is
@@ -5299,7 +5316,7 @@ void RenderFrameHostManager::CommitPending(
 
     new_rvh->SetMainFrameRoutingId(render_frame_host_->GetRoutingID());
     if (old_rvh != new_rvh)
-      old_rvh->SetMainFrameRoutingId(MSG_ROUTING_NONE);
+      old_rvh->SetMainFrameRoutingId(IPC::mojom::kRoutingIdNone);
   }
 
   // Store the old_render_frame_host's current frame size so that it can be used
@@ -5821,7 +5838,7 @@ void RenderFrameHostManager::NotifyPrepareForInnerDelegateAttachComplete(
                            ? render_frame_host_->GetProcess()->GetDeprecatedID()
                            : ChildProcessHost::kInvalidUniqueID;
   int32_t routing_id =
-      success ? render_frame_host_->GetRoutingID() : MSG_ROUTING_NONE;
+      success ? render_frame_host_->GetRoutingID() : IPC::mojom::kRoutingIdNone;
   // Invoking the callback asynchronously to meet the APIs promise.
   GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,

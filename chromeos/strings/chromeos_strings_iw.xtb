@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298">‫<ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">עכשיו אפשר להשתמש רק בכלי העזר להוראה</translation>
 <translation id="1762483337755424125">תמליל</translation>
 <translation id="1765169783255151332">מעבר מהיר בין מקשים</translation>
 <translation id="1768959921651994223">סוג אימות</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">מתג הפריסה</translation>
 <translation id="224421911978987610">חשיפה ארוכה</translation>
 <translation id="2244834438220057800">ירוק</translation>
+<translation id="2248689665683494517">‏תמונת סטילס מינימליסטית של כמה פרחי פרג מזן Rhea בתוך אגרטל זכוכית על רקע שחור</translation>
 <translation id="225692081236532131">סטטוס הפעלה</translation>
 <translation id="2267285889943769271">הוספה של צילום מסך</translation>
 <translation id="2268044343513325586">צמצום</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">נכשלה – משימת ההדפסה הופסקה</translation>
 <translation id="3102119246920354026">מטמון</translation>
 <translation id="3103783611481501187">סוריאליזם</translation>
+<translation id="3119672627216736407">יש תרגום זמין</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">בריכות</translation>
 <translation id="3122883569442693641">פרטים נוספים</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">בד שיפון</translation>
 <translation id="4310735698903592804">‏הטפטים האחרונים שנוצרו על ידי AI מבית Google</translation>
 <translation id="4320904097188876154">ורוד ניאון</translation>
+<translation id="432961742358282111">בלחיצה ימנית או בלחיצה ארוכה על טקסט, יוצגו הגדרות, תרגומים או המרת יחידות. כדי לשנות את ההגדרות של התכונה הזו אפשר ללחוץ על מקש החץ הימני או השמאלי.</translation>
 <translation id="4333390807948134856">בוצעה לחיצה על המקש <ph name="KEY_NAME" /></translation>
 <translation id="4334293042716981313">יש לך גם אפשרות <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />לכתוב הנחיה משלך<ph name="END_LINK_FREEFORM_SUBPAGE" />.</translation>
 <translation id="4354430579665871434">מקש</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">כדי לסיים יש להזין את הסיסמה הישנה והחדשה</translation>
 <translation id="6061772781719867950">‏בקשות HTTP שנכשלו</translation>
 <translation id="6073292342939316679">הפחתת הבהירות של המקלדת</translation>
+<translation id="6074608334942655098">הפסקת התרגום</translation>
 <translation id="6074752328838739425">הסתרת הסיכום</translation>
 <translation id="6075872808778243331">‏זמן אחזור של HTTP ‏(Android)</translation>
 <translation id="6078323886959318429">הוספת קיצור דרך</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">‏פרסום שאלות למומחים בפורום העזרה של Chromebook</translation>
-<translation id="7309823890857024809">‏תמונת סטילס מינימליסטית של כמה גבעולים של פרג מזן Rhea בתוך אגרטל זכוכית על רקע שחור</translation>
 <translation id="7311368985037279727">צבע המקלדת</translation>
 <translation id="7317831949569936035">הרשמה לשימוש בית ספרי</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@
 <translation id="8088963492174775412">אפשר ללחוץ כדי להקליט</translation>
 <translation id="8094062939584182041">‏מתן הרשאה ל-Google לשלוח לך אימייל בנוגע לבעיה הזו</translation>
 <translation id="8104083085214006426">הרשת שאליה התחברת פתוחה ואינה מאובטחת</translation>
+<translation id="8108879170356113798">בעוד <ph name="NUM_SECONDS" /> שניות תהיה לך אפשרות להשתמש רק בכלי העזר להוראה</translation>
 <translation id="811820734797650957">‏אפשר לבדוק אם יש חיבור לשער באמצעות פינג (Android)</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />‎°‎ C</translation>
 <translation id="8131740175452115882">אישור</translation>
@@ -1684,7 +1689,7 @@
 <translation id="8433186206711564395">הגדרות רשת</translation>
 <translation id="843568408673868420">חיבור לאינטרנט</translation>
 <translation id="844521431886043384">‏לא הוגדר DNS</translation>
-<translation id="8456200178779628126">‏אפשר להשתמש ב-AI מבית Google כדי לקבל עזרה בקריאה וכתיבה</translation>
+<translation id="8456200178779628126">‏רוצה להשתמש ב-Google AI כדי לקבל עזרה בקריאה וכתיבה?</translation>
 <translation id="8456761643544401578">מצב כהה אוטומטי</translation>
 <translation id="8461329675984532579">שם ספק ביתי</translation>
 <translation id="8475690821716466388">‏רשת ה-Wi-Fi מאובטחת בפרוטוקול WEP PSK חלש</translation>

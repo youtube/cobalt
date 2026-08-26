@@ -20,6 +20,7 @@
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/permissions/permission_decision.h"
 #include "components/permissions/permission_request_data.h"
 #include "components/permissions/permission_request_id.h"
 #include "components/permissions/resolvers/content_setting_permission_resolver.h"
@@ -55,27 +56,22 @@ namespace {
 
 using PermissionStatus = blink::mojom::PermissionStatus;
 
-void StoreContentSetting(ContentSetting* out_content_setting,
-                         ContentSetting content_setting) {
-  DCHECK(out_content_setting);
-  *out_content_setting = content_setting;
+void StorePermissionStatus(PermissionStatus* out_permission_status,
+                           PermissionStatus permission_status) {
+  DCHECK(out_permission_status);
+  *out_permission_status = permission_status;
 }
 
 class TestNotificationPermissionContext : public NotificationPermissionContext {
  public:
   explicit TestNotificationPermissionContext(Profile* profile)
-      : NotificationPermissionContext(profile),
-        permission_set_count_(0),
-        last_permission_set_persisted_(false),
-        last_permission_set_setting_(CONTENT_SETTING_DEFAULT) {}
+      : NotificationPermissionContext(profile) {}
 
   int permission_set_count() const { return permission_set_count_; }
   bool last_permission_set_persisted() const {
     return last_permission_set_persisted_;
   }
-  ContentSetting last_permission_set_setting() const {
-    return last_permission_set_setting_;
-  }
+  PermissionDecision last_set_decision() const { return last_set_decision_; }
 
   ContentSetting GetContentSettingFromMap(const GURL& url_a,
                                           const GURL& url_b) {
@@ -91,20 +87,19 @@ class TestNotificationPermissionContext : public NotificationPermissionContext {
       const permissions::PermissionRequestData& request_data,
       permissions::BrowserPermissionCallback callback,
       bool persist,
-      ContentSetting content_setting,
-      bool is_one_time,
+      PermissionDecision decision,
       bool is_final_decision) override {
     permission_set_count_++;
     last_permission_set_persisted_ = persist;
-    last_permission_set_setting_ = content_setting;
+    last_set_decision_ = decision;
     NotificationPermissionContext::NotifyPermissionSet(
-        request_data, std::move(callback), persist, content_setting,
-        /*is_one_time=*/false, is_final_decision);
+        request_data, std::move(callback), persist, decision,
+        is_final_decision);
   }
 
-  int permission_set_count_;
-  bool last_permission_set_persisted_;
-  ContentSetting last_permission_set_setting_;
+  int permission_set_count_ = 0;
+  bool last_permission_set_persisted_ = false;
+  PermissionDecision last_set_decision_ = PermissionDecision::kNone;
 };
 
 }  // namespace
@@ -232,16 +227,13 @@ TEST_F(NotificationPermissionContextTest, CrossOriginPermissionChecks) {
   // Now block permission for |requesting_origin|.
 
 #if BUILDFLAG(IS_ANDROID)
-  // On Android O+, permission must be reset before it can be blocked. This is
-  // because granting a permission on O+ creates a system-managed notification
-  // channel which determines the value of the content setting, so it is not
-  // allowed to then toggle the value from ALLOW->BLOCK directly. However,
-  // Chrome may reset the permission (which deletes the channel), and *then*
-  // grant/block it (creating a new channel).
-  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
-      base::android::SDK_VERSION_OREO) {
-    context.ResetPermission(requesting_origin, requesting_origin);
-  }
+  // Permission must be reset before it can be blocked. This is because granting
+  // a permission on Android O+ creates a system-managed notification channel
+  // which determines the value of the content setting, so it is not allowed to
+  // then toggle the value from ALLOW->BLOCK directly. However, Chrome may reset
+  // the permission (which deletes the channel), and *then* grant/block it
+  // (creating a new channel).
+  context.ResetPermission(requesting_origin, requesting_origin);
 #endif  // BUILDFLAG(IS_ANDROID)
 
   UpdateContentSetting(&context, requesting_origin, requesting_origin,
@@ -326,14 +318,16 @@ TEST_F(NotificationPermissionContextTest, WebNotificationsTopLevelOriginOnly) {
       web_contents()->GetPrimaryMainFrame()->GetGlobalId(),
       permissions::PermissionRequestID::RequestLocalId());
 
-  ContentSetting result = CONTENT_SETTING_DEFAULT;
+  auto permission_status = PermissionStatus::ASK;
   context.DecidePermission(
       std::make_unique<permissions::PermissionRequestData>(
-          &context, request_id,
+          std::make_unique<permissions::ContentSettingPermissionResolver>(
+              ContentSettingsType::NOTIFICATIONS),
+          request_id,
           /*user_gesture=*/true, requesting_origin, embedding_origin),
-      base::BindOnce(&StoreContentSetting, &result));
+      base::BindOnce(&StorePermissionStatus, &permission_status));
 
-  ASSERT_EQ(result, CONTENT_SETTING_BLOCK);
+  ASSERT_EQ(permission_status, PermissionStatus::DENIED);
   EXPECT_EQ(
       PermissionStatus::ASK,
       context
@@ -422,13 +416,13 @@ TEST_F(NotificationPermissionContextTest, MAYBE_TestDenyInIncognitoAfterDelay) {
 
   ASSERT_EQ(0, permission_context.permission_set_count());
   ASSERT_FALSE(permission_context.last_permission_set_persisted());
-  ASSERT_EQ(CONTENT_SETTING_DEFAULT,
-            permission_context.last_permission_set_setting());
+  ASSERT_EQ(PermissionDecision::kNone, permission_context.last_set_decision());
 
   permission_context.RequestPermission(
       std::make_unique<permissions::PermissionRequestData>(
-          &permission_context, id,
-          /*user_gesture=*/true, url),
+          std::make_unique<permissions::ContentSettingPermissionResolver>(
+              ContentSettingsType::NOTIFICATIONS),
+          id, /*user_gesture=*/true, url),
       base::DoNothing());
 
   // Should be blocked after 1-2 seconds, but the timer is reset whenever the
@@ -465,13 +459,13 @@ TEST_F(NotificationPermissionContextTest, MAYBE_TestDenyInIncognitoAfterDelay) {
             permission_context.GetContentSettingFromMap(url, url));
 
   // But 5*500ms > 2 seconds, so it should now be blocked.
-  for (int n = 0; n < 4; n++)
+  for (int n = 0; n < 4; n++) {
     task_runner->FastForwardBy(base::Milliseconds(500));
+  }
 
   EXPECT_EQ(1, permission_context.permission_set_count());
   EXPECT_TRUE(permission_context.last_permission_set_persisted());
-  EXPECT_EQ(CONTENT_SETTING_BLOCK,
-            permission_context.last_permission_set_setting());
+  EXPECT_EQ(PermissionDecision::kDeny, permission_context.last_set_decision());
   EXPECT_EQ(CONTENT_SETTING_BLOCK,
             permission_context.GetContentSettingFromMap(url, url));
 }
@@ -495,17 +489,20 @@ TEST_F(NotificationPermissionContextTest, TestParallelDenyInIncognito) {
 
   ASSERT_EQ(0, permission_context.permission_set_count());
   ASSERT_FALSE(permission_context.last_permission_set_persisted());
-  ASSERT_EQ(CONTENT_SETTING_DEFAULT,
-            permission_context.last_permission_set_setting());
+  ASSERT_EQ(PermissionDecision::kNone, permission_context.last_set_decision());
 
   permission_context.RequestPermission(
       std::make_unique<permissions::PermissionRequestData>(
-          &permission_context, id1,
+          std::make_unique<permissions::ContentSettingPermissionResolver>(
+              ContentSettingsType::NOTIFICATIONS),
+          id1,
           /*user_gesture=*/true, url),
       base::DoNothing());
   permission_context.RequestPermission(
       std::make_unique<permissions::PermissionRequestData>(
-          &permission_context, id2,
+          std::make_unique<permissions::ContentSettingPermissionResolver>(
+              ContentSettingsType::NOTIFICATIONS),
+          id2,
           /*user_gesture=*/true, url),
       base::DoNothing());
 
@@ -517,15 +514,15 @@ TEST_F(NotificationPermissionContextTest, TestParallelDenyInIncognito) {
   // request is auto-denied.
   for (int n = 0; n < 5; n++) {
     task_runner->FastForwardBy(base::Milliseconds(500));
-    if (permission_context.permission_set_count())
+    if (permission_context.permission_set_count()) {
       break;
+    }
   }
 
   // Only the first permission request receives a response (crbug.com/577336).
   EXPECT_EQ(1, permission_context.permission_set_count());
   EXPECT_TRUE(permission_context.last_permission_set_persisted());
-  EXPECT_EQ(CONTENT_SETTING_BLOCK,
-            permission_context.last_permission_set_setting());
+  EXPECT_EQ(PermissionDecision::kDeny, permission_context.last_set_decision());
   EXPECT_EQ(CONTENT_SETTING_BLOCK,
             permission_context.GetContentSettingFromMap(url, url));
 
@@ -534,8 +531,7 @@ TEST_F(NotificationPermissionContextTest, TestParallelDenyInIncognito) {
   task_runner->FastForwardBy(base::Milliseconds(2500));
   EXPECT_EQ(2, permission_context.permission_set_count());
   EXPECT_TRUE(permission_context.last_permission_set_persisted());
-  EXPECT_EQ(CONTENT_SETTING_BLOCK,
-            permission_context.last_permission_set_setting());
+  EXPECT_EQ(PermissionDecision::kDeny, permission_context.last_set_decision());
   EXPECT_EQ(CONTENT_SETTING_BLOCK,
             permission_context.GetContentSettingFromMap(url, url));
 }

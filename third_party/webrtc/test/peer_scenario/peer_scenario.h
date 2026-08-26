@@ -18,12 +18,20 @@
 // for media input and networking. Additionally it provides direct access to the
 // underlying peer connection class.
 
+#include <atomic>
 #include <list>
+#include <memory>
+#include <string>
 #include <vector>
 
-#include "api/test/time_controller.h"
+#include "api/media_stream_interface.h"
+#include "api/test/network_emulation_manager.h"
+#include "api/units/time_delta.h"
+#include "rtc_base/thread.h"
+#include "system_wrappers/include/clock.h"
 #include "test/gtest.h"
 #include "test/logging/log_writer.h"
+#include "test/network/network_emulation.h"
 #include "test/network/network_emulation_manager.h"
 #include "test/peer_scenario/peer_scenario_client.h"
 #include "test/peer_scenario/signaling_route.h"

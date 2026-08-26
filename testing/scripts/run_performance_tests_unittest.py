@@ -165,6 +165,27 @@ class TelemetryCommandGeneratorTest(unittest.TestCase):
     mock_execute_benchmark.assert_called_with('speedometer_3.0',
                                               'speedometer3.crossbench', [])
 
+  @mock.patch.object(run_performance_tests.test_env,
+                     'run_command_output_to_handle',
+                     return_value=3)
+  @mock.patch.object(run_performance_tests.crossbench_result_converter,
+                     'convert')
+  @mock.patch.object(run_performance_tests.OutputFilePaths, 'SetUp')
+  @mock.patch.object(run_performance_tests, 'upload_simple_test_results')
+  @mock.patch.object(os.path, 'exists', return_value=False)
+  @mock.patch('builtins.open', new_callable=mock.mock_open)
+  def testCrossbenchTestIgnoreBenchmarkExitCode(self, mock_open, mock_exists,
+                                                mock_upload, mock_setup,
+                                                mock_convert, mock_run_command):
+    del mock_open, mock_exists, mock_upload, mock_setup, mock_run_command
+    fake_args = _create_crossbench_args() + ['--ignore-benchmark-exit-code']
+    options = run_performance_tests.parse_arguments(fake_args)
+
+    rc = run_performance_tests.CrossbenchTest(options, 'dir').execute()
+
+    self.assertEqual(rc, 0)
+    mock_convert.assert_called()
+
   def testCrossbenchTestBenchmarksException(self):
     fake_args = ['./cp.py', '--isolated-script-test-output=output']
     options = run_performance_tests.parse_arguments(fake_args)
@@ -380,6 +401,27 @@ class TelemetryCommandGeneratorTest(unittest.TestCase):
     crosebench_test = run_performance_tests.CrossbenchTest(options, 'dir')
 
     network_dict = json.loads(crosebench_test.network[0].split('=', 1)[1])
+    self.assertDictEqual(network_dict, expected_dict)
+
+  @mock.patch.object(binary_manager, 'FetchPath')
+  def testCrossbenchSkipInjectionWpr(self, mock_fetch_path):
+    mock_fetch_path.return_value = 'wpr_go_path'
+    fake_args = _create_crossbench_args() + [
+        '--wpr=fake.wprgo', '--skip-wpr-script-injection'
+    ]
+    options = run_performance_tests.parse_arguments(fake_args)
+    data_dir = run_performance_tests.PAGE_SETS_DATA
+    archive = str(data_dir / 'fake.wprgo')
+    expected_dict = {
+        'type': 'wpr',
+        'path': archive,
+        'wpr_go_bin': 'wpr_go_path',
+        'skip_injection': True
+    }
+
+    crossbench_test = run_performance_tests.CrossbenchTest(options, 'dir')
+
+    network_dict = json.loads(crossbench_test.network[0].split('=', 1)[1])
     self.assertDictEqual(network_dict, expected_dict)
 
   @mock.patch.object(binary_manager, 'FetchPath')

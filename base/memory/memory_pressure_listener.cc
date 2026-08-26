@@ -9,12 +9,11 @@
 #include "base/observer_list.h"
 #include "base/observer_list_threadsafe.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/interned_args_helper.h"
+#include "base/trace_event/memory_dump_manager.h"
+#include "base/trace_event/memory_pressure_level_proto.h"
+#include "base/trace_event/trace_event.h"
 #include "base/tracing_buildflags.h"
-
-#if BUILDFLAG(ENABLE_BASE_TRACING)
-#include "base/trace_event/memory_pressure_level_proto.h"  // no-presubmit-check
-#endif
 
 namespace base {
 

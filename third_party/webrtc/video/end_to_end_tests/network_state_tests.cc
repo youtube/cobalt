@@ -46,7 +46,7 @@
 namespace webrtc {
 namespace {
 constexpr int kSilenceTimeoutMs = 2000;
-}
+}  // namespace
 
 class NetworkStateEndToEndTest : public test::CallTest {
  protected:
@@ -68,7 +68,7 @@ class NetworkStateEndToEndTest : public test::CallTest {
    public:
     RequiredTransport(bool rtp_required, bool rtcp_required)
         : need_rtp_(rtp_required), need_rtcp_(rtcp_required) {}
-    ~RequiredTransport() {
+    ~RequiredTransport() override {
       if (need_rtp_) {
         ADD_FAILURE() << "Expected RTP packet not sent.";
       }
@@ -410,7 +410,7 @@ TEST_F(NetworkStateEndToEndTest, NewVideoSendStreamsIgnoreAudioNetworkDown) {
    public:
     explicit RequiredEncoder(const Environment& env)
         : FakeEncoder(env), encoded_frame_(false) {}
-    ~RequiredEncoder() {
+    ~RequiredEncoder() override {
       if (!encoded_frame_) {
         ADD_FAILURE() << "Didn't encode an expected frame";
       }

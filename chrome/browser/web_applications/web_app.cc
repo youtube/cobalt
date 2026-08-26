@@ -6,6 +6,7 @@
 
 #include <array>
 #include <bitset>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <tuple>
@@ -22,15 +23,23 @@
 #include "base/numerics/clamped_math.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
 #include "base/types/optional_util.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
+#include "chrome/browser/web_applications/proto/web_app.equal.h"
+#include "chrome/browser/web_applications/proto/web_app.ostream.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
+#include "chrome/browser/web_applications/proto/web_app.to_value.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.ostream.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.to_value.h"
+#include "chrome/browser/web_applications/proto/web_app_os_integration_state.equal.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
+#include "chrome/browser/web_applications/proto/web_app_os_integration_state.to_value.h"
 #include "chrome/browser/web_applications/tabbed_mode_scope_matcher.h"
 #include "chrome/browser/web_applications/user_display_mode.h"
 #include "chrome/browser/web_applications/web_app_chromeos_data.h"
@@ -42,8 +51,11 @@
 #include "chrome/common/url_constants.h"
 #include "components/sync/base/time.h"
 #include "components/sync/protocol/proto_value_conversions.h"
+#include "components/sync/protocol/web_app_specifics.equal.h"
 #include "components/sync/protocol/web_app_specifics.pb.h"
+#include "components/sync/protocol/web_app_specifics.to_value.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/manifest/manifest_util.h"
 #include "third_party/blink/public/common/permissions_policy/policy_helper_public.h"
@@ -94,135 +106,6 @@ std::string ApiApprovalStateToString(ApiApprovalState state) {
     case ApiApprovalState::kDisallowed:
       return "kDisallowed";
   }
-}
-
-std::string GetRunOnOsLoginMode(
-    const proto::os_state::RunOnOsLogin::Mode& mode) {
-  switch (mode) {
-    case proto::os_state::RunOnOsLogin::MODE_UNSPECIFIED:
-      return "unspecified";
-    case proto::os_state::RunOnOsLogin::MODE_NOT_RUN:
-      return "not_run";
-    case proto::os_state::RunOnOsLogin::MODE_WINDOWED:
-      return "windowed";
-    case proto::os_state::RunOnOsLogin::MODE_MINIMIZED:
-      return "minimized";
-  }
-}
-
-base::Value OsStatesDebugValue(
-    const proto::os_state::WebAppOsIntegration& current_states) {
-  base::Value::Dict debug_dict;
-
-  if (current_states.has_shortcut()) {
-    base::Value::Dict shortcut_data;
-    shortcut_data.Set("title", current_states.shortcut().title());
-    shortcut_data.Set("description", current_states.shortcut().description());
-    base::Value::Dict icon_data;
-    for (const auto& data : current_states.shortcut().icon_data_any()) {
-      icon_data.Set(base::NumberToString(data.icon_size()),
-                    base::ToString(syncer::ProtoTimeToTime(data.timestamp())));
-    }
-    shortcut_data.Set("icon_size_to_timestamp_map",
-                      base::Value(std::move(icon_data)));
-    debug_dict.Set("shortcut_descriptions",
-                   base::Value(std::move(shortcut_data)));
-  }
-
-  if (current_states.has_protocols_handled()) {
-    base::Value::Dict protocol_data;
-    for (const auto& data : current_states.protocols_handled().protocols()) {
-      protocol_data.Set(data.protocol(), data.url());
-    }
-    debug_dict.Set("protocols_handled", base::Value(std::move(protocol_data)));
-  }
-
-  if (current_states.has_run_on_os_login() &&
-      current_states.run_on_os_login().has_run_on_os_login_mode()) {
-    debug_dict.Set(
-        "run_on_os_login",
-        GetRunOnOsLoginMode(
-            current_states.run_on_os_login().run_on_os_login_mode()));
-  }
-
-  if (current_states.has_uninstall_registration()) {
-    base::Value::Dict state;
-    proto::os_state::OsUninstallRegistration os_uninstall =
-        current_states.uninstall_registration();
-    if (os_uninstall.has_registered_with_os()) {
-      state.Set("registered_with_os", os_uninstall.registered_with_os());
-    }
-    if (os_uninstall.has_display_name()) {
-      state.Set("display_name", os_uninstall.display_name());
-    }
-    debug_dict.Set("uninstall_registration", std::move(state));
-  }
-
-  if (current_states.has_shortcut_menus()) {
-    base::Value::List shortcut_menus_list;
-    for (const auto& shortcut_menu :
-         current_states.shortcut_menus().shortcut_menu_info()) {
-      base::Value::Dict icon_data_any_dict;
-      base::Value::Dict icon_data_maskable_dict;
-      base::Value::Dict icon_data_monochrome_dict;
-      for (const auto& icon_data_any : shortcut_menu.icon_data_any()) {
-        icon_data_any_dict.Set(
-            base::NumberToString(icon_data_any.icon_size()),
-            base::ToString(syncer::ProtoTimeToTime(icon_data_any.timestamp())));
-      }
-      for (const auto& icon_data_maskable : shortcut_menu.icon_data_any()) {
-        icon_data_maskable_dict.Set(
-            base::NumberToString(icon_data_maskable.icon_size()),
-            base::ToString(
-                syncer::ProtoTimeToTime(icon_data_maskable.timestamp())));
-      }
-      for (const auto& icon_data_monochrome : shortcut_menu.icon_data_any()) {
-        icon_data_monochrome_dict.Set(
-            base::NumberToString(icon_data_monochrome.icon_size()),
-            base::ToString(
-                syncer::ProtoTimeToTime(icon_data_monochrome.timestamp())));
-      }
-      base::Value::Dict shortcut_menu_dict;
-      shortcut_menu_dict.Set("shortcut_name", shortcut_menu.shortcut_name());
-      shortcut_menu_dict.Set("shortcut_launch_url",
-                             shortcut_menu.shortcut_launch_url());
-      shortcut_menu_dict.Set("icon_data_any",
-                             base::Value(std::move(icon_data_any_dict)));
-      shortcut_menu_dict.Set("icon_data_maskable",
-                             base::Value(std::move(icon_data_maskable_dict)));
-      shortcut_menu_dict.Set("icon_data_monochrome",
-                             base::Value(std::move(icon_data_monochrome_dict)));
-      shortcut_menus_list.Append(std::move(shortcut_menu_dict));
-    }
-    debug_dict.Set("shortcut_menus",
-                   base::Value(std::move(shortcut_menus_list)));
-  }
-
-  if (current_states.has_file_handling()) {
-    base::Value::List file_handlers_list;
-    for (const auto& file_handler :
-         current_states.file_handling().file_handlers()) {
-      base::Value::Dict file_handler_dict;
-      file_handler_dict.Set("action", base::Value(file_handler.action()));
-      file_handler_dict.Set("display_name", file_handler.display_name());
-      base::Value::List accept_list;
-      for (const auto& accept : file_handler.accept()) {
-        base::Value::Dict accept_dict;
-        accept_dict.Set("mimetype", accept.mimetype());
-        base::Value::List file_extensions_list;
-        for (const auto& file_extension : accept.file_extensions()) {
-          file_extensions_list.Append(file_extension);
-        }
-        accept_dict.Set("file_extensions", std::move(file_extensions_list));
-        accept_list.Append(std::move(accept_dict));
-      }
-      file_handler_dict.Set("accept", std::move(accept_list));
-      file_handlers_list.Append(std::move(file_handler_dict));
-    }
-    debug_dict.Set("file_handling", std::move(file_handlers_list));
-  }
-
-  return base::Value(std::move(debug_dict));
 }
 
 base::Value::Dict ImageResourceDebugDict(
@@ -325,6 +208,24 @@ base::Value RelatedApplicationsToDebugValue(
   }
   return base::Value(std::move(related_applications_json));
 }
+
+void CheckValidPendingUpdateInfo(
+    const std::optional<proto::PendingUpdateInfo>& pending_update_info) {
+  if (pending_update_info.has_value()) {
+    CHECK(pending_update_info->has_name() ||
+          (!pending_update_info->trusted_icons().empty() &&
+           !pending_update_info->manifest_icons().empty()));
+    if (!pending_update_info->trusted_icons().empty() &&
+        !pending_update_info->manifest_icons().empty()) {
+      for (const auto& icon : pending_update_info->trusted_icons()) {
+        CHECK(icon.has_url() && icon.has_size_in_px() && icon.has_purpose());
+      }
+      for (const auto& icon : pending_update_info->manifest_icons()) {
+        CHECK(icon.has_url() && icon.has_size_in_px() && icon.has_purpose());
+      }
+    }
+  }
+}
 }  // namespace
 
 WebApp::CachedDerivedData::CachedDerivedData() = default;
@@ -406,6 +307,18 @@ webapps::ManifestId WebApp::manifest_id() const {
     return GenerateManifestIdFromStartUrlOnly(start_url_);
   }
   return manifest_id_;
+}
+
+const SortedSizesPx& WebApp::stored_trusted_icon_sizes(
+    IconPurpose purpose) const {
+  switch (purpose) {
+    case IconPurpose::ANY:
+      return stored_trusted_icon_sizes_any_;
+    case IconPurpose::MASKABLE:
+      return stored_trusted_icon_sizes_maskable_;
+    case IconPurpose::MONOCHROME:
+      NOTREACHED();
+  }
 }
 
 void WebApp::AddSource(WebAppManagement::Type source) {
@@ -726,6 +639,10 @@ void WebApp::SetSyncProto(sync_pb::WebAppSpecifics sync_proto) {
       !syncer::StringOrdinal(sync_proto.user_page_ordinal()).IsValid()) {
     sync_proto.clear_user_page_ordinal();
   }
+  if (!ParseAppIconInfos("SetSyncProtoTrustedIcons", sync_proto.trusted_icons())
+           .has_value()) {
+    sync_proto.clear_trusted_icons();
+  }
 
   sync_proto_ = std::move(sync_proto);
 }
@@ -913,6 +830,30 @@ void WebApp::SetGeneratedIconFix(
   generated_icon_fix_ = generated_icon_fix;
 }
 
+void WebApp::SetPendingUpdateInfo(
+    std::optional<proto::PendingUpdateInfo> pending_update_info) {
+  CheckValidPendingUpdateInfo(pending_update_info);
+  pending_update_info_ = std::move(pending_update_info);
+}
+
+void WebApp::SetTrustedIcons(std::vector<apps::IconInfo> trusted_icons) {
+  trusted_icons_ = std::move(trusted_icons);
+}
+
+void WebApp::SetStoredTrustedIconSizes(IconPurpose purpose,
+                                       SortedSizesPx sizes) {
+  switch (purpose) {
+    case IconPurpose::ANY:
+      stored_trusted_icon_sizes_any_ = std::move(sizes);
+      break;
+    case IconPurpose::MASKABLE:
+      stored_trusted_icon_sizes_maskable_ = std::move(sizes);
+      break;
+    case IconPurpose::MONOCHROME:
+      NOTREACHED();
+  }
+}
+
 WebApp::ClientData::ClientData() = default;
 
 WebApp::ClientData::~ClientData() = default;
@@ -1056,7 +997,11 @@ bool WebApp::operator==(const WebApp& other) const {
         app.is_diy_app_,
         app.was_shortcut_app_,
         app.related_applications_,
-        app.diy_app_icons_masked_on_mac_
+        app.diy_app_icons_masked_on_mac_,
+        app.pending_update_info_,
+        app.trusted_icons_,
+        app.stored_trusted_icon_sizes_any_,
+        app.stored_trusted_icon_sizes_maskable_
         // clang-format on
     );
   };
@@ -1248,7 +1193,7 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
            always_show_toolbar_in_fullscreen_);
 
   root.Set("current_os_integration_states",
-           OsStatesDebugValue(current_os_integration_states_));
+           proto::os_state::Serialize(current_os_integration_states_));
 
   root.Set("isolation_data", OptionalAsDebugValue(isolation_data_));
 
@@ -1257,8 +1202,7 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
 
   root.Set("latest_install_time", base::ToString(latest_install_time_));
 
-  root.Set("generated_icon_fix", generated_icon_fix_util::ToDebugValue(
-                                     base::OptionalToPtr(generated_icon_fix_)));
+  proto::MaybeSerialize(generated_icon_fix_, "generated_icon_fix", root);
 
   root.Set("supported_links_offer_ignore_count",
            supported_links_offer_ignore_count_);
@@ -1273,6 +1217,23 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
 
   root.Set("related_applications",
            RelatedApplicationsToDebugValue(related_applications_));
+
+  proto::MaybeSerialize(pending_update_info_, "pending_update_info", root);
+
+  root.Set("trusted_icons", ConvertDebugValueList(trusted_icons_));
+
+  base::Value::Dict stored_trusted_icon_sizes_json;
+  for (IconPurpose purpose : kIconPurposes) {
+    // There can never be trusted monochrome icons.
+    if (purpose == IconPurpose::MONOCHROME) {
+      continue;
+    }
+    stored_trusted_icon_sizes_json.Set(
+        base::ToString(purpose),
+        ConvertList(stored_trusted_icon_sizes(purpose)));
+  }
+  root.Set("stored_trusted_icon_sizes",
+           std::move(stored_trusted_icon_sizes_json));
 
   return base::Value(std::move(root));
 }
@@ -1298,16 +1259,6 @@ std::ostream& operator<<(
   return out << management_config.AsDebugValue().DebugString();
 }
 
-namespace proto::os_state {
-
-bool operator==(const WebAppOsIntegration& os_integration_state1,
-                const WebAppOsIntegration& os_integration_state2) {
-  return os_integration_state1.SerializeAsString() ==
-         os_integration_state2.SerializeAsString();
-}
-
-}  // namespace proto::os_state
-
 std::vector<std::string> GetSerializedAllowedOrigins(
     const network::ParsedPermissionsPolicyDeclaration
         permissions_policy_declaration) {
@@ -1325,12 +1276,3 @@ std::vector<std::string> GetSerializedAllowedOrigins(
 }
 
 }  // namespace web_app
-
-namespace sync_pb {
-
-bool operator==(const WebAppSpecifics& sync_proto1,
-                const WebAppSpecifics& sync_proto2) {
-  return sync_proto1.SerializeAsString() == sync_proto2.SerializeAsString();
-}
-
-}  // namespace sync_pb

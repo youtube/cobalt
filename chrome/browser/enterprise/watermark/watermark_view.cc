@@ -9,10 +9,13 @@
 #include <algorithm>
 #include <string>
 
+#include "base/check_op.h"
+#include "base/strings/string_util.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_recorder.h"
 #include "chrome/browser/enterprise/watermark/settings.h"
 #include "components/enterprise/watermarking/watermark.h"
+#include "components/prefs/pref_service.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
@@ -23,24 +26,26 @@
 
 namespace enterprise_watermark {
 
-WatermarkView::WatermarkView() : WatermarkView(std::string("")) {}
-
-WatermarkView::WatermarkView(std::string text)
-    : background_color_(SkColorSetARGB(0, 0, 0, 0)) {
+WatermarkView::WatermarkView() : background_color_(SkColorSetARGB(0, 0, 0, 0)) {
   SetCanProcessEventsWithinSubtree(false);
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
-  SetString(text);
+  SetString(/*text=*/std::string(""), GetDefaultFillColor(),
+            GetDefaultOutlineColor(), GetDefaultFontSize());
   GetViewAccessibility().SetIsInvisible(true);
 }
 
 WatermarkView::~WatermarkView() = default;
 
-void WatermarkView::SetString(const std::string& text) {
+void WatermarkView::SetString(const std::string& text,
+                              SkColor fill_color,
+                              SkColor outline_color,
+                              int font_size) {
   DCHECK(base::IsStringUTF8(text));
+  CHECK_GE(font_size, 1);
 
   watermark_block_ =
-      DrawWatermarkToPaintRecord(text, GetFillColor(), GetOutlineColor());
+      DrawWatermarkToPaintRecord(text, fill_color, outline_color, font_size);
 
   // Invalidate the state of the view.
   SchedulePaint();

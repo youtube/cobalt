@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
@@ -27,6 +28,7 @@ enum class ToastId;
 
 namespace content {
 class Page;
+class WebContents;
 }
 
 namespace toasts {
@@ -69,6 +71,11 @@ class ToastController : public views::WidgetObserver,
                            const ToastRegistry* toast_registry);
   ~ToastController() override;
 
+  // Returns the controller for the browser that owns `web_contents`, or nullptr
+  // if none.
+  static ToastController* MaybeGetForWebContents(
+      content::WebContents* web_contents);
+
   void Init();
   bool IsShowingToast() const;
   bool CanShowToast(ToastId id) const;
@@ -77,6 +84,10 @@ class ToastController : public views::WidgetObserver,
   // Attempts to show the toast and returns true if the toast was successfully
   // shown, otherwise return false.
   bool MaybeShowToast(ToastParams params);
+
+  using WidgetDestroyedCallback = base::RepeatingCallback<void(ToastId)>;
+  base::CallbackListSubscription RegisterOnWidgetDestroyed(
+      WidgetDestroyedCallback callback);
 
   // views::WidgetObserver:
 #if BUILDFLAG(IS_MAC)
@@ -138,6 +149,11 @@ class ToastController : public views::WidgetObserver,
       this};
   base::ScopedObservation<OmniboxTabHelper, OmniboxTabHelper::Observer>
       omnibox_helper_observer_{this};
+
+  // Stores a list of callbacks to inform when a toast widget is destroyed.
+  using WidgetDestroyedCallbackList =
+      base::RepeatingCallbackList<void(ToastId)>;
+  WidgetDestroyedCallbackList on_widget_destroyed_callbacks_;
 
   raw_ptr<toasts::ToastView> toast_view_;
   raw_ptr<views::Widget> toast_widget_;

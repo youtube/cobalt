@@ -26,7 +26,6 @@
 #include "gpu/command_buffer/common/command_buffer_id.h"
 #include "gpu/command_buffer/common/constants.h"
 #include "gpu/command_buffer/common/gpu_memory_allocation.h"
-#include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/service/command_buffer_service.h"
 #include "gpu/command_buffer/service/context_group.h"
 #include "gpu/command_buffer/service/decoder_client.h"
@@ -41,12 +40,11 @@
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/shared_associated_remote.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/swap_result.h"
 #include "ui/gl/gl_share_group.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/gl/gpu_preference.h"
-#include "url/gurl.h"
 
 namespace gpu {
 class DecoderContext;
@@ -157,7 +155,7 @@ class GPU_IPC_SERVICE_EXPORT CommandBufferStub
   bool ShouldYield() override;
 
   using MemoryTrackerFactory =
-      base::RepeatingCallback<std::unique_ptr<MemoryTracker>()>;
+      base::RepeatingCallback<scoped_refptr<MemoryTracker>()>;
 
   // Overrides the way CreateMemoryTracker() uses to create a MemoryTracker.
   // This is intended for mocking the MemoryTracker in tests.
@@ -230,13 +228,7 @@ class GPU_IPC_SERVICE_EXPORT CommandBufferStub
   void SignalSyncToken(const SyncToken& sync_token, uint32_t id) override;
   void SignalQuery(uint32_t query, uint32_t id) override;
 
-  virtual void OnSetDefaultFramebufferSharedImage(const Mailbox& mailbox,
-                                                  int samples_count,
-                                                  bool preserve,
-                                                  bool needs_depth,
-                                                  bool needs_stencil) {}
-
-  std::unique_ptr<MemoryTracker> CreateMemoryTracker() const;
+  scoped_refptr<MemoryTracker> CreateMemoryTracker() const;
 
   // Must be called during Initialize(). Takes ownership to co-ordinate
   // teardown in Destroy().
@@ -268,7 +260,7 @@ class GPU_IPC_SERVICE_EXPORT CommandBufferStub
   // ensure that the memory tracker outlives the objects that uses it, for
   // example the ContextGroup referenced both in the Decoder and the
   // CommandBufferStub.
-  std::unique_ptr<gpu::MemoryTracker> memory_tracker_;
+  scoped_refptr<MemoryTracker> memory_tracker_;
 
   scoped_refptr<gl::GLSurface> surface_;
   ScopedSyncPointClientState scoped_sync_point_client_state_;

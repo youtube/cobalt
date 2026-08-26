@@ -16,7 +16,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/thread_pool.h"
-#include "base/types/optional_ref.h"
 #include "base/types/zip.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_encoding.h"
@@ -114,12 +113,20 @@ bool CachedFormNeedsUpdate(const FormData& live_form,
 
   for (auto [cached_field, live_field] :
        base::zip(cached_form.fields(), live_form.fields())) {
-    if (!cached_field->SameFieldAs(live_field)) {
+    if (base::FeatureList::IsEnabled(
+            features::kAutofillUseDeepEqualInsteadOfSameFieldAs)
+            ? !FormFieldData::DeepEqual(*cached_field, live_field)
+            : !cached_field->SameFieldAs(live_field)) {
       return true;
     }
   }
 
   return false;
+}
+
+bool IsCreditCardFormForSignaturePurposes(const FormStructure& form_structure) {
+  return form_structure.GetFormTypes() ==
+         DenseSet<FormType>{FormType::kCreditCardForm};
 }
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
@@ -288,12 +295,9 @@ void AutofillManager::OnFormsParsed(const std::vector<FormData>& forms) {
   OnBeforeProcessParsedForms();
 
   std::vector<raw_ptr<const FormStructure, VectorExperimental>> queryable_forms;
-  DenseSet<FormType> form_types;
   for (const FormData& form : forms) {
     const FormStructure& form_structure =
         CHECK_DEREF(FindCachedFormById(form.global_id()));
-
-    form_types.insert_all(form_structure.GetFormTypes());
 
     // Configure the query encoding for this form and add it to the appropriate
     // collection of forms: queryable vs non-queryable.
@@ -389,7 +393,7 @@ void AutofillManager::OnAskForValuesToFill(
     const FieldGlobalId& field_id,
     const gfx::Rect& caret_bounds,
     AutofillSuggestionTriggerSource trigger_source,
-    base::optional_ref<const PasswordSuggestionRequest> password_request) {
+    std::optional<PasswordSuggestionRequest> password_request) {
   if (!IsValidFormData(form)) {
     return;
   }
@@ -398,7 +402,7 @@ void AutofillManager::OnAskForValuesToFill(
   ParseFormAsync(
       form,
       ParsingCallback(&AutofillManager::OnAskForValuesToFillImpl, field_id,
-                      caret_bounds, trigger_source, password_request)
+                      caret_bounds, trigger_source, std::move(password_request))
           .Then(NotifyObserversCallback(&Observer::OnAfterAskForValuesToFill,
                                         form.global_id(), field_id)));
 }
@@ -475,9 +479,7 @@ bool AutofillManager::GetCachedFormAndField(
     return false;
   }
   *form_structure = cached_form;
-  auto field_it =
-      std::ranges::find(*cached_form, field_id, &AutofillField::global_id);
-  *autofill_field = field_it == cached_form->end() ? nullptr : field_it->get();
+  *autofill_field = cached_form->GetFieldById(field_id);
   return *autofill_field != nullptr;
 }
 
@@ -589,11 +591,15 @@ void AutofillManager::ParseFormsAsync(
 
       // Not updating signatures of credit card forms is legacy behaviour. We
       // believe that the signatures are kept stable for voting purposes.
-      DenseSet<FormType> form_types = cached_form_structure->GetFormTypes();
-      if (form_types.size() > form_types.count(FormType::kCreditCardForm)) {
+      // Credit card forms are those which contain only credit card fields.
+      // TODO(crbug.com/431754194): Investigate making the behavior consistent
+      // across all form types.
+      if (!IsCreditCardFormForSignaturePurposes(*cached_form_structure)) {
         form_structure->set_form_signature(CalculateFormSignature(form_data));
         form_structure->set_alternative_form_signature(
             CalculateAlternativeFormSignature(form_data));
+        form_structure->set_structural_form_signature(
+            CalculateStructuralFormSignature(form_data));
       }
     }
 

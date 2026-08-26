@@ -72,6 +72,8 @@ bool TestClient::IsValidLink(const std::string& url) {
   return !url.empty();
 }
 
+void TestClient::OnNewTextFragmentsSearchStarted() {}
+
 #if BUILDFLAG(ENABLE_PDF_INK2)
 bool TestClient::IsInAnnotationMode() const {
   return false;
@@ -82,6 +84,8 @@ bool TestClient::IsInAnnotationMode() const {
 void TestClient::OnSearchifyStateChange(bool busy) {}
 
 void TestClient::OnHasSearchifyText() {}
+
+void TestClient::MaybeShowSearchifyInProgress() {}
 #endif
 
 }  // namespace chrome_pdf

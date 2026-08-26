@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "api/crypto/frame_decryptor_interface.h"
+#include "api/field_trials.h"
 #include "api/make_ref_counted.h"
 #include "api/rtp_packet_infos.h"
 #include "api/scoped_refptr.h"
@@ -28,9 +29,9 @@
 #include "api/video/video_timing.h"
 #include "modules/rtp_rtcp/source/frame_object.h"
 #include "modules/rtp_rtcp/source/rtp_video_header.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 using ::testing::Return;
 
@@ -58,7 +59,8 @@ class BufferedFrameDecryptorTest : public ::testing::Test,
     decrypted_frame_call_count_++;
   }
 
-  void OnDecryptionStatusChange(FrameDecryptorInterface::Status status) {
+  void OnDecryptionStatusChange(
+      FrameDecryptorInterface::Status status) override {
     ++decryption_status_change_count_;
   }
 
@@ -106,7 +108,7 @@ class BufferedFrameDecryptorTest : public ::testing::Test,
 
   static const size_t kMaxStashedFrames;
 
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   std::vector<uint8_t> fake_packet_data_;
   scoped_refptr<MockFrameDecryptor> mock_frame_decryptor_;
   std::unique_ptr<BufferedFrameDecryptor> buffered_frame_decryptor_;

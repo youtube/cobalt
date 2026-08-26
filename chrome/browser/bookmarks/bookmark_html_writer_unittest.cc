@@ -15,7 +15,9 @@
 #include <string>
 
 #include "base/check.h"
+#include "base/containers/auto_spanification_helper.h"
 #include "base/containers/flat_set.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/i18n/time_formatting.h"
@@ -34,7 +36,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_profile.h"
-#include "chrome/utility/importer/bookmark_html_reader.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/favicon/core/favicon_service.h"
@@ -44,6 +45,8 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/user_data_importer/common/imported_bookmark_entry.h"
 #include "components/user_data_importer/common/importer_data_types.h"
+#include "components/user_data_importer/content/content_bookmark_parser_utils.h"
+#include "components/user_data_importer/content/fake_bookmark_html_parser.h"
 #include "content/public/test/browser_task_environment.h"
 #include "skia/rusty_png_feature.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -64,9 +67,12 @@ SkBitmap MakeTestSkBitmap(int w, int h) {
   SkBitmap bmp;
   bmp.allocN32Pixels(w, h);
 
-  uint32_t* src_data = bmp.getAddr32(0, 0);
-  for (int i = 0; i < w * h; i++) {
-    src_data[i] = SkPreMultiplyARGB(i % 255, i % 250, i % 245, i % 240);
+  for (int y = 0; y < h; y++) {
+    base::span<uint32_t> src_data = UNSAFE_SKBITMAP_GETADDR32(bmp, 0, y);
+    for (int x = 0; x < w; x++) {
+      int i = y * w + x;
+      src_data[x] = SkPreMultiplyARGB(i % 255, i % 250, i % 245, i % 240);
+    }
   }
   return bmp;
 }
@@ -458,13 +464,16 @@ TEST_F(BookmarkHTMLWriterTest, ExportThenImport) {
                     gfx::Image());
 
   // Read the bookmarks back in.
-  std::vector<user_data_importer::ImportedBookmarkEntry> parsed_bookmarks;
-  std::vector<user_data_importer::SearchEngineInfo> parsed_search_engines;
-  favicon_base::FaviconUsageDataList favicons;
-  bookmark_html_reader::ImportBookmarksFile(
-      base::RepeatingCallback<bool(void)>(),
-      base::RepeatingCallback<bool(const GURL&)>(), path_, &parsed_bookmarks,
-      &parsed_search_engines, &favicons);
+  std::string html_content;
+  ASSERT_TRUE(base::ReadFileToString(path_, &html_content));
+  auto result =
+      user_data_importer::ParseBookmarksUnsafe(std::move(html_content));
+
+  std::vector<user_data_importer::ImportedBookmarkEntry> parsed_bookmarks =
+      result.bookmarks;
+  std::vector<user_data_importer::SearchEngineInfo> parsed_search_engines =
+      result.search_engines;
+  favicon_base::FaviconUsageDataList favicons = result.favicons;
 
   // Check loaded favicon (url1 is represented by 4 separate bookmarks).
   EXPECT_EQ(4U, favicons.size());

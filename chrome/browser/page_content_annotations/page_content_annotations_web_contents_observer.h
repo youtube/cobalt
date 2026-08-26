@@ -50,6 +50,7 @@ class PageContentAnnotationsWebContentsObserver
   friend class content::WebContentsUserData<
       PageContentAnnotationsWebContentsObserver>;
   friend class PageContentAnnotationsWebContentsObserverTest;
+  friend class PageContentExtractionService;
 
   // content::WebContentsObserver:
   void DocumentOnLoadCompletedInPrimaryMainFrame() override;
@@ -64,6 +65,10 @@ class PageContentAnnotationsWebContentsObserver
       const HistoryVisit& visit,
       continuous_search::SearchResultExtractorClientStatus status,
       continuous_search::mojom::CategoryResultsPtr results);
+
+  // Returns the latest page content request to use. Could be null if extraction
+  // is not enabled.
+  AnnotatedPageContentRequest* GetAnnotatedPageContentRequest();
 
   std::unique_ptr<AnnotatedPageContentRequest> annotated_page_content_request_;
 

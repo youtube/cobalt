@@ -2381,7 +2381,7 @@ TEST_F(PaymentsDataManagerTest, GetLinkedBnplIssuers_FlagOff) {
       test::CreatePaymentInstrumentWithLinkedBnplIssuer(
           1234L, std::string(kBnplAffirmIssuerId), "USD",
           /*min_price_in_micros=*/0,
-          /*max_price_in_micros=*/35000000);
+          /*max_price_in_micros=*/35'000'000);
   ASSERT_TRUE(
       GetServerDataTable()->SetPaymentInstruments({payment_instrument}));
 
@@ -2411,12 +2411,12 @@ TEST_F(PaymentsDataManagerTest, GetLinkedBnplIssuers_PaymentMethodsDisabled) {
       test::CreatePaymentInstrumentWithLinkedBnplIssuer(
           1234L, std::string(kBnplAffirmIssuerId), "USD",
           /*min_price_in_micros=*/0,
-          /*max_price_in_micros=*/35000000);
+          /*max_price_in_micros=*/35'000'000);
   sync_pb::PaymentInstrument payment_instrument_2 =
       test::CreatePaymentInstrumentWithLinkedBnplIssuer(
           2345L, std::string(kBnplZipIssuerId), "USD",
           /*min_price_in_micros=*/0,
-          /*max_price_in_micros=*/35000000);
+          /*max_price_in_micros=*/35'000'000);
   ASSERT_TRUE(GetServerDataTable()->SetPaymentInstruments(
       {payment_instrument_1, payment_instrument_2}));
 
@@ -2442,7 +2442,7 @@ TEST_F(PaymentsDataManagerTest, GetLinkedBnplIssuers_UnsupportedIssuer) {
       test::CreatePaymentInstrumentWithLinkedBnplIssuer(
           1234L, "unsupported_issuer_id", "USD",
           /*min_price_in_micros=*/0,
-          /*max_price_in_micros=*/35000000);
+          /*max_price_in_micros=*/35'000'000);
   ASSERT_TRUE(
       GetServerDataTable()->SetPaymentInstruments({payment_instrument_1}));
 
@@ -2464,8 +2464,8 @@ TEST_F(PaymentsDataManagerTest, GetLinkedBnplIssuers) {
   int64_t instrument_id = 1234L;
   std::string issuer_id = std::string(kBnplAffirmIssuerId);
   std::string currency = "USD";
-  uint64_t min_price_in_micros = 5000000;
-  uint64_t max_price_in_micros = 35000000;
+  uint64_t min_price_in_micros = 5'000'000;
+  uint64_t max_price_in_micros = 35'000'000;
   sync_pb::PaymentInstrument payment_instrument =
       test::CreatePaymentInstrumentWithLinkedBnplIssuer(
           instrument_id, issuer_id, currency, min_price_in_micros,
@@ -2504,8 +2504,8 @@ TEST_F(PaymentsDataManagerTest, GetLinkedBnplIssuers_NoEligiblePriceRange) {
   int64_t instrument_id = 1234L;
   std::string issuer_id = std::string(kBnplAffirmIssuerId);
   std::string currency = "USD";
-  uint64_t min_price_in_micros = 50000000;
-  uint64_t max_price_in_micros = 35000000;
+  uint64_t min_price_in_micros = 50'000'000;
+  uint64_t max_price_in_micros = 35'000'000;
   sync_pb::PaymentInstrument payment_instrument =
       test::CreatePaymentInstrumentWithLinkedBnplIssuer(
           instrument_id, issuer_id, currency, min_price_in_micros,
@@ -2542,7 +2542,8 @@ TEST_F(PaymentsDataManagerTest, GetLinkedBnplIssuers_NonUsdPriceRangeRejected) {
       {test::CreatePaymentInstrumentWithLinkedBnplIssuer(
           /*instrument_id=*/1234L,
           /*issuer_id=*/std::string(kBnplAffirmIssuerId), /*currency=*/"CAD",
-          /*min_price_in_micros=*/5000000, /*max_price_in_micros=*/35000000)}));
+          /*min_price_in_micros=*/5'000'000,
+          /*max_price_in_micros=*/35'000'000)}));
 
   // `Refresh()` must be called to ensure that the linked BNPL issuer payment
   // instruments are loaded again from the WebDatabase.
@@ -2552,6 +2553,79 @@ TEST_F(PaymentsDataManagerTest, GetLinkedBnplIssuers_NonUsdPriceRangeRejected) {
   // No linked BNPL issuers should be cached as there is no eligible price
   // range present.
   EXPECT_TRUE(payments_data_manager().GetLinkedBnplIssuers().empty());
+}
+
+// Tests that `action_required` is not set for BNPL issuers if flag
+// `AutofillEnableBuyNowPayLaterForExternallyLinked` is disabled.
+TEST_F(PaymentsDataManagerTest,
+       GetLinkedBnplIssuers_IssuerLinkedExternally_FlagDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kAutofillEnableBuyNowPayLaterSyncing,
+                            features::kAutofillEnableBuyNowPayLaterForKlarna},
+      /*disabled_features=*/{
+          features::kAutofillEnableBuyNowPayLaterForExternallyLinked});
+  sync_pb::PaymentInstrument payment_instrument =
+      test::CreatePaymentInstrumentWithLinkedBnplIssuer(
+          /*instrument_id=*/1234L, std::string(kBnplKlarnaIssuerId), "USD",
+          /*min_price_in_micros=*/0,
+          /*max_price_in_micros=*/35'000'000,
+          /*actions_required=*/
+          {sync_pb::PaymentInstrument_ActionRequired_ACCEPT_TOS});
+  ASSERT_TRUE(
+      GetServerDataTable()->SetPaymentInstruments({payment_instrument}));
+  payments_data_manager().Refresh();
+  WaitForOnPaymentsDataChanged();
+
+  base::span<const BnplIssuer> linked_bnpl_issuers =
+      payments_data_manager().GetLinkedBnplIssuers();
+
+  ASSERT_EQ(linked_bnpl_issuers.size(), 1U);
+  EXPECT_EQ(
+      linked_bnpl_issuers[0],
+      BnplIssuer(
+          /*instrument_id=*/1234L, BnplIssuer::IssuerId::kBnplKlarna,
+          /*eligible_price_ranges=*/
+          {BnplIssuer::EligiblePriceRange("USD", /*price_lower_bound=*/0,
+                                          /*price_upper_bound=*/35'000'000)},
+          /*action_required=*/DenseSet<PaymentInstrument::ActionRequired>()));
+}
+
+// Tests that `action_required` is set for BNPL issuers if flag
+// `AutofillEnableBuyNowPayLaterForExternallyLinked` is enabled.
+TEST_F(PaymentsDataManagerTest, GetLinkedBnplIssuers_IssuerLinkedExternally) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableBuyNowPayLaterSyncing,
+       features::kAutofillEnableBuyNowPayLaterForKlarna,
+       features::kAutofillEnableBuyNowPayLaterForExternallyLinked},
+      /*disabled_features=*/{});
+  sync_pb::PaymentInstrument payment_instrument =
+      test::CreatePaymentInstrumentWithLinkedBnplIssuer(
+          /*instrument_id=*/1234L, std::string(kBnplKlarnaIssuerId), "USD",
+          /*min_price_in_micros=*/0,
+          /*max_price_in_micros=*/35'000'000,
+          /*actions_required=*/
+          {sync_pb::PaymentInstrument_ActionRequired_ACCEPT_TOS});
+  ASSERT_TRUE(
+      GetServerDataTable()->SetPaymentInstruments({payment_instrument}));
+  payments_data_manager().Refresh();
+  WaitForOnPaymentsDataChanged();
+
+  base::span<const BnplIssuer> linked_bnpl_issuers =
+      payments_data_manager().GetLinkedBnplIssuers();
+
+  ASSERT_EQ(linked_bnpl_issuers.size(), 1U);
+  EXPECT_EQ(
+      linked_bnpl_issuers[0],
+      BnplIssuer(
+          /*instrument_id=*/1234L, BnplIssuer::IssuerId::kBnplKlarna,
+          /*eligible_price_ranges=*/
+          {BnplIssuer::EligiblePriceRange("USD", /*price_lower_bound=*/0,
+                                          /*price_upper_bound=*/35'000'000)},
+          /*action_required=*/
+          DenseSet({PaymentInstrument::ActionRequired::kAcceptTos})));
 }
 
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
@@ -2835,43 +2909,101 @@ class PaymentsDataManagerShouldBlockBenefitsTest
     ResetPaymentsDataManager(false, app_locale());
   }
   const std::string& app_locale() { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      features::kAutofillEnableFlatRateCardBenefitsBlocklist};
 };
 
 // Tests that card benefits should be blocked if the app locale is not en-US or
 // en-GB.
 TEST_P(PaymentsDataManagerShouldBlockBenefitsTest, NonSupportedAppLocale) {
-  const url::Origin origin =
-      url::Origin::Create(GURL("https://example-non-blocked-url.com/"));
-  ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
-              autofill_client()->GetAutofillOptimizationGuide()),
-          ShouldBlockBenefitSuggestionLabelsForCardAndUrl)
-      .WillByDefault(testing::Return(false));
-  if (app_locale() == "en-US" || app_locale() == "en-GB") {
-    EXPECT_FALSE(test_api(payments_data_manager())
-                     .ShouldBlockCardBenefitSuggestionLabels(
-                         test::GetMaskedServerCard(), origin,
-                         autofill_client()->GetAutofillOptimizationGuide()));
-  } else {
-    EXPECT_TRUE(test_api(payments_data_manager())
-                    .ShouldBlockCardBenefitSuggestionLabels(
-                        test::GetMaskedServerCard(), origin,
-                        autofill_client()->GetAutofillOptimizationGuide()));
-  }
+  EXPECT_NE(test_api(payments_data_manager())
+                .ShouldBlockCardBenefitSuggestionLabels(),
+            app_locale() == "en-US" || app_locale() == "en-GB");
 }
 
-// Tests that card benefits should be blocked when benefit suggestions are
-// disabled for the given card and url.
-TEST_P(PaymentsDataManagerShouldBlockBenefitsTest, BlockedUrl) {
+// Tests that card flat rate benefits should be blocked when benefit suggestions
+// are disabled for the given url.
+TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
+       BlockedUrlForFlateRateBenefit) {
+  if (app_locale() != "en-US" && app_locale() != "en-GB") {
+    GTEST_SKIP() << "This test should not run for not supported app locale.";
+  }
+
   const url::Origin origin =
       url::Origin::Create(GURL("https://example-blocked-url.com/"));
   ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
               autofill_client()->GetAutofillOptimizationGuide()),
-          ShouldBlockBenefitSuggestionLabelsForCardAndUrl)
+          ShouldBlockFlatRateBenefitSuggestionLabelsForUrl)
       .WillByDefault(testing::Return(true));
-  EXPECT_TRUE(test_api(payments_data_manager())
-                  .ShouldBlockCardBenefitSuggestionLabels(
+
+  // Add flat rate benefits and linked card.
+  CreditCardFlatRateBenefit flat_rate_benefit =
+      test::GetActiveCreditCardFlatRateBenefit();
+  CreditCard card = test::GetMaskedServerCard();
+  test_api(flat_rate_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(payments_data_manager()).AddServerCreditCard(card);
+  payments_data_manager().AddCreditCardBenefitForTest(
+      std::move(flat_rate_benefit));
+
+  EXPECT_TRUE(payments_data_manager()
+                  .GetApplicableBenefitDescriptionForCardAndOrigin(
                       test::GetMaskedServerCard(), origin,
-                      autofill_client()->GetAutofillOptimizationGuide()));
+                      autofill_client()->GetAutofillOptimizationGuide())
+                  .empty());
+
+  // Add other benefit.
+  CreditCardMerchantBenefit merchant_benefit =
+      test::GetActiveCreditCardMerchantBenefit();
+  test_api(merchant_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(merchant_benefit).SetMerchantDomains({origin});
+  payments_data_manager().AddCreditCardBenefitForTest(merchant_benefit);
+
+  EXPECT_EQ(
+      payments_data_manager().GetApplicableBenefitDescriptionForCardAndOrigin(
+          card, origin, autofill_client()->GetAutofillOptimizationGuide()),
+      merchant_benefit.benefit_description());
+}
+
+// Tests that card flat rate benefits should not be blocked if the given url is
+// on the flat rate benefit blocklist, but the blocklist feature flag is
+// disabled.
+TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
+       BlockedUrlForFlateRateBenefit_BlocklistDisabled) {
+  if (app_locale() != "en-US" && app_locale() != "en-GB") {
+    GTEST_SKIP() << "This test should not run for not supported app locale.";
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kAutofillEnableFlatRateCardBenefitsBlocklist);
+
+  const url::Origin origin =
+      url::Origin::Create(GURL("https://example-blocked-url.com/"));
+  ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
+              autofill_client()->GetAutofillOptimizationGuide()),
+          ShouldBlockFlatRateBenefitSuggestionLabelsForUrl)
+      .WillByDefault(testing::Return(true));
+
+  // Add flat rate benefits and linked card.
+  CreditCardFlatRateBenefit flat_rate_benefit =
+      test::GetActiveCreditCardFlatRateBenefit();
+  CreditCard card = test::GetMaskedServerCard();
+  test_api(flat_rate_benefit)
+      .SetLinkedCardInstrumentId(
+          CreditCardBenefitBase::LinkedCardInstrumentId(card.instrument_id()));
+  test_api(payments_data_manager()).AddServerCreditCard(card);
+  payments_data_manager().AddCreditCardBenefitForTest(flat_rate_benefit);
+
+  EXPECT_EQ(
+      payments_data_manager().GetApplicableBenefitDescriptionForCardAndOrigin(
+          card, origin, autofill_client()->GetAutofillOptimizationGuide()),
+      flat_rate_benefit.benefit_description());
 }
 
 INSTANTIATE_TEST_SUITE_P(

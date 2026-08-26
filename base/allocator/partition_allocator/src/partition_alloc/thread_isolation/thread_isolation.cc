@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/thread_isolation/thread_isolation.h"
 
 #if PA_BUILDFLAG(ENABLE_THREAD_ISOLATION)
@@ -75,11 +80,11 @@ void WriteProtectThreadIsolatedGlobals(ThreadIsolationOption thread_isolation) {
       thread_isolation, *pool,
       offsetof(AddressPoolManager::Pool, alloc_bitset_));
 
-  uint16_t* pkey_reservation_offset_table =
-      GetReservationOffsetTable(kThreadIsolatedPoolHandle);
+  auto pkey_reservation_offset_table =
+      ReservationOffsetTable::Get(kThreadIsolatedPoolHandle);
   WriteProtectThreadIsolatedMemory(
-      thread_isolation, pkey_reservation_offset_table,
-      ReservationOffsetTable::kReservationOffsetTableLength);
+      thread_isolation, pkey_reservation_offset_table.GetData(),
+      ReservationOffsetTable::kThreadIsolatedOffsetTableLength);
 
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
   WriteProtectThreadIsolatedVariable(thread_isolation,

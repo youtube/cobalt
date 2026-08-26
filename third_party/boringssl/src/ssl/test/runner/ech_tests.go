@@ -15,9 +15,6 @@
 package runner
 
 import (
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -83,39 +80,18 @@ func addEncryptedClientHelloTests() {
 	echConfig3 := generateServerECHConfig(&ECHConfig{ConfigID: 45})
 	echConfigRepeatID := generateServerECHConfig(&ECHConfig{ConfigID: 42})
 
-	echSecretCertificate := generateSingleCertChain(&x509.Certificate{
-		SerialNumber: big.NewInt(57005),
-		Subject: pkix.Name{
-			CommonName: "test cert",
-		},
-		NotBefore:             time.Now().Add(-time.Hour),
-		NotAfter:              time.Now().Add(time.Hour),
-		DNSNames:              []string{"secret.example"},
-		IsCA:                  true,
-		BasicConstraintsValid: true,
-	}, &rsa2048Key)
-	echPublicCertificate := generateSingleCertChain(&x509.Certificate{
-		SerialNumber: big.NewInt(57005),
-		Subject: pkix.Name{
-			CommonName: "test cert",
-		},
-		NotBefore:             time.Now().Add(-time.Hour),
-		NotAfter:              time.Now().Add(time.Hour),
-		DNSNames:              []string{"public.example"},
-		IsCA:                  true,
-		BasicConstraintsValid: true,
-	}, &rsa2048Key)
-	echLongNameCertificate := generateSingleCertChain(&x509.Certificate{
-		SerialNumber: big.NewInt(57005),
-		Subject: pkix.Name{
-			CommonName: "test cert",
-		},
-		NotBefore:             time.Now().Add(-time.Hour),
-		NotAfter:              time.Now().Add(time.Hour),
-		DNSNames:              []string{"test0123456789.example"},
-		IsCA:                  true,
-		BasicConstraintsValid: true,
-	}, &ecdsaP256Key)
+	echSecretCertificate := rootCA.Issue(X509Info{
+		PrivateKey: &rsa2048Key,
+		DNSNames:   []string{"secret.example"},
+	}).ToCredential()
+	echPublicCertificate := rootCA.Issue(X509Info{
+		PrivateKey: &rsa2048Key,
+		DNSNames:   []string{"public.example"},
+	}).ToCredential()
+	echLongNameCertificate := rootCA.Issue(X509Info{
+		PrivateKey: &ecdsaP256Key,
+		DNSNames:   []string{"test0123456789.example"},
+	}).ToCredential()
 
 	for _, protocol := range []protocol{tls, quic, dtls} {
 		prefix := protocol.String() + "-"

@@ -71,10 +71,6 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
-namespace WTF {
-class TextPosition;
-}  // namespace WTF
-
 namespace blink {
 
 class AnchorEvaluator;
@@ -493,7 +489,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   CSSStyleSheet* CreateSheet(Element&,
                              const String& text,
-                             WTF::TextPosition start_position,
+                             TextPosition start_position,
                              PendingSheetType type,
                              RenderBlockingBehavior render_blocking_behavior);
 
@@ -679,16 +675,18 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // after all.
   void UpdateStyleForNonEligibleSizeContainer(Element& container);
   // Updates the style of `element`, and descendants if needed.
-  // The provided `try_set` represents the declaration block from
-  // a @position-try rule. The specified TryTacticList will cause
-  // CSSFlipRevertValues to appear in the try-tactics layer (see
-  // OutOfFlowData::try_tactics_set_).
-  void UpdateStyleAndLayoutTreeForOutOfFlow(
+  // The provided `fallback` represents which of the position-try-fallbacks
+  // alternatives should be applied, null if no fallback should be applied.
+  // Return true if the style was updated.
+  // Returns false if a named @position-try rule was not found, in which case
+  // the style was not updated.
+  bool UpdateStyleAndLayoutTreeForOutOfFlow(
       Element& element,
-      std::optional<wtf_size_t> try_fallback_index,
-      const CSSPropertyValueSet* try_set,
-      const TryTacticList&,
-      AnchorEvaluator*);
+      const PositionTryFallback* fallback,
+      AnchorEvaluator*,
+      WritingDirectionMode abs_container_writing_direction);
+  std::optional<const CSSPropertyValueSet*> TrySetFromFallback(
+      const PositionTryFallback& fallback);
   void PostInterleavedRecalcUpdate(const Element& interleaving_root);
   StyleRulePositionTry* GetPositionTryRule(const ScopedCSSName&);
   void RecalcStyle();
@@ -766,7 +764,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   const CSSValue* GetCachedFillOrClipPathURIValue(const AtomicString& string);
 
   void Trace(Visitor*) const override;
-  const char* NameInHeapSnapshot() const override { return "StyleEngine"; }
+  const char* GetHumanReadableName() const override { return "StyleEngine"; }
 
   RuleSet* DefaultViewTransitionStyle(const Element&) const;
 
@@ -779,8 +777,8 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   // See comment on viewport_size_.
   void UpdateViewportSize();
   const CSSToLengthConversionData::ViewportSize& GetViewportSize() const {
-    DCHECK(viewport_size_ == CSSToLengthConversionData::ViewportSize(
-                                 GetDocument().GetLayoutView()));
+    DCHECK_EQ(viewport_size_, CSSToLengthConversionData::ViewportSize(
+                                  GetDocument().GetLayoutView()));
     return viewport_size_;
   }
 
@@ -838,7 +836,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
 
   CSSStyleSheet* ParseSheet(Element&,
                             const String& text,
-                            WTF::TextPosition start_position,
+                            TextPosition start_position,
                             RenderBlockingBehavior render_blocking_behavior);
 
   const DocumentStyleSheetCollection& GetDocumentStyleSheetCollection() const {

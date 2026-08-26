@@ -67,7 +67,7 @@ class WebAppTabHelper : public content::WebContentsUserData<WebAppTabHelper>,
   // explicitly from elsewhere.
   void SetAppId(std::optional<webapps::AppId> app_id);
 
-  // Called by `WebAppBrowserController` and `WebKioskBrowserControllerBase`'s
+  // Called by `WebAppBrowserController` and `KioskWebAppBrowserController`'s
   // `OnTabInserted` and `OnTabRemoved` methods to indicate if this web contents
   // is currently being displayed inside an app window. `window_app_id` is the
   // id of the app.
@@ -117,11 +117,6 @@ class WebAppTabHelper : public content::WebContentsUserData<WebAppTabHelper>,
   // True when this web contents is currently being displayed inside an app
   // window instead of in a browser tab.
   bool is_in_app_window() const { return window_app_id_.has_value(); }
-
-  bool is_pinned_home_tab() const { return is_pinned_home_tab_; }
-  void set_is_pinned_home_tab(bool is_pinned_home_tab) {
-    is_pinned_home_tab_ = is_pinned_home_tab;
-  }
 
   webapps::LaunchQueue& EnsureLaunchQueue();
 

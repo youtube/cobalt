@@ -12,11 +12,11 @@
 
 #include <android/log.h>
 
+#include <iterator>
 #include <memory>
 
 #include "api/array_view.h"
 #include "modules/audio_device/fine_audio_buffer.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/time_utils.h"
@@ -264,7 +264,7 @@ bool OpenSLESRecorder::CreateAudioRecorder() {
   const SLboolean interface_required[] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
   if (LOG_ON_ERROR((*engine_)->CreateAudioRecorder(
           engine_, recorder_object_.Receive(), &audio_source, &audio_sink,
-          arraysize(interface_id), interface_id, interface_required))) {
+          std::size(interface_id), interface_id, interface_required))) {
     return false;
   }
 

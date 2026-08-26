@@ -6,8 +6,9 @@
 
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_info.h"
 #include "chrome/browser/enterprise/data_controls/reporting_service.h"
-#include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
+#include "components/enterprise/connectors/core/common.h"
+#include "components/enterprise/connectors/core/reporting_constants.h"
 
 namespace enterprise_connectors {
 
@@ -27,8 +28,9 @@ std::unique_ptr<ClipboardRequestHandler> ClipboardRequestHandler::Create(
     Profile* profile,
     GURL url,
     Type type,
-    safe_browsing::DeepScanAccessPoint access_point,
+    DeepScanAccessPoint access_point,
     ContentMetaData::CopiedTextSource clipboard_source,
+    std::string source_content_area_email,
     std::string content_transfer_method,
     std::string data,
     CompletionCallback callback) {
@@ -36,14 +38,15 @@ std::unique_ptr<ClipboardRequestHandler> ClipboardRequestHandler::Create(
     return TestFactoryStorage()->Run(content_analysis_info, upload_service,
                                      profile, std::move(url), type,
                                      access_point, std::move(clipboard_source),
+                                     std::move(source_content_area_email),
                                      std::move(content_transfer_method),
                                      std::move(data), std::move(callback));
   }
   return base::WrapUnique(new ClipboardRequestHandler(
       content_analysis_info, upload_service, profile, std::move(url), type,
       access_point, std::move(clipboard_source),
-      std::move(content_transfer_method), std::move(data),
-      std::move(callback)));
+      std::move(source_content_area_email), std::move(content_transfer_method),
+      std::move(data), std::move(callback)));
 }
 
 // static
@@ -64,8 +67,9 @@ ClipboardRequestHandler::ClipboardRequestHandler(
     Profile* profile,
     GURL url,
     Type type,
-    safe_browsing::DeepScanAccessPoint access_point,
+    DeepScanAccessPoint access_point,
     ContentMetaData::CopiedTextSource clipboard_source,
+    std::string source_content_area_email,
     std::string content_transfer_method,
     std::string data,
     CompletionCallback callback)
@@ -78,21 +82,22 @@ ClipboardRequestHandler::ClipboardRequestHandler(
       data_(std::move(data)),
       content_size_(data_.size()),
       clipboard_source_(std::move(clipboard_source)),
+      source_content_area_email_(std::move(source_content_area_email)),
       content_transfer_method_(std::move(content_transfer_method)),
       callback_(std::move(callback)) {}
 
 void ClipboardRequestHandler::ReportWarningBypass(
     std::optional<std::u16string> user_justification) {
   ReportAnalysisConnectorWarningBypass(
-      profile_, /*url*/ url_, /*tab_url*/ url_,
+      profile_, *content_analysis_info_,
       /*source*/
       data_controls::ReportingService::GetClipboardSourceString(
           clipboard_source_),
       /*destination*/ url_.spec(),
       type_ == Type::kText ? "Text data" : "Image data",
       /*download_digest_sha256*/ "", type_ == Type::kText ? "text/plain" : "",
-      extensions::SafeBrowsingPrivateEventRouter::kTriggerWebContentUpload,
-      content_transfer_method_, access_point_, content_size_, response_,
+      kWebContentUploadDataTransferEventTrigger, content_transfer_method_,
+      content_size_, content_analysis_info_->referrer_chain(), response_,
       user_justification);
 }
 
@@ -128,6 +133,9 @@ bool ClipboardRequestHandler::UploadDataImpl() {
       request->set_clipboard_source_url(clipboard_source_.url());
     }
   }
+  if (!source_content_area_email_.empty()) {
+    request->set_source_content_area_account_email(source_content_area_email_);
+  }
 
   UploadForDeepScanning(std::move(request));
   return true;
@@ -156,15 +164,16 @@ void ClipboardRequestHandler::OnContentAnalysisResponse(
                      FinalContentAnalysisResult::WARNING;
 
   MaybeReportDeepScanningVerdict(
-      profile_, /*url*/ url_, /*tab_url*/ url_,
+      profile_, content_analysis_info_.get(),
       /*source*/
       data_controls::ReportingService::GetClipboardSourceString(
           clipboard_source_),
       /*destination*/ url_.spec(),
       type_ == Type::kText ? "Text data" : "Image data",
       /*download_digest_sha256*/ "", type_ == Type::kText ? "text/plain" : "",
-      extensions::SafeBrowsingPrivateEventRouter::kTriggerWebContentUpload,
-      content_transfer_method_, access_point_, content_size_, result, response_,
+      kWebContentUploadDataTransferEventTrigger, content_transfer_method_,
+      source_content_area_email_, content_size_,
+      content_analysis_info_->referrer_chain(), result, response_,
       CalculateEventResult(content_analysis_info_->settings(),
                            request_handler_result.complies, should_warn));
 

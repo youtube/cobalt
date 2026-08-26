@@ -249,6 +249,7 @@ html {
   --cr-fallback-color-surface: rgb(255, 255, 255);
   --cr-fallback-color-surface1: rgb(248, 250, 253);
   --cr-fallback-color-surface2: rgb(243, 246, 252);
+  --cr-fallback-color-surface3: rgb(239, 243, 250);
   --cr-fallback-color-on-surface-rgb: 31, 31, 31;
   --cr-fallback-color-on-surface: rgb(var(--cr-fallback-color-on-surface-rgb));
 
@@ -309,6 +310,8 @@ html {
 
   --cr-focus-outline-color: var(--color-sys-state-focus-ring,
       var(--cr-fallback-color-primary));
+  --cr-focus-outline-inverse-color: var(--color-sys-state-focus-ring-inverse,
+      var(--cr-fallback-color-inverse-primary));
 
   /* Typography */
   --cr-primary-text-color: var(--color-primary-foreground,
@@ -345,6 +348,7 @@ html {
     --cr-fallback-color-surface: rgb(31, 31, 31);
     --cr-fallback-color-surface1: rgb(39, 40, 42);
     --cr-fallback-color-surface2: rgb(45, 47, 49);
+    --cr-fallback-color-surface3: rgb(51, 52, 56);
     --cr-fallback-color-on-surface-rgb: 227, 227, 227;
     --cr-fallback-color-surface-variant: rgb(68, 71, 70);
     --cr-fallback-color-on-surface-variant: rgb(196, 199, 197);

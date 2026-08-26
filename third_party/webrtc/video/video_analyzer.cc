@@ -9,9 +9,8 @@
  */
 #include "video/video_analyzer.h"
 
-#include <inttypes.h>
-
 #include <algorithm>
+#include <cinttypes>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>

@@ -35,6 +35,7 @@
 #include "net/http/structured_headers.h"
 #include "net/ssl/ssl_info.h"
 #include "services/network/public/cpp/cors/cors.h"
+#include "services/network/public/cpp/integrity_metadata.h"
 #include "services/network/public/mojom/fetch_api.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
@@ -42,7 +43,6 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_load_timing.h"
 #include "third_party/blink/renderer/platform/loader/fetch/service_worker_router_info.h"
-#include "third_party/blink/renderer/platform/loader/unencoded_digest.h"
 #include "third_party/blink/renderer/platform/network/http_names.h"
 #include "third_party/blink/renderer/platform/network/http_parsers.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -90,6 +90,7 @@ ResourceResponse::ResourceResponse()
       timing_allow_passed_(false),
       was_fetched_via_spdy_(false),
       was_fetched_via_service_worker_(false),
+      from_synthetic_response_(false),
       did_service_worker_navigation_preload_(false),
       did_use_shared_dictionary_(false),
       async_revalidation_requested_(false),
@@ -273,7 +274,7 @@ void ResourceResponse::AddHttpHeaderField(const AtomicString& name,
 
   HTTPHeaderMap::AddResult result = http_header_fields_.Add(name, value);
   if (!result.is_new_entry) {
-    String new_value = WTF::StrCat({result.stored_value->value, ", ", value});
+    String new_value = StrCat({result.stored_value->value, ", ", value});
     result.stored_value->value = AtomicString(new_value);
   }
 }
@@ -435,14 +436,6 @@ std::optional<base::Time> ResourceResponse::LastModified(
   return last_modified_;
 }
 
-std::optional<UnencodedDigest> ResourceResponse::UnencodedDigest(
-    const FeatureContext* feature_context) const {
-  if (!RuntimeEnabledFeatures::UnencodedDigestEnabled(feature_context)) {
-    return std::nullopt;
-  }
-  return UnencodedDigest::Create(HttpHeaderFields());
-}
-
 bool ResourceResponse::IsAttachment() const {
   static const char kAttachmentString[] = "attachment";
   String value = http_header_fields_.Get(http_names::kContentDisposition);
@@ -459,6 +452,10 @@ AtomicString ResourceResponse::HttpContentType() const {
 }
 
 AtomicString ResourceResponse::GetFilteredHttpContentEncoding() const {
+  DEFINE_THREAD_SAFE_STATIC_LOCAL(const AtomicString, multiple_value,
+                                  ("multiple"));
+  DEFINE_THREAD_SAFE_STATIC_LOCAL(const AtomicString, unknown_value,
+                                  ("@unknown"));
   String content_encoding =
       HttpHeaderField(http_names::kContentEncoding).LowerASCII();
   if (content_encoding.IsNull() || content_encoding.empty()) {
@@ -468,9 +465,9 @@ AtomicString ResourceResponse::GetFilteredHttpContentEncoding() const {
     return AtomicString(content_encoding);
   }
   if (content_encoding.find(',') != kNotFound) {
-    return AtomicString("multiple");
+    return multiple_value;
   }
-  return AtomicString("unknown");
+  return unknown_value;
 }
 
 bool ResourceResponse::WasCached() const {
@@ -551,6 +548,16 @@ ResourceResponse::GetCrossOriginEmbedderPolicy() const {
   } else {
     return network::mojom::CrossOriginEmbedderPolicyValue::kNone;
   }
+}
+
+const Vector<network::IntegrityMetadata>&
+ResourceResponse::GetUnencodedDigests() const {
+  return unencoded_digests_;
+}
+
+void ResourceResponse::SetUnencodedDigests(
+    Vector<network::IntegrityMetadata> digests) {
+  unencoded_digests_ = std::move(digests);
 }
 
 STATIC_ASSERT_ENUM(WebURLResponse::kHTTPVersionUnknown,

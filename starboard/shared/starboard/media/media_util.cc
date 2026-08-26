@@ -382,8 +382,4 @@ int64_t AudioFramesToDuration(int frames, int samples_per_second) {
   return frames * 1'000'000LL / std::max(samples_per_second, 1);
 }
 
-int AlignUp(int value, int alignment) {
-  return (value + alignment - 1) / alignment * alignment;
-}
-
 }  // namespace starboard

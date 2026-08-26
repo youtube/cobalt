@@ -11,9 +11,9 @@
 #ifndef MODULES_AUDIO_PROCESSING_AEC3_ECHO_REMOVER_H_
 #define MODULES_AUDIO_PROCESSING_AEC3_ECHO_REMOVER_H_
 
+#include <cstddef>
 #include <memory>
 #include <optional>
-#include <vector>
 
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"

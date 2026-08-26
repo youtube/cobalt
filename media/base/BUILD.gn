@@ -64,6 +64,8 @@ source_set("base") {
     "audio_buffer_converter.h",
     "audio_buffer_queue.cc",
     "audio_buffer_queue.h",
+    "audio_bus.cc",
+    "audio_bus.h",
     "audio_bus_pool.cc",
     "audio_bus_pool.h",
     "audio_capturer_source.h",
@@ -85,8 +87,14 @@ source_set("base") {
     "audio_glitch_info.h",
     "audio_hash.cc",
     "audio_hash.h",
+    "audio_latency.cc",
+    "audio_latency.h",
     "audio_limiter.cc",
     "audio_limiter.h",
+    "audio_parameters.cc",
+    "audio_parameters.h",
+    "audio_point.cc",
+    "audio_point.h",
     "audio_power_monitor.cc",
     "audio_power_monitor.h",
     "audio_processing.cc",
@@ -99,14 +107,13 @@ source_set("base") {
     "audio_renderer.cc",
     "audio_renderer.h",
     "audio_renderer_sink.h",
+    "audio_sample_types.h",
     "audio_shifter.cc",
     "audio_shifter.h",
     "audio_timestamp_helper.cc",
     "audio_timestamp_helper.h",
     "bit_reader.cc",
     "bit_reader.h",
-    "bit_reader_core.cc",
-    "bit_reader_core.h",
     "bitrate.cc",
     "bitrate.h",
     "bitstream_buffer.cc",
@@ -138,6 +145,8 @@ source_set("base") {
     "cdm_promise_adapter.h",
     "cdm_session_tracker.cc",
     "cdm_session_tracker.h",
+    "channel_layout.cc",
+    "channel_layout.h",
     "channel_mixer.cc",
     "channel_mixer.h",
     "channel_mixing_matrix.cc",
@@ -151,7 +160,6 @@ source_set("base") {
     "content_decryption_module.h",
     "converting_audio_fifo.cc",
     "converting_audio_fifo.h",
-    "crc_16.h",
     "cross_origin_data_source.h",
     "data_buffer.cc",
     "data_buffer.h",
@@ -211,6 +219,7 @@ source_set("base") {
     "key_systems_support_registration.h",
     "limiting_audio_queue.cc",
     "limiting_audio_queue.h",
+    "limits.h",
     "localized_strings.cc",
     "localized_strings.h",
     "logging_override_if_enabled.h",
@@ -299,6 +308,8 @@ source_set("base") {
     "renderer_factory_selector.cc",
     "renderer_factory_selector.h",
     "routing_token_callback.h",
+    "sample_format.cc",
+    "sample_format.h",
     "sample_rates.cc",
     "sample_rates.h",
     "scoped_async_trace.cc",
@@ -338,6 +349,9 @@ source_set("base") {
     "tuneable.cc",
     "tuneable.h",
     "use_after_free_checker.h",
+    "vector_math.cc",
+    "vector_math.h",
+    "vector_math_testing.h",
     "video_aspect_ratio.cc",
     "video_aspect_ratio.h",
     "video_bitrate_allocation.cc",
@@ -374,6 +388,8 @@ source_set("base") {
     "video_thumbnail_decoder.h",
     "video_transformation.cc",
     "video_transformation.h",
+    "video_types.cc",
+    "video_types.h",
     "video_util.cc",
     "video_util.h",
     "wait_and_replace_sync_token_client.cc",
@@ -389,8 +405,8 @@ source_set("base") {
   defines = []
   public_deps = [
     ":video_facing",
+    "//gpu/command_buffer/client",
     "//media:media_buildflags",
-    "//media:shared_memory_support",
     "//media/gpu:buildflags",
     "//media/mojo:buildflags",
     "//ui/gfx:color_space",
@@ -400,21 +416,20 @@ source_set("base") {
     "//base",
     "//base/allocator:buildflags",
     "//components/system_media_controls/linux/buildflags",
-    "//gpu/command_buffer/client:client",
     "//gpu/command_buffer/client:interface_base",
     "//gpu/command_buffer/client:raster_interface",
     "//gpu/command_buffer/common",
-    "//gpu/ipc/common:common",
+    "//gpu/ipc/common",
     "//media/cdm:clear_key_cdm_common",
     "//net",
     "//skia",
     "//third_party/libyuv",
     "//third_party/widevine/cdm:headers",
-    "//ui/display:display",
-    "//ui/events:events",
+    "//ui/display",
+    "//ui/events",
     "//ui/events:events_base",
     "//ui/events:keyboard_hook",
-    "//url:url",
+    "//url",
   ]
 
   libs = []
@@ -482,15 +497,17 @@ source_set("base") {
 
   if (is_cobalt && use_starboard_media) {
     sources += [
-        "starboard/demuxer_memory_limit_starboard.cc",
-        "starboard/experimental_features.cc",
-        "starboard/experimental_features.h",
-        "starboard/renderer_factory_traits.h",
-        "starboard/ipc_param_traits.cc",
-        "starboard/ipc_param_traits.h",
-        "starboard/starboard_renderer_config.cc",
-        "starboard/starboard_renderer_config.h",
-        "starboard/starboard_rendering_mode.h"
+      "starboard/demuxer_memory_limit_starboard.cc",
+      "starboard/experimental_features.cc",
+      "starboard/experimental_features.h",
+      "starboard/ipc_param_traits.cc",
+      "starboard/ipc_param_traits.h",
+      "starboard/renderer_factory_traits.h",
+      "starboard/sbmedia_interface.cc",
+      "starboard/sbmedia_interface.h",
+      "starboard/starboard_renderer_config.cc",
+      "starboard/starboard_renderer_config.h",
+      "starboard/starboard_rendering_mode.h",
     ]
 
     deps += [
@@ -631,7 +648,6 @@ source_set("unit_tests") {
     "channel_mixing_matrix_unittest.cc",
     "container_names_unittest.cc",
     "converting_audio_fifo_unittest.cc",
-    "crc_16_unittest.cc",
     "data_buffer_unittest.cc",
     "decoder_buffer_queue_unittest.cc",
     "decoder_buffer_unittest.cc",
@@ -719,6 +735,10 @@ source_set("unit_tests") {
   if (is_castos) {
     sources += [ "demuxer_memory_limit_cast_unittest.cc" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
   if (is_cobalt && use_starboard_media) {
     sources += [

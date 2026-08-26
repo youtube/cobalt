@@ -243,10 +243,9 @@ static TLS12ServerParams choose_params(SSL_HANDSHAKE *hs,
     // curve list.
     int key_type = EVP_PKEY_id(cred->pubkey.get());
     if (key_type == EVP_PKEY_EC) {
-      EC_KEY *ec_key = EVP_PKEY_get0_EC_KEY(cred->pubkey.get());
       uint16_t group_id;
-      if (!ssl_nid_to_group_id(
-              &group_id, EC_GROUP_get_curve_name(EC_KEY_get0_group(ec_key))) ||
+      if (!ssl_nid_to_group_id(&group_id,
+                               EVP_PKEY_get_ec_curve_nid(cred->pubkey.get())) ||
           std::find(hs->peer_supported_group_list.begin(),
                     hs->peer_supported_group_list.end(),
                     group_id) == hs->peer_supported_group_list.end()) {

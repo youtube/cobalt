@@ -10,15 +10,27 @@
 
 #include "modules/audio_processing/aec3/suppression_gain.h"
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <vector>
+
+#include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec_state.h"
+#include "modules/audio_processing/aec3/block.h"
+#include "modules/audio_processing/aec3/delay_estimate.h"
+#include "modules/audio_processing/aec3/fft_data.h"
 #include "modules/audio_processing/aec3/render_delay_buffer.h"
+#include "modules/audio_processing/aec3/render_signal_analyzer.h"
 #include "modules/audio_processing/aec3/subtractor.h"
 #include "modules/audio_processing/aec3/subtractor_output.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "rtc_base/checks.h"
-#include "system_wrappers/include/cpu_features_wrapper.h"
 #include "test/gtest.h"
 
 namespace webrtc {

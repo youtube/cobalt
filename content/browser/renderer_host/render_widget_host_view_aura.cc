@@ -17,6 +17,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -2013,7 +2014,6 @@ bool RenderWidgetHostViewAura::AddGrammarFragments(
 
 #endif
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 void RenderWidgetHostViewAura::GetActiveTextInputControlLayoutBounds(
     std::optional<gfx::Rect>* control_bounds,
     std::optional<gfx::Rect>* selection_bounds) {
@@ -2036,7 +2036,6 @@ void RenderWidgetHostViewAura::GetActiveTextInputControlLayoutBounds(
     }
   }
 }
-#endif
 
 #if BUILDFLAG(IS_WIN)
 void RenderWidgetHostViewAura::SetActiveCompositionForAccessibility(
@@ -2263,6 +2262,15 @@ void RenderWidgetHostViewAura::OnMouseEvent(ui::MouseEvent* event) {
       return;
     }
     last_mouse_move_location_ = event->location();
+  }
+
+  // Stylus Handwriting applies exclusively to pen input. On Windows, mouse
+  // events get fired right before the pen makes contact. This serves as an
+  // indication that the user is using a pen to interact with the browser and is
+  // likely to perform handwriting. As such, we instantiate the handwriting
+  // singleton. Also, see crbug.com/40854538 for more context.
+  if (event->pointer_details().pointer_type == ui::EventPointerType::kPen) {
+    StylusHandwritingControllerWin::Initialize();
   }
 #endif
   last_pointer_type_ = ui::EventPointerType::kMouse;

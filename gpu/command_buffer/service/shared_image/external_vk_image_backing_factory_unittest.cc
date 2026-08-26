@@ -99,11 +99,10 @@ class ExternalVkImageBackingFactoryDawnTest
   }
 
  protected:
+  static constexpr auto kTimedWaitAny = wgpu::InstanceFeatureName::TimedWaitAny;
   static constexpr wgpu::InstanceDescriptor dawn_instance_desc_ = {
-      .capabilities =
-          {
-              .timedWaitAnyEnable = true,
-          },
+      .requiredFeatureCount = 1,
+      .requiredFeatures = &kTimedWaitAny,
   };
   dawn::native::Instance dawn_instance_ =
       dawn::native::Instance(&dawn_instance_desc_);

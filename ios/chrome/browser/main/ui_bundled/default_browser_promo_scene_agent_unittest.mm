@@ -14,11 +14,14 @@
 #import "ios/chrome/browser/default_browser/model/utils.h"
 #import "ios/chrome/browser/default_browser/model/utils_test_support.h"
 #import "ios/chrome/browser/default_promo/ui_bundled/post_default_abandonment/features.h"
+#import "ios/chrome/browser/dom_distiller/model/distiller_service_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/promos_manager/model/constants.h"
 #import "ios/chrome/browser/promos_manager/model/features.h"
 #import "ios/chrome/browser/promos_manager/model/mock_promos_manager.h"
 #import "ios/chrome/browser/promos_manager/model/promos_manager_factory.h"
+#import "ios/chrome/browser/reader_mode/model/features.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_metrics_helper.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/test/fake_scene_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -31,8 +34,10 @@
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
+#import "ios/chrome/browser/signin/model/signin_util.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/chrome/test/testing_application_context.h"
+#import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gmock/include/gmock/gmock.h"
 #import "testing/platform_test.h"
@@ -98,6 +103,19 @@ class DefaultBrowserPromoSceneAgentTest : public PlatformTest {
     agent_ = [[DefaultBrowserPromoSceneAgent alloc] init];
     agent_.sceneState = scene_state_;
     agent_.promosManager = promos_manager_.get();
+
+    web_state_.SetBrowserState(profile_.get());
+    distilled_page_prefs_ =
+        DistillerServiceFactory::GetForProfile(profile_.get())
+            ->GetDistilledPagePrefs();
+    metrics_helper_ = std::make_unique<ReaderModeMetricsHelper>(
+        &web_state_, distilled_page_prefs_);
+
+    base::RunLoop run_loop;
+    // Call IsFirstSessionAfterDeviceRestore() explicitly to make sure sentinel
+    // files related to backup/restore are fully created before the test begins.
+    IsFirstSessionAfterDeviceRestore(run_loop.QuitClosure());
+    run_loop.Run();
   }
 
   void TearDown() override {
@@ -106,8 +124,8 @@ class DefaultBrowserPromoSceneAgentTest : public PlatformTest {
          forKey:@"SimulatePostDeviceRestore"];
     [scene_state_ shutdown];
     scene_state_ = nil;
-    profile_.reset();
     ClearDefaultBrowserPromoData();
+    ResetDeviceRestoreDataForTesting();
   }
 
   void SignIn() {
@@ -124,6 +142,12 @@ class DefaultBrowserPromoSceneAgentTest : public PlatformTest {
     [[NSUserDefaults standardUserDefaults]
         setBool:YES
          forKey:@"SimulatePostDeviceRestore"];
+
+    ResetDeviceRestoreDataForTesting();
+  }
+
+  void SimulateReadingModeInteraction() {
+    metrics_helper_->RecordReaderShown();
   }
 
   void VerifyPromoRegistration(std::set<promos_manager::Promo> promos) {
@@ -186,6 +210,9 @@ class DefaultBrowserPromoSceneAgentTest : public PlatformTest {
     EXPECT_CALL(*promos_manager_.get(),
                 DeregisterPromo(promos_manager::Promo::DefaultBrowser))
         .Times(1);
+    EXPECT_CALL(*promos_manager_.get(),
+                DeregisterPromo(promos_manager::Promo::DefaultBrowserOffCycle))
+        .Times(1);
   }
 
   web::WebTaskEnvironment task_environment_;
@@ -197,6 +224,9 @@ class DefaultBrowserPromoSceneAgentTest : public PlatformTest {
   ProfileState* profile_state_;
   FakeSceneState* scene_state_;
   DefaultBrowserPromoSceneAgent* agent_;
+  web::FakeWebState web_state_;
+  std::unique_ptr<ReaderModeMetricsHelper> metrics_helper_;
+  raw_ptr<dom_distiller::DistilledPagePrefs> distilled_page_prefs_;
 };
 
 // Tests that DefaultBrowser was registered with the promo manager when user is
@@ -214,6 +244,8 @@ TEST_F(DefaultBrowserPromoSceneAgentTest,
 // default browser.
 TEST_F(DefaultBrowserPromoSceneAgentTest,
        TestChromeLikelyDefaultBrowserNoPromoRegistration) {
+  scoped_feature_list_.InitWithFeatures({kIOSDefaultBrowserOffCyclePromo},
+                                        {kEnableReaderModeDefaultBrowserPromo});
   LogOpenHTTPURLFromExternalURL();
 
   // All promos should be deregistered.
@@ -253,11 +285,7 @@ TEST_F(DefaultBrowserPromoSceneAgentTest,
 
 // Tests that the Post Restore Default Browser Promo is registered when the
 // conditions are met.
-// TODO(crbug.com/417431030): disabled because it fails after fixing the UaF
-// caused by bad interaction between FakeSceneState and TestProfileIOS. It
-// should be fixed and re-enabled.
-TEST_F(DefaultBrowserPromoSceneAgentTest,
-       DISABLED_TestPromoRegistrationPostRestore) {
+TEST_F(DefaultBrowserPromoSceneAgentTest, TestPromoRegistrationPostRestore) {
   SimulatePostDeviceRestore();
   TestingApplicationContext::GetGlobal()->SetLastShutdownClean(true);
   LogOpenHTTPURLFromExternalURL();
@@ -505,4 +533,78 @@ TEST_F(DefaultBrowserPromoSceneAgentTest, TestTriggerCriteriaExperiment) {
   scene_state_.activationLevel = SceneActivationLevelForegroundActive;
   Mock::VerifyAndClearExpectations(mock_tracker_);
   scene_state_.activationLevel = SceneActivationLevelBackground;
+}
+
+TEST_F(DefaultBrowserPromoSceneAgentTest, TestTriggerCriteriaForReadingMode) {
+  scoped_feature_list_.InitWithFeatures(
+      {kEnableReaderMode, kEnableReaderModeDefaultBrowserPromo}, {});
+
+  SimulateReadingModeInteraction();
+  SimulateReadingModeInteraction();
+
+  // The Default Browser promo should have been registered once from its own
+  // registration, and once from the reader mode registration. Other promos can
+  // also have been registered.
+  EXPECT_CALL(*promos_manager_.get(), RegisterPromoForSingleDisplay(_))
+      .Times(AnyNumber());
+  EXPECT_CALL(
+      *promos_manager_.get(),
+      RegisterPromoForSingleDisplay(promos_manager::Promo::DefaultBrowser))
+      .Times(2);
+  scene_state_.activationLevel = SceneActivationLevelForegroundActive;
+
+  Mock::VerifyAndClearExpectations(promos_manager_.get());
+}
+
+TEST_F(DefaultBrowserPromoSceneAgentTest,
+       TestTriggerCriteriaForReadingModeNotEligible) {
+  scoped_feature_list_.InitWithFeatures(
+      {kEnableReaderMode, kEnableReaderModeDefaultBrowserPromo},
+      {kIOSDefaultBrowserOffCyclePromo});
+
+  // The Default Browser promo should have been registered once from its own
+  // registration, and then deregistered from the reader mode registration.
+  // Other promos can also have been registered and deregistered.
+  EXPECT_CALL(*promos_manager_.get(), RegisterPromoForSingleDisplay(_))
+      .Times(AnyNumber());
+  EXPECT_CALL(*promos_manager_.get(), DeregisterPromo(_)).Times(AnyNumber());
+  EXPECT_CALL(
+      *promos_manager_.get(),
+      RegisterPromoForSingleDisplay(promos_manager::Promo::DefaultBrowser))
+      .Times(1);
+  EXPECT_CALL(*promos_manager_.get(),
+              DeregisterPromo(promos_manager::Promo::DefaultBrowser))
+      .Times(1);
+  scene_state_.activationLevel = SceneActivationLevelForegroundActive;
+
+  Mock::VerifyAndClearExpectations(promos_manager_.get());
+}
+
+TEST_F(DefaultBrowserPromoSceneAgentTest,
+       TestDefaultBrowserOffCyclePromoRegistration) {
+  scoped_feature_list_.InitWithFeatures({kIOSDefaultBrowserOffCyclePromo},
+                                        {kEnableReaderModeDefaultBrowserPromo});
+  if (@available(iOS 18.3, *)) {
+    VerifyPromoRegistration({promos_manager::Promo::DefaultBrowserOffCycle});
+    EXPECT_CALL(*promos_manager_.get(),
+                DeregisterPromo(promos_manager::Promo::DefaultBrowser))
+        .Times(1);
+  } else {
+    VerifyPromoDeregistration({promos_manager::Promo::DefaultBrowserOffCycle});
+  }
+
+  scene_state_.activationLevel = SceneActivationLevelForegroundActive;
+  Mock::VerifyAndClearExpectations(promos_manager_.get());
+}
+
+TEST_F(DefaultBrowserPromoSceneAgentTest,
+       TestDefaultBrowserOffCyclePromoDeregistration) {
+  scoped_feature_list_.InitWithFeatures({kIOSDefaultBrowserOffCyclePromo},
+                                        {kEnableReaderModeDefaultBrowserPromo});
+  LogOpenHTTPURLFromExternalURL();
+
+  VerifyAllDeregistration();
+
+  scene_state_.activationLevel = SceneActivationLevelForegroundActive;
+  Mock::VerifyAndClearExpectations(promos_manager_.get());
 }

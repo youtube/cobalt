@@ -33,9 +33,9 @@ class ReadAnythingService : public KeyedService, public BrowserListObserver {
  private:
   void InstallGDocsHelperExtension();
   void RemoveGDocsHelperExtension();
-  void InstallTtsDownloadExtension();
   void RemoveTtsDownloadExtension();
   void OnLocalSidePanelSwitchDelayTimeout();
+  static void RecordEngineVersion(const base::FilePath& engine_version);
 #if !BUILDFLAG(IS_CHROMEOS)
   void SetupDesktopEngine();
 #endif  // !BUILDFLAG(IS_CHROMEOS)

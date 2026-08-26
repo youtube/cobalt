@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.history;
 import static org.chromium.chrome.browser.hub.HubAnimationConstants.HUB_LAYOUT_FADE_DURATION_MS;
 
 import android.app.Activity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
@@ -48,6 +49,8 @@ public class HistoryPane implements Pane {
     private final ObservableSupplier<FullButtonData> mEmptyActionButtonSupplier =
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<Boolean> mHairlineVisibilitySupplier =
+            new ObservableSupplierImpl<>();
+    private final ObservableSupplierImpl<View> mHubOverlayViewSupplier =
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<Boolean> mHubSearchEnabledStateSupplier =
             new ObservableSupplierImpl<>();
@@ -147,7 +150,9 @@ public class HistoryPane implements Pane {
                             /* shouldShowClearData= */ true,
                             /* launchedForApp= */ false,
                             /* showAppFilter= */ true,
-                            this::onHistoryItemOpened);
+                            this::onHistoryItemOpened,
+                            // TODO(crbug.com/427776544): make history pane support edge to edge.
+                            /* edgeToEdgePadAdjusterGenerator= */ null);
             mRootView.addView(mHistoryManager.getView());
         } else if (loadHint == LoadHint.COLD) {
             destroyManagerAndRemoveView();
@@ -170,6 +175,11 @@ public class HistoryPane implements Pane {
     @Override
     public ObservableSupplier<Boolean> getHairlineVisibilitySupplier() {
         return mHairlineVisibilitySupplier;
+    }
+
+    @Override
+    public ObservableSupplier<View> getHubOverlayViewSupplier() {
+        return mHubOverlayViewSupplier;
     }
 
     @Nullable

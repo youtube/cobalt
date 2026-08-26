@@ -8,6 +8,7 @@
 #include <deque>
 #include <optional>
 
+#include "base/containers/flat_set.h"
 #include "base/containers/queue.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
@@ -18,6 +19,7 @@
 #include "components/optimization_guide/core/model_execution/model_broker_client.h"
 #include "components/optimization_guide/core/model_execution/multimodal_message.h"
 #include "components/optimization_guide/core/model_execution/safety_checker.h"
+#include "components/optimization_guide/core/optimization_guide_logger.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/proto/features/prompt_api.pb.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
@@ -93,6 +95,7 @@ class AILanguageModel : public AIContextBoundObject,
     // The number of tokens remaining after the initial prompts.
     uint32_t max_tokens() const { return max_tokens_; }
     uint32_t current_tokens() const { return current_tokens_; }
+    uint32_t available_tokens() const { return max_tokens_ - current_tokens_; }
 
    private:
     uint32_t max_tokens_;
@@ -103,7 +106,8 @@ class AILanguageModel : public AIContextBoundObject,
   AILanguageModel(AIContextBoundObjectSet& context_bound_object_set,
                   on_device_model::mojom::SessionParamsPtr session_params,
                   base::WeakPtr<optimization_guide::ModelClient> model_client,
-                  mojo::PendingRemote<on_device_model::mojom::Session> session);
+                  mojo::PendingRemote<on_device_model::mojom::Session> session,
+                  base::WeakPtr<OptimizationGuideLogger> logger);
   AILanguageModel(const AILanguageModel&) = delete;
   AILanguageModel& operator=(const AILanguageModel&) = delete;
 
@@ -112,6 +116,9 @@ class AILanguageModel : public AIContextBoundObject,
   // Returns the the metadata parsed to the `PromptApiMetadata` from `any`.
   static PromptApiMetadata ParseMetadata(
       const optimization_guide::proto::Any& any);
+
+  // Returns a set of BCP 47 base language codes that are supported and enabled.
+  static base::flat_set<std::string_view> GetSupportedLanguageBaseCodes();
 
   // Format the initial prompts, gets the token count, updates the session,
   // and reports to `create_client`.
@@ -186,6 +193,7 @@ class AILanguageModel : public AIContextBoundObject,
   void GetSizeInTokens(
       on_device_model::mojom::InputPtr input,
       base::OnceCallback<void(std::optional<uint32_t>)> callback);
+  void EnsureSessionConnected();
 
   // These methods are used for implementing queueing.
   using QueueCallback = base::OnceCallback<void(base::OnceClosure)>;
@@ -198,6 +206,7 @@ class AILanguageModel : public AIContextBoundObject,
   // also be assumed to be valid, as any disconnects should apply to both
   // remotes (e.g. a service crash).
   mojo::Remote<on_device_model::mojom::Session> initial_session_;
+  on_device_model::mojom::InputPtr initial_input_;
 
   // Contains the current committed session state. This will be replaced after a
   // successful prompt with the latest session state.
@@ -223,6 +232,8 @@ class AILanguageModel : public AIContextBoundObject,
   // Holds state for any currently active prompt. This holds a reference to
   // `safety_checker_` so must be ordered after that member.
   std::unique_ptr<PromptState> prompt_state_;
+
+  base::WeakPtr<OptimizationGuideLogger> logger_;
 
   mojo::Receiver<blink::mojom::AILanguageModel> receiver_{this};
 

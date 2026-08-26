@@ -10,8 +10,7 @@
 
 #include "pc/jsep_transport_controller.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -29,6 +28,7 @@
 #include "api/environment/environment.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
+#include "api/local_network_access_permission.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
@@ -77,12 +77,14 @@ JsepTransportController::JsepTransportController(
     Thread* network_thread,
     PortAllocator* port_allocator,
     AsyncDnsResolverFactoryInterface* async_dns_resolver_factory,
+    LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory,
     PayloadTypePicker& payload_type_picker,
     Config config)
     : env_(env),
       network_thread_(network_thread),
       port_allocator_(port_allocator),
       async_dns_resolver_factory_(async_dns_resolver_factory),
+      lna_permission_factory_(lna_permission_factory),
       transports_(
           [this](const std::string& mid, JsepTransport* transport) {
             return OnTransportChanged(mid, transport);
@@ -405,52 +407,32 @@ RTCError JsepTransportController::AddRemoteCandidates(
   return jsep_transport->AddRemoteCandidates(candidates);
 }
 
-RTCError JsepTransportController::RemoveRemoteCandidates(
-    const Candidates& candidates) {
+bool JsepTransportController::RemoveRemoteCandidate(const IceCandidate* c) {
   if (!network_thread_->IsCurrent()) {
     return network_thread_->BlockingCall(
-        [&] { return RemoveRemoteCandidates(candidates); });
+        [&] { return RemoveRemoteCandidate(c); });
   }
 
   RTC_DCHECK_RUN_ON(network_thread_);
-
-  // Verify each candidate before passing down to the transport layer.
-  RTCError error = VerifyCandidates(candidates);
-  if (!error.ok()) {
-    return error;
+  std::string mid = c->sdp_mid();
+  if (!VerifyCandidate(c->candidate()).ok() || mid.empty()) {
+    RTC_LOG(LS_ERROR) << "Candidate invalid or missing sdp_mid: "
+                      << c->candidate().ToSensitiveString();
+    return false;
   }
-
-  std::map<std::string, Candidates> candidates_by_transport_name;
-  for (const Candidate& cand : candidates) {
-    if (!cand.transport_name().empty()) {
-      candidates_by_transport_name[cand.transport_name()].push_back(cand);
-    } else {
-      RTC_LOG(LS_ERROR) << "Not removing candidate because it does not have a "
-                           "transport name set: "
-                        << cand.ToSensitiveString();
-    }
+  JsepTransport* jsep_transport = GetJsepTransportForMid(mid);
+  if (!jsep_transport) {
+    RTC_LOG(LS_WARNING) << "No Transport for mid=" << mid;
+    return false;
   }
-
-  for (const auto& kv : candidates_by_transport_name) {
-    const std::string& transport_name = kv.first;
-    const Candidates& transport_candidates = kv.second;
-    JsepTransport* jsep_transport = GetJsepTransportByName(transport_name);
-    if (!jsep_transport) {
-      RTC_LOG(LS_WARNING)
-          << "Not removing candidate because the JsepTransport doesn't exist.";
-      continue;
-    }
-    for (const Candidate& candidate : transport_candidates) {
-      DtlsTransportInternal* dtls =
-          candidate.component() == ICE_CANDIDATE_COMPONENT_RTP
-              ? jsep_transport->rtp_dtls_transport()
-              : jsep_transport->rtcp_dtls_transport();
-      if (dtls) {
-        dtls->ice_transport()->RemoveRemoteCandidate(candidate);
-      }
-    }
+  DtlsTransportInternal* dtls =
+      c->candidate().component() == ICE_CANDIDATE_COMPONENT_RTP
+          ? jsep_transport->rtp_dtls_transport()
+          : jsep_transport->rtcp_dtls_transport();
+  if (dtls) {
+    dtls->ice_transport()->RemoveRemoteCandidate(c->candidate());
   }
-  return RTCError::OK();
+  return true;
 }
 
 bool JsepTransportController::GetStats(const std::string& transport_name,
@@ -499,6 +481,7 @@ JsepTransportController::CreateIceTransport(const std::string& transport_name,
   IceTransportInit init;
   init.set_port_allocator(port_allocator_);
   init.set_async_dns_resolver_factory(async_dns_resolver_factory_);
+  init.set_lna_permission_factory(lna_permission_factory_);
   init.set_event_log(config_.event_log);
   init.set_field_trials(&env_.field_trials());
   auto transport = config_.ice_transport_factory->CreateIceTransport(
@@ -558,8 +541,6 @@ JsepTransportController::CreateDtlsTransport(const ContentInfo& content_info,
       });
   dtls->ice_transport()->SignalRoleConflict.connect(
       this, &JsepTransportController::OnTransportRoleConflict_n);
-  dtls->ice_transport()->SignalStateChanged.connect(
-      this, &JsepTransportController::OnTransportStateChanged_n);
   dtls->ice_transport()->SignalIceTransportStateChanged.connect(
       this, &JsepTransportController::OnTransportStateChanged_n);
   dtls->ice_transport()->SetCandidatePairChangeCallback(
@@ -1317,7 +1298,7 @@ void JsepTransportController::OnTransportCandidateError_n(
 void JsepTransportController::OnTransportCandidatesRemoved_n(
     IceTransportInternal* transport,
     const Candidates& candidates) {
-  signal_ice_candidates_removed_.Send(candidates);
+  signal_ice_candidates_removed_.Send(transport, candidates);
 }
 void JsepTransportController::OnTransportCandidatePairChanged_n(
     const CandidatePairChangeEvent& event) {

@@ -78,6 +78,7 @@
 #include "third_party/blink/renderer/core/html/media/audio_output_device_controller.h"
 #include "third_party/blink/renderer/core/html/media/autoplay_policy.h"
 #include "third_party/blink/renderer/core/html/media/html_media_element_controls_list.h"
+#include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/html/media/media_controls.h"
 #include "third_party/blink/renderer/core/html/media/media_error.h"
 #include "third_party/blink/renderer/core/html/media/media_fragment_uri_parser.h"
@@ -103,6 +104,7 @@
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/speech/speech_synthesis_base.h"
+#include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/audio/audio_source_provider_client.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
@@ -120,6 +122,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+#include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -130,7 +133,7 @@
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/strings/string_util.h"
-#include "starboard/media.h"  // nogncheck
+#include "media/base/starboard/sbmedia_interface.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #ifndef LOG_MEDIA_EVENTS
@@ -212,7 +215,7 @@ String UrlForLoggingMedia(const KURL& url) {
 
   if (url.GetString().length() < kMaximumURLLengthForLogging)
     return url.GetString();
-  return WTF::StrCat(
+  return StrCat(
       {url.GetString().GetString().Substring(0, kMaximumURLLengthForLogging),
        "..."});
 }
@@ -306,8 +309,10 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
   if (content_mime_type != "application/octet-stream" ||
       content_type_codecs.empty()) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+    auto ascii = content_type_str.Ascii();
     SbMediaSupportType support_type =
-        SbMediaCanPlayMimeAndKeySystem(content_type_str.Ascii().c_str(), "");
+        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(ascii.c_str(),
+                                                                "");
     MIMETypeRegistry::SupportsType result;
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
@@ -360,6 +365,8 @@ HTMLMediaElement::PlayPromiseError PauseReasonToPlayPromiseError(
           kPaused_SuspendedPlayerIdleTimeout;
     case WebMediaPlayer::PauseReason::kRemotePlayStateChange:
       return HTMLMediaElement::PlayPromiseError::kPaused_RemotePlayStateChange;
+    case WebMediaPlayer::PauseReason::kFrameFrozen:
+      return HTMLMediaElement::PlayPromiseError::kPaused_FrameFrozen;
     case WebMediaPlayer::PauseReason::kFrameHidden:
       return HTMLMediaElement::PlayPromiseError::kPaused_FrameHidden;
     case WebMediaPlayer::PauseReason::kEndOfPlayback:
@@ -420,8 +427,10 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
               << "\' is unsupported.";
     result = MIMETypeRegistry::kNotSupported;
   } else {
-    const SbMediaSupportType support_type =
-        SbMediaCanPlayMimeAndKeySystem(content_type.Raw().Ascii().c_str(), "");
+    auto ascii = content_type.Raw().Ascii();
+    SbMediaSupportType support_type =
+        ::media::GetSbMediaInterface()->CanPlayMimeAndKeySystem(ascii.c_str(),
+                                                                "");
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
         result = MIMETypeRegistry::kNotSupported;
@@ -546,7 +555,6 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tag_name,
       muted_(false),
       paused_(true),
       seeking_(false),
-      paused_by_context_paused_(false),
       show_poster_flag_(true),
       sent_stalled_event_(false),
       ignore_preload_none_(false),
@@ -850,6 +858,9 @@ void HTMLMediaElement::ParseAttribute(
                         StyleChangeReasonForTracing::FromAttribute(name));
     // Trigger a reload, as long as the 'src' attribute is present.
     if (!params.new_value.IsNull()) {
+      if (auto* video_element = DynamicTo<HTMLVideoElement>(this)) {
+        SoftNavigationHeuristics::OnVideoSrcChanged(video_element);
+      }
       ignore_preload_none_ = false;
       InvokeLoadAlgorithm();
     }
@@ -1028,6 +1039,9 @@ void HTMLMediaElement::SetSrcObjectVariant(
            << ": stream_descriptor=" << src_object_stream_descriptor_
            << ", media_source_handle=" << src_object_media_source_handle_;
 
+  if (auto* video_element = DynamicTo<HTMLVideoElement>(this)) {
+    SoftNavigationHeuristics::OnVideoSrcChanged(video_element);
+  }
   InvokeLoadAlgorithm();
 }
 
@@ -1951,7 +1965,8 @@ bool HTMLMediaElement::IsSafeToLoadURL(const KURL& url,
       GetDocument().AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
           mojom::ConsoleMessageSource::kSecurity,
           mojom::ConsoleMessageLevel::kError,
-          "Not allowed to load local resource: " + url.ElidedString()));
+          StrCat(
+              {"Not allowed to load local resource: ", url.ElidedString()})));
     }
     DVLOG(3) << "isSafeToLoadURL(" << *this << ", " << UrlForLoggingMedia(url)
              << ") -> FALSE rejected by SecurityOrigin";
@@ -2858,8 +2873,8 @@ void HTMLMediaElement::setPlaybackRate(double rate,
     // DOMException and don't update the value.
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,
-        WTF::StrCat({"The provided playback rate (", String::Number(rate),
-                     ") is not in the supported playback range."}));
+        StrCat({"The provided playback rate (", String::Number(rate),
+                ") is not in the supported playback range."}));
 
     // Do not update |playback_rate_|.
     return;
@@ -3417,14 +3432,14 @@ void HTMLMediaElement::AudioTrackChanged(AudioTrack* track) {
 }
 
 void HTMLMediaElement::AudioTracksTimerFired(TimerBase*) {
-  std::vector<WebMediaPlayer::TrackId> enabled_track_ids;
   for (unsigned i = 0; i < audioTracks().length(); ++i) {
     AudioTrack* track = audioTracks().AnonymousIndexedGetter(i);
-    if (track->enabled())
-      enabled_track_ids.push_back(track->id());
+    if (track->enabled()) {
+      web_media_player_->EnabledAudioTracksChanged(track->id());
+      return;
+    }
   }
-
-  web_media_player_->EnabledAudioTracksChanged(enabled_track_ids);
+  web_media_player_->EnabledAudioTracksChanged(std::nullopt);
 }
 
 VideoTrackList& HTMLMediaElement::videoTracks() {
@@ -4083,6 +4098,10 @@ void HTMLMediaElement::UpdatePlayState(
       // Always tell WMP about the pause since it may need to clear a pending
       // automatic playback resumption.
       if (web_media_player_ && ready_state_ >= kHaveMetadata) {
+        if (pause_reason == WebMediaPlayer::PauseReason::kFrameHidden) {
+          RecordMediaPlaybackInterruptionType(
+              MediaPlaybackInterruptionType::kFrameHiddenWhilePlaying);
+        }
         web_media_player_->Pause(pause_reason.value());
       }
 
@@ -4163,22 +4182,14 @@ void HTMLMediaElement::ClearMediaPlayer() {
 }
 
 void HTMLMediaElement::ContextLifecycleStateChanged(
-    mojom::FrameLifecycleState state) {
-  if (state == mojom::FrameLifecycleState::kFrozenAutoResumeMedia && playing_) {
-    paused_by_context_paused_ = true;
-    pause();
+    mojom::blink::FrameLifecycleState state) {
+  if (state == mojom::blink::FrameLifecycleState::kFrozen) {
+    if (playing_) {
+      PausePlayback(WebMediaPlayer::PauseReason::kFrameFrozen);
+    }
     if (web_media_player_) {
       web_media_player_->OnFrozen();
     }
-  } else if (state == mojom::FrameLifecycleState::kFrozen && playing_) {
-    pause();
-    if (web_media_player_) {
-      web_media_player_->OnFrozen();
-    }
-  } else if (state == mojom::FrameLifecycleState::kRunning &&
-             paused_by_context_paused_) {
-    paused_by_context_paused_ = false;
-    Play();
   }
 }
 
@@ -4776,12 +4787,13 @@ void HTMLMediaElement::RejectScheduledPlayPromises() {
     case PlayPromiseError::kPaused_PauseRequestedInternally:
       reason = " because a pause was requested by the browser";
       break;
+    case PlayPromiseError::kPaused_FrameFrozen:
+      reason = " because the containing page was frozen";
+      break;
     case PlayPromiseError::kPaused_FrameHidden:
       reason =
           " because the media playback is not allowed by the "
           "media-playback-while-not-visible permission policy";
-      RecordMediaPlaybackInterruptionType(
-          MediaPlaybackInterruptionType::kFrameHiddenWhilePlaying);
       break;
     case PlayPromiseError::kPaused_LetAudioDescriptionFinish:
       reason = " because the audio description has not finished yet";

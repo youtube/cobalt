@@ -14,6 +14,7 @@
 
 #include "cobalt/updater/updater_module.h"
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -44,7 +45,6 @@
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/installation_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 

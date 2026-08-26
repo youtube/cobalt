@@ -61,8 +61,6 @@ class TestContentVerifySingleJobObserver {
     ObserverClient& operator=(const ObserverClient&) = delete;
 
     // ContentVerifyJob::TestObserver:
-    void JobStarted(const ExtensionId& extension_id,
-                    const base::FilePath& relative_path) override {}
     void JobFinished(const ExtensionId& extension_id,
                      const base::FilePath& relative_path,
                      ContentVerifyJob::FailureReason reason) override;
@@ -127,8 +125,6 @@ class TestContentVerifyJobObserver {
     ObserverClient& operator=(const ObserverClient&) = delete;
 
     // ContentVerifyJob::TestObserver:
-    void JobStarted(const ExtensionId& extension_id,
-                    const base::FilePath& relative_path) override {}
     void JobFinished(const ExtensionId& extension_id,
                      const base::FilePath& relative_path,
                      ContentVerifyJob::FailureReason failure_reason) override;
@@ -325,7 +321,6 @@ class TestExtensionBuilder {
 
   std::unique_ptr<base::Value> CreateVerifiedContentsPayload() const;
 
-  std::unique_ptr<crypto::RSAPrivateKey> test_content_verifier_key_;
   ExtensionId extension_id_;
   std::vector<ExtensionResource> extension_resources_;
 

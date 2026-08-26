@@ -88,8 +88,8 @@ class CanvasResourceDispatcherTest
     scoped_refptr<CanvasResource> canvas_resource =
         resource_provider_->ProduceCanvasResource(FlushReason::kTesting);
     auto canvas_resource_extra = canvas_resource;
-    dispatcher_->DispatchFrame(std::move(canvas_resource), base::TimeTicks(),
-                               SkIRect::MakeEmpty(), /*is_opaque=*/false);
+    dispatcher_->DispatchFrame(std::move(canvas_resource), SkIRect::MakeEmpty(),
+                               /*is_opaque=*/false);
     return canvas_resource_extra;
   }
 
@@ -357,9 +357,10 @@ TEST_P(CanvasResourceDispatcherTest, DispatchFrame) {
   ScopedTestingPlatformSupport<TestingPlatformSupport> platform;
   ::testing::InSequence s;
 
-  // To intercept SubmitCompositorFrame/SubmitCompositorFrameSync messages sent
-  // by theCanvasResourceDispatcher, we have to override the Mojo
-  // EmbeddedFrameSinkProvider interface impl and its CompositorFrameSinkClient.
+  // To intercept SubmitCompositorFrame messages sent by
+  // theCanvasResourceDispatcher, we have to override the Mojo
+  // EmbeddedFrameSinkProvider interface impl and its
+  // CompositorFrameSinkClient.
   MockEmbeddedFrameSinkProvider mock_embedded_frame_sink_provider;
   mojo::Receiver<mojom::blink::EmbeddedFrameSinkProvider>
       embedded_frame_sink_provider_receiver(&mock_embedded_frame_sink_provider);
@@ -434,8 +435,8 @@ TEST_P(CanvasResourceDispatcherTest, DispatchFrame) {
           })));
 
   constexpr SkIRect damage_rect = SkIRect::MakeWH(kDamageWidth, kDamageHeight);
-  Dispatcher()->DispatchFrame(canvas_resource, base::TimeTicks::Now(),
-                              damage_rect, !context_alpha /* is_opaque */);
+  Dispatcher()->DispatchFrame(canvas_resource, damage_rect,
+                              !context_alpha /* is_opaque */);
   platform->RunUntilIdle();
   Dispatcher()->OnMainThreadReceivedImage();
 }

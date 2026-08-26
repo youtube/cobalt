@@ -34,6 +34,16 @@ TestTabModel::TestTabModel(Profile* profile,
 
 TestTabModel::~TestTabModel() = default;
 
+void TestTabModel::AddTabListInterfaceObserver(
+    TabListInterfaceObserver* observer) {
+  NOTIMPLEMENTED();
+}
+
+void TestTabModel::RemoveTabListInterfaceObserver(
+    TabListInterfaceObserver* observer) {
+  NOTIMPLEMENTED();
+}
+
 int TestTabModel::GetTabCount() const {
   return tab_count_ != 0 ? tab_count_
                          : static_cast<int>(web_contents_list_.size());
@@ -41,6 +51,10 @@ int TestTabModel::GetTabCount() const {
 
 int TestTabModel::GetActiveIndex() const {
   return 0;
+}
+
+tabs::TabInterface* TestTabModel::GetActiveTab() {
+  return nullptr;
 }
 
 content::WebContents* TestTabModel::GetWebContentsAt(int index) const {
@@ -124,11 +138,11 @@ void TestTabModel::OpenTab(const GURL& url, int index) {
   NOTIMPLEMENTED();
 }
 
-void TestTabModel::DiscardTab(int index) {
+void TestTabModel::DiscardTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
-void TestTabModel::DuplicateTab(int index) {
+void TestTabModel::DuplicateTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
@@ -137,15 +151,21 @@ tabs::TabInterface* TestTabModel::GetTab(int index) {
   return nullptr;
 }
 
-void TestTabModel::HighlightTabs(std::set<int> indicies) {
+int TestTabModel::GetIndexOfTab(tabs::TabHandle tab) {
+  NOTIMPLEMENTED();
+  return -1;
+}
+
+void TestTabModel::HighlightTabs(tabs::TabHandle tab_to_activate,
+                                 const std::set<tabs::TabHandle>& tabs) {
   NOTIMPLEMENTED();
 }
 
-void TestTabModel::MoveTab(int from_index, int to_index) {
+void TestTabModel::MoveTab(tabs::TabHandle tab, int index) {
   NOTIMPLEMENTED();
 }
 
-void TestTabModel::CloseTab(int index) {
+void TestTabModel::CloseTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
@@ -154,18 +174,23 @@ std::vector<tabs::TabInterface*> TestTabModel::GetAllTabs() {
   return {};
 }
 
-void TestTabModel::PinTab(int index) {
+void TestTabModel::PinTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
-void TestTabModel::UnpinTab(int index) {
+void TestTabModel::UnpinTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
-std::optional<tab_groups::TabGroupId> TestTabModel::CreateGroup(
-    std::set<int> indicies) {
+std::optional<tab_groups::TabGroupId> TestTabModel::AddTabsToGroup(
+    std::optional<tab_groups::TabGroupId> group_id,
+    const std::set<tabs::TabHandle>& tabs) {
   NOTIMPLEMENTED();
   return std::nullopt;
+}
+
+void TestTabModel::Ungroup(const std::set<tabs::TabHandle>& tabs) {
+  NOTIMPLEMENTED();
 }
 
 void TestTabModel::MoveGroupTo(tab_groups::TabGroupId group_id, int index) {
@@ -184,6 +209,16 @@ OwningTestTabModel::~OwningTestTabModel() {
   TabModelList::RemoveTabModel(this);
 }
 
+void OwningTestTabModel::AddTabListInterfaceObserver(
+    TabListInterfaceObserver* observer) {
+  NOTIMPLEMENTED();
+}
+
+void OwningTestTabModel::RemoveTabListInterfaceObserver(
+    TabListInterfaceObserver* observer) {
+  NOTIMPLEMENTED();
+}
+
 int OwningTestTabModel::GetTabCount() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return owned_tabs_.size();
@@ -200,6 +235,11 @@ int OwningTestTabModel::GetActiveIndex() const {
     }
   }
   NOTREACHED();
+}
+
+tabs::TabInterface* OwningTestTabModel::GetActiveTab() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return active_tab_.get();
 }
 
 content::WebContents* OwningTestTabModel::GetWebContentsAt(int index) const {
@@ -318,11 +358,11 @@ void OwningTestTabModel::OpenTab(const GURL& url, int index) {
   NOTIMPLEMENTED();
 }
 
-void OwningTestTabModel::DiscardTab(int index) {
+void OwningTestTabModel::DiscardTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
-void OwningTestTabModel::DuplicateTab(int index) {
+void OwningTestTabModel::DuplicateTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
@@ -331,15 +371,21 @@ tabs::TabInterface* OwningTestTabModel::GetTab(int index) {
   return nullptr;
 }
 
-void OwningTestTabModel::HighlightTabs(std::set<int> indicies) {
+int OwningTestTabModel::GetIndexOfTab(tabs::TabHandle tab) {
+  NOTIMPLEMENTED();
+  return -1;
+}
+
+void OwningTestTabModel::HighlightTabs(tabs::TabHandle tab_to_activate,
+                                       const std::set<tabs::TabHandle>& tabs) {
   NOTIMPLEMENTED();
 }
 
-void OwningTestTabModel::MoveTab(int from_index, int to_index) {
+void OwningTestTabModel::MoveTab(tabs::TabHandle tab, int index) {
   NOTIMPLEMENTED();
 }
 
-void OwningTestTabModel::CloseTab(int index) {
+void OwningTestTabModel::CloseTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
@@ -348,18 +394,23 @@ std::vector<tabs::TabInterface*> OwningTestTabModel::GetAllTabs() {
   return {};
 }
 
-void OwningTestTabModel::PinTab(int index) {
+void OwningTestTabModel::PinTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
-void OwningTestTabModel::UnpinTab(int index) {
+void OwningTestTabModel::UnpinTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
-std::optional<tab_groups::TabGroupId> OwningTestTabModel::CreateGroup(
-    std::set<int> indicies) {
+std::optional<tab_groups::TabGroupId> OwningTestTabModel::AddTabsToGroup(
+    std::optional<tab_groups::TabGroupId> group_id,
+    const std::set<tabs::TabHandle>& tabs) {
   NOTIMPLEMENTED();
   return std::nullopt;
+}
+
+void OwningTestTabModel::Ungroup(const std::set<tabs::TabHandle>& tabs) {
+  NOTIMPLEMENTED();
 }
 
 void OwningTestTabModel::MoveGroupTo(tab_groups::TabGroupId group_id,

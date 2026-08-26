@@ -131,7 +131,6 @@ SequenceManager::MetricRecordingSettings InitializeMetricRecordingSettings(
 // Writes |address| in hexadecimal ("0x11223344") form starting from |output|
 // and moving backwards in memory. Returns a pointer to the first digit of the
 // result. Does *not* NUL-terminate the number.
-#if !BUILDFLAG(IS_NACL)
 char* PrependHexAddress(char* output, const void* address) {
   uintptr_t value = reinterpret_cast<uintptr_t>(address);
   static const char kHexChars[] = "0123456789ABCDEF";
@@ -143,7 +142,6 @@ char* PrependHexAddress(char* output, const void* address) {
   *output = '0';
   return output;
 }
-#endif  // !BUILDFLAG(IS_NACL)
 
 // Controls whether canceled tasks are removed from the front of the queue when
 // deciding when the next wake up should happen.
@@ -549,7 +547,7 @@ SequenceManagerImpl::SelectNextTask(LazyNow& lazy_now,
   return selected_task;
 }
 
-#if DCHECK_IS_ON() && !BUILDFLAG(IS_NACL)
+#if DCHECK_IS_ON()
 void SequenceManagerImpl::LogTaskDebugInfo(
     const WorkQueue* selected_work_queue) const {
   const Task* task = selected_work_queue->GetFrontTask();
@@ -601,7 +599,7 @@ void SequenceManagerImpl::LogTaskDebugInfo(
     }
   }
 }
-#endif  // DCHECK_IS_ON() && !BUILDFLAG(IS_NACL)
+#endif  // DCHECK_IS_ON()
 
 absl::optional<SequenceManagerImpl::SelectedTask>
 SequenceManagerImpl::SelectNextTaskImpl(LazyNow& lazy_now,
@@ -651,9 +649,9 @@ SequenceManagerImpl::SelectNextTaskImpl(LazyNow& lazy_now,
       continue;
     }
 
-#if DCHECK_IS_ON() && !BUILDFLAG(IS_NACL)
+#if DCHECK_IS_ON()
     LogTaskDebugInfo(work_queue);
-#endif  // DCHECK_IS_ON() && !BUILDFLAG(IS_NACL)
+#endif  // DCHECK_IS_ON()
 
     main_thread_only().task_execution_stack.emplace_back(
         work_queue->TakeTaskFromWorkQueue(), work_queue->task_queue(),
@@ -1208,17 +1206,14 @@ bool SequenceManagerImpl::IsType(MessagePumpType type) const {
 
 void SequenceManagerImpl::EnableCrashKeys(const char* async_stack_crash_key) {
   DCHECK(!main_thread_only().async_stack_crash_key);
-#if !BUILDFLAG(IS_NACL)
   main_thread_only().async_stack_crash_key = debug::AllocateCrashKeyString(
       async_stack_crash_key, debug::CrashKeySize::Size64);
   static_assert(sizeof(main_thread_only().async_stack_buffer) ==
                     static_cast<size_t>(debug::CrashKeySize::Size64),
                 "Async stack buffer size must match crash key size.");
-#endif  // BUILDFLAG(IS_NACL)
 }
 
 void SequenceManagerImpl::RecordCrashKeys(const PendingTask& pending_task) {
-#if !BUILDFLAG(IS_NACL)
   // SetCrashKeyString is a no-op even if the crash key is null, but we'd still
   // have construct the StringPiece that is passed in.
   if (!main_thread_only().async_stack_crash_key)
@@ -1249,7 +1244,6 @@ void SequenceManagerImpl::RecordCrashKeys(const PendingTask& pending_task) {
   debug::SetCrashKeyString(
       main_thread_only().async_stack_crash_key,
       StringPiece(pos, static_cast<size_t>(buffer_end - pos)));
-#endif  // BUILDFLAG(IS_NACL)
 }
 
 internal::TaskQueueImpl* SequenceManagerImpl::currently_executing_task_queue()

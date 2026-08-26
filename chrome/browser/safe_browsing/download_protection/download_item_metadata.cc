@@ -8,7 +8,9 @@
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
 #include "chrome/browser/download/offline_item_utils.h"
+#include "chrome/browser/safe_browsing/download_protection/download_protection_util.h"
 #include "components/download/public/common/download_item.h"
+#include "components/enterprise/connectors/core/reporting_utils.h"
 #include "components/enterprise/obfuscation/core/download_obfuscator.h"
 #include "content/public/browser/download_item_utils.h"
 
@@ -34,6 +36,16 @@ DownloadItemMetadata::~DownloadItemMetadata() {
 
 content::BrowserContext* DownloadItemMetadata::GetBrowserContext() const {
   return content::DownloadItemUtils::GetBrowserContext(item_);
+}
+
+safe_browsing::ReferrerChain DownloadItemMetadata::GetReferrerChain() const {
+  std::unique_ptr<safe_browsing::ReferrerChainData> referrer_chain_data =
+      safe_browsing::IdentifyReferrerChain(
+          *item_, enterprise_connectors::kReferrerUserGestureLimit);
+  if (referrer_chain_data && referrer_chain_data->GetReferrerChain()) {
+    return *referrer_chain_data->GetReferrerChain();
+  }
+  return safe_browsing::ReferrerChain();
 }
 
 const base::FilePath& DownloadItemMetadata::GetFullPath() const {
@@ -176,7 +188,7 @@ void DownloadItemMetadata::OpenDownload() const {
 }
 
 void DownloadItemMetadata::PromptForPassword() const {
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
   if (DownloadBubbleUIController* controller =
           DownloadBubbleUIController::GetForDownload(item_);
       controller) {
@@ -217,6 +229,17 @@ void DownloadItemMetadata::ProcessScanResult(
   if (!callback_.is_null()) {
     callback_.Run(MaybeOverrideScanResult(reason, deep_scan_result));
   }
+}
+
+google::protobuf::RepeatedPtrField<std::string>
+DownloadItemMetadata::CollectFrameUrls() const {
+  return enterprise_connectors::CollectFrameUrls(
+      content::DownloadItemUtils::GetWebContents(item_),
+      enterprise_connectors::DeepScanAccessPoint::DOWNLOAD);
+}
+
+content::WebContents* DownloadItemMetadata::web_contents() const {
+  return content::DownloadItemUtils::GetOriginalWebContents(item_.get());
 }
 
 base::WeakPtr<DownloadItemMetadata> DownloadItemMetadata::GetWeakPtr() {

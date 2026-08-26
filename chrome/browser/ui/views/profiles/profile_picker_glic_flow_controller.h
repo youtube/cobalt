@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_PROFILES_PROFILE_PICKER_GLIC_FLOW_CONTROLLER_H_
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -36,8 +37,10 @@ class ProfilePickerGlicFlowController
   // Loads the profile with `profile_path` asynchronously then attempts to run
   // the `picked_profile_callback_` callback with the loaded profile.
   // `args` are actually not used in this implementation.
-  void PickProfile(const base::FilePath& profile_path,
-                   ProfilePicker::ProfilePickingArgs args) override;
+  void PickProfile(
+      const base::FilePath& profile_path,
+      ProfilePicker::ProfilePickingArgs args,
+      base::OnceCallback<void(bool)> pick_profile_complete_callback) override;
 
  private:
   // ProfileManagementFlowController:
@@ -48,7 +51,9 @@ class ProfilePickerGlicFlowController
 
   // Callback after loading the picked profile. Prepares `loaded_profile_` and
   // attempts to exit the flow with the loaded profile.
-  void OnPickedProfileLoaded(Profile* profile);
+  void OnPickedProfileLoaded(
+      base::OnceCallback<void(bool)> pick_profile_complete_callback,
+      Profile* profile);
 
   // Returns `loaded_profile_` through `picked_profile_callback_` while ensuring
   // that the refresh tokens are loaded.

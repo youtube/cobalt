@@ -44,6 +44,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_pedal_implementations.h"
+#include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
@@ -87,7 +88,7 @@
 #include "chrome/browser/browser_process_platform_part.h"
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/browser/autocomplete/keyword_extensions_delegate_impl.h"
 #include "chrome/browser/autocomplete/unscoped_extension_provider_delegate_impl.h"
 #include "extensions/common/extension_features.h"
@@ -305,7 +306,7 @@ ChromeAutocompleteProviderClient::GetShortcutsBackendIfExists() {
 std::unique_ptr<KeywordExtensionsDelegate>
 ChromeAutocompleteProviderClient::GetKeywordExtensionsDelegate(
     KeywordProvider* keyword_provider) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   return std::make_unique<KeywordExtensionsDelegateImpl>(profile_,
                                                          keyword_provider);
 #else
@@ -316,7 +317,7 @@ ChromeAutocompleteProviderClient::GetKeywordExtensionsDelegate(
 std::unique_ptr<UnscopedExtensionProviderDelegate>
 ChromeAutocompleteProviderClient::GetUnscopedExtensionProviderDelegate(
     UnscopedExtensionProvider* provider) {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   CHECK(base::FeatureList::IsEnabled(
       extensions_features::kExperimentalOmniboxLabs));
   return std::make_unique<UnscopedExtensionProviderDelegateImpl>(profile_,
@@ -585,6 +586,18 @@ bool ChromeAutocompleteProviderClient::AreLensEntrypointsVisible() const {
     return false;
   }
 
+  std::optional<bool> ChromeAutocompleteProviderClient::IsPagePaywalled()
+      const {
+#if !BUILDFLAG(IS_ANDROID)
+    if (auto* web_contents = GetWebContents(web_contents_getter_)) {
+      if (auto* tab_helper = OmniboxTabHelper::FromWebContents(web_contents)) {
+        return tab_helper->IsPagePaywalled();
+      }
+    }
+#endif
+    return false;
+  }
+
 base::CallbackListSubscription
 ChromeAutocompleteProviderClient::GetLensSuggestInputsWhenReady(
     LensOverlaySuggestInputsCallback callback) const {
@@ -645,8 +658,7 @@ bool ChromeAutocompleteProviderClient::OpenJourneys(const std::string& query) {
   }
 
   if (auto* history_clusters_side_panel_coordinator =
-          HistoryClustersSidePanelCoordinator::BrowserUserData::FromBrowser(
-              browser)) {
+          browser->GetFeatures().history_clusters_side_panel_coordinator()) {
     history_clusters_side_panel_coordinator->Show(query);
     return true;
   }

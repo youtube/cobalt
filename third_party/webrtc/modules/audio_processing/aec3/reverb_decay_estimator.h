@@ -11,12 +11,10 @@
 #ifndef MODULES_AUDIO_PROCESSING_AEC3_REVERB_DECAY_ESTIMATOR_H_
 #define MODULES_AUDIO_PROCESSING_AEC3_REVERB_DECAY_ESTIMATOR_H_
 
-#include <array>
 #include <optional>
 #include <vector>
 
 #include "api/array_view.h"
-#include "modules/audio_processing/aec3/aec3_common.h"  // kMaxAdaptiveFilter...
 
 namespace webrtc {
 

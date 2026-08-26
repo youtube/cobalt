@@ -29,9 +29,17 @@
 #include <utility>
 
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/gc_plugin.h"
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 
-namespace WTF {
+// Templates in this file are instantiated many times with different types.
+// Adding the regular GC_PLUGIN_IGNORE annotations to fields in the templates
+// results in the annotation being duplicated many times, growing the debug
+// symbols, and regressing binary size. To avoid the binary size regression,
+// mark the file to ignore instead.
+GC_PLUGIN_IGNORE_FILE("crbug.com/428987863")
+
+namespace blink {
 
 template <typename KeyTypeArg, typename ValueTypeArg>
 struct KeyValuePair {
@@ -52,11 +60,11 @@ struct KeyValuePair {
 };
 
 template <typename K, typename V>
-struct IsWeak<KeyValuePair<K, V>>
+struct IsWeak<blink::KeyValuePair<K, V>>
     : std::integral_constant<bool, IsWeak<K>::value || IsWeak<V>::value> {};
 
 template <typename K, typename V>
-struct IsTraceable<KeyValuePair<K, V>>
+struct IsTraceable<blink::KeyValuePair<K, V>>
     : std::integral_constant<bool,
                              IsTraceable<K>::value || IsTraceable<V>::value> {};
 
@@ -76,7 +84,7 @@ struct KeyValuePairHashTraits
   static constexpr bool kCanTraceConcurrently =
       KeyTraits::kCanTraceConcurrently &&
       (ValueTraits::kCanTraceConcurrently ||
-       !IsTraceable<typename ValueTraits::TraitType>::value);
+       !IsTraceableV<typename ValueTraits::TraitType>);
   static constexpr bool kSupportsCompaction =
       KeyTraits::kSupportsCompaction && ValueTraits::kSupportsCompaction;
 };
@@ -472,6 +480,6 @@ inline bool operator!=(const HashTableValuesIterator<T, U, V>& a,
   return a.impl_ != b.impl_;
 }
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_KEY_VALUE_PAIR_H_

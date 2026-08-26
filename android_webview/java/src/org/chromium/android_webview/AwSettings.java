@@ -26,6 +26,7 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.android_webview.client_hints.AwUserAgentMetadata;
+import org.chromium.android_webview.common.AwFeatureMap;
 import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.AwSwitches;
 import org.chromium.android_webview.common.Lifetime;
@@ -50,6 +51,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -66,7 +68,7 @@ public class AwSettings {
     private static final String TAG = "AwSettings";
     private static final boolean TRACE = false;
 
-    /* See {@link android.webkit.WebSettings}. */
+    /** See {@link android.webkit.WebSettings}. */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({
         LAYOUT_ALGORITHM_NORMAL,
@@ -79,11 +81,15 @@ public class AwSettings {
     public @interface LayoutAlgorithm {}
 
     public static final int LAYOUT_ALGORITHM_NORMAL = 0;
-    /* See {@link android.webkit.WebSettings}. */
+
+    /** See {@link android.webkit.WebSettings}. */
     public static final int LAYOUT_ALGORITHM_SINGLE_COLUMN = 1;
-    /* See {@link android.webkit.WebSettings}. */
+
+    /** See {@link android.webkit.WebSettings}. */
     public static final int LAYOUT_ALGORITHM_NARROW_COLUMNS = 2;
+
     public static final int LAYOUT_ALGORITHM_TEXT_AUTOSIZING = 3;
+    private static final int LAYOUT_ALGORITHM_COUNT = 4;
 
     public static final int FORCE_DARK_OFF = ForceDarkMode.FORCE_DARK_OFF;
     public static final int FORCE_DARK_AUTO = ForceDarkMode.FORCE_DARK_AUTO;
@@ -183,6 +189,8 @@ public class AwSettings {
     // in WebView.
     private boolean mBackForwardCacheEnabled;
     private boolean mHasCalledSetBackForwardCacheEnabledBefore;
+
+    private @Nullable AwBackForwardCacheSettings mAwBackForwardCacheSettings;
 
     private boolean mCssHexAlphaColorEnabled;
     private boolean mScrollTopLeftInteropEnabled;
@@ -327,6 +335,11 @@ public class AwSettings {
         void updateBackForwardCacheEnabled() {
             runOnUiThreadBlockingAndLocked(
                     AwSettings.this::updateBackForwardCacheEnabledOnUiThreadLocked);
+        }
+
+        void updateBackForwardCacheSettings() {
+            runOnUiThreadBlockingAndLocked(
+                    AwSettings.this::updateBackForwardCacheSettingsOnUiThreadLocked);
         }
 
         void updateGeolocationEnabled() {
@@ -1303,6 +1316,8 @@ public class AwSettings {
     /** See {@link android.webkit.WebSettings#setLayoutAlgorithm}. */
     public void setLayoutAlgorithm(@LayoutAlgorithm int l) {
         if (TRACE) Log.i(TAG, "setLayoutAlgorithm=" + l);
+        RecordHistogram.recordEnumeratedHistogram(
+                "Android.WebView.SetLayoutAlgorithm", l, LAYOUT_ALGORITHM_COUNT);
         synchronized (mAwSettingsLock) {
             if (mLayoutAlgorithm != l) {
                 mLayoutAlgorithm = l;
@@ -1847,6 +1862,29 @@ public class AwSettings {
         }
     }
 
+    public void setBackForwardCacheSettings(AwBackForwardCacheSettings backForwardCacheSettings) {
+        if (TRACE) Log.i(TAG, "setBackForwardCacheSettings=" + backForwardCacheSettings);
+        assert backForwardCacheSettings != null;
+        // Setting BackForwardCacheSettings implicitly enables BFCache as well.
+        setBackForwardCacheEnabled(true);
+        synchronized (mAwSettingsLock) {
+            if (Objects.equals(mAwBackForwardCacheSettings, backForwardCacheSettings)) {
+                return;
+            }
+            mAwBackForwardCacheSettings = backForwardCacheSettings;
+            mEventHandler.updateBackForwardCacheSettings();
+        }
+    }
+
+    @CalledByNative
+    @Nullable
+    public AwBackForwardCacheSettings getBackForwardCacheSettings() {
+        synchronized (mAwSettingsLock) {
+            assert Thread.holdsLock(mAwSettingsLock);
+            return mAwBackForwardCacheSettings;
+        }
+    }
+
     @ForceDarkMode
     public int getForceDarkMode() {
         synchronized (mAwSettingsLock) {
@@ -2157,6 +2195,15 @@ public class AwSettings {
         }
     }
 
+    private void updateBackForwardCacheSettingsOnUiThreadLocked() {
+        assert mEventHandler.mHandler != null;
+        ThreadUtils.assertOnUiThread();
+        if (mNativeAwSettings != 0) {
+            AwSettingsJni.get()
+                    .updateBackForwardCacheSettingsLocked(mNativeAwSettings, AwSettings.this);
+        }
+    }
+
     private void updateGeolocationEnabledOnUiThreadLocked() {
         assert mEventHandler.mHandler != null;
         ThreadUtils.assertOnUiThread();
@@ -2294,6 +2341,8 @@ public class AwSettings {
         void updateSpeculativeLoadingAllowedLocked(long nativeAwSettings, AwSettings caller);
 
         void updateBackForwardCacheEnabledLocked(long nativeAwSettings, AwSettings caller);
+
+        void updateBackForwardCacheSettingsLocked(long nativeAwSettings, AwSettings caller);
 
         boolean isForceDarkApplied(long nativeAwSettings, AwSettings caller);
 

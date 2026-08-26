@@ -12,102 +12,97 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {ColumnDef, Sorting, ThreadStateExtra} from '../../public/aggregation';
-import {AreaSelection} from '../../public/selection';
-import {Engine} from '../../trace_processor/engine';
+import {Duration} from '../../base/time';
+import {BarChartData, ColumnDef, Sorting} from '../../components/aggregation';
 import {
-  LONG,
-  NUM,
-  NUM_NULL,
-  STR,
-  STR_NULL,
-} from '../../trace_processor/query_result';
-import {AreaSelectionAggregator} from '../../public/selection';
-import {Dataset} from '../../trace_processor/dataset';
-import {translateState} from '../../components/sql_utils/thread_state';
+  Aggregation,
+  Aggregator,
+  createIITable,
+  selectTracksAndGetDataset,
+} from '../../components/aggregation_adapter';
+import {AreaSelection} from '../../public/selection';
+import {THREAD_STATE_TRACK_KIND} from '../../public/track_kinds';
+import {Engine} from '../../trace_processor/engine';
+import {LONG, NUM, STR, STR_NULL} from '../../trace_processor/query_result';
+import {colorForThreadState} from './common';
 
-export class ThreadStateSelectionAggregator implements AreaSelectionAggregator {
+export class ThreadStateSelectionAggregator implements Aggregator {
   readonly id = 'thread_state_aggregation';
 
-  readonly schema = {
-    dur: LONG,
-    io_wait: NUM_NULL,
-    state: STR,
-    utid: NUM,
-  } as const;
+  probe(area: AreaSelection): Aggregation | undefined {
+    const dataset = selectTracksAndGetDataset(
+      area.tracks,
+      {
+        id: NUM,
+        ts: LONG,
+        dur: LONG,
+        state: STR,
+        utid: NUM,
+      },
+      THREAD_STATE_TRACK_KIND,
+    );
 
-  async createAggregateView(
-    engine: Engine,
-    area: AreaSelection,
-    dataset?: Dataset,
-  ) {
-    if (dataset === undefined) return false;
+    // If we couldn't pick out a dataset, we have nothing to show for this
+    // selection so just return undefined to indicate that no tab should be
+    // displayed.
+    if (!dataset) return undefined;
 
-    await engine.query(`
-      create or replace perfetto table ${this.id} as
-      select
-        process.name as process_name,
-        process.pid,
-        thread.name as thread_name,
-        thread.tid,
-        tstate.state || ',' || ifnull(tstate.io_wait, 'NULL') as concat_state,
-        sum(tstate.dur) AS total_dur,
-        sum(tstate.dur) / count() as avg_dur,
-        count() as occurrences
-      from (${dataset.query()}) tstate
-      join thread using (utid)
-      left join process using (upid)
-      where
-        ts + dur > ${area.start}
-        and ts < ${area.end}
-      group by utid, concat_state
-    `);
-
-    return true;
-  }
-
-  async getExtra(
-    engine: Engine,
-    area: AreaSelection,
-    dataset?: Dataset,
-  ): Promise<ThreadStateExtra | void> {
-    if (dataset === undefined) return;
-
-    const query = `
-      select
-        state,
-        io_wait as ioWait,
-        sum(dur) as totalDur
-      from (${dataset.query()}) tstate
-      join thread using (utid)
-      where tstate.ts + tstate.dur > ${area.start}
-        and tstate.ts < ${area.end}
-      group by state, io_wait
-    `;
-    const result = await engine.query(query);
-
-    const it = result.iter({
-      state: STR_NULL,
-      ioWait: NUM_NULL,
-      totalDur: NUM,
-    });
-
-    let totalMs = 0;
-    const values = new Float64Array(result.numRows());
-    const states = [];
-    for (let i = 0; it.valid(); ++i, it.next()) {
-      const state = it.state == null ? undefined : it.state;
-      const ioWait = it.ioWait === null ? undefined : it.ioWait > 0;
-      states.push(translateState(state, ioWait));
-      const ms = it.totalDur / 1000000;
-      values[i] = ms;
-      totalMs += ms;
-    }
     return {
-      kind: 'THREAD_STATE',
-      states,
-      values,
-      totalMs,
+      prepareData: async (engine: Engine) => {
+        await using iiTable = await createIITable(
+          engine,
+          dataset,
+          area.start,
+          area.end,
+        );
+
+        await engine.query(`
+          create or replace perfetto table ${this.id} as
+          select
+            process.name as process_name,
+            process.pid,
+            thread.name as thread_name,
+            thread.tid,
+            tstate.state as state,
+            sum(tstate.dur) AS total_dur,
+            sum(tstate.dur) / count() as avg_dur,
+            count() as occurrences
+          from ${iiTable.name} tstate
+          join thread using (utid)
+          left join process using (upid)
+          group by utid, state
+        `);
+
+        const query = `
+          select
+            tstate.state as state,
+            sum(dur) as totalDur
+          from (${iiTable.name}) tstate
+          join thread using (utid)
+          group by tstate.state
+        `;
+        const result = await engine.query(query);
+
+        const it = result.iter({
+          state: STR_NULL,
+          totalDur: LONG,
+        });
+
+        const states: BarChartData[] = [];
+        for (let i = 0; it.valid(); ++i, it.next()) {
+          const name = it.state ?? 'Unknown';
+          states.push({
+            title: `${name}: ${Duration.humanise(it.totalDur)}`,
+            value: Number(it.totalDur),
+            color: colorForThreadState(name),
+          });
+        }
+
+        return {
+          tableName: this.id,
+          barChartData: states,
+        };
+      },
     };
   }
 
@@ -115,51 +110,37 @@ export class ThreadStateSelectionAggregator implements AreaSelectionAggregator {
     return [
       {
         title: 'Process',
-        kind: 'STRING',
-        columnConstructor: Uint16Array,
         columnId: 'process_name',
       },
       {
         title: 'PID',
-        kind: 'NUMBER',
-        columnConstructor: Uint16Array,
         columnId: 'pid',
       },
       {
         title: 'Thread',
-        kind: 'STRING',
-        columnConstructor: Uint16Array,
         columnId: 'thread_name',
       },
       {
         title: 'TID',
-        kind: 'NUMBER',
-        columnConstructor: Uint16Array,
         columnId: 'tid',
       },
       {
         title: 'State',
-        kind: 'STATE',
-        columnConstructor: Uint16Array,
-        columnId: 'concat_state',
+        columnId: 'state',
       },
       {
-        title: 'Wall duration (ms)',
-        kind: 'TIMESTAMP_NS',
-        columnConstructor: Float64Array,
+        title: 'Wall duration',
+        formatHint: 'DURATION_NS',
         columnId: 'total_dur',
         sum: true,
       },
       {
-        title: 'Avg Wall duration (ms)',
-        kind: 'TIMESTAMP_NS',
-        columnConstructor: Float64Array,
+        title: 'Avg Wall duration',
+        formatHint: 'DURATION_NS',
         columnId: 'avg_dur',
       },
       {
         title: 'Occurrences',
-        kind: 'NUMBER',
-        columnConstructor: Uint16Array,
         columnId: 'occurrences',
         sum: true,
       },

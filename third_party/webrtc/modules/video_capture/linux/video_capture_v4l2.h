@@ -11,15 +11,14 @@
 #ifndef MODULES_VIDEO_CAPTURE_LINUX_VIDEO_CAPTURE_V4L2_H_
 #define MODULES_VIDEO_CAPTURE_LINUX_VIDEO_CAPTURE_V4L2_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
-#include <memory>
+#include <cstddef>
+#include <cstdint>
 
 #include "modules/video_capture/video_capture_defines.h"
 #include "modules/video_capture/video_capture_impl.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 namespace videocapturemodule {

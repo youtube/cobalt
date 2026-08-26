@@ -68,6 +68,20 @@ std::u16string GetFormattingExpressionOverrides(
            u"${ADDRESS_HOME_FLOOR;, ;º}${ADDRESS_HOME_APT_NUM;, ;ª}";
   }
 
+  // The set of countries without separate address model
+  // with space zip code separator.
+  static constexpr auto kSpaceZipCodeSeparatorCountriesSet =
+      base::MakeFixedFlatSet<std::string_view>(
+          {"CZ", "GB", "GR", "HR", "IE", "LB", "MT", "SE", "SK"});
+
+  if (field_type == ADDRESS_HOME_ZIP &&
+      base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode)) {
+    if (base::Contains(kSpaceZipCodeSeparatorCountriesSet,
+                       country_code.value())) {
+      return u"${ADDRESS_HOME_ZIP_PREFIX;;} ${ADDRESS_HOME_ZIP_SUFFIX;;}";
+    }
+  }
+
   return u"";
 }
 
@@ -137,6 +151,8 @@ std::unique_ptr<AddressComponent> BuildTreeNode(
     case ADDRESS_HOME_STREET_LOCATION_AND_LOCALITY:
     case ADDRESS_HOME_STREET_LOCATION_AND_LANDMARK:
     case ADDRESS_HOME_DEPENDENT_LOCALITY_AND_LANDMARK:
+    case ADDRESS_HOME_ZIP_PREFIX:
+    case ADDRESS_HOME_ZIP_SUFFIX:
     case DELIVERY_INSTRUCTIONS:
       return std::make_unique<AddressComponent>(type, std::move(children),
                                                 MergeMode::kDefault);
@@ -174,7 +190,6 @@ std::unique_ptr<AddressComponent> BuildTreeNode(
     case CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR:
     case CREDIT_CARD_TYPE:
     case CREDIT_CARD_VERIFICATION_CODE:
-    case FIELD_WITH_DEFAULT_VALUE:
     case MERCHANT_EMAIL_SIGNUP:
     case MERCHANT_PROMO_CODE:
     case PASSWORD:
@@ -205,7 +220,6 @@ std::unique_ptr<AddressComponent> BuildTreeNode(
     case ONE_TIME_CODE:
     case SINGLE_USERNAME_FORGOT_PASSWORD:
     case SINGLE_USERNAME_WITH_INTERMEDIATE_VALUES:
-    case IMPROVED_PREDICTION:
     case PASSPORT_NAME_TAG:
     case PASSPORT_NUMBER:
     case PASSPORT_ISSUING_COUNTRY:
@@ -227,6 +241,13 @@ std::unique_ptr<AddressComponent> BuildTreeNode(
     case DRIVERS_LICENSE_EXPIRATION_DATE:
     case DRIVERS_LICENSE_ISSUE_DATE:
     case EMAIL_OR_LOYALTY_MEMBERSHIP_ID:
+    case NATIONAL_ID_CARD_NUMBER:
+    case NATIONAL_ID_CARD_EXPIRATION_DATE:
+    case NATIONAL_ID_CARD_ISSUE_DATE:
+    case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+    case REDRESS_NUMBER:
+    case KNOWN_TRAVELER_NUMBER:
+    case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
     case MAX_VALID_FIELD_TYPE:
       return nullptr;
   }
@@ -262,9 +283,16 @@ AddressComponent* BuildSubTree(
         return it->second.get();
       };
 
+  const bool is_leaf_node =
+      !tree_def.contains(root) ||
+      // ADDRESS_HOME_ZIP is leaf node if split zip code feature is disabled.
+      // TODO(crbug.com/369503318): Remove once launched.
+      (root == ADDRESS_HOME_ZIP &&
+       !base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode));
+
   // Leaf nodes do not have an entry in the `tree_def`. By definition
   // they cannot have children nor be synthesized nodes.
-  if (!tree_def.contains(root)) {
+  if (is_leaf_node) {
     return RegisterNode(BuildTreeNode(root, /*children=*/{}));
   }
 
@@ -400,6 +428,13 @@ i18n_model_definition::ValueParsingResults ParseValueByI18nRegularExpression(
 
 bool IsTypeEnabledForCountry(FieldType field_type,
                              AddressCountryCode country_code) {
+  // TODO(crbug.com/369503318): Remove once launched.
+  if (!base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode) &&
+      (field_type == ADDRESS_HOME_ZIP_PREFIX ||
+       field_type == ADDRESS_HOME_ZIP_SUFFIX)) {
+    return false;
+  }
+
   if (!IsCustomHierarchyAvailableForCountry(country_code)) {
     country_code = kLegacyHierarchyCountryCode;
   }
@@ -421,18 +456,8 @@ bool IsCustomHierarchyAvailableForCountry(AddressCountryCode country_code) {
     return false;
   }
 
-  if (country_code == AddressCountryCode("FR") &&
-      !base::FeatureList::IsEnabled(features::kAutofillUseFRAddressModel)) {
-    return false;
-  }
-
   if (country_code == AddressCountryCode("IN") &&
       !base::FeatureList::IsEnabled(features::kAutofillUseINAddressModel)) {
-    return false;
-  }
-
-  if (country_code == AddressCountryCode("NL") &&
-      !base::FeatureList::IsEnabled(features::kAutofillUseNLAddressModel)) {
     return false;
   }
 

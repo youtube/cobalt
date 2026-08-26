@@ -16,6 +16,7 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/types/optional_ref.h"
@@ -500,10 +501,14 @@ ExtensionFunction::ResponseAction AutofillPrivateSaveCreditCardFunction::Run() {
     paydm->AddCreditCard(credit_card);
 
     base::RecordAction(base::UserMetricsAction("AutofillCreditCardsAdded"));
+
     base::UmaHistogramCounts100(
         "Autofill.PaymentMethods.SettingsPage."
         "StoredCreditCardCountBeforeCardAdded",
         current_card_count);
+    base::UmaHistogramBoolean(
+        "Autofill.PaymentMethodsSettingsPage.CardAddedWithoutExistingCards",
+        current_card_count == 0);
 
     if (credit_card.HasNonEmptyValidNickname()) {
       base::RecordAction(
@@ -701,11 +706,16 @@ ExtensionFunction::ResponseAction AutofillPrivateAddVirtualCardFunction::Run() {
     return RespondNow(Error(kErrorDataUnavailable));
   }
 
-  autofill_client()
-      ->GetPaymentsAutofillClient()
-      ->GetVirtualCardEnrollmentManager()
-      ->InitVirtualCardEnroll(
-          *card, autofill::VirtualCardEnrollmentSource::kSettingsPage);
+  auto* virtual_card_enrollment_manager =
+      autofill_client()
+          ->GetPaymentsAutofillClient()
+          ->GetVirtualCardEnrollmentManager();
+  CHECK(virtual_card_enrollment_manager);
+  virtual_card_enrollment_manager->InitVirtualCardEnroll(
+      *card, autofill::VirtualCardEnrollmentSource::kSettingsPage,
+      base::BindOnce(
+          &autofill::VirtualCardEnrollmentManager::ShowVirtualCardEnrollBubble,
+          base::Unretained(virtual_card_enrollment_manager)));
   return RespondNow(NoArguments());
 }
 
@@ -1075,21 +1085,24 @@ AutofillPrivateGetEntityInstanceByGuidFunction::Run() {
 
 ExtensionFunction::ResponseAction
 AutofillPrivateGetAllEntityTypesFunction::Run() {
-  std::vector<autofill_private::EntityType> result = base::ToVector(
-      autofill::DenseSet<EntityType>::all(), [](const EntityType& entity_type) {
-        autofill_private::EntityType private_api_entity_type;
-        private_api_entity_type.type_name =
-            base::to_underlying(entity_type.name());
-        private_api_entity_type.type_name_as_string =
-            base::UTF16ToUTF8(entity_type.GetNameForI18n());
-        private_api_entity_type.add_entity_type_string =
-            autofill_ai_util::GetAddEntityTypeStringForI18n(entity_type);
-        private_api_entity_type.edit_entity_type_string =
-            autofill_ai_util::GetEditEntityTypeStringForI18n(entity_type);
-        private_api_entity_type.delete_entity_type_string =
-            autofill_ai_util::GetDeleteEntityTypeStringForI18n(entity_type);
-        return private_api_entity_type;
-      });
+  const auto all_types = autofill::DenseSet<EntityType>::all();
+  std::vector<autofill_private::EntityType> result;
+  result.reserve(all_types.size());
+  for (EntityType entity_type : all_types) {
+    if (!entity_type.enabled()) {
+      continue;
+    }
+    autofill_private::EntityType& api_type = result.emplace_back();
+    api_type.type_name = base::to_underlying(entity_type.name());
+    api_type.type_name_as_string =
+        base::UTF16ToUTF8(entity_type.GetNameForI18n());
+    api_type.add_entity_type_string =
+        autofill_ai_util::GetAddEntityTypeStringForI18n(entity_type);
+    api_type.edit_entity_type_string =
+        autofill_ai_util::GetEditEntityTypeStringForI18n(entity_type);
+    api_type.delete_entity_type_string =
+        autofill_ai_util::GetDeleteEntityTypeStringForI18n(entity_type);
+  }
   return RespondNow(ArgumentList(
       autofill_private::GetAllEntityTypes::Results::Create(result)));
 }
@@ -1147,8 +1160,9 @@ AutofillPrivateSetAutofillAiOptInStatusFunction::Run() {
   std::optional<autofill_private::SetAutofillAiOptInStatus::Params> parameters =
       autofill_private::SetAutofillAiOptInStatus::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(parameters);
-  if (!autofill::SetAutofillAiOptInStatus(*autofill_client(),
-                                          parameters->opted_in)) {
+  using enum autofill::AutofillAiOptInStatus;
+  if (!autofill::SetAutofillAiOptInStatus(
+          *autofill_client(), parameters->opted_in ? kOptedIn : kOptedOut)) {
     return RespondNow(ArgumentList(
         api::autofill_private::SetAutofillAiOptInStatus::Results::Create(
             /*success=*/false)));

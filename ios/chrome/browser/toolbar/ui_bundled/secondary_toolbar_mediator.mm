@@ -14,7 +14,6 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/buttons/toolbar_tab_group_state.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/secondary_toolbar_consumer.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/tab_groups/tab_group_indicator_features_utils.h"
 #import "ios/web/public/ui/crw_web_view_proxy.h"
 #import "ios/web/public/web_state.h"
 
@@ -97,9 +96,7 @@
                        status:(const WebStateListStatus&)status {
   // Update the Tab Grid button style, based on whether the active tab is
   // grouped or not.
-  if (IsTabGroupInGridEnabled()) {
-    [self.consumer updateTabGroupState:[self tabGroupStateToDisplay]];
-  }
+  [self.consumer updateTabGroupState:[self tabGroupStateToDisplay]];
 
   // Return early if the active web state is the same as before the change.
   if (!status.active_web_state_change()) {
@@ -149,9 +146,7 @@
   if ([self activeWebStateTabGroup] == nullptr) {
     return ToolbarTabGroupState::kNormal;
   }
-  return IsTabGroupIndicatorEnabled() && HasTabGroupIndicatorButtonsUpdated()
-             ? ToolbarTabGroupState::kTabGroup
-             : ToolbarTabGroupState::kNormal;
+  return ToolbarTabGroupState::kTabGroup;
 }
 
 @end

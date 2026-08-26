@@ -4,7 +4,7 @@
 
 import 'chrome://settings/settings.js';
 
-import {FeatureOptInState, SettingsAiPageFeaturePrefName as PrefName} from 'chrome://settings/lazy_load.js';
+import {EntityDataManagerProxyImpl, FeatureOptInState, SettingsAiPageFeaturePrefName as PrefName} from 'chrome://settings/lazy_load.js';
 import type {CrLinkRowElement, SettingsAiPageElement, SettingsPrefsElement} from 'chrome://settings/settings.js';
 import {AiPageInteractions, CrSettingsPrefs, loadTimeData, MetricsBrowserProxyImpl, OpenWindowProxyImpl, resetRouterForTesting, Router, routes} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -12,6 +12,7 @@ import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
 import {isChildVisible, isVisible} from 'chrome://webui-test/test_util.js';
 
+import {TestEntityDataManagerProxy} from './test_entity_data_manager_proxy.js';
 import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
 suite('AiPage', function() {
@@ -19,6 +20,7 @@ suite('AiPage', function() {
   let openWindowProxy: TestOpenWindowProxy;
   let page: SettingsAiPageElement;
   let settingsPrefs: SettingsPrefsElement;
+  let entityDataManager: TestEntityDataManagerProxy;
 
   suiteSetup(function() {
     metricsBrowserProxy = new TestMetricsBrowserProxy();
@@ -32,6 +34,11 @@ suite('AiPage', function() {
     });
     settingsPrefs = document.createElement('settings-prefs');
     return CrSettingsPrefs.initialized;
+  });
+
+  setup(function() {
+    entityDataManager = new TestEntityDataManagerProxy();
+    EntityDataManagerProxyImpl.setInstance(entityDataManager);
   });
 
   teardown(function() {
@@ -67,10 +74,9 @@ suite('AiPage', function() {
     assertEquals(action, await metricsBrowserProxy.whenCalled('recordAction'));
   }
 
-  test('FeaturesVisibilityWithRefreshEnabled', async () => {
+  test('FeatureRowsVisibility', async () => {
     // Case 1, a subset of the controls should be visible.
     loadTimeData.overrideValues({
-      showAutofillAiControl: true,
       showHistorySearchControl: false,
       showCompareControl: true,
       showComposeControl: true,
@@ -80,7 +86,7 @@ suite('AiPage', function() {
     resetRouterForTesting();
     await createPage();
 
-    assertEquals(6, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
+    assertEquals(5, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
 
     assertFalse(isChildVisible(page, '#historySearchRowV2'));
     await verifyFeatureVisibilityMetrics(
@@ -98,10 +104,6 @@ suite('AiPage', function() {
     await verifyFeatureVisibilityMetrics(
         'Settings.AiPage.ElementVisibility.TabOrganization', false);
 
-    assertTrue(isChildVisible(page, '#autofillAiRowV2'));
-    await verifyFeatureVisibilityMetrics(
-        'Settings.AiPage.ElementVisibility.AutofillAI', true);
-
     assertFalse(isChildVisible(page, '#passwordChangeRowV2'));
     await verifyFeatureVisibilityMetrics(
         'Settings.AiPage.ElementVisibility.PasswordChange', false);
@@ -114,7 +116,6 @@ suite('AiPage', function() {
 
     // Case 2, a different subset of the controls should be visible.
     loadTimeData.overrideValues({
-      showAutofillAiControl: false,
       showHistorySearchControl: true,
       showCompareControl: false,
       showComposeControl: false,
@@ -123,7 +124,7 @@ suite('AiPage', function() {
     });
     resetRouterForTesting();
     await createPage();
-    assertEquals(6, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
+    assertEquals(5, metricsBrowserProxy.getCallCount('recordBooleanHistogram'));
 
     assertTrue(isChildVisible(page, '#historySearchRowV2'));
     await verifyFeatureVisibilityMetrics(
@@ -140,10 +141,6 @@ suite('AiPage', function() {
     assertTrue(isChildVisible(page, '#tabOrganizationRowV2'));
     await verifyFeatureVisibilityMetrics(
         'Settings.AiPage.ElementVisibility.TabOrganization', true);
-
-    assertFalse(isChildVisible(page, '#autofillAiRowV2'));
-    await verifyFeatureVisibilityMetrics(
-        'Settings.AiPage.ElementVisibility.AutofillAI', false);
 
     assertTrue(isChildVisible(page, '#passwordChangeRowV2'));
     await verifyFeatureVisibilityMetrics(
@@ -262,25 +259,6 @@ suite('AiPage', function() {
 
     assertEquals(
         routes.AI_TAB_ORGANIZATION, Router.getInstance().getCurrentRoute());
-  });
-
-  test('autofillAiRowClick', async () => {
-    loadTimeData.overrideValues({
-      showAutofillAiControl: true,
-    });
-    resetRouterForTesting();
-
-    await createPage();
-
-    const autofillAiRow =
-        page.shadowRoot!.querySelector<HTMLElement>('#autofillAiRowV2');
-    assertTrue(!!autofillAiRow);
-    autofillAiRow.click();
-
-    await verifyFeatureInteractionMetrics(
-        AiPageInteractions.AUTOFILL_AI_CLICK,
-        'Settings.AiPage.AutofillAIEntryPointClick');
-    assertEquals(routes.AUTOFILL_AI, Router.getInstance().getCurrentRoute());
   });
 
   test('PasswordChangeRow', async () => {

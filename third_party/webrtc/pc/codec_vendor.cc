@@ -9,9 +9,8 @@
  */
 #include "pc/codec_vendor.h"
 
-#include <stddef.h>
-
 #include <algorithm>
+#include <cstddef>
 #include <map>
 #include <optional>
 #include <string>

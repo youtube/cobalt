@@ -73,9 +73,6 @@ class ChromeAuthenticatorRequestDelegate
 
     virtual void OnDestroy(ChromeAuthenticatorRequestDelegate* delegate) {}
 
-    virtual std::vector<std::unique_ptr<device::cablev2::Pairing>>
-    GetCablePairingsFromSyncedDevices();
-
     virtual void OnTransportAvailabilityEnumerated(
         ChromeAuthenticatorRequestDelegate* delegate,
         device::FidoRequestHandlerBase::TransportAvailabilityInfo* tai) {}
@@ -203,22 +200,13 @@ class ChromeAuthenticatorRequestDelegate
   void OnStartOver() override;
   void OnModelDestroyed(AuthenticatorRequestDialogModel* model) override;
   void OnCancelRequest() override;
-  void OnManageDevicesClicked() override;
-
-  // Allows setting a mock `TrustedVaultConnection` so a real one will not be
-  // created. This is only used for a single request, and is destroyed
-  // afterward.
-  void SetTrustedVaultConnectionForTesting(
-      std::unique_ptr<trusted_vault::TrustedVaultConnection> connection);
-
-  // Overrides the tick clock and task runner used to track the vault connection
-  // timeout.
-  void SetMockTimeForTesting(
-      base::TickClock const* tick_clock,
-      scoped_refptr<base::SequencedTaskRunner> task_runner);
 
   void SetPasswordControllerForTesting(
       std::unique_ptr<PasswordCredentialController> controller);
+
+  // GetRenderFrameHost returns a pointer to the RenderFrameHost that was given
+  // to the constructor.
+  content::RenderFrameHost* GetRenderFrameHost() const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ChromeAuthenticatorRequestDelegatePrivateTest,
@@ -229,10 +217,6 @@ class ChromeAuthenticatorRequestDelegate
                            ShouldCreateInICloudKeychain);
 
   class EnclaveManagerObserver;
-
-  // GetRenderFrameHost returns a pointer to the RenderFrameHost that was given
-  // to the constructor.
-  content::RenderFrameHost* GetRenderFrameHost() const;
 
   content::BrowserContext* GetBrowserContext() const;
   Profile* profile() const;
@@ -255,6 +239,9 @@ class ChromeAuthenticatorRequestDelegate
   void MaybeShowUI(
       device::FidoRequestHandlerBase::TransportAvailabilityInfo tai,
       PasswordCredentialController::PasswordCredentials passwords);
+  void FinishMaybeShowUI(
+      PasswordCredentialController::PasswordCredentials passwords,
+      device::FidoRequestHandlerBase::TransportAvailabilityInfo tai);
 
   std::optional<device::FidoTransportProtocol> GetLastTransportUsed() const;
 
@@ -265,13 +252,17 @@ class ChromeAuthenticatorRequestDelegate
   // information that will be broadcast by the device.
   bool ShouldPermitCableExtension(const url::Origin& origin);
 
-  void OnInvalidatedCablePairing(
-      std::unique_ptr<device::cablev2::Pairing> failed_pairing);
   void OnCableEvent(device::cablev2::Event event);
 
-  // Adds GPM passkeys matching |rp_id| to |passkeys|.
+  // Adds GPM passkeys matching |rp_id| to |tai|.
   void GetPhoneContactableGpmPasskeysForRpId(
-      std::vector<device::DiscoverableCredentialMetadata>* passkeys);
+      device::FidoRequestHandlerBase::TransportAvailabilityInfo tai,
+      base::OnceCallback<void(
+          device::FidoRequestHandlerBase::TransportAvailabilityInfo)> callback);
+  void DoGetPhoneContactableGpmPasskeysForRpId(
+      device::FidoRequestHandlerBase::TransportAvailabilityInfo tai,
+      base::OnceCallback<void(
+          device::FidoRequestHandlerBase::TransportAvailabilityInfo)> callback);
 
   // Update `tai` to remove credentials that aren't applicable to this request.
   void FilterRecognizedCredentials(
@@ -365,13 +356,6 @@ class ChromeAuthenticatorRequestDelegate
   // availability info to be ready.
   std::unique_ptr<PasswordCredentialController::PasswordCredentials>
       pending_password_credentials_;
-
-  // This holds a `TrustedVaultConnection` which will be set on
-  // `enclave_controller_` when it is created.
-  std::unique_ptr<trusted_vault::TrustedVaultConnection>
-      pending_trusted_vault_connection_;
-  raw_ptr<const base::TickClock> tick_clock_ = nullptr;
-  scoped_refptr<base::SequencedTaskRunner> timer_task_runner_;
 
   base::WeakPtrFactory<ChromeAuthenticatorRequestDelegate> weak_ptr_factory_{
       this};

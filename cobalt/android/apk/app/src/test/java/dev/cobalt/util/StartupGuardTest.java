@@ -1,10 +1,9 @@
 package dev.cobalt.util;
 
-import dev.cobalt.shell.StartupGuard;
-
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import dev.cobalt.shell.StartupGuard;
 import java.time.Duration;
 import org.junit.After;
 import org.junit.Before;
@@ -19,88 +18,88 @@ import org.robolectric.shadows.ShadowLooper;
 @Config(manifest = Config.NONE)
 public class StartupGuardTest {
 
-    private StartupGuard startupGuard;
+  private StartupGuard startupGuard;
 
-    @Before
-    public void setUp() throws Exception {
-        startupGuard = StartupGuard.getInstance();
+  @Before
+  public void setUp() throws Exception {
+    startupGuard = StartupGuard.getInstance();
 
-        // Ensure a clean slate before each test
-        startupGuard.disarm();
-    }
+    // Ensure a clean slate before each test
+    startupGuard.disarm();
+  }
 
-    @After
-    public void tearDown() {
-        // clean up after tests to prevent static state leaking
-        startupGuard.disarm();
-    }
+  @After
+  public void tearDown() {
+    // clean up after tests to prevent static state leaking
+    startupGuard.disarm();
+  }
 
-    @Test
-    public void getInstance_returnsSameInstance() {
-        StartupGuard instance1 = StartupGuard.getInstance();
-        StartupGuard instance2 = StartupGuard.getInstance();
-        assertTrue("Singleton should return the same instance", instance1 == instance2);
-    }
+  @Test
+  public void getInstance_returnsSameInstance() {
+    StartupGuard instance1 = StartupGuard.getInstance();
+    StartupGuard instance2 = StartupGuard.getInstance();
+    assertTrue("Singleton should return the same instance", instance1 == instance2);
+  }
 
-    @Test
-    public void scheduleCrash_postsRunnableToHandler() {
-        // Act
-        long delaySeconds = 5;
-        startupGuard.scheduleCrash(delaySeconds);
+  @Test
+  public void scheduleCrash_postsRunnableToHandler() {
+    // Act
+    long delaySeconds = 5;
+    startupGuard.scheduleCrash(delaySeconds);
 
-        // Assert
-        assertTrue("Handler should have the crash runnable pending", startupGuard.isArmed());
-    }
+    // Assert
+    assertTrue("Handler should have the crash runnable pending", startupGuard.isArmed());
+  }
 
-    @Test
-    public void scheduleCrash_usesCorrectDelay() {
-        // Act
-        startupGuard.scheduleCrash(10);
+  @Test
+  public void scheduleCrash_usesCorrectDelay() {
+    // Act
+    startupGuard.scheduleCrash(10);
 
-        // Robolectric verification: Check the next task on the Looper
-        ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
-        Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime();
+    // Robolectric verification: Check the next task on the Looper
+    ShadowLooper shadowLooper = ShadowLooper.shadowMainLooper();
+    Duration nextTaskDelay = shadowLooper.getNextScheduledTaskTime();
 
-        // Note: ShadowLooper timing can be tricky; simpler check is looking at the queue
-        // But simply asserting the callback exists (previous test) is usually sufficient.
-        // A more strict check is advancing time:
+    // Note: ShadowLooper timing can be tricky; simpler check is looking at the queue
+    // But simply asserting the callback exists (previous test) is usually sufficient.
+    // A more strict check is advancing time:
 
-        // Advance time by 9.9 seconds -> Should NOT have run yet (still in queue)
-        shadowLooper.idleFor(Duration.ofSeconds(9).plusMillis(900));
-        assertTrue(startupGuard.isArmed());
-    }
+    // Advance time by 9.9 seconds -> Should NOT have run yet (still in queue)
+    shadowLooper.idleFor(Duration.ofSeconds(9).plusMillis(900));
+    assertTrue(startupGuard.isArmed());
+  }
 
-    @Test
-    public void disarm_removesRunnableFromHandler() {
-        // Arrange
-        startupGuard.scheduleCrash(5);
-        assertTrue(startupGuard.isArmed());
+  @Test
+  public void disarm_removesRunnableFromHandler() {
+    // Arrange
+    startupGuard.scheduleCrash(5);
+    assertTrue(startupGuard.isArmed());
 
-        // Act
-        startupGuard.disarm();
+    // Act
+    startupGuard.disarm();
 
-        // Assert
-        assertFalse("Handler should NOT have the crash runnable after disarm", startupGuard.isArmed());
-    }
+    // Assert
+    assertFalse("Handler should NOT have the crash runnable after disarm", startupGuard.isArmed());
+  }
 
-    @Test(expected = RuntimeException.class)
-    public void crashRunnable_throwsRuntimeException_whenExecuted() {
-        // Act
-        // We run the runnable directly to verify it actually throws the exception
-        // intended to crash the app.
-        startupGuard.getCrashRunnable().run();
-    }
+  @Test(expected = RuntimeException.class)
+  public void crashRunnable_throwsRuntimeException_whenExecuted() {
+    // Act
+    // We run the runnable directly to verify it actually throws the exception
+    // intended to crash the app.
+    startupGuard.getCrashRunnable().run();
+  }
 
-    @Test(expected = RuntimeException.class)
-    public void scheduledCrash_actuallyCrashes_whenTimeElapses() {
-        // Arrange
-        startupGuard.scheduleCrash(1);
+  @Test(expected = RuntimeException.class)
+  public void scheduledCrash_actuallyCrashes_whenTimeElapses() {
+    // Arrange
+    startupGuard.scheduleCrash(1);
 
-        // Act
-        // Fast forward the Main Looper by 2 seconds
-        ShadowLooper.idleMainLooper(2000, java.util.concurrent.TimeUnit.MILLISECONDS);
+    // Act
+    // Fast forward the Main Looper by 2 seconds
+    ShadowLooper.idleMainLooper(2000, java.util.concurrent.TimeUnit.MILLISECONDS);
 
-        // Assert
-        // The test expects a RuntimeException (defined in @Test annotation)
-    }
+    // Assert
+    // The test expects a RuntimeException (defined in @Test annotation)
+  }
 }

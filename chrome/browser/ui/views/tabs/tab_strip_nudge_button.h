@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_TAB_STRIP_NUDGE_BUTTON_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_TAB_STRIP_NUDGE_BUTTON_H_
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_control_button.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 
@@ -20,7 +21,8 @@ class TabStripNudgeButton : public TabStripControlButton {
                       const std::u16string& initial_label_text,
                       const ui::ElementIdentifier& element_identifier,
                       Edge flat_edge,
-                      const gfx::VectorIcon& icon);
+                      const gfx::VectorIcon& icon,
+                      const bool show_close_button);
 
   TabStripNudgeButton(const TabStripNudgeButton&) = delete;
   TabStripNudgeButton& operator=(const TabStripNudgeButton&) = delete;

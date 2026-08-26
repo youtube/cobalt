@@ -9,13 +9,15 @@
  */
 
 #include <jni.h>
-#undef JNIEXPORT
-#define JNIEXPORT __attribute__((visibility("default")))
 
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_adapter.h"
 #include "sdk/android/native_api/jni/class_loader.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/src/jni/jvm.h"
+
+#undef JNIEXPORT
+#define JNIEXPORT __attribute__((visibility("default")))
 
 namespace webrtc {
 namespace jni {

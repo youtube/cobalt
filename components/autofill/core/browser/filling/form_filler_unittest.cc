@@ -12,6 +12,7 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
@@ -54,13 +55,14 @@ namespace autofill {
 namespace {
 
 using ::testing::AtLeast;
+using ::testing::Contains;
 using ::testing::DoAll;
 using ::testing::Each;
 using ::testing::Eq;
-using ::testing::Field;
 using ::testing::NiceMock;
 using ::testing::Not;
 using ::testing::Optional;
+using ::testing::Property;
 using ::testing::Return;
 using ::testing::SaveArg;
 
@@ -101,7 +103,8 @@ class MockAutofillDriver : public TestAutofillDriver {
                mojom::ActionPersistence action_persistence,
                base::span<const FormFieldData> data,
                const url::Origin& triggered_origin,
-               (const base::flat_map<FieldGlobalId, FieldType>&)),
+               (const base::flat_map<FieldGlobalId, FieldType>&),
+               (const Section&)),
               (override));
   MOCK_METHOD(void,
               ApplyFieldAction,
@@ -112,13 +115,17 @@ class MockAutofillDriver : public TestAutofillDriver {
               (override));
 };
 
-MATCHER_P(HasValue, value, "") {
-  return arg.value() == value;
+auto HasValue(std::u16string value) {
+  return Property("FormFieldData::value", &FormFieldData::value,
+                  std::move(value));
 }
 
 // Takes a FormFieldData argument.
-MATCHER_P(AutofilledWith, value, "") {
-  return arg.is_autofilled() && arg.value() == value;
+auto AutofilledWith(std::u16string value) {
+  return AllOf(Property("FormFieldData::is_autofilled",
+                        &FormFieldData::is_autofilled, true),
+               Property("FormFieldData::value", &FormFieldData::value,
+                        std::move(value)));
 }
 
 // Takes an AutofillField argument.
@@ -417,12 +424,13 @@ TEST_F(FormFillerTest, UndoSavesFormFillingData) {
 
 TEST_F(FormFillerTest, UndoSavesFormFillingDataForAutofillAi) {
   FormData form = FormSeen(
-      {.fields = {{.role = PASSPORT_NAME_TAG, .heuristic_type = NAME_FULL},
-                  {.role = PASSPORT_ISSUING_COUNTRY,
-                   .heuristic_type = ADDRESS_HOME_COUNTRY},
-                  {.role = PASSPORT_NUMBER},
-                  {.role = IBAN_VALUE, .heuristic_type = IBAN_VALUE},
-                  {.role = UNKNOWN_TYPE, .heuristic_type = UNKNOWN_TYPE}}});
+      {.fields = {
+           {.server_type = PASSPORT_NUMBER},
+           {.server_type = NO_SERVER_DATA, .heuristic_type = NAME_FULL},
+           {.server_type = PASSPORT_ISSUING_COUNTRY,
+            .heuristic_type = ADDRESS_HOME_COUNTRY},
+           {.server_type = IBAN_VALUE, .heuristic_type = IBAN_VALUE},
+           {.server_type = UNKNOWN_TYPE, .heuristic_type = UNKNOWN_TYPE}}});
 
   auto safe_fields = base::MakeFlatSet<FieldGlobalId>(
       form.fields(), {}, &FormFieldData::global_id);
@@ -432,7 +440,7 @@ TEST_F(FormFillerTest, UndoSavesFormFillingDataForAutofillAi) {
 
   EntityInstance passport = test::GetPassportEntityInstance();
   browser_autofill_manager_->FillOrPreviewForm(
-      mojom::ActionPersistence::kFill, form, form.fields()[0].global_id(),
+      mojom::ActionPersistence::kFill, form, form.fields().front().global_id(),
       &passport, AutofillTriggerSource::kAutofillAi);
   browser_autofill_manager_->UndoAutofill(mojom::ActionPersistence::kFill, form,
                                           form.fields().front());
@@ -600,7 +608,6 @@ TEST_F(FormFillerTest, FillCreditCardForm_StripCardNumber) {
   EXPECT_THAT(filled_fields[0], AutofilledWith(u"4234567890123456"));
 }
 
-#if !BUILDFLAG(IS_IOS)
 // Tests that when payment form fields are autofilled and payment swapping is
 // enabled, the autofilled values can be replaced with empty values.
 TEST_F(FormFillerTest, PaymentsSwappingWithPartiallyEmptyData) {
@@ -641,7 +648,6 @@ TEST_F(FormFillerTest, PaymentsSwappingWithPartiallyEmptyData) {
   EXPECT_EQ(filled_fields[3].value(), u"");
   EXPECT_FALSE(filled_fields[3].is_autofilled());
 }
-#endif  // !BUILDFLAG(IS_IOS)
 
 struct PartialCreditCardDateParams {
   const char* cc_month = "";
@@ -815,7 +821,8 @@ TEST_F(FormFillerTest, FillAddressForm_AutocompleteOffFillingBehavior) {
   FormStructure* form_structure = GetFormStructure(form);
   form_structure->field(1)->set_heuristic_type(GetActiveHeuristicSource(),
                                                NAME_MIDDLE);
-  ASSERT_EQ(form_structure->field(1)->Type().GetStorableType(), NAME_MIDDLE);
+  ASSERT_THAT(form_structure->field(1)->Type().GetTypes(),
+              Contains(NAME_MIDDLE));
 
   AutofillProfile profile = test::GetFullProfile();
   std::vector<FormFieldData> filled_fields =
@@ -1542,6 +1549,10 @@ TEST_F(FormFillerTest, FillFirstPhoneNumber_MultipleSectionFilledCorrectly) {
 }
 
 TEST_F(FormFillerTest, FillPassportEntity) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({features::kAutofillAiWithDataSchema,
+                                 features::kAutofillUnionTypesForAutofillAi},
+                                {});
   FormData form = test::GetFormData({.fields = {
                                          // Passport number:
                                          {.role = UNKNOWN_TYPE},
@@ -1563,6 +1574,13 @@ TEST_F(FormFillerTest, FillPassportEntity) {
   auto set_server_type = [&](size_t field_index, auto... types) {
     form_structure->fields()[field_index]->set_server_predictions(
         {test::CreateFieldPrediction(types)...});
+    std::vector<FieldType> expected_types = {types...};
+    std::vector<FieldType> actual_types = base::ToVector(
+        form_structure->fields()[field_index]->server_predictions(),
+        [](const auto& p) {
+          return ToSafeFieldType(p.type(), NO_SERVER_DATA);
+        });
+    CHECK(expected_types == actual_types);
   };
   auto set_format_string = [&](size_t field_index,
                                std::string_view format_string) {
@@ -1573,7 +1591,7 @@ TEST_F(FormFillerTest, FillPassportEntity) {
   set_server_type(0, PASSPORT_NUMBER);
   set_server_type(1, NAME_FIRST, PASSPORT_NAME_TAG);
   set_server_type(2, NAME_LAST, PASSPORT_NAME_TAG);
-  set_server_type(3, ADDRESS_HOME_COUNTRY, PASSPORT_ISSUING_COUNTRY);
+  set_server_type(3, PASSPORT_ISSUING_COUNTRY);
   set_server_type(4, PASSPORT_ISSUE_DATE);
   set_format_string(4, "M/YY");
   set_server_type(5, PASSPORT_EXPIRATION_DATE);
@@ -1583,7 +1601,7 @@ TEST_F(FormFillerTest, FillPassportEntity) {
 
   std::vector<FormFieldData> filled_fields =
       FillAutofillFormData(form, form.fields()[0], &passport).fields();
-  EXPECT_EQ(filled_fields[0].value(), u"123");
+  EXPECT_EQ(filled_fields[0].value(), u"LR1234567");
   EXPECT_EQ(filled_fields[1].value(), u"Pippi");
   EXPECT_EQ(filled_fields[2].value(), u"Långstrump");
   EXPECT_EQ(filled_fields[3].value(), u"Sweden");

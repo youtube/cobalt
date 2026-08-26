@@ -36,6 +36,10 @@ enum CreditCardSaveManagerObserverEvent : int {
 // Saves an example form in the store for the passed URL spec.
 + (void)savePasswordFormForURLSpec:(NSString*)URLSpec;
 
+// Saves an example form with a backup password in the store for the passed URL
+// spec.
++ (void)savePasswordFormWithBackupForURLSpec:(NSString*)URLSpec;
+
 // Returns the number of profiles (addresses) in the data manager.
 + (NSInteger)profilesCount;
 
@@ -53,7 +57,7 @@ enum CreditCardSaveManagerObserverEvent : int {
 
 // Saves a sample account profile (address) with Home record type in the data
 // manager.
-+ (void)saveExampleHomeWorkAccountProfile;
++ (void)saveExampleHomeAndWorkAccountProfile;
 
 // Returns the name of the sample profile.
 + (NSString*)exampleProfileName;

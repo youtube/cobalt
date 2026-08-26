@@ -20,8 +20,37 @@ StarboardDrmWrapper* g_test_drm_wrapper = nullptr;
 
 }  // namespace
 
+StarboardDrmWrapper::DrmSystemResource::DrmSystemResource() {
+  StarboardDrmWrapper::GetInstance().AddResource(this);
+}
+
+StarboardDrmWrapper::DrmSystemResource::~DrmSystemResource() {
+  StarboardDrmWrapper::GetInstance().RemoveResource(this);
+}
+
+StarboardDrmWrapper::Client::Client() {
+  StarboardDrmWrapper::GetInstance().AddClient(this);
+}
+
 StarboardDrmWrapper::Client::~Client() {
   StarboardDrmWrapper::GetInstance().RemoveClient(this);
+}
+
+bool StarboardDrmWrapper::HasClients() {
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  return !clients_.empty();
+}
+
+void StarboardDrmWrapper::AddClient(Client* client) {
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  LOG(INFO) << "StarboardDrmWrapper::AddClient(client=" << client << ")";
+
+  const auto& [unused_it, inserted] = clients_.insert(client);
+  if (!inserted) {
+    LOG(WARNING) << "Duplicate Client* inserted";
+  }
 }
 
 void StarboardDrmWrapper::RemoveClient(Client* client) {
@@ -56,6 +85,9 @@ void StarboardDrmWrapper::RemoveClient(Client* client) {
       }
     }
   }
+
+  // Update clients_.
+  clients_.erase(client);
 }
 
 void StarboardDrmWrapper::CallOnSessionUpdateRequest(
@@ -401,10 +433,18 @@ StarboardDrmWrapper::StarboardDrmWrapper()
   // Use of base::Unretained is safe because this object should never be
   // destructed in production code (it's a private destructor, and the only code
   // that destroys it is the test-only function SetSingletonForTesting).
-  chromecast::CastStarboardApiAdapter::GetInstance()->Subscribe(this, nullptr);
-  base::AtExitManager::RegisterTask(base::BindOnce(
-      &StarboardDrmWrapper::DestroySbDrmSystem, base::Unretained(this)));
+  if (auto* starboard_api_adapter =
+          chromecast::CastStarboardApiAdapter::GetInstance();
+      starboard_api_adapter != nullptr) {
+    LOG(INFO) << "Subscribing to CastStarboardApiAdapter. this=" << this;
+    starboard_api_adapter->Subscribe(this, nullptr);
+  } else {
+    LOG(WARNING) << "CastStarboardApiAdapter::GetInstance() returned null. "
+                    "This should only happen in tests.";
+  }
 
+  base::AtExitManager::RegisterTask(base::BindOnce(
+      &StarboardDrmWrapper::MaybeDestroySbDrmSystem, base::Unretained(this)));
   owned_starboard_ = GetStarboardApiWrapper();
   starboard_ = owned_starboard_.get();
   CHECK(starboard_->EnsureInitialized()) << "Failed to initialize starboard";
@@ -429,18 +469,63 @@ StarboardDrmWrapper::StarboardDrmWrapper(StarboardApiWrapper* starboard)
 
 StarboardDrmWrapper::~StarboardDrmWrapper() = default;
 
-void StarboardDrmWrapper::DestroySbDrmSystem() {
+void StarboardDrmWrapper::AddResource(DrmSystemResource* resource) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    // base::Unretained is safe because this class is a singleton.
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(&StarboardDrmWrapper::AddResource,
+                                          base::Unretained(this), resource));
+    return;
+  }
+  resources_.insert(resource);
+}
+
+void StarboardDrmWrapper::RemoveResource(DrmSystemResource* resource) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    // base::Unretained is safe because this class is a singleton.
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(&StarboardDrmWrapper::RemoveResource,
+                                          base::Unretained(this), resource));
+    return;
+  }
+  resources_.erase(resource);
+
+  if (resources_.empty() && cast_exiting_) {
+    LOG(INFO)
+        << "Retrying MaybeDestroySbDrmSystem because the last resource was "
+           "removed.";
+    MaybeDestroySbDrmSystem();
+  }
+}
+
+void StarboardDrmWrapper::MaybeDestroySbDrmSystem() {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     // base::Unretained is safe because this class is a singleton.
     task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&StarboardDrmWrapper::DestroySbDrmSystem,
+        FROM_HERE, base::BindOnce(&StarboardDrmWrapper::MaybeDestroySbDrmSystem,
                                   base::Unretained(this)));
+    return;
+  }
+
+  cast_exiting_ = true;
+  if (!resources_.empty()) {
+    LOG(INFO) << "Delaying destruction of SbDrmSystem because there are still "
+              << resources_.size() << " resources held.";
     return;
   }
 
   LOG(INFO) << "Destroying SbDrmSystem because core_runtime is shutting down.";
   starboard_->DrmDestroySystem(drm_system_);
-  chromecast::CastStarboardApiAdapter::GetInstance()->Unsubscribe(this);
+
+  if (auto* starboard_api_adapter =
+          chromecast::CastStarboardApiAdapter::GetInstance();
+      starboard_api_adapter != nullptr) {
+    LOG(INFO) << "Unsubscribing from CastStarboardApiAdapter. this=" << this;
+    starboard_api_adapter->Unsubscribe(this);
+  } else {
+    LOG(WARNING) << "CastStarboardApiAdapter::GetInstance() returned null. "
+                    "This should only happen in tests.";
+  }
 
   // We need to destroy owned_starboard_ here, so that it unsubscribes from
   // CastStarboardApiAdapter.

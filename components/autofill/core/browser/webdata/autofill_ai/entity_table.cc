@@ -13,6 +13,7 @@
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -22,6 +23,7 @@
 #include "base/uuid.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/webdata/autofill_table_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -235,7 +237,8 @@ bool EntityTable::MigrateToVersion(int version,
 
 bool EntityTable::AddAttribute(const EntityInstance& entity,
                                const AttributeInstance& attribute) {
-  for (FieldType type : attribute.GetDatabaseStoredTypes()) {
+  for (FieldType type :
+       attribute.type().storable_field_types(/*pass_key=*/{})) {
     sql::Statement s;
     InsertBuilder(db(), s, attributes::kTableName,
                   {attributes::kEntityGuid, attributes::kAttributeType,
@@ -246,8 +249,10 @@ bool EntityTable::AddAttribute(const EntityInstance& entity,
     s.BindInt(2, type);
     if (std::string encrypted_value; encryptor()->EncryptString16(
             attribute.GetRawInfo(/*pass_key=*/{}, type), &encrypted_value)) {
+      base::UmaHistogramBoolean("Autofill.Ai.EntityTable.EncryptStatus", true);
       s.BindString(3, encrypted_value);
     } else {
+      base::UmaHistogramBoolean("Autofill.Ai.EntityTable.EncryptStatus", false);
       return false;
     }
     s.BindInt(4, static_cast<int>(attribute.GetVerificationStatus(type)));
@@ -361,20 +366,46 @@ EntityTable::LoadAttributes() const {
                 {attributes::kEntityGuid, attributes::kAttributeType,
                  attributes::kFieldType, attributes::kValueEncrypted,
                  attributes::kVerificationStatus});
+
+  // LINT.IfChange(DecryptionStatus)
+  enum class DecryptionStatus {
+    // Decryption was successful.
+    kSuccess = 0,
+    // Temporary error (e.g. The decryption system was not available).
+    kTemporaryFailure = 1,
+    // The decryption key was lost or the data to be decrypted was corrupt.
+    kPermanentFailure = 2,
+    kMaxValue = kPermanentFailure,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:AutofillAiDecryptStatus)
+
   while (s.Step()) {
     base::Uuid entity_guid = base::Uuid::ParseLowercase(s.ColumnStringView(0));
     std::string attribute_type_name = s.ColumnString(1);
     std::underlying_type_t<FieldType> underlying_field_type = s.ColumnInt(2);
     std::u16string decrypted_value;
-    if (!encryptor()->DecryptString16(s.ColumnString(3), &decrypted_value)) {
+    os_crypt_async::Encryptor::DecryptFlags flag;
+    bool decryption_result = encryptor()->DecryptString16(
+        s.ColumnString(3), &decrypted_value, &flag);
+    base::UmaHistogramBoolean("Autofill.Ai.EntityTable.DecryptStatus",
+                              decryption_result);
+    DecryptionStatus decryption_status = DecryptionStatus::kSuccess;
+    if (!decryption_result) {
+      decryption_status = flag.temporarily_unavailable
+                              ? DecryptionStatus::kTemporaryFailure
+                              : DecryptionStatus::kPermanentFailure;
+    }
+    base::UmaHistogramEnumeration("Autofill.Ai.EntityTable.DecryptStatus2",
+                                  decryption_status);
+    if (!decryption_result) {
       continue;
     }
     std::underlying_type_t<VerificationStatus> underlying_verification_status =
         s.ColumnInt(4);
-    attribute_records[entity_guid][attribute_type_name].push_back(
-        {.field_type = underlying_field_type,
-         .value = decrypted_value,
-         .verification_status = underlying_verification_status});
+    attribute_records[std::move(entity_guid)][std::move(attribute_type_name)]
+        .push_back({.field_type = underlying_field_type,
+                    .value = std::move(decrypted_value),
+                    .verification_status = underlying_verification_status});
   }
   if (!s.Succeeded()) {
     return {};
@@ -430,6 +461,12 @@ std::optional<EntityInstance> EntityTable::ValidateInstance(
     base::Time use_date,
     std::map<std::string, std::vector<AttributeRecord>> attribute_records)
     const {
+  // An attribute's field type must never be UNKNOWN_TYPE - otherwise we will
+  // discard its value here.
+  static_assert(!DenseSet<FieldType>(DenseSet<AttributeType>::all(),
+                                     &AttributeType::field_type_with_tag_types)
+                     .contains(UNKNOWN_TYPE));
+
   std::optional<EntityType> entity_type =
       StringToEntityType(/*pass_key=*/{}, type_name);
   if (!entity_type || !guid.is_valid()) {

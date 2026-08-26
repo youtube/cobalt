@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "third_party/blink/renderer/platform/media/multi_buffer_data_source.h"
 
 #include <stddef.h>
@@ -15,6 +10,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/containers/heap_array.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
@@ -26,7 +22,7 @@
 #include "media/base/mock_filters.h"
 #include "media/base/mock_media_log.h"
 #include "media/base/test_helpers.h"
-#include "services/network/public/mojom/fetch_api.mojom.h"
+#include "services/network/public/mojom/fetch_api.mojom-blink.h"
 #include "third_party/blink/public/platform/web_url.h"
 #include "third_party/blink/public/platform/web_url_response.h"
 #include "third_party/blink/renderer/platform/media/buffered_data_source_host_impl.h"
@@ -351,7 +347,7 @@ class MultiBufferDataSourceTest : public testing::Test {
   void ReceiveDataLow(int size) {
     EXPECT_TRUE(active_loader());
     auto data = base::HeapArray<char>::Uninit(size);
-    memset(data.data(), 0xA5, size);  // Arbitrary non-zero value.
+    UNSAFE_TODO(memset(data.data(), 0xA5, size));  // Arbitrary non-zero value.
 
     data_provider()->DidReceiveData(data);
   }
@@ -1783,7 +1779,7 @@ TEST_F(MultiBufferDataSourceTest, ResponseTypeBasic) {
   set_preload(MultiBufferDataSource::NONE);
   WebURLResponse response1 =
       response_generator_->GeneratePartial206(0, kDataSize - 1);
-  response1.SetType(network::mojom::FetchResponseType::kBasic);
+  response1.SetType(network::mojom::blink::FetchResponseType::kBasic);
 
   EXPECT_CALL(host_, SetTotalBytes(kFileSize));
   EXPECT_CALL(host_, AddBufferedByteRange(0, kDataSize));
@@ -1793,7 +1789,6 @@ TEST_F(MultiBufferDataSourceTest, ResponseTypeBasic) {
   ReceiveData(kDataSize);
   ReadAt(0);
   EXPECT_TRUE(loading());
-  EXPECT_FALSE(data_source_->IsCorsCrossOrigin());
 
   FinishLoading();
 }
@@ -1803,7 +1798,7 @@ TEST_F(MultiBufferDataSourceTest, ResponseTypeCors) {
   set_preload(MultiBufferDataSource::NONE);
   WebURLResponse response1 =
       response_generator_->GeneratePartial206(0, kDataSize - 1);
-  response1.SetType(network::mojom::FetchResponseType::kCors);
+  response1.SetType(network::mojom::blink::FetchResponseType::kCors);
 
   EXPECT_CALL(host_, SetTotalBytes(kFileSize));
   EXPECT_CALL(host_, AddBufferedByteRange(0, kDataSize));
@@ -1813,7 +1808,6 @@ TEST_F(MultiBufferDataSourceTest, ResponseTypeCors) {
   ReceiveData(kDataSize);
   ReadAt(0);
   EXPECT_TRUE(loading());
-  EXPECT_FALSE(data_source_->IsCorsCrossOrigin());
 
   FinishLoading();
 }
@@ -1823,7 +1817,7 @@ TEST_F(MultiBufferDataSourceTest, ResponseTypeDefault) {
   set_preload(MultiBufferDataSource::NONE);
   WebURLResponse response1 =
       response_generator_->GeneratePartial206(0, kDataSize - 1);
-  response1.SetType(network::mojom::FetchResponseType::kDefault);
+  response1.SetType(network::mojom::blink::FetchResponseType::kDefault);
 
   EXPECT_CALL(host_, SetTotalBytes(kFileSize));
   EXPECT_CALL(host_, AddBufferedByteRange(0, kDataSize));
@@ -1833,7 +1827,6 @@ TEST_F(MultiBufferDataSourceTest, ResponseTypeDefault) {
   ReceiveData(kDataSize);
   ReadAt(0);
   EXPECT_TRUE(loading());
-  EXPECT_FALSE(data_source_->IsCorsCrossOrigin());
 
   FinishLoading();
 }
@@ -1843,7 +1836,7 @@ TEST_F(MultiBufferDataSourceTest, ResponseTypeOpaque) {
   set_preload(MultiBufferDataSource::NONE);
   WebURLResponse response1 =
       response_generator_->GeneratePartial206(0, kDataSize - 1);
-  response1.SetType(network::mojom::FetchResponseType::kOpaque);
+  response1.SetType(network::mojom::blink::FetchResponseType::kOpaque);
 
   EXPECT_CALL(host_, SetTotalBytes(kFileSize));
   EXPECT_CALL(host_, AddBufferedByteRange(0, kDataSize));
@@ -1853,7 +1846,6 @@ TEST_F(MultiBufferDataSourceTest, ResponseTypeOpaque) {
   ReceiveData(kDataSize);
   ReadAt(0);
   EXPECT_TRUE(loading());
-  EXPECT_TRUE(data_source_->IsCorsCrossOrigin());
 
   FinishLoading();
 }
@@ -1863,7 +1855,7 @@ TEST_F(MultiBufferDataSourceTest, ResponseTypeOpaqueRedirect) {
   set_preload(MultiBufferDataSource::NONE);
   WebURLResponse response1 =
       response_generator_->GeneratePartial206(0, kDataSize - 1);
-  response1.SetType(network::mojom::FetchResponseType::kOpaqueRedirect);
+  response1.SetType(network::mojom::blink::FetchResponseType::kOpaqueRedirect);
 
   EXPECT_CALL(host_, SetTotalBytes(kFileSize));
   EXPECT_CALL(host_, AddBufferedByteRange(0, kDataSize));
@@ -1873,7 +1865,6 @@ TEST_F(MultiBufferDataSourceTest, ResponseTypeOpaqueRedirect) {
   ReceiveData(kDataSize);
   ReadAt(0);
   EXPECT_TRUE(loading());
-  EXPECT_TRUE(data_source_->IsCorsCrossOrigin());
 
   FinishLoading();
 }

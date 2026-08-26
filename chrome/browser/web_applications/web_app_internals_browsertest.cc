@@ -39,7 +39,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/webapps/browser/install_result_code.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "content/public/test/browser_test.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -166,6 +166,9 @@ class WebAppInternalsBrowserTest : public WebAppBrowserTestBase {
       features::kRecordWebAppDebugInfo};
 };
 
+// There are 2 error logs being persisted here, one generated from the commands
+// and one generated while parsing the manifest into a `WebAppInstallInfo`,
+// which logs the invalid icon errors.
 IN_PROC_BROWSER_TEST_F(WebAppInternalsBrowserTest,
                        PRE_InstallManagerErrorsPersist) {
   OverrideHttpRequest(embedded_test_server()->GetURL("/banners/bad_icon.png"),
@@ -183,10 +186,10 @@ IN_PROC_BROWSER_TEST_F(WebAppInternalsBrowserTest,
       nullptr);
 
   ASSERT_TRUE(GetProvider().install_manager().error_log());
-  ASSERT_EQ(1u, GetProvider().install_manager().error_log()->size());
+  ASSERT_EQ(2u, GetProvider().install_manager().error_log()->size());
 
   const base::Value& error_log =
-      (*GetProvider().install_manager().error_log())[0];
+      (*GetProvider().install_manager().error_log())[1];
   EXPECT_TRUE(error_log.is_dict());
   EXPECT_EQ(4u, error_log.GetDict().size());
 
@@ -199,10 +202,10 @@ IN_PROC_BROWSER_TEST_F(WebAppInternalsBrowserTest,
   test::WaitUntilReady(WebAppProvider::GetForTest(browser()->profile()));
 
   ASSERT_TRUE(GetProvider().install_manager().error_log());
-  ASSERT_EQ(1u, GetProvider().install_manager().error_log()->size());
+  ASSERT_EQ(2u, GetProvider().install_manager().error_log()->size());
 
   const base::Value& error_log =
-      (*GetProvider().install_manager().error_log())[0];
+      (*GetProvider().install_manager().error_log())[1];
   EXPECT_TRUE(error_log.is_dict());
   EXPECT_EQ(4u, error_log.GetDict().size());
 
@@ -377,7 +380,10 @@ IN_PROC_BROWSER_TEST_F(WebAppInternalsIwaInstallationBrowserTest,
     base::test::TestFuture<std::string> update_future;
     handler->UpdateManifestInstalledIsolatedWebApp(
         app_id, update_future.GetCallback<const std::string&>());
-    EXPECT_THAT(update_future.Get(), HasSubstr("Update skipped"));
+    EXPECT_THAT(
+        update_future.Get(),
+        HasSubstr("Update skipped: app is already on the latest version or the "
+                  "updates are disabled due to set `pinned_version` field."));
   }
 
   // Add v2.4.0 to `beta` channel, pin the app to v2.3.0. Expect an update to
@@ -503,7 +509,8 @@ IN_PROC_BROWSER_TEST_F(
         app_id, update_future.GetCallback<const std::string&>());
     EXPECT_THAT(
         update_future.Get(),
-        HasSubstr("Update failed: Error::kUpdateManifestNoApplicableVersion"));
+        HasSubstr(
+            "Update failed: Error::kPinnedVersionNotFoundInUpdateManifest"));
 
     ASSERT_OK_AND_ASSIGN(
         const WebApp& iwa,
@@ -525,7 +532,8 @@ IN_PROC_BROWSER_TEST_F(
         app_id, update_future.GetCallback<const std::string&>());
     EXPECT_THAT(
         update_future.Get(),
-        HasSubstr("Update failed: Error::kUpdateManifestNoApplicableVersion"));
+        HasSubstr(
+            "Update failed: Error::kPinnedVersionNotFoundInUpdateManifest"));
   }
 }
 

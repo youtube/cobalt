@@ -50,7 +50,7 @@
 
 namespace {
 const size_t kVariableSize = std::numeric_limits<size_t>::max();
-}
+}  // namespace
 
 namespace webrtc {
 

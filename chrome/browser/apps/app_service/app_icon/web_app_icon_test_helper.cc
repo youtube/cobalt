@@ -52,7 +52,7 @@ void WebAppIconTestHelper::WriteIcons(const std::string& app_id,
   }
 
   base::test::TestFuture<bool> future;
-  icon_manager().WriteData(app_id, std::move(icon_bitmaps), {}, {},
+  icon_manager().WriteData(app_id, std::move(icon_bitmaps), {}, {}, {},
                            future.GetCallback());
   bool success = future.Get();
   EXPECT_TRUE(success);
@@ -65,7 +65,8 @@ gfx::ImageSkia WebAppIconTestHelper::GenerateWebAppIcon(
     apps::ScaleToSize scale_to_size_in_px,
     bool skip_icon_effects) {
   base::test::TestFuture<std::map<web_app::SquareSizePx, SkBitmap>> future;
-  icon_manager().ReadIcons(app_id, purpose, sizes_px, future.GetCallback());
+  icon_manager().ReadTrustedIconsWithFallbackToManifestIcons(
+      app_id, sizes_px, purpose, future.GetCallback());
   auto icon_bitmaps = future.Take();
 
   gfx::ImageSkia output_image_skia;

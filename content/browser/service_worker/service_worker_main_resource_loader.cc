@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
@@ -38,6 +39,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
+#include "net/base/load_flags.h"
 #include "net/base/load_timing_info.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
@@ -93,6 +95,21 @@ bool IsStaticRouterRaceRequestFixEnabled() {
   return base::FeatureList::IsEnabled(
       features::kServiceWorkerStaticRouterRaceRequestFix);
 }
+
+constexpr char kHistogramSyntheticResponseEligibility[] =
+    "ServiceWorker.SyntheticResponse.Eligibility";
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(SyntheticResponseEligibility)
+enum class SyntheticResponseEligibility {
+  kEligible = 0,
+  kNotEligibleByReload = 1,
+  kNotEligibleByNoHeaderStored = 2,
+  kMaxValue = kNotEligibleByNoHeaderStored,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/service/enums.xml:SyntheticResponseEligibility)
 
 }  // namespace
 
@@ -430,6 +447,11 @@ bool ServiceWorkerMainResourceLoader::MaybeStartAutoPreload(
     scoped_refptr<ServiceWorkerContextWrapper> context,
     scoped_refptr<ServiceWorkerVersion> version) {
   if (!base::FeatureList::IsEnabled(features::kServiceWorkerAutoPreload)) {
+    return false;
+  }
+
+  if (!GetContentClient()->browser()->IsServiceWorkerAutoPreloadAllowed(
+          context->browser_context())) {
     return false;
   }
 
@@ -998,16 +1020,21 @@ void ServiceWorkerMainResourceLoader::Fallback(
 bool ServiceWorkerMainResourceLoader::MaybeStartSyntheticNetworkRequest(
     scoped_refptr<ServiceWorkerContextWrapper> context_wrapper,
     scoped_refptr<ServiceWorkerVersion> version) {
-  is_synthetic_response_used_ =
-      service_worker_loader_helpers::IsEligibleForSyntheticResponse(
-          resource_request_.url) &&
-      resource_request_.is_outermost_main_frame;
-  if (!is_synthetic_response_used_) {
+  if (!service_worker_client_ || !resource_request_.is_outermost_main_frame ||
+      !service_worker_loader_helpers::IsEligibleForSyntheticResponse(
+          context_wrapper->browser_context(), resource_request_.url)) {
     return false;
   }
-  if (!service_worker_client_) {
+  const int kReloadFlags = net::LOAD_VALIDATE_CACHE | net::LOAD_BYPASS_CACHE;
+  if (resource_request_.load_flags & kReloadFlags) {
+    // Synthetic response is not enabled in reloading the page.
+    base::UmaHistogramEnumeration(
+        kHistogramSyntheticResponseEligibility,
+        SyntheticResponseEligibility::kNotEligibleByReload);
     return false;
   }
+
+  is_synthetic_response_used_ = true;
 
   synthetic_response_manager_.emplace(
       service_worker_client_->CreateNetworkURLLoaderFactory(
@@ -1044,11 +1071,20 @@ bool ServiceWorkerMainResourceLoader::MaybeStartSyntheticNetworkRequest(
       // When it's not ready, the header is not stored yet. That means we don't
       // create a synthetic response locally, and wait for the response from the
       // network.
+      base::UmaHistogramEnumeration(
+          kHistogramSyntheticResponseEligibility,
+          SyntheticResponseEligibility::kNotEligibleByNoHeaderStored);
       break;
     case SyntheticResponseStatus::kReady:
+      // When it's ready, the header which the service worker locally storead is
+      // passed to the client. To let this information to the renderer, set
+      // `from_synthetic_response` to `response_head_`.
+      response_head_->from_synthetic_response = true;
       synthetic_response_manager_->StartSyntheticResponse(base::BindOnce(
           &ServiceWorkerMainResourceLoader::DidDispatchFetchEvent,
           weak_factory_.GetWeakPtr()));
+      base::UmaHistogramEnumeration(kHistogramSyntheticResponseEligibility,
+                                    SyntheticResponseEligibility::kEligible);
       break;
   }
 
@@ -1072,6 +1108,10 @@ void ServiceWorkerMainResourceLoader::
 void ServiceWorkerMainResourceLoader::OnCompleteSyntheticNetworkRequest(
     const network::URLLoaderCompletionStatus& status) {
   CHECK(synthetic_response_manager_);
+  if (status_ == Status::kCompleted) {
+    // Already completed by the stream response for the fallback.
+    return;
+  }
   CommitCompleted(status.error_code, "Synthetic response");
 }
 
@@ -1741,7 +1781,8 @@ void ServiceWorkerMainResourceLoader::TransitionToStatus(Status new_status) {
           // Network fallback after interception.
           status_ == Status::kStarted ||
           // Success case or error while sending the response's body.
-          status_ == Status::kSentBody);
+          status_ == Status::kSentBody)
+          << static_cast<int>(status_);
       break;
   }
 #endif  // DCHECK_IS_ON()

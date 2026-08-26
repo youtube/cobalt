@@ -7,13 +7,13 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "third_party/cld_3/src/src/nnet_language_identifier.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
@@ -153,7 +153,7 @@ class AX_EXPORT AXLanguageInfoStats {
   friend class AXLanguageDetectionTestFixture;
 
   // Store a count of the occurrences of a given language.
-  std::unordered_map<std::string, int> lang_counts_;
+  absl::flat_hash_map<std::string, int> lang_counts_;
 
   // Cache of last calculated top language results.
   // A vector of pairs of (score, language) sorted by descending score.
@@ -204,7 +204,7 @@ class AX_EXPORT AXLanguageInfoStats {
 
   // Set of top language detected for every node, used to generate the unique
   // number of detected languages metric (LangsPerPage).
-  std::unordered_set<std::string> unique_top_lang_detected_;
+  absl::flat_hash_set<std::string> unique_top_lang_detected_;
 };
 
 // AXLanguageDetectionObserver is registered as a change observer on an AXTree

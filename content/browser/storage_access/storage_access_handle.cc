@@ -16,6 +16,7 @@
 #include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
+#include "storage/browser/blob/blob_url_registry.h"
 #include "storage/browser/quota/quota_manager_proxy.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 
@@ -44,7 +45,7 @@ void StorageAccessHandle::Create(
     RenderFrameHost* host,
     mojo::PendingReceiver<blink::mojom::StorageAccessHandle> receiver) {
   CHECK(host);
-  if (!host->DoesDocumentHaveStorageAccess()) {
+  if (!host->IsFullCookieAccessAllowed()) {
 #if DCHECK_IS_ON()
     mojo::ReportBadMessage(
         "Binding a StorageAccessHandle requires third-party cookie access.");
@@ -156,20 +157,35 @@ void StorageAccessHandle::BindBlobStorage(
   static_cast<RenderFrameHostImpl&>(render_frame_host())
       .GetStoragePartition()
       ->GetBlobUrlRegistry()
-      ->AddReceiver(blink::StorageKey::CreateFirstParty(
-                        render_frame_host().GetStorageKey().origin()),
-                    render_frame_host().GetLastCommittedOrigin(),
-                    render_frame_host().GetProcess()->GetDeprecatedID(),
-                    std::move(receiver),
-                    /*partitioning_blob_url_closure=*/base::DoNothing(),
-                    // In the case that a context is granted storage access, the
-                    // StorageAccessHandle context still shouldn't bypass
-                    // partitioning check. (eg. using a Blob URL created with
-                    // URL.createObjectURL in the third-party context with the
-                    // StorageAccessHandle's SharedWorker constructor.)
-                    /*storage_access_check_callback= */
-                    base::BindRepeating([]() -> bool { return false; }),
-                    /*partitioning_disabled_by_policy=*/false);
+      ->AddReceiver(
+          blink::StorageKey::CreateFirstParty(
+              render_frame_host().GetStorageKey().origin()),
+          render_frame_host().GetLastCommittedOrigin(),
+          render_frame_host().GetProcess()->GetDeprecatedID(),
+          std::move(receiver),
+          /*partitioning_blob_url_closure=*/base::DoNothing(),
+          // In the case that a context is granted storage access, the
+          // StorageAccessHandle context still shouldn't bypass the partitioning
+          // check (e.g. using a Blob URL created with URL.createObjectURL in
+          // the third-party context with the StorageAccessHandle's SharedWorker
+          // constructor.)
+          /*storage_access_check_callback=*/
+          base::BindRepeating([]() -> bool { return false; }),
+          // A StorageAccessHandle is not a top-level blob document, so always
+          // pass std::nullopt here.
+          /*top_level_blob_document_url=*/std::nullopt,
+          /*context_type_for_debugging=*/"StorageAccessHandle",
+          base::BindRepeating(
+              [](base::WeakPtr<StorageAccessHandle> handle) -> std::string {
+                if (!handle) {
+                  return "destroyed StorageAccessHandle";
+                }
+                return handle->render_frame_host()
+                    .GetStorageKey()
+                    .GetDebugString();
+              },
+              weak_factory_.GetWeakPtr()),
+          /*partitioning_disabled_by_policy=*/false);
 }
 
 void StorageAccessHandle::BindBroadcastChannel(

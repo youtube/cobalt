@@ -14,7 +14,8 @@
 #include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/notreached.h"
-#include "crypto/sha2.h"
+#include "base/strings/string_view_util.h"
+#include "crypto/hash.h"
 #include "net/base/net_errors.h"
 #include "net/cert/asn1_util.h"
 #include "net/cert/cert_verify_result.h"
@@ -226,7 +227,7 @@ int BuildAndEvaluateSecTrustRef(CFArrayRef cert_array,
 
   trust_ref->swap(tmp_trust);
   trust_error->swap(tmp_error);
-  *verified_chain = x509_util::CertificateChainFromSecTrust(trust_ref->get());
+  verified_chain->reset(SecTrustCopyCertificateChain(trust_ref->get()));
   *is_trusted = tmp_is_trusted;
   return OK;
 }
@@ -260,9 +261,8 @@ void GetCertChainInfo(CFArrayRef cert_chain, CertVerifyResult* verify_result) {
       return;
     }
 
-    HashValue sha256(HASH_VALUE_SHA256);
-    CC_SHA256(spki_bytes.data(), spki_bytes.size(), sha256.span().data());
-    verify_result->public_key_hashes.push_back(sha256);
+    verify_result->public_key_hashes.push_back(
+        crypto::hash::Sha256(base::as_byte_span(spki_bytes)));
   }
   if (!verified_cert.get()) {
     NOTREACHED();

@@ -103,7 +103,7 @@ class SigninManagerAndroidTest : public ::testing::Test {
     profile_ = profile_builder.Build();
 
     background_tracing_manager_ =
-        content::BackgroundTracingManager::CreateInstance();
+        content::BackgroundTracingManager::CreateInstance(&tracing_delegate_);
 
     // Creating a BookmarkModel also a creates a StubOfflinePageModel.
     // We need to replace this with a mock that responds to deletions.
@@ -161,6 +161,7 @@ class SigninManagerAndroidTest : public ::testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
   std::unique_ptr<TestingProfile> profile_;
+  content::TracingDelegate tracing_delegate_;
   std::unique_ptr<content::BackgroundTracingManager>
       background_tracing_manager_;
 };
@@ -202,31 +203,4 @@ TEST_F(SigninManagerAndroidTest, DoNotWipePasswordsIfLocalUpmOn) {
   EXPECT_THAT(
       account_password_store()->stored_passwords(),
       UnorderedElementsAre(Pair(account_store_form.signon_realm, SizeIs(1))));
-}
-
-class SigninManagerAndroidWithoutLocalUpmTest
-    : public SigninManagerAndroidTest {
- public:
-  SigninManagerAndroidWithoutLocalUpmTest() {
-    // Fake a user with outdated GmsCore.
-    base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test("0");
-  }
-};
-
-TEST_F(SigninManagerAndroidWithoutLocalUpmTest, WipePasswordsIfLocalUpmOff) {
-  // After login db deprecation, all users have split stores which either
-  // store credentials outside of the browser or cannot store credentials at
-  // all. In any case, wiping data doesn't apply to them.
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      password_manager::features::kLoginDbDeprecationAndroid);
-  password_manager::PasswordForm form;
-  form.username_value = u"username";
-  form.password_value = u"password";
-  form.signon_realm = "https://g.com";
-  profile_password_store()->AddLogin(form);
-
-  WipeData(/*all_data=*/true);
-
-  EXPECT_THAT(profile_password_store()->stored_passwords(), IsEmpty());
 }

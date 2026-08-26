@@ -10,9 +10,8 @@
 
 #include "modules/remote_bitrate_estimator/tools/bwe_rtp.h"
 
-#include <stdio.h>
-
 #include <cstdint>
+#include <cstdio>
 #include <ios>
 #include <memory>
 #include <set>

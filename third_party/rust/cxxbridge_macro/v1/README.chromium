@@ -1,7 +1,8 @@
 Name: cxxbridge-macro
 URL: https://crates.io/crates/cxxbridge-macro
-Version: 1.0.158
-Revision: a1afe6c319210725c505aafc095cdaa0c8c7fe6b
+Version: 1.0.161
+Revision: 68b827689c684e76d7d28374a006c0441380e9ae
+Update Mechanism: Manual
 License: Apache-2.0
 License File: //third_party/rust/chromium_crates_io/vendor/cxxbridge-macro-v1/LICENSE-APACHE
 Shipped: yes

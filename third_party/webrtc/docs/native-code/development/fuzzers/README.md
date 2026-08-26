@@ -18,7 +18,7 @@ custom variable in your .gclient file then run gclient runhooks.
 ## Compiling locally
 To build the fuzzers residing in the [test/fuzzers][fuzzers] directory, use
 ```
-$ gn gen out/fuzzers --args='enable_rust=true enable_rust_cxx=true optimize_for_fuzzing=true use_fuzztest_wrapper=true use_libfuzzer=true'
+$ gn gen out/fuzzers --args='optimize_for_fuzzing=true use_libfuzzer=true'
 ```
 Depending on the fuzzer additional arguments like `is_asan`, `is_msan` or
 `is_ubsan_security` might be required.
@@ -26,6 +26,9 @@ Depending on the fuzzer additional arguments like `is_asan`, `is_msan` or
 See the [GN][gn-doc] documentation for all available options. There are also
 more platform specific tips on the [Android][webrtc-android-development] and
 [iOS][webrtc-ios-development] instructions.
+
+Note that `use_fuzztest_wrapper` is set to false by default because it adds a
+dependency to Chromium //base.
 
 ## Add new fuzzers
 Create a new `.cc` file in the [test/fuzzers][fuzzers] directory, use existing

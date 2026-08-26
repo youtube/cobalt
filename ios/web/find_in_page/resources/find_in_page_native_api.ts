@@ -10,12 +10,12 @@ import {
   IGNORE_NODE_NAMES,
   MAX_VISIBLE_ELEMENTS,
   TIMEOUT,
+  REGEX_ESCAPER,
 } from '//ios/web/find_in_page/resources/find_in_page_constants.js';
 import {Match, PartialMatch, Replacement, Section, Timer} from
     '//ios/web/find_in_page/resources/find_in_page.js';
-import {createRegex, escapeHTML} from
-    '//ios/web/find_in_page/resources/find_in_page_utils.js';
-import {gCrWebLegacy} from '//ios/web/public/js_messaging/resources/gcrweb.js';
+import {gCrWebLegacy} from
+    '//ios/web/public/js_messaging/resources/gcrweb.js';
 // clang-format on
 
 /**
@@ -113,11 +113,35 @@ let styleElement_: Element|null;
 let searchInProgress_ = false;
 
 /**
-
  * Whether or not search state variables are in a clean empty state.
  * @type {boolean}
  */
 let searchStateIsClean_ = true;
+
+/**
+ * Disables or enables the __gCrWeb.findInPage module.
+ * @type {boolean}
+ */
+let hasInitialized_: boolean = false;
+
+/**
+ * Holds what nodes we have not processed yet during the finding in page
+ * process.
+ * @type {Array<HTMLElement>}
+ */
+let pendingElements_: HTMLElement[] = [];
+
+/**
+ * Holds the regex for the string that we are trying to find in a page.
+ * @type {RegExp}
+ */
+let textToFindRegex_: RegExp|undefined;
+
+/**
+ * The list of all the matches in current page.
+ * @type {Array<Match>}
+ */
+let matches_: Match[] = [];
 
 // Mark: Private helper functions
 
@@ -185,7 +209,10 @@ function processPartialMatchesInCurrentSection(): void {
     previousEnd = partialMatch.end;
 
     // Record the <chrome_find> Node in corresponding Match.
-    gCrWebLegacy.findInPage.matches[partialMatch.matchId].nodes.push(newNode);
+    const match = matches_[partialMatch.matchId];
+    if (match) {
+      match.nodes.push(newNode);
+    }
   }
   // Create the TEXT node for trailing non-matching string piece.
   if (previousEnd !== section.end) {
@@ -208,7 +235,7 @@ function getCurrentSelectedMatch(): Match|undefined {
   if (selectedMatchIndex_ < 0) {
     return undefined;
   }
-  return gCrWebLegacy.findInPage.matches[selectedMatchIndex_];
+  return matches_[selectedMatchIndex_];
 }
 
 /**
@@ -218,7 +245,7 @@ function getCurrentSelectedMatch(): Match|undefined {
  * @return {Number} of visible matches.
  */
 function countVisibleMatches(timer: Timer|null): number {
-  const max = gCrWebLegacy.findInPage.matches.length;
+  const max = matches_.length;
   const maxVisible = MAX_VISIBLE_ELEMENTS;
   let currentlyVisibleMatchCount = 0;
   for (let index = visibleMatchesCountIndexIterator_; index < max; index++) {
@@ -232,7 +259,7 @@ function countVisibleMatches(timer: Timer|null): number {
       continue;
     }
 
-    const match = gCrWebLegacy.findInPage.matches[index];
+    const match = matches_[index];
     if (match && match.visible()) {
       currentlyVisibleMatchCount++;
     }
@@ -255,7 +282,7 @@ function cleanUp(): void {
   sections_ = [];
   sectionsIndex_ = 0;
 
-  gCrWebLegacy.findInPage.matches = [];
+  matches_ = [];
   selectedMatchIndex_ = -1;
   selectedVisibleMatchIndex_ = -1;
   matchId_ = 0;
@@ -342,9 +369,9 @@ function removeStyle(): void {
  */
 function findString(string: string, timeout: number): number {
   // Enable findInPage module if hasn't been done yet.
-  if (!gCrWebLegacy.findInPage.hasInitialized) {
+  if (!hasInitialized_) {
     enable();
-    gCrWebLegacy.findInPage.hasInitialized = true;
+    hasInitialized_ = true;
   }
 
   if (!searchStateIsClean_) {
@@ -357,7 +384,7 @@ function findString(string: string, timeout: number): number {
   }
 
   // Holds what nodes we have not processed yet.
-  gCrWebLegacy.findInPage.stack = [document.body];
+  pendingElements_ = [document.body];
 
   // Number of visible matches found.
   visibleMatchCount_ = 0;
@@ -365,7 +392,7 @@ function findString(string: string, timeout: number): number {
   // Index tracking variables so search can be broken up into multiple calls.
   visibleMatchesCountIndexIterator_ = 0;
 
-  gCrWebLegacy.findInPage.regex = createRegex(string);
+  textToFindRegex_ = createRegex(string);
 
   searchInProgress_ = true;
 
@@ -391,7 +418,6 @@ function findString(string: string, timeout: number): number {
  * @return {number} that represents the total matches found.
  */
 function pumpSearch(timeout: number): number {
-  // TODO(crbug.com/41420794): It would be better if this DCHECKed.
   if (!searchInProgress_) {
     return 0;
   }
@@ -401,42 +427,47 @@ function pumpSearch(timeout: number): number {
   const timer = new Timer(timeout);
 
   // Go through every node in DFS fashion.
-  while (gCrWebLegacy.findInPage.stack.length) {
-    const node = gCrWebLegacy.findInPage.stack.pop();
-    const children = node.childNodes;
-    if (children && children.length) {
-      // add all (reasonable) children
-      for (let i = children.length - 1; i >= 0; --i) {
-        const child = children[i];
-        if ((child.nodeType === 1 || child.nodeType === 3) &&
-            !IGNORE_NODE_NAMES.has(child.nodeName)) {
-          gCrWebLegacy.findInPage.stack.push(children[i]);
+  while (pendingElements_.length) {
+    const node = pendingElements_.pop();
+    if (node) {
+      const children = node.childNodes;
+      if (children && children.length) {
+        // add all (reasonable) children
+        for (let i = children.length - 1; i >= 0; --i) {
+          const child = children[i];
+          if (child) {
+            if ((child.nodeType === 1 || child.nodeType === 3) &&
+                !IGNORE_NODE_NAMES.has(child.nodeName)) {
+              pendingElements_.push(children[i] as HTMLElement);
+            }
+          }
         }
       }
-    }
 
-    // Build up |allText_| and |sections_|.
-    if (node.nodeType === 3 && node.parentNode) {
-      sections_.push(new Section(
-          allText_.length, allText_.length + node.textContent.length, node));
-      allText_ += node.textContent.toLowerCase();
-    }
+      // Build up |allText_| and |sections_|.
+      if (node.nodeType === 3 && node.parentNode) {
+        sections_.push(new Section(
+            allText_.length, allText_.length + (node.textContent?.length ?? 0),
+            node));
+        allText_ += node.textContent?.toLowerCase();
+      }
 
-    if (timer.overtime()) {
-      return TIMEOUT;
+      if (timer.overtime()) {
+        return TIMEOUT;
+      }
     }
   }
 
   // Do regex match in |allText_|, create |matches| and |replacements|. The
   // regex is set on __gCrWeb, so its state is kept between continuous calls on
   // pumpSearch.
-  const regex = gCrWebLegacy.findInPage.regex;
+  const regex = textToFindRegex_;
   if (regex) {
     for (let res; res = regex.exec(allText_);) {
       // The range of current Match in |allText_| is [begin, end).
       const begin = res.index;
       const end = begin + res[0].length;
-      gCrWebLegacy.findInPage.matches.push(new Match());
+      matches_.push(new Match());
 
       // Find the Section where current Match starts.
       const oldSectionIndex = sectionsIndex_;
@@ -475,7 +506,7 @@ function pumpSearch(timeout: number): number {
     }
     // Process remaining PartialMatches.
     processPartialMatchesInCurrentSection();
-    gCrWebLegacy.findInPage.regex = undefined;
+    textToFindRegex_ = undefined;
   }
 
   // Execute replacements to highlight search results.
@@ -542,8 +573,10 @@ function selectAndScrollToVisibleMatch(index: number):
   let total_match_index = 0;
   let visible_match_count = index;
   // Select the |index|-th visible match.
-  while (total_match_index < gCrWebLegacy.findInPage.matches.length) {
-    if (gCrWebLegacy.findInPage.matches[total_match_index].visible()) {
+  while (total_match_index < matches_.length) {
+    // `match` will not be undefined due to while loop condition
+    const match = matches_[total_match_index] as Match;
+    if (match.visible()) {
       visible_match_count--;
       if (visible_match_count < 0) {
         break;
@@ -606,20 +639,35 @@ function stop(): void {
     removeStyle();
     cleanUp();
   }
-  gCrWebLegacy.findInPage.hasInitialized = false;
+  hasInitialized_ = false;
 }
 
 // Mark: Public API
 
 /**
- * The list of all the matches in current page.
- * @type {Array<Match>}
+ * Creates the regex needed to find the text.
+ * @param findText Phrase to look for.
+ * @return regex needed to find the text.
  */
-const matches: Match[] = [];
+function createRegex(findText: string): RegExp {
+  const escapedText = findText.replace(REGEX_ESCAPER, '\\$1');
+  const regexString = '(' + escapedText + ')';
+  return new RegExp(regexString, 'ig');
+}
+
+/**
+ * @param text Text to escape.
+ * @return escaped text.
+ */
+function escapeHTML(text: string): string {
+  const unusedDiv = document.createElement('div');
+  unusedDiv.innerText = text;
+  return unusedDiv.innerHTML;
+}
 
 gCrWebLegacy.findInPage = {
   findString,
-  matches,
+  matches: matches_,
   pumpSearch,
   selectAndScrollToVisibleMatch,
   stop,

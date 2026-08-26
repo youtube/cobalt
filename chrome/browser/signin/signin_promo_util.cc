@@ -27,7 +27,7 @@
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/extension_sync_util.h"
+#include "chrome/browser/extensions/sync/extension_sync_util.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -253,8 +253,7 @@ bool ShouldShowExtensionSyncPromo(Profile& profile,
 bool ShouldShowExtensionSignInPromo(Profile& profile,
                                     const extensions::Extension& extension) {
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  if (!base::FeatureList::IsEnabled(
-          switches::kEnableExtensionsExplicitBrowserSignin)) {
+  if (!switches::IsExtensionsExplicitBrowserSigninEnabled()) {
     return false;
   }
 
@@ -346,8 +345,7 @@ bool IsSignInPromo(signin_metrics::AccessPoint access_point) {
   }
 
   if (access_point == signin_metrics::AccessPoint::kExtensionInstallBubble) {
-    return base::FeatureList::IsEnabled(
-        switches::kEnableExtensionsExplicitBrowserSignin);
+    return switches::IsExtensionsExplicitBrowserSigninEnabled();
   }
 
   if (access_point == signin_metrics::AccessPoint::kBookmarkBubble) {
@@ -445,10 +443,17 @@ bool SyncPromoIdentityPillManager::ShouldShowPromo() const {
   if (!ArePromotionsEnabled()) {
     return false;
   }
-  const int show_count = SigninPrefs(*profile_->GetPrefs())
-                             .GetSyncPromoIdentityPillShownCount(account.gaia);
-  const int used_count = SigninPrefs(*profile_->GetPrefs())
-                             .GetSyncPromoIdentityPillUsedCount(account.gaia);
+
+  SigninPrefs signin_prefs(*profile_->GetPrefs());
+  const int show_count =
+      switches::IsAvatarSyncPromoFeatureEnabled()
+          ? signin_prefs.GetSyncPromoIdentityPillShownCount(account.gaia)
+          : signin_prefs.GetHistorySyncPromoIdentityPillShownCount(
+                account.gaia);
+  const int used_count =
+      switches::IsAvatarSyncPromoFeatureEnabled()
+          ? signin_prefs.GetSyncPromoIdentityPillUsedCount(account.gaia)
+          : signin_prefs.GetHistorySyncPromoIdentityPillUsedCount(account.gaia);
   return show_count < max_shown_count_ && used_count < max_used_count_;
 }
 
@@ -460,8 +465,12 @@ void SyncPromoIdentityPillManager::RecordPromoShown() {
     // promo should be shown only for signed in users).
     return;
   }
-  SigninPrefs(*profile_->GetPrefs())
-      .IncrementSyncPromoIdentityPillShownCount(account.gaia);
+
+  SigninPrefs signin_prefs(*profile_->GetPrefs());
+  switches::IsAvatarSyncPromoFeatureEnabled()
+      ? signin_prefs.IncrementSyncPromoIdentityPillShownCount(account.gaia)
+      : signin_prefs.IncrementHistorySyncPromoIdentityPillShownCount(
+            account.gaia);
 }
 
 void SyncPromoIdentityPillManager::RecordPromoUsed() {
@@ -472,8 +481,11 @@ void SyncPromoIdentityPillManager::RecordPromoUsed() {
     // promo should be shown only for signed in users).
     return;
   }
-  SigninPrefs(*profile_->GetPrefs())
-      .IncrementSyncPromoIdentityPillUsedCount(account.gaia);
+  SigninPrefs signin_prefs(*profile_->GetPrefs());
+  switches::IsAvatarSyncPromoFeatureEnabled()
+      ? signin_prefs.IncrementSyncPromoIdentityPillUsedCount(account.gaia)
+      : signin_prefs.IncrementHistorySyncPromoIdentityPillUsedCount(
+            account.gaia);
 }
 
 bool SyncPromoIdentityPillManager::ArePromotionsEnabled() const {

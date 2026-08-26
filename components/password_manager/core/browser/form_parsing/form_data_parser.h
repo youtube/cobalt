@@ -175,13 +175,19 @@ class FormDataParser {
 
   void reset_server_predictions() { server_predictions_.reset(); }
 
-  const std::optional<FormPredictions>& server_predictions() {
+  const std::optional<FormPredictions>& server_predictions() const {
     return server_predictions_;
   }
 
   void set_model_predictions(base::flat_map<autofill::FieldRendererId,
                                             autofill::FieldType> predictions) {
     model_predictions_ = std::move(predictions);
+  }
+
+  const std::optional<
+      base::flat_map<autofill::FieldRendererId, autofill::FieldType>>&
+  model_predictions() const {
+    return model_predictions_;
   }
 
   ReadonlyPasswordFields readonly_status() { return readonly_status_; }

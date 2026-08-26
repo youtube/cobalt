@@ -15,6 +15,7 @@
 
 #include "base/apple/foundation_util.h"
 #include "base/containers/span.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "skia/ext/skia_utils_base.h"
@@ -465,18 +466,6 @@ void ClipboardIOS::WriteData(const ClipboardFormatType& format,
     format.ToNSString() : [NSData dataWithBytes:data.data() length:data.size()]
   };
   [GetPasteboard() addItems:@[ data_item ]];
-}
-
-void ClipboardIOS::WriteClipboardHistory() {
-  // TODO(crbug.com/40945200): Add support for this.
-}
-
-void ClipboardIOS::WriteUploadCloudClipboard() {
-  // TODO(crbug.com/40945200): Add support for this.
-}
-
-void ClipboardIOS::WriteConfidentialDataForPassword() {
-  // TODO(crbug.com/40945200): Add support for this.
 }
 
 std::vector<uint8_t> ClipboardIOS::ReadPngInternal(

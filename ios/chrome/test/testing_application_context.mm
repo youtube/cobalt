@@ -30,14 +30,12 @@
 #import "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #import "services/network/test/test_network_connection_tracker.h"
 #import "services/network/test/test_url_loader_factory.h"
+
 TestingApplicationContext::TestingApplicationContext()
-    : application_locale_("en-US"),
-      application_country_("us"),
+    : application_country_("us"),
       local_state_(nullptr),
       profile_manager_(nullptr),
       was_last_shutdown_clean_(false),
-      test_url_loader_factory_(
-          std::make_unique<network::TestURLLoaderFactory>()),
       test_network_connection_tracker_(
           network::TestNetworkConnectionTracker::CreateInstance()),
       variations_service_(nullptr),
@@ -112,6 +110,12 @@ void TestingApplicationContext::SetIOSChromeIOThread(
   ios_chrome_io_thread_ = ios_chrome_io_thread;
 }
 
+void TestingApplicationContext::SetSharedURLLoaderFactory(
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  test_url_loader_factory_ = std::move(url_loader_factory);
+}
+
 void TestingApplicationContext::OnAppEnterForeground() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
@@ -147,19 +151,13 @@ TestingApplicationContext::GetSystemURLRequestContext() {
 scoped_refptr<network::SharedURLLoaderFactory>
 TestingApplicationContext::GetSharedURLLoaderFactory() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return test_url_loader_factory_->GetSafeWeakWrapper();
+  return test_url_loader_factory_;
 }
 
 network::mojom::NetworkContext*
 TestingApplicationContext::GetSystemNetworkContext() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   NOTREACHED();
-}
-
-const std::string& TestingApplicationContext::GetApplicationLocale() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!application_locale_.empty());
-  return application_locale_;
 }
 
 ApplicationLocaleStorage*
@@ -301,7 +299,7 @@ AccountProfileMapper* TestingApplicationContext::GetAccountProfileMapper() {
   if (!default_account_profile_mapper_) {
     default_account_profile_mapper_ = std::make_unique<AccountProfileMapper>(
         GetSystemIdentityManager(), /*profile_manager=*/nullptr,
-        GetLocalState());
+        /*local_state=*/nullptr);
   }
   return default_account_profile_mapper_.get();
 }

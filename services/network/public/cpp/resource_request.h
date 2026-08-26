@@ -46,6 +46,7 @@
 #include "services/network/public/mojom/web_bundle_handle.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+#include "url/origin_debug.h"
 
 namespace network {
 
@@ -53,8 +54,6 @@ namespace network {
 //
 // Note: Please revise EqualsForTesting accordingly on any updates to this
 // struct.
-//
-// LINT.IfChange(ResourceRequest)
 struct COMPONENT_EXPORT(NETWORK_CPP_BASE) ResourceRequest {
   // Typemapped to network.mojom.TrustedUrlRequestParams, see comments there
   // for details of each field.
@@ -62,6 +61,20 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE) ResourceRequest {
   // TODO(mmenke):  There are likely other fields that should be moved into this
   // class.
   struct COMPONENT_EXPORT(NETWORK_CPP_BASE) TrustedParams {
+    // Typemapped to network.mojom.EnabledClientHints, see comments there for
+    // details of each field.
+    struct COMPONENT_EXPORT(NETWORK_CPP_BASE) EnabledClientHints {
+      EnabledClientHints();
+      ~EnabledClientHints();
+      EnabledClientHints(const EnabledClientHints&);
+      EnabledClientHints& operator=(const EnabledClientHints&);
+      bool operator==(const EnabledClientHints& other) const;
+
+      url::Origin origin;
+      bool is_outermost_main_frame = false;
+      std::vector<network::mojom::WebClientHintsType> hints;
+    };
+
     TrustedParams();
     ~TrustedParams();
     // TODO(crbug.com/332706093): Make this move-only to avoid cloning mojo
@@ -78,6 +91,7 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE) ResourceRequest {
     bool has_user_activation = false;
     bool allow_cookies_from_browser = false;
     bool include_request_cookies_with_response = false;
+    std::optional<EnabledClientHints> enabled_client_hints;
     mojo::PendingRemote<mojom::CookieAccessObserver> cookie_observer;
     mojo::PendingRemote<mojom::TrustTokenAccessObserver> trust_token_observer;
     mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver>
@@ -137,6 +151,7 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE) ResourceRequest {
 
   // See comments in network.mojom.URLRequest in url_request.mojom for details
   // of each field.
+  // LINT.IfChange(ResourceRequestFields)
   std::string method = net::HttpRequestHeaders::kGetMethod;
   GURL url;
   net::SiteForCookies site_for_cookies;
@@ -182,7 +197,7 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE) ResourceRequest {
   std::string fetch_integrity;
   // Used to populate `Accept-Signatures`
   // https://www.rfc-editor.org/rfc/rfc9421.html#name-the-accept-signature-field
-  std::vector<std::string> expected_public_keys;
+  std::vector<std::vector<uint8_t>> expected_public_keys;
   mojom::RequestDestination destination = mojom::RequestDestination::kEmpty;
   mojom::RequestDestination original_destination =
       mojom::RequestDestination::kEmpty;
@@ -255,8 +270,8 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE) ResourceRequest {
   std::optional<network::PermissionsPolicy> permissions_policy;
 
   std::optional<network::FetchRetryOptions> fetch_retry_options;
+  // LINT.ThenChange(//services/network/prefetch_matches.cc)
 };
-// LINT.ThenChange(//services/network/prefetch_matches.cc)
 
 // This does not accept |kDefault| referrer policy.
 COMPONENT_EXPORT(NETWORK_CPP_BASE)

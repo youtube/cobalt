@@ -21,8 +21,8 @@
 #include <utility>
 #include <vector>
 
-#include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials_view.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -61,7 +61,7 @@
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/random.h"
 #include "rtc_base/time_utils.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/logging/log_writer.h"
 #include "test/logging/memory_log_writer.h"
@@ -70,8 +70,6 @@
 namespace webrtc {
 
 namespace {
-
-using test::ExplicitKeyValueConfig;
 
 struct EventCounts {
   size_t audio_send_streams = 0;
@@ -124,11 +122,9 @@ std::unique_ptr<FieldTrialsView> CreateFieldTrialsFor(
     RtcEventLog::EncodingType encoding_type) {
   switch (encoding_type) {
     case RtcEventLog::EncodingType::Legacy:
-      return std::make_unique<ExplicitKeyValueConfig>(
-          "WebRTC-RtcEventLogNewFormat/Disabled/");
+      return CreateTestFieldTrialsPtr("WebRTC-RtcEventLogNewFormat/Disabled/");
     case RtcEventLog::EncodingType::NewFormat:
-      return std::make_unique<ExplicitKeyValueConfig>(
-          "WebRTC-RtcEventLogNewFormat/Enabled/");
+      return CreateTestFieldTrialsPtr("WebRTC-RtcEventLogNewFormat/Enabled/");
     case RtcEventLog::EncodingType::ProtoFree:
       RTC_CHECK(false);
       return nullptr;

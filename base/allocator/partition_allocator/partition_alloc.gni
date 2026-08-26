@@ -72,12 +72,8 @@ is_clang_or_gcc = is_clang || !is_win
 
 # Whether 64-bit pointers are used.
 # A static_assert in partition_alloc_config.h verifies that.
-if (is_nacl) {
-  # NaCl targets don't use 64-bit pointers.
-  has_64_bit_pointers = false
-} else if (current_cpu == "x64" || current_cpu == "arm64" ||
-           current_cpu == "arm64e" || current_cpu == "loong64" ||
-           current_cpu == "riscv64") {
+if (current_cpu == "x64" || current_cpu == "arm64" || current_cpu == "arm64e" ||
+    current_cpu == "loong64" || current_cpu == "riscv64") {
   assert(current_cpu != "arm64e" || (is_ios && target_environment == "device"))
   has_64_bit_pointers = true
 } else if (current_cpu == "x86" || current_cpu == "arm" ||
@@ -135,8 +131,7 @@ declare_args() {
   # the default allocator in components built by partners. We're considering
   # that change in b/447346129 but for now set this false in partner toolchains
   # so that PartitionAlloc is not even linked into partner built binaries.
-  use_partition_alloc =
-      !is_nacl && is_clang_or_gcc && !(is_cobalt && is_partner_toolchain)
+  use_partition_alloc = is_clang_or_gcc && !(is_cobalt && is_partner_toolchain)
 }
 
 if (!is_clang_or_gcc) {
@@ -144,10 +139,6 @@ if (!is_clang_or_gcc) {
          "PartitionAlloc's allocator does not support this compiler")
   assert(!use_allocator_shim,
          "PartitionAlloc's allocator shim does not support this compiler")
-}
-
-if (is_nacl) {
-  assert(!use_partition_alloc, "PartitionAlloc doesn't build on NaCl")
 }
 
 declare_args() {
@@ -180,9 +171,6 @@ declare_args() {
 assert(
     !enable_allocator_shim_partition_alloc_dispatch_with_advanced_checks_support || use_partition_alloc_as_malloc,
     "PartitionAlloc with advanced checks requires PartitionAlloc itself.")
-
-assert(!use_allocator_shim || !is_nacl,
-       "The allocator shim supports every platform, except nacl")
 
 if (use_allocator_shim && is_win) {
   # It's hard to override CRT's malloc family in every case in the component
@@ -362,10 +350,20 @@ declare_args() {
 }
 
 declare_args() {
-  # Shadow metadata is still under development and only supports Linux
-  # for now.
-  enable_shadow_metadata = is_linux && has_64_bit_pointers
+  # Because of address space issue, this feature cannot be enabled on
+  # 32bit OS and iOS, i.e. has_64_bit_pointers && !is_ios
+  move_metadata_outside_gigacage = false && has_64_bit_pointers && !is_ios
 }
+
+declare_args() {
+  enable_move_metadata_outside_gigacage_trial =
+      false && move_metadata_outside_gigacage
+}
+
+assert(!enable_move_metadata_outside_gigacage_trial ||
+           move_metadata_outside_gigacage,
+       "Can't enable PartitionAllocExternalMetadata synthetic trial " +
+           "without move_metadata_outside_gigacage=true.")
 
 declare_args() {
   # Use full MTE protection available by changing the feature flag default

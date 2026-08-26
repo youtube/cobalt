@@ -4,6 +4,28 @@
 
 import("//build/config/features.gni")
 
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "test_support.cc",
+    "test_support.h",
+  ]
+  public_deps = [
+    "//base",
+    "//components/sync_preferences:test_support",
+  ]
+  deps = [
+    "//components/content_settings/core/browser",
+    "//components/content_settings/core/browser:cookie_settings",
+    "//components/content_settings/core/common",
+    "//components/fingerprinting_protection_filter/common:prefs",
+    "//components/privacy_sandbox:tracking_protection_settings",
+  ]
+  if (use_blink) {
+    public_deps += [ ":browser" ]
+  }
+}
+
 # For this component iOS is explicitly not supported.
 if (use_blink) {
   source_set("browser") {
@@ -25,8 +47,8 @@ if (use_blink) {
       "//components/content_settings/browser",
       "//components/content_settings/core/browser",
       "//components/content_settings/core/browser:cookie_settings",
-      "//components/content_settings/core/common:common",
-      "//components/fingerprinting_protection_filter/common:common",
+      "//components/content_settings/core/common",
+      "//components/fingerprinting_protection_filter/common",
       "//components/fingerprinting_protection_filter/common:exceptions",
       "//components/fingerprinting_protection_filter/common:features",
       "//components/fingerprinting_protection_filter/mojom",
@@ -45,28 +67,11 @@ if (use_blink) {
       "//components/fingerprinting_protection_filter/common:exceptions",
       "//components/fingerprinting_protection_filter/common:prefs",
       "//components/subresource_filter/core/common",
-      "//components/variations:variations",
+      "//components/variations",
       "//net",
       "//services/metrics/public/cpp:metrics_cpp",
+      "//third_party/blink/public:blink",
       "//url",
-    ]
-  }
-
-  source_set("test_support") {
-    testonly = true
-    sources = [
-      "test_support.cc",
-      "test_support.h",
-    ]
-    public_deps = [
-      ":browser",
-      "//base",
-      "//components/sync_preferences:test_support",
-    ]
-    deps = [
-      "//components/content_settings/core/browser",
-      "//components/fingerprinting_protection_filter/common:prefs",
-      "//components/privacy_sandbox:tracking_protection_settings",
     ]
   }
 
@@ -81,7 +86,7 @@ if (use_blink) {
     deps = [
       ":test_support",
       "//base",
-      "//components/content_settings/core/browser:browser",
+      "//components/content_settings/core/browser",
       "//components/fingerprinting_protection_filter/common:exceptions",
       "//components/fingerprinting_protection_filter/common:prefs",
       "//components/privacy_sandbox:features",
@@ -91,9 +96,9 @@ if (use_blink) {
       "//components/subresource_filter/core/mojom",
       "//components/sync_preferences:test_support",
       "//components/ukm:test_support",
-      "//components/ukm/content:content",
+      "//components/ukm/content",
       "//components/url_pattern_index/proto:url_pattern_index",
-      "//components/variations:variations",
+      "//components/variations",
       "//content/public/browser",
       "//content/test:test_support",
       "//services/metrics/public/cpp:metrics_cpp",
@@ -101,5 +106,9 @@ if (use_blink) {
       "//testing/gtest",
       "//url",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }

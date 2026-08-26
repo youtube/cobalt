@@ -223,7 +223,7 @@ QuicAckFrame MakeAckFrameWithGaps(uint64_t gap_size, size_t max_num_gaps,
                                   uint64_t largest_acked);
 
 // Returns the encryption level that corresponds to the header type in
-// |header|. If the header is for GOOGLE_QUIC_PACKET instead of an
+// |header|. If the header is for GOOGLE_QUIC_Q043_PACKET instead of an
 // IETF-invariants packet, this function returns ENCRYPTION_INITIAL.
 EncryptionLevel HeaderToEncryptionLevel(const QuicPacketHeader& header);
 
@@ -973,11 +973,8 @@ class MockQuicSpdySession : public QuicSpdySession {
               (override));
   MOCK_METHOD(QuicSpdyStream*, CreateOutgoingBidirectionalStream, (),
               (override));
-  MOCK_METHOD(QuicSpdyStream*, CreateOutgoingUnidirectionalStream, (),
-              (override));
   MOCK_METHOD(bool, ShouldCreateIncomingStream, (QuicStreamId id), (override));
   MOCK_METHOD(bool, ShouldCreateOutgoingBidirectionalStream, (), (override));
-  MOCK_METHOD(bool, ShouldCreateOutgoingUnidirectionalStream, (), (override));
   MOCK_METHOD(QuicConsumedData, WritevData,
               (QuicStreamId id, size_t write_length, QuicStreamOffset offset,
                StreamSendingState state, TransmissionType type,
@@ -1049,7 +1046,7 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
               (override));
   MOCK_METHOD(void, OnHeadersFrameReceived, (QuicStreamId, QuicByteCount),
               (override));
-  MOCK_METHOD(void, OnHeadersDecoded, (QuicStreamId, QuicHeaderList),
+  MOCK_METHOD(void, OnHeadersDecoded, (QuicStreamId, const QuicHeaderList&),
               (override));
   MOCK_METHOD(void, OnUnknownFrameReceived,
               (QuicStreamId, uint64_t, QuicByteCount), (override));
@@ -1083,8 +1080,6 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
   MOCK_METHOD(QuicSpdyStream*, CreateIncomingStream, (PendingStream*),
               (override));
   MOCK_METHOD(QuicSpdyStream*, CreateOutgoingBidirectionalStream, (),
-              (override));
-  MOCK_METHOD(QuicSpdyStream*, CreateOutgoingUnidirectionalStream, (),
               (override));
   MOCK_METHOD(std::vector<absl::string_view>::const_iterator, SelectAlpn,
               (const std::vector<absl::string_view>&), (const, override));
@@ -1151,11 +1146,8 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
               (override));
   MOCK_METHOD(QuicSpdyStream*, CreateOutgoingBidirectionalStream, (),
               (override));
-  MOCK_METHOD(QuicSpdyStream*, CreateOutgoingUnidirectionalStream, (),
-              (override));
   MOCK_METHOD(bool, ShouldCreateIncomingStream, (QuicStreamId id), (override));
   MOCK_METHOD(bool, ShouldCreateOutgoingBidirectionalStream, (), (override));
-  MOCK_METHOD(bool, ShouldCreateOutgoingUnidirectionalStream, (), (override));
   MOCK_METHOD(std::vector<std::string>, GetAlpnsToOffer, (), (const, override));
   MOCK_METHOD(void, OnAlpnSelected, (absl::string_view), (override));
   MOCK_METHOD(void, OnConfigNegotiated, (), (override));

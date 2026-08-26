@@ -16,7 +16,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.robolectric.Shadows.shadowOf;
 
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS;
@@ -36,11 +35,13 @@ import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
 import org.chromium.base.FakeTimeTestRule;
-import org.chromium.base.FeatureOverrides;
+import org.chromium.base.Holder;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features;
+import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -48,7 +49,6 @@ import org.chromium.chrome.browser.search_engines.choice_screen.ChoiceDialogCoor
 import org.chromium.chrome.browser.search_engines.choice_screen.ChoiceDialogMediator.DialogType;
 import org.chromium.chrome.browser.search_engines.choice_screen.ChoiceDialogMediator.LaunchChoiceScreenTapHandlingStatus;
 import org.chromium.components.search_engines.SearchEngineChoiceService;
-import org.chromium.components.search_engines.SearchEnginesFeatures;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogManagerObserver;
@@ -57,10 +57,9 @@ import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 
-import java.time.Duration;
+import java.util.stream.IntStream;
 
 @RunWith(BaseRobolectricTestRunner.class)
-@Features.EnableFeatures({SearchEnginesFeatures.CLAY_BLOCKING})
 public class ChoiceDialogCoordinatorUnitTest {
     public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
     public @Rule FakeTimeTestRule mFakeTimeRule = new FakeTimeTestRule();
@@ -81,12 +80,6 @@ public class ChoiceDialogCoordinatorUnitTest {
 
     @Test
     public void testMaybeShow() {
-        // For code coverage.
-        FeatureOverrides.newBuilder()
-                .enable(SearchEnginesFeatures.CLAY_BLOCKING)
-                .param("enable_verbose_logging", true)
-                .apply();
-
         var histogramWatcher =
                 HistogramWatcher.newBuilder()
                         .expectIntRecord("Search.OsDefaultsChoice.DialogShownAttempt", 1)
@@ -132,6 +125,14 @@ public class ChoiceDialogCoordinatorUnitTest {
     }
 
     @Test
+    @CommandLineFlags.Add({ChromeSwitches.NO_FIRST_RUN})
+    public void testMaybeShow_doesNotShowWhenCommanLineFlagSet() {
+        doReturn(true).when(mSearchEngineChoiceService).isDeviceChoiceDialogEligible();
+
+        assertFalse(ChoiceDialogCoordinator.maybeShowInternal(this::createCoordinatorWithMocks));
+    }
+
+    @Test
     public void testMaybeShow_doesNotShowWhenNotEligible() {
         var histogramWatcher =
                 HistogramWatcher.newBuilder()
@@ -154,71 +155,45 @@ public class ChoiceDialogCoordinatorUnitTest {
     }
 
     @Test
-    public void testMaybeShow_doesNotShowInDarkLaunchMode() {
-        FeatureOverrides.newBuilder()
-                .enable(SearchEnginesFeatures.CLAY_BLOCKING)
-                .param("is_dark_launch", true)
-                .apply();
-
-        var histogramWatcher =
-                HistogramWatcher.newBuilder()
-                        .expectNoRecords("Search.OsDefaultsChoice.DialogShownAttempt")
-                        .expectIntRecord(
-                                "Search.OsDefaultsChoice.DialogSuppressionStatus",
-                                DialogSuppressionStatus.SUPPRESSED_DARK_LAUNCH)
-                        .build();
-        var shouldShowSupplier = new ObservableSupplierImpl<>(true);
-        doReturn(shouldShowSupplier)
-                .when(mSearchEngineChoiceService)
-                .getIsDeviceChoiceRequiredSupplier();
-        doReturn(true).when(mSearchEngineChoiceService).isDeviceChoiceDialogEligible();
-
-        assertFalse(ChoiceDialogCoordinator.maybeShowInternal(this::createCoordinatorWithMocks));
-
-        shadowOf(Looper.getMainLooper()).idle();
-        verify(mModalDialogManager, never()).showDialog(any(), anyInt(), anyInt());
-        verify(mSearchEngineChoiceService, never()).notifyDeviceChoiceBlockShown();
-        verify(mSearchEngineChoiceService, never()).notifyDeviceChoiceBlockCleared();
-        assertEquals(
-                0,
-                ChromeSharedPreferences.getInstance()
-                        .readInt(SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS));
-        histogramWatcher.assertExpected();
-    }
-
-    @Test
     public void testMaybeShow_doesNotShowEscapeHatch() {
-        FeatureOverrides.newBuilder()
-                .enable(SearchEnginesFeatures.CLAY_BLOCKING)
-                .param("escape_hatch_block_limit", 1)
-                .apply();
         var shouldShowSupplier = new ObservableSupplierImpl<>(true);
         doReturn(shouldShowSupplier)
                 .when(mSearchEngineChoiceService)
                 .getIsDeviceChoiceRequiredSupplier();
         doReturn(true).when(mSearchEngineChoiceService).isDeviceChoiceDialogEligible();
 
-        // Initial run, the dialog is shown
+        // For the first 10 runs, the dialog is shown.
         try (var histogramWatcher =
                 HistogramWatcher.newBuilder()
-                        .expectIntRecord("Search.OsDefaultsChoice.DialogShownAttempt", 1)
-                        .expectIntRecord(
+                        .expectIntRecords(
+                                "Search.OsDefaultsChoice.DialogShownAttempt",
+                                IntStream.rangeClosed(
+                                                1, ChoiceDialogCoordinator.ESCAPE_HATCH_BLOCK_LIMIT)
+                                        .toArray())
+                        .expectIntRecordTimes(
                                 "Search.OsDefaultsChoice.DialogSuppressionStatus",
-                                DialogSuppressionStatus.CAN_SHOW)
+                                DialogSuppressionStatus.CAN_SHOW,
+                                ChoiceDialogCoordinator.ESCAPE_HATCH_BLOCK_LIMIT)
                         .build()) {
-            assertTrue(ChoiceDialogCoordinator.maybeShowInternal(this::createCoordinatorWithMocks));
+            for (int i = 1; i <= ChoiceDialogCoordinator.ESCAPE_HATCH_BLOCK_LIMIT; i++) {
+                assertTrue(
+                        ChoiceDialogCoordinator.maybeShowInternal(
+                                this::createCoordinatorWithMocks));
 
-            shadowOf(Looper.getMainLooper()).idle();
-            verify(mModalDialogManager)
-                    .showDialog(any(), eq(ModalDialogType.APP), eq(ModalDialogPriority.VERY_HIGH));
-            assertEquals(
-                    1,
-                    ChromeSharedPreferences.getInstance()
-                            .readInt(SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS));
+                shadowOf(Looper.getMainLooper()).idle();
+                verify(mModalDialogManager)
+                        .showDialog(
+                                any(), eq(ModalDialogType.APP), eq(ModalDialogPriority.VERY_HIGH));
+                assertEquals(
+                        i,
+                        ChromeSharedPreferences.getInstance()
+                                .readInt(
+                                        SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS));
+                reset(mModalDialogManager);
+            }
         }
 
-        // Second run, the dialog is suppressed
-        reset(mModalDialogManager);
+        // On the next run, the dialog is suppressed
         try (var histogramWatcher =
                 HistogramWatcher.newBuilder()
                         .expectNoRecords("Search.OsDefaultsChoice.DialogShownAttempt")
@@ -232,7 +207,7 @@ public class ChoiceDialogCoordinatorUnitTest {
             shadowOf(Looper.getMainLooper()).idle();
             verify(mModalDialogManager, never()).showDialog(any(), anyInt(), anyInt());
             assertEquals(
-                    1,
+                    ChoiceDialogCoordinator.ESCAPE_HATCH_BLOCK_LIMIT,
                     ChromeSharedPreferences.getInstance()
                             .readInt(SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS));
         }
@@ -255,36 +230,6 @@ public class ChoiceDialogCoordinatorUnitTest {
                     ChromeSharedPreferences.getInstance()
                             .readInt(SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS));
         }
-    }
-
-    @Test
-    public void testMaybeShow_showsAndBlocksAfterDelayedApproval() {
-        FeatureOverrides.newBuilder()
-                .enable(SearchEnginesFeatures.CLAY_BLOCKING)
-                .param("silent_pending_duration_millis", 24)
-                .apply();
-
-        var pendingSupplier = new ObservableSupplierImpl<Boolean>(null);
-        doReturn(pendingSupplier)
-                .when(mSearchEngineChoiceService)
-                .getIsDeviceChoiceRequiredSupplier();
-        doReturn(true).when(mSearchEngineChoiceService).isDeviceChoiceDialogEligible();
-
-        assertTrue(ChoiceDialogCoordinator.maybeShowInternal(this::createCoordinatorWithMocks));
-        assertTrue(pendingSupplier.hasObservers()); // The dialog started observing.
-        verify(mModalDialogManager, never()).showDialog(any(), anyInt(), anyInt());
-
-        shadowOf(Looper.getMainLooper()).runToEndOfTasks();
-        verify(mModalDialogManager)
-                .showDialog(any(), eq(ModalDialogType.APP), eq(ModalDialogPriority.VERY_HIGH));
-        verify(mSearchEngineChoiceService).notifyDeviceChoiceBlockShown();
-        verify(mViewHolder).updateViewForType(eq(DialogType.LOADING));
-
-        pendingSupplier.set(true);
-        shadowOf(Looper.getMainLooper()).runToEndOfTasks();
-
-        verify(mViewHolder).updateViewForType(eq(DialogType.CHOICE_LAUNCH));
-        verify(mSearchEngineChoiceService, never()).notifyDeviceChoiceBlockCleared();
     }
 
     @Test
@@ -315,36 +260,6 @@ public class ChoiceDialogCoordinatorUnitTest {
     }
 
     @Test
-    public void testMaybeShow_showsAndUnblocksAfterDelayedDisapproval() {
-        FeatureOverrides.newBuilder()
-                .enable(SearchEnginesFeatures.CLAY_BLOCKING)
-                .param("silent_pending_duration_millis", 24)
-                .apply();
-
-        var pendingSupplier = new ObservableSupplierImpl<Boolean>(null);
-        doReturn(pendingSupplier)
-                .when(mSearchEngineChoiceService)
-                .getIsDeviceChoiceRequiredSupplier();
-        doReturn(true).when(mSearchEngineChoiceService).isDeviceChoiceDialogEligible();
-
-        assertTrue(ChoiceDialogCoordinator.maybeShowInternal(this::createCoordinatorWithMocks));
-        assertTrue(pendingSupplier.hasObservers()); // The dialog started observing.
-        verify(mModalDialogManager, never()).showDialog(any(), anyInt(), anyInt());
-
-        shadowOf(Looper.getMainLooper()).runToEndOfTasks();
-        verify(mModalDialogManager)
-                .showDialog(any(), eq(ModalDialogType.APP), eq(ModalDialogPriority.VERY_HIGH));
-        verify(mSearchEngineChoiceService).notifyDeviceChoiceBlockShown();
-        verify(mViewHolder).updateViewForType(eq(DialogType.LOADING));
-
-        pendingSupplier.set(false);
-        shadowOf(Looper.getMainLooper()).runToEndOfTasks();
-
-        verify(mSearchEngineChoiceService).notifyDeviceChoiceBlockCleared();
-        verify(mViewHolder).updateViewForType(eq(DialogType.CHOICE_CONFIRM));
-    }
-
-    @Test
     public void testMaybeShow_unblocksAfterDelayedDisapprovalWithoutPendingDialog() {
         var pendingSupplier = new ObservableSupplierImpl<Boolean>(null);
         doReturn(pendingSupplier)
@@ -359,7 +274,7 @@ public class ChoiceDialogCoordinatorUnitTest {
         shadowOf(Looper.getMainLooper()).runToEndOfTasks();
         verify(mModalDialogManager, never()).showDialog(any(), anyInt(), anyInt());
         verify(mSearchEngineChoiceService, never()).notifyDeviceChoiceBlockShown();
-        verify(mViewHolder, never()).updateViewForType(eq(DialogType.LOADING));
+        verify(mViewHolder, never()).updateViewForType(anyInt());
 
         pendingSupplier.set(false);
         shadowOf(Looper.getMainLooper()).runToEndOfTasks();
@@ -413,46 +328,6 @@ public class ChoiceDialogCoordinatorUnitTest {
         verify(mModalDialogManager).dismissDialog(any(), eq(DialogDismissalCause.UNKNOWN));
         verify(mSearchEngineChoiceService, never()).notifyDeviceChoiceBlockCleared();
         assertFalse(shouldShowSupplier.hasObservers()); // The dialog stopped observing.
-    }
-
-    @Test
-    public void testMaybeShow_dismissesDialogAfterTimeout() {
-        int timeoutDuration = 24_000;
-        int silentPendingDuration = 1_000;
-        FeatureOverrides.newBuilder()
-                .enable(SearchEnginesFeatures.CLAY_BLOCKING)
-                .param("dialog_timeout_millis", timeoutDuration)
-                .param("silent_pending_duration_millis", silentPendingDuration)
-                .apply();
-
-        var pendingSupplier = new ObservableSupplierImpl<>();
-        doReturn(pendingSupplier)
-                .when(mSearchEngineChoiceService)
-                .getIsDeviceChoiceRequiredSupplier();
-        doReturn(true).when(mSearchEngineChoiceService).isDeviceChoiceDialogEligible();
-
-        assertTrue(ChoiceDialogCoordinator.maybeShowInternal(this::createCoordinatorWithMocks));
-        assertTrue(pendingSupplier.hasObservers()); // The dialog started observing.
-
-        // Verify that we don't show the dialog until silentPendingDuration is reached
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(silentPendingDuration - 1));
-        verify(mModalDialogManager, never()).showDialog(any(), anyInt(), anyInt());
-
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1));
-        verify(mModalDialogManager)
-                .showDialog(any(), eq(ModalDialogType.APP), eq(ModalDialogPriority.VERY_HIGH));
-        verify(mSearchEngineChoiceService).notifyDeviceChoiceBlockShown();
-        verify(mViewHolder).updateViewForType(eq(DialogType.LOADING));
-
-        // Verify that we don't get misc updates before the timeout duration is reached
-        reset(mModalDialogManager, mViewHolder);
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(timeoutDuration / 2));
-        verifyNoMoreInteractions(mModalDialogManager, mViewHolder);
-
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(timeoutDuration));
-        verify(mModalDialogManager).dismissDialog(any(), eq(DialogDismissalCause.UNKNOWN));
-        verify(mSearchEngineChoiceService, never()).notifyDeviceChoiceBlockCleared();
-        assertFalse(pendingSupplier.hasObservers()); // The dialog stopped observing.
     }
 
     @Test
@@ -585,12 +460,13 @@ public class ChoiceDialogCoordinatorUnitTest {
      * ModalDialogManagerObserver#onDialogDismissed} events.
      */
     private void setUpDialogObserverCapture() {
-        final ModalDialogManagerObserver[] capturedDialogObserverHolder = {null};
+        final Holder<@Nullable ModalDialogManagerObserver> capturedDialogObserverHolder =
+                new Holder<>(null);
 
         lenient()
                 .doAnswer(
                         invocationOnMock -> {
-                            capturedDialogObserverHolder[0] =
+                            capturedDialogObserverHolder.value =
                                     invocationOnMock.getArgument(
                                             0, ModalDialogManagerObserver.class);
                             return null;
@@ -601,9 +477,9 @@ public class ChoiceDialogCoordinatorUnitTest {
         lenient()
                 .doAnswer(
                         invocationOnMock -> {
-                            if (capturedDialogObserverHolder[0]
+                            if (capturedDialogObserverHolder.value
                                     != invocationOnMock.getArgument(0)) {
-                                capturedDialogObserverHolder[0] = null;
+                                capturedDialogObserverHolder.value = null;
                             }
                             return null;
                         })
@@ -613,8 +489,8 @@ public class ChoiceDialogCoordinatorUnitTest {
         lenient()
                 .doAnswer(
                         invocationOnMock -> {
-                            if (capturedDialogObserverHolder[0] != null) {
-                                capturedDialogObserverHolder[0].onDialogAdded(
+                            if (capturedDialogObserverHolder.value != null) {
+                                capturedDialogObserverHolder.value.onDialogAdded(
                                         invocationOnMock.getArgument(0, PropertyModel.class));
                             }
                             return null;
@@ -625,8 +501,8 @@ public class ChoiceDialogCoordinatorUnitTest {
         lenient()
                 .doAnswer(
                         invocationOnMock -> {
-                            if (capturedDialogObserverHolder[0] != null) {
-                                capturedDialogObserverHolder[0].onDialogDismissed(
+                            if (capturedDialogObserverHolder.value != null) {
+                                capturedDialogObserverHolder.value.onDialogDismissed(
                                         invocationOnMock.getArgument(0, PropertyModel.class));
                             }
                             return null;

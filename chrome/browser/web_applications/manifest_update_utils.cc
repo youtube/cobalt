@@ -71,8 +71,6 @@ std::ostream& operator<<(std::ostream& os, ManifestUpdateCheckStage stage) {
       return os << "kDownloadingNewManifestData";
     case ManifestUpdateCheckStage::kLoadingExistingManifestData:
       return os << "kLoadingExistingManifestData";
-    case ManifestUpdateCheckStage::kDownloadingChangedIconUrlBitmaps:
-      return os << "kDownloadingChangedIconUrlBitmaps";
     case ManifestUpdateCheckStage::kComparingManifestData:
       return os << "kComparingManifestData";
     case ManifestUpdateCheckStage::kResolvingIdentityChanges:
@@ -164,17 +162,6 @@ std::optional<AppIconIdentityChange> CompareIdentityIconBitmaps(
     }
   }
   return std::nullopt;
-}
-
-void RecordIconDownloadMetrics(IconsDownloadedResult result,
-                               DownloadedIconsHttpResults icons_http_results) {
-  // TODO(crbug.com/40193545): Report `result` and `icons_http_results` in
-  // internals.
-  base::UmaHistogramEnumeration("WebApp.Icon.DownloadedResultOnUpdate", result);
-  RecordDownloadedIconHttpStatusCodes(
-      "WebApp.Icon.DownloadedHttpStatusCodeOnUpdate", icons_http_results);
-  RecordDownloadedIconsHttpResultsCodeClass(
-      "WebApp.Icon.HttpStatusCodeClassOnUpdate", result, icons_http_results);
 }
 
 bool CanWebAppSilentlyUpdateIdentity(const WebApp& web_app) {

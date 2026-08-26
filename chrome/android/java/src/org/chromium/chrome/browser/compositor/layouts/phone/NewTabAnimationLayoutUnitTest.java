@@ -57,7 +57,6 @@ import org.chromium.chrome.browser.compositor.scene_layer.StaticTabSceneLayer;
 import org.chromium.chrome.browser.compositor.scene_layer.StaticTabSceneLayerJni;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
-import org.chromium.chrome.browser.hub.ShrinkExpandImageView;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.layouts.scene_layer.SceneLayer;
@@ -116,6 +115,7 @@ public class NewTabAnimationLayoutUnitTest {
     @Mock private ToggleTabStackButton mTabSwitcherButton;
     @Mock private View mToolbar;
     @Mock private NewTabPage mNtp;
+    private SceneLayer mSceneLayer;
 
     private final ObservableSupplierImpl<Tab> mCurrentTabSupplier = new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<CompositorViewHolder> mCompositorViewHolderSupplier =
@@ -135,21 +135,21 @@ public class NewTabAnimationLayoutUnitTest {
         when(mSceneLayerJni.init(any()))
                 .thenReturn(FAKE_NATIVE_ADDRESS_1)
                 .thenReturn(FAKE_NATIVE_ADDRESS_2);
-        doCallback(
-                        /* index= */ 1,
-                        (SceneLayer sceneLayer) -> {
-                            sceneLayer.setNativePtr(0L);
-                        })
-                .when(mSceneLayerJni)
-                .destroy(anyLong(), any());
         doAnswer(
                         invocation -> {
-                            ((SceneLayer) invocation.getArguments()[0])
-                                    .setNativePtr(FAKE_NATIVE_ADDRESS_1);
+                            mSceneLayer = (SceneLayer) invocation.getArguments()[0];
+                            mSceneLayer.setNativePtr(FAKE_NATIVE_ADDRESS_1);
                             return FAKE_NATIVE_ADDRESS_1;
                         })
                 .when(mStaticTabSceneLayerJni)
                 .init(any());
+        doCallback(
+                        /* index= */ 0,
+                        (Long nativePointer) -> {
+                            mSceneLayer.setNativePtr(0L);
+                        })
+                .when(mSceneLayerJni)
+                .destroy(anyLong());
 
         when(mTabModelSelector.getCurrentTabSupplier()).thenReturn(mCurrentTabSupplier);
         when(mTabModelSelector.getModelForTabId(anyInt())).thenReturn(mTabModel);
@@ -211,6 +211,7 @@ public class NewTabAnimationLayoutUnitTest {
         when(mAnimationHostView.getWidth()).thenReturn(40);
         when(mAnimationHostView.getHeight()).thenReturn(40);
         mNewTabAnimationLayout.onFinishNativeInitialization();
+        mNewTabAnimationLayout.setRunOnNextLayoutImmediatelyForTesting(true);
     }
 
     @After
@@ -328,14 +329,15 @@ public class NewTabAnimationLayoutUnitTest {
         assertEquals(2, layoutTabs.length);
         assertEquals(CURRENT_TAB_ID, layoutTabs[0].getId());
         assertEquals(NEW_TAB_ID, layoutTabs[1].getId());
-        verify(mNewTabAnimationLayout, times(1)).forceNewTabAnimationToFinish();
+        verify(mNewTabAnimationLayout, times(1)).forceAnimationToFinish();
         assertTrue(mNewTabAnimationLayout.isRunningAnimations());
-        verify(mAnimationHostView, times(1)).addView(any(ShrinkExpandImageView.class));
+        verify(mAnimationHostView, times(1)).addView(any(NewForegroundTabAnimationHostView.class));
 
         ShadowLooper.runUiThreadTasks();
 
         assertFalse(mNewTabAnimationLayout.isRunningAnimations());
-        verify(mAnimationHostView, times(1)).removeView(any(ShrinkExpandImageView.class));
+        verify(mAnimationHostView, times(1))
+                .removeView(any(NewForegroundTabAnimationHostView.class));
         verify(mTabModelSelector).selectModel(false);
         assertTrue(mNewTabAnimationLayout.isStartingToHide());
     }
@@ -359,7 +361,7 @@ public class NewTabAnimationLayoutUnitTest {
         layoutTabs = mNewTabAnimationLayout.getLayoutTabsToRender();
         assertEquals(1, layoutTabs.length);
         assertEquals(CURRENT_TAB_ID, layoutTabs[0].getId());
-        verify(mNewTabAnimationLayout, times(1)).forceNewTabAnimationToFinish();
+        verify(mNewTabAnimationLayout, times(1)).forceAnimationToFinish();
         assertTrue(mNewTabAnimationLayout.isStartingToHide());
         verify(mBrowserVisibilityDelegate, times(1)).showControlsPersistent();
         verify(mAnimationHostView, times(1)).addView(any(NewBackgroundTabAnimationHostView.class));

@@ -49,11 +49,12 @@ BASE_FEATURE(kWebAuthCableExtensionAnywhere,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
-// Enabled in M132. Remove in or after M135 or when the comparison histograms
-// are not needed anymore.
-BASE_FEATURE(kWebAuthnAndroidUsePasskeyCache,
-             "WebAuthenticationAndroidUsePasskeyCache",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Not yet enabled by default.
+BASE_FEATURE(kWebAuthnAndroidPasskeyCacheMigration,
+             "WebAuthenticationAndroidPasskeyCacheMigration",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Enabled in M118. Remove in or after M121.
@@ -103,11 +104,6 @@ BASE_FEATURE(kWebAuthnAmbientSignin,
              "WebAuthenticationAmbientSignin",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// This is a deprecation flag. Disabled in M136. Remove in or after M139.
-BASE_FEATURE(kWebAuthnHybridLinking,
-             "WebAuthenticationHybridLinking",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // This is a deprecation flag. It is now enabled by default, but we want to
 // disable it eventually.
 // Must not be disabled until kWebAuthnHybridLinking is disabled by default.
@@ -150,21 +146,6 @@ BASE_FEATURE(kWebAuthnEnclaveAttestation,
 // Default enabled in M134. Remove in or after M137.
 BASE_FEATURE(kWebAuthnNewBfCacheHandling,
              "WebAuthenticationNewBfCacheHandling",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Default enabled in M134. Remove in or after M137.
-BASE_FEATURE(kWebAuthnNoAccountTimeout,
-             "WebAuthenticationNoAccountTimeout",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Default enabled in M134. Remove in or after M137.
-BASE_FEATURE(kSyncSecurityDomainBeforePINRenewal,
-             "kWebAuthenticationSyncSecurityDomainBeforePINRenewal",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Default enabled in M136. Remove in or after M139.
-BASE_FEATURE(kWebAuthnRemoteDesktopAllowedOriginsPolicy,
-             "WebAuthenticationRemoteDesktopAllowedOriginsPolicy",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Default enabled in M135. Remove in or after M138.
@@ -216,5 +197,28 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE(kWebAuthnImmediateGetAutoselect,
              "WebAuthenticationImmediateGetAutoselect",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_MAC)
+// Default enabled in M139. Remove in or after M142.
+BASE_FEATURE(kWebAuthnLargeBlobForICloudKeychain,
+             "WebAuthenticationLargeBlobICloudKeychain",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_MAC)
+
+// Default enabled in M140. Remove in or after M143.
+BASE_FEATURE(kWebAuthnLargeBlobForGPM,
+             "WebAuthenticationLargeBlobGPM",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Deprecation flag. Intended to be disabled once the enclave no longer requires
+// a PIN generation number.
+BASE_FEATURE(kWebAuthnSendPinGeneration,
+             "WebAuthenticationSendPinGeneration",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Not yet enabled by default.
+BASE_FEATURE(kWebAuthnWrapCohortData,
+             "WebAuthenticationWrapCohortData",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace device

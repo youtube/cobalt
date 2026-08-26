@@ -1,0 +1,164 @@
+# Copyright 2025 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("model") {
+  sources = [
+    "bwg_link_opening_delegate.h",
+    "bwg_link_opening_handler.h",
+    "bwg_link_opening_handler.mm",
+    "bwg_page_state_change_delegate.h",
+    "bwg_page_state_change_handler.h",
+    "bwg_page_state_change_handler.mm",
+    "bwg_session_delegate.h",
+    "bwg_session_handler.h",
+    "bwg_session_handler.mm",
+  ]
+  deps = [
+    ":tab_helper",
+    "//ios/chrome/app/strings:ios_strings",
+    "//ios/chrome/browser/intelligence/bwg/metrics",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/url_loading/model",
+    "//ios/web/public",
+  ]
+  public_deps = [ "//base" ]
+  frameworks = [ "UIKit.framework" ]
+}
+
+source_set("browser_agent") {
+  sources = [
+    "bwg_browser_agent.h",
+    "bwg_browser_agent.mm",
+  ]
+  deps = [
+    ":config",
+    ":model",
+    ":tab_helper",
+    "//base",
+    "//components/favicon/ios",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+    "//ios/chrome/browser/intelligence/proto_wrappers",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/browser/signin/model:authentication_service_factory",
+    "//ios/chrome/browser/url_loading/model",
+    "//ios/public/provider/chrome/browser/bwg:bwg_api",
+    "//ui/gfx",
+  ]
+}
+
+source_set("tab_helper") {
+  sources = [
+    "bwg_tab_helper.h",
+    "bwg_tab_helper.mm",
+  ]
+  deps = [
+    ":snapshot_utils",
+    "//components/google/core/common",
+    "//ios/chrome/browser/intelligence/bwg/utils:constants",
+    "//ios/chrome/browser/intelligence/features",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/snapshots/model",
+    "//ios/web/public",
+  ]
+}
+
+source_set("bwg_service") {
+  sources = [
+    "bwg_service.h",
+    "bwg_service.mm",
+  ]
+  deps = [
+    "//components/keyed_service/core",
+    "//components/prefs",
+    "//components/signin/public/identity_manager",
+    "//ios/chrome/browser/intelligence/bwg/metrics",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/signin/model:authentication_service",
+    "//ios/public/provider/chrome/browser/bwg:bwg_api",
+    "//ios/web/public",
+    "//ios/web/util",
+  ]
+}
+
+source_set("bwg_service_factory") {
+  sources = [
+    "bwg_service_factory.h",
+    "bwg_service_factory.mm",
+  ]
+  deps = [
+    ":bwg_service",
+    "//components/signin/public/identity_manager",
+    "//ios/chrome/browser/intelligence/features",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
+    "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/signin/model:authentication_service_factory",
+  ]
+}
+
+source_set("config") {
+  sources = [
+    "bwg_configuration.h",
+    "bwg_configuration.mm",
+  ]
+  deps = [
+    "//base",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+  ]
+}
+
+source_set("snapshot_utils") {
+  sources = [
+    "bwg_snapshot_utils.h",
+    "bwg_snapshot_utils.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/browser/shared/ui/util",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "bwg_service_unittest.mm",
+    "bwg_tab_helper_unittest.mm",
+  ]
+  deps = [
+    ":bwg_service",
+    ":tab_helper",
+    "//base/test:test_support",
+    "//components/prefs:test_support",
+    "//components/signin/public/identity_manager:test_support",
+    "//components/sync/base",
+    "//components/sync/service",
+    "//components/sync_preferences",
+    "//components/sync_preferences:test_support",
+    "//ios/chrome/browser/intelligence/bwg/metrics",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/prefs:browser_prefs",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/signin/model:authentication_service_factory",
+    "//ios/chrome/browser/signin/model:test_support",
+    "//ios/chrome/test:test_support",
+    "//ios/public/provider/chrome/browser/bwg:bwg_api",
+    "//ios/web/public/test",
+    "//testing/gtest",
+  ]
+}

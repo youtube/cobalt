@@ -279,7 +279,7 @@
 <translation id="2056550196601855911">‫IPv4/IPv6</translation>
 <translation id="2068472557797646626">عرض ثلاثي الأبعاد لكرات كروم وأشكال كروية على خلفية من العناصر المعمارية تحمل علامات كروم. يمثّل التكوين مفهومًا حديثًا وبسيطًا للإعلان أو وضع العلامة التجارية أو العرض مع ترك مساحة للنصوص. قوس كبير أمام خلفية مجردة بأسلوب بسيط. إضاءة استوديو لقطة مقرّبة</translation>
 <translation id="2073232437457681324">محيط شاسع</translation>
-<translation id="2080070583977670716">مزيد من الإعدادات</translation>
+<translation id="2080070583977670716">إعدادات إضافية</translation>
 <translation id="2082932131694554252">مفتاح لوحة المفاتيح المخصَّص</translation>
 <translation id="2085089206770112532">تقليل سطوع الشاشة</translation>
 <translation id="2086091080968010660">قد لا تكون التغييرات المستنِدة إلى الوقت دقيقة. فعِّل إذن الوصول إلى الموقع الجغرافي للنظام ضمن الإعدادات.</translation>
@@ -318,7 +318,7 @@
 <translation id="2215920961700443347">لا يتوفر اتصال بالإنترنت. يُرجى الاتصال بالإنترنت وإعادة المحاولة.</translation>
 <translation id="2217935453350629363">السرعة الحالية</translation>
 <translation id="221994303562837085">إيقاف التسجيل</translation>
-<translation id="2224337661447660594">الاتصال بالإنترنت مقطوع</translation>
+<translation id="2224337661447660594">لا يتوفّر اتصال بالإنترنت</translation>
 <translation id="222447520299472966">يجب اختيار ألبوم واحد على الأقل من "معرض الفنون".</translation>
 <translation id="2230005943220647148">درجة مئوية</translation>
 <translation id="2230051135190148440">CHAP</translation>
@@ -327,6 +327,7 @@
 <translation id="2240366984605217732">مفتاح التبديل بين تنسيقات لوحة المفاتيح</translation>
 <translation id="224421911978987610">تعرُّض طويل للضوء</translation>
 <translation id="2244834438220057800">أخضر</translation>
+<translation id="2248689665683494517">صورة ثابتة بسيطة لبعض زهور الخشخاش في مزهرية زجاجية على خلفية سوداء</translation>
 <translation id="225692081236532131">حالة التفعيل</translation>
 <translation id="2267285889943769271">إضافة لقطة شاشة</translation>
 <translation id="2268044343513325586">تحسين</translation>
@@ -477,6 +478,7 @@
 <translation id="3091839911843451378">تعذَّرت الطباعة - توقّفت الطابعة</translation>
 <translation id="3102119246920354026">ذاكرة التخزين المؤقت</translation>
 <translation id="3103783611481501187">صورة سريالية</translation>
+<translation id="3119672627216736407">الترجمة متاحة</translation>
 <translation id="3122464029669770682">وحدة المعالجة المركزية</translation>
 <translation id="3122614491980756867">بِرك طبيعية</translation>
 <translation id="3122883569442693641">المزيد من التفاصيل</translation>
@@ -756,6 +758,7 @@
 <translation id="430786093962686457">الشيفون</translation>
 <translation id="4310735698903592804">‏أحدث الخلفيات المستندة إلى تكنولوجيات الذكاء الاصطناعي من Google</translation>
 <translation id="4320904097188876154">وردي نيون</translation>
+<translation id="432961742358282111">يمكنك النقر بزر الماوس الأيمن أو الضغط مع الاستمرار للحصول على تعريفات أو ترجمات أو تحويلات الوحدات. ولإدارة هذه الميزة، عليك استخدام مفتاحَي السهمَين المتّجهَين لليمين أو لليسار.</translation>
 <translation id="4333390807948134856">تم الضغط على المفتاح <ph name="KEY_NAME" />.</translation>
 <translation id="4334293042716981313">يمكنك أيضًا <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />كتابة طلبك الخاص<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">مفتاح</translation>
@@ -1137,6 +1140,7 @@
 <translation id="6058625436358447366">يُرجى إدخال كلمتي المرور القديمة والجديدة لإنهاء الإجراء.</translation>
 <translation id="6061772781719867950">‏حدث خطأ في طلبات HTTPS.</translation>
 <translation id="6073292342939316679">تقليل سطوع لوحة المفاتيح</translation>
+<translation id="6074608334942655098">إيقاف الترجمة</translation>
 <translation id="6074752328838739425">إخفاء الملخّص</translation>
 <translation id="6075872808778243331">‏(نظام التشغيل Android) اختبار وقت استجابة بروتوكول HTTP</translation>
 <translation id="6078323886959318429">إضافة اختصار</translation>
@@ -1434,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">‏شبكة EDGE</translation>
 <translation id="7308203371573257315">‏طرح الأسئلة على الخبراء في منتدى مساعدة Chromebook</translation>
-<translation id="7309823890857024809">صورة ثابتة بسيطة لعدة سيقان من زهرة الخشخاش في مزهرية زجاجية على خلفية سوداء</translation>
 <translation id="7311368985037279727">لون لوحة المفاتيح</translation>
 <translation id="7317831949569936035">تسجيل الجهاز ضمن المؤسسة التعليمية</translation>
 <translation id="7319430975418800333">A3</translation>

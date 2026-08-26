@@ -3309,7 +3309,7 @@ TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsClient) {
   quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":protocol"] = "webtransport";
-  request_headers["wt-available-protocols"] = "moqt-00, moqt-01; foo=bar";
+  request_headers["wt-available-protocols"] = R"("moqt-00", "moqt-01"; a=b)";
   stream_->WriteHeaders(std::move(request_headers), /*fin=*/false, nullptr);
   ASSERT_TRUE(stream_->web_transport() != nullptr);
   EXPECT_EQ(stream_->id(), stream_->web_transport()->id());
@@ -3318,14 +3318,14 @@ TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsClient) {
 
   quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
-  response_headers["wt-protocol"] = "moqt-01";
+  response_headers["wt-protocol"] = "\"moqt-01\"";
   stream_->web_transport()->HeadersReceived(response_headers);
   EXPECT_EQ(stream_->web_transport()->rejection_reason(),
             WebTransportHttp3RejectionReason::kNone);
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), "moqt-01");
 }
 
-TEST_P(QuicSpdyStreamTest, WebTransportRejectSubprotocolsThatWereNotOffered) {
+TEST_P(QuicSpdyStreamTest, WebTransportIgnoreSubprotocolsThatWereNotOffered) {
   if (!UsesHttp3()) {
     return;
   }
@@ -3345,16 +3345,16 @@ TEST_P(QuicSpdyStreamTest, WebTransportRejectSubprotocolsThatWereNotOffered) {
   quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":protocol"] = "webtransport";
-  request_headers["wt-available-protocols"] = "moqt-00, moqt-01; foo=bar";
+  request_headers["wt-available-protocols"] = R"("moqt-00", "moqt-01"; a=b)";
   stream_->WriteHeaders(std::move(request_headers), /*fin=*/false, nullptr);
   ASSERT_TRUE(stream_->web_transport() != nullptr);
 
   quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
-  response_headers["wt-protocol"] = "moqt-02";
+  response_headers["wt-protocol"] = "\"moqt-02\"";
   stream_->web_transport()->HeadersReceived(response_headers);
   EXPECT_EQ(stream_->web_transport()->rejection_reason(),
-            WebTransportHttp3RejectionReason::kSubprotocolMismatch);
+            WebTransportHttp3RejectionReason::kNone);
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), std::nullopt);
 }
 
@@ -3378,7 +3378,7 @@ TEST_P(QuicSpdyStreamTest, WebTransportInvalidSubprotocolResponse) {
   quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";
   request_headers[":protocol"] = "webtransport";
-  request_headers["wt-available-protocols"] = "moqt-00, moqt-01; foo=bar";
+  request_headers["wt-available-protocols"] = R"("moqt-00", "moqt-01"; a=b)";
   stream_->WriteHeaders(std::move(request_headers), /*fin=*/false, nullptr);
   ASSERT_TRUE(stream_->web_transport() != nullptr);
 
@@ -3387,7 +3387,7 @@ TEST_P(QuicSpdyStreamTest, WebTransportInvalidSubprotocolResponse) {
   response_headers["wt-protocol"] = "12345.67";
   stream_->web_transport()->HeadersReceived(response_headers);
   EXPECT_EQ(stream_->web_transport()->rejection_reason(),
-            WebTransportHttp3RejectionReason::kSubprotocolParseError);
+            WebTransportHttp3RejectionReason::kNone);
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), std::nullopt);
 }
 
@@ -3405,7 +3405,7 @@ TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsServer) {
 
   headers_[":method"] = "CONNECT";
   headers_[":protocol"] = "webtransport";
-  headers_["wt-available-protocols"] = "moqt-00, moqt-01; foo=bar";
+  headers_["wt-available-protocols"] = R"("moqt-00", "moqt-01"; a=b)";
 
   stream_->OnStreamHeadersPriority(
       spdy::SpdyStreamPrecedence(kV3HighestPriority));
@@ -3421,7 +3421,7 @@ TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsServer) {
       .Times(AnyNumber());
   quiche::HttpHeaderBlock response_headers;
   response_headers[":status"] = "200";
-  response_headers["wt-protocol"] = "moqt-01";
+  response_headers["wt-protocol"] = "\"moqt-01\"";
   stream_->WriteHeaders(std::move(response_headers), /*fin=*/false, nullptr);
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), "moqt-01");
 }

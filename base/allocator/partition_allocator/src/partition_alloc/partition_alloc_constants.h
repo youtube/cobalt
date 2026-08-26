@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_ALLOC_CONSTANTS_H_
 #define PARTITION_ALLOC_PARTITION_ALLOC_CONSTANTS_H_
 
@@ -456,11 +461,6 @@ constexpr unsigned char kUninitializedByte = 0xAB;
 constexpr unsigned char kFreedByte = 0xCD;
 
 constexpr unsigned char kQuarantinedByte = 0xEF;
-
-#if PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
-// Requested size that requires the hack.
-constexpr size_t kMac11MallocSizeHackRequestedSize = 32;
-#endif
 
 }  // namespace internal
 

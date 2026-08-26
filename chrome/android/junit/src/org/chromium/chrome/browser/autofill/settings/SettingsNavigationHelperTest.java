@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import android.content.Context;
+import android.os.Bundle;
 
 import androidx.test.filters.SmallTest;
 
@@ -18,6 +19,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -39,6 +42,7 @@ public class SettingsNavigationHelperTest {
 
     @Mock private SettingsNavigation mMockLauncher;
     @Mock private Context mMockContext;
+    @Captor private ArgumentCaptor<Bundle> mBundleCaptor;
 
     private final UserActionTester mActionTester = new UserActionTester();
 

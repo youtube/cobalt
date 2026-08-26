@@ -9,9 +9,12 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search/background/ntp_custom_background_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webui/new_tab_footer/mock_new_tab_footer_document.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "components/search/ntp_features.h"
 #include "content/public/browser/web_contents.h"
@@ -21,8 +24,35 @@
 #include "extensions/test/test_extension_dir.h"
 #include "net/base/url_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/models/menu_model.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
+
+class TestEmbedder final : public TopChromeWebUIController::Embedder {
+ public:
+  TestEmbedder() = default;
+  ~TestEmbedder() = default;
+
+  void ShowUI() override {}
+  void CloseUI() override {}
+  void HideContextMenu() override {}
+
+  void ShowContextMenu(gfx::Point point,
+                       std::unique_ptr<ui::MenuModel> menu_model) override {
+    context_menu_shown_ = true;
+  }
+
+  bool context_menu_shown() const { return context_menu_shown_; }
+
+  base::WeakPtr<TestEmbedder> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
+
+ private:
+  bool context_menu_shown_;
+
+  base::WeakPtrFactory<TestEmbedder> weak_factory_{this};
+};
 
 class NewTabFooterHandlerBrowserTest : public extensions::ExtensionBrowserTest {
  public:
@@ -33,9 +63,12 @@ class NewTabFooterHandlerBrowserTest : public extensions::ExtensionBrowserTest {
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
+    embedder_ = std::make_unique<TestEmbedder>();
     handler_ = std::make_unique<NewTabFooterHandler>(
         mojo::PendingReceiver<new_tab_footer::mojom::NewTabFooterHandler>(),
-        document_.BindAndGetRemote(), web_contents());
+        document_.BindAndGetRemote(), embedder_->GetWeakPtr(),
+        NtpCustomBackgroundServiceFactory::GetForProfile(profile()),
+        web_contents());
   }
 
   void TearDownOnMainThread() override {
@@ -43,6 +76,7 @@ class NewTabFooterHandlerBrowserTest : public extensions::ExtensionBrowserTest {
     InProcessBrowserTest::TearDownOnMainThread();
   }
 
+  TestEmbedder& embedder() { return *embedder_; }
   NewTabFooterHandler& handler() { return *handler_; }
   content::WebContents* web_contents() {
     return chrome_test_utils::GetActiveWebContents(this);
@@ -50,9 +84,20 @@ class NewTabFooterHandlerBrowserTest : public extensions::ExtensionBrowserTest {
 
  private:
   base::test::ScopedFeatureList feature_list_;
+  std::unique_ptr<TestEmbedder> embedder_;
   std::unique_ptr<NewTabFooterHandler> handler_;
   testing::NiceMock<MockNewTabFooterDocument> document_;
 };
+
+IN_PROC_BROWSER_TEST_F(NewTabFooterHandlerBrowserTest, OpenUrlInCurrentTab) {
+  const GURL url = GURL("https://google.com");
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  handler().OpenUrlInCurrentTab(url);
+
+  WaitForLoadStop(web_contents());
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  EXPECT_EQ(url, web_contents()->GetLastCommittedURL());
+}
 
 IN_PROC_BROWSER_TEST_F(NewTabFooterHandlerBrowserTest,
                        OpenExtensionOptionsPage_ExistingExtensionId) {
@@ -96,4 +141,22 @@ IN_PROC_BROWSER_TEST_F(NewTabFooterHandlerBrowserTest,
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
   const GURL expected_url = GURL(chrome::kChromeUIExtensionsURL);
   EXPECT_EQ(expected_url, web_contents()->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabFooterHandlerBrowserTest, OpenManagementPage) {
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  handler().OpenManagementPage();
+
+  WaitForLoadStop(web_contents());
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  const GURL expected_url = GURL(chrome::kChromeUIManagementURL);
+  EXPECT_EQ(expected_url, web_contents()->GetLastCommittedURL());
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabFooterHandlerBrowserTest, ShowContextMenu) {
+  ASSERT_FALSE(embedder().context_menu_shown());
+
+  handler().ShowContextMenu(gfx::Point());
+
+  EXPECT_TRUE(embedder().context_menu_shown());
 }

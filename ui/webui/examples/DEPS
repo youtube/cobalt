@@ -8,8 +8,8 @@ include_rules = [
   # User Agent string support code.
   "+components/embedder_support/user_agent_utils.h",
 
-  # The GuestView supports the WebView element.
-  "+components/guest_view",
+  # The GuestContents supports the WebView element.
+  "+components/guest_contents",
 
   # The WebUI examples is a simple embedder, so it only uses content's public API.
   "+content/public",

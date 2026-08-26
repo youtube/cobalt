@@ -292,6 +292,8 @@ optimization_guide::proto::AXIntAttribute IntAttributeToProto(
           AX_IA_ARIANOTIFICATIONPRIORITYDEPRECATED;
     case ax::mojom::IntAttribute::kMaxLength:
       return optimization_guide::proto::AXIntAttribute::AX_IA_MAXLENGTH;
+    case ax::mojom::IntAttribute::kPaintOrder:
+      return optimization_guide::proto::AXIntAttribute::AX_IA_PAINTORDER;
   }
 }
 
@@ -530,7 +532,7 @@ void PopulateAXNode(const ui::AXNodeData& source,
                     optimization_guide::proto::AXNodeData* destination) {
   destination->set_id(source.id);
   destination->set_role(AXRoleToProto(source.role));
-  destination->set_state(source.state);
+  destination->set_state(source.state.value());
   destination->set_actions(source.actions);
 
   for (const auto& attribute : source.string_attributes) {
@@ -553,11 +555,16 @@ void PopulateAXNode(const ui::AXNodeData& source,
     destination_attribute->set_float_value(attribute.second);
   }
 
-  for (const auto& attribute : source.bool_attributes) {
-    auto* destination_attribute = destination->add_attributes();
-    destination_attribute->set_bool_type(BoolAttributeToProto(attribute.first));
-    destination_attribute->set_bool_value(attribute.second);
-  }
+  // TODO: crbug.com/422234724 - Cleanup once expressed as an int pair in the
+  // protobuff.
+  auto add_bool_attribute = [&destination](ax::mojom::BoolAttribute attr,
+                                           bool value) {
+    auto* dest_attr = destination->add_attributes();
+    dest_attr->set_bool_type(BoolAttributeToProto(attr));
+    dest_attr->set_bool_value(value);
+  };
+
+  source.bool_attributes->ForEach(add_bool_attribute);
 
   for (const auto& attribute : source.intlist_attributes) {
     auto* destination_attribute = destination->add_attributes();

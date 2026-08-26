@@ -58,6 +58,7 @@
 #include "third_party/blink/renderer/platform/wtf/deque.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "third_party/blink/renderer/platform/scheduler/public/non_main_thread.h"
@@ -65,9 +66,9 @@
 #endif  // IS_WIN
 
 using ResultOrError =
-    base::expected<blink::FontResource::DecodedResult, String>;
+    base::expected<blink::FontResource::DecodedResult, blink::String>;
 
-namespace WTF {
+namespace blink {
 
 template <>
 struct CrossThreadCopier<ResultOrError> {
@@ -75,10 +76,6 @@ struct CrossThreadCopier<ResultOrError> {
   using Type = ResultOrError;
   static Type Copy(Type&& value) { return std::move(value); }
 };
-
-}  // namespace WTF
-
-namespace blink {
 
 namespace {
 // Durations of font-display periods.
@@ -425,7 +422,7 @@ void FontResource::OnMemoryDump(WebMemoryDumpLevelOfDetail level,
   Resource::OnMemoryDump(level, memory_dump);
   if (!font_data_)
     return;
-  const String name = GetMemoryDumpName() + "/decoded_webfont";
+  const String name = StrCat({GetMemoryDumpName(), "/decoded_webfont"});
   WebMemoryAllocatorDump* dump = memory_dump->CreateMemoryAllocatorDump(name);
   dump->AddScalar("size", "bytes", font_data_->DataSize());
 

@@ -146,9 +146,6 @@ bool AsyncLayerTreeFrameSink::BindToClient(LayerTreeFrameSinkClient* client) {
             viz::BeginFrameSource::kNotRestartableId);
   }
 
-  compositor_frame_sink_ptr_->InitializeCompositorFrameSinkType(
-      viz::mojom::CompositorFrameSinkType::kLayerTree);
-
 #if BUILDFLAG(IS_ANDROID)
   std::vector<viz::Thread> threads;
   threads.push_back(
@@ -435,6 +432,13 @@ void AsyncLayerTreeFrameSink::OnBeginFramePausedChanged(bool paused) {
   begin_frames_paused_ = paused;
   if (begin_frame_source_)
     begin_frame_source_->OnSetBeginFrameSourcePaused(paused);
+  if (use_internal_begin_frame_source_) {
+    if (paused) {
+      client_->SetBeginFrameSource(begin_frame_source_.get());
+    } else {
+      client_->SetBeginFrameSource(internal_begin_frame_source_.get());
+    }
+  }
 }
 
 void AsyncLayerTreeFrameSink::ReclaimResources(
@@ -451,6 +455,11 @@ void AsyncLayerTreeFrameSink::OnCompositorFrameTransitionDirectiveProcessed(
 void AsyncLayerTreeFrameSink::OnSurfaceEvicted(
     const viz::LocalSurfaceId& local_surface_id) {
   client_->OnSurfaceEvicted(local_surface_id);
+}
+
+void AsyncLayerTreeFrameSink::NotifyNewLocalSurfaceIdExpectedWhilePaused() {
+  DCHECK(compositor_frame_sink_ptr_);
+  compositor_frame_sink_ptr_->NotifyNewLocalSurfaceIdExpectedWhilePaused();
 }
 
 void AsyncLayerTreeFrameSink::OnNeedsBeginFrames(bool needs_begin_frames) {
@@ -529,7 +538,9 @@ void AsyncLayerTreeFrameSink::UpdateInternalBeginFrameSource(
       internal_begin_frame_source_->OnUpdateVSyncParameters(
           last_args.frame_time, last_args.interval);
     }
-    client_->SetBeginFrameSource(internal_begin_frame_source_.get());
+    if (!begin_frames_paused_) {
+      client_->SetBeginFrameSource(internal_begin_frame_source_.get());
+    }
     use_internal_begin_frame_source_ = true;
   } else {
     client_->SetBeginFrameSource(begin_frame_source_.get());

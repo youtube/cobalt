@@ -12,6 +12,7 @@
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "content/browser/devtools/devtools_session.h"
 #include "content/browser/devtools/devtools_throttle_handle.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/hidden_target_manager.h"
@@ -25,7 +26,6 @@ namespace content {
 
 class DevToolsAgentHostImpl;
 class DevToolsSession;
-class NavigationThrottle;
 
 namespace protocol {
 
@@ -134,6 +134,9 @@ class TargetHandler : public DevToolsDomainHandler,
       std::unique_ptr<protocol::Array<Target::TargetInfo>>* target_infos)
       override;
 
+  Response OpenDevTools(const std::string& target_id,
+                        std::string* out_target_id) override;
+
   void ApplyNetworkContextParamsOverrides(
       BrowserContext* browser_context,
       network::mojom::NetworkContextParams* network_context_params);
@@ -160,7 +163,7 @@ class TargetHandler : public DevToolsDomainHandler,
       TargetAutoAttacher* source,
       const base::flat_set<scoped_refptr<DevToolsAgentHost>>& new_hosts,
       const std::string& type) override;
-  std::unique_ptr<NavigationThrottle> CreateThrottleForNavigation(
+  void MaybeCreateAndAddNavigationThrottle(
       TargetAutoAttacher* auto_attacher,
       NavigationThrottleRegistry& registry) override;
   void TargetInfoChanged(DevToolsAgentHost* host) override;

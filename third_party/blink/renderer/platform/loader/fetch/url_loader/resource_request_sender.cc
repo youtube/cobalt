@@ -70,13 +70,12 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 
-namespace WTF {
+namespace blink {
 
 template <>
-struct CrossThreadCopier<
-    std::vector<std::unique_ptr<blink::URLLoaderThrottle>>> {
+struct CrossThreadCopier<std::vector<std::unique_ptr<URLLoaderThrottle>>> {
   STATIC_ONLY(CrossThreadCopier);
-  using Type = std::vector<std::unique_ptr<blink::URLLoaderThrottle>>;
+  using Type = std::vector<std::unique_ptr<URLLoaderThrottle>>;
   static Type Copy(Type&& value) { return std::move(value); }
 };
 
@@ -91,14 +90,10 @@ struct CrossThreadCopier<net::NetworkTrafficAnnotationTag>
 };
 
 template <>
-struct CrossThreadCopier<std::vector<blink::WebString>>
-    : public CrossThreadCopierPassThrough<std::vector<blink::WebString>> {
+struct CrossThreadCopier<std::vector<WebString>>
+    : public CrossThreadCopierPassThrough<std::vector<WebString>> {
   STATIC_ONLY(CrossThreadCopier);
 };
-
-}  // namespace WTF
-
-namespace blink {
 
 namespace {
 
@@ -188,16 +183,16 @@ void ResourceRequestSender::SendSync(
   SyncLoadContext* context_for_redirect = nullptr;
   PostCrossThreadTask(
       *task_runner, FROM_HERE,
-      WTF::CrossThreadBindOnce(
-          &SyncLoadContext::StartAsyncWithWaitableEvent, std::move(request),
-          task_runner, traffic_annotation, loader_options,
-          std::move(pending_factory), std::move(throttles),
-          CrossThreadUnretained(response),
-          CrossThreadUnretained(&context_for_redirect),
-          CrossThreadUnretained(&redirect_or_response_event),
-          CrossThreadUnretained(terminate_sync_load_event), timeout,
-          std::move(download_to_blob_registry), cors_exempt_header_list,
-          std::move(resource_load_info_notifier_wrapper)));
+      CrossThreadBindOnce(&SyncLoadContext::StartAsyncWithWaitableEvent,
+                          std::move(request), task_runner, traffic_annotation,
+                          loader_options, std::move(pending_factory),
+                          std::move(throttles), CrossThreadUnretained(response),
+                          CrossThreadUnretained(&context_for_redirect),
+                          CrossThreadUnretained(&redirect_or_response_event),
+                          CrossThreadUnretained(terminate_sync_load_event),
+                          timeout, std::move(download_to_blob_registry),
+                          cors_exempt_header_list,
+                          std::move(resource_load_info_notifier_wrapper)));
 
   // `redirect_or_response_event` will signal when each redirect completes, and
   // when the final response is complete.

@@ -137,7 +137,7 @@ std::string FormStructuresToString(
         }
       }
       string_form += base::JoinString(
-          {field->Type().ToStringView(), base::UTF16ToUTF8(field->name()),
+          {field->Type().ToString(), base::UTF16ToUTF8(field->name()),
            base::UTF16ToUTF8(field->label()), base::UTF16ToUTF8(field->value()),
            section},
           " | ");
@@ -212,7 +212,10 @@ FormStructureBrowserTest::FormStructureBrowserTest()
           features::kAutofillEnableSupportForParsingWithSharedLabels,
           // TODO(crbug.com/40266396): Remove once launched.
           features::kAutofillEnableExpirationDateImprovements,
+          features::kAutofillIgnoreCheckableElements,
           features::kAutofillUnifyRationalizationAndSectioningOrder,
+          // TODO(crbug.com/369503318): Remove once launched.
+          features::kAutofillSupportSplitZipCode,
       },
       // Disabled
       {

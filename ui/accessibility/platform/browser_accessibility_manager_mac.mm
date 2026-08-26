@@ -17,6 +17,7 @@
 #include "ui/accelerated_widget_mac/accelerated_widget_mac.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_role_properties.h"
+#include "ui/accessibility/ax_table_info.h"
 #include "ui/accessibility/platform/ax_platform_tree_manager_delegate.h"
 #include "ui/accessibility/platform/ax_private_webkit_constants_mac.h"
 #import "ui/accessibility/platform/browser_accessibility_cocoa.h"
@@ -90,7 +91,7 @@ void BrowserAccessibilityManagerMac::FireBlinkEvent(ax::mojom::Event event_type,
   NSString* mac_notification = nullptr;
   switch (event_type) {
     case ax::mojom::Event::kAutocorrectionOccured:
-      mac_notification = NSAccessibilityAutocorrectionOccurredNotification;
+      mac_notification = CrNSAccessibilityAutocorrectionOccurredNotification;
       break;
     case ax::mojom::Event::kLoadComplete:
       if (!ShouldFireLoadCompleteNotification())
@@ -369,6 +370,10 @@ void BrowserAccessibilityManagerMac::FireGeneratedEvent(
       mac_notification = NSAccessibilityTitleChangedNotification;
       break;
 
+    case AXEventGenerator::Event::CHILDREN_CHANGED:
+      [native_node childrenChanged];
+      return;
+
     // Currently unused events on this platform.
     case AXEventGenerator::Event::NONE:
     case AXEventGenerator::Event::ACCESS_KEY_CHANGED:
@@ -379,7 +384,6 @@ void BrowserAccessibilityManagerMac::FireGeneratedEvent(
     case AXEventGenerator::Event::AUTOFILL_AVAILABILITY_CHANGED:
     case AXEventGenerator::Event::CARET_BOUNDS_CHANGED:
     case AXEventGenerator::Event::CHECKED_STATE_DESCRIPTION_CHANGED:
-    case AXEventGenerator::Event::CHILDREN_CHANGED:
     case AXEventGenerator::Event::CONTROLS_CHANGED:
     case AXEventGenerator::Event::DETAILS_CHANGED:
     case AXEventGenerator::Event::DESCRIBED_BY_CHANGED:
@@ -511,6 +515,15 @@ void BrowserAccessibilityManagerMac::OnAtomicUpdateFinished(
         }
       }
     }
+#if defined(AX_EXTRA_MAC_NODES)
+    // Update cached native children for tables.
+    if (ui::IsTableLike(change.node->GetRole()) &&
+        change.type == AXTreeObserver::NODE_CHANGED) {
+      BrowserAccessibilityMac* browser_accessibility =
+          static_cast<BrowserAccessibilityMac*>(GetFromID(change.node->id()));
+      [browser_accessibility->GetNativeWrapper() childrenChanged];
+    }
+#endif
   }
 
   for (const BrowserAccessibilityCocoa* obj : changed_editable_roots) {
@@ -528,13 +541,32 @@ void BrowserAccessibilityManagerMac::OnNodeDataChanged(
   BrowserAccessibilityMac* node =
       static_cast<BrowserAccessibilityMac*>(GetFromID(new_node_data.id));
   CHECK(node);
-  if (!features::IsMacAccessibilityOptimizeChildrenChangedEnabled() ||
-      (old_node_data.child_ids == new_node_data.child_ids &&
-       !node->node()->GetExtraMacNodes())) {
-    return;
+  if (old_node_data.GetIntListAttribute(
+          ax::mojom::IntListAttribute::kIndirectChildIds) !=
+      new_node_data.GetIntListAttribute(
+          ax::mojom::IntListAttribute::kIndirectChildIds)) {
+    [node->GetNativeWrapper() childrenChanged];
   }
+  if (old_node_data.IsInvisible() != new_node_data.IsInvisible()) {
+    // Visibility changes whether a native node is ignored via
+    // isAccessibilityElement().
+    BrowserAccessibilityMac* node_mac =
+        static_cast<BrowserAccessibilityMac*>(node);
+    BrowserAccessibilityCocoa* node_cocoa = node_mac->GetNativeWrapper();
+    if ([node_cocoa isAccessibilityElement]) {
+      [node_cocoa childrenChanged];
+    }
+  }
+}
 
-  [node->GetNativeWrapper() childrenChanged];
+void BrowserAccessibilityManagerMac::OnSubtreeWillBeReparented(AXTree* tree,
+                                                               AXNode* node) {
+  BrowserAccessibilityMac* node_mac =
+      static_cast<BrowserAccessibilityMac*>(GetFromID(node->id()));
+  BrowserAccessibilityCocoa* node_cocoa = node_mac->GetNativeWrapper();
+  if ([node_cocoa isAccessibilityElement]) {
+    [node_cocoa childrenChanged];
+  }
 }
 
 NSDictionary* BrowserAccessibilityManagerMac::
@@ -654,6 +686,9 @@ bool BrowserAccessibilityManagerMac::ShouldFireLoadCompleteNotification() {
   if (delegate()->ShouldSuppressAXLoadComplete()) {
     return false;
   }
+
+  CHECK(delegate()->AccessibilityIsWebContentSource())
+      << "We should never get here in non-web content sourced managers.";
 
   // We also check that the window is focused because VoiceOver responds
   // to this notification by changing focus and possibly reading the entire

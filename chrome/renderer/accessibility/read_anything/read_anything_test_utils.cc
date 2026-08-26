@@ -4,6 +4,8 @@
 
 #include "chrome/renderer/accessibility/read_anything/read_anything_test_utils.h"
 
+#include "base/strings/string_number_conversions.h"
+
 namespace test {
 
 void SetUpdateTreeID(ui::AXTreeUpdate* update, ui::AXTreeID tree_id) {
@@ -54,6 +56,14 @@ ui::AXNodeData TextNodeWithTextFromId(ui::AXNodeID id) {
 ui::AXNodeData ExplicitlyEmptyTextNode(ui::AXNodeID id) {
   ui::AXNodeData node = TextNode(id);
   node.SetNameExplicitlyEmpty();
+  return node;
+}
+
+ui::AXNodeData ImageNode(ui::AXNodeID id, const std::string& src) {
+  ui::AXNodeData node;
+  node.id = id;
+  node.role = ax::mojom::Role::kImage;
+  node.AddStringAttribute(ax::mojom::StringAttribute::kUrl, src);
   return node;
 }
 

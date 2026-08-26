@@ -9,17 +9,18 @@
  */
 #include "net/dcsctp/packet/chunk/idata_chunk.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include "api/array_view.h"
+#include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
 #include "net/dcsctp/packet/chunk/data_common.h"
+#include "net/dcsctp/packet/data.h"
+#include "net/dcsctp/public/types.h"
 #include "rtc_base/strings/string_builder.h"
 
 namespace dcsctp {

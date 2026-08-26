@@ -10,7 +10,9 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/permissions/permission_decision.h"
 #include "components/permissions/permission_request_id.h"
+#include "components/permissions/resolvers/content_setting_permission_resolver.h"
 #include "components/permissions/test/test_permissions_client.h"
 #include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/render_frame_host.h"
@@ -42,9 +44,9 @@ class TestPermissionContext : public MidiSysexPermissionContext {
 
   bool tab_context_updated() { return tab_context_updated_; }
 
-  void TrackPermissionDecision(ContentSetting content_setting) {
+  void TrackPermissionDecision(PermissionStatus permission_status) {
     permission_set_ = true;
-    permission_granted_ = content_setting == CONTENT_SETTING_ALLOW;
+    permission_granted_ = permission_status == PermissionStatus::GRANTED;
   }
 
  protected:
@@ -82,8 +84,10 @@ TEST_F(MidiSysexPermissionContextTests, TestInsecureRequestingUrl) {
       web_contents()->GetPrimaryMainFrame()->GetGlobalId(),
       permissions::PermissionRequestID::RequestLocalId());
   permission_context.RequestPermission(
-      std::make_unique<PermissionRequestData>(&permission_context, id,
-                                              /*user_gesture=*/true, url),
+      std::make_unique<PermissionRequestData>(
+          std::make_unique<ContentSettingPermissionResolver>(
+              ContentSettingsType::MIDI_SYSEX),
+          id, /*user_gesture=*/true, url),
       base::BindOnce(&TestPermissionContext::TrackPermissionDecision,
                      base::Unretained(&permission_context)));
 

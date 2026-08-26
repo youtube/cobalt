@@ -155,7 +155,8 @@ pa_buildflag_header("buildflags") {
     "ENABLE_POINTER_ARITHMETIC_TRAIT_CHECK=$enable_pointer_arithmetic_trait_check",
     "ENABLE_POINTER_COMPRESSION=$enable_pointer_compression",
     "ENABLE_POINTER_SUBTRACTION_CHECK=$enable_pointer_subtraction_check",
-    "ENABLE_SHADOW_METADATA_FOR_64_BITS_POINTERS=$enable_shadow_metadata",
+    "MOVE_METADATA_OUT_OF_GIGACAGE_FOR_64_BITS_POINTERS=$move_metadata_outside_gigacage",
+    "ENABLE_MOVE_METADATA_OUT_OF_GIGACAGE_TRIAL=$enable_move_metadata_outside_gigacage_trial",
     "ENABLE_THREAD_ISOLATION=$enable_pkeys",
     "EXPENSIVE_DCHECKS_ARE_ON=$enable_expensive_dchecks",
     "FORCE_DISABLE_BACKUP_REF_PTR_FEATURE=$force_disable_backup_ref_ptr_feature",
@@ -401,6 +402,8 @@ if (is_clang_or_gcc) {
       "address_space_stats.h",
       "allocation_guard.cc",
       "allocation_guard.h",
+      "allocator_config.cc",
+      "allocator_config.h",
       "bucket_lookup.h",
       "compressed_pointer.cc",
       "compressed_pointer.h",
@@ -414,10 +417,6 @@ if (is_clang_or_gcc) {
       "internal_allocator.cc",
       "internal_allocator.h",
       "internal_allocator_forward.h",
-      "lightweight_quarantine.cc",
-      "lightweight_quarantine.h",
-      "lightweight_quarantine_support.cc",
-      "lightweight_quarantine_support.h",
       "memory_reclaimer.cc",
       "memory_reclaimer.h",
       "oom.cc",
@@ -457,7 +456,6 @@ if (is_clang_or_gcc) {
       "partition_page_constants.h",
       "partition_root.cc",
       "partition_root.h",
-      "partition_shared_mutex.h",
       "partition_stats.cc",
       "partition_stats.h",
       "partition_superpage_extent_entry.h",
@@ -467,6 +465,10 @@ if (is_clang_or_gcc) {
       "reservation_offset_table.cc",
       "reservation_offset_table.h",
       "reverse_bytes.h",
+      "scheduler_loop_quarantine.cc",
+      "scheduler_loop_quarantine.h",
+      "scheduler_loop_quarantine_support.cc",
+      "scheduler_loop_quarantine_support.h",
       "spinning_mutex.cc",
       "spinning_mutex.h",
       "stack/stack.cc",
@@ -546,7 +548,7 @@ if (is_clang_or_gcc) {
     if (use_partition_alloc_as_malloc_on_win_component_build) {
       # We need to add explicit libc++ dependency here because of
       # no_default_deps=true.
-      deps += [ "//buildtools/third_party/libc++:libc++" ]
+      deps += [ "//buildtools/third_party/libc++" ]
     }
 
     public_configs = []
@@ -588,8 +590,18 @@ if (is_clang_or_gcc) {
     if (enable_pkeys && partition_alloc_is_debug) {
       configs += [ ":no_stack_protector" ]
 
-      # -fno-stack-protector is incompatible with libc++ modules.
-      use_libcxx_modules = false
+      if (defined(is_debug) && is_debug) {
+        # Chromium debug build uses -fstack-protector for libc++ modules and the
+        # flag is not compatible with "no_stack_protector" config.
+        #
+        # Note that `is_debug`, `libcxx_modules` and `use_clang_modules`
+        # arguments are not part of partition_alloc. They are part of Chromium.
+        # They may be undefined or unused respectively.
+        use_libcxx_modules = false
+        if (!defined(use_clang_modules)) {
+          not_needed([ "use_libcxx_modules" ])
+        }
+      }
     }
   }
 
@@ -617,6 +629,7 @@ if (is_clang_or_gcc) {
       "partition_alloc_base/containers/flat_tree.h",
       "partition_alloc_base/cpu.cc",
       "partition_alloc_base/cpu.h",
+      "partition_alloc_base/cxx20_identity.h",
       "partition_alloc_base/cxx20_is_constant_evaluated.h",
       "partition_alloc_base/cxx_wrapper/algorithm.h",
       "partition_alloc_base/cxx_wrapper/optional.h",
@@ -679,6 +692,7 @@ if (is_clang_or_gcc) {
       "partition_alloc_base/types/strong_alias.h",
       "partition_alloc_base/win/win_handle_types.h",
       "partition_alloc_base/win/win_handle_types_list.inc",
+      "partition_alloc_base/win/windows_handle_util.h",
       "partition_alloc_base/win/windows_types.h",
     ]
     libs = []
@@ -799,7 +813,7 @@ if (is_clang_or_gcc) {
     if (use_partition_alloc_as_malloc_on_win_component_build) {
       # We need to add explicit libc++ dependency here because of
       # no_default_deps=true.
-      deps += [ "//buildtools/third_party/libc++:libc++" ]
+      deps += [ "//buildtools/third_party/libc++" ]
     }
     if (is_fuchsia) {
       public_deps += [ "//third_party/fuchsia-sdk/sdk/pkg/fit" ]
@@ -988,7 +1002,6 @@ if (build_with_chromium) {
         "address_space_randomization_unittest.cc",
         "compressed_pointer_unittest.cc",
         "hardening_unittest.cc",
-        "lightweight_quarantine_unittest.cc",
         "memory_reclaimer_unittest.cc",
         "page_allocator_unittest.cc",
         "partition_alloc_base/bits_pa_unittest.cc",
@@ -1011,6 +1024,7 @@ if (build_with_chromium) {
         "partition_alloc_unittest.cc",
         "partition_lock_unittest.cc",
         "reverse_bytes_unittest.cc",
+        "scheduler_loop_quarantine_unittest.cc",
         "slot_start_unittest.cc",
         "thread_cache_unittest.cc",
         "use_death_tests.h",
@@ -1061,8 +1075,18 @@ if (build_with_chromium) {
       # the test.
       configs += [ ":no_stack_protector" ]
 
-      # -fno-stack-protector is incompatible with libc++ modules.
-      use_libcxx_modules = false
+      if (defined(is_debug) && is_debug) {
+        # Chromium debug build uses -fstack-protector for libc++ modules and the
+        # flag is not compatible with "no_stack_protector" config.
+        #
+        # Note that `is_debug`, `libcxx_modules` and `use_clang_modules`
+        # arguments are not part of partition_alloc. They are part of Chromium.
+        # They may be undefined or unused respectively.
+        use_libcxx_modules = false
+        if (!defined(use_clang_modules)) {
+          not_needed([ "use_libcxx_modules" ])
+        }
+      }
     }
 
     frameworks = []
@@ -1082,6 +1106,10 @@ if (build_with_chromium) {
 
     configs -= partition_alloc_remove_configs
     configs += partition_alloc_add_configs
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }
 

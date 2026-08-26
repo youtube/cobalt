@@ -5,25 +5,21 @@
 /**
  * @fileoverview JavaScript shim for the liblouis Web Assembly wrapper.
  */
+import {BridgeHelper} from '/common/bridge_helper.js';
 import {TestImportManager} from '/common/testing/test_import_manager.js';
 
-import {OffscreenCommandType} from '../../common/offscreen_command_type.js';
+import {BridgeConstants} from '../../common/bridge_constants.js';
+import {OffscreenBridge} from '../../common/offscreen_bridge.js';
 
 type LoadCallback = (instance: LibLouis) => void;
 type MessageCallback = (message: Object) => void;
-type SerializedMessageEvent = {
-  command: OffscreenCommandType,
-  data: string,
-};
-type SerializedErrorEvent = {
-  command: OffscreenCommandType,
-  message: string,
-};
-
 
 interface Dictionary {
   [key: string]: any;
 }
+
+const TARGET = BridgeConstants.LibLouis.TARGET;
+const Action = BridgeConstants.LibLouis.Action;
 
 /** Encapsulates a liblouis Web Assembly instance in the page. */
 export class LibLouis {
@@ -44,28 +40,16 @@ export class LibLouis {
       wasmPath: string, _tablesDir?: string, loadCallback?: LoadCallback) {
     this.wasmPath_ = wasmPath;
 
-    chrome.runtime.onMessage
-        .addListener(
-            (message: any|undefined, _sender: chrome.runtime.MessageSender,
-             _sendResponse: (value: any) => void) =>
-                this.handleMessageFromOffscreen_(message))
+    BridgeHelper.registerHandler(
+        TARGET, Action.MESSAGE,
+        (data: string) => this.onInstanceMessage_(data));
+    BridgeHelper.registerHandler(
+        TARGET, Action.ERROR,
+        (message: string) => this.onInstanceError_(message));
 
-            this.loadOrReload_(loadCallback);
+    this.loadOrReload_(loadCallback);
   }
 
-  private handleMessageFromOffscreen_(message: any|undefined): boolean {
-    switch (message['command']) {
-      case OffscreenCommandType.LIBLOUIS_MESSAGE:
-        this.onInstanceMessage_(message);
-        break;
-      case OffscreenCommandType.LIBLOUIS_ERROR:
-        this.onInstanceError_(message);
-        break;
-    }
-    // Returns false as the response is not asynchronous and the callback does
-    // not need to be kept alive.
-    return false;
-  }
 
   isLoaded(): boolean {
     return this.isLoaded_;
@@ -106,7 +90,8 @@ export class LibLouis {
    * @param message JSONable message to be sent.
    * @param callback Callback to receive the reply.
    */
-  rpc(command: string, message: Dictionary, callback: MessageCallback): void {
+  async rpc(command: string, message: Dictionary, callback: MessageCallback):
+      Promise<void> {
     const messageId = '' + this.nextMessageId_++;
     message['message_id'] = messageId;
     message['command'] = command;
@@ -116,31 +101,27 @@ export class LibLouis {
     }
     this.pendingRpcCallbacks_[messageId] = callback;
 
-    chrome.runtime.sendMessage(
-        undefined,
-        {command: OffscreenCommandType.LIBLOUIS_RPC, messageJson: json},
-        undefined, (error: any) => {
-          if (error && error.message) {
-            throw Error(error.message);
-          }
-        });
+    const error = await OffscreenBridge.libLouisRPC(json);
+    if (error.message) {
+      throw Error(error.message);
+    }
   }
 
   /** Invoked when the Web Assembly instance successfully loads. */
   private onInstanceLoad_(): void {}
 
   /** Invoked when the Web Assembly instance fails to load. */
-  private onInstanceError_(serializedEvent: SerializedErrorEvent): void {
-    globalThis.console.error('Error in liblouis ' + serializedEvent.message);
+  private onInstanceError_(message: string): void {
+    globalThis.console.error('Error in liblouis ' + message);
     this.loadOrReload_();
   }
 
   /** Invoked when the Web Assembly instance posts a message. */
-  private onInstanceMessage_(serializedEvent: SerializedMessageEvent): void {
+  private onInstanceMessage_(data: string): void {
     if (LibLouis.DEBUG) {
-      globalThis.console.debug('RPC <- ' + serializedEvent.data);
+      globalThis.console.debug('RPC <- ' + data);
     }
-    const message = /** @type {!Object} */ (JSON.parse(serializedEvent.data));
+    const message = /** @type {!Object} */ (JSON.parse(data));
     const messageId = message['in_reply_to'];
     if (messageId === undefined) {
       globalThis.console.warn(
@@ -158,10 +139,7 @@ export class LibLouis {
   }
 
   private loadOrReload_(loadCallback?: LoadCallback): void {
-    chrome.runtime.sendMessage(undefined, {
-      command: OffscreenCommandType.LIBLOUIS_START_WORKER,
-      wasmPath: this.wasmPath_
-    });
+    OffscreenBridge.libLouisStartWorker(this.wasmPath_);
 
     this.rpc('load', {}, () => {
       this.isLoaded_ = true;

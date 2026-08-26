@@ -1,0 +1,50 @@
+# Copyright 2025 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/features.gni")
+
+assert(!is_android)
+
+source_set("delegate") {
+  sources = [
+    "actor_login_credential_filler.cc",
+    "actor_login_credential_filler.h",
+    "actor_login_delegate.h",
+    "actor_login_get_credentials_helper.cc",
+    "actor_login_get_credentials_helper.h",
+  ]
+
+  visibility = [
+    ":unit_tests",
+    "//chrome/browser/password_manager/actor_login:*",
+    "//chrome/browser/password_manager/actor_login/internal:*",
+    "//components/password_manager/core/browser/actor_login/test:*",
+  ]
+
+  deps = [
+    "//base",
+    "//components/password_manager/core/browser",
+    "//components/password_manager/core/browser:password_form",
+    "//components/password_manager/core/browser/actor_login:common",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "actor_login_credential_filler_unittest.cc",
+    "actor_login_get_credentials_helper_unittest.cc",
+  ]
+
+  deps = [
+    ":delegate",
+    "//components/os_crypt/sync:test_support",
+    "//components/password_manager/core/browser:test_support",
+    "//components/password_manager/core/browser/actor_login/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
+  ]
+}

@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_PERFORMANCE_MONITOR_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_PERFORMANCE_MONITOR_H_
 
+#include <array>
+
 #include "base/task/sequence_manager/task_time_observer.h"
 #include "base/time/time.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -13,7 +15,6 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/prefinalizer.h"
-#include "third_party/blink/renderer/platform/loader/fetch/resource.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "v8/include/v8.h"
@@ -76,7 +77,7 @@ class CORE_EXPORT PerformanceMonitor final
                                      Violation,
                                      const String& text,
                                      base::TimeDelta time,
-                                     std::unique_ptr<SourceLocation>);
+                                     SourceLocation*);
   static base::TimeDelta Threshold(ExecutionContext*, Violation);
 
   // Instrumenting methods.
@@ -130,7 +131,7 @@ class CORE_EXPORT PerformanceMonitor final
                                    Violation,
                                    const String& text,
                                    base::TimeDelta time,
-                                   std::unique_ptr<SourceLocation>);
+                                   SourceLocation*);
 
   // TaskTimeObserver implementation
   void WillProcessTask(base::TimeTicks start_time) override;

@@ -156,9 +156,6 @@ constexpr auto kContentSettingsTypeGroupNames = std::to_array<
     {ContentSettingsType::FILE_SYSTEM_ACCESS_CHOOSER_DATA,
      "file-system-access-handles-data"},
     {ContentSettingsType::FEDERATED_IDENTITY_API, "federated-identity-api"},
-    {ContentSettingsType::PRIVATE_NETWORK_GUARD, "private-network-devices"},
-    {ContentSettingsType::PRIVATE_NETWORK_CHOOSER_DATA,
-     "private-network-devices-data"},
     {ContentSettingsType::ANTI_ABUSE, "anti-abuse"},
     {ContentSettingsType::STORAGE_ACCESS, "storage-access"},
     {ContentSettingsType::AUTO_PICTURE_IN_PICTURE, "auto-picture-in-picture"},
@@ -259,6 +256,9 @@ constexpr auto kContentSettingsTypeGroupNames = std::to_array<
      nullptr},
     {ContentSettingsType::INITIALIZED_TRANSLATIONS, nullptr},
     {ContentSettingsType::SUSPICIOUS_NOTIFICATION_IDS, nullptr},
+    // TODO(crbug.com/430494524): Implement the WebUI
+    {ContentSettingsType::GEOLOCATION_WITH_OPTIONS, nullptr},
+    {ContentSettingsType::DEVICE_ATTRIBUTES, nullptr},
 });
 
 static_assert(
@@ -442,8 +442,8 @@ SiteSettingSource GetSourceForChooserException(Profile* profile,
   content_settings::SettingInfo info;
   info.source = source;
 
-  // Chooser exceptions do not use a PermissionContextBase for their
-  // permissions.
+  // Chooser exceptions do not use a ContentSettingPermissionContextBase for
+  // their permissions.
   content::PermissionResult permission_result(
       PermissionStatus::ASK, content::PermissionStatusSource::UNSPECIFIED);
 
@@ -635,11 +635,6 @@ std::vector<ContentSettingsType> GetVisiblePermissionCategories(
     }
 
     if (base::FeatureList::IsEnabled(
-            network::features::kPrivateNetworkAccessPermissionPrompt)) {
-      base_types->push_back(ContentSettingsType::PRIVATE_NETWORK_GUARD);
-    }
-
-    if (base::FeatureList::IsEnabled(
             blink::features::kMediaSessionEnterPictureInPicture)) {
       base_types->push_back(ContentSettingsType::AUTO_PICTURE_IN_PICTURE);
     }
@@ -772,7 +767,7 @@ std::string ProviderToDefaultSettingSourceString(const ProviderType provider) {
     case ProviderType::kNotificationAndroidProvider:
     case ProviderType::kProviderForTests:
     case ProviderType::kOtherProviderForTests:
-      NOTREACHED();
+      NOTREACHED() << provider;
   }
 }
 

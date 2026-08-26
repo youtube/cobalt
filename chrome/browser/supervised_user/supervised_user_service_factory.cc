@@ -11,8 +11,10 @@
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
+#include "chrome/browser/supervised_user/supervised_user_content_filters_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
 #include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/sync/service/sync_service.h"
@@ -68,17 +70,38 @@ SupervisedUserServiceFactory* SupervisedUserServiceFactory::GetInstance() {
 // static
 std::unique_ptr<KeyedService> SupervisedUserServiceFactory::BuildInstanceFor(
     Profile* profile) {
-  return std::make_unique<supervised_user::SupervisedUserService>(
-      IdentityManagerFactory::GetForProfile(profile),
+  std::unique_ptr<SupervisedUserServicePlatformDelegate> platform_delegate =
+      std::make_unique<SupervisedUserServicePlatformDelegate>(*profile);
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory =
       profile->GetDefaultStoragePartition()
-          ->GetURLLoaderFactoryForBrowserProcess(),
-      *profile->GetPrefs(),
+          ->GetURLLoaderFactoryForBrowserProcess();
+  return std::make_unique<supervised_user::SupervisedUserService>(
+      identity_manager, url_loader_factory, *profile->GetPrefs(),
       *SupervisedUserSettingsServiceFactory::GetInstance()->GetForKey(
           profile->GetProfileKey()),
+#if BUILDFLAG(IS_ANDROID)
+      SupervisedUserContentFiltersServiceFactory::GetInstance()->GetForKey(
+          profile->GetProfileKey()),
+#else
+      nullptr,
+#endif  // BUILDFLAG(IS_ANDROID)
       SyncServiceFactory::GetInstance()->GetForProfile(profile),
       std::make_unique<supervised_user::SupervisedUserURLFilter>(
-          *profile->GetPrefs(), std::make_unique<FilterDelegateImpl>()),
-      std::make_unique<SupervisedUserServicePlatformDelegate>(*profile));
+          *profile->GetPrefs(), std::make_unique<FilterDelegateImpl>(),
+          std::make_unique<
+              supervised_user::KidsChromeManagementURLCheckerClient>(
+              identity_manager, url_loader_factory, *profile->GetPrefs(),
+              platform_delegate->GetCountryCode(),
+              platform_delegate->GetChannel())),
+      std::move(platform_delegate)
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      base::BindRepeating(
+          &supervised_user::ContentFiltersObserverBridge::Create)
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 }
 
 SupervisedUserServiceFactory::SupervisedUserServiceFactory()
@@ -92,6 +115,7 @@ SupervisedUserServiceFactory::SupervisedUserServiceFactory()
   DependsOn(IdentityManagerFactory::GetInstance());
   DependsOn(SyncServiceFactory::GetInstance());
   DependsOn(SupervisedUserSettingsServiceFactory::GetInstance());
+  DependsOn(SupervisedUserContentFiltersServiceFactory::GetInstance());
 }
 
 SupervisedUserServiceFactory::~SupervisedUserServiceFactory() = default;

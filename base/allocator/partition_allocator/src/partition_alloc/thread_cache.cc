@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/thread_cache.h"
 
 #include <sys/types.h>
@@ -382,9 +387,6 @@ void ThreadCache::RemoveTombstoneForTesting() {
 
 // static
 void ThreadCache::Init(PartitionRoot* root) {
-#if PA_BUILDFLAG(IS_NACL)
-  static_assert(false, "PartitionAlloc isn't supported for NaCl");
-#endif
   PA_CHECK(root->buckets[kBucketCount - 1].slot_size ==
            ThreadCache::kLargeSizeThreshold);
   PA_CHECK(root->buckets[largest_active_bucket_index_].slot_size ==
@@ -406,6 +408,15 @@ void ThreadCache::Init(PartitionRoot* root) {
 #endif
 
   SetGlobalLimits(root, kDefaultMultiplier);
+}
+
+// static
+ThreadCache* ThreadCache::EnsureAndGet() {
+  PartitionRoot* root = g_thread_cache_root.load(std::memory_order_relaxed);
+  if (root) {
+    return root->EnsureThreadCache();
+  }
+  return nullptr;
 }
 
 // static
@@ -497,7 +508,7 @@ ThreadCache::ThreadCache(PartitionRoot* root)
       thread_id_(internal::base::PlatformThread::CurrentId()),
       next_(nullptr),
       prev_(nullptr),
-      scheduler_loop_quarantine_branch_(root) {
+      scheduler_loop_quarantine_branch_(root, this) {
   ThreadCacheRegistry::Instance().RegisterThreadCache(this);
 
   memset(&stats_, 0, sizeof(stats_));
@@ -519,17 +530,17 @@ ThreadCache::ThreadCache(PartitionRoot* root)
   }
 
   // When enabled, initialize scheduler loop quarantine branch.
-  // This branch is only used within this thread, so not `lock_required`.
   const auto& scheduler_loop_quarantine_config =
       root_->settings.scheduler_loop_quarantine_thread_local_config;
-  PA_CHECK(!scheduler_loop_quarantine_config.enable_quarantine ||
-           !scheduler_loop_quarantine_config.quarantine_config.lock_required);
   scheduler_loop_quarantine_branch_.Configure(
       root_->scheduler_loop_quarantine_root, scheduler_loop_quarantine_config);
 }
 
 ThreadCache::~ThreadCache() {
   ThreadCacheRegistry::Instance().UnregisterThreadCache(this);
+  // Ordering is important here, as `scheduler_loop_quarantine_branch_` may
+  // return quarantined allocations to this thread cache through `Purge()`.
+  scheduler_loop_quarantine_branch_.Destroy();
   Purge();
 }
 
@@ -824,6 +835,10 @@ void ThreadCache::PurgeInternal() {
   for (auto& bucket : buckets_) {
     ClearBucket(bucket, 0);
   }
+}
+
+PartitionRoot* ThreadCache::GetRoot() {
+  return root_;
 }
 
 bool ThreadCache::IsInFreelist(uintptr_t address,

@@ -16,6 +16,7 @@ class TimeDelta;
 }
 
 enum class NotificationType;
+class PrefService;
 
 // Identifier for the tips notification.
 extern NSString* const kTipsNotificationId;
@@ -62,7 +63,8 @@ enum class TipsNotificationType {
   kLensOverlay = 9,
   kCPE = 10,
   kIncognitoLock = 11,
-  kMaxValue = kIncognitoLock,
+  kTrustedVaultKeyRetrieval = 12,
+  kMaxValue = kTrustedVaultKeyRetrieval,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml)
 
@@ -75,6 +77,21 @@ enum class TipsNotificationUserType {
   kMaxValue = kActiveSeeker,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml)
+
+// Enum for the IOS.PasswordManager.TrustedVaultNotification.Events
+// histogram.
+// LINT.IfChange(TrustedVaultNotificationEvents)
+enum class TrustedVaultNotificationEvents {
+  kKeyRetrievalFlowStarted = 0,  // Trusted Vault key retrieval flow started.
+  kTrustedVaultKeyAlreadyAvailable =
+      1,  // Key retrieval flow did not start. Trusted Vault key is already
+          // avialble.
+  kSyncServiceDoesNotExistForProfile =
+      2,  // Key retrieval flow did not start. Sync service does not exist for
+          // profile.
+  kMaxValue = kSyncServiceDoesNotExistForProfile,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:TrustedVaultNotificationEvents)
 
 // Returns true if the given `notification` is a Tips notification.
 bool IsTipsNotification(UNNotificationRequest* request);
@@ -101,7 +118,8 @@ UNNotificationContent* ContentForTipsNotificationType(
 // Returns the time delta used to trigger Tips notifications.
 base::TimeDelta TipsNotificationTriggerDelta(
     bool for_reactivation,
-    TipsNotificationUserType user_type);
+    TipsNotificationUserType user_type,
+    std::optional<TipsNotificationType> notification_type = std::nullopt);
 
 // Returns a bitfield indicating which types of notifications should be
 // enabled. Bits are assigned based on the enum `TipsNotificationType`.
@@ -124,5 +142,12 @@ std::optional<TipsNotificationType> ForcedTipsNotificationType();
 // Returns the trigger time (in seconds) that was set in Experimental Settings.
 // Returns 0 if it was not set.
 int TipsNotificationTriggerExperimentalSetting();
+
+// Returns the type indicating how the user was classified.
+TipsNotificationUserType GetTipsNotificationUserType(PrefService* local_state);
+
+// Sets the user's classification in local state prefs.
+void SetTipsNotificationUserType(PrefService* local_state,
+                                 TipsNotificationUserType user_type);
 
 #endif  // IOS_CHROME_BROWSER_TIPS_NOTIFICATIONS_MODEL_UTILS_H_

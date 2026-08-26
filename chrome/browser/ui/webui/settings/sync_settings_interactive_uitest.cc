@@ -6,6 +6,7 @@
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/signin/signin_browser_test_base.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/webui/signin/signout_confirmation/signout_confirmation_ui.h"
@@ -16,6 +17,7 @@
 #include "chrome/test/interaction/webcontents_interaction_test_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/sync/base/features.h"
 #include "components/sync/test/test_sync_service.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/browser_test.h"
@@ -29,7 +31,12 @@ class SyncSettingsInteractiveTest
     : public SigninBrowserTestBaseT<
           WebUiInteractiveTestMixin<InteractiveBrowserTest>> {
  public:
-  SyncSettingsInteractiveTest() = default;
+  SyncSettingsInteractiveTest() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{switches::kEnableHistorySyncOptin,
+                              syncer::kReplaceSyncPromosWithSignInPromos},
+        /*disabled_features=*/{});
+  }
 
   // Checks if a page title matches the given regexp in ecma script dialect.
   StateChange PageWithMatchingTitle(std::string_view title_regexp) {
@@ -61,8 +68,7 @@ class SyncSettingsInteractiveTest
   }
 
  private:
-  base::test::ScopedFeatureList feature_list_{
-      switches::kEnableHistorySyncOptin};
+  base::test::ScopedFeatureList feature_list_;
 };
 
 // TODO(crbug.com/407795729): Fix and re-enable.
@@ -72,14 +78,14 @@ IN_PROC_BROWSER_TEST_F(SyncSettingsInteractiveTest,
 
   const DeepQuery turn_off_button_query = {"settings-ui",
                                            "settings-main",
-                                           "settings-basic-page",
+                                           "settings-people-page-index",
                                            "settings-people-page",
                                            "settings-sync-account-control",
                                            "cr-button#signout-button"};
 
   const DeepQuery drop_down_query = {"settings-ui",
                                      "settings-main",
-                                     "settings-basic-page",
+                                     "settings-people-page-index",
                                      "settings-people-page",
                                      "settings-sync-account-control",
                                      "cr-icon-button#dropdown-arrow"};
@@ -103,7 +109,8 @@ IN_PROC_BROWSER_TEST_F(SyncSettingsInteractiveTest,
 
   if (observer.get()) {
     observer->Wait();
-    auto* signin_view_controller = browser()->signin_view_controller();
+    auto* signin_view_controller =
+        browser()->GetFeatures().signin_view_controller();
     CHECK(signin_view_controller->ShowsModalDialog());
 
     auto* signout_ui = SignoutConfirmationUI::GetForTesting(
@@ -132,19 +139,19 @@ IN_PROC_BROWSER_TEST_F(SyncSettingsInteractiveTest,
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kHistorySyncOptinDialogContentsId);
   const DeepQuery kTurnHistorySyncOn = {"settings-ui",
                                         "settings-main",
-                                        "settings-basic-page",
-                                        "settings-people-page",
+                                        "settings-people-page-index",
+                                        "settings-account-page",
                                         "settings-sync-account-control",
                                         "cr-button#sync-button"};
   const DeepQuery kHistoryOptinAcceptButton = {"history-sync-optin-app",
                                                "#acceptButton"};
   const DeepQuery kHistoryOptinRejectButton = {"history-sync-optin-app",
                                                "#rejectButton"};
-  const GURL kSyncSettingsUrl = GURL("chrome://settings/syncSetup");
+  const GURL kAccountSettingsUrl = GURL("chrome://settings/account");
 
   RunTestSequence(
       InstrumentTab(kTabId, 0, browser()),
-      NavigateWebContents(kTabId, kSyncSettingsUrl),
+      NavigateWebContents(kTabId, kAccountSettingsUrl),
       WaitForStateChange(kTabId, PageWithMatchingTitle("Settings")),
       WaitForStateChange(kTabId, UiElementHasAppeared(kTurnHistorySyncOn)),
       ClickButton(kTabId, kTurnHistorySyncOn),

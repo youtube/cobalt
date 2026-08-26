@@ -26,8 +26,6 @@
 using std::make_unique;
 
 namespace {
-constexpr int kTabstripComboButtonCornerRadius = 10;
-
 class ControlButtonHighlightPathGenerator
     : public views::HighlightPathGenerator {
  public:
@@ -123,11 +121,7 @@ TabStripControlButton::TabStripControlButton(
 
   if (text.size() > 0) {
     SetEnabledTextColors(foreground_frame_active_color_id_);
-    // Required for text to be visible on hover
-    label()->SetPaintToLayer();
-    label()->SetSkipSubpixelRenderingOpacityCheck(true);
-    label()->layer()->SetFillsBoundsOpaquely(false);
-    label()->SetSubpixelRenderingEnabled(false);
+    SetText(text);
   }
 }
 
@@ -155,6 +149,16 @@ void TabStripControlButton::SetBackgroundFrameInactiveColorId(
 void TabStripControlButton::SetVectorIcon(const gfx::VectorIcon& icon) {
   icon_ = icon;
   UpdateIcon();
+}
+
+void TabStripControlButton::SetText(std::u16string_view text) {
+  label()->SetText(text);
+  // Required for text to be visible on hover.
+  // TODO(crbug.com/431015299): Fix text on hover and remove.
+  label()->SetPaintToLayer();
+  label()->SetSkipSubpixelRenderingOpacityCheck(true);
+  label()->layer()->SetFillsBoundsOpaquely(false);
+  label()->SetSubpixelRenderingEnabled(false);
 }
 
 ui::ColorId TabStripControlButton::GetBackgroundColor() {
@@ -234,9 +238,7 @@ void TabStripControlButton::UpdateBackground() {
 }
 
 int TabStripControlButton::GetCornerRadius() const {
-  return features::IsTabSearchMoving() && !features::HasTabSearchToolbarButton()
-             ? kTabstripComboButtonCornerRadius
-             : TabStripControlButton::kButtonSize.width() / 2;
+  return TabStripControlButton::kButtonSize.width() / 2;
 }
 
 int TabStripControlButton::GetFlatCornerRadius() const {

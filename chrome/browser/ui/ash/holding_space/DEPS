@@ -12,7 +12,6 @@ include_rules = [
   # Whenever possible, avoid adding new //chrome dependencies to this list.
   "+chrome/browser/ash/arc/arc_util.h",
   "+chrome/browser/ash/arc/fileapi",
-  "+chrome/browser/ash/crosapi",
   "+chrome/browser/ash/drive",
   "+chrome/browser/ash/fileapi",
   "+chrome/browser/ash/file_manager",
@@ -34,3 +33,12 @@ include_rules = [
   "+chrome/common",
   "+chrome/test",
 ]
+
+specific_include_rules = {
+  ".*unittest\\.cc": [
+    "+chrome/browser/global_features.h",
+  ],
+  ".*browsertest\\.cc": [
+    "+chrome/browser/browser_process.h",
+  ],
+}

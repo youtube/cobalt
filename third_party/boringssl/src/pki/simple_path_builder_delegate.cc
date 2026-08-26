@@ -118,14 +118,7 @@ bool SimplePathBuilderDelegate::IsPublicKeyAcceptable(EVP_PKEY *public_key,
   }
 
   if (pkey_id == EVP_PKEY_EC) {
-    // Extract the curve name.
-    EC_KEY *ec = EVP_PKEY_get0_EC_KEY(public_key);
-    if (!ec) {
-      return false;  // Unexpected.
-    }
-    int curve_nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(ec));
-
-    if (!IsAcceptableCurveForEcdsa(curve_nid)) {
+    if (!IsAcceptableCurveForEcdsa(EVP_PKEY_get_ec_curve_nid(public_key))) {
       errors->AddWarning(kUnacceptableCurveForEcdsa);
       return false;
     }

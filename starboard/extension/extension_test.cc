@@ -27,14 +27,13 @@
 #include "starboard/extension/installation_manager.h"
 #include "starboard/extension/javascript_cache.h"
 #include "starboard/extension/loader_app_metrics.h"
+#include "starboard/extension/low_memory_kill.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/native_stability.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
-#include "starboard/extension/player_configuration.h"
-#include "starboard/extension/player_set_max_video_input_size.h"
-#include "starboard/extension/player_set_video_surface_view.h"
+#include "starboard/extension/player_settings.h"
 #include "starboard/extension/system_info.h"
 #include "starboard/extension/updater_notification.h"
 #include "starboard/extension/url_fetcher_observer.h"
@@ -420,10 +419,9 @@ TEST(ExtensionTest, Ifa) {
       << "Extension struct should be a singleton";
 }
 
-TEST(ExtensionTest, PlayerSetMaxVideoInputSize) {
-  typedef StarboardExtensionPlayerSetMaxVideoInputSizeApi ExtensionApi;
-  const char* kExtensionName =
-      kStarboardExtensionPlayerSetMaxVideoInputSizeName;
+TEST(ExtensionTest, PlayerSettings) {
+  typedef StarboardExtensionPlayerSettingsApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionPlayerSettingsName;
 
   const ExtensionApi* extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
@@ -434,25 +432,6 @@ TEST(ExtensionTest, PlayerSetMaxVideoInputSize) {
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->SetMaxVideoInputSizeForCurrentThread, nullptr);
-
-  const ExtensionApi* second_extension_api =
-      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
-  EXPECT_EQ(second_extension_api, extension_api)
-      << "Extension struct should be a singleton";
-}
-
-TEST(ExtensionTest, PlayerSetVideoSurfaceView) {
-  typedef StarboardExtensionPlayerSetVideoSurfaceViewApi ExtensionApi;
-  const char* kExtensionName = kStarboardExtensionPlayerSetVideoSurfaceViewName;
-
-  const ExtensionApi* extension_api =
-      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
-  if (!extension_api) {
-    return;
-  }
-
-  EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->SetVideoSurfaceViewForCurrentThread, nullptr);
 
   const ExtensionApi* second_extension_api =
@@ -520,29 +499,6 @@ TEST(ExtensionTest, LoaderAppMetrics) {
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
   EXPECT_EQ(second_extension_api, extension_api)
       << "Extension struct should be a singleton";
-}
-
-TEST(ExtensionTest, PlayerConfiguration) {
-  typedef StarboardExtensionPlayerConfigurationApi ExtensionApi;
-  const char* kExtensionName = kStarboardExtensionPlayerConfigurationName;
-
-  const ExtensionApi* extension_api =
-      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
-  if (!extension_api) {
-    return;
-  }
-
-  EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_EQ(extension_api->version, 1u);
-
-  if (extension_api->SetDecodeToTexturePreferred) {
-    extension_api->SetDecodeToTexturePreferred(true);
-    extension_api->SetDecodeToTexturePreferred(false);
-  }
-  if (extension_api->SetTunnelModePreferred) {
-    extension_api->SetTunnelModePreferred(true);
-    extension_api->SetTunnelModePreferred(false);
-  }
 }
 
 TEST(ExtensionTest, CobaltAccessibilityExtension) {
@@ -644,6 +600,26 @@ TEST(ExtensionTest, NativeStabilityExtension) {
   EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->ReadReports, nullptr);
   EXPECT_NE(extension_api->RegisterReadReportsCallback, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, LowMemoryKillExtension) {
+  typedef StarboardExtensionLowMemoryKillApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionLowMemoryKillName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->WasLowMemoryKilled, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

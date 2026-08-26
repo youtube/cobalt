@@ -10,11 +10,13 @@
 
 #include "modules/audio_processing/test/performance_timer.h"
 
-#include <math.h>
-
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <numeric>
 
 #include "rtc_base/checks.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 namespace test {

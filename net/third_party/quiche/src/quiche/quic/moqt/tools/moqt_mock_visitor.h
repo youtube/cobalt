@@ -10,7 +10,6 @@
 #include <optional>
 #include <utility>
 #include <variant>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -31,10 +30,10 @@ struct MockSessionCallbacks {
   testing::MockFunction<void(absl::string_view)> session_terminated_callback;
   testing::MockFunction<void()> session_deleted_callback;
   testing::MockFunction<std::optional<MoqtAnnounceErrorReason>(
-      const FullTrackName&, std::optional<VersionSpecificParameters>)>
+      const TrackNamespace&, std::optional<VersionSpecificParameters>)>
       incoming_announce_callback;
   testing::MockFunction<std::optional<MoqtSubscribeErrorReason>(
-      FullTrackName, std::optional<VersionSpecificParameters>)>
+      TrackNamespace, std::optional<VersionSpecificParameters>)>
       incoming_subscribe_announces_callback;
 
   MockSessionCallbacks() {
@@ -65,9 +64,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   const FullTrackName& GetTrackName() const override { return track_name_; }
 
   MOCK_METHOD(std::optional<PublishedObject>, GetCachedObject,
-              (Location sequence), (const, override));
-  MOCK_METHOD(std::vector<Location>, GetCachedObjectsInRange,
-              (Location start, Location end), (const, override));
+              (uint64_t, uint64_t, uint64_t), (const, override));
   MOCK_METHOD(void, AddObjectListener, (MoqtObjectListener * listener),
               (override));
   MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),
@@ -97,17 +94,20 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeRemoteTrack::Visitor {
   MOCK_METHOD(void, OnCanAckObjects, (MoqtObjectAckFunction ack_function),
               (override));
   MOCK_METHOD(void, OnObjectFragment,
-              (const FullTrackName& full_track_name, Location sequence,
-               MoqtPriority publisher_priority, MoqtObjectStatus status,
+              (const FullTrackName& full_track_name,
+               const PublishedObjectMetadata& metadata,
                absl::string_view object, bool end_of_message),
               (override));
   MOCK_METHOD(void, OnSubscribeDone, (FullTrackName full_track_name),
+              (override));
+  MOCK_METHOD(void, OnMalformedTrack, (const FullTrackName& full_track_name),
               (override));
 };
 
 class MockPublishingMonitorInterface : public MoqtPublishingMonitorInterface {
  public:
-  MOCK_METHOD(void, OnObjectAckSupportKnown, (bool supported), (override));
+  MOCK_METHOD(void, OnObjectAckSupportKnown,
+              (std::optional<quic::QuicTimeDelta> time_window), (override));
   MOCK_METHOD(void, OnObjectAckReceived,
               (uint64_t group_id, uint64_t object_id,
                quic::QuicTimeDelta delta_from_deadline),

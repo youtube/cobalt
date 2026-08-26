@@ -44,7 +44,6 @@
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
@@ -155,6 +154,8 @@ TEST_F(PrefProviderTest, DiscardObsoletePreferences) {
   const char kObsoleteInstalledWebAppMetadataExceptionsPref[] =
       "profile.content_settings.exceptions.installed_web_app_metadata";
 #endif
+  static char kObsoletePrivateNetworkChooserDataPref[] =
+      "profile.content_settings.exceptions.private_network_chooser_data";
   static const char kGeolocationPrefPath[] =
       "profile.content_settings.exceptions.geolocation";
   static const char kGetDisplayMediaSetSelectAllScreensAllowedForUrlsPref[] =
@@ -180,6 +181,7 @@ TEST_F(PrefProviderTest, DiscardObsoletePreferences) {
   prefs->SetDict(kObsoleteInstalledWebAppMetadataExceptionsPref,
                  pref_data.Clone());
 #endif
+  prefs->SetDict(kObsoletePrivateNetworkChooserDataPref, pref_data.Clone());
   prefs->SetDict(kGeolocationPrefPath, std::move(pref_data));
   prefs->SetList(kGetDisplayMediaSetSelectAllScreensAllowedForUrlsPref,
                  std::move(pref_list));
@@ -195,6 +197,7 @@ TEST_F(PrefProviderTest, DiscardObsoletePreferences) {
   EXPECT_FALSE(
       prefs->HasPrefPath(kObsoleteInstalledWebAppMetadataExceptionsPref));
 #endif
+  EXPECT_FALSE(prefs->HasPrefPath(kObsoletePrivateNetworkChooserDataPref));
   EXPECT_FALSE(prefs->HasPrefPath(
       kGetDisplayMediaSetSelectAllScreensAllowedForUrlsPref));
   EXPECT_TRUE(prefs->HasPrefPath(kGeolocationPrefPath));

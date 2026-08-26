@@ -1,0 +1,225 @@
+# Copyright 2025 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//mojo/public/tools/bindings/mojom.gni")
+
+assert(!is_android)
+
+mojom("mojo_bindings") {
+  disable_variants = true
+  public_deps = [ "//mojo/public/mojom/base" ]
+
+  deps = [ "//ui/gfx/geometry/mojom" ]
+
+  sources = [ "actor_overlay.mojom" ]
+  webui_module_path = "/"
+}
+
+source_set("ui") {
+  sources = [
+    "actor_overlay_ui.cc",
+    "actor_overlay_ui.h",
+    "actor_overlay_view_controller.cc",
+    "actor_overlay_view_controller.h",
+    "actor_overlay_window_controller.cc",
+    "actor_overlay_window_controller.h",
+    "actor_ui_state_manager.cc",
+    "actor_ui_state_manager.h",
+    "actor_ui_state_manager_interface.h",
+    "actor_ui_state_manager_prefs.cc",
+    "actor_ui_state_manager_prefs.h",
+    "actor_ui_tab_controller.cc",
+    "actor_ui_tab_controller.h",
+    "actor_ui_tab_controller_interface.h",
+    "handoff_button_controller.cc",
+    "handoff_button_controller.h",
+  ]
+  deps = [
+    ":ui_event_types",
+    "//base",
+    "//chrome/app/vector_icons",
+    "//chrome/browser/actor",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/resources/actor_overlay:resources",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/browser/ui/tabs:tabs_public",
+    "//chrome/browser/ui/toasts",
+    "//chrome/browser/ui/toasts/api:toasts",
+    "//chrome/browser/ui/webui:webui_util",
+    "//chrome/common",
+    "//content/public/browser",
+    "//third_party/abseil-cpp:absl",
+    "//ui/views",
+    "//ui/views/controls/webview",
+    "//ui/webui",
+  ]
+
+  public_deps = [ ":mojo_bindings" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+source_set("states") {
+  public = [
+    "states/actor_overlay_state.h",
+    "states/handoff_button_state.h",
+  ]
+
+  sources = [ "states/actor_overlay_state.cc" ]
+
+  public_deps = [ "//chrome/browser/actor:types" ]
+}
+
+source_set("event_dispatcher") {
+  sources = [
+    "event_dispatcher.cc",
+    "event_dispatcher.h",
+  ]
+  public_deps = [
+    ":ui",
+    "//base",
+    "//chrome/browser/actor:types",
+  ]
+  deps = [
+    ":tool_request_variant",
+    ":ui_event_types",
+    ":ui_event_utils",
+    "//chrome/browser/actor",
+    "//chrome/browser/actor/ui",
+    "//third_party/abseil-cpp:absl",
+  ]
+}
+
+source_set("test_support") {
+  sources = [
+    "mock_actor_overlay_view_controller.cc",
+    "mock_actor_overlay_view_controller.h",
+    "mock_actor_ui_state_manager.cc",
+    "mock_actor_ui_state_manager.h",
+    "mock_actor_ui_tab_controller.cc",
+    "mock_actor_ui_tab_controller.h",
+    "mock_event_dispatcher.cc",
+    "mock_event_dispatcher.h",
+    "mock_handoff_button_controller.cc",
+    "mock_handoff_button_controller.h",
+  ]
+  testonly = true
+  public_deps = [
+    "//base",
+    "//testing/gmock",
+  ]
+  deps = [
+    ":event_dispatcher",
+    ":ui",
+    "//chrome/browser/actor",
+  ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+source_set("tool_request_variant") {
+  sources = [
+    "tool_request_variant.cc",
+    "tool_request_variant.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/actor",
+  ]
+}
+
+source_set("ui_event_types") {
+  sources = [
+    "ui_event.cc",
+    "ui_event.h",
+  ]
+  public_deps = [
+    "//base",
+
+    # ActorTask::State isn't in actor:types
+    "//chrome/browser/actor",
+    "//chrome/browser/actor:types",
+  ]
+  deps = [ "//components/tabs:public" ]
+}
+
+source_set("ui_event_utils") {
+  sources = [
+    "ui_event_debugstring.cc",
+    "ui_event_debugstring.h",
+  ]
+  deps = [
+    ":ui_event_types",
+    "//base",
+    "//third_party/abseil-cpp:absl",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "actor_overlay_view_controller_unittest.cc",
+    "actor_ui_state_manager_unittest.cc",
+    "actor_ui_tab_controller_unittest.cc",
+    "event_dispatcher_unittest.cc",
+    "handoff_button_controller_unittest.cc",
+    "ui_event_debugstring_unittest.cc",
+  ]
+  deps = [
+    ":event_dispatcher",
+    ":test_support",
+    ":ui",
+    ":ui_event_types",
+    ":ui_event_utils",
+    "//chrome/browser/actor",
+    "//chrome/browser/actor:impl",
+    "//chrome/browser/actor:test_support",
+    "//chrome/browser/ui/tabs:tabs_public",
+    "//chrome/browser/ui/tabs:test_support",
+    "//chrome/common",
+    "//chrome/test:test_support",
+    "//components/tabs:public",
+    "//components/tabs:test_support",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+  sources = [
+    "actor_overlay_browsertest.cc",
+    "actor_ui_tab_controller_browsertest.cc",
+  ]
+
+  deps = [
+    ":ui",
+    ":ui_event_types",
+    "//base/test:test_support",
+    "//chrome/browser/actor",
+    "//chrome/browser/actor:test_support",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/common",
+    "//chrome/test:test_support_ui",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

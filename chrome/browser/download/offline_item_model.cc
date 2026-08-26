@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/notimplemented.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -15,11 +16,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "components/offline_items_collection/core/fail_state.h"
+#include "components/offline_items_collection/core/launch_location.h"
 #include "components/offline_items_collection/core/offline_content_aggregator.h"
-
-#if BUILDFLAG(IS_CHROMEOS)
-#include "ash/constants/ash_features.h"
-#endif
 
 using offline_items_collection::ContentId;
 using offline_items_collection::FailState;
@@ -138,14 +136,16 @@ void OfflineItemModel::OpenDownload() {
   if (!offline_item_)
     return;
 
+  offline_items_collection::LaunchLocation launch_location =
 #if BUILDFLAG(IS_CHROMEOS)
-  offline_items_collection::OpenParams open_params(
-      ash::features::IsOfflineItemsInNotificationsEnabled()
-          ? offline_items_collection::LaunchLocation::NOTIFICATION
-          : offline_items_collection::LaunchLocation::DOWNLOAD_SHELF);
+      offline_items_collection::LaunchLocation::NOTIFICATION;
+#else
+      offline_items_collection::LaunchLocation::DOWNLOAD_BUBBLE;
+#endif
+
+  offline_items_collection::OpenParams open_params(launch_location);
   // TODO(crbug.com/40121163): Determine if we ever need to open in incognito.
   GetProvider()->OpenItem(open_params, offline_item_->id);
-#endif
 }
 
 void OfflineItemModel::Pause() {
@@ -263,11 +263,6 @@ bool OfflineItemModel::GetFileExternallyRemoved() const {
 
 GURL OfflineItemModel::GetURL() const {
   return offline_item_ ? offline_item_->url : GURL();
-}
-
-bool OfflineItemModel::ShouldRemoveFromShelfWhenComplete() const {
-  // TODO(shaktisahu): Add more appropriate logic.
-  return false;
 }
 
 OfflineContentProvider* OfflineItemModel::GetProvider() const {

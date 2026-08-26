@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/393091624): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef JNI_ZERO_JNI_ZERO_INTERNAL_H
 #define JNI_ZERO_JNI_ZERO_INTERNAL_H
 
 #include <jni.h>
+#include <cstdint>
 
 #include "third_party/jni_zero/default_conversions.h"
 #include "third_party/jni_zero/jni_export.h"

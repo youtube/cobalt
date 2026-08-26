@@ -26,12 +26,11 @@
 #import "components/enterprise/browser/reporting/common_pref_names.h"
 #import "components/enterprise/connectors/core/connectors_prefs.h"
 #import "components/enterprise/idle/idle_pref_names.h"
+#import "components/feature_engagement/public/pref_names.h"
 #import "components/feed/core/v2/public/ios/pref_names.h"
 #import "components/handoff/handoff_manager.h"
 #import "components/history/core/common/pref_names.h"
 #import "components/image_fetcher/core/cache/image_cache.h"
-#import "components/invalidation/impl/fcm_invalidation_service.h"
-#import "components/invalidation/impl/invalidator_registrar_with_memory.h"
 #import "components/invalidation/impl/per_user_topic_subscription_manager.h"
 #import "components/language/core/browser/language_prefs.h"
 #import "components/language/core/browser/pref_names.h"
@@ -116,6 +115,7 @@
 #import "ios/chrome/browser/prerender/model/prerender_pref.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_prefs.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_service.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_prefs.h"
 #import "ios/chrome/browser/safety_check/model/ios_chrome_safety_check_manager_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/features.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -136,19 +136,6 @@
 #endif  // !BUILDFLAG(IS_IOS_MACCATALYST)
 
 namespace {
-
-// Deprecated 06/2024.
-constexpr char kObsoletePasswordsPerAccountPrefMigrationDone[] =
-    "sync.passwords_per_account_pref_migration_done";
-constexpr char kObsoleteBookmarksAndReadingListAccountStorageOptIn[] =
-    "sync.bookmarks_and_reading_list_account_storage_opt_in";
-
-// Deprecated 08/2024.
-const char kTrialPrefName[] = "trending_queries.trial_version";
-
-// Deprecated 08/2024.
-constexpr char kSafeBrowsingEsbOptInWithFriendlierSettings[] =
-    "safebrowsing.esb_opt_in_with_friendlier_settings";
 
 // Deprecated 09/2024.
 constexpr char kContentSettingsWindowLastTabIndex[] =
@@ -204,6 +191,32 @@ inline constexpr char kSyncLastSyncedTime[] = "sync.last_synced_time";
 inline constexpr char kSyncLastPollTime[] = "sync.last_poll_time";
 inline constexpr char kSyncPollInterval[] = "sync.short_poll_interval";
 
+// Deprecated 06/2025.
+inline constexpr char kVariationsLimitedEntropySyntheticTrialSeed[] =
+    "variations_limited_entropy_synthetic_trial_seed";
+inline constexpr char kVariationsLimitedEntropySyntheticTrialSeedV2[] =
+    "variations_limited_entropy_synthetic_trial_seed_v2";
+inline constexpr char kGaiaCookiePeriodicReportTimeDeprecated[] =
+    "gaia_cookie.periodic_report_time";
+inline constexpr char kSyncedDefaultSearchProviderGUID[] =
+    "default_search_provider.synced_guid";
+
+// Deprecated 07/2025.
+inline constexpr char kFirstSyncCompletedInFullSyncMode[] =
+    "sync.first_full_sync_completed";
+inline constexpr char kGoogleServicesSecondLastSyncingGaiaId[] =
+    "google.services.second_last_gaia_id";
+constexpr char kOptGuideModelFetcherLastFetchAttempt[] =
+    "optimization_guide.predictionmodelfetcher.last_fetch_attempt";
+constexpr char kOptGuideModelFetcherLastFetchSuccess[] =
+    "optimization_guide.predictionmodelfetcher.last_fetch_success";
+
+// Deprecated 08/2025.
+inline constexpr char kInvalidationClientIDCache[] =
+    "invalidation.per_sender_client_id_cache";
+inline constexpr char kInvalidationTopicsToHandler[] =
+    "invalidation.per_sender_topics_to_handler";
+
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
                         PrefService* target_pref_service,
@@ -244,29 +257,6 @@ void MigrateIntegerPref(std::string_view pref_name,
   if (target_pref->IsDefaultValue() && !source_pref->IsDefaultValue()) {
     target_pref_service->SetInteger(pref_name,
                                     source_pref_service->GetInteger(pref_name));
-  }
-
-  // In all cases, clear the pref from source.
-  source_pref_service->ClearPref(pref_name);
-}
-
-// Migrates a string pref from source to target PrefService.
-void MigrateStringPref(std::string_view pref_name,
-                       PrefService* target_pref_service,
-                       PrefService* source_pref_service) {
-  const PrefService::Preference* target_pref =
-      target_pref_service->FindPreference(pref_name);
-  CHECK(target_pref);
-
-  const PrefService::Preference* source_pref =
-      source_pref_service->FindPreference(pref_name);
-  CHECK(source_pref);
-
-  // Only migrate the pref if 1. it is not set in target,
-  // 2. it is not the default in source.
-  if (target_pref->IsDefaultValue() && !source_pref->IsDefaultValue()) {
-    target_pref_service->SetString(pref_name,
-                                   source_pref_service->GetString(pref_name));
   }
 
   // In all cases, clear the pref from source.
@@ -319,13 +309,27 @@ void MigrateTimePref(std::string_view pref_name,
   source_pref_service->ClearPref(pref_name);
 }
 
-// Helper function migrating the `string` preference from LocalState prefs to
-// Profile prefs.
-void MigrateStringPrefFromLocalStatePrefsToProfilePrefs(
-    std::string_view pref_name,
-    PrefService* profile_pref_service) {
-  MigrateStringPref(pref_name, profile_pref_service,
-                    GetApplicationContext()->GetLocalState());
+// Migrates a List pref from source to target PrefService.
+void MigrateListPref(std::string_view pref_name,
+                     PrefService* target_pref_service,
+                     PrefService* source_pref_service) {
+  const PrefService::Preference* target_pref =
+      target_pref_service->FindPreference(pref_name);
+  CHECK(target_pref);
+
+  const PrefService::Preference* source_pref =
+      source_pref_service->FindPreference(pref_name);
+  CHECK(source_pref);
+
+  // Only migrate the pref if 1. it is not set in target,
+  // 2. it is not the default in source.
+  if (target_pref->IsDefaultValue() && !source_pref->IsDefaultValue()) {
+    target_pref_service->SetList(
+        pref_name, source_pref_service->GetList(pref_name).Clone());
+  }
+
+  // In all cases, clear the pref from source.
+  source_pref_service->ClearPref(pref_name);
 }
 
 // Helper function migrating the `int` preference from LocalState prefs to
@@ -397,6 +401,15 @@ void MigrateBooleanFromUserDefaultsToProfilePrefs(
   [defaults removeObjectForKey:user_defaults_key];
 }
 
+// Helper function migrating the `base::Value::List` preference from LocalState
+// prefs to Profile prefs.
+void MigrateListPrefFromLocalStatePrefsToProfilePrefs(
+    std::string_view pref_name,
+    PrefService* profile_pref_service) {
+  MigrateListPref(pref_name, profile_pref_service,
+                  GetApplicationContext()->GetLocalState());
+}
+
 }  // namespace
 
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
@@ -434,6 +447,7 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   auto_deletion::AutoDeletionService::RegisterLocalStatePrefs(registry);
   push_notification_prefs::RegisterLocalStatePrefs(registry);
   RegisterWelcomeBackLocalStatePrefs(registry);
+  feature_engagement::RegisterLocalStatePrefs(registry);
 
 #if !BUILDFLAG(IS_IOS_MACCATALYST)
   default_status::RegisterDefaultStatusPrefs(registry);
@@ -455,6 +469,7 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
                                 false);
 
+  // Deprecated 07/2025 (migrated to profile prefs).
   registry->RegisterListPref(prefs::kIosPromosManagerActivePromos);
   registry->RegisterListPref(prefs::kIosPromosManagerSingleDisplayActivePromos);
   registry->RegisterDictionaryPref(
@@ -511,9 +526,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
 
   registry->RegisterIntegerPref(prefs::kIosCredentialProviderPromoSource, 0);
 
-  registry->RegisterBooleanPref(
-      prefs::kIosCredentialProviderPromoHasRegisteredWithPromoManager, false);
-
   registry->RegisterBooleanPref(prefs::kIosCredentialProviderPromoPolicyEnabled,
                                 true);
 
@@ -526,7 +538,7 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(prefs::kIosDefaultBrowserPromoLastAction, -1);
 
   // Preference related to the tab pickup feature.
-  registry->RegisterBooleanPref(prefs::kTabPickupEnabled, true);
+  registry->RegisterBooleanPref(prefs::kTabPickupEnabled, false);
 
   // Preferences related to the new Safety Check Manager.
   registry->RegisterStringPref(
@@ -555,11 +567,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   // Preferences related to the Docking Promo feature (used only if
   // `kIOSDockingPromoForEligibleUsersOnly` is enabled).
   registry->RegisterBooleanPref(prefs::kIosDockingPromoEligibilityMet, false);
-
-  // Pref related to the Enhanced Safe Browsing Opt-in with new friendlier
-  // settings UI on chrome://settings/security.
-  registry->RegisterBooleanPref(kSafeBrowsingEsbOptInWithFriendlierSettings,
-                                false);
 
   registry->RegisterTimePref(prefs::kLensLastOpened, base::Time());
 
@@ -597,7 +604,8 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
 
   registry->RegisterIntegerPref(prefs::kAddressBarSettingsNewBadgeShownCount,
                                 0);
-  registry->RegisterIntegerPref(prefs::kNTPLensEntryPointNewBadgeShownCount, 0);
+
+  registry->RegisterIntegerPref(prefs::kBWGSettingsNewBadgeShownCount, 0);
 
   registry->RegisterIntegerPref(
       prefs::kProminenceNotificationAlertImpressionCount, 0);
@@ -606,35 +614,14 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
 
   registry->RegisterBooleanPref(prefs::kYoutubeIncognitoHasBeenShown, false);
 
-  registry->RegisterIntegerPref(
-      prefs::kNTPHomeCustomizationNewBadgeImpressionCount, 0);
-
   registry->RegisterBooleanPref(prefs::kHasSwitchedAccountsViaWebFlow, false);
 
   // Prefs used to force multi-profile migration.
   registry->RegisterTimePref(
       prefs::kWaitingForMultiProfileForcedMigrationTimestamp, base::Time());
+  registry->RegisterBooleanPref(prefs::kMultiProfileForcedMigrationDone, false);
 
-  // Deprecated 07/2024 (migrated to profile prefs).
-  registry->RegisterTimePref(prefs::kTabPickupLastDisplayedTime, base::Time());
-  registry->RegisterStringPref(prefs::kTabPickupLastDisplayedURL,
-                               std::string());
-  registry->RegisterIntegerPref(prefs::kIosSyncSegmentsNewTabPageDisplayCount,
-                                0);
-
-  // Deprecated 07/2024.
-  registry->RegisterDictionaryPref(
-      prefs::kIosSafetyCheckManagerInsecurePasswordCounts,
-      PrefRegistry::LOSSY_PREF);
-
-  // Deprecated 07/2024 (migrated to profile pref).
-  registry->RegisterStringPref(
-      prefs::kIosSafetyCheckManagerPasswordCheckResult,
-      NameForSafetyCheckState(PasswordSafetyCheckState::kDefault),
-      PrefRegistry::LOSSY_PREF);
-
-  // Deprecated 08/2024.
-  registry->RegisterIntegerPref(kTrialPrefName, 0);
+  registry->RegisterTimePref(prefs::kNextSSORecallTime, base::Time());
 
   // Deprecated 09/2024.
   registry->RegisterBooleanPref(kBrowsingDataMigrationHasBeenPossible, false);
@@ -667,7 +654,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
       kIosMagicStackSegmentationPriceTrackingPromoImpressionsSinceFreshness,
       -1);
 
-  // Deprecated 03/2025 (migrated to profile pref).
   registry->RegisterBooleanPref(prefs::kMigrateWidgetsPrefs, false);
 
   // Deprecated 03/2025 (migrated to profile pref).
@@ -676,6 +662,24 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   // Deprecated 03/2025, migrated to profile pref.
   registry->RegisterIntegerPref(
       prefs::kHomeCustomizationMagicStackSafetyCheckIssuesCount, 0);
+
+  registry->RegisterTimePref(prefs::kLensOverlayLastPresented, base::Time());
+
+  // Deprecated 06/2025.
+  registry->RegisterUint64Pref(kVariationsLimitedEntropySyntheticTrialSeed, 0);
+  registry->RegisterUint64Pref(kVariationsLimitedEntropySyntheticTrialSeedV2,
+                               0);
+
+  // Deprecated 06/2025.
+  registry->RegisterBooleanPref(
+      prefs::kIosCredentialProviderPromoHasRegisteredWithPromoManager, false);
+
+  // Deprecated 06/2025.
+  registry->RegisterIntegerPref(prefs::kNTPLensEntryPointNewBadgeShownCount, 0);
+  registry->RegisterIntegerPref(
+      prefs::kNTPHomeCustomizationNewBadgeImpressionCount, 0);
+
+  registry->RegisterBooleanPref(prefs::kWidgetsForMultiProfile, false);
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -689,7 +693,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   FirstRun::RegisterProfilePrefs(registry);
   FontSizeTabHelper::RegisterBrowserStatePrefs(registry);
   HostContentSettingsMap::RegisterProfilePrefs(registry);
-  invalidation::InvalidatorRegistrarWithMemory::RegisterProfilePrefs(registry);
   invalidation::PerUserTopicSubscriptionManager::RegisterProfilePrefs(registry);
   image_fetcher::ImageCache::RegisterProfilePrefs(registry);
   language::LanguagePrefs::RegisterProfilePrefs(registry);
@@ -728,6 +731,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   variations::VariationsService::RegisterProfilePrefs(registry);
   ZeroSuggestProvider::RegisterProfilePrefs(registry);
   tab_resumption_prefs::RegisterProfilePrefs(registry);
+  reader_mode_prefs::RegisterProfilePrefs(registry);
 
   [BookmarkMediator registerBrowserStatePrefs:registry];
   [BookmarkPathCache registerBrowserStatePrefs:registry];
@@ -840,6 +844,15 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(prefs::kDetectAddressesEnabled, true);
   registry->RegisterBooleanPref(prefs::kDetectAddressesAccepted, false);
 
+  // Register MiniMap setting pref.
+  registry->RegisterBooleanPref(prefs::kIosMiniMapShowNativeMap, true);
+
+  // Register prefs used by PromosManager.
+  registry->RegisterListPref(prefs::kIosPromosManagerActivePromos);
+  registry->RegisterListPref(prefs::kIosPromosManagerSingleDisplayActivePromos);
+  registry->RegisterDictionaryPref(
+      prefs::kIosPromosManagerSingleDisplayPendingPromos);
+
   // Preferences related to Save to Photos settings.
   registry->RegisterStringPref(prefs::kIosSaveToPhotosDefaultGaiaId,
                                std::string());
@@ -862,6 +875,16 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   // Preferences related to download restrictions enterprise policy.
   registry->RegisterIntegerPref(policy::policy_prefs::kDownloadRestrictions, 0);
+
+  // Preferences related to enterprise cloud profile reporting.
+  registry->RegisterBooleanPref(
+      enterprise_reporting::kCloudProfileReportingEnabled, false);
+  registry->RegisterTimePref(enterprise_reporting::kLastUploadTimestamp,
+                             base::Time());
+  registry->RegisterTimePref(
+      enterprise_reporting::kLastUploadSucceededTimestamp, base::Time());
+  registry->RegisterTimeDeltaPref(
+      enterprise_reporting::kCloudReportingUploadFrequency, base::Hours(24));
 
   // Preferences related to parcel tracking.
   // Deprecated 03/2025.
@@ -908,11 +931,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterTimePref(kLastCookieDeletionDate, base::Time());
 
   registry->RegisterDictionaryPref(prefs::kWebAnnotationsPolicy);
-
-  // Preferences related to the tab pickup feature.
-  registry->RegisterTimePref(prefs::kTabPickupLastDisplayedTime, base::Time());
-  registry->RegisterStringPref(prefs::kTabPickupLastDisplayedURL,
-                               std::string());
 
   // Pref used to store the latest Most Visited Sites to detect changes
   // to the top Most Visited Sites.
@@ -977,17 +995,11 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterIntegerPref(prefs::kIosSyncSegmentsNewTabPageDisplayCount,
                                 0);
 
-  registry->RegisterBooleanPref(kObsoletePasswordsPerAccountPrefMigrationDone,
-                                false);
-
   registry->RegisterStringPref(prefs::kBrowserStateStorageIdentifier,
                                std::string());
 
   registry->RegisterBooleanPref(policy::policy_prefs::kForceGoogleSafeSearch,
                                 false);
-
-  registry->RegisterBooleanPref(
-      kObsoleteBookmarksAndReadingListAccountStorageOptIn, false);
 
   // Preferences related to the new Safety Check Manager.
   registry->RegisterStringPref(
@@ -997,10 +1009,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterDictionaryPref(
       prefs::kIosSafetyCheckManagerInsecurePasswordCounts,
       PrefRegistry::LOSSY_PREF);
-
-  // Prefs migrated to localState prefs.
-  registry->RegisterBooleanPref(prefs::kBottomOmnibox, false);
-  registry->RegisterBooleanPref(prefs::kBottomOmniboxByDefault, false);
 
   // Preferences related to Lens Overlay.
   registry->RegisterBooleanPref(prefs::kLensOverlayConditionsAccepted, false);
@@ -1025,12 +1033,22 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(prefs::kProvisionalNotificationsAllowedByPolicy,
                                 true);
 
-  registry->RegisterBooleanPref(prefs::kIOSGLICConsent, false);
+  // BWG prefs.
+  registry->RegisterDictionaryPref(prefs::kBwgSessionMap);
+  registry->RegisterBooleanPref(prefs::kIOSBwgConsent, false);
+  registry->RegisterBooleanPref(prefs::kIOSBWGPreciseLocationSetting, false);
+  registry->RegisterBooleanPref(prefs::kIOSBWGPageContentSetting, true);
+  registry->RegisterIntegerPref(prefs::kIOSBWGPromoImpressionCount, 0);
+  registry->RegisterTimePref(prefs::kLastGeminiInteractionTimestamp,
+                             base::Time());
+  registry->RegisterStringPref(prefs::kGeminiConversationId, std::string());
 
   registry->RegisterTimePref(prefs::kIosSyncInfobarErrorLastDismissedTimestamp,
                              base::Time());
 
-  registry->RegisterIntegerPref(omnibox::kAIModeSearchSuggestSettings, 0);
+  registry->RegisterIntegerPref(omnibox::kAIModeSettings, 0);
+
+  registry->RegisterIntegerPref(prefs::kGeminiEnabledByPolicy, 0);
 
   // Deprecated 09/2024 (migrated to localState prefs).
   registry->RegisterBooleanPref(prefs::kIncognitoInterstitialEnabled, false);
@@ -1060,7 +1078,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterStringPref(kContextualSearchEnabled, std::string());
   registry->RegisterInt64Pref(kNtpShownBookmarksFolder, 3);
 
-  // Deprecated 11/2024
+  // Deprecated 11/2024.
   registry->RegisterBooleanPref(kEnableDoNotTrackIos, false);
 
   // Deprecated 12/2024.
@@ -1086,23 +1104,27 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterTimePref(kSyncLastSyncedTime, base::Time());
   registry->RegisterTimePref(kSyncLastPollTime, base::Time());
   registry->RegisterTimeDeltaPref(kSyncPollInterval, base::TimeDelta());
+
+  // Deprecated 06/2025.
+  registry->RegisterDoublePref(kGaiaCookiePeriodicReportTimeDeprecated, 0);
+  registry->RegisterStringPref(kSyncedDefaultSearchProviderGUID, std::string());
+
+  // Deprecated 07/2025.
+  registry->RegisterBooleanPref(kFirstSyncCompletedInFullSyncMode, false);
+  registry->RegisterStringPref(kGoogleServicesSecondLastSyncingGaiaId,
+                               std::string());
+  registry->RegisterInt64Pref(kOptGuideModelFetcherLastFetchAttempt, 0);
+  registry->RegisterInt64Pref(kOptGuideModelFetcherLastFetchSuccess, 0);
+
+  // Deprecated 08/2025.
+  registry->RegisterDictionaryPref(kInvalidationClientIDCache);
+  registry->RegisterDictionaryPref(kInvalidationTopicsToHandler);
 }
 
 // This method should be periodically pruned of year+ old migrations.
 void MigrateObsoleteLocalStatePrefs(PrefService* prefs) {
   // This function is not allowed to block.
   base::ScopedDisallowBlocking disallow_blocking;
-
-  // Added 07/2024.
-  prefs->ClearPref(prefs::kTabPickupEnabled);
-  prefs->ClearPref(prefs::kTabPickupLastDisplayedTime);
-  prefs->ClearPref(prefs::kTabPickupLastDisplayedURL);
-
-  // Added 08/2024.
-  prefs->ClearPref(kTrialPrefName);
-
-  // Added 08/2024.
-  prefs->ClearPref(kSafeBrowsingEsbOptInWithFriendlierSettings);
 
   // Added 09/2024.
   prefs->ClearPref(kBrowsingDataMigrationHasBeenPossible);
@@ -1127,6 +1149,21 @@ void MigrateObsoleteLocalStatePrefs(PrefService* prefs) {
 
   // Added 04/2025.
   prefs->ClearPref("set_up_list.disabled");
+
+  // Added 06/2025.
+  prefs->ClearPref(kVariationsLimitedEntropySyntheticTrialSeed);
+  prefs->ClearPref(kVariationsLimitedEntropySyntheticTrialSeedV2);
+
+  // Added 06/2025.
+  prefs->ClearPref(
+      prefs::kIosCredentialProviderPromoHasRegisteredWithPromoManager);
+
+  // Added 06/2025.
+  prefs->ClearPref(prefs::kNTPLensEntryPointNewBadgeShownCount);
+  prefs->ClearPref(prefs::kNTPHomeCustomizationNewBadgeImpressionCount);
+
+  // Added 07/2025.
+  prefs->ClearPref(prefs::kTabPickupEnabled);
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1136,42 +1173,6 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
 
   // Check MigrateDeprecatedAutofillPrefs() to see if this is safe to remove.
   autofill::prefs::MigrateDeprecatedAutofillPrefs(prefs);
-
-  // Added 06/2024.
-  MigrateIntegerPrefFromLocalStatePrefsToProfilePrefs(
-      prefs::kIosSyncSegmentsNewTabPageDisplayCount, prefs);
-
-  // Added 06/2024.
-  MigrateBooleanPrefFromProfilePrefsToLocalStatePrefs(prefs::kBottomOmnibox,
-                                                      prefs);
-
-  // Added 06/2024.
-  MigrateBooleanPrefFromProfilePrefsToLocalStatePrefs(
-      prefs::kBottomOmniboxByDefault, prefs);
-
-  // Added 06/2024.
-  prefs->ClearPref(kObsoletePasswordsPerAccountPrefMigrationDone);
-
-  // Added 06/2024.
-  prefs->ClearPref(kObsoleteBookmarksAndReadingListAccountStorageOptIn);
-
-  // Added 07/2024.
-  // Note that this key is an obsolete LocalState pref, it's here because it was
-  // moved from LocalState pref to Profile pref and before clearing it the
-  // Profile pref needs to be updated.
-  MigrateStringPrefFromLocalStatePrefsToProfilePrefs(
-      prefs::kIosSafetyCheckManagerPasswordCheckResult, prefs);
-
-  // Added 07/2024.
-  // Note that this key is an obsolete LocalState pref, it's here because it was
-  // moved from LocalState pref to Profile pref and before clearing it the
-  // Profile pref needs to be updated.
-  MigrateDictionaryPrefFromLocalStatePrefsToProfilePrefs(
-      prefs::kIosSafetyCheckManagerInsecurePasswordCounts, prefs);
-
-  // Added 07/2024.
-  prefs->ClearPref(prefs::kTabPickupLastDisplayedTime);
-  prefs->ClearPref(prefs::kTabPickupLastDisplayedURL);
 
   // Added 09/2024.
   prefs->ClearPref(kContentSettingsWindowLastTabIndex);
@@ -1277,7 +1278,7 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   // Added 04/2025.
   prefs->ClearPref(kMixedContentAutoupgradeEnabled);
 
-  // Added 04/2025
+  // Added 04/2025.
   MigrateBooleanFromUserDefaultsToProfilePrefs(
       @"SyncDisabledAlertShown", policy::policy_prefs::kSyncDisabledAlertShown,
       prefs);
@@ -1295,23 +1296,41 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   prefs->ClearPref(kSyncLastSyncedTime);
   prefs->ClearPref(kSyncLastPollTime);
   prefs->ClearPref(kSyncPollInterval);
+
+  // Added 06/2025.
+  prefs->ClearPref(kGaiaCookiePeriodicReportTimeDeprecated);
+
+  // Added 06/2025.
+  prefs->ClearPref(safety_check_prefs::kSafetyCheckInMagicStackDisabledPref);
+  prefs->ClearPref(tab_resumption_prefs::kTabResumptionDisabledPref);
+  prefs->ClearPref(kSyncedDefaultSearchProviderGUID);
+
+  // Added 07/2025.
+  prefs->ClearPref(kFirstSyncCompletedInFullSyncMode);
+  prefs->ClearPref(kGoogleServicesSecondLastSyncingGaiaId);
+
+  // Added 07/2025.
+
+  // TODO(crbug.com/429521151): Remove migration call below after successfully
+  // migrating from local to profile prefs.
+  MigrateListPrefFromLocalStatePrefsToProfilePrefs(
+      prefs::kIosPromosManagerActivePromos, prefs);
+  MigrateListPrefFromLocalStatePrefsToProfilePrefs(
+      prefs::kIosPromosManagerSingleDisplayActivePromos, prefs);
+  MigrateDictionaryPrefFromLocalStatePrefsToProfilePrefs(
+      prefs::kIosPromosManagerSingleDisplayPendingPromos, prefs);
+
+  // Added 07/2025.
+  prefs->ClearPref(kOptGuideModelFetcherLastFetchAttempt);
+  prefs->ClearPref(kOptGuideModelFetcherLastFetchSuccess);
+
+  // Added 08/2025.
+  prefs->ClearPref(kInvalidationClientIDCache);
+  prefs->ClearPref(kInvalidationTopicsToHandler);
 }
 
 void MigrateObsoleteUserDefault() {
   NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-
-  // Added 06/2024.
-  [defaults removeObjectForKey:@"TimestampAppLastOpenedViaFirstPartyIntent"];
-  [defaults removeObjectForKey:@"TimestampLastValidURLPasted"];
-
-  // Added 07/2024.
-  [defaults
-      removeObjectForKey:@"MostRecentTimestampBlueDotPromoShownInOverflowMenu"];
-  [defaults
-      removeObjectForKey:@"MostRecentTimestampBlueDotPromoShownInSettingsMenu"];
-
-  // Added 08/2024.
-  [defaults removeObjectForKey:@"userHasInteractedWithWhatsNew"];
 
   // Added 11/2024.
   [defaults removeObjectForKey:@"DisplaySwitchProfile"];

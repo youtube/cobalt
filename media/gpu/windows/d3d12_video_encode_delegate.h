@@ -30,9 +30,10 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeDelegate {
     BitstreamBufferMetadata metadata_;
   };
 
-  // Returns the supported profiles for all available codecs.
+  // Returns the supported profiles for given |codecs|.
   static VideoEncodeAccelerator::SupportedProfiles GetSupportedProfiles(
-      ID3D12VideoDevice3* video_device);
+      ID3D12VideoDevice3* video_device,
+      const std::vector<D3D12_VIDEO_ENCODER_CODEC>& codecs);
 
   explicit D3D12VideoEncodeDelegate(
       Microsoft::WRL::ComPtr<ID3D12VideoDevice3> video_device);
@@ -60,7 +61,8 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeDelegate {
   virtual EncoderStatus::Or<BitstreamBufferMetadata> EncodeImpl(
       ID3D12Resource* input_frame,
       UINT input_frame_subresource,
-      const VideoEncoder::EncodeOptions& options) = 0;
+      const VideoEncoder::EncodeOptions& options,
+      const gfx::ColorSpace& input_color_space) = 0;
 
   void SetFactoriesForTesting(
       base::RepeatingCallback<decltype(CreateD3D12VideoEncoderWrapper)>
@@ -99,8 +101,11 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeDelegate {
     static D3D12VideoEncoderRateControl CreateCqp(uint32_t i_frame_qp,
                                                   uint32_t p_frame_qp,
                                                   uint32_t b_frame_qp);
-    static D3D12VideoEncoderRateControl Create(Bitrate bitrate,
-                                               uint32_t framerate);
+    static D3D12VideoEncoderRateControl Create(
+        Bitrate bitrate,
+        uint32_t framerate,
+        ID3D12VideoDevice3* video_device,
+        VideoCodecProfile output_profile);
 
     D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE GetMode() const;
 
@@ -127,12 +132,14 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeDelegate {
   virtual EncoderStatus InitializeVideoEncoder(
       const VideoEncodeAccelerator::Config& config) = 0;
 
+  virtual EncoderStatus::Or<size_t> GetEncodedBitstreamWrittenBytesCount(
+      const ScopedD3D12ResourceMap& metadata);
+
   virtual EncoderStatus::Or<size_t> ReadbackBitstream(
       base::span<uint8_t> bitstream_buffer);
 
   Microsoft::WRL::ComPtr<ID3D12Device> device_;
   Microsoft::WRL::ComPtr<ID3D12VideoDevice3> video_device_;
-  uint32_t max_num_ref_frames_ = 0;
 
   // The the size and format for the input of the D3D12VideoEncoder. The format
   // may be different to input frame, in which case we do internal conversion.
@@ -202,11 +209,13 @@ class D3D12VideoEncodeDecodedPictureBuffers {
   // Replace the picture buffer at |position| with the last picture buffer
   // returned by |GetCurrentFrame()|.
   void ReplaceWithCurrentFrame(size_t position);
+  // Move the picture buffer at |position| to |size() - 1|. And move the
+  // picture buffers with index greater than |position| to the previous index.
+  void EraseFrame(size_t position);
 
   // Return the |D3D12_VIDEO_ENCODE_REFERENCE_FRAMES| structure that D3D12 video
   // encode API expects.
-  virtual D3D12_VIDEO_ENCODE_REFERENCE_FRAMES
-  ToD3D12VideoEncodeReferenceFrames();
+  D3D12_VIDEO_ENCODE_REFERENCE_FRAMES ToD3D12VideoEncodeReferenceFrames();
 
  private:
   size_t size_ = 0;

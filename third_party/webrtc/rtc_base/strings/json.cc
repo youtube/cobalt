@@ -10,11 +10,15 @@
 
 #include "rtc_base/strings/json.h"
 
-#include <errno.h>
-#include <limits.h>
-#include <stdlib.h>
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <string>
+#include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "json/writer.h"
 #include "rtc_base/string_encode.h"
 
 namespace webrtc {

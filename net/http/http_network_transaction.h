@@ -18,7 +18,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "build/buildflag.h"
-#include "crypto/ec_private_key.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/completion_repeating_callback.h"
 #include "net/base/net_error_details.h"
@@ -123,9 +122,6 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   void OnNeedsClientAuth(SSLCertRequestInfo* cert_info) override;
 
   void OnQuicBroken() override;
-
-  void OnSwitchesToHttpStreamPool(
-      HttpStreamPoolRequestInfo request_info) override;
 
   ConnectionAttempts GetConnectionAttempts() const override;
 
@@ -468,7 +464,11 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
 
   // Enable pooling to a SpdySession with matching IP and certificate
   // even if the SpdySessionKey is different.
-  bool enable_ip_based_pooling_ = true;
+  // While QUIC also has a notion of IP based pooling / connection aliasing,
+  // this field does not affect QUIC. `enable_alternative_services_` is always
+  // set to false when this field is, which disables QUIC. If that ever changes,
+  // this field should probably be wired up to QUIC sessions as well.
+  bool enable_ip_based_pooling_for_h2_ = true;
 
   // Enable using alternative services for the request.
   bool enable_alternative_services_ = true;

@@ -59,11 +59,11 @@ message ServiceWorkerRegistrationData {
     STRICT_ORIGIN = 8;
   }
 
-  // https://wicg.github.io/private-network-access/#framework
+  // https://wicg.github.io/local-network-access/
   enum IPAddressSpace {
     UNKNOWN = 0;
-    LOCAL = 1;
-    PRIVATE = 2;
+    LOOPBACK = 1;
+    LOCAL = 2;
     PUBLIC = 3;
   }
 

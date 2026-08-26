@@ -163,7 +163,7 @@ MasqueServerSession::MasqueServerSession(
   // TODO(b/181606597) Remove this workaround once we use PMTUD.
   connection->SetMaxPacketLength(kDefaultMaxPacketSizeForTunnels);
 
-  masque_server_backend_->RegisterBackendClient(connection_id(), this);
+  masque_server_backend_->RegisterBackendClient(this);
   QUICHE_DCHECK_NE(event_loop_, nullptr);
 
   // We don't currently use `masque_mode_` but will in the future. To silence
@@ -185,7 +185,7 @@ void MasqueServerSession::OnConnectionClosed(
     const QuicConnectionCloseFrame& frame, ConnectionCloseSource source) {
   QuicSimpleServerSession::OnConnectionClosed(frame, source);
   QUIC_DLOG(INFO) << "Closing connection for " << connection_id();
-  masque_server_backend_->RemoveBackendClient(connection_id());
+  masque_server_backend_->RemoveBackendClient(this);
   // Clearing this state will close all sockets.
   connect_udp_server_states_.clear();
 }
@@ -699,6 +699,8 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   return response;
 }
 
+QuicSpdySession* MasqueServerSession::GetQuicSpdySession() { return this; }
+
 void MasqueServerSession::OnSocketEvent(QuicEventLoop* /*event_loop*/,
                                         QuicUdpSocketFd fd,
                                         QuicSocketEventMask events) {
@@ -738,9 +740,10 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
   QuicSocketAddress expected_target_server_address =
       it->target_server_address();
 
-  QUICHE_DCHECK(expected_target_server_address.IsInitialized());
+  QUICHE_DCHECK(expected_target_server_address.IsInitialized() || is_bind);
   QUIC_DVLOG(1) << "Received readable event on fd " << fd << " (mask " << events
-                << ") stream ID " << it->stream()->id() << " server "
+                << ") stream ID " << it->stream()->id()
+                << (is_bind ? " (bind)" : "") << " server "
                 << expected_target_server_address;
   QuicUdpSocketApi socket_api;
   QuicUdpPacketInfoBitMask packet_info_interested(
@@ -754,10 +757,6 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
       max_datagram_header_size + kMaxIncomingPacketSize;
 
   char packet_buffer[packet_buffer_size];
-
-  if (!is_bind) {
-    packet_buffer[0] = 0;  // Context ID = 0 for non-bind.
-  }
 
   char control_buffer[kDefaultUdpPacketControlBufferSize];
   while (true) {
@@ -776,12 +775,15 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
           << "Missing peer address when reading from fd " << fd;
       continue;
     }
-    QuicSocketAddress peer_address = read_result.packet_info.peer_address();
+
+    // Normalize v6 mapped v4 to v4 if needed.
+    QuicSocketAddress peer_address =
+        read_result.packet_info.peer_address().Normalized();
 
     ContextId bind_context_id = kInvalidContextId;
     bool use_uncompressed_context = false;
     if (is_bind) {
-      ContextId uncompressed_context = it->uncompressed_context_id();
+      ContextId uncompressed_context = kInvalidContextId;
       ContextId matching_context = kInvalidContextId;
       // Now check if we either have a matching context or an uncompressed
       // context.
@@ -790,6 +792,9 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
         if (context_address_pair.second == peer_address) {
           matching_context = context_address_pair.first;
           break;
+        }
+        if (context_address_pair.second == quiche::QuicheSocketAddress()) {
+          uncompressed_context = context_address_pair.first;
         }
       }
 
@@ -845,6 +850,10 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
         writer.WriteStringPiece(peer_address.host().ToPackedString());
         writer.WriteUInt16(peer_address.port());
       }
+    } else {
+      QuicDataWriter writer(final_header_length,
+                            udp_payload_read_pos - final_header_length);
+      writer.WriteVarInt62(/*context_id=*/0);
     }
 
     // The packet is valid, send it to the client in a DATAGRAM frame.
@@ -857,7 +866,10 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
                   << " with stream ID " << it->stream()->id()
                   << " and got message status "
                   << MessageStatusToString(message_status)
-                  << "message size with header: " << message.size();
+                  << " message size with header: " << message.size();
+    QUIC_DVLOG(2) << "Contents of outgoing HTTP Datagram of length "
+                  << message.size() << ":" << std::endl
+                  << quiche::QuicheTextUtils::HexDump(message);
   }
   return true;
 }
@@ -1015,8 +1027,7 @@ void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
     return;
   } else if (is_bind_) {
     auto it = bind_context_ip_map_.find(context_id);
-    if (it == bind_context_ip_map_.end() &&
-        uncompressed_context_id_ != context_id) {
+    if (it == bind_context_ip_map_.end()) {
       QUIC_DLOG(ERROR) << "Context ID " << context_id
                        << " from datagram not found";
       return;
@@ -1070,20 +1081,18 @@ void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
   WriteResult write_result = socket_api.WritePacket(
       fd_, http_payload.data(), http_payload.length(), packet_info);
   QUIC_DVLOG(1) << "Wrote packet of length " << http_payload.length() << " to "
-                << target_address << " with result " << write_result
-                << "payload:" << http_payload;
+                << target_address << " with result " << write_result;
+  QUIC_DVLOG(2) << "Contents of outgoing UDP packet of length "
+                << http_payload.length() << ":" << std::endl
+                << quiche::QuicheTextUtils::HexDump(http_payload);
 }
 
 bool MasqueServerSession::ConnectUdpServerState::OnCompressionAssignCapsule(
     const quiche::CompressionAssignCapsule& capsule) {
-  if (bind_context_ip_map_.contains(capsule.context_id) ||
-      uncompressed_context_id_ == capsule.context_id) {
+  if (bind_context_ip_map_.contains(capsule.context_id)) {
     QUIC_DLOG(ERROR) << "Context ID " << capsule.context_id
                      << " from Compression Assign already exists";
     return false;
-  } else if (capsule.ip_address_port.host().address_family() ==
-             IpAddressFamily::IP_UNSPEC) {
-    uncompressed_context_id_ = capsule.context_id;
   } else {
     bind_context_ip_map_[capsule.context_id] = capsule.ip_address_port;
   }
@@ -1103,8 +1112,6 @@ bool MasqueServerSession::ConnectUdpServerState::OnCompressionCloseCapsule(
   auto it = bind_context_ip_map_.find(capsule.context_id);
   if (it != bind_context_ip_map_.end()) {
     bind_context_ip_map_.erase(it);
-  } else if (uncompressed_context_id_ == capsule.context_id) {
-    uncompressed_context_id_ = kInvalidContextId;
   } else {
     QUIC_DLOG(ERROR) << "Context ID " << capsule.context_id
                      << " from Compression Close not found";

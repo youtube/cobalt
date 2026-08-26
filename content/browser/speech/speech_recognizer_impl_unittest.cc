@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/374320451): Fix and remove.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "content/browser/speech/speech_recognizer_impl.h"
 
 #include <stddef.h>
@@ -15,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -22,6 +18,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/byte_conversions.h"
 #include "base/run_loop.h"
+#include "base/strings/string_view_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread.h"
@@ -39,6 +36,7 @@
 #include "media/audio/test_audio_thread.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_glitch_info.h"
+#include "media/base/audio_sample_types.h"
 #include "media/base/test_helpers.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/system/data_pipe.h"
@@ -248,7 +246,8 @@ class SpeechRecognizerImplTest : public SpeechRecognitionEventListener,
                   "FromInterleaved expects 2 bytes.");
     // Copy the created signal into an audio bus in a deinterleaved format.
     audio_bus_->FromInterleaved<media::SignedInt16SampleTypeTraits>(
-        reinterpret_cast<int16_t*>(audio_packet_.data()), audio_bus_->frames());
+        UNSAFE_TODO(reinterpret_cast<int16_t*>(audio_packet_.data())),
+        audio_bus_->frames());
   }
 
   void FillPacketWithTestWaveform() {

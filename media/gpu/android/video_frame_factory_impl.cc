@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "base/android/android_image_reader_compat.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -38,14 +37,10 @@ gpu::TextureOwner::Mode GetTextureOwnerMode(
   switch (overlay_mode) {
     case VideoFrameFactory::OverlayMode::kDontRequestPromotionHints:
     case VideoFrameFactory::OverlayMode::kRequestPromotionHints:
-      return base::android::EnableAndroidImageReader()
-                 ? gpu::TextureOwner::Mode::kAImageReaderInsecure
-                 : gpu::TextureOwner::Mode::kSurfaceTextureInsecure;
+      return gpu::TextureOwner::Mode::kAImageReaderInsecure;
     case VideoFrameFactory::OverlayMode::kSurfaceControlSecure:
-      CHECK(base::android::EnableAndroidImageReader());
       return gpu::TextureOwner::Mode::kAImageReaderSecureSurfaceControl;
     case VideoFrameFactory::OverlayMode::kSurfaceControlInsecure:
-      CHECK(base::android::EnableAndroidImageReader());
       return gpu::TextureOwner::Mode::kAImageReaderInsecureSurfaceControl;
   }
 
@@ -240,8 +235,6 @@ void VideoFrameFactoryImpl::CreateVideoFrame_OnImageReady(
   if (!thiz)
     return;
 
-  gfx::ColorSpace color_space = output_buffer_renderer->color_space();
-
   // Initialize the CodecImage to use this output buffer.  Note that we're not
   // on the gpu main thread here, but it's okay since CodecImage is not being
   // used at this point.  Alternatively, we could post it, or hand it off to the
@@ -261,6 +254,7 @@ void VideoFrameFactoryImpl::CreateVideoFrame_OnImageReady(
   // record before we move it into |completion_cb|.
   auto codec_image_holder = std::move(record.codec_image_holder);
 
+  gfx::ColorSpace color_space = record.shared_image->color_space();
   scoped_refptr<VideoFrame> frame = VideoFrame::WrapSharedImage(
       pixel_format, std::move(record.shared_image), gpu::SyncToken(),
       VideoFrame::ReleaseMailboxCB(), frame_info.coded_size,

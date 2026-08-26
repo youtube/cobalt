@@ -282,8 +282,7 @@ base::Value::Dict SearchEnginesHandler::CreateDictionaryForEngine(
     // support `image-set`.
     dict.Set("iconPath",
              base::StrCat({"chrome://theme/",
-                           template_url->data().GetBuiltinImageResourceId(),
-                           "@2x"}));
+                           template_url->GetBuiltinImageResourceId(), "@2x"}));
   }
 
   dict.Set("modelIndex", base::checked_cast<int>(index));
@@ -494,7 +493,7 @@ void SearchEnginesHandler::HandleSearchEngineEditCompleted(
 #if BUILDFLAG(IS_CHROMEOS)
 void SearchEnginesHandler::HandleOpenBrowserSearchSettings(
     const base::Value::List& args) {
-  ash::NewWindowDelegate::GetPrimary()->OpenUrl(
+  ash::NewWindowDelegate::GetInstance()->OpenUrl(
       GURL(chrome::kChromeUISettingsURL).Resolve(chrome::kSearchSubPage),
       ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       ash::NewWindowDelegate::Disposition::kSwitchToTab);

@@ -10,12 +10,12 @@
 
 #include "pc/srtp_transport.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <vector>
 
+#include "api/field_trials.h"
 #include "call/rtp_demuxer.h"
 #include "media/base/fake_rtp.h"
 #include "p2p/dtls/dtls_transport_internal.h"
@@ -30,8 +30,8 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 using ::webrtc::kSrtpAeadAes128Gcm;
 using ::webrtc::kTestKey1;
@@ -88,7 +88,7 @@ class SrtpTransportTest : public ::testing::Test, public sigslot::has_slots<> {
     srtp_transport2_->RegisterRtpDemuxerSink(demuxer_criteria, &rtp_sink2_);
   }
 
-  ~SrtpTransportTest() {
+  ~SrtpTransportTest() override {
     if (srtp_transport1_) {
       srtp_transport1_->UnregisterRtpDemuxerSink(&rtp_sink1_);
     }
@@ -332,7 +332,7 @@ class SrtpTransportTest : public ::testing::Test, public sigslot::has_slots<> {
   TransportObserver rtp_sink2_;
 
   int sequence_number_ = 0;
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
 };
 
 class SrtpTransportTestWithExternalAuth
@@ -414,8 +414,8 @@ TEST_F(SrtpTransportTest, TestSetParamsKeyTooShort) {
 }
 
 TEST_F(SrtpTransportTest, RemoveSrtpReceiveStream) {
-  test::ScopedKeyValueConfig field_trials(
-      "WebRTC-SrtpRemoveReceiveStream/Enabled/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-SrtpRemoveReceiveStream/Enabled/");
   auto srtp_transport =
       std::make_unique<SrtpTransport>(/*rtcp_mux_enabled=*/true, field_trials);
   auto rtp_packet_transport =

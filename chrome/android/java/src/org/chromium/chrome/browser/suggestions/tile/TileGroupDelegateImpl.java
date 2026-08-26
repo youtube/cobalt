@@ -4,10 +4,12 @@
 
 package org.chromium.chrome.browser.suggestions.tile;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 
 import org.chromium.base.metrics.RecordUserAction;
-import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -17,7 +19,6 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.suggestions.SuggestionsDependencyFactory;
 import org.chromium.chrome.browser.suggestions.SuggestionsNavigationDelegate;
 import org.chromium.chrome.browser.suggestions.mostvisited.MostVisitedSites;
-import org.chromium.chrome.browser.suggestions.tile.TileGroup.PendingChanges;
 import org.chromium.chrome.browser.suggestions.tile.tile_edit_dialog.CustomTileEditCoordinator;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -39,6 +40,7 @@ import java.util.Set;
  * Reusable implementation of {@link TileGroup.Delegate}. Performs work in parts of the system that
  * the {@link TileGroup} should not know about.
  */
+@NullMarked
 public class TileGroupDelegateImpl implements TileGroup.Delegate {
     private static final Set<Integer> sMvtClickForUserAction =
             new HashSet<>(
@@ -53,11 +55,10 @@ public class TileGroupDelegateImpl implements TileGroup.Delegate {
     private final MostVisitedSites mMostVisitedSites;
 
     private @Nullable ModalDialogManager mModalDialogManager;
-    private @Nullable PendingChanges mPendingChanges;
 
     private boolean mIsDestroyed;
-    private SnackbarController mTileRemovedSnackbarController;
-    private SnackbarController mTileUnpinnedSnackbarController;
+    private @Nullable SnackbarController mTileRemovedSnackbarController;
+    private @Nullable SnackbarController mTileUnpinnedSnackbarController;
 
     public TileGroupDelegateImpl(
             Context context,
@@ -107,23 +108,11 @@ public class TileGroupDelegateImpl implements TileGroup.Delegate {
         return mMostVisitedSites.reorderCustomLink(keyUrl, newPos);
     }
 
-    // TileGroup.Delegate implementation.
-    @Override
-    @Initializer
-    public void setPendingChanges(PendingChanges pendingChanges) {
-        mPendingChanges = pendingChanges;
-    }
-
     @Override
     public void removeMostVisitedItem(Tile item) {
         assert !mIsDestroyed;
 
         GURL url = item.getUrl();
-        // Handle change detection. This only tracks the most recent removal, and not all removals.
-        // But if the removal is committed, this is good enough for change detection.
-        if (mPendingChanges != null) {
-            mPendingChanges.removalUrl = url;
-        }
         mMostVisitedSites.addBlocklistedUrl(url);
         showTileRemovedSnackbar(url);
     }
@@ -207,14 +196,15 @@ public class TileGroupDelegateImpl implements TileGroup.Delegate {
             mTileUnpinnedSnackbarController =
                     new SnackbarController() {
                         @Override
-                        public void onDismissNoAction(Object actionData) {}
+                        public void onDismissNoAction(@Nullable Object actionData) {}
 
                         /** Undoes the tile removal. */
                         @Override
-                        public void onAction(Object actionData) {
+                        public void onAction(@Nullable Object actionData) {
                             if (mIsDestroyed) return;
                             Runnable undoHandlerFromData = (Runnable) actionData;
-                            undoHandlerFromData.run();
+                            assumeNonNull(undoHandlerFromData).run();
+                            RecordUserAction.record("Suggestions.SnackBar.UndoUnpinItem");
                         }
                     };
         }
@@ -226,6 +216,11 @@ public class TileGroupDelegateImpl implements TileGroup.Delegate {
                                 Snackbar.UMA_NTP_MOST_VISITED_UNPIN_UNDO)
                         .setAction(mContext.getString(R.string.undo), undoHandler);
         mSnackbarManager.showSnackbar(snackbar);
+    }
+
+    @Override
+    public double getSuggestionScore(GURL url) {
+        return mMostVisitedSites.getSuggestionScore(url);
     }
 
     @Override
@@ -251,16 +246,14 @@ public class TileGroupDelegateImpl implements TileGroup.Delegate {
             mTileRemovedSnackbarController =
                     new SnackbarController() {
                         @Override
-                        public void onDismissNoAction(Object actionData) {}
+                        public void onDismissNoAction(@Nullable Object actionData) {}
 
                         /** Undoes the tile removal. */
                         @Override
-                        public void onAction(Object actionData) {
+                        public void onAction(@Nullable Object actionData) {
                             if (mIsDestroyed) return;
                             GURL url = (GURL) actionData;
-                            if (mPendingChanges != null) {
-                                mPendingChanges.insertionUrl = url;
-                            }
+                            if (url == null) return;
                             mMostVisitedSites.removeBlocklistedUrl(url);
                         }
                     };

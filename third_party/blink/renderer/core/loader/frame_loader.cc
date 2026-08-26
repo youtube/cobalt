@@ -562,7 +562,8 @@ bool FrameLoader::AllowRequestForThisFrame(const FrameLoadRequest& request) {
         MakeGarbageCollected<ConsoleMessage>(
             mojom::ConsoleMessageSource::kSecurity,
             mojom::ConsoleMessageLevel::kError,
-            "Not allowed to load local resource: " + url.ElidedString()));
+            StrCat(
+                {"Not allowed to load local resource: ", url.ElidedString()})));
     return false;
   }
   return true;
@@ -667,8 +668,8 @@ void FrameLoader::StartNavigation(FrameLoadRequest& request,
         MakeGarbageCollected<ConsoleMessage>(
             mojom::blink::ConsoleMessageSource::kSecurity,
             mojom::blink::ConsoleMessageLevel::kError,
-            "Not allowed to navigate to " + url.Protocol() +
-                " URL: " + url.ElidedString()));
+            StrCat({"Not allowed to navigate to ", url.Protocol(),
+                    " URL: ", url.ElidedString()})));
     return;
   }
 
@@ -691,8 +692,8 @@ void FrameLoader::StartNavigation(FrameLoadRequest& request,
         MakeGarbageCollected<ConsoleMessage>(
             mojom::blink::ConsoleMessageSource::kSecurity,
             mojom::blink::ConsoleMessageLevel::kError,
-            "Not allowed to navigate top frame to " + url.Protocol() +
-                " URL: " + url.ElidedString()));
+            StrCat({"Not allowed to navigate top frame to ", url.Protocol(),
+                    " URL: ", url.ElidedString()})));
     return;
   }
 
@@ -720,6 +721,28 @@ void FrameLoader::StartNavigation(FrameLoadRequest& request,
       request.GetNavigationPolicy() == kNavigationPolicyCurrentTab &&
       ShouldPerformFragmentNavigation(
           request.Form(), resource_request.HttpMethod(), frame_load_type, url);
+
+  if (RuntimeEnabledFeatures::
+          TreatMhtmlInitialDocumentLoadsAsCrossDocumentEnabled()) {
+    if (auto* parent = DynamicTo<LocalFrame>(frame_->Tree().Parent())) {
+      // Within MHTML archives, treat the initial about:blank#fragment
+      // navigation as cross-document. Although it appears to be a same-document
+      // fragment navigation, it actually commits a new document with a new
+      // opaque origin.
+      //
+      // TODO(crbug.com/423663315): Consider refining this logic to only treat
+      // the initial about:blank#fragment navigation in MHTML as cross-document
+      // if the MHTML archive actually overrides the about:blank resource. If it
+      // doesn't, the navigation may be better treated as same-document,
+      // matching non-MHTML behavior.
+      if (parent->Loader().GetDocumentLoader()->HasBeenLoadedAsWebArchive()) {
+        if (url.HasFragmentIdentifier() &&
+            frame_->GetDocument()->IsInitialEmptyDocument()) {
+          same_document_navigation = false;
+        }
+      }
+    }
+  }
 
   // Perform same document navigation.
   if (same_document_navigation) {
@@ -831,16 +854,13 @@ void FrameLoader::StartNavigation(FrameLoadRequest& request,
     }
     return;
   }
-  // If kStandardCompliantNonSpecialSchemeURLParsing feature is enabled,
-  // "javascript:" scheme URL can be a invalid URL. e.g. "javascript://a b".
-  //
-  // We shouldn't navigate to such an invalid "javascript:" scheme URL.
+
+  // Do not navigate to an invalid "javascript:" scheme URL under the standard
+  // compliant non special scheme url parsing.
   //
   // See wpt/url/javascript-urls.window.js test for the standard compliant
   // behaviors.
-  if (url::IsUsingStandardCompliantNonSpecialSchemeURLParsing() &&
-      ProtocolIsJavaScript(url.GetString())) {
-    DCHECK(!url.IsValid());
+  if (ProtocolIsJavaScript(url.GetString()) && !url.IsValid()) {
     return;
   }
 
@@ -923,7 +943,7 @@ void FrameLoader::StartNavigation(FrameLoadRequest& request,
       request.Form(), should_check_main_world_csp, request.GetBlobURLToken(),
       request.GetInputStartTime(), request.GetCreationTime(),
       request.HrefTranslate().GetString(), request.Impression(),
-      request.GetInitiatorFrameToken(), request.TakeSourceLocation(),
+      request.GetInitiatorFrameToken(), request.GetSourceLocation(),
       request.TakeInitiatorNavigationStateKeepAliveHandle(),
       request.IsContainerInitiated(),
       request.GetWindowFeatures().explicit_opener);

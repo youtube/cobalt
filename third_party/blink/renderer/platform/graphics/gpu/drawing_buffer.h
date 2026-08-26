@@ -34,6 +34,7 @@
 #include <limits>
 #include <memory>
 
+#include "base/containers/flat_set.h"
 #include "base/containers/span.h"
 #include "base/functional/function_ref.h"
 #include "base/memory/raw_ptr.h"
@@ -78,7 +79,6 @@ class GLES2Interface;
 namespace blink {
 class CanvasResource;
 class ExternalCanvasResource;
-class CanvasResourceProvider;
 class Extensions3DUtil;
 class StaticBitmapImage;
 class WebGraphicsContext3DProvider;
@@ -263,10 +263,21 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   scoped_refptr<StaticBitmapImage> TransferToStaticBitmapImage();
 
   // Returns a UnacceleratedStaticBitmapImage backed by a bitmap that will have
-  // a copy of the contents of the front buffer. This is only meant to be used
-  // for unaccelerated canvases as for accelerated contexts there are better
-  // ways to get a copy of the internal contents.
-  scoped_refptr<StaticBitmapImage> GetUnacceleratedStaticBitmapImage();
+  // a copy of the contents of the `source_buffer`. Resulting image will have
+  // N32 format and will have top-left orination and alpha type that matches
+  // `requested_alpha_type` of the drawing buffer.
+  scoped_refptr<StaticBitmapImage> GetRGBAUnacceleratedStaticBitmapImage(
+      SourceDrawingBuffer source_buffer);
+
+  // Returns a UnacceleratedStaticBitmapImage backed by a bitmap that will have
+  // a copy of the contents of the `source_buffer`. This is only meant to be
+  // used for unaccelerated canvases as for accelerated contexts there are
+  // better ways to get a copy of the internal contents. If
+  scoped_refptr<StaticBitmapImage> GetUnacceleratedStaticBitmapImage(
+      SourceDrawingBuffer source_buffer,
+      viz::SharedImageFormat format,
+      SkAlphaType alpha_type,
+      GrSurfaceOrigin origin);
 
   // `src_rect` is always in top-left coordinate space.
   bool CopyToPlatformTexture(gpu::gles2::GLES2Interface*,
@@ -293,9 +304,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
       const gfx::ColorSpace& dst_color_space,
       WebGraphicsContext3DVideoFramePool::FrameReadyCallback callback);
 
-  scoped_refptr<StaticBitmapImage> GetRGBAUnacceleratedStaticBitmapImage(
-      SourceDrawingBuffer source_buffer);
-
   int SampleCount() const { return sample_count_; }
   bool ExplicitResolveOfMultisampleData() const {
     return anti_aliasing_mode_ == kAntialiasingModeMSAAExplicitResolve;
@@ -317,8 +325,7 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
 
   scoped_refptr<CanvasResource> ExportCanvasResource();
 
-  scoped_refptr<ExternalCanvasResource> ExportLowLatencyCanvasResource(
-      base::WeakPtr<CanvasResourceProvider> resource_provider);
+  scoped_refptr<ExternalCanvasResource> ExportLowLatencyCanvasResource();
 
   static const size_t kDefaultColorBufferCacheLimit;
 
@@ -554,8 +561,10 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   // Helper function which does a readback from the currently-bound
   // framebuffer into a buffer of a certain size with 4-byte pixels.
   void ReadBackFramebuffer(base::span<uint8_t> pixels,
-                           SkColorType,
-                           WebGLImageConversion::AlphaOp);
+                           viz::SharedImageFormat destination_format,
+                           SkAlphaType destination_alpha_type,
+                           GrSurfaceOrigin destination_origin,
+                           SourceDrawingBuffer source_buffer);
 
   // If RGB emulation is required, then the CHROMIUM image's alpha channel
   // must be immediately cleared after it is bound to a texture. Nothing

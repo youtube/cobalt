@@ -16,6 +16,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -25,6 +26,8 @@
 #include "chrome/browser/notifications/platform_notification_service_impl.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/safe_browsing/android/notification_content_detection_manager_android.h"
+#include "chrome/browser/safe_browsing/notification_content_detection/notification_content_detection_util.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/notifications/notification_constants.h"
 #include "chrome/common/notifications/notification_operation.h"
@@ -109,7 +112,7 @@ ScopedJavaLocalRef<jobjectArray> ConvertToJavaActionInfos(
     env->SetObjectArrayElement(actions, i, action_info.obj());
   }
 
-  return ScopedJavaLocalRef<jobjectArray>(env, actions);
+  return ScopedJavaLocalRef<jobjectArray>::Adopt(env, actions);
 }
 
 constexpr jint NotificationTypeToJava(
@@ -163,7 +166,6 @@ NotificationPlatformBridgeAndroid::~NotificationPlatformBridgeAndroid() {
 
 void NotificationPlatformBridgeAndroid::OnNotificationClicked(
     JNIEnv* env,
-    const JavaParamRef<jobject>& java_object,
     std::string& notification_id,
     jint java_notification_type,
     std::string& java_origin_str,
@@ -207,7 +209,6 @@ void NotificationPlatformBridgeAndroid::OnNotificationClicked(
 void NotificationPlatformBridgeAndroid::
     StoreCachedWebApkPackageForNotificationId(
         JNIEnv* env,
-        const base::android::JavaParamRef<jobject>& java_object,
         std::string& notification_id,
         std::string& webapk_package) {
   const auto iterator = regenerated_notification_infos_.find(notification_id);
@@ -221,7 +222,6 @@ void NotificationPlatformBridgeAndroid::
 
 void NotificationPlatformBridgeAndroid::OnNotificationClosed(
     JNIEnv* env,
-    const JavaParamRef<jobject>& java_object,
     std::string& notification_id,
     jint java_notification_type,
     std::string& origin,
@@ -251,7 +251,6 @@ void NotificationPlatformBridgeAndroid::OnNotificationClosed(
 
 void NotificationPlatformBridgeAndroid::OnNotificationDisablePermission(
     JNIEnv* env,
-    const JavaParamRef<jobject>& java_object,
     std::string& notification_id,
     jint java_notification_type,
     std::string& origin,
@@ -274,7 +273,6 @@ void NotificationPlatformBridgeAndroid::OnNotificationDisablePermission(
 
 void NotificationPlatformBridgeAndroid::SetIsSuspiciousParameterForTesting(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& java_object,
     bool is_suspicious) {
   should_use_test_is_suspicious_value_ = true;
   test_is_suspicious_value_ = is_suspicious;
@@ -282,7 +280,6 @@ void NotificationPlatformBridgeAndroid::SetIsSuspiciousParameterForTesting(
 
 void NotificationPlatformBridgeAndroid::OnReportNotificationAsSafe(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& java_object,
     std::string& notification_id,
     std::string& origin,
     std::string& profile_id,
@@ -302,7 +299,6 @@ void NotificationPlatformBridgeAndroid::OnReportNotificationAsSafe(
 
 void NotificationPlatformBridgeAndroid::OnReportWarnedNotificationAsSpam(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& java_object,
     std::string& notification_id,
     std::string& origin,
     std::string& profile_id,
@@ -322,7 +318,6 @@ void NotificationPlatformBridgeAndroid::OnReportWarnedNotificationAsSpam(
 
 void NotificationPlatformBridgeAndroid::OnReportUnwarnedNotificationAsSpam(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& java_object,
     std::string& notification_id,
     std::string& origin,
     std::string& profile_id,
@@ -340,9 +335,28 @@ void NotificationPlatformBridgeAndroid::OnReportUnwarnedNotificationAsSpam(
                      base::DoNothing()));
 }
 
-void NotificationPlatformBridgeAndroid::OnNotificationAlwaysAllowFromOrigin(
+void NotificationPlatformBridgeAndroid::OnNotificationShowOriginalNotification(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& java_object,
+    std::string& origin,
+    std::string& profile_id,
+    jboolean incognito) {
+  ProfileManager* profile_manager = g_browser_process->profile_manager();
+  CHECK(profile_manager);
+
+  profile_manager->LoadProfile(
+      GetProfileBaseNameFromProfileId(profile_id), incognito,
+      base::BindOnce(&NotificationDisplayServiceImpl::ProfileLoadedCallback,
+                     NotificationOperation::kShowOriginalNotification,
+                     NotificationHandler::Type::WEB_PERSISTENT, GURL(origin),
+                     /*notification_id=*/"", std::nullopt /* action index */,
+                     std::nullopt /* reply */, std::nullopt /* by_user */,
+                     base::DoNothing()));
+}
+
+void NotificationPlatformBridgeAndroid::OnNotificationAlwaysAllowFromOrigin(
+    JNIEnv* env,
+    std::string& notification_id,
     std::string& origin,
     std::string& profile_id,
     jboolean incognito) {
@@ -354,7 +368,7 @@ void NotificationPlatformBridgeAndroid::OnNotificationAlwaysAllowFromOrigin(
       GetProfileBaseNameFromProfileId(profile_id), incognito,
       base::BindOnce(
           &NotificationPlatformBridgeAndroid::AlwaysAllowNotifications,
-          weak_factory_.GetWeakPtr(), url));
+          weak_factory_.GetWeakPtr(), url, notification_id));
 }
 
 void NotificationPlatformBridgeAndroid::Display(
@@ -482,6 +496,7 @@ void NotificationPlatformBridgeAndroid::OnNotificationProcessed(
 
 void NotificationPlatformBridgeAndroid::AlwaysAllowNotifications(
     const GURL& url,
+    const std::string& notification_id,
     Profile* profile) {
   // Always allow suspicious notifications from `url`.
   auto* hcsm = HostContentSettingsMapFactory::GetForProfile(profile);
@@ -495,6 +510,13 @@ void NotificationPlatformBridgeAndroid::AlwaysAllowNotifications(
       ContentSettingsType::ARE_SUSPICIOUS_NOTIFICATIONS_ALLOWLISTED_BY_USER,
       base::Value(base::Value::Dict().Set(
           safe_browsing::kIsAllowlistedByUserKey, true)));
+
+  safe_browsing::NotificationContentDetectionUkmUtil::
+      RecordSuspiciousNotificationInteractionUkm(
+          static_cast<int>(
+              safe_browsing::SuspiciousNotificationWarningInteractions::
+                  kAlwaysAllow),
+          url, notification_id, profile);
 
   // Send a new notification to tell the user that Chrome will no longer hide
   // notifications from `url`.

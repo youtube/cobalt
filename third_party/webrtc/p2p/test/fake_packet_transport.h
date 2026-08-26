@@ -19,8 +19,10 @@
 #include "api/transport/ecn_marking.h"
 #include "api/units/timestamp.h"
 #include "p2p/base/packet_transport_internal.h"
+#include "rtc_base/async_packet_socket.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/received_packet.h"
+#include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
@@ -154,12 +156,5 @@ class FakePacketTransport : public PacketTransportInternal {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::FakePacketTransport;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_TEST_FAKE_PACKET_TRANSPORT_H_

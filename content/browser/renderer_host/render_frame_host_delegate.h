@@ -37,7 +37,6 @@
 #include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
 #include "net/cert/cert_status_flags.h"
 #include "net/http/http_response_headers.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/device/public/mojom/geolocation_context.mojom.h"
 #include "services/device/public/mojom/wake_lock.mojom.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -61,6 +60,9 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/scoped_java_ref.h"
+#endif
+
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
 #include "services/device/public/mojom/nfc.mojom.h"
 #endif
 
@@ -343,9 +345,9 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   // Gets the GeolocationContext associated with this delegate.
   virtual device::mojom::GeolocationContext* GetGeolocationContext();
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
   // Gets an NFC implementation within the context of this delegate.
-  virtual void GetNFC(RenderFrameHost* render_frame_host,
+  virtual void GetNFC(RenderFrameHostImpl* render_frame_host,
                       mojo::PendingReceiver<device::mojom::NFC> receiver);
 #endif
 
@@ -609,6 +611,15 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   virtual void OnTextCopiedToClipboard(RenderFrameHostImpl* render_frame_host,
                                        const std::u16string& copied_text) {}
 
+  // Allows embedder to override the clipboard types if a policy has inspected
+  // or modified the clipboard content. Called from
+  // `ClipboardHostImpl::ReadAvailableTypes()` by the browser process when a
+  // renderer needs to read available formats. Returns `std::nullopt` if there
+  // is no override for the current clipboard state.
+  virtual std::optional<std::vector<std::u16string>>
+  GetClipboardTypesIfPolicyApplied(
+      const ui::ClipboardSequenceNumberToken& seqno);
+
   // Notified when the main frame of `source` adjusts the page scale.
   virtual void OnPageScaleFactorChanged(PageImpl& source) {}
 
@@ -707,24 +718,6 @@ class CONTENT_EXPORT RenderFrameHostDelegate {
   // Returns the PrerenderHostRegistry to start/cancel prerendering. This
   // doesn't return nullptr except for some tests.
   virtual PrerenderHostRegistry* GetPrerenderHostRegistry();
-
-#if BUILDFLAG(ENABLE_PLUGINS)
-  virtual void OnPepperInstanceCreated(RenderFrameHostImpl* source,
-                                       int32_t pp_instance) {}
-  virtual void OnPepperInstanceDeleted(RenderFrameHostImpl* source,
-                                       int32_t pp_instance) {}
-  virtual void OnPepperStartsPlayback(RenderFrameHostImpl* source,
-                                      int32_t pp_instance) {}
-  virtual void OnPepperStopsPlayback(RenderFrameHostImpl* source,
-                                     int32_t pp_instance) {}
-  virtual void OnPepperPluginCrashed(RenderFrameHostImpl* source,
-                                     const base::FilePath& plugin_path,
-                                     base::ProcessId plugin_pid) {}
-  virtual void OnPepperPluginHung(RenderFrameHostImpl* source,
-                                  int plugin_child_id,
-                                  const base::FilePath& path,
-                                  bool is_hung) {}
-#endif
 
   // The load progress for the main frame was changed.
   virtual void DidChangeLoadProgressForMainFrame(RenderFrameHostImpl* source) {}

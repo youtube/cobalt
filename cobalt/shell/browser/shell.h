@@ -85,7 +85,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void Reload();
   void ReloadBypassingCache();
   void Stop();
-  void UpdateNavigationControls(bool should_show_loading_ui);
   void Close();
   void ShowDevTools();
   void CloseDevTools();
@@ -140,8 +139,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static void SetShellCreatedCallback(
       base::OnceCallback<void(Shell*)> shell_created_callback);
 
-  static bool ShouldHideToolbar();
-
   WebContents* web_contents() const { return web_contents_.get(); }
 
   void Focus();
@@ -171,8 +168,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       const blink::mojom::WindowFeatures& window_features,
       bool user_gesture,
       bool* was_blocked) override;
-  void LoadingStateChanged(WebContents* source,
-                           bool should_show_loading_ui) override;
   void EnterFullscreenModeForTab(
       RenderFrameHost* requesting_frame,
       const blink::mojom::FullscreenOptions& options) override;
@@ -185,8 +180,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
                           bool last_unlocked_by_target) override;
   void CloseContents(WebContents* source) override;
   bool CanOverscrollContent() override;
-  void NavigationStateChanged(WebContents* source,
-                              InvalidateTypes changed_flags) override;
   JavaScriptDialogManager* GetJavaScriptDialogManager(
       WebContents* source) override;
   bool DidAddMessageToConsole(WebContents* source,
@@ -209,6 +202,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
                                          const GURL& resource_url) override;
   PictureInPictureResult EnterPictureInPicture(
       WebContents* web_contents) override;
+  void ExitPictureInPicture() override;
   bool ShouldResumeRequestsForCreatedWindow() override;
   void SetContentsBounds(WebContents* source, const gfx::Rect& bounds) override;
   void RequestMediaAccessPermission(WebContents*,

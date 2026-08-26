@@ -165,7 +165,7 @@ class BinaryUploadService : public KeyedService {
     // Methods for modifying the ContentAnalysisRequest.
     void set_analysis_connector(
         enterprise_connectors::AnalysisConnector connector);
-    void set_url(const std::string& url);
+    void set_url(const GURL& url);
     void set_source(const std::string& source);
     void set_destination(const std::string& destination);
     void set_csd(ClientDownloadRequest csd);
@@ -193,11 +193,13 @@ class BinaryUploadService : public KeyedService {
     void set_reason(
         enterprise_connectors::ContentAnalysisRequest::Reason reason);
     void set_require_metadata_verdict(bool require_metadata_verdict);
+    void set_is_content_encrypted(bool is_content_encrypted);
     void set_blocking(bool blocking);
     void add_local_ips(const std::string& ip_address);
     void set_referrer_chain(const google::protobuf::RepeatedPtrField<
                             safe_browsing::ReferrerChainEntry> referrer_chain);
     void set_content_area_account_email(const std::string& email);
+    void set_source_content_area_account_email(const std::string& email);
     void set_frame_url_chain(
         const google::protobuf::RepeatedPtrField<std::string> frame_url_chain);
 

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/omnibox/omnibox_row_view.h"
 
+#include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/omnibox/omnibox_theme.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_header_view.h"
@@ -108,6 +109,10 @@ gfx::Insets OmniboxRowView::GetInsets() const {
   if (result_view_->GetThemeState() == OmniboxPartState::IPH) {
     int LRInsets = OmniboxMatchCellView::kIphOffset;
     return gfx::Insets::TLBR(8, LRInsets, 8, LRInsets);
+  }
+
+  if (result_view_->GetThemeState() == OmniboxPartState::TOOLBELT) {
+    return gfx::Insets::TLBR(0, 0, 0, 0);
   }
 
   return gfx::Insets::TLBR(0, 0, 0, 16);

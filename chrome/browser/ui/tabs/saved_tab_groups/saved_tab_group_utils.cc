@@ -27,6 +27,7 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_keyed_service.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_service_factory.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_action_context_desktop.h"
@@ -45,6 +46,7 @@
 #include "components/data_sharing/public/data_sharing_service.h"
 #include "components/data_sharing/public/features.h"
 #include "components/data_sharing/public/group_data.h"
+#include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/pref_names.h"
 #include "components/saved_tab_groups/public/saved_tab_group_tab.h"
@@ -56,6 +58,7 @@
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
 #include "components/tab_groups/tab_group_id.h"
+#include "components/user_education/common/help_bubble/help_bubble_params.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/gfx/range/range.h"
 #include "url/gurl.h"
@@ -112,7 +115,7 @@ void SavedTabGroupUtils::RemoveGroupFromTabstrip(
 }
 
 // static
-void SavedTabGroupUtils::UngroupSavedGroup(const Browser* browser,
+void SavedTabGroupUtils::UngroupSavedGroup(Browser* browser,
                                            const base::Uuid& saved_group_guid) {
   tab_groups::TabGroupSyncService* tab_group_service =
       tab_groups::SavedTabGroupUtils::GetServiceForProfile(browser->profile());
@@ -147,14 +150,16 @@ void SavedTabGroupUtils::UngroupSavedGroup(const Browser* browser,
   DeletionDialogController::DialogMetadata dialog_metadata(
       DeletionDialogController::DialogType::UngroupSingle,
       /*closing_group_count=*/1, closing_multiple_tabs);
-  browser->tab_group_deletion_dialog_controller()->MaybeShowDialog(
-      dialog_metadata,
-      base::IgnoreArgs<DeletionDialogController::DeletionDialogTiming>(
-          std::move(ungroup_callback)));
+  browser->GetFeatures()
+      .tab_group_deletion_dialog_controller()
+      ->MaybeShowDialog(
+          dialog_metadata,
+          base::IgnoreArgs<DeletionDialogController::DeletionDialogTiming>(
+              std::move(ungroup_callback)));
 }
 
 // static
-void SavedTabGroupUtils::DeleteSavedGroup(const Browser* browser,
+void SavedTabGroupUtils::DeleteSavedGroup(Browser* browser,
                                           const base::Uuid& saved_group_guid) {
   tab_groups::TabGroupSyncService* tab_group_service =
       tab_groups::SavedTabGroupUtils::GetServiceForProfile(browser->profile());
@@ -229,10 +234,12 @@ void SavedTabGroupUtils::DeleteSavedGroup(const Browser* browser,
   shared_dialog_metadata.title_of_closing_group = group->title();
 
   const bool is_group_shared = group.value().collaboration_id().has_value();
-  browser->tab_group_deletion_dialog_controller()->MaybeShowDialog(
-      is_group_shared ? shared_dialog_metadata : saved_dialog_metadata,
-      base::IgnoreArgs<DeletionDialogController::DeletionDialogTiming>(
-          std::move(close_callback)));
+  browser->GetFeatures()
+      .tab_group_deletion_dialog_controller()
+      ->MaybeShowDialog(
+          is_group_shared ? shared_dialog_metadata : saved_dialog_metadata,
+          base::IgnoreArgs<DeletionDialogController::DeletionDialogTiming>(
+              std::move(close_callback)));
 }
 
 // static
@@ -270,15 +277,15 @@ void SavedTabGroupUtils::LeaveSharedGroup(const Browser* browser,
 
 // static
 void SavedTabGroupUtils::MaybeShowSavedTabGroupDeletionDialog(
-    const Browser* browser,
+    Browser* browser,
     GroupDeletionReason reason,
-    const std::vector<TabGroupId>& group_ids,
+    base::span<const TabGroupId> group_ids,
     base::OnceCallback<void(DeletionDialogController::DeletionDialogTiming)>
         callback) {
   tab_groups::TabGroupSyncService* tab_group_service =
       tab_groups::SavedTabGroupUtils::GetServiceForProfile(browser->profile());
 
-  CHECK(group_ids.size() > 0);
+  CHECK(!group_ids.empty());
 
   // Confirmation is only needed if SavedTabGroups are being deleted. If the
   // service doesnt exist there are no saved tab groups.
@@ -290,7 +297,8 @@ void SavedTabGroupUtils::MaybeShowSavedTabGroupDeletionDialog(
 
   // If there's no way to show the group deletion dialog, then fallback to
   // running the callback.
-  auto* dialog_controller = browser->tab_group_deletion_dialog_controller();
+  auto* const dialog_controller =
+      browser->GetFeatures().tab_group_deletion_dialog_controller();
   if (!dialog_controller || !dialog_controller->CanShowDialog()) {
     std::move(callback).Run(
         DeletionDialogController::DeletionDialogTiming::Synchronous);
@@ -321,8 +329,8 @@ void SavedTabGroupUtils::MaybeShowSavedTabGroupDeletionDialog(
   // TODO(tbergquist): If multiple types of groups are being closed, queue
   // multiple dialogs. For now, just act as if they are all the kind of the
   // first group.
-  const tab_groups::SavedTabGroup saved_group =
-      tab_group_service->GetGroup(group_ids[0]).value();
+  const auto saved_group_opt = tab_group_service->GetGroup(group_ids[0]);
+  const tab_groups::SavedTabGroup& saved_group = saved_group_opt.value();
 
   DeletionDialogController::DialogType dialog_type =
       reason == GroupDeletionReason::ClosedLastTab
@@ -614,6 +622,17 @@ ui::TrackedElement* SavedTabGroupUtils::GetAnchorElementForTabGroupsV2IPH(
 }
 
 // static
+user_education::HelpBubbleArrow SavedTabGroupUtils::GetArrowForTabGroupsV2IPH(
+    const ui::TrackedElement* el) {
+  // Because the overflow button is often on the left side of the browser
+  // window, switch the arrow to the top left to avoid bubble placement that
+  // would otherwise leave the browser's bounds.
+  return el->identifier() == kSavedTabGroupOverflowButtonElementId
+             ? user_education::HelpBubbleArrow::kTopLeft
+             : user_education::HelpBubbleArrow::kTopRight;
+}
+
+// static
 bool SavedTabGroupUtils::ShouldAutoPinNewTabGroups(Profile* profile) {
   return profile->GetPrefs()->GetBoolean(
       tab_groups::prefs::kAutoPinNewTabGroups);
@@ -624,12 +643,9 @@ bool SavedTabGroupUtils::AreSavedTabGroupsSyncedForProfile(Profile* profile) {
   const syncer::SyncService* const sync_service =
       SyncServiceFactory::GetForProfile(profile);
 
-  if (!sync_service || !sync_service->IsSyncFeatureEnabled()) {
-    return false;
-  }
-
-  return sync_service->GetUserSettings()->GetSelectedTypes().Has(
-      syncer::UserSelectableType::kSavedTabGroups);
+  return sync_service &&
+         sync_service->GetUserSettings()->GetSelectedTypes().Has(
+             syncer::UserSelectableType::kSavedTabGroups);
 }
 
 // static

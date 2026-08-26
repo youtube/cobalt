@@ -21,6 +21,7 @@ BASE_FEATURE(kFileSystemAccessPersistentPermissions,
 // resolves any symbolic link.
 BASE_FEATURE(kFileSystemAccessSymbolicLinkCheck,
              "FileSystemAccessSymbolicLinkCheck",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT
+);
 
 }  // namespace features

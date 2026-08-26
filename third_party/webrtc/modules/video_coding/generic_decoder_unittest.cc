@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/field_trials.h"
 #include "api/rtp_packet_infos.h"
 #include "api/scoped_refptr.h"
 #include "api/units/time_delta.h"
@@ -34,12 +35,15 @@
 #include "modules/video_coding/include/video_coding_defines.h"
 #include "modules/video_coding/timing/timing.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/fake_decoder.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/time_controller/simulated_time_controller.h"
 
+using ::testing::Eq;
+using ::testing::Field;
+using ::testing::Property;
 using ::testing::Return;
 
 namespace webrtc {
@@ -47,10 +51,11 @@ namespace video_coding {
 
 class MockCorruptionScoreCalculator : public CorruptionScoreCalculator {
  public:
-  MOCK_METHOD(std::optional<double>,
+  MOCK_METHOD(void,
               CalculateCorruptionScore,
               (const VideoFrame& frame,
-               const FrameInstrumentationData& frame_instrumentation_data),
+               const FrameInstrumentationData& frame_instrumentation_data,
+               VideoContentType content_type),
               (override));
 };
 
@@ -58,7 +63,6 @@ class ReceiveCallback : public VCMReceiveCallback {
  public:
   int32_t OnFrameToRender(const FrameToRender& arguments) override {
     frames_.push_back(arguments.video_frame);
-    last_corruption_score_ = arguments.corruption_score;
     return 0;
   }
 
@@ -72,20 +76,15 @@ class ReceiveCallback : public VCMReceiveCallback {
 
   ArrayView<const VideoFrame> GetAllFrames() const { return frames_; }
 
-  void OnDroppedFrames(uint32_t frames_dropped) {
+  void OnDroppedFrames(uint32_t frames_dropped) override {
     frames_dropped_ += frames_dropped;
   }
 
   uint32_t frames_dropped() const { return frames_dropped_; }
 
-  std::optional<double> last_corruption_score() const {
-    return last_corruption_score_;
-  }
-
  private:
   std::vector<VideoFrame> frames_;
   uint32_t frames_dropped_ = 0;
-  std::optional<double> last_corruption_score_;
 };
 
 class GenericDecoderTest : public ::testing::Test {
@@ -93,6 +92,7 @@ class GenericDecoderTest : public ::testing::Test {
   GenericDecoderTest()
       : time_controller_(Timestamp::Zero()),
         clock_(time_controller_.GetClock()),
+        field_trials_(CreateTestFieldTrials()),
         timing_(time_controller_.GetClock(), field_trials_),
         decoder_(time_controller_.GetTaskQueueFactory()),
         vcm_callback_(&timing_,
@@ -113,7 +113,7 @@ class GenericDecoderTest : public ::testing::Test {
 
   GlobalSimulatedTimeController time_controller_;
   Clock* const clock_;
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   VCMTiming timing_;
   test::FakeDecoder decoder_;
   VCMDecodedFrameCallback vcm_callback_;
@@ -218,17 +218,13 @@ TEST_F(GenericDecoderTest, IsLowLatencyStreamActivatedByPlayoutDelay) {
 }
 
 TEST_F(GenericDecoderTest, CallCalculateCorruptionScoreInDecoded) {
-  constexpr double kCorruptionScore = 0.76;
-
-  EXPECT_CALL(corruption_score_calculator_, CalculateCorruptionScore)
-      .WillOnce(Return(kCorruptionScore));
-
   constexpr uint32_t kRtpTimestamp = 1;
   FrameInfo frame_info;
-  frame_info.frame_instrumentation_data = FrameInstrumentationData{};
+  frame_info.frame_instrumentation_data =
+      FrameInstrumentationData{.sequence_index = 1};
   frame_info.rtp_timestamp = kRtpTimestamp;
   frame_info.decode_start = Timestamp::Zero();
-  frame_info.content_type = VideoContentType::UNSPECIFIED;
+  frame_info.content_type = VideoContentType::SCREENSHARE;
   frame_info.frame_type = VideoFrameType::kVideoFrameDelta;
   VideoFrame video_frame = VideoFrame::Builder()
                                .set_video_frame_buffer(I420Buffer::Create(5, 5))
@@ -236,9 +232,12 @@ TEST_F(GenericDecoderTest, CallCalculateCorruptionScoreInDecoded) {
                                .build();
   vcm_callback_.Map(std::move(frame_info));
 
+  EXPECT_CALL(corruption_score_calculator_,
+              CalculateCorruptionScore(
+                  Property(&VideoFrame::rtp_timestamp, Eq(kRtpTimestamp)),
+                  Field(&FrameInstrumentationData::sequence_index, Eq(1)),
+                  VideoContentType::SCREENSHARE));
   vcm_callback_.Decoded(video_frame);
-
-  EXPECT_EQ(user_callback_.last_corruption_score(), kCorruptionScore);
 }
 
 }  // namespace video_coding

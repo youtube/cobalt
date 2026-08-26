@@ -38,7 +38,7 @@ import org.chromium.components.payments.PaymentAppFactoryParams;
 import org.chromium.components.payments.PaymentFeatureList;
 import org.chromium.components.payments.PaymentManifestDownloader;
 import org.chromium.components.payments.PaymentManifestParser;
-import org.chromium.components.payments.PaymentManifestWebDataService;
+import org.chromium.components.payments.WebPaymentsWebDataService;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.payments.mojom.PaymentDetailsModifier;
@@ -186,7 +186,7 @@ public class AndroidPaymentAppFinderTest
     // PaymentAppFactoryParams implementation.
     @Override
     public Map<String, PaymentDetailsModifier> getUnmodifiableModifiers() {
-        return Collections.unmodifiableMap(new HashMap<String, PaymentDetailsModifier>());
+        return Collections.unmodifiableMap(new HashMap<>());
     }
 
     // PaymentAppFactoryParams implementation.
@@ -790,6 +790,68 @@ public class AndroidPaymentAppFinderTest
 
         Assert.assertEquals("1 app should match the query again", 1, mPaymentApps.size());
         Assert.assertEquals("com.davepay.dev", mPaymentApps.get(0).getIdentifier());
+    }
+
+    /**
+     * Test a valid installation of QuincyPay with 55555555551111111111 signature and
+     * https://quincypay.test/webpay payment method, which supports a couple of different signatures
+     * (with the same package name) through two "related_applications" in the same web app manifest.
+     * Repeated app look ups should be successful.
+     */
+    @Test
+    @Feature({"Payments"})
+    public void testValidQuincyPay1() throws Throwable {
+        Set<String> methods = new HashSet<>();
+        methods.add("https://quincypay.test/webpay");
+        mPackageManager.installPaymentApp(
+                "QuincyPay",
+                "com.quincypay.app",
+                "https://quincypay.test/webpay",
+                /* signature= */ "55555555551111111111");
+
+        findApps(methods);
+
+        Assert.assertEquals("1 app should match the query", 1, mPaymentApps.size());
+        Assert.assertEquals("com.quincypay.app", mPaymentApps.get(0).getIdentifier());
+
+        mPaymentApps.clear();
+        mAllPaymentAppsCreated = false;
+
+        findApps(methods);
+
+        Assert.assertEquals("1 app should match the query again", 1, mPaymentApps.size());
+        Assert.assertEquals("com.quincypay.app", mPaymentApps.get(0).getIdentifier());
+    }
+
+    /**
+     * Test a valid installation of QuincyPay with 55555555552222222222 signature and
+     * https://quincypay.test/webpay payment method, which supports a couple of different signatures
+     * (with the same package name) through two "related_applications" in the same web app manifest.
+     * Repeated app look ups should be successful.
+     */
+    @Test
+    @Feature({"Payments"})
+    public void testValidQuincyPay2() throws Throwable {
+        Set<String> methods = new HashSet<>();
+        methods.add("https://quincypay.test/webpay");
+        mPackageManager.installPaymentApp(
+                "QuincyPay",
+                "com.quincypay.app",
+                "https://quincypay.test/webpay",
+                /* signature= */ "55555555552222222222");
+
+        findApps(methods);
+
+        Assert.assertEquals("1 app should match the query", 1, mPaymentApps.size());
+        Assert.assertEquals("com.quincypay.app", mPaymentApps.get(0).getIdentifier());
+
+        mPaymentApps.clear();
+        mAllPaymentAppsCreated = false;
+
+        findApps(methods);
+
+        Assert.assertEquals("1 app should match the query again", 1, mPaymentApps.size());
+        Assert.assertEquals("com.quincypay.app", mPaymentApps.get(0).getIdentifier());
     }
 
     /**
@@ -1765,7 +1827,7 @@ public class AndroidPaymentAppFinderTest
                 () -> {
                     AndroidPaymentAppFinder finder =
                             new AndroidPaymentAppFinder(
-                                    new PaymentManifestWebDataService(getWebContents()),
+                                    new WebPaymentsWebDataService(getWebContents()),
                                     mDownloader,
                                     new PaymentManifestParser(),
                                     mPackageManager,

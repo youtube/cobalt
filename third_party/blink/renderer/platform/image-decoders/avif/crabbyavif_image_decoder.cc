@@ -25,7 +25,6 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/timer/elapsed_timer.h"
 #include "build/build_config.h"
@@ -36,6 +35,7 @@
 #include "third_party/blink/renderer/platform/image-decoders/image_animation.h"
 #include "third_party/blink/renderer/platform/image-decoders/image_decoder.h"
 #include "third_party/blink/renderer/platform/image-decoders/rw_buffer.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/crabbyavif/src/include/avif/avif.h"
 #include "third_party/libyuv/include/libyuv.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
@@ -496,11 +496,10 @@ bool CrabbyAVIFImageDecoder::MatchesAVIFSignature(
   // So the maximum number of bytes read is 144 bytes (size 4 bytes, type 4
   // bytes, major brand 4 bytes, minor version 4 bytes, and 4 bytes * 32
   // compatible brands).
-  char buffer[144];
+  std::array<uint8_t, 144> buffer;
   crabbyavif::avifROData input;
-  input.size = std::min(sizeof(buffer), fast_reader.size());
-  input.data = reinterpret_cast<const uint8_t*>(
-      fast_reader.GetConsecutiveData(0, input.size, buffer));
+  input.size = std::min(buffer.size(), fast_reader.size());
+  input.data = fast_reader.GetConsecutiveData(0, input.size, buffer).data();
   return crabbyavif::crabby_avifPeekCompatibleFileType(&input);
 }
 
@@ -988,7 +987,6 @@ bool CrabbyAVIFImageDecoder::UpdateDemuxer() {
   // If the image is cropped, pass the size of the cropped image (the clean
   // aperture) to SetSize().
   if (container->transformFlags & crabbyavif::AVIF_TRANSFORM_CLAP) {
-    AVIFCleanApertureType clap_type;
     crabbyavif::avifCropRect crop_rect;
     crabbyavif::avifDiagnostics diag;
     crabbyavif::avifBool valid_clap =
@@ -998,7 +996,6 @@ bool CrabbyAVIFImageDecoder::UpdateDemuxer() {
     if (!valid_clap) {
       DVLOG(1) << "Invalid 'clap' property: " << diag.error
                << "; showing the full image.";
-      clap_type = AVIFCleanApertureType::kInvalid;
       ignore_clap_ = true;
     } else if (crop_rect.x != 0 || crop_rect.y != 0) {
       // To help discourage the creation of files with privacy risks, also
@@ -1007,15 +1004,12 @@ bool CrabbyAVIFImageDecoder::UpdateDemuxer() {
       // https://github.com/AOMediaCodec/av1-avif/issues/189.
       DVLOG(1) << "Origin of 'clap' property anchored to (" << crop_rect.x
                << ", " << crop_rect.y << "); showing the full image.";
-      clap_type = AVIFCleanApertureType::kNonzeroOrigin;
       ignore_clap_ = true;
     } else {
-      clap_type = AVIFCleanApertureType::kZeroOrigin;
       clap_origin_.SetPoint(crop_rect.x, crop_rect.y);
       width = crop_rect.width;
       height = crop_rect.height;
     }
-    clap_type_ = clap_type;
   }
   return SetSize(width, height);
 }
@@ -1060,16 +1054,9 @@ crabbyavif::avifResult CrabbyAVIFImageDecoder::DecodeImage(wtf_size_t index) {
     CropDecodedImage();
   }
 
-  if (ret == crabbyavif::AVIF_RESULT_OK) {
-    if (IsAllDataReceived() && update_bpp_histogram_callback_) {
-      std::move(update_bpp_histogram_callback_).Run(Size(), data_->size());
-    }
-
-    if (clap_type_.has_value()) {
-      base::UmaHistogramEnumeration("Blink.ImageDecoders.Avif.CleanAperture",
-                                    clap_type_.value());
-      clap_type_.reset();
-    }
+  if (ret == crabbyavif::AVIF_RESULT_OK && IsAllDataReceived() &&
+      update_bpp_histogram_callback_) {
+    std::move(update_bpp_histogram_callback_).Run(Size(), data_->size());
   }
   return ret;
 }

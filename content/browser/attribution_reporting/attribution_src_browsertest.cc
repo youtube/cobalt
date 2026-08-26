@@ -42,6 +42,7 @@
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/common/content_features.h"
@@ -1751,6 +1752,7 @@ IN_PROC_BROWSER_TEST_P(
 
   run_loop.Run();
 
+  SimulateEndOfPaintHoldingOnPrimaryMainFrame(web_contents());
   SimulateGestureScrollSequence(web_contents(), gfx::Point(100, 100),
                                 gfx::Vector2dF(0, 15));
   RunUntilInputProcessed(

@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/memory/ptr_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/split_tab_collection.h"
 #include "components/tabs/public/split_tab_id.h"
 #include "components/tabs/public/tab_collection.h"
@@ -27,6 +29,7 @@
 #include "components/web_modal/modal_dialog_host.h"
 #include "components/web_modal/web_contents_modal_dialog_host.h"
 #include "content/public/browser/visibility.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
 #include "ui/views/widget/native_widget.h"
@@ -37,6 +40,8 @@
 namespace tabs {
 
 namespace {
+
+bool g_disable_tab_feature_initialization = false;
 
 // This class exists to allow consumers to look up a TabInterface from an
 // instance of WebContents. This is necessary while transitioning features to
@@ -74,12 +79,17 @@ TabModel::TabModel(std::unique_ptr<content::WebContents> contents,
   // TODO(https://crbug.com/362038317): Tab-helpers should be created in exactly
   // one place, which is here.
   TabHelpers::AttachTabHelpers(contents_);
-  tab_features_ = TabFeatures::CreateTabFeatures();
+  tab_features_ = std::make_unique<TabFeatures>();
+  const SessionID session_id = sessions::SessionTabHelper::IdForTab(contents_);
+  CHECK(session_id.is_valid());
+  SetSessionId(session_id.id());
 
   // Once tabs are pulled into a standalone module, TabFeatures and its
   // initialization will need to be delegated back to the main module.
-  tab_features_->Init(
-      *this, Profile::FromBrowserContext(contents_->GetBrowserContext()));
+  if (!g_disable_tab_feature_initialization) {
+    tab_features_->Init(
+        *this, Profile::FromBrowserContext(contents_->GetBrowserContext()));
+  }
 }
 
 TabModel::~TabModel() {
@@ -218,6 +228,12 @@ bool TabModel::IsVisible() const {
   return contents_->GetVisibility() != content::Visibility::HIDDEN;
 }
 
+bool TabModel::IsSelected() const {
+  TabStripModel* tab_strip = GetModelForTabInterface();
+  const int index = tab_strip->GetIndexOfTab(this);
+  return GetModelForTabInterface()->IsTabSelected(index);
+}
+
 base::CallbackListSubscription TabModel::RegisterDidBecomeVisible(
     TabInterface::DidBecomeVisibleCallback callback) {
   return did_become_visible_callback_list_.Add(std::move(callback));
@@ -321,6 +337,19 @@ void TabModel::OnTabStripModelChanged(
   }
 }
 
+TabModel::PreventFeatureInitializationForTesting::
+    PreventFeatureInitializationForTesting()
+    : scoped_prevent_initialization_(&g_disable_tab_feature_initialization,
+                                     true) {}
+TabModel::PreventFeatureInitializationForTesting::
+    PreventFeatureInitializationForTesting(
+        PreventFeatureInitializationForTesting&&) noexcept = default;
+TabModel::PreventFeatureInitializationForTesting&
+TabModel::PreventFeatureInitializationForTesting::operator=(
+    PreventFeatureInitializationForTesting&&) noexcept = default;
+TabModel::PreventFeatureInitializationForTesting::
+    ~PreventFeatureInitializationForTesting() = default;
+
 TabStripModel* TabModel::GetModelForTabInterface() const {
   CHECK(soon_to_be_owning_model_ || owning_model_);
   return soon_to_be_owning_model_ ? soon_to_be_owning_model_ : owning_model_;
@@ -370,6 +399,13 @@ TabModel::ScopedTabModalUIImpl::~ScopedTabModalUIImpl() {
   }
 }
 
+ui::UnownedUserDataHost& TabModel::GetUnownedUserDataHost() {
+  return unowned_user_data_host_;
+}
+const ui::UnownedUserDataHost& TabModel::GetUnownedUserDataHost() const {
+  return unowned_user_data_host_;
+}
+
 void TabModel::WriteIntoTrace(perfetto::TracedValue context) const {
   auto dict = std::move(context).WriteDictionary();
   dict.Add("web_contents", GetContents());
@@ -386,6 +422,11 @@ std::unique_ptr<content::WebContents> TabModel::DiscardContents(
       std::move(contents_owned_);
   contents_owned_ = std::move(contents);
   contents_ = contents_owned_.get();
+
+  const SessionID session_id = sessions::SessionTabHelper::IdForTab(contents_);
+  CHECK(session_id.is_valid());
+  SetSessionId(session_id.id());
+
   TabLookupFromWebContents::CreateForWebContents(contents_, this);
   return old_contents;
 }

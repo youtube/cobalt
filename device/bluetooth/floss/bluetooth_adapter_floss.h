@@ -175,6 +175,10 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterFloss final
                            base::OnceClosure callback,
                            ErrorCallback error_callback) override;
 
+  void SetSimpleSecurePairingEnabled(bool enabled,
+                                     base::OnceClosure callback,
+                                     ErrorCallback error_callback) override;
+
   LowEnergyScanSessionHardwareOffloadingStatus
   GetLowEnergyScanSessionHardwareOffloadingStatus() override;
 
@@ -190,6 +194,7 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterFloss final
   void SetStandardChromeOSAdapterName() override;
   // Enable telephony feature for floss.
   void ConfigureBluetoothTelephony(bool enabled);
+
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   // ScannerClientObserver overrides
@@ -250,7 +255,6 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterFloss final
   void OnDeviceUuidsChanged(BluetoothDeviceFloss* device_ptr);
   void OnGetConnectionState(const FlossDeviceId& device_id,
                             DBusResult<uint32_t> ret);
-  void OnGetBondState(const FlossDeviceId& device_id, DBusResult<uint32_t> ret);
 
   // Announce to observers a change in the adapter state.
   void DiscoveringChanged(bool discovering);

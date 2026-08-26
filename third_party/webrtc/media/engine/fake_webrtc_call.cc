@@ -20,6 +20,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
+#include "api/array_view.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/call/audio_sink.h"
 #include "api/crypto/frame_decryptor_interface.h"
@@ -46,7 +47,6 @@
 #include "call/video_send_stream.h"
 #include "media/base/media_channel.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
-#include "modules/rtp_rtcp/source/rtp_util.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
@@ -121,16 +121,15 @@ void FakeAudioReceiveStream::SetStats(
   stats_ = stats;
 }
 
-bool FakeAudioReceiveStream::VerifyLastPacket(const uint8_t* data,
-                                              size_t length) const {
-  return last_packet_ == Buffer(data, length);
+bool FakeAudioReceiveStream::VerifyLastPacket(
+    ArrayView<const uint8_t> data) const {
+  return last_packet_ == Buffer(data.data(), data.size());
 }
 
-bool FakeAudioReceiveStream::DeliverRtp(const uint8_t* packet,
-                                        size_t length,
+bool FakeAudioReceiveStream::DeliverRtp(ArrayView<const uint8_t> packet,
                                         int64_t /* packet_time_us */) {
   ++received_packets_;
-  last_packet_.SetData(packet, length);
+  last_packet_.SetData(packet);
   return true;
 }
 
@@ -293,6 +292,8 @@ void FakeVideoSendStream::SetStats(const VideoSendStream::Stats& stats) {
 VideoSendStream::Stats FakeVideoSendStream::GetStats() {
   return stats_;
 }
+
+void FakeVideoSendStream::SetCsrcs(ArrayView<const uint32_t> csrcs) {}
 
 void FakeVideoSendStream::ReconfigureVideoEncoder(VideoEncoderConfig config) {
   ReconfigureVideoEncoder(std::move(config), nullptr);
@@ -688,7 +689,7 @@ bool FakeCall::DeliverPacketInternal(MediaType media_type,
   if (media_type == MediaType::AUDIO) {
     for (auto receiver : audio_receive_streams_) {
       if (receiver->GetConfig().rtp.remote_ssrc == ssrc) {
-        receiver->DeliverRtp(packet.cdata(), packet.size(), arrival_time.us());
+        receiver->DeliverRtp(packet, arrival_time.us());
         ++delivered_packets_by_ssrc_[ssrc];
         return true;
       }

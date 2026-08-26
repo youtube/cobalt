@@ -32,6 +32,7 @@
 #include <openssl/md5.h>
 #include <openssl/rand.h>  // TODO(bbe): only for RAND_bytes call below, replace with BCM call
 #include <openssl/rsa.h>
+#include <openssl/sha.h>
 
 #include "../../test/abi_test.h"
 #include "../../test/test_util.h"
@@ -74,7 +75,7 @@ class FIPSIndicatorHelper {
     }
   }
 
-  FIPSIndicatorHelper(const FIPSIndicatorHelper&) = delete;
+  FIPSIndicatorHelper(const FIPSIndicatorHelper &) = delete;
   FIPSIndicatorHelper &operator=(const FIPSIndicatorHelper &) = delete;
 
  private:
@@ -1275,7 +1276,8 @@ TEST_P(RSAServiceIndicatorTest, RSASigGen) {
         approved, EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING)));
     EXPECT_EQ(approved, FIPSStatus::NOT_APPROVED);
     ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(
-        approved, EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, -1)));
+        approved,
+        EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_DIGEST)));
     EXPECT_EQ(approved, FIPSStatus::NOT_APPROVED);
   }
   ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(
@@ -1306,7 +1308,8 @@ TEST_P(RSAServiceIndicatorTest, RSASigGen) {
         approved, EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING)));
     EXPECT_EQ(approved, FIPSStatus::NOT_APPROVED);
     ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(
-        approved, EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, -1)));
+        approved,
+        EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_DIGEST)));
     EXPECT_EQ(approved, FIPSStatus::NOT_APPROVED);
   }
   ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(
@@ -1346,7 +1349,7 @@ TEST_P(RSAServiceIndicatorTest, RSASigVer) {
                                  pkey.get()));
   if (test.use_pss) {
     ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING));
-    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, -1));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_DIGEST));
   }
   ASSERT_TRUE(EVP_DigestSign(md_ctx.get(), nullptr, &sig_len, nullptr, 0));
   signature.resize(sig_len);
@@ -1370,7 +1373,7 @@ TEST_P(RSAServiceIndicatorTest, RSASigVer) {
     ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(
         approved, EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING)));
     EXPECT_EQ(approved, FIPSStatus::NOT_APPROVED);
-    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, -1));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_DIGEST));
   }
   ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(
       approved,
@@ -1391,7 +1394,7 @@ TEST_P(RSAServiceIndicatorTest, RSASigVer) {
     ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(
         approved, EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING)));
     EXPECT_EQ(approved, FIPSStatus::NOT_APPROVED);
-    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, -1));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_DIGEST));
   }
   ASSERT_TRUE(CALL_SERVICE_AND_CHECK_APPROVED(
       approved,

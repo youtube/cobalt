@@ -6,7 +6,7 @@
 
 #include "build/build_config.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
-#include "chrome/browser/extensions/extension_sync_util.h"
+#include "chrome/browser/extensions/sync/extension_sync_util.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
 #include "chrome/browser/signin/chrome_signin_pref_names.h"
@@ -72,6 +72,7 @@ TEST(SigninPromoTest, TestReauthURL) {
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 TEST(SigninPromoTest, SigninURLForDice) {
   EXPECT_EQ(
       "https://accounts.google.com/signin/chrome/sync?ssp=1&"
@@ -93,6 +94,36 @@ TEST(SigninPromoTest, SigninURLForDice) {
       GetAddAccountURLForDice("email@gmail.com",
                               GURL("https://continue_url/")));
 }
+
+TEST(SigninPromoTest,
+     SigninURLForDiceWithMaterialNextThemeAndHistorySyncOptin) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{switches::kSignInPromoMaterialNextUI,
+                            switches::kEnableHistorySyncOptin},
+      /*disabled_features=*/{});
+  EXPECT_EQ(
+      "https://accounts.google.com/signin/chrome/sync?ssp=1&"
+      "color_scheme=dark&flow=promo&theme=mn",
+      GetChromeSyncURLForDice(
+          {.request_dark_scheme = true, .flow = Flow::PROMO}));
+  EXPECT_EQ(
+      "https://accounts.google.com/signin/chrome/"
+      "sync?ssp=1&email_hint=email%40gmail.com&continue=https%3A%2F%2Fcontinue_"
+      "url%2F&flow=history_opt_in&theme=mn",
+      GetChromeSyncURLForDice(
+          {"email@gmail.com", GURL("https://continue_url/")}));
+  EXPECT_EQ(
+      "https://accounts.google.com/signin/chrome/"
+      "sync?ssp=1&flow=embedded_promo&theme=mn",
+      GetChromeSyncURLForDice({.flow = Flow::EMBEDDED_PROMO}));
+  EXPECT_EQ(
+      "https://accounts.google.com/AddSession?"
+      "Email=email%40gmail.com&continue=https%3A%2F%2Fcontinue_url%2F",
+      GetAddAccountURLForDice("email@gmail.com",
+                              GURL("https://continue_url/")));
+}
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 TEST(SigninPromoTest, IsSignInPromo_AutofillTypes) {
   EXPECT_TRUE(IsSignInPromo(signin_metrics::AccessPoint::kPasswordBubble));

@@ -544,6 +544,8 @@ static bool ext_sni_parse_clienthello(SSL_HANDSHAKE *hs, uint8_t *out_alert,
 }
 
 static bool ext_sni_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
+  // RFC 6066 says "When resuming a session, the server MUST NOT include a
+  // server_name extension in the server hello."
   if (hs->ssl->s3->session_reused ||  //
       !hs->should_ack_sni) {
     return true;

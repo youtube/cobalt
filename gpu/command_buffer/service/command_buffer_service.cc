@@ -10,6 +10,7 @@
 #include <limits>
 #include <memory>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/page_size.h"
 #include "base/trace_event/memory_dump_manager.h"
@@ -19,6 +20,7 @@
 #include "build/build_config.h"
 #include "gpu/command_buffer/common/cmd_buffer_common.h"
 #include "gpu/command_buffer/common/command_buffer_shared.h"
+#include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/transfer_buffer_manager.h"
 #include "gpu/config/gpu_finch_features.h"
 
@@ -203,11 +205,12 @@ int GetCommandBufferSliceSize() {
   return slice_size;
 }
 
-CommandBufferService::CommandBufferService(CommandBufferServiceClient* client,
-                                           MemoryTracker* memory_tracker)
+CommandBufferService::CommandBufferService(
+    CommandBufferServiceClient* client,
+    scoped_refptr<MemoryTracker> memory_tracker)
     : client_(client),
       transfer_buffer_manager_(
-          std::make_unique<TransferBufferManager>(memory_tracker)) {
+          std::make_unique<TransferBufferManager>(std::move(memory_tracker))) {
   DCHECK(client_);
   state_.token = 0;
 #if BUILDFLAG(IS_MAC)
@@ -260,9 +263,9 @@ void CommandBufferService::Flush(int32_t put_offset,
   while (put_offset_ != state_.get_offset) {
     int num_entries = end - state_.get_offset;
     int entries_processed = 0;
-    error::Error error = handler->DoCommands(GetCommandBufferSliceSize(),
-                                             buffer_ + state_.get_offset,
-                                             num_entries, &entries_processed);
+    error::Error error = handler->DoCommands(
+        GetCommandBufferSliceSize(), UNSAFE_TODO(buffer_ + state_.get_offset),
+        num_entries, &entries_processed);
 
     state_.get_offset += entries_processed;
     DCHECK_LE(state_.get_offset, num_entries_);

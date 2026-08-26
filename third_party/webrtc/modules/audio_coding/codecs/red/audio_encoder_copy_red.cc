@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/codecs/red/audio_encoder_copy_red.h"
 
-#include <string.h>
-
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <iterator>
 #include <memory>
 #include <optional>

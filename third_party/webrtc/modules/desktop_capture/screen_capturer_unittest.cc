@@ -8,14 +8,17 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <cstddef>
 #include <memory>
 
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_frame.h"
+#include "modules/desktop_capture/desktop_geometry.h"
 #include "modules/desktop_capture/desktop_region.h"
 #include "modules/desktop_capture/mock_desktop_capturer_callback.h"
-#include "rtc_base/logging.h"
+#include "modules/desktop_capture/shared_memory.h"
+#include "rtc_base/logging.h"  // IWYU pragma: keep
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -25,7 +28,7 @@
 
 using ::testing::_;
 
-const int kTestSharedMemoryId = 123;
+constexpr int kTestSharedMemoryId = 123;
 
 namespace webrtc {
 

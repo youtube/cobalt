@@ -23,7 +23,6 @@
 #include <openssl/mem.h>
 #include <openssl/obj.h>
 #include <openssl/pool.h>
-#include <openssl/thread.h>
 #include <openssl/x509.h>
 
 #include "../asn1/internal.h"
@@ -86,7 +85,7 @@ void X509_free(X509 *x509) {
     return;
   }
 
-  CRYPTO_free_ex_data(&g_ex_data_class, x509, &x509->ex_data);
+  CRYPTO_free_ex_data(&g_ex_data_class, &x509->ex_data);
 
   X509_CINF_free(x509->cert_info);
   X509_ALGOR_free(x509->sig_alg);

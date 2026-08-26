@@ -153,9 +153,10 @@ MacScrollbarAnimator* ScrollableArea::GetMacScrollbarAnimator() const {
 }
 
 ScrollAnimatorBase& ScrollableArea::GetScrollAnimator() const {
-  if (!scroll_animator_)
+  if (!scroll_animator_) {
     scroll_animator_ =
         ScrollAnimatorBase::Create(const_cast<ScrollableArea*>(this));
+  }
 
   return *scroll_animator_;
 }
@@ -215,7 +216,7 @@ ScrollResult ScrollableArea::UserScroll(ui::ScrollGranularity granularity,
   // animation. Delay queuing up this |on_finish| so that it is run when the
   // callback for this scroll animation is run and not when the callback
   // for a previous scroll animation is run.
-  ScrollCallback run_scroll_complete_callbacks(BindOnce(
+  ScrollCallback run_scroll_complete_callbacks(blink::BindOnce(
       [](WeakPersistent<ScrollableArea> area, ScrollCallback callback,
          ScrollCompletionMode mode) {
         if (area) {
@@ -671,11 +672,7 @@ void ScrollableArea::ScrollOffsetChanged(const ScrollOffset& offset,
   }
 
   if (GetLayoutBox()) {
-    if (offset_changed && GetLayoutBox()->GetFrameView() &&
-        GetLayoutBox()
-            ->GetFrameView()
-            ->GetPaintTimingDetector()
-            .NeedToNotifyInputOrScroll()) {
+    if (offset_changed && GetLayoutBox()->GetFrameView()) {
       GetLayoutBox()->GetFrameView()->GetPaintTimingDetector().NotifyScroll(
           scroll_type);
     }
@@ -1166,9 +1163,7 @@ void ScrollableArea::OnScrollFinished(bool scroll_did_end) {
         // TODO(https://crbug.com/41406914): This is temporary. Remove once we
         // start to migrate to scroll-promises.
         node->GetDocument().Markers().StartGlicMarkerAnimationIfNeeded();
-        if (RuntimeEnabledFeatures::ScrollEndEventsEnabled()) {
-          node->GetDocument().EnqueueScrollEndEventForNode(node);
-        }
+        node->GetDocument().EnqueueScrollEndEventForNode(node);
       }
     }
     GetLayoutBox()
@@ -1240,32 +1235,8 @@ bool ScrollableArea::SnapForDocumentScroll(ScrollDirectionPhysical direction) {
 std::unique_ptr<cc::SnapSelectionStrategy>
 ScrollableArea::PageScrollSnapStrategy(
     ScrollDirectionPhysical direction) const {
-  gfx::PointF current_position = ScrollPosition();
-  gfx::Size page_size = PageSize();
-  ScrollOffset unit_direction = ToScrollDelta(direction, 1);
-  ScrollOffset delta = unit_direction;
-  delta.Scale(cc::ScrollUtils::CalculatePageStep(page_size.width()),
-              cc::ScrollUtils::CalculatePageStep(page_size.height()));
-
-  // When scrolling by a page, we prefer that we scroll no more than a page,
-  // but at least by a reasonable proportion of that page.
-  ScrollOffset preferred_max_delta = unit_direction;
-  preferred_max_delta.Scale(
-      cc::ScrollUtils::CalculateMaxPageSnap(page_size.width()),
-      cc::ScrollUtils::CalculateMaxPageSnap(page_size.height()));
-  ScrollOffset preferred_min_delta = unit_direction;
-  preferred_min_delta.Scale(
-      cc::ScrollUtils::CalculateMinPageSnap(page_size.width()),
-      cc::ScrollUtils::CalculateMinPageSnap(page_size.height()));
-  if (direction == ScrollDirectionPhysical::kScrollDown ||
-      direction == ScrollDirectionPhysical::kScrollUp) {
-    preferred_max_delta.set_x(std::numeric_limits<float>::max());
-  } else {
-    preferred_max_delta.set_y(std::numeric_limits<float>::max());
-  }
-
-  return cc::SnapSelectionStrategy::CreateForPreferredDisplacement(
-      current_position, delta, preferred_min_delta, preferred_max_delta,
+  return cc::SnapSelectionStrategy::CreateForPageScroll(
+      ScrollPosition(), ToScrollDelta(direction, 1), PageSize(),
       RuntimeEnabledFeatures::FractionalScrollOffsetsEnabled());
 }
 

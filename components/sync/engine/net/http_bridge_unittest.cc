@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_pump_type.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
@@ -254,7 +255,9 @@ TEST_F(MAYBE_SyncHttpBridgeTest, TestExtraRequestHeaders) {
   scoped_refptr<HttpBridge> http_bridge(BuildBridge());
 
   http_bridge->SetURL(test_server_.GetURL("/echoall"));
-  http_bridge->SetExtraRequestHeaders("test:fnord");
+  net::HttpRequestHeaders headers;
+  headers.SetHeader("test", "fnord");
+  http_bridge->SetExtraRequestHeaders(headers);
 
   std::string test_payload = "###TEST PAYLOAD###";
   http_bridge->SetPostPayload("text/html", test_payload.length() + 1,

@@ -40,6 +40,7 @@
 import argparse
 import re
 import pathlib
+import os
 import subprocess
 import sys
 from typing import Tuple
@@ -51,12 +52,58 @@ _EXTRA_ARGS = [
     "-I../../third_party/googletest/src/googlemock/include/",
     "-I../../third_party/googletest/src/googletest/include/",
 ]
+_GTEST_KEY = '"gtest/gtest.h"'
+_GTEST_VALUE = '"test/gtest.h"'
 _IWYU_MAPPING = {
+    # Literal matches not followed e.g. by IWYU pragma.
     '"gmock/gmock.h"': '"test/gmock.h"',
-    '"gtest/gtest.h"': '"test/gtest.h"',
-    "<sys/socket.h>": '"rtc_base/net_helpers.h"',
+    _GTEST_KEY: _GTEST_VALUE,
+    '<sys/socket.h>': '"rtc_base/net_helpers.h"',
+}
+_IWYU_THIRD_PARTY = {
+    # IWYU does not refer to the complete third_party/ path.
+    '"libyuv/': '"third_party/libyuv/include/libyuv/',
+    '"aom/': '"third_party/libaom/source/libaom/aom/',
+    '"vpx/': '"third_party/libvpx/source/libvpx/vpx/',
 }
 
+# Supported file suffices.
+_SUFFICES = [".cc", ".h"]
+
+# Ignored headers, regexps used with `clang-include-cleaner --ignore-headers=`
+_IGNORED_HEADERS = [
+    "\\.pb\\.h",  # generated protobuf files.
+    "pipewire\\/.*\\.h",  # pipewire.
+    "spa\\/.*\\.h",  # pipewire.
+    "glib\\.h",  # glib.
+    "glibconfig\\.h",  # glib.
+    "glib-object\\.h",  # glib.
+    "gio\\/.*\\.h",  # glib.
+    "openssl\\/.*\\.h",  # openssl/boringssl.
+    "alsa\\/.*\\.h",  # ALSA.
+    "pulse\\/.*\\.h",  # PulseAudio.
+    "bits\\/.*\\.h",  # pthreads.
+    "jpeglibmangler\\.h",  # libjpeg.
+    "libavcodec\\/.*\\.h",  # ffmpeg.
+    "libavutil\\/.*\\.h",  # ffmpeg.
+]
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR = os.path.abspath(os.path.join(_SCRIPT_DIR, os.pardir, os.pardir))
+sys.path.append(os.path.join(_SRC_DIR, "build"))
+import find_depot_tools
+
+_GN_BINARY_PATH = os.path.join(find_depot_tools.DEPOT_TOOLS_PATH, "gn.py")
+
+
+# Check that the file is part of a build target on this platform.
+def _is_built(filename, work_dir):
+    gn_cmd = (_GN_BINARY_PATH, "refs", "-C", work_dir, filename)
+    gn_result = subprocess.run(gn_cmd,
+                               capture_output=True,
+                               text=True,
+                               check=False)
+    return gn_result.returncode == 0
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -148,11 +195,42 @@ def _generate_compile_commands(work_dir: pathlib.Path) -> None:
         )
 
 
+def _modified_output(output: str, content: str) -> str:
+    """ Returns a modified output in case the cleaner made a mistake. For
+    example gtest.h is included again when using features like TEST_P."""
+    if _GTEST_VALUE in content:
+        # Remove _GTEST_KEY from output if _GTEST_VALUE is included.
+        return re.sub(rf'^\+ {_GTEST_KEY}$', '', output)
+    return output
+
+
+def _modified_content(content: str) -> str:
+    """Returns a modified content based on the includes from _IWYU_MAPPING."""
+    modified_content = content
+    if _GTEST_VALUE in modified_content:
+        # Remove _GTEST_KEY from content if _GTEST_VALUE is included.
+        modified_content = re.sub(rf'^#include {_GTEST_KEY}\n',
+                                  '',
+                                  modified_content,
+                                  flags=re.MULTILINE)
+    for key, value in _IWYU_MAPPING.items():
+        # These must be exact matches, e.g. not having a trailing IWYU pragma.
+        modified_content = re.sub(rf'^#include {re.escape(key)}$',
+                                  f'#include {value}',
+                                  modified_content,
+                                  flags=re.MULTILINE)
+    for key, value in _IWYU_THIRD_PARTY.items():
+        modified_content = re.sub(rf'^#include {re.escape(key)}',
+                                  f'#include {value}',
+                                  modified_content,
+                                  flags=re.MULTILINE)
+    return modified_content
+
+
 # Transitioning the cmd type to tuple to prevent modification of
 # the original command from the callsite in main...
-def _apply_include_cleaner_to_file(file_path: pathlib.Path,
-                                   should_modify: bool,
-                                   cmd: Tuple[str, ...]) -> bool:
+def apply_include_cleaner_to_file(file_path: pathlib.Path, should_modify: bool,
+                                  cmd: Tuple[str, ...]) -> str:
     """Applies the include cleaner binary to a given file.
     Other than that, make sure to do include substitutions following the
     _IWYU_MAPPING variable and clear the tool output from redundant additions
@@ -166,8 +244,7 @@ def _apply_include_cleaner_to_file(file_path: pathlib.Path,
              arguments but the file path
 
     Returns:
-        True if include cleaner provided a substitution that was actually
-        required in code (wasn't removed by the _IWYU_MAPPING)
+        The output produced by the cleaner.
     """
     cmd += (str(file_path), )
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -175,35 +252,19 @@ def _apply_include_cleaner_to_file(file_path: pathlib.Path,
         print(f"Failed to run include cleaner on {file_path}, stderr:",
               f"{result.stderr.strip()}")
     output = result.stdout.strip()
-
     content = file_path.read_text()
-    modified_content = content
-    for key, value in _IWYU_MAPPING.items():
-        if value in modified_content:
-            # If the required include is already in the file, clear it from the
-            # cleaner output and remove what the cleaner added to the file
-            output = output.replace(f'+ {key.replace("#include ", "")}', "")
-            if should_modify:
-                modified_content = re.sub(rf"^#include {re.escape(key)}.*\n?",
-                                          "",
-                                          modified_content,
-                                          flags=re.MULTILINE)
+    output = _modified_output(output, content)
 
-        elif should_modify:
-            # Otherwise, change what the cleaner added to the correct include
-            # from _IWYU_MAPPING
-            modified_content = re.sub(rf"^#include {re.escape(key)}",
-                                      f"#include {value}",
-                                      modified_content,
-                                      flags=re.MULTILINE)
-    if should_modify and content != modified_content:
-        file_path.write_text(modified_content)
+    if should_modify:
+        modified_content = _modified_content(content)
+        if content != modified_content:
+            file_path.write_text(modified_content)
 
     if output:
         print(output)
     else:
-        print(f"Successfuly ran include cleaner on {file_path}")
-    return bool(output)
+        print(f"Successfully ran include cleaner on {file_path}")
+    return output
 
 
 def main() -> None:
@@ -220,6 +281,8 @@ def main() -> None:
 
     # Build the execution command
     cmd = [str(_CLEANER_BINARY_PATH), "-p", str(args.work_dir)]
+    # Ignore some headers.
+    cmd.append("--ignore-headers=" + ",".join(_IGNORED_HEADERS))
     for extra_arg in _EXTRA_ARGS:
         cmd.append(f"--extra-arg={extra_arg}")
     if args.print or args.check_for_changes:
@@ -236,8 +299,15 @@ def main() -> None:
     # e.g instead of `cleaner foo.cc && cleaner bar.cc`
     # do `cleaner foo.cc bar.cc`
     for file in args.files:
-        changes_generated = (_apply_include_cleaner_to_file(
-            file, should_modify, tuple(cmd)) or changes_generated)
+        if not file.suffix in _SUFFICES:
+            continue
+        if not _is_built(file, args.work_dir):
+            print(
+                f"Skipping include cleaner as {file} is not referenced by GN.")
+            continue
+        changes_generated = bool(
+            apply_include_cleaner_to_file(file, should_modify, tuple(cmd))
+            or changes_generated)
 
     print("Finished. Check diff, compile, gn gen --check",
           "(tools_webrtc/gn_check_autofix.py can fix most of the issues)")

@@ -60,12 +60,14 @@ bool DataURL::Parse(const GURL& url,
   // Avoid copying the URL content which can be expensive for large URLs.
   std::string_view content = url.GetContentPiece();
 
-  std::string_view::const_iterator comma = std::ranges::find(content, ',');
-  if (comma == content.end())
+  std::optional<std::pair<std::string_view, std::string_view>>
+      media_type_and_body = base::SplitStringOnce(content, ',');
+  if (!media_type_and_body) {
     return false;
+  }
 
   std::vector<std::string_view> meta_data =
-      base::SplitStringPiece(base::MakeStringPiece(content.begin(), comma), ";",
+      base::SplitStringPiece(media_type_and_body->first, ";",
                              base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   // These are moved to |mime_type| and |charset| on success.
@@ -114,19 +116,7 @@ bool DataURL::Parse(const GURL& url,
 
   // The caller may not be interested in receiving the data.
   if (data) {
-    // Preserve spaces if dealing with text or xml input, same as mozilla:
-    //   https://bugzilla.mozilla.org/show_bug.cgi?id=138052
-    // but strip them otherwise:
-    //   https://bugzilla.mozilla.org/show_bug.cgi?id=37200
-    // (Spaces in a data URL should be escaped, which is handled below, so any
-    // spaces now are wrong. People expect to be able to enter them in the URL
-    // bar for text, and it can't hurt, so we allow it.)
-    //
-    // TODO(mmenke): Is removing all spaces reasonable? GURL removes trailing
-    // spaces itself, anyways. Should we just trim leading spaces instead?
-    // Allowing random intermediary spaces seems unnecessary.
-
-    auto raw_body = base::MakeStringPiece(comma + 1, content.end());
+    std::string_view raw_body = media_type_and_body->second;
 
     // For base64, we may have url-escaped whitespace which is not part
     // of the data, and should be stripped. Otherwise, the escaped whitespace
@@ -203,11 +193,10 @@ bool DataURL::Parse(const GURL& url,
       // `temp`'s storage needs to be outside feature check since `raw_body` is
       // a string_view.
       std::string temp;
-      // Strip whitespace for non-text MIME types. This is controlled either by
-      // the feature (finch kill switch) or an enterprise policy which sets the
-      // command line flag.
-      if (!base::FeatureList::IsEnabled(features::kKeepWhitespaceForDataUrls) ||
-          HasRemoveWhitespaceCommandLineFlag()) {
+      // Strip whitespace for non-text MIME types if there's a command line flag
+      // indicating this needs to be done. The flag may be set by an enterprise
+      // policy.
+      if (HasRemoveWhitespaceCommandLineFlag()) {
         if (!(mime_type_value.compare(0, 5, "text/") == 0 ||
               mime_type_value.find("xml") != std::string::npos)) {
           temp = std::string(raw_body);

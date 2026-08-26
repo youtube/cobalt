@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "ui/gtk/gtk_util.h"
 
 #include <locale.h>
@@ -164,6 +159,12 @@ GtkCssContext AppendCssNodeToStyleContextImpl(
   }
 }
 
+GtkWidget* CreateDummyWindow() {
+  GtkWidget* window = GtkToplevelWindowNew();
+  gtk_widget_realize(window);
+  return window;
+}
+
 double GetOpacityFromRenderNode(GskRenderNode* node) {
   DCHECK(GtkCheckVersion(4));
   if (!node) {
@@ -194,7 +195,7 @@ bool GtkInitFromCommandLine(int* argc, char** argv) {
   // Callers should have already called setlocale(LC_ALL, "") and
   // setlocale(LC_NUMERIC, "C") by now. Chrome does this in
   // service_manager::Main.
-  DCHECK_EQ(strcmp(setlocale(LC_NUMERIC, nullptr), "C"), 0);
+  UNSAFE_TODO(DCHECK_EQ(strcmp(setlocale(LC_NUMERIC, nullptr), "C"), 0));
   // This prevents GTK from calling setlocale(LC_ALL, ""), which potentially
   // overwrites the LC_NUMERIC locale to something other than "C".
   gtk_disable_setlocale();
@@ -321,7 +322,7 @@ SkColor CairoSurface::GetAveragePixelValue(bool frame) {
   long a = 0, r = 0, g = 0, b = 0;
   unsigned int max_alpha = 0;
   for (int i = 0; i < width * height; i++) {
-    SkColor color = data[i];
+    SkColor color = UNSAFE_TODO(data[i]);
     max_alpha = std::max(SkColorGetA(color), max_alpha);
     a += SkColorGetA(color);
     r += SkColorGetR(color);
@@ -462,7 +463,8 @@ GtkCssContext AppendCssNodeToStyleContext(GtkCssContext context,
         case CSS_PSEUDOCLASS: {
           GtkStateFlags state_flag = GTK_STATE_FLAG_NORMAL;
           for (const auto& pseudo_class_entry : pseudo_classes) {
-            if (strcmp(pseudo_class_entry.name, t.token().c_str()) == 0) {
+            if (UNSAFE_TODO(
+                    strcmp(pseudo_class_entry.name, t.token().c_str())) == 0) {
               state_flag = pseudo_class_entry.state_flag;
               break;
             }
@@ -645,6 +647,11 @@ void GtkWindowDestroy(GtkWidget* widget) {
   } else {
     gtk_widget_destroy(widget);
   }
+}
+
+GtkWidget* GetDummyWindow() {
+  static GtkWidget* window = CreateDummyWindow();
+  return window;
 }
 
 gfx::Size GetSeparatorSize(bool horizontal) {

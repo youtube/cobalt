@@ -79,7 +79,6 @@ import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeSystemBarColorHelper;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
-import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.ActivityKeyboardVisibilityDelegate;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -171,6 +170,7 @@ public class SearchActivity extends AsyncInitializationActivity
         TerminationReason.FRE_NOT_COMPLETED,
         TerminationReason.CUSTOM_BACK_ARROW,
         TerminationReason.BRING_TAB_TO_FRONT,
+        TerminationReason.BRING_TAB_GROUP_TO_FRONT,
         TerminationReason.COUNT
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -184,7 +184,8 @@ public class SearchActivity extends AsyncInitializationActivity
         int FRE_NOT_COMPLETED = 6;
         int CUSTOM_BACK_ARROW = 7;
         int BRING_TAB_TO_FRONT = 8;
-        int COUNT = 9;
+        int BRING_TAB_GROUP_TO_FRONT = 9;
+        int COUNT = 10;
     }
 
     // LINT.ThenChange(/tools/metrics/histograms/metadata/android/enums.xml:SearchActivityTerminationReason)
@@ -322,7 +323,7 @@ public class SearchActivity extends AsyncInitializationActivity
                         /* backKeyBehavior= */ this,
                         /* pageInfoAction= */ (tab, pageInfoHighlight) -> {},
                         this::bringTabToFront,
-                        /* saveOfflineButtonState= */ (tab) -> false,
+                        this::bringTabGroupToFront,
                         /*omniboxUma*/ (url, transition, isNtp) -> {},
                         TabWindowManagerSingleton::getInstance,
                         /* bookmarkState= */ (url) -> false,
@@ -371,8 +372,7 @@ public class SearchActivity extends AsyncInitializationActivity
                         /* bottomWindowPaddingSupplier */ () -> 0,
                         /* onLongClickListener= */ null,
                         /* browserControlsStateProvider= */ null,
-                        /* isToolbarPositionCustomizationEnabled= */ false,
-                        (context, tab, fromAppMenu) -> {});
+                        /* isToolbarPositionCustomizationEnabled= */ false);
         mLocationBarCoordinator.setUrlBarFocusable(true);
         mLocationBarCoordinator.setShouldShowMicButtonWhenUnfocused(true);
         mLocationBarCoordinator.getOmniboxStub().addUrlFocusChangeListener(this);
@@ -410,9 +410,7 @@ public class SearchActivity extends AsyncInitializationActivity
 
         mSearchBoxDataProvider.setCurrentUrl(SearchActivityUtils.getIntentUrl(intent));
 
-        if (OmniboxFeatures.sAndroidHubSearch.isEnabled()) {
-            setColorScheme(mSearchBoxDataProvider.isIncognitoBranded());
-        }
+        setColorScheme(mSearchBoxDataProvider.isIncognitoBranded());
 
         switch (mIntentOrigin) {
             case IntentOrigin.CUSTOM_TAB:
@@ -518,7 +516,7 @@ public class SearchActivity extends AsyncInitializationActivity
     private void finishNativeInitializationWithProfile(Profile profile) {
         refinePageClassWithProfile(profile);
 
-        if (OmniboxFeatures.sAndroidHubSearch.isEnabled() && mIntentOrigin == IntentOrigin.HUB) {
+        if (mIntentOrigin == IntentOrigin.HUB) {
             setHubSearchBoxUrlBarElements();
         }
 
@@ -668,8 +666,7 @@ public class SearchActivity extends AsyncInitializationActivity
             intent.putExtra(SearchWidgetProvider.EXTRA_FROM_SEARCH_WIDGET, true);
         }
 
-        if (OmniboxFeatures.sAndroidHubSearch.isEnabled()
-                && mSearchBoxDataProvider.isIncognitoBranded()) {
+        if (mSearchBoxDataProvider.isIncognitoBranded()) {
             intent.putExtra(Browser.EXTRA_APPLICATION_ID, getApplicationContext().getPackageName());
             intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, true);
             IntentUtils.addTrustedIntentExtras(intent);
@@ -891,6 +888,11 @@ public class SearchActivity extends AsyncInitializationActivity
     private void bringTabToFront(Tab tab) {
         finish(TerminationReason.BRING_TAB_TO_FRONT, /* loadUrlParams= */ null);
         IntentHandler.bringTabToFront(tab);
+    }
+
+    private void bringTabGroupToFront(String tabGroupId) {
+        finish(TerminationReason.BRING_TAB_GROUP_TO_FRONT, /* loadUrlParams= */ null);
+        IntentHandler.bringTabGroupToFront(tabGroupId);
     }
 
     /* package */ void setLocationBarCoordinatorForTesting(LocationBarCoordinator coordinator) {

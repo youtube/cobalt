@@ -212,6 +212,9 @@ class CRWWebControllerTest : public WebTestWithWebController {
     OCMStub([result allowsBackForwardNavigationGestures]);
     OCMStub([result setAllowsBackForwardNavigationGestures:NO]);
     OCMStub([result setAllowsBackForwardNavigationGestures:YES]);
+    OCMStub([result allowsLinkPreview]);
+    OCMStub([result setAllowsLinkPreview:NO]);
+    OCMStub([result setAllowsLinkPreview:YES]);
     OCMStub([result isLoading]);
     OCMStub([result stopLoading]);
     OCMStub([result removeFromSuperview]);
@@ -269,6 +272,13 @@ TEST_F(CRWWebControllerTest, SetAllowsBackForwardNavigationGestures) {
   EXPECT_TRUE(web_controller().allowsBackForwardNavigationGestures);
   web_controller().allowsBackForwardNavigationGestures = NO;
   EXPECT_FALSE(web_controller().allowsBackForwardNavigationGestures);
+}
+
+// Tests allowsLinkPreview default value and negating this property.
+TEST_F(CRWWebControllerTest, SetAllowsLinkPreview) {
+  EXPECT_TRUE(web_controller().allowsLinkPreview);
+  web_controller().allowsLinkPreview = NO;
+  EXPECT_FALSE(web_controller().allowsLinkPreview);
 }
 
 // Tests that a web view is created after calling -[ensureWebViewCreated] and
@@ -1255,7 +1265,13 @@ TEST_F(WindowOpenByDomTest, CloseWindow) {
 }
 
 // Tests that calling document.write() on a newly-opened window doesn't crash.
-TEST_F(WindowOpenByDomTest, DocumentWrite) {
+// TODO(crbug.com/433776063): The test fails on device.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_DocumentWrite DocumentWrite
+#else
+#define MAYBE_DocumentWrite DISABLED_DocumentWrite
+#endif
+TEST_F(WindowOpenByDomTest, MAYBE_DocumentWrite) {
   delegate_.allow_popups(opener_url_);
 
   NSString* const kDocumentWriteScript =

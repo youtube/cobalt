@@ -4,9 +4,24 @@
 
 #import "ios/chrome/browser/first_run/ui_bundled/interactive_lens/coordinator/interactive_lens_promo_coordinator.h"
 
+#import "base/check.h"
+#import "components/lens/lens_overlay_dismissal_source.h"
 #import "ios/chrome/browser/first_run/ui_bundled/first_run_screen_delegate.h"
+#import "ios/chrome/browser/first_run/ui_bundled/interactive_lens/ui/interactive_lens_overlay_promo_view_controller.h"
+#import "ios/chrome/browser/first_run/ui_bundled/interactive_lens/ui/lens_interactive_promo_results_page_presenter.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
 
-@implementation InteractiveLensPromoCoordinator
+@interface InteractiveLensPromoCoordinator () <InteractiveLensPromoDelegate>
+@end
+
+@implementation InteractiveLensPromoCoordinator {
+  // View controller for the Interactive Lens promo screen.
+  InteractiveLensOverlayPromoViewController* _promoViewController;
+  // Command handler for the Lens Overlay commands.
+  __weak id<LensOverlayCommands> _lensOverlayHandler;
+}
 
 @synthesize baseNavigationController = _baseNavigationController;
 
@@ -16,6 +31,8 @@
   if ((self = [super initWithBaseViewController:navigationController
                                         browser:browser])) {
     _baseNavigationController = navigationController;
+    _lensOverlayHandler = HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), LensOverlayCommands);
   }
   return self;
 }
@@ -24,12 +41,53 @@
 
 - (void)start {
   [super start];
-  // TODO(crbug.com/416480202): Present screen.
+
+  _promoViewController =
+      [[InteractiveLensOverlayPromoViewController alloc] init];
+  _promoViewController.delegate = self;
+  _promoViewController.modalInPresentation = YES;
+
+  // Force the view to load and layout.
+  _promoViewController.view.frame = self.baseNavigationController.view.bounds;
+  [_promoViewController.view layoutIfNeeded];
+
+  // Now that the view has been laid out, create the lens overlay.
+  // TODO(crbug.com/416480202): Consider pre-warming the Lens Overlay for cases
+  // where the it might take longer to start up.
+  LensResultsPresenterFactory factory =
+      ^(LensOverlayContainerViewController* baseViewController,
+        LensResultPageViewController* resultsViewController) {
+        return [[LensInteractivePromoResultsPagePresenter alloc]
+            initWithBaseViewController:baseViewController
+              resultPageViewController:resultsViewController];
+      };
+
+  [_lensOverlayHandler
+          searchImageWithLens:_promoViewController.lensSearchImage
+                   entrypoint:LensOverlayEntrypoint::kFREPromo
+      initialPresentationBase:_promoViewController.lensContainerViewController
+      resultsPresenterFactory:factory
+                   completion:nil];
+
+  BOOL animated = self.baseNavigationController.topViewController != nil;
+  [self.baseNavigationController setViewControllers:@[ _promoViewController ]
+                                           animated:animated];
 }
 
 - (void)stop {
+  [_lensOverlayHandler
+      destroyLensUI:YES
+             reason:lens::LensOverlayDismissalSource::kFREPromoNextButton];
   self.firstRunDelegate = nil;
+  _promoViewController = nil;
   [super stop];
+}
+
+#pragma mark - InteractiveLensPromoDelegate
+
+- (void)didTapContinueButton {
+  CHECK(self.firstRunDelegate);
+  [self.firstRunDelegate screenWillFinishPresenting];
 }
 
 @end

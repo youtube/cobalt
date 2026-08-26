@@ -92,9 +92,6 @@ def ArgumentParser(standalone=False):
           % ', '.join(sorted(cloud_storage.BUCKET_ALIASES)),
           'Defaults to: %(default)s.'))
   group.add_argument(
-      '--experimental-tbmv3-metrics', action='store_true',
-      help='Enable running experimental TBMv3 metrics.')
-  group.add_argument(
       '--fetch-power-profile',
       action='store_true',
       help=('Specify this if you want to run proxy power metrics that use '
@@ -130,7 +127,8 @@ def ArgumentParser(standalone=False):
       '--fetch-data-path-device',
       dest='device_data_path',
       help=('Use this to specify the path on device to pull data from. Should '
-            'be used with --fetch-device-data.'))
+            'be used with --fetch-device-data. Use "auto" for dynamic '
+            'detection on Android.'))
   device_group.add_argument(
       '--fetch-data-path-local',
       dest='local_data_path',

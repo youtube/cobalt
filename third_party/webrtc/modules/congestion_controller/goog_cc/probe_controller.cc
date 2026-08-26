@@ -11,13 +11,11 @@
 #include "modules/congestion_controller/goog_cc/probe_controller.h"
 
 #include <algorithm>
-#include <cstdint>
 #include <initializer_list>
 #include <memory>
 #include <optional>
 #include <vector>
 
-#include "absl/strings/match.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/transport/network_types.h"
@@ -173,9 +171,8 @@ ProbeController::ProbeController(const FieldTrialsView* key_value_config,
                                  RtcEventLog* event_log)
     : network_available_(false),
       enable_periodic_alr_probing_(false),
-      in_rapid_recovery_experiment_(absl::StartsWith(
-          key_value_config->Lookup(kBweRapidRecoveryExperiment),
-          "Enabled")),
+      in_rapid_recovery_experiment_(
+          key_value_config->IsEnabled(kBweRapidRecoveryExperiment)),
       event_log_(event_log),
       config_(ProbeControllerConfig(key_value_config)) {
   Reset(Timestamp::Zero());
@@ -378,16 +375,11 @@ void ProbeController::EnableRepeatedInitialProbing(bool enable) {
   repeated_initial_probing_enabled_ = enable;
 }
 
-void ProbeController::SetAlrStartTimeMs(
-    std::optional<int64_t> alr_start_time_ms) {
-  if (alr_start_time_ms) {
-    alr_start_time_ = Timestamp::Millis(*alr_start_time_ms);
-  } else {
-    alr_start_time_ = std::nullopt;
-  }
+void ProbeController::SetAlrStartTime(std::optional<Timestamp> alr_start_time) {
+  alr_start_time_ = alr_start_time;
 }
-void ProbeController::SetAlrEndedTimeMs(int64_t alr_end_time_ms) {
-  alr_end_time_.emplace(Timestamp::Millis(alr_end_time_ms));
+void ProbeController::SetAlrEndedTime(Timestamp alr_end_time) {
+  alr_end_time_ = alr_end_time;
 }
 
 std::vector<ProbeClusterConfig> ProbeController::RequestProbe(

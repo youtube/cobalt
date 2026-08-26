@@ -34,6 +34,18 @@ void AIWritingAssistanceCreateClient<
                                       ToMojoSummarizerCreateOptions(options_));
 }
 
+template <>
+void AIWritingAssistanceCreateClient<
+    mojom::blink::AISummarizer,
+    mojom::blink::AIManagerCreateSummarizerClient,
+    SummarizerCreateOptions,
+    Summarizer>::RemoteCanCreate(CanCreateCallback callback) {
+  HeapMojoRemote<mojom::blink::AIManager>& ai_manager_remote =
+      AIInterfaceProxy::GetAIManagerRemote(GetExecutionContext());
+  ai_manager_remote->CanCreateSummarizer(
+      ToMojoSummarizerCreateOptions(options_), std::move(callback));
+}
+
 // static
 template <>
 AIMetrics::AISessionType SummarizerBase::GetSessionType() {
@@ -137,7 +149,7 @@ void SummarizerBase::RecordCreateOptionMetrics(
 }
 
 Summarizer::Summarizer(
-    ExecutionContext* execution_context,
+    ScriptState* script_state,
     scoped_refptr<base::SequencedTaskRunner> task_runner,
     mojo::PendingRemote<mojom::blink::AISummarizer> pending_remote,
     SummarizerCreateOptions* options)
@@ -147,7 +159,7 @@ Summarizer::Summarizer(
                               SummarizerCreateCoreOptions,
                               SummarizerCreateOptions,
                               SummarizerSummarizeOptions>(
-          execution_context,
+          script_state,
           task_runner,
           std::move(pending_remote),
           std::move(options),
@@ -171,9 +183,8 @@ ScriptPromise<IDLString> Summarizer::summarize(
     const String& writing_task,
     const SummarizerSummarizeOptions* options,
     ExceptionState& exception_state) {
-  return AIWritingAssistanceBase::execute(
-      script_state, writing_task, options, exception_state,
-      AIMetrics::AIAPI::kSummarizerSummarize);
+  return AIWritingAssistanceBase::execute(script_state, writing_task, options,
+                                          exception_state);
 }
 
 ReadableStream* Summarizer::summarizeStreaming(
@@ -181,9 +192,8 @@ ReadableStream* Summarizer::summarizeStreaming(
     const String& writing_task,
     const SummarizerSummarizeOptions* options,
     ExceptionState& exception_state) {
-  return AIWritingAssistanceBase::executeStreaming(
-      script_state, writing_task, options, exception_state,
-      AIMetrics::AIAPI::kSummarizerSummarizeStreaming);
+  return AIWritingAssistanceBase::executeStreaming(script_state, writing_task,
+                                                   options, exception_state);
 }
 
 ScriptPromise<IDLDouble> Summarizer::measureInputUsage(

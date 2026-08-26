@@ -38,6 +38,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "components/autofill/core/browser/autofill_ai_form_rationalization.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/crowdsourcing/server_prediction_overrides.h"
@@ -48,6 +49,7 @@
 #include "components/autofill/core/browser/form_parsing/autofill_parsing_utils.h"
 #include "components/autofill/core/browser/form_parsing/buildflags.h"
 #include "components/autofill/core/browser/form_parsing/form_field_parser.h"
+#include "components/autofill/core/browser/form_processing/autofill_ai/determine_attribute_types.h"
 #include "components/autofill/core/browser/form_processing/label_processing_util.h"
 #include "components/autofill/core/browser/form_processing/name_processing_util.h"
 #include "components/autofill/core/browser/form_structure_rationalizer.h"
@@ -104,6 +106,17 @@ std::string ServerTypesToString(const AutofillField& field) {
   }
 
   return base::StrCat({"[", base::JoinString(server_types, ", "), "]"});
+}
+
+std::string AttributeTypesToString(base::span<const AttributeType> types) {
+  auto attribute_type_to_string = [](AttributeType t) {
+    return base::StrCat(
+        {t.entity_type().name_as_string(), ": ", t.name_as_string()});
+  };
+  return base::StrCat(
+      {"[",
+       base::JoinString(base::ToVector(types, attribute_type_to_string), ", "),
+       "]"});
 }
 
 std::string_view ToYesOrNo(bool value) {
@@ -163,6 +176,7 @@ FormStructure::FormStructure(const FormData& form)
 
   form_signature_ = CalculateFormSignature(form);
   alternative_form_signature_ = CalculateAlternativeFormSignature(form);
+  structural_form_signature_ = CalculateStructuralFormSignature(form);
   // Do further processing on the fields, as needed.
   // Computes the `parseable_name_` of the fields by removing common affixes
   // from their names.
@@ -260,12 +274,14 @@ void FormStructure::RationalizeAndAssignSections(LogManager* log_manager,
       size_t next_section_id = section_id_map.size() + 1;
       section_id_map[field->section()] = next_section_id;
     }
-    field->AppendLogEventIfNotRepeated(RationalizationFieldLogEvent{
-        .field_type = field->Type().GetStorableType(),
-        .section_id = section_id_map[field->section()],
-        .type_changed = field->Type().GetStorableType() !=
-                        field->ComputedType().GetStorableType(),
-    });
+    for (FieldType field_type : field->Type().GetTypes()) {
+      field->AppendLogEventIfNotRepeated(RationalizationFieldLogEvent{
+          .field_type = field_type,
+          .section_id = section_id_map[field->section()],
+          .type_changed = field->Type().GetTypes().contains(field_type) !=
+                          field->ComputedType().GetTypes().contains(field_type),
+      });
+    }
   }
 }
 
@@ -277,6 +293,19 @@ FormDataPredictions FormStructure::GetFieldTypePredictions() const {
   form.signature = FormSignatureAsStr();
   form.alternative_signature =
       base::NumberToString(alternative_form_signature().value());
+  form.structural_form_signature =
+      base::NumberToString(structural_form_signature().value());
+
+  std::map<const AutofillField*, std::vector<AttributeType>>
+      field_to_attribute_types;
+  for (const auto& [section, entities_and_fields] :
+       RationalizeAndDetermineAttributeTypes(fields())) {
+    for (const auto& [entity, fields] : entities_and_fields) {
+      for (const AutofillFieldWithAttributeType& f : fields) {
+        field_to_attribute_types[&*f.field].push_back(f.type);
+      }
+    }
+  }
 
   for (const auto& field : fields_) {
     FormFieldDataPredictions annotated_field;
@@ -288,17 +317,27 @@ FormDataPredictions FormStructure::GetFieldTypePredictions() const {
     if (!field->server_predictions().empty()) {
       annotated_field.server_type = FieldTypeToStringView(field->server_type());
     }
-    if (std::optional<FieldType> autofill_ai_type =
-            field->GetAutofillAiServerTypePredictions()) {
-      annotated_field.autofill_ai_type =
-          FieldTypeToStringView(*autofill_ai_type);
+    if (auto it = field_to_attribute_types.find(&*field);
+        it != field_to_attribute_types.end()) {
+      annotated_field.attribute_types = AttributeTypesToString(it->second);
     }
     if (base::optional_ref<const std::u16string> format_string =
             field->format_string()) {
       annotated_field.format_string = base::UTF16ToUTF8(*format_string);
     }
     annotated_field.html_type = FieldTypeToStringView(field->html_type());
-    annotated_field.overall_type = std::string(field->Type().ToStringView());
+    annotated_field.overall_type = [&] {
+      AutofillType overall_type = field->Type();
+      if (FieldTypeSet field_types = overall_type.GetTypes();
+          field_types.size() > 1 &&
+          base::FeatureList::IsEnabled(
+              features::test::
+                  kAutofillUnionTypesSingleTypeInAutofillInformation)) {
+        return FieldTypeToString(*field_types.begin());
+      }
+      return overall_type.ToString();
+    }();
+
     annotated_field.parseable_name = base::UTF16ToUTF8(field->parseable_name());
     annotated_field.parseable_label =
         base::UTF16ToUTF8(field->parseable_label());
@@ -357,27 +396,25 @@ bool FormStructure::IsAutofillable() const {
 
 bool FormStructure::IsCompleteCreditCardForm(
     CreditCardFormCompleteness credit_card_form_completeness) const {
-  bool found_cc_expiration =
-      std::ranges::any_of(fields_, [](const auto& field) {
-        return data_util::IsCreditCardExpirationType(
-            field->Type().GetStorableType());
-      });
-  auto has_type = [&](FieldType type) {
-    return std::ranges::any_of(fields_, [&](const auto& field) {
-      return field->Type().GetStorableType() == type;
-    });
-  };
-  bool found_cc_number = has_type(CREDIT_CARD_NUMBER);
+  FieldTypeSet all_cc_types = FieldTypeSet(fields_, [](const auto& field) {
+    return field->Type().GetCreditCardType();
+  });
+  all_cc_types.erase(UNKNOWN_TYPE);
 
+  const bool found_cc_expiration =
+      std::ranges::any_of(all_cc_types, &data_util::IsCreditCardExpirationType);
+  const bool found_cc_number = all_cc_types.contains(CREDIT_CARD_NUMBER);
   switch (credit_card_form_completeness) {
     case CreditCardFormCompleteness::kCompleteCreditCardForm:
       return found_cc_expiration && found_cc_number;
     case CreditCardFormCompleteness::
         kCompleteCreditCardFormIncludingCvcAndName: {
-      bool found_cc_cvc = has_type(CREDIT_CARD_VERIFICATION_CODE);
-      bool found_cc_name =
-          has_type(CREDIT_CARD_NAME_FULL) ||
-          (has_type(CREDIT_CARD_NAME_FIRST) && has_type(CREDIT_CARD_NAME_LAST));
+      const bool found_cc_cvc =
+          all_cc_types.contains(CREDIT_CARD_VERIFICATION_CODE);
+      const bool found_cc_name =
+          all_cc_types.contains(CREDIT_CARD_NAME_FULL) ||
+          (all_cc_types.contains(CREDIT_CARD_NAME_FIRST) &&
+           all_cc_types.contains(CREDIT_CARD_NAME_LAST));
       return found_cc_expiration && found_cc_number && found_cc_cvc &&
              found_cc_name;
     }
@@ -619,6 +656,13 @@ void FormStructure::RetrieveFromCache(const FormStructure& cached_form,
   // request.
   form_signature_ = cached_form.form_signature_;
 
+  // Keeping the behavior for structural signature consistent with the main one.
+  // In practice, first-encountered signatures are preserved only for purely
+  // credit card forms.
+  // TODO(crbug.com/431754194): Investigate making the behavior consistent
+  // across all form types.
+  structural_form_signature_ = cached_form.structural_form_signature_;
+
   // Whether the AutofillAI model may be run is set at the same time as the
   // server predictions - it also needs to be retrieved from the cache.
   may_run_autofill_ai_model_ = cached_form.may_run_autofill_ai_model_;
@@ -680,18 +724,9 @@ FieldCandidatesMap FormStructure::ParseFieldTypesWithPatterns(
     // For standalone email fields, allow heuristics even when the minimum
     // number of fields is not met. See similar comments in
     // `FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields`.
-    // Note that if a form tag is present this behaviour is enabled by default.
-    // The alternative case it relies on
-    // `kAutofillEnableEmailHeuristicOutsideForms` being enabled.
-    const bool parse_standalone_email_fields =
-        is_form_element() ||
-        base::FeatureList::IsEnabled(
-            features::kAutofillEnableEmailHeuristicOutsideForms);
+    FormFieldParser::ParseStandaloneEmailFields(context, fields_,
+                                                field_type_map);
 
-    if (parse_standalone_email_fields) {
-      FormFieldParser::ParseStandaloneEmailFields(context, fields_,
-                                                  field_type_map);
-    }
     // Try parsing standalone loyalty card fields after an attempt has been
     // made to parse multi-purpose input fields e.g. email or loyalty number
     // fields.
@@ -755,8 +790,7 @@ size_t FormStructure::field_count() const {
 }
 
 const AutofillField* FormStructure::GetFieldById(FieldGlobalId field_id) const {
-  auto it = std::ranges::find(
-      fields_, field_id, [](const auto& field) { return field->global_id(); });
+  auto it = std::ranges::find(fields_, field_id, &FormFieldData::global_id);
   return it != fields_.end() ? it->get() : nullptr;
 }
 
@@ -843,13 +877,19 @@ DenseSet<FormType> FormStructure::GetFormTypes() const {
   DenseSet<FormType> form_types;
   for (const auto& field : fields_) {
     if (field->ShouldSuppressSuggestionsAndFillingByDefault()) {
-      // When `kAutofillPredictionsForAutocompleteUnrecognized` is enabled,
-      // types are predicted for fields with unrecognized autocomplete
-      // attribute. They are excluded from the form types, to keep the baseline
-      // for key and quality metrics.
+      // Types are predicted for fields with unrecognized autocomplete
+      // attribute, but suggestions are suppressed. So we don't want such fields
+      // to affect the key and quality metrics. We therefore exclude them from
+      // the form types.
       form_types.insert(FormType::kUnknownFormType);
     } else {
-      form_types.insert(FieldTypeGroupToFormType(field->Type().group()));
+      form_types.insert_all([&field] {
+        DenseSet<FormType> ts = field->Type().GetFormTypes();
+        if (ts.empty()) {
+          ts = {FormType::kUnknownFormType};
+        }
+        return ts;
+      }());
     }
   }
   return form_types;
@@ -912,7 +952,6 @@ std::ostream& operator<<(std::ostream& buffer, const FormStructure& form) {
                        HashFormSignature(field->host_form_signature()))});
     buffer << "\n  Name: " << field->parseable_name();
 
-    auto type = field->Type().ToStringView();
     auto regex_heuristic_type =
         FieldTypeToStringView(field->heuristic_type(HeuristicSource::kRegexes));
     std::string ml_heuristic_part;
@@ -940,7 +979,8 @@ std::ostream& operator<<(std::ostream& buffer, const FormStructure& form) {
     }
 
     buffer << "\n  Type: "
-           << base::StrCat({type, " (regex heuristic: ", regex_heuristic_type,
+           << base::StrCat({field->Type().ToString(),
+                            " (regex heuristic: ", regex_heuristic_type,
                             ml_heuristic_part, ", server: ", server_type,
                             is_override, html_type_description, ")"});
     buffer << "\n  Section: " << field->section();
@@ -982,6 +1022,16 @@ LogBuffer& operator<<(LogBuffer& buffer, const FormStructure& form) {
     buffer << Tr{} << "May run AutofillAI model: "
            << ToYesOrNo(form.may_run_autofill_ai_model());
   }
+  std::map<const AutofillField*, std::vector<AttributeType>>
+      field_to_attribute_types;
+  for (const auto& [section, entities_and_fields] :
+       RationalizeAndDetermineAttributeTypes(form.fields())) {
+    for (const auto& [entity, fields] : entities_and_fields) {
+      for (const AutofillFieldWithAttributeType& f : fields) {
+        field_to_attribute_types[&*f.field].push_back(f.type);
+      }
+    }
+  }
   for (size_t i = 0; i < form.field_count(); ++i) {
     buffer << Tag{"tr"};
     buffer << Tag{"td"} << "Field " << i << ": " << CTag{};
@@ -1010,7 +1060,6 @@ LogBuffer& operator<<(LogBuffer& buffer, const FormStructure& form) {
     buffer << Tr{} << "Name:" << field->parseable_name();
     buffer << Tr{} << "Placeholder:" << field->placeholder();
 
-    auto type = field->Type().ToStringView();
     auto regex_heuristic_type =
         FieldTypeToStringView(field->heuristic_type(HeuristicSource::kRegexes));
     std::string ml_heuristic_part;
@@ -1039,13 +1088,14 @@ LogBuffer& operator<<(LogBuffer& buffer, const FormStructure& form) {
     }
 
     buffer << Tr{} << "Type:"
-           << base::StrCat({type, " (regex heuristic: ", regex_heuristic_type,
-                            ml_heuristic_part, ", server: ",
-                            server_type, html_type_description, ")"});
-    if (std::optional<FieldType> autofill_ai_type =
-            field->GetAutofillAiServerTypePredictions()) {
-      buffer << Tr{}
-             << "Autofill AI Type:" << FieldTypeToStringView(*autofill_ai_type);
+           << base::StrCat({field->Type().ToString(),
+                            " (regex heuristic: ", regex_heuristic_type,
+                            ml_heuristic_part, ", server: ", server_type,
+                            html_type_description, ")"});
+    if (auto it = field_to_attribute_types.find(&*field);
+        it != field_to_attribute_types.end()) {
+      buffer << Tr{} << "Autofill AI AttributeTypes:"
+             << AttributeTypesToString(it->second);
     }
     if (base::optional_ref<const std::u16string> format_string =
             field->format_string()) {

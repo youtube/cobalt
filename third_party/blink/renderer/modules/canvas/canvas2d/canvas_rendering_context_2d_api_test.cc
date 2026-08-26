@@ -50,6 +50,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
+#include "third_party/blink/renderer/platform/graphics/opacity_mode.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
@@ -114,7 +115,7 @@ void CanvasRenderingContext2DAPITest::CreateContext(OpacityMode opacity_mode) {
 
 void CanvasRenderingContext2DAPITest::SetUp() {
   PageTestBase::SetUp();
-  GetDocument().documentElement()->setInnerHTML(
+  GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(
       "<body><canvas id='c'></canvas></body>");
   UpdateAllLifecyclePhasesForTest();
   canvas_element_ =
@@ -564,7 +565,7 @@ TEST_F(CanvasRenderingContext2DAPITest, UnclosedLayerDrawMesh) {
 }
 
 void ResetCanvasForAccessibilityRectTest(Document& document) {
-  document.documentElement()->setInnerHTML(R"HTML(
+  document.documentElement()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <canvas id='canvas' style='position:absolute; top:0px; left:0px;
     padding:10px; margin:5px;'>
     <button id='button'></button></canvas>

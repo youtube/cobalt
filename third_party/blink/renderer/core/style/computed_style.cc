@@ -27,6 +27,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/debug/alias.h"
 #include "base/memory/values_equivalent.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/clamped_math.h"
@@ -256,7 +257,7 @@ static bool PseudoElementStylesEqual(const ComputedStyle& old_style,
     }
     // Highlight pseudo styles are stored in StyleHighlightData, and compared
     // like any other inherited field, yielding Difference::kInherited.
-    if (UsesHighlightPseudoInheritance(pseudo_id)) {
+    if (IsHighlightPseudoElement(pseudo_id)) {
       continue;
     }
     const ComputedStyle* new_pseudo_style =
@@ -763,7 +764,7 @@ StyleDifference ComputedStyle::VisualInvalidationDiff(
   StyleDifference diff;
   uint64_t field_diff = FieldInvalidationDiff(*this, other);
 
-  if ((field_diff & kReshape) || ShouldWrapLine() != other.ShouldWrapLine()) {
+  if (DiffNeedsReshape(other, field_diff)) {
     diff.SetNeedsReshape();
     diff.SetNeedsFullLayout();
     diff.SetNeedsNormalPaintInvalidation();
@@ -819,6 +820,9 @@ StyleDifference ComputedStyle::VisualInvalidationDiff(
   }
   if (field_diff & kBorderRadius) {
     diff.SetBorderRadiusChanged();
+  }
+  if (field_diff & kBorderShape) {
+    diff.SetBorderShapeChanged();
   }
   if (field_diff & kClip) {
     bool has_clip = HasOutOfFlowPosition() && !HasAutoClip();
@@ -914,6 +918,25 @@ StyleDifference ComputedStyle::VisualInvalidationDiff(
   return diff;
 }
 
+bool ComputedStyle::DiffNeedsReshape(const ComputedStyle& other,
+                                     uint64_t field_diff) const {
+  if (field_diff & kReshape) {
+    return true;
+  }
+
+  if (ShouldWrapLine() != other.ShouldWrapLine()) {
+    return true;
+  }
+
+  if (field_diff & kBorderWidth) {
+    if (Display() == EDisplay::kInline && HasBorder() != other.HasBorder()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool ComputedStyle::DiffNeedsFullLayoutAndPaintInvalidation(
     const ComputedStyle& other,
     uint64_t field_diff) const {
@@ -971,7 +994,8 @@ bool ComputedStyle::DiffNeedsFullLayout(const Document& document,
     if (HasStroke() != other.HasStroke()) {
       return true;
     }
-    if (HasDashArray() != other.HasDashArray()) {
+    if (static_cast<bool>(StrokeDashArray()) !=
+        static_cast<bool>(other.StrokeDashArray())) {
       return true;
     }
   }
@@ -1863,12 +1887,12 @@ const AtomicString& ComputedStyle::HyphenString() const {
 
   // FIXME: This should depend on locale.
   DEFINE_STATIC_LOCAL(AtomicString, hyphen_minus_string,
-                      (base::span_from_ref(kHyphenMinusCharacter)));
+                      (base::span_from_ref(uchar::kHyphenMinus)));
   DEFINE_STATIC_LOCAL(AtomicString, hyphen_string,
-                      (base::span_from_ref(kHyphenCharacter)));
+                      (base::span_from_ref(uchar::kHyphen)));
   const SimpleFontData* primary_font = GetFont()->PrimaryFont();
   DCHECK(primary_font);
-  return primary_font && primary_font->GlyphForCharacter(kHyphenCharacter)
+  return primary_font && primary_font->GlyphForCharacter(uchar::kHyphen)
              ? hyphen_string
              : hyphen_minus_string;
 }
@@ -1941,7 +1965,7 @@ String ApplyMathAutoTransform(const String& text, TextOffsetMap* offset_map) {
     return text;
   }
   UChar character = text[0];
-  UChar32 transformed_char = ItalicMathVariant(text[0]);
+  UChar32 transformed_char = unicode::ItalicMathVariant(text[0]);
   if (transformed_char == static_cast<UChar32>(character)) {
     return text;
   }
@@ -1997,27 +2021,27 @@ const AtomicString& ComputedStyle::TextEmphasisMarkString() const {
       return TextEmphasisCustomMark();
     case TextEmphasisMark::kDot: {
       DEFINE_STATIC_LOCAL(AtomicString, filled_dot_string,
-                          (base::span_from_ref(kBulletCharacter)));
+                          (base::span_from_ref(uchar::kBullet)));
       DEFINE_STATIC_LOCAL(AtomicString, open_dot_string,
-                          (base::span_from_ref(kWhiteBulletCharacter)));
+                          (base::span_from_ref(uchar::kWhiteBullet)));
       return GetTextEmphasisFill() == TextEmphasisFill::kFilled
                  ? filled_dot_string
                  : open_dot_string;
     }
     case TextEmphasisMark::kCircle: {
       DEFINE_STATIC_LOCAL(AtomicString, filled_circle_string,
-                          (base::span_from_ref(kBlackCircleCharacter)));
+                          (base::span_from_ref(uchar::kBlackCircle)));
       DEFINE_STATIC_LOCAL(AtomicString, open_circle_string,
-                          (base::span_from_ref(kWhiteCircleCharacter)));
+                          (base::span_from_ref(uchar::kWhiteCircle)));
       return GetTextEmphasisFill() == TextEmphasisFill::kFilled
                  ? filled_circle_string
                  : open_circle_string;
     }
     case TextEmphasisMark::kDoubleCircle: {
       DEFINE_STATIC_LOCAL(AtomicString, filled_double_circle_string,
-                          (base::span_from_ref(kFisheyeCharacter)));
+                          (base::span_from_ref(uchar::kFisheye)));
       DEFINE_STATIC_LOCAL(AtomicString, open_double_circle_string,
-                          (base::span_from_ref(kBullseyeCharacter)));
+                          (base::span_from_ref(uchar::kBullseye)));
       return GetTextEmphasisFill() == TextEmphasisFill::kFilled
                  ? filled_double_circle_string
                  : open_double_circle_string;
@@ -2025,19 +2049,19 @@ const AtomicString& ComputedStyle::TextEmphasisMarkString() const {
     case TextEmphasisMark::kTriangle: {
       DEFINE_STATIC_LOCAL(
           AtomicString, filled_triangle_string,
-          (base::span_from_ref(kBlackUpPointingTriangleCharacter)));
+          (base::span_from_ref(uchar::kBlackUpPointingTriangle)));
       DEFINE_STATIC_LOCAL(
           AtomicString, open_triangle_string,
-          (base::span_from_ref(kWhiteUpPointingTriangleCharacter)));
+          (base::span_from_ref(uchar::kWhiteUpPointingTriangle)));
       return GetTextEmphasisFill() == TextEmphasisFill::kFilled
                  ? filled_triangle_string
                  : open_triangle_string;
     }
     case TextEmphasisMark::kSesame: {
       DEFINE_STATIC_LOCAL(AtomicString, filled_sesame_string,
-                          (base::span_from_ref(kSesameDotCharacter)));
+                          (base::span_from_ref(uchar::kSesameDot)));
       DEFINE_STATIC_LOCAL(AtomicString, open_sesame_string,
-                          (base::span_from_ref(kWhiteSesameDotCharacter)));
+                          (base::span_from_ref(uchar::kWhiteSesameDot)));
       return GetTextEmphasisFill() == TextEmphasisFill::kFilled
                  ? filled_sesame_string
                  : open_sesame_string;
@@ -2123,9 +2147,9 @@ FontHeight ComputedStyle::GetFontHeight(FontBaseline baseline) const {
 
 bool ComputedStyle::TextDecorationVisualOverflowChanged(
     const ComputedStyle& o) const {
-  const Vector<AppliedTextDecoration, 1>& applied_with_this =
+  const AppliedTextDecorationVector& applied_with_this =
       AppliedTextDecorations();
-  const Vector<AppliedTextDecoration, 1>& applied_with_other =
+  const AppliedTextDecorationVector& applied_with_other =
       o.AppliedTextDecorations();
   if (applied_with_this.size() != applied_with_other.size()) {
     return true;
@@ -2153,53 +2177,53 @@ bool ComputedStyle::TextDecorationVisualOverflowChanged(
 
 TextDecorationLine ComputedStyle::TextDecorationsInEffect() const {
   TextDecorationLine decorations = GetTextDecorationLine();
-  if (const auto& base_decorations = BaseTextDecorationDataInternal()) {
-    for (const AppliedTextDecoration& decoration : base_decorations->data) {
+  if (const auto* base_decorations = BaseTextDecorationData()) {
+    for (const AppliedTextDecoration& decoration : *base_decorations) {
       decorations |= decoration.Lines();
     }
   }
   return decorations;
 }
 
-base::RefCountedData<Vector<AppliedTextDecoration, 1>>*
-ComputedStyle::EnsureAppliedTextDecorationsCache() const {
+AppliedTextDecorationVector* ComputedStyle::EnsureAppliedTextDecorationsCache()
+    const {
   DCHECK(IsDecoratingBox());
 
   if (!cached_data_ || !cached_data_->applied_text_decorations_) {
-    using DecorationsVector = Vector<AppliedTextDecoration, 1>;
-    DecorationsVector decorations;
-    if (const auto& base_decorations = BaseTextDecorationDataInternal()) {
-      decorations.ReserveInitialCapacity(base_decorations->data.size() + 1u);
-      decorations = base_decorations->data;
+    AppliedTextDecorationVector* decorations =
+        MakeGarbageCollected<AppliedTextDecorationVector>();
+
+    if (const AppliedTextDecorationVector* base_decorations =
+            BaseTextDecorationData()) {
+      decorations->ReserveInitialCapacity(base_decorations->size() + 1u);
+      *decorations = *base_decorations;
     }
-    decorations.emplace_back(
+    decorations->emplace_back(
         GetTextDecorationLine(), TextDecorationStyle(),
         VisitedDependentColor(GetCSSPropertyTextDecorationColor()),
         GetTextDecorationThickness(), TextUnderlineOffset());
-    EnsureCachedData().applied_text_decorations_ =
-        base::MakeRefCounted<base::RefCountedData<DecorationsVector>>(
-            std::move(decorations));
+    EnsureCachedData().applied_text_decorations_ = decorations;
   }
 
-  return cached_data_->applied_text_decorations_.get();
+  return cached_data_->applied_text_decorations_.Get();
 }
 
-const Vector<AppliedTextDecoration, 1>& ComputedStyle::AppliedTextDecorations()
+const AppliedTextDecorationVector& ComputedStyle::AppliedTextDecorations()
     const {
+  DEFINE_STATIC_LOCAL(Persistent<AppliedTextDecorationVector>, empty,
+                      (MakeGarbageCollected<AppliedTextDecorationVector>()));
   if (!HasAppliedTextDecorations()) {
-    using DecorationsVector = Vector<AppliedTextDecoration, 1>;
-    DEFINE_STATIC_LOCAL(DecorationsVector, empty, ());
-    return empty;
+    return *empty;
   }
 
   if (!IsDecoratingBox()) {
-    const auto& base_decorations = BaseTextDecorationDataInternal();
+    const auto* base_decorations = BaseTextDecorationData();
     DCHECK(base_decorations);
-    DCHECK_GE(base_decorations->data.size(), 1u);
-    return base_decorations->data;
+    DCHECK_GE(base_decorations->size(), 1u);
+    return *base_decorations;
   }
 
-  return EnsureAppliedTextDecorationsCache()->data;
+  return *EnsureAppliedTextDecorationsCache();
 }
 
 static bool HasInitialVariables(const StyleInitialData* initial_data) {
@@ -2246,6 +2270,35 @@ const StyleInheritedVariables* ComputedStyle::InheritedVariables() const {
 
 const StyleNonInheritedVariables* ComputedStyle::NonInheritedVariables() const {
   return NonInheritedVariablesInternal().Get();
+}
+
+// static
+const ComputedGridTrackList& ComputedStyle::ComputedGridTemplate(
+    const Member<ComputedGridTrackList>& track_list,
+    const bool use_masonry_default) {
+  if (track_list) {
+    return *track_list;
+  }
+  // If `track_list` is null, that means it is the initial value. The default
+  // value for 'grid-template-*' in masonry layout is 'repeat(auto-fill,
+  // auto)'.
+  //
+  // TODO(almaher): Update this depending on the resolution to
+  // https://github.com/w3c/csswg-drafts/issues/10869.
+  if (use_masonry_default) {
+    DEFINE_STATIC_LOCAL(
+        Persistent<ComputedGridTrackList>, auto_fill_auto_list,
+        (MakeGarbageCollected<ComputedGridTrackList>(
+            ComputedGridTrackList(GridTrackList(GridTrackSize(Length::Auto()),
+                                                GridTrackRepeater::kAutoFill),
+                                  AutoRepeatType::kAutoFill))));
+    return *auto_fill_auto_list;
+  }
+
+  DEFINE_STATIC_LOCAL(
+      Persistent<ComputedGridTrackList>, default_track_list,
+      (MakeGarbageCollected<ComputedGridTrackList>(ComputedGridTrackList())));
+  return *default_track_list;
 }
 
 bool ComputedStyle::HasPropertyDependingOnCurrentColor() const {
@@ -2476,6 +2529,11 @@ Color ComputedStyle::VisitedDependentColor(const Longhand& color_property,
 
   blink::Color unvisited_color =
       color_property.ColorIncludingFallback(false, *this, is_current_color);
+  if (RuntimeEnabledFeatures::CSSDoNotHideVisitedColorEnabled()) {
+    // Under this flag, we treat :visited like any other pseudo-class,
+    // and we never touch the -internal-visited-* properties.
+    return unvisited_color;
+  }
   if (InsideLink() != EInsideLink::kInsideVisitedLink) {
     return unvisited_color;
   }
@@ -2766,17 +2824,18 @@ bool ComputedStyle::MarkerShouldBeInside(
       ListStylePosition() == EListStylePosition::kInside) {
     return true;
   }
-  // Force the marker of <li> elements with no <ol> or <ul> ancestor to have
-  // an inside position.
-  // TODO(crbug.com/41241289): This quirk predates WebKit, it was added to match
-  // the behavior of the Internet Explorer from that time. However, Microsoft
-  // ended up removing it (before switching to Blink), and Firefox never had it,
-  // so it may be possible to get rid of it.
-  if (IsA<HTMLLIElement>(parent) && !IsInsideListElement() &&
-      PseudoElementLayoutObjectIsNeeded(kPseudoIdMarker, marker_style,
-                                        &parent)) {
-    parent.GetDocument().CountUse(WebFeature::kInsideListMarkerPositionQuirk);
-    return true;
+  if (!RuntimeEnabledFeatures::ListStylePositionQuirkStandardEnabled()) {
+    // Force the marker of <li> elements with no <ol> or <ul> ancestor to have
+    // an inside position.
+    // TODO(crbug.com/41241289): This quirk predates WebKit, it was added to
+    // match the behavior of the Internet Explorer from that time. However,
+    // Microsoft ended up removing it (before switching to Blink), and Firefox
+    // never had it, so it may be possible to get rid of it.
+    if (IsA<HTMLLIElement>(parent) && !IsInsideListElement() &&
+        PseudoElementLayoutObjectIsNeeded(kPseudoIdMarker, marker_style,
+                                          &parent)) {
+      return true;
+    }
   }
   return false;
 }
@@ -2982,6 +3041,8 @@ const ComputedStyle* ComputedStyleBuilder::CloneStyle() const {
   ResetAccess();
   has_own_inherited_variables_ = false;
   has_own_non_inherited_variables_ = false;
+  has_own_animations_ = false;
+  has_own_transitions_ = false;
   return MakeGarbageCollected<ComputedStyle>(ComputedStyle::BuilderPassKey(),
                                              *this);
 }

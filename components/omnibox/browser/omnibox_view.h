@@ -18,7 +18,6 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/omnibox_client.h"
@@ -149,6 +148,11 @@ class OmniboxView {
   // explicitly focused the omnibox, and false when the omnibox was
   // automatically focused (like for browser startup or NTP load).
   virtual void SetFocus(bool is_user_initiated) = 0;
+
+  // Requests focus for the implementation of the omnibox view only, skipping
+  // all of the bookkeeping done by `SetFocus()`. Used to return focus to the
+  // omnibox from the AI mode button.
+  virtual void RequestViewFocus() = 0;
 
   // Shows or hides the caret based on whether the model's is_caret_visible() is
   // true.

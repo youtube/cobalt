@@ -103,6 +103,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
+#include "base/i18n/rtl.h"
 #include "chrome/browser/autofill/mock_manual_filling_view.h"
 #include "chrome/browser/keyboard_accessory/android/manual_filling_controller_impl.h"
 #include "chrome/browser/keyboard_accessory/android/password_accessory_controller_impl.h"
@@ -113,6 +114,15 @@
 #include "chrome/browser/password_manager/account_password_store_factory.h"
 #include "chrome/browser/password_manager/android/grouped_affiliations/acknowledge_grouped_credential_sheet_controller_test_helper.h"
 #include "chrome/browser/password_manager/android/password_generation_controller.h"
+#include "chrome/browser/password_manager/chrome_webauthn_credentials_delegate.h"
+#include "chrome/browser/password_manager/chrome_webauthn_credentials_delegate_factory.h"
+#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_controller.h"
+#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_controller_delegate.h"
+#include "components/password_manager/content/browser/mock_keyboard_replacing_surface_visibility_controller.h"
+#include "components/password_manager/core/browser/passkey_credential.h"
+#include "components/password_manager/core/browser/split_stores_and_local_upm.h"
+#include "components/webauthn/android/cred_man_support.h"
+#include "components/webauthn/android/webauthn_cred_man_delegate.h"
 #else
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/mock_hats_service.h"
@@ -140,6 +150,8 @@ using password_manager::PasswordStoreConsumer;
 using sessions::GetPasswordStateFromNavigation;
 using sessions::SerializedNavigationEntry;
 using testing::_;
+using testing::Eq;
+using testing::Invoke;
 using testing::Key;
 using testing::NiceMock;
 using testing::Return;
@@ -341,7 +353,7 @@ class MockPasswordAccessoryControllerImpl
             password_client,
             driver_supplier,
             /*grouped_credential_sheet_controller=*/nullptr,
-            nullptr) {}
+            /*password_manager_error_message_helper_bridge=*/nullptr) {}
 
   MOCK_METHOD(void,
               RefreshSuggestionsForField,
@@ -358,8 +370,10 @@ class MockPasswordAccessoryControllerImpl
 class MockPasswordChangeService : public ChromePasswordChangeService {
  public:
   MockPasswordChangeService()
-      : ChromePasswordChangeService(/*affiliation_service=*/nullptr,
+      : ChromePasswordChangeService(/*pref_service*/ nullptr,
+                                    /*affiliation_service=*/nullptr,
                                     /*optimization_keyed_service=*/nullptr,
+                                    /*settings_service=*/nullptr,
                                     /*feature_manager=*/nullptr) {}
 
   MOCK_METHOD(void,
@@ -384,6 +398,31 @@ std::unique_ptr<KeyedService> CreateMockPasswordChangeService(
     content::BrowserContext* context) {
   return std::make_unique<MockPasswordChangeService>();
 }
+
+#if BUILDFLAG(IS_ANDROID)
+class MockTouchToFillController : public TouchToFillController {
+ public:
+  MockTouchToFillController(
+      Profile* profile,
+      base::WeakPtr<
+          password_manager::KeyboardReplacingSurfaceVisibilityController>
+          visibility_controller)
+      : TouchToFillController(profile, visibility_controller, nullptr) {}
+
+  MOCK_METHOD(void,
+              InitData,
+              (base::span<const password_manager::UiCredential>,
+               std::vector<password_manager::PasskeyCredential>,
+               base::WeakPtr<password_manager::ContentPasswordManagerDriver>),
+              (override));
+
+  MOCK_METHOD(bool,
+              Show,
+              (std::unique_ptr<TouchToFillControllerDelegate>,
+               webauthn::WebAuthnCredManDelegate*),
+              (override));
+};
+#endif  // BUILDFLAG_IS_ANDROID)
 
 }  // namespace
 
@@ -739,8 +778,12 @@ TEST_F(ChromePasswordManagerClientTest, ReceivesAutofillPredictions) {
 
 TEST_F(ChromePasswordManagerClientTest,
        ReceivesPasswordFormClassifierPredictions) {
-  base::test::ScopedFeatureList features(
-      password_manager::features::kPasswordFormClientsideClassifier);
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {password_manager::features::kPasswordFormClientsideClassifier,
+       password_manager::features::
+           kApplyClientsideModelPredictionsForPasswordTypes},
+      /*disabled_features=*/{});
   constexpr char kUrl[] = "https://www.foo.com/login.html";
 
   NavigateAndCommit(GURL(kUrl));
@@ -1466,11 +1509,38 @@ class ChromePasswordManagerClientAndroidTest
     task_environment()->AdvanceClock(delta);
   }
 
+  MockTouchToFillController* MakeMockTouchToFillController() {
+    visibility_controller_ = std::make_unique<
+        password_manager::MockKeyboardReplacingSurfaceVisibilityController>();
+    auto owned_ttf_controller = std::make_unique<MockTouchToFillController>(
+        profile(), visibility_controller_->AsWeakPtr());
+    auto* ttf_controller = owned_ttf_controller.get();
+    GetClient()->SetTouchToFillControllerForTesting(
+        std::move(owned_ttf_controller));
+    return ttf_controller;
+  }
+
+  autofill::PasswordSuggestionRequest GetFocusedFieldSuggestionRequest(
+      const FormData& form) {
+    return autofill::PasswordSuggestionRequest(
+        autofill::TriggeringField(form.fields()[0].renderer_id(),
+                                  autofill::AutofillSuggestionTriggerSource::
+                                      kPasswordManagerProcessedFocusedField,
+                                  base::i18n::LEFT_TO_RIGHT, u"",
+                                  /*show_webauthn_credentials=*/true,
+                                  /*show_identity_credentials=*/false,
+                                  gfx::RectF()),
+        form, /*username_field_index=*/0, /*password_field_index=*/1);
+  }
+
  private:
   NiceMock<MockPasswordAccessoryController> mock_pwd_controller_;
   NiceMock<MockAddressAccessoryController> mock_address_controller_;
   NiceMock<MockPaymentMethodAccessoryController>
       mock_payment_method_controller_;
+  std::unique_ptr<
+      password_manager::MockKeyboardReplacingSurfaceVisibilityController>
+      visibility_controller_;
 };
 
 void ChromePasswordManagerClientAndroidTest::SetUp() {
@@ -1658,10 +1728,8 @@ TEST_F(ChromePasswordManagerClientAndroidTest,
 // https://crbug.com/346331137: Broken after M4 rollout.
 TEST_F(ChromePasswordManagerClientAndroidTest,
        DISABLED_FocusedInputChangedFormsFetchedSplitStores) {
-  profile()->GetTestingPrefService()->SetInteger(
-      password_manager::prefs::kPasswordsUseUPMLocalAndSeparateStores,
-      static_cast<int>(
-          password_manager::prefs::UseUpmLocalAndSeparateStoresState::kOn));
+  password_manager::SetLegacySplitStoresPrefForTest(
+      profile()->GetTestingPrefService(), true);
   FormData observed_form_data = MakePasswordFormData();
   SetUpGenerationPreconditions(observed_form_data.url());
 
@@ -1709,10 +1777,8 @@ TEST_F(ChromePasswordManagerClientAndroidTest,
 // https://crbug.com/346331137: Broken after M4 rollout.
 TEST_F(ChromePasswordManagerClientAndroidTest,
        DISABLED_FocusedInputChangedFormsFetchedSingleStore) {
-  profile()->GetTestingPrefService()->SetInteger(
-      password_manager::prefs::kPasswordsUseUPMLocalAndSeparateStores,
-      static_cast<int>(
-          password_manager::prefs::UseUpmLocalAndSeparateStoresState::kOff));
+  password_manager::SetLegacySplitStoresPrefForTest(
+      profile()->GetTestingPrefService(), false);
   FormData observed_form_data = MakePasswordFormData();
   SetUpGenerationPreconditions(observed_form_data.url());
 
@@ -1767,7 +1833,8 @@ TEST_F(ChromePasswordManagerClientAndroidTest,
   GetClient()
       ->GetCredentialCacheForTesting()
       ->SaveCredentialsAndBlocklistedForOrigin(
-          forms, CredentialCache::IsOriginBlocklisted(false), origin);
+          forms, CredentialCache::IsOriginBlocklisted(false), std::nullopt,
+          origin);
 
   // Check that a navigation within the same document does not clear the cache.
   content::MockNavigationHandle handle(web_contents());
@@ -1928,7 +1995,8 @@ TEST_F(ChromePasswordManagerClientWithAccountStoreAndroidTest,
   GetClient()
       ->GetCredentialCacheForTesting()
       ->SaveCredentialsAndBlocklistedForOrigin(
-          forms, CredentialCache::IsOriginBlocklisted(false), origin);
+          forms, CredentialCache::IsOriginBlocklisted(false), std::nullopt,
+          origin);
 
   MockPasswordStoreInterface* profile_store =
       static_cast<MockPasswordStoreInterface*>(
@@ -2060,14 +2128,12 @@ TEST_F(ChromePasswordManagerClientTest,
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-TEST_F(ChromePasswordManagerClientTest,
-       PasswordChangeDelegateIsNotifiedAboutOTP) {
-  base::test::ScopedFeatureList features(
-      password_manager::features::kPasswordFormClientsideClassifier);
-
-  PasswordChangeDelegateMock mock;
-  ON_CALL(*password_change_service(), GetPasswordChangeDelegate)
-      .WillByDefault(Return(&mock));
+TEST_F(ChromePasswordManagerClientTest, OtpFieldsAreDetected) {
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {password_manager::features::kPasswordFormClientsideClassifier,
+       password_manager::features::kApplyClientsideModelPredictionsForOtps},
+      /*disabled_features=*/{});
 
   NavigateAndCommit(GURL("https://www.foo.com/login.html"));
   ContentAutofillDriver* autofill_driver =
@@ -2088,8 +2154,6 @@ TEST_F(ChromePasswordManagerClientTest,
     ASSERT_TRUE(waiter.Wait(/*num_expected_relevant_events=*/1));
   }
 
-  EXPECT_CALL(mock, OnOtpFieldDetected(web_contents()));
-
   // Simulate that the field types have been determined.
   using Observer = autofill::AutofillManager::Observer;
   autofill_driver->GetAutofillManager()
@@ -2101,4 +2165,287 @@ TEST_F(ChromePasswordManagerClientTest,
   autofill_driver->GetAutofillManager().NotifyObservers(
       &Observer::OnFieldTypesDetermined, form.global_id(),
       Observer::FieldTypeSource::kHeuristicsOrAutocomplete);
+
+  password_manager::OtpManager* otp_manager = GetClient()->GetOtpManager();
+  EXPECT_EQ(1u, otp_manager->form_managers().size());
 }
+
+TEST_F(ChromePasswordManagerClientTest,
+       DidFinishNavigationInMainFrameClearsAllOtpManagers) {
+  password_manager::OtpManager* otp_manager = GetClient()->GetOtpManager();
+  ASSERT_TRUE(otp_manager);
+
+  // Create a main frame and a subframe.
+  const GURL kTestUrl("https://example.com");
+  NavigateAndCommit(GURL(kTestUrl));
+  content::RenderFrameHost* subframe =
+      content::RenderFrameHostTester::For(main_rfh())->AppendChild("subframe");
+
+  FormData main_frame_form = CreateLoginFormDataForFrame(main_rfh());
+  otp_manager->ProcessClassificationModelPredictions(
+      main_frame_form,
+      {{main_frame_form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+
+  FormData subframe_form = CreateLoginFormDataForFrame(subframe);
+  otp_manager->ProcessClassificationModelPredictions(
+      subframe_form,
+      {{subframe_form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+
+  ASSERT_EQ(2u, otp_manager->form_managers().size());
+
+  // Simulate finishing a navigation in the main frame.
+  content::MockNavigationHandle handle(GURL(kTestUrl), main_rfh());
+  handle.set_has_committed(true);
+  handle.set_is_in_primary_main_frame(true);
+  static_cast<content::WebContentsObserver*>(GetClient())
+      ->DidFinishNavigation(&handle);
+
+  // All form managers should be cleared.
+  EXPECT_EQ(0u, otp_manager->form_managers().size());
+}
+
+TEST_F(ChromePasswordManagerClientTest,
+       DidStartSameDocumentNavigationDoesNotClearOtpManagers) {
+  password_manager::OtpManager* otp_manager = GetClient()->GetOtpManager();
+  ASSERT_TRUE(otp_manager);
+  const GURL kTestUrl("https://example.com");
+  NavigateAndCommit(GURL(kTestUrl));
+
+  FormData main_frame_form = CreateLoginFormDataForFrame(main_rfh());
+  otp_manager->ProcessClassificationModelPredictions(
+      main_frame_form,
+      {{main_frame_form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+  ASSERT_EQ(1u, otp_manager->form_managers().size());
+
+  // Simulate finishing a navigation within the same document in the main frame.
+  content::MockNavigationHandle handle(GURL(kTestUrl), main_rfh());
+  handle.set_is_in_primary_main_frame(true);
+  handle.set_has_committed(true);
+  handle.set_is_same_document(true);
+  static_cast<content::WebContentsObserver*>(GetClient())
+      ->DidFinishNavigation(&handle);
+
+  // Form managers should survive.
+  EXPECT_EQ(1u, otp_manager->form_managers().size());
+}
+
+TEST_F(ChromePasswordManagerClientTest,
+       DidFinishNavigationInIframeClearsOtpManagersForFrame) {
+  password_manager::OtpManager* otp_manager = GetClient()->GetOtpManager();
+  ASSERT_TRUE(otp_manager);
+
+  const GURL kTestUrl("https://example.com");
+  NavigateAndCommit(GURL(kTestUrl));
+  content::RenderFrameHost* subframe =
+      content::RenderFrameHostTester::For(main_rfh())->AppendChild("subframe");
+
+  FormData main_frame_form = CreateLoginFormDataForFrame(main_rfh());
+  otp_manager->ProcessClassificationModelPredictions(
+      main_frame_form,
+      {{main_frame_form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+
+  FormData subframe_form = CreateLoginFormDataForFrame(subframe);
+  otp_manager->ProcessClassificationModelPredictions(
+      subframe_form,
+      {{subframe_form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+
+  ASSERT_EQ(2u, otp_manager->form_managers().size());
+
+  // Simulate finishing a navigation in the subframe.
+  content::MockNavigationHandle handle(GURL(kTestUrl), subframe);
+  handle.set_is_in_primary_main_frame(false);
+  handle.set_has_committed(true);
+  static_cast<content::WebContentsObserver*>(GetClient())
+      ->DidFinishNavigation(&handle);
+
+  // Only the form manager for the subframe should be cleared.
+  EXPECT_EQ(1u, otp_manager->form_managers().size());
+  EXPECT_TRUE(
+      otp_manager->form_managers().contains(main_frame_form.global_id()));
+  EXPECT_FALSE(
+      otp_manager->form_managers().contains(subframe_form.global_id()));
+}
+
+TEST_F(ChromePasswordManagerClientTest,
+       RenderFrameDeletedClearsOtpManagersForFrame) {
+  password_manager::OtpManager* otp_manager = GetClient()->GetOtpManager();
+  ASSERT_TRUE(otp_manager);
+
+  NavigateAndCommit(GURL("https://example.com"));
+  FormData form = CreateLoginFormDataForFrame(main_rfh());
+  otp_manager->ProcessClassificationModelPredictions(
+      form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+  ASSERT_EQ(1u, otp_manager->form_managers().size());
+
+  static_cast<content::WebContentsObserver*>(GetClient())
+      ->RenderFrameDeleted(main_rfh());
+
+  // The form manager should be cleared.
+  EXPECT_EQ(0u, otp_manager->form_managers().size());
+}
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(ChromePasswordManagerClientAndroidTest,
+       DelaySuggestionsSheetWhenPasskeysPending) {
+  webauthn::WebAuthnCredManDelegate::override_cred_man_support_for_testing(
+      webauthn::CredManSupport::DISABLED);
+  base::test::ScopedFeatureList features(
+      password_manager::features::
+          kDelaySuggestionsOnAutofocusWaitingForPasskeys);
+  CreateManualFillingController(web_contents());
+
+  auto* ttf_controller = MakeMockTouchToFillController();
+
+  EXPECT_CALL(*ttf_controller, InitData).Times(0);
+  EXPECT_CALL(*ttf_controller, Show).Times(0);
+
+  constexpr char kUrl[] = "https://www.foo.com/login.html";
+  NavigateAndCommit(GURL(kUrl));
+  ContentAutofillDriver* autofill_driver =
+      ContentAutofillDriver::GetForRenderFrameHost(main_rfh());
+  ASSERT_TRUE(autofill_driver);
+
+  std::vector<FormFieldData> fields = {CreateTestFormField(
+      "Username:", "username", "", FormControlType::kInputText, "webauthn")};
+  FormData form =
+      CreateFormDataForRenderFrameHost(*main_rfh(), std::move(fields));
+  {
+    autofill::TestAutofillManagerWaiter waiter(
+        autofill_driver->GetAutofillManager(),
+        {autofill::AutofillManagerEvent::kFormsSeen});
+    autofill_driver->renderer_events().FormsSeen(/*updated_forms=*/{form},
+                                                 /*removed_forms=*/{});
+    ASSERT_TRUE(waiter.Wait(/*num_awaiting_calls=*/1));
+  }
+
+  GetClient()->ShowKeyboardReplacingSurface(
+      ContentPasswordManagerDriver::GetForRenderFrameHost(main_rfh()),
+      GetFocusedFieldSuggestionRequest(form));
+
+  base::RunLoop().RunUntilIdle();
+
+  std::vector<password_manager::PasskeyCredential> credentials{};
+  EXPECT_CALL(*ttf_controller, InitData(_, Eq(credentials), _));
+  EXPECT_CALL(*ttf_controller, Show).WillOnce(Return(true));
+
+  // Simulate an empty passkey list being provided.
+  ChromeWebAuthnCredentialsDelegateFactory::GetFactory(web_contents())
+      ->GetDelegateForFrame(main_rfh())
+      ->OnCredentialsReceived(
+          credentials,
+          ChromeWebAuthnCredentialsDelegate::SecurityKeyOrHybridFlowAvailable(
+              true));
+}
+
+TEST_F(ChromePasswordManagerClientAndroidTest,
+       DelaySuggestionsSheetWhenPasskeysPendingTimeOut) {
+  webauthn::WebAuthnCredManDelegate::override_cred_man_support_for_testing(
+      webauthn::CredManSupport::DISABLED);
+  base::test::ScopedFeatureList features(
+      password_manager::features::
+          kDelaySuggestionsOnAutofocusWaitingForPasskeys);
+  CreateManualFillingController(web_contents());
+
+  auto* ttf_controller = MakeMockTouchToFillController();
+  EXPECT_CALL(*ttf_controller, InitData).Times(0);
+  EXPECT_CALL(*ttf_controller, Show).Times(0);
+
+  constexpr char kUrl[] = "https://www.foo.com/login.html";
+  NavigateAndCommit(GURL(kUrl));
+  ContentAutofillDriver* autofill_driver =
+      ContentAutofillDriver::GetForRenderFrameHost(main_rfh());
+  ASSERT_TRUE(autofill_driver);
+
+  std::vector<FormFieldData> fields = {CreateTestFormField(
+      "Username:", "username", "", FormControlType::kInputText, "webauthn")};
+  FormData form =
+      CreateFormDataForRenderFrameHost(*main_rfh(), std::move(fields));
+  {
+    autofill::TestAutofillManagerWaiter waiter(
+        autofill_driver->GetAutofillManager(),
+        {autofill::AutofillManagerEvent::kFormsSeen});
+    autofill_driver->renderer_events().FormsSeen(/*updated_forms=*/{form},
+                                                 /*removed_forms=*/{});
+    ASSERT_TRUE(waiter.Wait(/*num_awaiting_calls=*/1));
+  }
+
+  GetClient()->ShowKeyboardReplacingSurface(
+      ContentPasswordManagerDriver::GetForRenderFrameHost(main_rfh()),
+      GetFocusedFieldSuggestionRequest(form));
+
+  base::RunLoop().RunUntilIdle();
+
+  base::RunLoop waiter;
+  std::vector<password_manager::PasskeyCredential> credentials{};
+  EXPECT_CALL(*ttf_controller, InitData(_, Eq(credentials), _));
+  EXPECT_CALL(*ttf_controller, Show)
+      .WillOnce(Invoke([&waiter](std::unique_ptr<TouchToFillControllerDelegate>,
+                                 webauthn::WebAuthnCredManDelegate*) {
+        waiter.Quit();
+        return true;
+      }));
+
+  // Simulate a timeout.
+  AdvanceClock(base::Seconds(5));
+  waiter.Run();
+
+  EXPECT_CALL(*ttf_controller, InitData).Times(0);
+  EXPECT_CALL(*ttf_controller, Show).Times(0);
+
+  // Simulate an empty passkey list being provided. Nothing should happen
+  // because the timer has already expired.
+  ChromeWebAuthnCredentialsDelegateFactory::GetFactory(web_contents())
+      ->GetDelegateForFrame(main_rfh())
+      ->OnCredentialsReceived(
+          credentials,
+          ChromeWebAuthnCredentialsDelegate::SecurityKeyOrHybridFlowAvailable(
+              true));
+}
+
+TEST_F(ChromePasswordManagerClientAndroidTest,
+       DelaySuggestionsSheetWhenPasskeysTimerCancelledWhenFocusLost) {
+  webauthn::WebAuthnCredManDelegate::override_cred_man_support_for_testing(
+      webauthn::CredManSupport::DISABLED);
+  base::test::ScopedFeatureList features(
+      password_manager::features::
+          kDelaySuggestionsOnAutofocusWaitingForPasskeys);
+  CreateManualFillingController(web_contents());
+
+  auto* ttf_controller = MakeMockTouchToFillController();
+  EXPECT_CALL(*ttf_controller, InitData).Times(0);
+  EXPECT_CALL(*ttf_controller, Show).Times(0);
+
+  constexpr char kUrl[] = "https://www.foo.com/login.html";
+  NavigateAndCommit(GURL(kUrl));
+  ContentAutofillDriver* autofill_driver =
+      ContentAutofillDriver::GetForRenderFrameHost(main_rfh());
+  ASSERT_TRUE(autofill_driver);
+
+  std::vector<FormFieldData> fields = {CreateTestFormField(
+      "Username:", "username", "", FormControlType::kInputText, "webauthn")};
+  FormData form =
+      CreateFormDataForRenderFrameHost(*main_rfh(), std::move(fields));
+  {
+    autofill::TestAutofillManagerWaiter waiter(
+        autofill_driver->GetAutofillManager(),
+        {autofill::AutofillManagerEvent::kFormsSeen});
+    autofill_driver->renderer_events().FormsSeen(/*updated_forms=*/{form},
+                                                 /*removed_forms=*/{});
+    ASSERT_TRUE(waiter.Wait(/*num_awaiting_calls=*/1));
+  }
+
+  auto* driver =
+      ContentPasswordManagerDriver::GetForRenderFrameHost(main_rfh());
+  GetClient()->ShowKeyboardReplacingSurface(
+      driver, GetFocusedFieldSuggestionRequest(form));
+
+  GetClient()->FocusedInputChanged(driver, FieldRendererId(123),
+                                   FocusedFieldType::kFillablePasswordField);
+
+  // Simulate a timeout. The timer should be cancelled so TTF methods should not
+  // be called.
+  AdvanceClock(base::Seconds(5));
+  base::RunLoop().RunUntilIdle();
+}
+
+#endif  // BUILDFLAG(IS_ANDROID)

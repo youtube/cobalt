@@ -27,7 +27,6 @@
 #include "device/vr/util/sliding_average.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -264,6 +263,8 @@ class OpenXrRenderLoop : public XRThread,
   void OnWebXrTokenSignaled(int16_t frame_index,
                             GLuint id,
                             std::unique_ptr<gfx::GpuFence> gpu_fence);
+
+  void PopulateSharedImageData(mojom::XRFrameData& frame_data);
 
   void MaybeRejectSessionCallback();
 

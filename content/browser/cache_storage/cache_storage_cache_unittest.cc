@@ -119,7 +119,11 @@ class DelayableBackend : public disk_cache::Backend {
         delay_open_entry_(false) {}
 
   // disk_cache::Backend overrides
-  int32_t GetEntryCount() const override { return backend_->GetEntryCount(); }
+  int32_t GetEntryCount(
+      net::Int32CompletionOnceCallback callback) const override {
+    return backend_->GetEntryCount(std::move(callback));
+  }
+
   EntryResult OpenEntry(const std::string& key,
                         net::RequestPriority request_priority,
                         EntryResultCallback callback) override {
@@ -218,18 +222,18 @@ class FailableCacheEntry : public disk_cache::Entry {
   void Close() override { entry_->Close(); }
   std::string GetKey() const override { return entry_->GetKey(); }
   base::Time GetLastUsed() const override { return entry_->GetLastUsed(); }
-  int32_t GetDataSize(int index) const override {
+  int64_t GetDataSize(int index) const override {
     return entry_->GetDataSize(index);
   }
   int ReadData(int index,
-               int offset,
+               int64_t offset,
                IOBuffer* buf,
                int buf_len,
                CompletionOnceCallback callback) override {
     return entry_->ReadData(index, offset, buf, buf_len, std::move(callback));
   }
   int WriteData(int index,
-                int offset,
+                int64_t offset,
                 IOBuffer* buf,
                 int buf_len,
                 CompletionOnceCallback callback,
@@ -278,7 +282,10 @@ class FailableBackend : public disk_cache::Backend {
         stage_(stage) {}
 
   // disk_cache::Backend overrides
-  int32_t GetEntryCount() const override { return backend_->GetEntryCount(); }
+  int32_t GetEntryCount(
+      net::Int32CompletionOnceCallback callback) const override {
+    return backend_->GetEntryCount(std::move(callback));
+  }
 
   EntryResult OpenOrCreateEntry(const std::string& key,
                                 net::RequestPriority request_priority,

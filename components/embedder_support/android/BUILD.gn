@@ -107,11 +107,11 @@ static_library("util") {
     "//components/google/core/common",
     "//components/version_info",
     "//content/public/browser",
-    "//mojo/public/cpp/bindings:bindings",
-    "//mojo/public/cpp/system:system",
+    "//mojo/public/cpp/bindings",
+    "//mojo/public/cpp/system",
     "//net",
-    "//services/network/public/cpp:cpp",
-    "//services/network/public/mojom:mojom",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
     "//url",
   ]
 }
@@ -275,6 +275,7 @@ static_library("context_menu") {
     "//base",
     "//content/public/browser",
     "//content/public/common",
+    "//ui/menus",
     "//url",
   ]
 }
@@ -359,14 +360,17 @@ robolectric_library("components_embedder_support_junit_tests") {
     ":util_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
+    "//base:build_info_java",
     "//components/embedder_support/android:context_menu_java",
     "//content/public/android:content_java",
+    "//content/public/common:common_java",
     "//third_party/android_deps:org_mockito_mockito_core_java",
     "//third_party/androidx:androidx_test_monitor_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/blink/public:blink_headers_java",
     "//third_party/junit",
     "//ui/android:ui_java",
+    "//ui/android:ui_java_test_support",
     "//url:url_java",
   ]
 }

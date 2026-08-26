@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/targets.star", "targets")
+load("@chromium-luci//targets.star", "targets")
 
 targets.tests.gtest_test(
     name = "absl_hardening_tests",
@@ -89,66 +89,114 @@ targets.tests.gtest_test(
 
 targets.tests.gtest_test(
     name = "angle_deqp_egl_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_gles2_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_gles31_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_gles3_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_khr_gles2_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_khr_gles3_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_khr_gles31_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_gles3_rotate180_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_gles3_rotate270_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_gles3_rotate90_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_gles31_rotate180_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_gles31_rotate270_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_deqp_gles31_rotate90_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_end2end_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_unittests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "angle_white_box_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
@@ -171,6 +219,7 @@ targets.tests.gtest_test(
     name = "ash_pixeltests",
     mixins = [
         "skia_gold_test",
+        "skia_gold_test_on_linux_gce",
     ],
     args = [
         "--enable-pixel-output-in-tests",
@@ -515,13 +564,6 @@ targets.tests.gtest_test(
 
 targets.tests.isolated_script_test(
     name = "chrome_java_test_pagecontroller_junit_tests",
-)
-
-targets.tests.gtest_test(
-    name = "chrome_java_test_wpr_tests",
-    mixins = [
-        "skia_gold_test",
-    ],
 )
 
 targets.tests.isolated_script_test(
@@ -950,6 +992,10 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
+    name = "device_realtarget_browsertests",
+)
+
+targets.tests.gtest_test(
     name = "devtools_browser_tests",
     args = [
         "--gtest_filter=*DevTools*",
@@ -1177,6 +1223,10 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
+    name = "video_encode_accelerator_tests",
+)
+
+targets.tests.gtest_test(
     name = "filesystem_service_unittests",
 )
 
@@ -1217,6 +1267,9 @@ targets.tests.gtest_test(
 
 targets.tests.gtest_test(
     name = "gl_tests_passthrough",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
     args = [
         "--use-cmd-decoder=passthrough",
     ],
@@ -1225,6 +1278,9 @@ targets.tests.gtest_test(
 
 targets.tests.gtest_test(
     name = "gl_tests_validating",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
     args = [
         "--use-cmd-decoder=validating",
     ],
@@ -1233,14 +1289,23 @@ targets.tests.gtest_test(
 
 targets.tests.gtest_test(
     name = "gl_unittests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "gl_unittests_ozone",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.gtest_test(
     name = "gpu_memory_buffer_impl_tests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
     binary = "gpu_unittests",
 )
 
@@ -1330,29 +1395,6 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
-    name = "dawn_end2end_use_tint_ir_tests",
-    mixins = [
-        "dawn_end2end_gpu_test",
-    ],
-    args = [
-        "--enable-toggles=use_tint_ir",
-    ],
-    binary = "dawn_end2end_tests",
-)
-
-targets.tests.gtest_test(
-    name = "dawn_end2end_no_dxc_use_tint_ir_tests",
-    mixins = [
-        "dawn_end2end_gpu_test",
-    ],
-    args = [
-        "--enable-toggles=use_tint_ir",
-        "--disable-toggles=use_dxc",
-    ],
-    binary = "dawn_end2end_tests",
-)
-
-targets.tests.gtest_test(
     name = "elevated_tracing_service_unittests",
 )
 
@@ -1377,6 +1419,9 @@ targets.tests.isolated_script_test(
 
 targets.tests.gtest_test(
     name = "gpu_unittests",
+    mixins = [
+        "gpu_gtest_common_args",
+    ],
 )
 
 targets.tests.isolated_script_test(
@@ -1805,10 +1850,6 @@ targets.tests.gtest_test(
     binary = "interactive_ui_tests",
 )
 
-targets.tests.gtest_test(
-    name = "nacl_loader_unittests",
-)
-
 targets.tests.isolated_script_test(
     name = "build_rust_tests",
 )
@@ -1925,6 +1966,15 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
+    name = "optimization_guide_services_unittests",
+    args = [
+        "--gtest_filter=*WebNN*",
+        "--use-gpu-in-tests",
+    ],
+    binary = "services_unittests",
+)
+
+targets.tests.gtest_test(
     name = "optimization_guide_unittests",
 )
 
@@ -1947,10 +1997,6 @@ targets.tests.isolated_script_test(
 targets.tests.isolated_script_test(
     name = "passthrough_command_buffer_perftests",
     binary = "command_buffer_perftests",
-)
-
-targets.tests.isolated_script_test(
-    name = "password_check_junit_tests",
 )
 
 targets.tests.isolated_script_test(
@@ -2114,10 +2160,6 @@ targets.tests.isolated_script_test(
         "--test-list=../../third_party/blink/web_tests/TestLists/ppapi",
     ],
     binary = "blink_web_tests",
-)
-
-targets.tests.gtest_test(
-    name = "ppapi_unittests",
 )
 
 targets.tests.gtest_test(

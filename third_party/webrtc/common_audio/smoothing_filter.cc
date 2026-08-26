@@ -10,9 +10,9 @@
 
 #include "common_audio/smoothing_filter.h"
 
-#include <math.h>
-
 #include <cmath>
+#include <cstdint>
+#include <optional>
 
 #include "rtc_base/checks.h"
 #include "rtc_base/time_utils.h"

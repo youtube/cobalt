@@ -35,14 +35,11 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features.DisableFeatures;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.auxiliary_search.AuxiliarySearchConfigManager;
 import org.chromium.chrome.browser.auxiliary_search.AuxiliarySearchControllerFactory;
 import org.chromium.chrome.browser.auxiliary_search.AuxiliarySearchHooks;
 import org.chromium.chrome.browser.auxiliary_search.AuxiliarySearchUtils;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preferences.Pref;
@@ -62,10 +59,6 @@ import java.util.concurrent.TimeUnit;
 
 /** Unit tests for {@link TabsSettings}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@EnableFeatures({
-    ChromeFeatureList.TAB_GROUP_SYNC_ANDROID,
-    ChromeFeatureList.TAB_GROUP_SYNC_AUTO_OPEN_KILL_SWITCH
-})
 public class TabsSettingsUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -164,25 +157,6 @@ public class TabsSettingsUnitTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.TAB_GROUP_SYNC_ANDROID)
-    public void testTabGroupSyncSettingsHiddenWhenFeatureOff() {
-        doReturn(false).when(mTabGroupSyncFeaturesJniMock).isTabGroupSyncEnabled(mProfileMock);
-        TabsSettings tabsSettings = launchFragment();
-        ChromeSwitchPreference autoOpenSyncedTabGroupsSwitch =
-                tabsSettings.findPreference(TabsSettings.PREF_AUTO_OPEN_SYNCED_TAB_GROUPS_SWITCH);
-        assertFalse(autoOpenSyncedTabGroupsSwitch.isVisible());
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.TAB_GROUP_SYNC_AUTO_OPEN_KILL_SWITCH)
-    public void testTabGroupSyncSettingsHiddenWhenKillswitchEnabled() {
-        TabsSettings tabsSettings = launchFragment();
-        ChromeSwitchPreference autoOpenSyncedTabGroupsSwitch =
-                tabsSettings.findPreference(TabsSettings.PREF_AUTO_OPEN_SYNCED_TAB_GROUPS_SWITCH);
-        assertFalse(autoOpenSyncedTabGroupsSwitch.isVisible());
-    }
-
-    @Test
     public void testArchiveSettingsTitleAndSummary() {
         TabArchiveSettings archiveSettings =
                 new TabArchiveSettings(ChromeSharedPreferences.getInstance());
@@ -194,8 +168,8 @@ public class TabsSettingsUnitTest {
                 tabsSettings.findPreference(TabsSettings.PREF_TAB_ARCHIVE_SETTINGS);
         assertTrue(archiveSettinsEntryPoint.isVisible());
 
-        assertEquals("Inactive", archiveSettinsEntryPoint.getTitle());
-        assertEquals("After 14 days", archiveSettinsEntryPoint.getSummary());
+        assertEquals("Move to inactive section", archiveSettinsEntryPoint.getTitle());
+        assertEquals("After 14 days inactive", archiveSettinsEntryPoint.getSummary());
     }
 
     @Test

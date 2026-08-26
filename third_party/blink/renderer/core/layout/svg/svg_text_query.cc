@@ -103,7 +103,7 @@ FindFragmentItemForAddressableCodeUnitIndex(const LayoutObject& query_root,
     return {item, item_text, item->StartOffset() + i,
             item->StartOffset() + item_text.NextCodePointOffset(i)};
   }
-  return {nullptr, StringView(), WTF::kNotFound, WTF::kNotFound};
+  return {nullptr, StringView(), kNotFound, kNotFound};
 }
 
 void GetCanvasRotation(void* context,
@@ -337,7 +337,7 @@ int SvgTextQuery::CharacterNumberAtPosition(const gfx::PointF& position) const {
           .inline_offset;
   unsigned offset_in_item =
       hit_item->TextShapeResult()->CreateShapeResult()->OffsetForPosition(
-          hit_item->ScaleInlineOffset(inline_offset), BreakGlyphsOption(true));
+          hit_item->ScaleInlineOffset(inline_offset));
   return addressable_code_unit_count + offset_in_item;
 }
 

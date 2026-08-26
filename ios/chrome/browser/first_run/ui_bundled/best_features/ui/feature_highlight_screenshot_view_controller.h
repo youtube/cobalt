@@ -7,11 +7,12 @@
 
 #import <UIKit/UIKit.h>
 
-#import "ios/chrome/browser/first_run/ui_bundled/best_features/ui/best_features_item.h"
+#import "ios/chrome/browser/first_run/public/best_features_item.h"
 
 @protocol ConfirmationAlertActionHandler;
 
 // View for displaying a BestFeaturesItem.
+// TODO(crbug.com/433791509): Subclass from AnimatedPromoViewController.
 @interface FeatureHighlightScreenshotViewController
     : UIViewController <UINavigationControllerDelegate>
 

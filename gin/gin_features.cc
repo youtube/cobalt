@@ -100,11 +100,6 @@ BASE_FEATURE(kV8ExternalMemoryAccountedInGlobalLimit,
              "V8ExternalMemoryAccountedInGlobalLimit",
              kFeatureDefaultStateControlledByV8);
 
-// Enables using gc tracer counters to directly compute old gen GC speed.
-BASE_FEATURE(kV8GCSpeedUsesCounters,
-             "V8GCSpeedUsesCounters",
-             kFeatureDefaultStateControlledByV8);
-
 // Enables the Turbofan compiler.
 BASE_FEATURE(kV8Turbofan, ("V8Turbofan"), kFeatureDefaultStateControlledByV8);
 
@@ -124,6 +119,13 @@ BASE_FEATURE(kV8Maglev, ("V8Maglev"), kFeatureDefaultStateControlledByV8);
 BASE_FEATURE(kV8ConcurrentMaglevHighPriorityThreads,
              ("V8ConcurrentMaglevHighPriorityThreads"),
              kFeatureDefaultStateControlledByV8);
+
+BASE_FEATURE(kV8HighEndAndroid,
+             "V8HighEndAndroid",
+             kFeatureDefaultStateControlledByV8);
+
+const base::FeatureParam<int> kV8HighEndAndroidMemoryThreshold{
+    &kV8HighEndAndroid, "V8HighEndAndroidMemoryThreshold", 8};
 
 BASE_FEATURE(kV8MemoryReducer,
              "V8MemoryReducer",
@@ -203,13 +205,6 @@ BASE_FEATURE(kV8SingleThreadedGCInBackgroundParallelPause,
 BASE_FEATURE(kV8SingleThreadedGCInBackgroundNoIncrementalMarking,
              "V8SingleThreadedGCInBackgroundNoIncrementalMarking",
              kFeatureDefaultStateControlledByV8);
-
-// Use V8 efficiency mode for tiering decisions.
-BASE_FEATURE(kV8EfficiencyModeTiering,
-             "V8EfficiencyModeTiering",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<int> kV8EfficiencyModeTieringDelayTurbofan{
-    &kV8EfficiencyModeTiering, "V8EfficiencyModeTieringDelayTurbofan", 15000};
 
 // Enables slow histograms that provide detailed information at increased
 // runtime overheads.
@@ -296,19 +291,6 @@ BASE_FEATURE(kJavaScriptPromiseTry,
              ("JavaScriptPromiseTry"),
              kFeatureDefaultStateControlledByV8);
 
-// WebAssembly features.
-
-// Enable WebAssembly deoptimization support (not user visible), see
-// https://crbug.com/42204618.
-BASE_FEATURE(kWebAssemblyDeopt,
-             "WebAssemblyDeopt",
-             kFeatureDefaultStateControlledByV8);
-
-// Feature for WebAssembly speculative inlining of indirect calls (see
-// https://crbug.com/335082212; and https://crbug.com/40898108 for direct call
-// and call_ref inlining, which has already launched above). Not user visible.
-BASE_FEATURE(kWebAssemblyInliningCallIndirect,
-             "WebAssemblyInliningCallIndirect",
-             kFeatureDefaultStateControlledByV8);
+// WebAssembly features (currently none).
 
 }  // namespace features

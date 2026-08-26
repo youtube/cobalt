@@ -54,12 +54,12 @@ class BasicHeapDeque final
  private:
   struct TypeConstraints {
     constexpr TypeConstraints() {
-      static_assert(WTF::IsMemberType<T>::value,
+      static_assert(IsMemberType<T>::value,
                     "BasicHeapDeque supports only Member.");
       static_assert(std::is_trivially_destructible_v<BasicHeapDeque>,
                     "BasicHeapDeque must be trivially destructible.");
       static_assert(
-          WTF::IsTraceable<T>::value,
+          IsTraceableV<T>,
           "For deques without traceable elements, use Deque<> instead "
           "of HeapDeque<>");
     }
@@ -67,29 +67,24 @@ class BasicHeapDeque final
   NO_UNIQUE_ADDRESS TypeConstraints type_constraints_;
 };
 
-// On-stack for in-field version of WTF::Deque for referring to GarbageCollected
-// or DISALLOW_NEW() objects with Trace() methods.
+// On-stack for in-field version of blink::Deque for referring to
+// GarbageCollected or DISALLOW_NEW() objects with Trace() methods.
 template <typename T>
 using HeapDeque = BasicHeapDeque<internal::HeapCollectionType::kDisallowNew, T>;
 
-static_assert(WTF::IsDisallowNew<HeapDeque<int>>);
+static_assert(IsDisallowNew<HeapDeque<int>>);
 ASSERT_SIZE(Deque<int>, HeapDeque<int>);
 
-// GCed version of WTF::Deque for referring to GarbageCollected or
+// GCed version of blink::Deque for referring to GarbageCollected or
 // DISALLOW_NEW() objects with Trace() methods.
 template <typename T>
 using GCedHeapDeque = BasicHeapDeque<internal::HeapCollectionType::kGCed, T>;
 
-static_assert(!WTF::IsDisallowNew<GCedHeapDeque<int>>);
+static_assert(!IsDisallowNew<GCedHeapDeque<int>>);
 ASSERT_SIZE(Deque<int>, GCedHeapDeque<int>);
 
-}  // namespace blink
-
-namespace WTF {
-
 template <typename T>
-struct VectorTraits<blink::HeapDeque<T>>
-    : VectorTraitsBase<blink::HeapDeque<T>> {
+struct VectorTraits<HeapDeque<T>> : VectorTraitsBase<HeapDeque<T>> {
   STATIC_ONLY(VectorTraits);
   static const bool kNeedsDestruction = false;
   static const bool kCanInitializeWithMemset = true;
@@ -97,6 +92,6 @@ struct VectorTraits<blink::HeapDeque<T>>
   static const bool kCanMoveWithMemcpy = true;
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_HEAP_COLLECTION_SUPPORT_HEAP_DEQUE_H_

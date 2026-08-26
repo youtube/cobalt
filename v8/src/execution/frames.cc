@@ -12,7 +12,7 @@
 #include "src/api/api-arguments.h"
 #include "src/api/api-natives.h"
 #include "src/base/bits.h"
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/linkage-location.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/maglev-safepoint-table.h"
@@ -782,13 +782,11 @@ std::pair<Tagged<Code>, int> StackFrame::LookupCodeAndOffset() const {
 
 void StackFrame::IteratePc(RootVisitor* v, Address* constant_pool_address,
                            Tagged<GcSafeCode> holder) const {
+#if DEBUG
   const Address old_pc = maybe_unauthenticated_pc();
   DCHECK_GE(old_pc, holder->InstructionStart(isolate(), old_pc));
   DCHECK_LT(old_pc, holder->InstructionEnd(isolate(), old_pc));
-
-  // Keep the old pc offset before visiting the code since we need it to
-  // calculate the new pc after a potential InstructionStream move.
-  const uintptr_t pc_offset_from_start = old_pc - holder->instruction_start();
+#endif  // DEBUG
 
   // Visit.
   Tagged<GcSafeCode> visited_holder = holder;
@@ -798,31 +796,10 @@ void StackFrame::IteratePc(RootVisitor* v, Address* constant_pool_address,
   Tagged<Object> visited_istream = old_istream;
   v->VisitRunningCode(FullObjectSlot{&visited_holder},
                       FullObjectSlot{&visited_istream});
-  if (visited_istream == old_istream) {
-    // Note this covers two important cases:
-    // 1. the associated InstructionStream object did not move, and
-    // 2. `holder` is an embedded builtin and has no InstructionStream.
-    return;
-  }
-
-  DCHECK(visited_holder->has_instruction_stream());
-  // We can only relocate the InstructionStream object when we are able to patch
-  // the return address. We only know the location of the return address if the
-  // stack pointer is known. This means we cannot relocate InstructionStreams
-  // for fast c calls.
-  DCHECK(!InFastCCall());
-  // Currently we turn off code space compaction fully when performing a GC in a
-  // fast C call.
-  DCHECK(!isolate()->InFastCCall());
-
-  Tagged<InstructionStream> istream =
-      GCSafeCast<InstructionStream>(visited_istream, isolate()->heap());
-  const Address new_pc = istream->instruction_start() + pc_offset_from_start;
-  // TODO(v8:10026): avoid replacing a signed pointer.
-  PointerAuthentication::ReplacePC(pc_address(), new_pc, kSystemPointerSize);
-  if (V8_EMBEDDED_CONSTANT_POOL_BOOL && constant_pool_address != nullptr) {
-    *constant_pool_address = istream->constant_pool();
-  }
+  // Note this covers two important cases:
+  // 1. the associated InstructionStream object did not move, and
+  // 2. `holder` is an embedded builtin and has no InstructionStream.
+  CHECK_EQ(visited_istream, old_istream);
 }
 
 void StackFrame::SetReturnAddressLocationResolver(
@@ -1569,9 +1546,9 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
         if (is_self_forwarded) {
           // The object might be in a self-forwarding state if it's located
           // in new large object space. GC will fix this at a later stage.
-          CHECK(
-              MemoryChunk::FromHeapObject(forwarded)->InNewLargeObjectSpace() ||
-              MemoryChunk::FromHeapObject(forwarded)->IsQuarantined());
+          const MemoryChunk* chunk = MemoryChunk::FromHeapObject(forwarded);
+          CHECK(chunk->InNewLargeObjectSpace() ||
+                chunk->Metadata(isolate)->is_quarantined());
         } else {
           Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);
           // The map might be forwarded as well.
@@ -2620,9 +2597,21 @@ Tagged<Object> CommonFrameWithJSLinkage::GetParameter(int index) const {
 int CommonFrameWithJSLinkage::ComputeParametersCount() const {
   DCHECK(!iterator_->IsStackFrameIteratorForProfiler() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
-  return function()
-      ->shared()
-      ->internal_formal_parameter_count_without_receiver();
+  // Use the (trusted) parameter count from the Bytecode or Code object.
+  int parameter_count;
+  if (is_interpreted()) {
+    const InterpretedFrame* iframe = InterpretedFrame::cast(this);
+    parameter_count =
+        iframe->GetBytecodeArray()->parameter_count_without_receiver();
+  } else {
+    Tagged<GcSafeCode> code = GcSafeLookupCode();
+    parameter_count = code->parameter_count_without_receiver();
+  }
+  // TODO(saelo): remove once we're confident that the two always match.
+  DCHECK_EQ(
+      parameter_count,
+      function()->shared()->internal_formal_parameter_count_without_receiver());
+  return parameter_count;
 }
 
 int JavaScriptFrame::GetActualArgumentCount() const {
@@ -2888,7 +2877,7 @@ Handle<Object> FrameSummary::WasmInterpretedFrameSummary::receiver() const {
 }
 
 int FrameSummary::WasmInterpretedFrameSummary::SourcePosition() const {
-  const wasm::WasmModule* module = wasm_instance()->module_object()->module();
+  const wasm::WasmModule* module = wasm_instance()->module();
   return GetSourcePosition(module, function_index(), byte_offset(),
                            false /*at_to_number_conversion*/);
 }
@@ -3075,10 +3064,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
   // in the deoptimization translation are ordered bottom-to-top.
   bool is_constructor = IsConstructor();
   for (auto it = translated.begin(); it != translated.end(); it++) {
-    if (it->kind() == TranslatedFrame::kUnoptimizedFunction ||
-        it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
-        it->kind() ==
-            TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
+    if (TranslatedFrame::IsJavaScriptFrame(it->kind())) {
       DirectHandle<SharedFunctionInfo> shared_info = it->shared_info();
 
       // The translation commands are ordered and the function is always
@@ -3092,6 +3078,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
       translated_values++;
 
       // Get the correct receiver in the optimized frame.
+      static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
       CHECK(!translated_values->IsMaterializedObject());
       DirectHandle<Object> receiver = translated_values->GetValue();
       translated_values++;
@@ -3100,9 +3087,7 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
       // the translation corresponding to the frame type in question.
       DirectHandle<AbstractCode> abstract_code;
       unsigned code_offset;
-      if (it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
-          it->kind() ==
-              TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
+      if (TranslatedFrame::IsJavaScriptBuiltinContinuationFrame(it->kind())) {
         code_offset = 0;
         abstract_code = Cast<AbstractCode>(isolate()->builtins()->code_handle(
             Builtins::GetBuiltinFromBytecodeOffset(it->bytecode_offset())));

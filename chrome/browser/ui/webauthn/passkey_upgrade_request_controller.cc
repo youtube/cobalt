@@ -123,8 +123,7 @@ void PasskeyUpgradeRequestController::ContinuePendingUpgradeRequest() {
   syncer::SyncService* sync_service =
       SyncServiceFactory::GetForProfile(profile());
   password_manager::PasswordStoreInterface* password_store = nullptr;
-  if (password_manager::features_util::IsAccountStorageEnabled(
-          profile()->GetPrefs(), sync_service)) {
+  if (password_manager::features_util::IsAccountStorageEnabled(sync_service)) {
     password_store = AccountPasswordStoreFactory::GetForProfile(
                          profile(), ServiceAccessType::EXPLICIT_ACCESS)
                          .get();
@@ -193,7 +192,6 @@ void PasskeyUpgradeRequestController::OnGetPasswordStoreResultsOrErrorFrom(
   enclave_transaction_ = std::make_unique<GPMEnclaveTransaction>(
       /*delegate=*/this, PasskeyModelFactory::GetForProfile(profile()),
       device::FidoRequestType::kMakeCredential, rp_id_,
-      EnclaveUserVerificationMethod::kNoUserVerificationAndNoUserPresence,
       EnclaveManagerFactory::GetAsEnclaveManagerForProfile(profile()),
       /*pin=*/std::nullopt, /*selected_credential_id=*/std::nullopt,
       enclave_request_callback_);
@@ -227,6 +225,10 @@ void PasskeyUpgradeRequestController::OnPasskeyCreated(
   if (manage_passwords_ui_controller) {
     manage_passwords_ui_controller->OnPasskeyUpgrade(rp_id_);
   }
+}
+
+EnclaveUserVerificationMethod PasskeyUpgradeRequestController::GetUvMethod() {
+  return EnclaveUserVerificationMethod::kNoUserVerificationAndNoUserPresence;
 }
 
 content::RenderFrameHost& PasskeyUpgradeRequestController::render_frame_host()

@@ -19,10 +19,12 @@
 #include "components/policy/test_support/policy_storage.h"
 #include "components/policy/test_support/request_handler_for_api_authorization.h"
 #include "components/policy/test_support/request_handler_for_auto_enrollment.h"
+#include "components/policy/test_support/request_handler_for_browser_public_key_upload.h"
 #include "components/policy/test_support/request_handler_for_cert_upload.h"
 #include "components/policy/test_support/request_handler_for_check_android_management.h"
 #include "components/policy/test_support/request_handler_for_chrome_desktop_report.h"
 #include "components/policy/test_support/request_handler_for_client_cert_provisioning.h"
+#include "components/policy/test_support/request_handler_for_determine_promotion_eligibility.h"
 #include "components/policy/test_support/request_handler_for_device_attribute_update.h"
 #include "components/policy/test_support/request_handler_for_device_attribute_update_permission.h"
 #include "components/policy/test_support/request_handler_for_device_initial_enrollment_state.h"
@@ -111,6 +113,8 @@ EmbeddedPolicyTestServer::EmbeddedPolicyTestServer()
   ResetServerState();
   RegisterHandler(std::make_unique<RequestHandlerForApiAuthorization>(this));
   RegisterHandler(std::make_unique<RequestHandlerForAutoEnrollment>(this));
+  RegisterHandler(
+      std::make_unique<RequestHandlerForBrowserPublicKeyUpload>(this));
   RegisterHandler(std::make_unique<RequestHandlerForCertUpload>(this));
   RegisterHandler(
       std::make_unique<RequestHandlerForCheckAndroidManagement>(this));
@@ -118,6 +122,8 @@ EmbeddedPolicyTestServer::EmbeddedPolicyTestServer()
   RegisterHandler(std::make_unique<RequestHandlerForChromeDesktopReport>(this));
   RegisterHandler(
       std::make_unique<RequestHandlerForClientCertProvisioning>(this));
+  RegisterHandler(
+      std::make_unique<RequestHandlerForDeterminePromotionEligibility>(this));
   RegisterHandler(
       std::make_unique<RequestHandlerForDeviceAttributeUpdate>(this));
   RegisterHandler(

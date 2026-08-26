@@ -25,6 +25,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/types/cxx23_to_underlying.h"
+#include "net/base/features.h"
 #include "net/base/pickle.h"
 #include "net/base/pickle_base_types.h"
 #include "net/base/pickle_traits.h"
@@ -327,7 +328,8 @@ class NoVarySearchCacheStorage::Loader final {
     kCouldntCreateCacheFile = 11,
     kCouldntCreateJournal = 12,
     kCouldntStartJournal = 13,
-    kMaxValue = kCouldntStartJournal,
+    kOperationsInitFailed = 14,
+    kMaxValue = kOperationsInitFailed,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:NoVarySearchCacheStorageLoadResult)
 
@@ -351,6 +353,15 @@ class NoVarySearchCacheStorage::Loader final {
   // value from this object will be posted back to the main thread. Calls into
   // other methods of this object to handle various exceptional conditions.
   [[nodiscard]] ResultType Load() {
+    if (!operations_->Init()) {
+      return GiveUp(Result::kOperationsInitFailed);
+    }
+
+    if (features::kHttpCacheNoVarySearchFakePersistence.Get()) {
+      std::ignore = StartFromScratch(Result::kSnapshotLoadFailed);
+      return base::unexpected(LoadFailed::kCannotJournal);
+    }
+
     auto maybe_load_result = operations_->Load(kSnapshotFilename, kMaxFileSize);
     if (!maybe_load_result.has_value()) {
       base::UmaHistogramExactLinear("HttpCache.NoVarySearch.SnapshotLoadError",

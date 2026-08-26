@@ -8,15 +8,18 @@ import org.chromium.base.process_launcher.IFileDescriptorInfo;
 import org.chromium.base.IApkInfo;
 import org.chromium.base.IAndroidInfo;
 import org.chromium.base.IDeviceInfo;
+import org.chromium.base.library_loader.IRelroLibInfo;
 
 parcelable IChildProcessArgs {
-  int cpuCount;
-  long cpuFeatures;
-  String[] commandLine;
-  IFileDescriptorInfo[] fileDescriptorInfos;
-  // TODO(crbug.com/414609682): Convert this to something which is compatible with NDK aidl.
-  Bundle relroBundle;
   IApkInfo apkInfo;
   IAndroidInfo androidInfo;
+  boolean bindToCaller;
+  int channel;
+  String[] commandLine;
+  int cpuCount;
+  long cpuFeatures;
   IDeviceInfo deviceInfo;
+  IFileDescriptorInfo[] fileDescriptorInfos;
+  @nullable IRelroLibInfo relroInfo;
+  int libraryProcessType;
 }

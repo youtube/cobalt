@@ -24,6 +24,7 @@
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/sync/test/test_sync_user_settings.h"
+#include "google_apis/gaia/gaia_constants.h"
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
@@ -68,7 +69,7 @@ class SpyAccountChecker : public AccountChecker {
               CreateEndpointFetcher,
               (const std::string& oauth_consumer_name,
                const GURL& url,
-               const std::string& http_method,
+               const endpoint_fetcher::HttpMethod http_method,
                const std::string& content_type,
                const std::vector<std::string>& scopes,
                const base::TimeDelta& timeout,
@@ -134,7 +135,6 @@ TEST_F(AccountCheckerTest,
       "https://history.google.com/history/api/lookup?client=web_app";
   const char waa_oauth_scope[] = "https://www.googleapis.com/auth/chromesync";
   const char waa_content_type[] = "application/json; charset=UTF-8";
-  const char waa_get_method[] = "GET";
   constexpr base::TimeDelta waa_timeout = base::Milliseconds(30000);
   const char waa_post_data[] = "";
 
@@ -142,7 +142,8 @@ TEST_F(AccountCheckerTest,
   // trigger WAA request.
   EXPECT_CALL(*account_checker_,
               CreateEndpointFetcher(waa_oauth_name, GURL(waa_query_url),
-                                    waa_get_method, waa_content_type,
+                                    endpoint_fetcher::HttpMethod::kGet,
+                                    waa_content_type,
                                     std::vector<std::string>{waa_oauth_scope},
                                     waa_timeout, waa_post_data, _))
       .Times(0);
@@ -156,11 +157,13 @@ TEST_F(AccountCheckerTest, TestFetchPriceEmailPref) {
   {
     InSequence s;
     // Fetch email pref.
-    EXPECT_CALL(*account_checker_,
-                CreateEndpointFetcher(kOAuthName, GURL(kNotificationsPrefUrl),
-                                      kGetHttpMethod, kContentType,
-                                      std::vector<std::string>{kOAuthScope},
-                                      kTimeout, kEmptyPostData, _));
+    EXPECT_CALL(
+        *account_checker_,
+        CreateEndpointFetcher(
+            kOAuthName, GURL(kNotificationsPrefUrl),
+            endpoint_fetcher::HttpMethod::kGet, kContentType,
+            std::vector<std::string>{GaiaConstants::kChromeMemexOAuth2Scope},
+            kTimeout, kEmptyPostData, _));
   }
 
   ASSERT_EQ(false, pref_service_.GetBoolean(kPriceEmailNotificationsEnabled));
@@ -177,11 +180,13 @@ TEST_F(AccountCheckerTest, TestSendPriceEmailPrefOnPrefChange) {
   {
     InSequence s;
     // Send email pref.
-    EXPECT_CALL(*account_checker_,
-                CreateEndpointFetcher(kOAuthName, GURL(kNotificationsPrefUrl),
-                                      kPostHttpMethod, kContentType,
-                                      std::vector<std::string>{kOAuthScope},
-                                      kTimeout, kPostData, _));
+    EXPECT_CALL(
+        *account_checker_,
+        CreateEndpointFetcher(
+            kOAuthName, GURL(kNotificationsPrefUrl),
+            endpoint_fetcher::HttpMethod::kPost, kContentType,
+            std::vector<std::string>{GaiaConstants::kChromeMemexOAuth2Scope},
+            kTimeout, kPostData, _));
   }
 
   ASSERT_EQ(false, pref_service_.GetBoolean(kPriceEmailNotificationsEnabled));

@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
@@ -394,13 +395,26 @@ IN_PROC_BROWSER_TEST_F(NoCompositingRenderWidgetHostViewBrowserTest,
   // is maintained as the fallback. The DelegatedFrameHost should have not have
   // a valid active viz::LocalSurfaceId until the first surface after navigation
   // has been embedded.
+  //
+  // However, if the navigation involves a change of RenderFrameHosts the
+  // surface will be evicted when committing the new RenderFrameHost (see also
+  // ` DelegatedFrameHostAndroid::ClearFallbackSurfaceForCommitPending()`).
   rwhva = static_cast<RenderWidgetHostViewAndroid*>(rwhvb);
   dfh = rwhva->delegated_frame_host_for_testing();
-  EXPECT_TRUE(dfh->HasPrimarySurface());
-  EXPECT_FALSE(dfh->IsPrimarySurfaceEvicted());
-  EXPECT_EQ(initial_local_surface_id,
-            dfh->content_layer()->surface_id().local_surface_id());
-  EXPECT_FALSE(dfh->SurfaceId().local_surface_id().is_valid());
+
+  if (ShouldCreateNewHostForAllFrames()) {
+    EXPECT_FALSE(dfh->HasPrimarySurface());
+    EXPECT_TRUE(dfh->IsPrimarySurfaceEvicted());
+    EXPECT_NE(initial_local_surface_id,
+              dfh->content_layer()->surface_id().local_surface_id());
+    EXPECT_TRUE(dfh->SurfaceId().local_surface_id().is_valid());
+  } else {
+    EXPECT_TRUE(dfh->HasPrimarySurface());
+    EXPECT_FALSE(dfh->IsPrimarySurfaceEvicted());
+    EXPECT_EQ(initial_local_surface_id,
+              dfh->content_layer()->surface_id().local_surface_id());
+    EXPECT_FALSE(dfh->SurfaceId().local_surface_id().is_valid());
+  }
 #endif
 
   // Showing the view should lead to a new surface being embedded.
@@ -494,7 +508,10 @@ IN_PROC_BROWSER_TEST_F(NoCompositingRenderWidgetHostViewBrowserTest,
   EXPECT_FALSE(dfh->HasPrimarySurface());
   EXPECT_TRUE(dfh->IsPrimarySurfaceEvicted());
   EXPECT_FALSE(dfh->content_layer()->surface_id().is_valid());
-  EXPECT_FALSE(dfh->SurfaceId().local_surface_id().is_valid());
+  // However, if the navigation involves a change of RenderFrameHosts (and thus
+  // RenderWidgetViewHosts) a new surface is embedded (see comment a bit above).
+  EXPECT_EQ(ShouldCreateNewHostForAllFrames(),
+            dfh->SurfaceId().local_surface_id().is_valid());
 #endif
 
   // Showing the view should lead to a new surface being embedded.
@@ -676,13 +693,21 @@ IN_PROC_BROWSER_TEST_F(BFCachedRenderWidgetHostViewBrowserTest,
   }
 }
 
+// TODO(crbug.com/345980824): This test is flaky on some Linux builders.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_BFCachedPageResizedWhileHiddenShouldNotHavePreservedFallback \
+  DISABLED_BFCachedPageResizedWhileHiddenShouldNotHavePreservedFallback
+#else
+#define MAYBE_BFCachedPageResizedWhileHiddenShouldNotHavePreservedFallback \
+  BFCachedPageResizedWhileHiddenShouldNotHavePreservedFallback
+#endif
 // Same as the above test, except we resize the viewport while the page is in
 // BFCache. The net effect is that we will NOT be using the last surface as
 // the fallback for BFCache activation because resizing always regenerates a
 // new ID as the fallback.
 IN_PROC_BROWSER_TEST_F(
     BFCachedRenderWidgetHostViewBrowserTest,
-    BFCachedPageResizedWhileHiddenShouldNotHavePreservedFallback) {
+    MAYBE_BFCachedPageResizedWhileHiddenShouldNotHavePreservedFallback) {
   ASSERT_TRUE(embedded_test_server()->Start());
   ASSERT_TRUE(
       NavigateToURL(shell(), embedded_test_server()->GetURL("/title1.html")));
@@ -954,27 +979,18 @@ std::unique_ptr<net::test_server::HttpResponse> HandleSlowStyleSheet(
   return std::make_unique<SlowHttpResponse>(SlowHttpResponse::NoResponse());
 }
 
-class DOMContentLoadedObserver : public WebContentsObserver {
+class FirstNonEmptyPaintObserver : public WebContentsObserver {
  public:
-  explicit DOMContentLoadedObserver(WebContents* web_contents)
+  explicit FirstNonEmptyPaintObserver(WebContents* web_contents)
       : WebContentsObserver(web_contents) {}
 
-  bool Wait() {
-    run_loop_.Run();
-    return dom_content_loaded_ && !did_paint_;
-  }
+  bool did_paint() const { return did_paint_; }
 
  private:
   // WebContentsObserver:
-  void DOMContentLoaded(RenderFrameHost* render_frame_host) override {
-    dom_content_loaded_ = true;
-    run_loop_.Quit();
-  }
   void DidFirstVisuallyNonEmptyPaint() override { did_paint_ = true; }
 
-  base::RunLoop run_loop_;
   bool did_paint_{false};
-  bool dom_content_loaded_{false};
 };
 
 }  // namespace
@@ -984,10 +1000,14 @@ IN_PROC_BROWSER_TEST_F(NoCompositingRenderWidgetHostViewBrowserTest,
   embedded_test_server()->RegisterRequestHandler(
       base::BindRepeating(&HandleSlowStyleSheet));
   ASSERT_TRUE(embedded_test_server()->Start());
-  DOMContentLoadedObserver observer(shell()->web_contents());
+  FirstNonEmptyPaintObserver observer(shell()->web_contents());
+  TestNavigationObserver navigation(shell()->web_contents());
   shell()->LoadURL(
       embedded_test_server()->GetURL("/dark_color_scheme_meta_slow.html"));
-  EXPECT_TRUE(observer.Wait());
+  navigation.WaitForNavigationFinished();
+  ASSERT_TRUE(
+      WaitForDOMContentLoaded(shell()->web_contents()->GetPrimaryMainFrame()));
+  EXPECT_FALSE(observer.did_paint());
   auto bg_color = GetRenderWidgetHostView()->content_background_color();
   ASSERT_TRUE(bg_color.has_value());
   EXPECT_EQ(SkColorSetRGB(18, 18, 18), bg_color.value());
@@ -998,10 +1018,14 @@ IN_PROC_BROWSER_TEST_F(NoCompositingRenderWidgetHostViewBrowserTest,
   embedded_test_server()->RegisterRequestHandler(
       base::BindRepeating(&HandleSlowStyleSheet));
   ASSERT_TRUE(embedded_test_server()->Start());
-  DOMContentLoadedObserver observer(shell()->web_contents());
+  FirstNonEmptyPaintObserver observer(shell()->web_contents());
+  TestNavigationObserver navigation(shell()->web_contents());
   shell()->LoadURL(
       embedded_test_server()->GetURL("/no_color_scheme_meta_slow.html"));
-  EXPECT_TRUE(observer.Wait());
+  navigation.WaitForNavigationFinished();
+  ASSERT_TRUE(
+      WaitForDOMContentLoaded(shell()->web_contents()->GetPrimaryMainFrame()));
+  EXPECT_FALSE(observer.did_paint());
   auto bg_color = GetRenderWidgetHostView()->content_background_color();
   ASSERT_FALSE(bg_color.has_value());
 }

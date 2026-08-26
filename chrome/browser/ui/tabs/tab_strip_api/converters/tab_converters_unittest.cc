@@ -4,14 +4,22 @@
 
 #include "chrome/browser/ui/tabs/tab_strip_api/converters/tab_converters.h"
 
+#include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/tab_id.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/types/node_id.h"
+#include "components/tabs/public/tab_collection.h"
 #include "components/tabs/public/tab_interface.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
 namespace tabs_api::converters {
 namespace {
+
+class FakeTabCollection : public tabs::TabCollection {
+ public:
+  explicit FakeTabCollection(Type type) : TabCollection(type, {}, true) {}
+  ~FakeTabCollection() override = default;
+};
 
 TEST(TabStripServiceConverters, ConvertTab) {
   tabs::TabHandle handle(888);
@@ -22,9 +30,22 @@ TEST(TabStripServiceConverters, ConvertTab) {
   auto mojo = BuildMojoTab(handle, data);
 
   ASSERT_EQ("888", mojo->id.Id());
-  ASSERT_EQ(TabId::Type::kContent, mojo->id.Type());
+  ASSERT_EQ(NodeId::Type::kContent, mojo->id.Type());
   ASSERT_EQ(GURL("http://nowhere"), mojo->url);
   ASSERT_EQ("title", mojo->title);
+}
+
+TEST(TabStripServiceConverters, ConvertTabCollection) {
+  FakeTabCollection collection(tabs::TabCollection::Type::TABSTRIP);
+  const std::string expected_id =
+      base::NumberToString(collection.GetHandle().raw_value());
+  auto mojo = BuildMojoTabCollection(collection.GetHandle());
+
+  ASSERT_TRUE(mojo->is_tab_strip());
+
+  const auto& tab_strip = mojo->get_tab_strip();
+  ASSERT_EQ(expected_id, tab_strip->id.Id());
+  ASSERT_EQ(NodeId::Type::kCollection, tab_strip->id.Type());
 }
 
 }  // namespace

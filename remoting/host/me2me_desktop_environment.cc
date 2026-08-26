@@ -42,6 +42,7 @@
 #endif  // BUILDFLAG(IS_WIN)
 
 #if defined(REMOTING_USE_X11)
+#include "remoting/host/linux/desktop_resizer_x11.h"
 #include "remoting/host/linux/x11_util.h"
 #include "ui/gfx/x/connection.h"
 #endif  // defined(REMOTING_USE_X11)
@@ -115,11 +116,18 @@ std::string Me2MeDesktopEnvironment::GetCapabilities() const {
 #if BUILDFLAG(IS_LINUX) && defined(REMOTING_USE_X11)
   capabilities += " ";
   capabilities += protocol::kMultiStreamCapability;
+  capabilities += " ";
+  capabilities += protocol::kDefaultResizeCapability;
 
   // Client-controlled layout is only supported with Xorg+video-dummy.
   if (UsingVideoDummyDriver()) {
     capabilities += " ";
     capabilities += protocol::kClientControlledLayoutCapability;
+
+    if (DesktopResizerX11::supportsHighDpiResize()) {
+      capabilities += " ";
+      capabilities += protocol::kHighDpiCapability;
+    }
   }
 #elif BUILDFLAG(IS_MAC)
   capabilities += " ";
@@ -166,8 +174,7 @@ bool Me2MeDesktopEnvironment::InitializeSecurity(
 
   // Detach the session from the local console if the caller requested.
   if (desktop_environment_options().enable_curtaining()) {
-    curtain_ = CurtainMode::Create(caller_task_runner(), ui_task_runner(),
-                                   client_session_control);
+    curtain_ = interaction_strategy().CreateCurtainMode(client_session_control);
     if (!curtain_->Activate()) {
       LOG(ERROR) << "Failed to activate the curtain mode.";
       curtain_ = nullptr;
@@ -240,6 +247,9 @@ void Me2MeDesktopEnvironmentFactory::Create(
          const DesktopEnvironmentOptions& options,
          std::unique_ptr<DesktopInteractionStrategy> interaction_strategy)
       -> std::unique_ptr<DesktopEnvironment> {
+    if (!interaction_strategy) {
+      return nullptr;
+    }
     auto desktop_environment = base::WrapUnique(new Me2MeDesktopEnvironment(
         std::move(caller_task_runner), std::move(ui_task_runner),
         std::move(interaction_strategy), client_session_control, options));

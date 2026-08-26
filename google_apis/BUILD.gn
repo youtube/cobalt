@@ -149,6 +149,8 @@ component("google_apis") {
     "gaia/oauth2_response.h",
     "gaia/oauth_multilogin_result.cc",
     "gaia/oauth_multilogin_result.h",
+    "gaia/register_bound_session_payload.cc",
+    "gaia/register_bound_session_payload.h",
     "gaia/token_binding_response_encryption_error.h",
     "google_api_keys.cc",
     "google_api_keys.h",
@@ -167,7 +169,6 @@ component("google_apis") {
 
   deps = [
     ":proto",
-    "//base/version_info:channel",
     "//build:branding_buildflags",
     "//crypto",
     "//mojo/public/cpp/bindings:struct_traits",
@@ -263,6 +264,7 @@ test("google_apis_unittests") {
     "gaia/oauth2_mint_access_token_fetcher_adapter_unittest.cc",
     "gaia/oauth2_mint_token_flow_unittest.cc",
     "gaia/oauth_multilogin_result_unittest.cc",
+    "gaia/register_bound_session_payload_unittest.cc",
     "google_api_keys_unittest.cc",
     "google_api_keys_unittest.h",
   ]
@@ -276,7 +278,6 @@ test("google_apis_unittests") {
     ":test_support",
     "//base",
     "//base/test:test_support",
-    "//base/version_info:channel",
     "//build:branding_buildflags",
     "//google_apis/calendar:calendar_unittests",
     "//google_apis/common:common_unittests",
@@ -318,6 +319,10 @@ test("google_apis_unittests") {
       "//google_apis/youtube_music:youtube_music_unittests",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 bundle_data("google_apis_unittest_bundle_data") {

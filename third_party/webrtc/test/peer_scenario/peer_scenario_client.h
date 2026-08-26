@@ -22,6 +22,7 @@
 #include "api/candidate.h"
 #include "api/data_channel_interface.h"
 #include "api/environment/environment.h"
+#include "api/field_trials.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
@@ -39,6 +40,7 @@
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
 #include "test/create_frame_generator_capturer.h"
+#include "test/create_test_field_trials.h"
 #include "test/frame_generator_capturer.h"
 #include "test/logging/log_writer.h"
 
@@ -66,8 +68,7 @@ class PeerScenarioClient {
         on_connection_change;
     std::vector<std::function<void(PeerConnectionInterface::IceGatheringState)>>
         on_ice_gathering_change;
-    std::vector<std::function<void(const IceCandidateInterface*)>>
-        on_ice_candidate;
+    std::vector<std::function<void(const IceCandidate*)>> on_ice_candidate;
     std::vector<std::function<void(const std::string&,
                                    int,
                                    const std::string&,
@@ -88,6 +89,7 @@ class PeerScenarioClient {
         on_remove_track;
   };
   struct Config {
+    FieldTrials field_trials = CreateTestFieldTrials();
     // WebRTC only support one audio device that is setup up on construction, so
     // we provide the audio generator configuration here rather than on creation
     // of the tracks. This is unlike video, where multiple capture sources can
@@ -173,7 +175,7 @@ class PeerScenarioClient {
           done_handler);
 
   // Adds the given ice candidate when the peer connection is ready.
-  void AddIceCandidate(std::unique_ptr<IceCandidateInterface> candidate);
+  void AddIceCandidate(std::unique_ptr<IceCandidate> candidate);
 
  private:
   const Environment env_;
@@ -185,7 +187,7 @@ class PeerScenarioClient {
   const std::unique_ptr<PeerConnectionObserver> observer_;
   std::map<std::string, std::vector<VideoSinkInterface<VideoFrame>*>>
       track_id_to_video_sinks_ RTC_GUARDED_BY(signaling_thread_);
-  std::list<std::unique_ptr<IceCandidateInterface>> pending_ice_candidates_
+  std::list<std::unique_ptr<IceCandidate>> pending_ice_candidates_
       RTC_GUARDED_BY(signaling_thread_);
 
   scoped_refptr<PeerConnectionFactoryInterface> pc_factory_;

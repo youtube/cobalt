@@ -62,11 +62,15 @@ public:
                               const RendererProvider*) const override;
     UniqueKey makeComputePipelineKey(const ComputePipelineDesc&) const override { return {}; }
 
-    bool isTexturable(const VulkanTextureInfo&) const;
-    bool isRenderable(const VulkanTextureInfo&) const;
 
     bool isRenderable(const TextureInfo&) const override;
     bool isStorage(const TextureInfo&) const override;
+
+    bool isFormatSupported(VkFormat format) const;
+    bool isTexturable(const VulkanTextureInfo&) const;
+    bool isRenderable(const VulkanTextureInfo&) const;
+    bool isTransferSrc(const VulkanTextureInfo&) const;
+    bool isTransferDst(const VulkanTextureInfo&) const;
 
     void buildKeyForTexture(SkISize dimensions,
                             const TextureInfo&,
@@ -93,9 +97,17 @@ public:
     bool supportsYcbcrConversion() const { return fSupportsYcbcrConversion; }
     bool supportsDeviceFaultInfo() const { return fSupportsDeviceFaultInfo; }
 
-    // Whether a subpass self-dependency is required and a barrier to read from input attachments or
-    // not.
+    // Whether a barrier is required before reading from input attachments (barrier is needed if
+    // !coherent).
     bool isInputAttachmentReadCoherent() const { return fIsInputAttachmentReadCoherent; }
+    // isInputAttachmentReadCoherent() is based on whether
+    // VK_EXT_rasterization_order_attachment_access is supported, but is also enabled on a few
+    // architectures where it's known a priori that input attachment reads are coherent. The
+    // following determines whether that extension is enabled (in which case a pipeline creation
+    // flag is necessary) or not. When disabled, a subpass self-dependency is needed instead.
+    bool supportsRasterizationOrderColorAttachmentAccess() const {
+        return fSupportsRasterizationOrderColorAttachmentAccess;
+    }
 
     uint32_t maxVertexAttributes()   const { return fMaxVertexAttributes;   }
     uint64_t maxUniformBufferRange() const { return fMaxUniformBufferRange; }
@@ -105,21 +117,9 @@ public:
         return fPhysicalDeviceMemoryProperties2;
     }
 
-    bool isTransferSrc(const VulkanTextureInfo&) const;
-    bool isTransferDst(const VulkanTextureInfo&) const;
-
     bool mustLoadFullImageForMSAA() const { return fMustLoadFullImageForMSAA; }
 
 private:
-    enum VkVendor {
-        kAMD_VkVendor             = 4098,
-        kARM_VkVendor             = 5045,
-        kImagination_VkVendor     = 4112,
-        kIntel_VkVendor           = 32902,
-        kNvidia_VkVendor          = 4318,
-        kQualcomm_VkVendor        = 20803,
-    };
-
     void init(const ContextOptions&,
               const skgpu::VulkanInterface*,
               VkPhysicalDevice,
@@ -128,7 +128,43 @@ private:
               const skgpu::VulkanExtensions*,
               Protected);
 
-    void applyDriverCorrectnessWorkarounds(const VkPhysicalDeviceProperties&);
+    struct EnabledFeatures {
+        // VkPhysicalDeviceFeatures
+        bool fDualSrcBlend = false;
+        // From VkPhysicalDeviceSamplerYcbcrConversionFeatures or VkPhysicalDeviceVulkan11Features:
+        bool fSamplerYcbcrConversion = false;
+        // From VkPhysicalDeviceFaultFeaturesEXT:
+        bool fDeviceFault = false;
+        // From VkPhysicalDeviceBlendOperationAdvancedPropertiesEXT:
+        bool fAdvancedBlendModes = false;
+        bool fCoherentAdvancedBlendModes = false;
+        // From VK_EXT_rasterization_order_attachment_access:
+        bool fRasterizationOrderColorAttachmentAccess = false;
+        // From VkPhysicalDeviceExtendedDynamicStateFeaturesEXT or Vulkan 1.3 (no features):
+        bool fExtendedDynamicState = false;
+        // From VkPhysicalDeviceExtendedDynamicState2FeaturesEXT or Vulkan 1.3 (no features):
+        bool fExtendedDynamicState2 = false;
+        // From VkPhysicalDeviceVertexInputDynamicStateFeaturesEXT:
+        bool fVertexInputDynamicState = false;
+        // From VkPhysicalDeviceGraphicsPipelineLibraryFeaturesEXT:
+        bool fGraphicsPipelineLibrary = false;
+    };
+    EnabledFeatures getEnabledFeatures(const VkPhysicalDeviceFeatures2* features,
+                                       uint32_t physicalDeviceVersion);
+
+    struct PhysicalDeviceProperties {
+        VkPhysicalDeviceProperties2 fBase;
+        VkPhysicalDeviceDriverProperties fDriver;
+        VkPhysicalDeviceGraphicsPipelineLibraryPropertiesEXT fGpl;
+    };
+    void getProperties(const skgpu::VulkanInterface* vkInterface,
+                       VkPhysicalDevice physDev,
+                       uint32_t physicalDeviceVersion,
+                       const skgpu::VulkanExtensions* extensions,
+                       const EnabledFeatures& features,
+                       PhysicalDeviceProperties* props);
+
+    void applyDriverCorrectnessWorkarounds(const PhysicalDeviceProperties&);
 
     void initFormatTable(const skgpu::VulkanInterface*,
                          VkPhysicalDevice,
@@ -164,7 +200,7 @@ private:
 
         bool isSampleCountSupported(int requestedCount) const;
 
-        SkTDArray<int> fSampleCounts;
+        VkSampleCountFlags fSampleCounts;
     };
 
     // Struct that determines and stores useful information about VkFormats.
@@ -253,6 +289,7 @@ private:
     bool fGpuOnlyBuffersMorePerformant = false;
     bool fShouldPersistentlyMapCpuToGpuBuffers = true;
     bool fSupportsDeviceFaultInfo = false;
+    bool fSupportsRasterizationOrderColorAttachmentAccess = false;
     bool fIsInputAttachmentReadCoherent = false;
 
     // Flags to enable workarounds for driver bugs

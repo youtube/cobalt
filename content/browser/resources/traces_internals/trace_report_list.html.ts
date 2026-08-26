@@ -4,8 +4,8 @@
 
 import {html, nothing} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
-import type {ClientTraceReport} from './trace_report.mojom-webui.js';
 import type {TraceReportListElement} from './trace_report_list.js';
+import type {ClientTraceReport} from './traces_internals.mojom-webui.js';
 
 function getReportHtml(this: TraceReportListElement) {
   // clang-format off
@@ -17,11 +17,14 @@ function getReportHtml(this: TraceReportListElement) {
     </div>`;
   }
 
-  return html`${this.traces_.map((traceReport: ClientTraceReport) => html`
-    <trace-report
-        .trace="${traceReport}"
-        @show-toast="${this.showToastHandler_}">
-    </trace-report>`)}`;
+  return html`
+      <trace-report .isHeader="${true}"></trace-report>
+    ${this.traces_.map((traceReport: ClientTraceReport) => html`
+      <trace-report
+          .trace="${traceReport}"
+          @show-toast="${this.showToastHandler_}"
+          @refresh-traces-request="${this.onRefreshTracesClick_}">
+      </trace-report>`)}`;
   // clang-format on
 }
 

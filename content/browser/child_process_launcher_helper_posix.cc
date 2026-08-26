@@ -8,7 +8,6 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/functional/overloaded.h"
 #include "base/metrics/field_trial.h"
 #include "base/posix/global_descriptors.h"
 #include "base/strings/string_number_conversions.h"
@@ -21,6 +20,7 @@
 #include "content/public/common/content_descriptors.h"
 #include "content/public/common/content_switches.h"
 #include "mojo/public/cpp/platform/platform_channel_endpoint.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace content {
 namespace internal {
@@ -62,14 +62,7 @@ std::unique_ptr<PosixFileDescriptorInfo> CreateDefaultPosixFilesToMap(
 
 // Mac shared memory doesn't use file descriptors.
 #if !BUILDFLAG(IS_APPLE)
-#if BUILDFLAG(IS_ANDROID)
-  // Android's endpoint may be a file descriptor or a binder. If it's a binder
-  // we share it by other means.
-  const bool share_channel_fd =
-      !mojo_channel_remote_endpoint.platform_handle().is_binder();
-#else
   const bool share_channel_fd = true;
-#endif
   if (share_channel_fd) {
     DCHECK(mojo_channel_remote_endpoint.is_valid());
     files_to_register->Share(
@@ -89,19 +82,19 @@ std::unique_ptr<PosixFileDescriptorInfo> CreateDefaultPosixFilesToMap(
   for (const auto& key_path_iter : files_to_preload) {
     base::MemoryMappedFile::Region region;
     base::PlatformFile file = std::visit(
-        base::Overloaded{[&region](const base::FilePath& file_path) {
-                           base::PlatformFile file =
-                               OpenFileIfNecessary(file_path, &region);
-                           if (file == base::kInvalidPlatformFile) {
-                             DLOG(WARNING) << "Ignoring invalid file "
-                                           << file_path.value();
-                           }
-                           return file;
-                         },
-                         [&region](const base::ScopedFD& fd) {
-                           region = base::MemoryMappedFile::Region::kWholeFile;
-                           return fd.get();
-                         }},
+        absl::Overload{[&region](const base::FilePath& file_path) {
+                         base::PlatformFile file =
+                             OpenFileIfNecessary(file_path, &region);
+                         if (file == base::kInvalidPlatformFile) {
+                           DLOG(WARNING)
+                               << "Ignoring invalid file " << file_path.value();
+                         }
+                         return file;
+                       },
+                       [&region](const base::ScopedFD& fd) {
+                         region = base::MemoryMappedFile::Region::kWholeFile;
+                         return fd.get();
+                       }},
         key_path_iter.second);
     if (file == base::kInvalidPlatformFile) {
       continue;

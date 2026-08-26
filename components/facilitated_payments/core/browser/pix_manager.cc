@@ -21,7 +21,7 @@
 #include "components/facilitated_payments/core/metrics/facilitated_payments_metrics.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_utils.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 
 namespace payments::facilitated {
 namespace {
@@ -55,12 +55,15 @@ void PixManager::Reset() {
   initiate_payment_request_details_ =
       std::make_unique<FacilitatedPaymentsInitiatePaymentRequestDetails>();
   ui_state_ = UiState::kHidden;
+  pix_payment_page_origin_ = url::Origin();
   weak_ptr_factory_.InvalidateWeakPtrs();
 }
 
-void PixManager::OnPixCodeCopiedToClipboard(const GURL& render_frame_host_url,
-                                            const std::string& pix_code,
-                                            ukm::SourceId ukm_source_id) {
+void PixManager::OnPixCodeCopiedToClipboard(
+    const GURL& render_frame_host_url,
+    const url::Origin& render_frame_host_origin,
+    const std::string& pix_code,
+    ukm::SourceId ukm_source_id) {
   if (has_payflow_started_) {
     return;
   }
@@ -69,14 +72,16 @@ void PixManager::OnPixCodeCopiedToClipboard(const GURL& render_frame_host_url,
       &PixManager::OnUiEvent, weak_ptr_factory_.GetWeakPtr()));
   pix_code_copied_timestamp_ = base::TimeTicks::Now();
   ukm_source_id_ = ukm_source_id;
+  LogPixCodeCopied(ukm_source_id_);
   // Check whether the domain for the render_frame_host_url is allowlisted.
   if (!IsMerchantAllowlisted(render_frame_host_url)) {
     // The merchant is not part of the allowlist, ignore the copy event.
+    LogPixFlowExitedReason(PixFlowExitedReason::kMerchantNotAllowlisted);
     return;
   }
-  LogPixCodeCopied(ukm_source_id_);
   initiate_payment_request_details_->merchant_payment_page_hostname_ =
       render_frame_host_url.host();
+  pix_payment_page_origin_ = render_frame_host_origin;
   // Trigger Pix code validation.
   utility_process_validator_.ValidatePixCode(
       pix_code, base::BindOnce(&PixManager::OnPixCodeValidated,
@@ -132,19 +137,25 @@ void PixManager::OnPixCodeValidated(
     return;
   }
 
-  // If the user has no linked Pix accounts, initialize the Pix account linking
-  // flow.
-  if (!payments_data_manager->HasMaskedBankAccounts()) {
-    LogPixFlowExitedReason(PixFlowExitedReason::kNoLinkedAccount);
-    if (base::FeatureList::IsEnabled(kEnablePixAccountLinking)) {
-      client_->InitPixAccountLinkingFlow();
-    }
+  if (!payments_data_manager->IsAutofillPaymentMethodsEnabled()) {
+    LogPixFlowExitedReason(
+        PixFlowExitedReason::kAutofillPaymentMethodsDisabled);
     return;
   }
 
   // Pix pref is shown only if the user has linked Pix accounts.
   if (!payments_data_manager->IsFacilitatedPaymentsPixUserPrefEnabled()) {
     LogPixFlowExitedReason(PixFlowExitedReason::kUserOptedOut);
+    return;
+  }
+
+  // If the user has no linked Pix accounts, initialize the Pix account linking
+  // flow.
+  if (!payments_data_manager->HasMaskedBankAccounts()) {
+    LogPixFlowExitedReason(PixFlowExitedReason::kNoLinkedAccount);
+    if (base::FeatureList::IsEnabled(kEnablePixAccountLinking)) {
+      client_->InitPixAccountLinkingFlow(pix_payment_page_origin_);
+    }
     return;
   }
 
@@ -348,6 +359,10 @@ void PixManager::OnUiEvent(UiEvent ui_event_type) {
       }
       break;
     }
+    case UiEvent::kScreenCouldNotBeShown:
+      // TODO(crbug.com/427597144): Handle the "failure to show" case separately
+      // if required.
+      [[fallthrough]];  // Intentional fallthrough.
     case UiEvent::kScreenClosedNotByUser: {
       if (ui_state_ == UiState::kFopSelector) {
         LogPixFlowExitedReason(

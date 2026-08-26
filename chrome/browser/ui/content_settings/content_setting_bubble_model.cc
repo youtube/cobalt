@@ -78,7 +78,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/device/public/cpp/device_features.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
@@ -300,6 +299,10 @@ void ContentSettingSimpleBubbleModel::SetTitle() {
       {ContentSettingsType::GEOLOCATION, IDS_BLOCKED_GEOLOCATION_TITLE},
       {ContentSettingsType::MIDI_SYSEX, IDS_BLOCKED_MIDI_SYSEX_TITLE},
       {ContentSettingsType::SENSORS, IDS_BLOCKED_SENSORS_TITLE},
+#if BUILDFLAG(IS_WIN)
+      {ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
+       IDS_BLOCKED_PROTECTED_CONTENT_IDENTIFIERS_TITLE},
+#endif
   };
   // Fields as for kBlockedTitleIDs, above.
   static const ContentSettingsTypeIdEntry kAccessedTitleIDs[] = {
@@ -308,6 +311,10 @@ void ContentSettingSimpleBubbleModel::SetTitle() {
       {ContentSettingsType::GEOLOCATION, IDS_ALLOWED_GEOLOCATION_TITLE},
       {ContentSettingsType::MIDI_SYSEX, IDS_ALLOWED_MIDI_SYSEX_TITLE},
       {ContentSettingsType::SENSORS, IDS_ALLOWED_SENSORS_TITLE},
+#if BUILDFLAG(IS_WIN)
+      {ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
+       IDS_ALLOWED_PROTECTED_CONTENT_IDENTIFIERS_TITLE},
+#endif
   };
 
   int title_id = [&]() {
@@ -344,6 +351,10 @@ void ContentSettingSimpleBubbleModel::SetMessage() {
        base::FeatureList::IsEnabled(features::kGenericSensorExtraClasses)
            ? IDS_BLOCKED_SENSORS_MESSAGE
            : IDS_BLOCKED_MOTION_SENSORS_MESSAGE},
+#if BUILDFLAG(IS_WIN)
+      {ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
+       IDS_BLOCKED_PROTECTED_CONTENT_IDENTIFIERS_MESSAGE},
+#endif
   };
   // Fields as for kBlockedMessageIDs, above.
   const ContentSettingsTypeIdEntry kAccessedMessageIDs[] = {
@@ -356,6 +367,10 @@ void ContentSettingSimpleBubbleModel::SetMessage() {
        base::FeatureList::IsEnabled(features::kGenericSensorExtraClasses)
            ? IDS_ALLOWED_SENSORS_MESSAGE
            : IDS_ALLOWED_MOTION_SENSORS_MESSAGE},
+#if BUILDFLAG(IS_WIN)
+      {ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
+       IDS_ALLOWED_PROTECTED_CONTENT_IDENTIFIERS_MESSAGE},
+#endif
   };
 
   int message_id = [&]() {
@@ -660,6 +675,10 @@ void ContentSettingSingleRadioGroup::SetRadioGroup() {
       {ContentSettingsType::CLIPBOARD_READ_WRITE,
        IDS_BLOCKED_CLIPBOARD_UNBLOCK},
       {ContentSettingsType::SENSORS, IDS_BLOCKED_SENSORS_UNBLOCK},
+#if BUILDFLAG(IS_WIN)
+      {ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
+       IDS_BLOCKED_PROTECTED_CONTENT_IDENTIFIERS_UNBLOCK},
+#endif
   };
   // Fields as for kBlockedAllowIDs, above.
   static const ContentSettingsTypeIdEntry kAllowedAllowIDs[] = {
@@ -669,6 +688,10 @@ void ContentSettingSingleRadioGroup::SetRadioGroup() {
       {ContentSettingsType::CLIPBOARD_READ_WRITE,
        IDS_ALLOWED_CLIPBOARD_NO_ACTION},
       {ContentSettingsType::SENSORS, IDS_ALLOWED_SENSORS_NO_ACTION},
+#if BUILDFLAG(IS_WIN)
+      {ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
+       IDS_ALLOWED_PROTECTED_CONTENT_IDENTIFIERS_NO_ACTION},
+#endif
   };
 
   std::u16string radio_allow_label;
@@ -695,6 +718,10 @@ void ContentSettingSingleRadioGroup::SetRadioGroup() {
       {ContentSettingsType::CLIPBOARD_READ_WRITE,
        IDS_BLOCKED_CLIPBOARD_NO_ACTION},
       {ContentSettingsType::SENSORS, IDS_BLOCKED_SENSORS_NO_ACTION},
+#if BUILDFLAG(IS_WIN)
+      {ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
+       IDS_BLOCKED_PROTECTED_CONTENT_IDENTIFIERS_NO_ACTION},
+#endif
   };
   static const ContentSettingsTypeIdEntry kAllowedBlockIDs[] = {
       {ContentSettingsType::COOKIES, IDS_ALLOWED_ON_DEVICE_SITE_DATA_BLOCK},
@@ -702,6 +729,10 @@ void ContentSettingSingleRadioGroup::SetRadioGroup() {
       {ContentSettingsType::MIDI_SYSEX, IDS_ALLOWED_MIDI_SYSEX_BLOCK},
       {ContentSettingsType::CLIPBOARD_READ_WRITE, IDS_ALLOWED_CLIPBOARD_BLOCK},
       {ContentSettingsType::SENSORS, IDS_ALLOWED_SENSORS_BLOCK},
+#if BUILDFLAG(IS_WIN)
+      {ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
+       IDS_ALLOWED_PROTECTED_CONTENT_IDENTIFIERS_BLOCK},
+#endif
   };
 
   std::u16string radio_block_label;
@@ -1792,13 +1823,9 @@ void ContentSettingQuietRequestBubbleModel::OnManageButtonClicked() {
     switch (request_type) {
       case permissions::RequestType::kNotifications:
         delegate()->ShowContentSettingsPage(ContentSettingsType::NOTIFICATIONS);
-        base::RecordAction(base::UserMetricsAction(
-            "Permissions.Prompt.QuietBubble.Notifications.ManageClicked"));
         break;
       case permissions::RequestType::kGeolocation:
         delegate()->ShowContentSettingsPage(ContentSettingsType::GEOLOCATION);
-        base::RecordAction(base::UserMetricsAction(
-            "Permissions.Prompt.QuietBubble.Geolocation.ManageClicked"));
         break;
       default:
         NOTREACHED();
@@ -1846,10 +1873,6 @@ void ContentSettingQuietRequestBubbleModel::OnDoneButtonClicked() {
     case QuietUiReason::kServicePredictedVeryUnlikelyGrant:
     case QuietUiReason::kOnDevicePredictedVeryUnlikelyGrant:
       manager->Accept();
-      base::RecordAction(base::UserMetricsAction(
-          request_type == permissions::RequestType::kNotifications
-              ? "Permissions.Prompt.QuietBubble.Notifications.AllowClicked"
-              : "Permissions.Prompt.QuietBubble.Geolocation.AllowClicked"));
       break;
     case QuietUiReason::kTriggeredDueToAbusiveRequests:
     case QuietUiReason::kTriggeredDueToAbusiveContent:
@@ -1929,6 +1952,9 @@ ContentSettingBubbleModel::CreateContentSettingBubbleModel(
     case ContentSettingsType::CLIPBOARD_READ_WRITE:
     case ContentSettingsType::MIDI_SYSEX:
     case ContentSettingsType::SENSORS:
+#if BUILDFLAG(IS_WIN)
+    case ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER:
+#endif
       return std::make_unique<ContentSettingSingleRadioGroup>(
           delegate, web_contents, content_type);
     case ContentSettingsType::STORAGE_ACCESS:

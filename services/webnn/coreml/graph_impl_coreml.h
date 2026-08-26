@@ -17,7 +17,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/types/expected.h"
-#include "mojo/public/cpp/base/big_buffer.h"
 #include "services/webnn/coreml/graph_builder_coreml.h"
 #include "services/webnn/public/cpp/webnn_types.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom-forward.h"
@@ -55,11 +54,17 @@ class API_AVAILABLE(macos(14.4)) GraphImplCoreml final : public WebNNGraphImpl {
       ContextProperties context_properties,
       WebNNContextImpl::CreateGraphImplCallback callback);
 
+  struct Params;
+  GraphImplCoreml(mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
+                  base::WeakPtr<WebNNContextImpl> context,
+                  std::unique_ptr<Params> params);
+
   GraphImplCoreml(const GraphImplCoreml&) = delete;
   GraphImplCoreml& operator=(const GraphImplCoreml&) = delete;
-  ~GraphImplCoreml() override;
 
  private:
+  ~GraphImplCoreml() override;
+
   // Additional information about the model input that is required
   // for the CoreML backend.
   struct CoreMLFeatureInfo {
@@ -78,25 +83,6 @@ class API_AVAILABLE(macos(14.4)) GraphImplCoreml final : public WebNNGraphImpl {
     std::string coreml_name;
   };
 
-  // Parameters needed to construct a `GraphImplCoreml`. Used for shuttling
-  // these objects between the background thread where the model is compiled and
-  // the originating thread.
-  struct Params {
-    Params(
-        ComputeResourceInfo compute_resource_info,
-        base::flat_map<std::string, std::string> coreml_name_to_operand_name);
-    ~Params();
-
-    ComputeResourceInfo compute_resource_info;
-    base::flat_map<std::string, std::string> coreml_name_to_operand_name;
-
-    // Represents the compiled and configured Core ML model. This member must be
-    // set before these params are used to construct a new `GraphImplCoreml`.
-    MLModel* __strong ml_model;
-
-    std::vector<mojom::Device> devices;
-  };
-
   // Responsible for cleaning up disk artifacts created by the CoreML model
   // compilation process.
   // This also dumps model files to to `switches::kWebNNCoreMlDumpModel` if
@@ -108,14 +94,6 @@ class API_AVAILABLE(macos(14.4)) GraphImplCoreml final : public WebNNGraphImpl {
 
     base::ScopedTempDir file_dir;
   };
-
-  GraphImplCoreml(mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
-                  ContextImplCoreml* context,
-                  std::unique_ptr<Params> params);
-
-  static MLFeatureValue* CreateMultiArrayFeatureValueFromBytes(
-      MLMultiArrayConstraint* multi_array_constraint,
-      mojo_base::BigBuffer data);
 
   // Compile the CoreML model to a temporary .modelc file.
   static void CreateAndBuildOnBackgroundThread(
@@ -155,8 +133,9 @@ class API_AVAILABLE(macos(14.4)) GraphImplCoreml final : public WebNNGraphImpl {
   // Execute the compiled platform graph asynchronously. The inputs were
   // validated in base class so we can use them to compute directly.
   void DispatchImpl(
-      base::flat_map<std::string, WebNNTensorImpl*> named_inputs,
-      base::flat_map<std::string, WebNNTensorImpl*> named_outputs) override;
+      base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>> named_inputs,
+      base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>> named_outputs)
+      override;
 
  private:
   class ComputeResources;

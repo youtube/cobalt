@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "crypto/hmac.h"
 
 #include <stddef.h>
@@ -16,6 +11,7 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/notreached.h"
 #include "base/stl_util.h"
 #include "crypto/openssl_util.h"
@@ -50,14 +46,15 @@ bool HMAC::Init(const unsigned char* key, size_t key_length) {
   // Init must not be called more than once on the same HMAC object.
   DCHECK(!initialized_);
   initialized_ = true;
-  key_.assign(key, key + key_length);
+  key_.assign(key, UNSAFE_TODO(key + key_length));
   return true;
 }
 
 bool HMAC::Sign(std::string_view data,
                 unsigned char* digest,
                 size_t digest_length) const {
-  return Sign(base::as_byte_span(data), base::span(digest, digest_length));
+  return Sign(base::as_byte_span(data),
+              UNSAFE_TODO(base::span(digest, digest_length)));
 }
 
 bool HMAC::Sign(base::span<const uint8_t> data,
@@ -110,34 +107,15 @@ bool HMAC::VerifyTruncated(base::span<const uint8_t> data,
 
 namespace hmac {
 
-namespace {
-
-const EVP_MD* EVPMDForHashKind(crypto::hash::HashKind kind) {
-  switch (kind) {
-    case crypto::hash::HashKind::kSha1:
-      return EVP_sha1();
-    case crypto::hash::HashKind::kSha256:
-      return EVP_sha256();
-    case crypto::hash::HashKind::kSha384:
-      return EVP_sha384();
-    case crypto::hash::HashKind::kSha512:
-      return EVP_sha512();
-  }
-  NOTREACHED();
-}
-
-}  // namespace
-
 void Sign(crypto::hash::HashKind kind,
           base::span<const uint8_t> key,
           base::span<const uint8_t> data,
           base::span<uint8_t> hmac) {
-  const EVP_MD* md = EVPMDForHashKind(kind);
+  const EVP_MD* md = crypto::hash::EVPMDForHashKind(kind);
   CHECK_EQ(hmac.size(), EVP_MD_size(md));
 
   bssl::ScopedHMAC_CTX ctx;
-  CHECK(HMAC_Init_ex(ctx.get(), key.data(), key.size(), EVPMDForHashKind(kind),
-                     nullptr));
+  CHECK(HMAC_Init_ex(ctx.get(), key.data(), key.size(), md, nullptr));
   CHECK(HMAC_Update(ctx.get(), data.data(), data.size()));
   CHECK(HMAC_Final(ctx.get(), hmac.data(), nullptr));
 }
@@ -146,7 +124,7 @@ bool Verify(crypto::hash::HashKind kind,
             base::span<const uint8_t> key,
             base::span<const uint8_t> data,
             base::span<const uint8_t> hmac) {
-  const EVP_MD* md = EVPMDForHashKind(kind);
+  const EVP_MD* md = crypto::hash::EVPMDForHashKind(kind);
   CHECK_EQ(hmac.size(), EVP_MD_size(md));
 
   std::array<uint8_t, EVP_MAX_MD_SIZE> computed_buf;

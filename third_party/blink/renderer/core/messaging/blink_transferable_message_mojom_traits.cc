@@ -56,20 +56,19 @@ ToSerializedAcceleratedImage(
       blink::mojom::blink::SerializedStaticBitmapImage::NewAcceleratedImage(
           blink::AcceleratedImageInfo{
               shared_image->Export(), cloned_image->GetSyncToken(),
-              cloned_image->GetSize(), cloned_image->GetSharedImageFormat(),
-              cloned_image->GetAlphaType(), cloned_image->GetColorSpace(),
-              WTF::BindOnce(&blink::StaticBitmapImage::UpdateSyncToken,
-                            std::move(cloned_image))});
+              cloned_image->GetAlphaType(),
+              blink::BindOnce(&blink::StaticBitmapImage::UpdateSyncToken,
+                              std::move(cloned_image))});
   return result;
 }
 
 }  // namespace
 
-Vector<blink::mojom::blink::SerializedStaticBitmapImagePtr>
+blink::Vector<blink::mojom::blink::SerializedStaticBitmapImagePtr>
 StructTraits<blink::mojom::blink::TransferableMessage::DataView,
              blink::BlinkTransferableMessage>::
     image_bitmap_contents_array(const blink::BlinkCloneableMessage& input) {
-  Vector<blink::mojom::blink::SerializedStaticBitmapImagePtr> out;
+  blink::Vector<blink::mojom::blink::SerializedStaticBitmapImagePtr> out;
   out.ReserveInitialCapacity(
       input.message->GetImageBitmapContentsArray().size());
   for (auto& bitmap_contents : input.message->GetImageBitmapContentsArray()) {
@@ -78,7 +77,8 @@ StructTraits<blink::mojom::blink::TransferableMessage::DataView,
       // so SkBitmap should be in N32 format.
       auto bitmap_n32 = ToSkBitmapN32(bitmap_contents);
       if (!bitmap_n32) {
-        return Vector<blink::mojom::blink::SerializedStaticBitmapImagePtr>();
+        return blink::Vector<
+            blink::mojom::blink::SerializedStaticBitmapImagePtr>();
       }
       out.push_back(blink::mojom::blink::SerializedStaticBitmapImage::NewBitmap(
           bitmap_n32.value()));
@@ -86,7 +86,8 @@ StructTraits<blink::mojom::blink::TransferableMessage::DataView,
       blink::mojom::blink::SerializedStaticBitmapImagePtr serialized_image =
           ToSerializedAcceleratedImage(bitmap_contents);
       if (!serialized_image) {
-        return Vector<blink::mojom::blink::SerializedStaticBitmapImagePtr>();
+        return blink::Vector<
+            blink::mojom::blink::SerializedStaticBitmapImagePtr>();
       }
       out.push_back(std::move(serialized_image));
     }
@@ -98,11 +99,11 @@ bool StructTraits<blink::mojom::blink::TransferableMessage::DataView,
                   blink::BlinkTransferableMessage>::
     Read(blink::mojom::blink::TransferableMessage::DataView data,
          blink::BlinkTransferableMessage* out) {
-  Vector<blink::MessagePortDescriptor> ports;
-  Vector<blink::MessagePortDescriptor> stream_channels;
+  blink::Vector<blink::MessagePortDescriptor> ports;
+  blink::Vector<blink::MessagePortDescriptor> stream_channels;
   blink::SerializedScriptValue::ArrayBufferContentsArray
       array_buffer_contents_array;
-  Vector<blink::mojom::blink::SerializedStaticBitmapImagePtr> images;
+  blink::Vector<blink::mojom::blink::SerializedStaticBitmapImagePtr> images;
   if (!data.ReadMessage(static_cast<blink::BlinkCloneableMessage*>(out)) ||
       !data.ReadArrayBufferContentsArray(&array_buffer_contents_array) ||
       !data.ReadImageBitmapContentsArray(&images) || !data.ReadPorts(&ports) ||

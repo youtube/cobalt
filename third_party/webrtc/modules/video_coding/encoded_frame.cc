@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/encoded_frame.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <optional>
 
 #include "api/video/encoded_image.h"

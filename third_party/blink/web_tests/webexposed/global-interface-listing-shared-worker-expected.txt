@@ -554,6 +554,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter style
 [Worker]     getter unicodeRange
 [Worker]     getter variant
+[Worker]     getter variationSettings
 [Worker]     getter weight
 [Worker]     method constructor
 [Worker]     method load
@@ -568,6 +569,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     setter style
 [Worker]     setter unicodeRange
 [Worker]     setter variant
+[Worker]     setter variationSettings
 [Worker]     setter weight
 [Worker] interface FormData
 [Worker]     attribute @@toStringTag
@@ -593,7 +595,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     attribute @@toStringTag
 [Worker]     getter features
 [Worker]     getter info
-[Worker]     getter isFallbackAdapter
 [Worker]     getter limits
 [Worker]     method constructor
 [Worker]     method requestDevice
@@ -1307,6 +1308,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter fontVariantCaps
 [Worker]     getter globalAlpha
 [Worker]     getter globalCompositeOperation
+[Worker]     getter globalHDRHeadroom
 [Worker]     getter imageSmoothingEnabled
 [Worker]     getter imageSmoothingQuality
 [Worker]     getter lang
@@ -1390,6 +1392,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     setter fontVariantCaps
 [Worker]     setter globalAlpha
 [Worker]     setter globalCompositeOperation
+[Worker]     setter globalHDRHeadroom
 [Worker]     setter imageSmoothingEnabled
 [Worker]     setter imageSmoothingQuality
 [Worker]     setter lang
@@ -1408,6 +1411,16 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     setter textBaseline
 [Worker]     setter textRendering
 [Worker]     setter wordSpacing
+[Worker] interface Origin
+[Worker]     static method fromURL
+[Worker]     static method parse
+[Worker]     attribute @@toStringTag
+[Worker]     getter opaque
+[Worker]     method constructor
+[Worker]     method isSameOrigin
+[Worker]     method isSameSite
+[Worker]     method toJSON
+[Worker]     method toString
 [Worker] interface Path2D
 [Worker]     attribute @@toStringTag
 [Worker]     method addPath
@@ -1484,6 +1497,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter finalResponseHeadersStart
 [Worker]     getter firstInterimResponseStart
 [Worker]     getter initiatorType
+[Worker]     getter initiatorUrl
 [Worker]     getter nextHopProtocol
 [Worker]     getter redirectEnd
 [Worker]     getter redirectStart
@@ -1495,6 +1509,10 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter secureConnectionStart
 [Worker]     getter serverTiming
 [Worker]     getter transferSize
+[Worker]     getter workerCacheLookupStart
+[Worker]     getter workerFinalSourceType
+[Worker]     getter workerMatchedSourceType
+[Worker]     getter workerRouterEvaluationStart
 [Worker]     getter workerStart
 [Worker]     method constructor
 [Worker]     method toJSON
@@ -1997,6 +2015,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter username
 [Worker]     method constructor
 [Worker]     method exec
+[Worker]     method generate
 [Worker]     method test
 [Worker] interface URLSearchParams
 [Worker]     attribute @@toStringTag
@@ -2630,7 +2649,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method clearStencil
 [Worker]     method clientWaitSync
 [Worker]     method colorMask
-[Worker]     method commit
 [Worker]     method compileShader
 [Worker]     method compressedTexImage2D
 [Worker]     method compressedTexImage3D
@@ -2756,6 +2774,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method samplerParameterf
 [Worker]     method samplerParameteri
 [Worker]     method scissor
+[Worker]     method setHitTestRegions
 [Worker]     method shaderSource
 [Worker]     method stencilFunc
 [Worker]     method stencilFuncSeparate
@@ -3182,7 +3201,6 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method clearDepth
 [Worker]     method clearStencil
 [Worker]     method colorMask
-[Worker]     method commit
 [Worker]     method compileShader
 [Worker]     method compressedTexImage2D
 [Worker]     method compressedTexSubImage2D
@@ -3260,6 +3278,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method renderbufferStorage
 [Worker]     method sampleCoverage
 [Worker]     method scissor
+[Worker]     method setHitTestRegions
 [Worker]     method shaderSource
 [Worker]     method stencilFunc
 [Worker]     method stencilFuncSeparate

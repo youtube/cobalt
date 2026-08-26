@@ -28,7 +28,7 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/dynamic_annotations.h"
 
-#if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <optional>
 
 #include "base/files/file_descriptor_watcher_posix.h"
@@ -58,13 +58,17 @@ class SequenceManagerThreadDelegate : public Thread::Delegate {
  public:
   explicit SequenceManagerThreadDelegate(
       MessagePumpType message_pump_type,
-      OnceCallback<std::unique_ptr<MessagePump>()> message_pump_factory)
+      OnceCallback<std::unique_ptr<MessagePump>()> message_pump_factory,
+      std::unique_ptr<base::sequence_manager::SequenceManagerSettings>
+          sequence_manager_settings)
       : sequence_manager_(
             sequence_manager::internal::CreateUnboundSequenceManagerImpl(
                 PassKey<base::internal::SequenceManagerThreadDelegate>(),
-                sequence_manager::SequenceManager::Settings::Builder()
-                    .SetMessagePumpType(message_pump_type)
-                    .Build())),
+                sequence_manager_settings
+                    ? std::move(sequence_manager_settings->settings)
+                    : sequence_manager::SequenceManager::Settings::Builder()
+                          .SetMessagePumpType(message_pump_type)
+                          .Build())),
         default_task_queue_(sequence_manager_->CreateTaskQueue(
             sequence_manager::TaskQueue::Spec(
                 sequence_manager::QueueName::DEFAULT_TQ))),
@@ -98,6 +102,10 @@ class SequenceManagerThreadDelegate : public Thread::Delegate {
         std::move(message_pump_factory_).Run());
   }
 
+  void AddTaskObserver(TaskObserver* observer) override {
+    sequence_manager_->AddTaskObserver(observer);
+  }
+
  private:
   std::unique_ptr<sequence_manager::internal::SequenceManagerImpl>
       sequence_manager_;
@@ -120,7 +128,9 @@ Thread::Options::Options(Options&& other)
       message_pump_factory(std::move(other.message_pump_factory)),
       stack_size(std::move(other.stack_size)),
       thread_type(std::move(other.thread_type)),
-      joinable(std::move(other.joinable)) {
+      joinable(std::move(other.joinable)),
+      sequence_manager_settings(std::move(other.sequence_manager_settings)),
+      task_observer(std::move(other.task_observer)) {
   other.moved_from = true;
 }
 
@@ -133,6 +143,7 @@ Thread::Options& Thread::Options::operator=(Thread::Options&& other) {
   stack_size = std::move(other.stack_size);
   thread_type = std::move(other.thread_type);
   joinable = std::move(other.joinable);
+  task_observer = std::move(other.task_observer);
   other.moved_from = true;
 
   return *this;
@@ -192,12 +203,18 @@ bool Thread::StartWithOptions(Options options) {
     delegate_ = std::move(options.delegate);
   } else if (options.message_pump_factory) {
     delegate_ = std::make_unique<internal::SequenceManagerThreadDelegate>(
-        MessagePumpType::CUSTOM, options.message_pump_factory);
+        MessagePumpType::CUSTOM, options.message_pump_factory,
+        std::move(options.sequence_manager_settings));
   } else {
     delegate_ = std::make_unique<internal::SequenceManagerThreadDelegate>(
         options.message_pump_type,
         BindOnce([](MessagePumpType type) { return MessagePump::Create(type); },
-                 options.message_pump_type));
+                 options.message_pump_type),
+        std::move(options.sequence_manager_settings));
+  }
+
+  if (options.task_observer) {
+    delegate_->AddTaskObserver(options.task_observer);
   }
 
   start_event_.Reset();
@@ -385,14 +402,14 @@ void Thread::ThreadMain() {
   delegate_->BindToCurrentThread();
   DCHECK(CurrentThread::Get());
   DCHECK(SingleThreadTaskRunner::HasCurrentDefault());
-#if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // Allow threads running a MessageLoopForIO to use FileDescriptorWatcher API.
   std::unique_ptr<FileDescriptorWatcher> file_descriptor_watcher;
   if (CurrentIOThread::IsSet()) {
     file_descriptor_watcher = std::make_unique<FileDescriptorWatcher>(
         delegate_->GetDefaultTaskRunner());
   }
-#endif  // (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
+#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 #if BUILDFLAG(IS_WIN)
   std::unique_ptr<win::ScopedCOMInitializer> com_initializer;

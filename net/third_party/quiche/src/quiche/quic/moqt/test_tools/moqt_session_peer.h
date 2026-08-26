@@ -20,6 +20,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
@@ -30,7 +31,7 @@ namespace moqt::test {
 class MoqtDataParserPeer {
  public:
   static void SetType(MoqtDataParser* parser, MoqtDataStreamType type) {
-    parser->type_ = type;
+    parser->type_.emplace(std::move(type));
   }
 };
 
@@ -85,10 +86,13 @@ class MoqtSessionPeer {
 
   static void CreateRemoteTrack(MoqtSession* session,
                                 const MoqtSubscribe& subscribe,
+                                const std::optional<uint64_t> track_alias,
                                 SubscribeRemoteTrack::Visitor* visitor) {
     auto track = std::make_unique<SubscribeRemoteTrack>(subscribe, visitor);
-    session->subscribe_by_alias_.try_emplace(subscribe.track_alias,
-                                             track.get());
+    if (track_alias.has_value()) {
+      track->set_track_alias(*track_alias);
+      session->subscribe_by_alias_.try_emplace(*track_alias, track.get());
+    }
     session->subscribe_by_name_.try_emplace(subscribe.full_track_name,
                                             track.get());
     session->upstream_by_id_.try_emplace(subscribe.request_id,
@@ -101,7 +105,6 @@ class MoqtSessionPeer {
       uint64_t start_object) {
     MoqtSubscribe subscribe;
     subscribe.full_track_name = publisher->GetTrackName();
-    subscribe.track_alias = track_alias;
     subscribe.request_id = subscribe_id;
     subscribe.forward = true;
     subscribe.filter_type = MoqtFilterType::kAbsoluteStart;
@@ -111,6 +114,8 @@ class MoqtSessionPeer {
         subscribe_id, std::make_unique<MoqtSession::PublishedSubscription>(
                           session, std::move(publisher), subscribe,
                           /*monitoring_interface=*/nullptr));
+    session->published_subscriptions_[subscribe_id]->track_alias_.emplace(
+        track_alias);
     return session->published_subscriptions_[subscribe_id].get();
   }
 
@@ -177,31 +182,30 @@ class MoqtSessionPeer {
 
   // Adds an upstream fetch and a stream ready to receive data.
   static std::unique_ptr<MoqtFetchTask> CreateUpstreamFetch(
-      MoqtSession* session, webtransport::Stream* stream) {
+      MoqtSession* session, webtransport::Stream* stream,
+      MoqtDeliveryOrder order = MoqtDeliveryOrder::kAscending) {
     MoqtFetch fetch_message = {
         0,
         128,
         std::nullopt,
-        std::nullopt,
-        FullTrackName{"foo", "bar"},
-        Location{0, 0},
-        4,
-        std::nullopt,
+        StandaloneFetch(FullTrackName{"foo", "bar"}, Location{0, 0}, 4,
+                        std::nullopt),
         VersionSpecificParameters(),
     };
     std::unique_ptr<MoqtFetchTask> task;
     auto [it, success] = session->upstream_by_id_.try_emplace(
         0, std::make_unique<UpstreamFetch>(
-               fetch_message, [&](std::unique_ptr<MoqtFetchTask> fetch_task) {
+               fetch_message, std::get<StandaloneFetch>(fetch_message.fetch),
+               [&](std::unique_ptr<MoqtFetchTask> fetch_task) {
                  task = std::move(fetch_task);
                }));
     QUICHE_DCHECK(success);
     UpstreamFetch* fetch = static_cast<UpstreamFetch*>(it->second.get());
     // Initialize the fetch task
     fetch->OnFetchResult(
-        Location{4, 10}, absl::OkStatus(),
-        [=, session_ptr = session, fetch_id = fetch_message.fetch_id]() {
-          session_ptr->CancelFetch(fetch_id);
+        Location{4, 10}, order, absl::OkStatus(),
+        [=, session_ptr = session, request_id = fetch_message.request_id]() {
+          session_ptr->CancelFetch(request_id);
         });
     ;
     auto mock_session =
@@ -247,11 +251,10 @@ class MoqtSessionPeer {
   }
 
   static bool SubgroupHasBeenReset(MoqtObjectListener* subscription,
-                                   Location sequence) {
-    sequence.object = 0;
+                                   DataStreamIndex index) {
     return static_cast<MoqtSession::PublishedSubscription*>(subscription)
         ->reset_subgroups()
-        .contains(sequence);
+        .contains(index);
   }
 };
 

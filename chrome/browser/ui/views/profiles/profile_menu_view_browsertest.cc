@@ -17,6 +17,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/escape.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -24,12 +25,16 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/with_feature_override.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/time/time.h"
+#include "base/version.h"
+#include "base/version_info/version_info.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
+#include "chrome/browser/profiles/batch_upload/batch_upload_service_test_helper.h"
 #include "chrome/browser/profiles/profile_attributes_entry.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -53,6 +58,11 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/hats/hats_service_factory.h"
+#include "chrome/browser/ui/hats/mock_hats_service.h"
+#include "chrome/browser/ui/hats/survey_config.h"
+#include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -91,9 +101,9 @@
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "components/supervised_user/core/browser/family_link_user_capabilities.h"
 #include "components/supervised_user/test_support/supervised_user_signin_test_utils.h"
+#include "components/sync/base/features.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
-#include "components/sync/test/fake_server_network_resources.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "components/webapps/common/web_app_id.h"
@@ -123,6 +133,8 @@
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 namespace {
+using testing::_;
+using testing::Eq;
 using ::testing::StrictMock;
 
 constexpr char kTestEmail[] = "foo@example.com";
@@ -258,7 +270,8 @@ class ProfileMenuViewTestBase {
   }
 
   ProfileMenuViewBase* profile_menu_view() {
-    auto* coordinator = ProfileMenuCoordinator::FromBrowser(target_browser_);
+    auto* coordinator =
+        target_browser_->GetFeatures().profile_menu_coordinator();
     return coordinator ? coordinator->GetProfileMenuViewBaseForTesting()
                        : nullptr;
   }
@@ -267,6 +280,52 @@ class ProfileMenuViewTestBase {
  private:
   raw_ptr<Browser, AcrossTasksDanglingUntriaged> target_browser_ = nullptr;
 };
+
+class ProfileMenuViewBrowserTest : public ProfileMenuViewTestBase,
+                                   public InProcessBrowserTest {
+ public:
+  // InProcessBrowserTest:
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    SetTargetBrowser(browser());
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(ProfileMenuViewBrowserTest,
+                       ProfileMenuDoesNotOutliveBrowser) {
+  // Observer that asserts the profile menu widget does not outlive the host
+  // browser.
+  class WidgetDestroyedObserver : public views::WidgetObserver {
+   public:
+    WidgetDestroyedObserver(views::Widget* widget,
+                            BrowserWindowInterface* host_browser)
+        : widget_(widget->GetWeakPtr()),
+          host_browser_(host_browser->GetWeakPtr()) {
+      widget_->AddObserver(this);
+    }
+    ~WidgetDestroyedObserver() override { CHECK(!widget_); }
+
+   private:
+    // WidgetObserver:
+    void OnWidgetDestroyed(views::Widget* widget) override {
+      EXPECT_EQ(widget, widget_.get());
+      // `widget_` should not outlive its host browser.
+      EXPECT_TRUE(host_browser_);
+    }
+
+    base::WeakPtr<views::Widget> widget_;
+    base::WeakPtr<BrowserWindowInterface> host_browser_;
+  };
+
+  ASSERT_NO_FATAL_FAILURE(OpenProfileMenu());
+
+  auto* coordinator = browser()->GetFeatures().profile_menu_coordinator();
+  EXPECT_TRUE(coordinator->IsShowing());
+
+  WidgetDestroyedObserver destroyed_observer(
+      coordinator->GetProfileMenuViewBaseForTesting()->GetWidget(), browser());
+  CloseBrowserSynchronously(browser());
+}
 
 class ProfileMenuViewExtensionsTest
     : public ProfileMenuViewTestBase,
@@ -294,7 +353,7 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewExtensionsTest, RootViewAccessibleName) {
   InstallExtension(test_data_dir_.AppendASCII("theme"), 1);
   waiter.WaitForThemeChanged();
 
-  auto* coordinator = ProfileMenuCoordinator::FromBrowser(browser());
+  auto* coordinator = browser()->GetFeatures().profile_menu_coordinator();
   EXPECT_TRUE(coordinator->IsShowing());
 
   ui::AXNodeData root_view_data;
@@ -320,7 +379,7 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewExtensionsTest, ThemeChanged) {
   InstallExtension(test_data_dir_.AppendASCII("theme"), 1);
   waiter.WaitForThemeChanged();
 
-  auto* coordinator = ProfileMenuCoordinator::FromBrowser(browser());
+  auto* coordinator = browser()->GetFeatures().profile_menu_coordinator();
   EXPECT_TRUE(coordinator->IsShowing());
   profile_menu_view()->GetWidget()->Close();
   base::RunLoop().RunUntilIdle();
@@ -339,7 +398,8 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewExtensionsTest, CloseBubbleOnTadAdded) {
                              ui::PageTransition::PAGE_TRANSITION_LINK));
   EXPECT_EQ(1, tab_strip->active_index());
   base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(ProfileMenuCoordinator::FromBrowser(browser())->IsShowing());
+  EXPECT_FALSE(
+      browser()->GetFeatures().profile_menu_coordinator()->IsShowing());
 }
 
 // Profile chooser view should close when active tab is changed.
@@ -355,7 +415,8 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewExtensionsTest,
   ASSERT_NO_FATAL_FAILURE(OpenProfileMenu());
   tab_strip->ActivateTabAt(0);
   base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(ProfileMenuCoordinator::FromBrowser(browser())->IsShowing());
+  EXPECT_FALSE(
+      browser()->GetFeatures().profile_menu_coordinator()->IsShowing());
 }
 
 // Profile chooser view should close when active tab is closed.
@@ -371,7 +432,8 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewExtensionsTest,
   ASSERT_NO_FATAL_FAILURE(OpenProfileMenu());
   tab_strip->CloseWebContentsAt(1, TabCloseTypes::CLOSE_NONE);
   base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(ProfileMenuCoordinator::FromBrowser(browser())->IsShowing());
+  EXPECT_FALSE(
+      browser()->GetFeatures().profile_menu_coordinator()->IsShowing());
 }
 
 // Profile chooser view should close when the last tab is closed.
@@ -423,15 +485,16 @@ IN_PROC_BROWSER_TEST_P(ProfileMenuViewExtensionsIphDismissTest, CloseIPH) {
         ASSERT_TRUE(result);
         run_loop.Quit();
       });
-  browser()->window()->MaybeShowFeaturePromo(std::move(params));
+  auto* const user_ed = BrowserUserEducationInterface::From(browser());
+  user_ed->MaybeShowFeaturePromo(std::move(params));
   run_loop.Run();
-  EXPECT_TRUE(browser()->window()->IsFeaturePromoActive(GetIphFeature()));
+  EXPECT_TRUE(user_ed->IsFeaturePromoActive(GetIphFeature()));
 
   // Open the menu.
   ASSERT_NO_FATAL_FAILURE(OpenProfileMenu());
 
   // Check the IPH is no longer showing.
-  EXPECT_FALSE(browser()->window()->IsFeaturePromoActive(GetIphFeature()));
+  EXPECT_FALSE(user_ed->IsFeaturePromoActive(GetIphFeature()));
 }
 
 // Test that sets up a primary account (without sync) and simulates a click on
@@ -465,7 +528,8 @@ class ProfileMenuViewSignoutTest : public ProfileMenuViewTestBase,
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
     if (observer.get()) {
       observer->Wait();
-      auto* signin_view_controller = browser()->signin_view_controller();
+      auto* signin_view_controller =
+          browser()->GetFeatures().signin_view_controller();
       auto* signout_ui = SignoutConfirmationUI::GetForTesting(
           signin_view_controller->GetModalDialogWebContentsForTesting());
       if (!signout_ui) {
@@ -780,7 +844,7 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewWebOnlyTest, ContinueAs) {
                        account_info_.account_id,
                        TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT,
                        /*is_sync_promo=*/true,
-                       /*turn_sync_on_signed_profile=*/false));
+                       /*user_already_signed_in=*/false));
   ClickSigninButton();
   // `Signin.SyncOptIn.Offered` should NOT be recorded if the sync opt-in is
   // not directly offered from the profile menu.
@@ -910,6 +974,7 @@ class ProfileMenuClickTest : public SyncTest,
   ~ProfileMenuClickTest() override = default;
 
   void SetUpInProcessBrowserTestFixture() override {
+    SyncTest::SetUpInProcessBrowserTestFixture();
     test_signin_client_subscription_ =
         secondary_account_helper::SetUpSigninClient(&test_url_loader_factory_);
   }
@@ -932,12 +997,8 @@ class ProfileMenuClickTest : public SyncTest,
       return sync_harness_.get();
     }
 
-    sync_service()->OverrideNetworkForTest(
-        fake_server::CreateFakeServerHttpPostProviderFactory(
-            GetFakeServer()->AsWeakPtr()));
     sync_harness_ = SyncServiceImplHarness::Create(
-        GetProfile(), "user@example.com", "password",
-        SyncServiceImplHarness::SigninType::FAKE_SIGNIN);
+        GetProfile(), SyncServiceImplHarness::SigninType::FAKE_SIGNIN);
     return sync_harness_.get();
   }
 
@@ -1364,6 +1425,53 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(kActionableItems_NewSyncPromoVariant,
   RunTest();
 }
 
+// List of actionable items in the correct order as they appear in the menu. If
+// a new button is added to the menu, it should also be added to this list.
+constexpr std::array kActionableItems_WithPromoButtons = {
+    ProfileMenuViewBase::ActionableItem::kHistorySyncOptInButton,
+    ProfileMenuViewBase::ActionableItem::kBatchUploadButton,
+    ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+    ProfileMenuViewBase::ActionableItem::kManageGoogleAccountButton,
+    ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+    ProfileMenuViewBase::ActionableItem::kSyncSettingsButton,
+    ProfileMenuViewBase::ActionableItem::kSignoutButton,
+    ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+    ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+    ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+    // The first button is added again to finish the cycle and test that
+    // there are no other buttons at the end.
+    ProfileMenuViewBase::ActionableItem::kHistorySyncOptInButton};
+
+const std::vector<base::test::FeatureRefAndParams>
+    kProfileMenuPromosButtonsFeatureFlags = {
+        {syncer::kReplaceSyncPromosWithSignInPromos, {}},
+        {switches::kEnableHistorySyncOptinExpansionPill,
+         {{"history-sync-optin-expansion-pill-option",
+           "browse-across-devices-new-profile-menu-promo-variant"}}}};
+
+PROFILE_MENU_CLICK_WITH_FEATURE_TEST(kActionableItems_WithPromoButtons,
+                                     ProfileMenuClickTest_WithPromoButtons,
+                                     kProfileMenuPromosButtonsFeatureFlags,
+                                     /*disabled_features=*/{}) {
+  secondary_account_helper::SignInUnconsentedAccount(
+      GetProfile(), &test_url_loader_factory_, "user@example.com");
+  UnconsentedPrimaryAccountChecker(identity_manager()).Wait();
+  // Check that the setup was successful.
+  ASSERT_FALSE(
+      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
+  ASSERT_TRUE(
+      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+
+  BatchUploadServiceTestHelper batch_upload_test_helper;
+  // Exceptionally allow this override during the test in order not to affect
+  // all existing tests.
+  batch_upload_test_helper.SetupBatchUploadTestingFactoryInProfile(
+      GetProfile());
+  batch_upload_test_helper.SetLocalDataDescriptionForAllAvailableTypes();
+
+  RunTest();
+}
+
 // List of actionable items in the correct order as they appear in the menu in
 // signin pending state. If a new button is added to the menu, it should also be
 // added to this list.
@@ -1563,6 +1671,213 @@ PROFILE_MENU_CLICK_TEST_F(ProfileMenuClickTestWebApp,
 }
 #endif
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+class ProfileMenuHatsSurveyTest : public ProfileMenuViewTestBase,
+                                  public InProcessBrowserTest {
+ public:
+  ProfileMenuHatsSurveyTest() {
+    feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {{switches::kChromeIdentitySurveySwitchProfileFromProfileMenu, {}},
+         {switches::kChromeIdentitySurveyProfileMenuDismissed, {}},
+         {switches::kChromeIdentitySurveyLaunchWithDelay,
+          {{switches::kChromeIdentitySurveyLaunchWithDelayDuration.name,
+            base::NumberToString(kLaunchDelayDuration.InMilliseconds()) +
+                "ms"}}}},
+        /*disabled_features=*/{});
+  }
+
+  static constexpr base::TimeDelta kLaunchDelayDuration =
+      base::Milliseconds(5000);
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// List of actionable items in the correct order as they appear in the menu. If
+// a new button is added to the menu, it should also be added to this list.
+// This list is NOT for setting up a click test, and rather for anchoring the
+// "Other Profile" item for selection.
+constexpr std::array kActionableItems_WithAnotherProfile = {
+    ProfileMenuViewBase::ActionableItem::kSigninButton,
+    ProfileMenuViewBase::ActionableItem::kAutofillSettingsButton,
+    ProfileMenuViewBase::ActionableItem::kEditProfileButton,
+    ProfileMenuViewBase::ActionableItem::kOtherProfileButton,
+    ProfileMenuViewBase::ActionableItem::kAddNewProfileButton,
+    ProfileMenuViewBase::ActionableItem::kGuestProfileButton,
+    ProfileMenuViewBase::ActionableItem::kManageProfilesButton,
+    // The first button is added again to finish the cycle and test that
+    // there are no other buttons at the end.
+    ProfileMenuViewBase::ActionableItem::kSigninButton};
+
+// Tests that the HaTS service will attempt to launch a survey when users
+// switch profile from the profile menu.
+IN_PROC_BROWSER_TEST_F(ProfileMenuHatsSurveyTest,
+                       SurveyLaunchedOnSwitchingProfile) {
+  // Setup a new profile and its mock HatsService.
+  Profile* other_profile = CreateAdditionalProfile();
+  MockHatsService* other_profile_hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          other_profile, base::BindRepeating(&BuildMockHatsService)));
+  Browser::Create(Browser::CreateParams(other_profile, /*user_gesture=*/true));
+
+  // The survey should be launched for the other profile after switching.
+  std::map<std::string, std::string> expected_string_psd = {
+      {"Channel", "unknown"},
+      {"Chrome Version", version_info::GetVersion().GetString()},
+      {"Number of Chrome Profiles", "2"},
+      {"Number of Google Accounts", "0"},
+      {"Sign-in Status", "Signed Out"}};
+  EXPECT_CALL(
+      *other_profile_hats_service,
+      LaunchDelayedSurvey(
+          kHatsSurveyTriggerIdentitySwitchProfileFromProfileMenu,
+          kLaunchDelayDuration.InMilliseconds(), _, Eq(expected_string_psd)));
+
+  // Open the profile menu and select the other profile.
+  SetTargetBrowser(browser());
+  OpenProfileMenu();
+  ASSERT_TRUE(profile_menu_view());
+  for (const auto& item : kActionableItems_WithAnotherProfile) {
+    profile_menu_view()->GetFocusManager()->AdvanceFocus(/*reverse=*/false);
+    if (item == ProfileMenuViewBase::ActionableItem::kOtherProfileButton) {
+      break;
+    }
+  }
+  views::View* focused_item =
+      profile_menu_view()->GetFocusManager()->GetFocusedView();
+  ASSERT_TRUE(focused_item);
+  Click(focused_item);
+  base::RunLoop().RunUntilIdle();
+}
+
+// Tests that the HaTS service will attempt to launch a survey when users
+// dismiss the profile menu without clicking any buttons.
+IN_PROC_BROWSER_TEST_F(ProfileMenuHatsSurveyTest,
+                       SurveyLaunchedOnProfileMenuDismissed) {
+  MockHatsService* hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          GetProfile(), base::BindRepeating(&BuildMockHatsService)));
+
+  std::map<std::string, std::string> expected_string_psd = {
+      {"Channel", "unknown"},
+      {"Chrome Version", version_info::GetVersion().GetString()},
+      {"Number of Chrome Profiles", "1"},
+      {"Number of Google Accounts", "0"},
+      {"Sign-in Status", "Signed Out"}};
+  EXPECT_CALL(*hats_service, LaunchDelayedSurvey(
+                                 kHatsSurveyTriggerIdentityProfileMenuDismissed,
+                                 kLaunchDelayDuration.InMilliseconds(), _,
+                                 Eq(expected_string_psd)));
+
+  // Open the profile menu.
+  SetTargetBrowser(browser());
+  OpenProfileMenu();
+  ASSERT_TRUE(profile_menu_view());
+
+  // Dismiss the profile menu.
+  profile_menu_view()->GetWidget()->Close();
+  base::RunLoop().RunUntilIdle();
+  auto* coordinator = browser()->GetFeatures().profile_menu_coordinator();
+  EXPECT_FALSE(coordinator->IsShowing());
+}
+
+// Tests that when the number of profiles or accounts is larger than 5, the
+// data sent to the HaTS service is bucketed to "5+" for privacy.
+IN_PROC_BROWSER_TEST_F(ProfileMenuHatsSurveyTest, SurveyProductDataBucketed) {
+  // Create 5 extra profiles.
+  CreateAdditionalProfile();
+  CreateAdditionalProfile();
+  CreateAdditionalProfile();
+  CreateAdditionalProfile();
+  CreateAdditionalProfile();
+
+  // Add 6 accounts to the current profile.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  signin::MakePrimaryAccountAvailable(identity_manager, kTestEmail,
+                                      signin::ConsentLevel::kSignin);
+  signin::MakeAccountAvailable(identity_manager, "test1@example.com");
+  signin::MakeAccountAvailable(identity_manager, "test2@example.com");
+  signin::MakeAccountAvailable(identity_manager, "test3@example.com");
+  signin::MakeAccountAvailable(identity_manager, "test4@example.com");
+  signin::MakeAccountAvailable(identity_manager, "test5@example.com");
+
+  MockHatsService* hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          GetProfile(), base::BindRepeating(&BuildMockHatsService)));
+
+  std::map<std::string, std::string> expected_string_psd = {
+      {"Channel", "unknown"},
+      {"Chrome Version", version_info::GetVersion().GetString()},
+      {"Number of Chrome Profiles", "5+"},
+      {"Number of Google Accounts", "5+"},
+      {"Sign-in Status", "Signed In"}};
+  EXPECT_CALL(*hats_service, LaunchDelayedSurvey(
+                                 kHatsSurveyTriggerIdentityProfileMenuDismissed,
+                                 kLaunchDelayDuration.InMilliseconds(), _,
+                                 Eq(expected_string_psd)));
+
+  // Open the profile menu.
+  SetTargetBrowser(browser());
+  OpenProfileMenu();
+  ASSERT_TRUE(profile_menu_view());
+
+  // Dismiss the profile menu.
+  profile_menu_view()->GetWidget()->Close();
+  base::RunLoop().RunUntilIdle();
+  auto* coordinator = browser()->GetFeatures().profile_menu_coordinator();
+  EXPECT_FALSE(coordinator->IsShowing());
+}
+
+// Tests that the HaTS service will NOT attempt to launch a survey when a user
+// clicks an actionable item within the profile menu, causing it to close.
+IN_PROC_BROWSER_TEST_F(ProfileMenuHatsSurveyTest,
+                       SurveyNotLaunchedOnActionableItemClick) {
+  MockHatsService* hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          GetProfile(), base::BindRepeating(&BuildMockHatsService)));
+
+  // Set up another profile.
+  Profile* other_profile = CreateAdditionalProfile();
+  Browser::Create(Browser::CreateParams(other_profile, /*user_gesture=*/true));
+
+  // Attempt to select every actionable item in the menu.
+  for (const auto& selected_item : kActionableItems_WithAnotherProfile) {
+    EXPECT_CALL(*hats_service,
+                LaunchDelayedSurvey(
+                    kHatsSurveyTriggerIdentityProfileMenuDismissed, _, _, _))
+        .Times(0);
+
+    SetTargetBrowser(browser());
+
+    // Open the profile menu.
+    OpenProfileMenu();
+    ASSERT_TRUE(profile_menu_view());
+    profile_menu_view()->set_perform_menu_actions_for_testing(false);
+
+    // Click on the selected item.
+    for (const auto& item : kActionableItems_WithAnotherProfile) {
+      profile_menu_view()->GetFocusManager()->AdvanceFocus(/*reverse=*/false);
+      if (item == selected_item) {
+        break;
+      }
+    }
+    views::View* focused_item =
+        profile_menu_view()->GetFocusManager()->GetFocusedView();
+    ASSERT_TRUE(focused_item);
+    Click(focused_item);
+
+    // Make sure that the profile menu is closed.
+    profile_menu_view()->GetWidget()->Close();
+    base::RunLoop().RunUntilIdle();
+    auto* coordinator = browser()->GetFeatures().profile_menu_coordinator();
+    EXPECT_FALSE(coordinator->IsShowing());
+  }
+}
+
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
 #if !BUILDFLAG(IS_CHROMEOS)
 class ProfileMenuViewWebAppTest : public ProfileMenuViewTestBase,
                                   public web_app::WebAppBrowserTestBase {
@@ -1729,8 +2044,7 @@ class ProfileMenuSigninAccessPointTest
   void OpenProfileMenuFromCoordinator(
       std::optional<signin_metrics::AccessPoint> explicit_access_point =
           std::nullopt) {
-    auto* coordinator =
-        ProfileMenuCoordinator::GetOrCreateForBrowser(browser());
+    auto* coordinator = browser()->GetFeatures().profile_menu_coordinator();
     ASSERT_TRUE(coordinator);
     coordinator->Show(/*is_source_accelerator=*/false, explicit_access_point);
     ASSERT_NO_FATAL_FAILURE(
@@ -1738,7 +2052,7 @@ class ProfileMenuSigninAccessPointTest
   }
 
   void ClickSyncButton() {
-    auto* coordinator = ProfileMenuCoordinator::FromBrowser(browser());
+    auto* coordinator = browser()->GetFeatures().profile_menu_coordinator();
     ASSERT_TRUE(coordinator);
     ProfileMenuViewBase* profile_menu_view =
         coordinator->GetProfileMenuViewBaseForTesting();
@@ -1783,7 +2097,7 @@ IN_PROC_BROWSER_TEST_P(ProfileMenuSigninAccessPointTest,
                        account_info_.account_id,
                        TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT,
                        /*is_sync_promo=*/false,
-                       /*turn_sync_on_signed_profile=*/true));
+                       /*user_already_signed_in=*/true));
   ASSERT_NO_FATAL_FAILURE(ClickSyncButton());
   const ProfileMenuViewBase::ActionableItem actionable_item =
       IsNewPromoVariantEnabled()
@@ -1818,7 +2132,7 @@ IN_PROC_BROWSER_TEST_P(ProfileMenuSigninAccessPointTest,
                        account_info_.account_id,
                        TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT,
                        /*is_sync_promo=*/false,
-                       /*turn_sync_on_signed_profile=*/true));
+                       /*user_already_signed_in=*/true));
   ASSERT_NO_FATAL_FAILURE(ClickSyncButton());
   const ProfileMenuViewBase::ActionableItem actionable_item =
       GetParam() ? ProfileMenuViewBase::ActionableItem::kHistorySyncOptInButton

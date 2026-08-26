@@ -19,6 +19,7 @@ class DownloadItemMetadata : public DeepScanningMetadata {
   ~DownloadItemMetadata() override;
 
   content::BrowserContext* GetBrowserContext() const override;
+  safe_browsing::ReferrerChain GetReferrerChain() const override;
   const base::FilePath& GetFullPath() const override;
   const base::FilePath& GetTargetFilePath() const override;
   const std::string& GetHash() const override;
@@ -51,6 +52,9 @@ class DownloadItemMetadata : public DeepScanningMetadata {
   void SetCallback(CheckDownloadRepeatingCallback callback);
   void ProcessScanResult(DownloadCheckResultReason reason,
                          DownloadCheckResult deep_scan_result) override;
+  google::protobuf::RepeatedPtrField<std::string> CollectFrameUrls()
+      const override;
+  content::WebContents* web_contents() const override;
   base::WeakPtr<DownloadItemMetadata> GetWeakPtr();
 
  private:

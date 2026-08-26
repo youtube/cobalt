@@ -135,6 +135,18 @@ class ModelTest(unittest.TestCase):
         self.model.AddNamespace, test_json[0],
         'path/to/returns_async_missing_parameters_key.json')
 
+  def testNodocSpecifiedAsStringException(self):
+    # Note: there are checks for this on all the valid places nodoc can be used,
+    # but this test only verifies it for a property on a type.
+    test_json = CachedLoad('test/nodoc_specified_as_string.json')
+    self.assertRaisesRegex(
+        model.ParseException,
+        'Model parse exception at:\nnodocException\nSomeType\nNodocProperty\n'
+        '  in path/to/nodoc_specified_as_string.json\n'
+        'The attribute "nodoc" must be specified as <class \'bool\'>, but was '
+        'speficied as <class \'str\'>.', self.model.AddNamespace, test_json[0],
+        'path/to/nodoc_specified_as_string.json')
+
   def testDescription(self):
     self.assertFalse(
         self.permissions.functions['contains'].params[0].description)
@@ -194,8 +206,8 @@ class ModelTest(unittest.TestCase):
     self.assertEqual([Platforms.CHROMEOS],
                      self.idl_namespace_chromeos.platforms)
     self.assertEqual([
-        Platforms.CHROMEOS, Platforms.FUCHSIA, Platforms.LINUX, Platforms.MAC,
-        Platforms.WIN
+        Platforms.CHROMEOS, Platforms.DESKTOP_ANDROID, Platforms.LINUX,
+        Platforms.MAC, Platforms.WIN
     ], self.idl_namespace_all_platforms.platforms)
     self.assertEqual(None, self.idl_namespace_non_specific_platforms.platforms)
 
@@ -223,9 +235,6 @@ class ModelTest(unittest.TestCase):
 
     function_cros = self.function_platforms.functions['function_cros']
     self.assertEqual([Platforms.CHROMEOS], function_cros.platforms)
-
-    function_fuchsia = self.function_platforms.functions['function_fuchsia']
-    self.assertEqual([Platforms.FUCHSIA], function_fuchsia.platforms)
 
   def testPlatformsOnFunctionsJSON(self):
     test_function = self.function_platform_win_linux.functions['test']

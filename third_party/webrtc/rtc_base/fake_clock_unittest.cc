@@ -10,6 +10,11 @@
 
 #include "rtc_base/fake_clock.h"
 
+#include <cstdint>
+
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "rtc_base/time_utils.h"
 #include "test/gtest.h"
 
 namespace webrtc {

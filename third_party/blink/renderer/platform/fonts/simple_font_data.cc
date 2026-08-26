@@ -45,6 +45,7 @@
 #include "third_party/blink/renderer/platform/fonts/opentype/open_type_baseline_metrics.h"
 #include "third_party/blink/renderer/platform/fonts/opentype/open_type_vertical_data.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_face.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_shaper.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/ng_shape_cache.h"
 #include "third_party/blink/renderer/platform/fonts/skia/skia_text_metrics.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -52,7 +53,6 @@
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
-#include "third_party/freetype_buildflags.h"
 #include "third_party/skia/include/core/SkFont.h"
 #include "third_party/skia/include/core/SkFontMetrics.h"
 #include "third_party/skia/include/core/SkPath.h"
@@ -62,23 +62,14 @@
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "v8/include/v8.h"
 
-#if !BUILDFLAG(USE_SYSTEM_FREETYPE) && BUILDFLAG(ENABLE_FREETYPE)
-#include "third_party/freetype/src/src/autofit/afws-decl.h"
-#endif
-
 namespace blink {
 
 constexpr float kSmallCapsFontSizeMultiplier = 0.7f;
 constexpr float kEmphasisMarkFontSizeMultiplier = 0.5f;
 
-#if !BUILDFLAG(USE_SYSTEM_FREETYPE) && BUILDFLAG(ENABLE_FREETYPE)
-constexpr int32_t kFontObjectsMemoryConsumption =
-    std::max(sizeof(AF_LatinMetricsRec), sizeof(AF_CJKMetricsRec));
-#else
 // sizeof(AF_LatinMetricsRec) = 2128
 // TODO(drott): Measure a new number for Fontations.
 constexpr int32_t kFontObjectsMemoryConsumption = 2128;
-#endif
 
 SimpleFontData::SimpleFontData(const FontPlatformData* platform_data,
                                const CustomFontData* custom_data,
@@ -272,6 +263,30 @@ Glyph SimpleFontData::GlyphForCharacter(UChar32 codepoint) const {
   return harfbuzz_face->HbGlyphForCharacter(codepoint);
 }
 
+Glyph SimpleFontData::GlyphForMathCharacter(UChar32 codepoint,
+                                            TextDirection direction) const {
+  // If the text is RTL, try to get a suitable mirrored glyph. This is handled
+  // automatically by harfbuzz when setting HB_DIRECTION_RTL in the buffer.
+  if (RuntimeEnabledFeatures::MathMLOperatorRTLMirroringEnabled() &&
+      direction == TextDirection::kRtl) {
+    StringBuilder builder;
+    builder.Append(codepoint);
+    HarfBuzzShaper shaper(builder.ToString());
+    HarfBuzzShaper::GlyphDataList glyph_data_list;
+    shaper.GetGlyphData(*this, LayoutLocale::GetDefault(),
+                        UScriptCode::USCRIPT_MATHEMATICAL_NOTATION,
+                        /*is_horizontal=*/true, direction, glyph_data_list);
+    // If found, return the first mirrored glyph.
+    if (!glyph_data_list.empty()) {
+      return glyph_data_list[0].glyph;
+    }
+  }
+
+  // When a mirrored glyph can't be found, or when the text direction is LTR,
+  // fall back to the original behaviour.
+  return this->GlyphForCharacter(codepoint);
+}
+
 bool SimpleFontData::IsSegmented() const {
   return false;
 }
@@ -425,7 +440,7 @@ const std::optional<float>& SimpleFontData::IdeographicAdvanceWidth() const {
     // Use the advance of the CJK water character U+6C34 as the approximated
     // advance of fullwidth ideographic characters, as specified at
     // https://drafts.csswg.org/css-values-4/#ic.
-    if (const Glyph cjk_water_glyph = GlyphForCharacter(kCjkWaterCharacter)) {
+    if (const Glyph cjk_water_glyph = GlyphForCharacter(uchar::kCjkWater)) {
       ideographic_advance_width_ = WidthForGlyph(cjk_water_glyph);
     }
   });
@@ -434,7 +449,7 @@ const std::optional<float>& SimpleFontData::IdeographicAdvanceWidth() const {
 
 const std::optional<float>& SimpleFontData::IdeographicAdvanceHeight() const {
   std::call_once(ideographic_advance_height_once_, [this] {
-    if (const Glyph cjk_water_glyph = GlyphForCharacter(kCjkWaterCharacter)) {
+    if (const Glyph cjk_water_glyph = GlyphForCharacter(uchar::kCjkWater)) {
       const HarfBuzzFace* hb_face = platform_data_->GetHarfBuzzFace();
       const OpenTypeVerticalData& vertical_data = hb_face->VerticalData();
       ideographic_advance_height_ =
@@ -458,6 +473,10 @@ const std::optional<float>& SimpleFontData::IdeographicInlineSize() const {
     ideographic_inline_size_ = IdeographicAdvanceHeight();
   });
   return ideographic_inline_size_;
+}
+
+float SimpleFontData::TextAutoSpaceInlineSize() const {
+  return IdeographicInlineSize().value_or(PlatformData().size()) / 8;
 }
 
 const HanKerning::FontData& SimpleFontData::HanKerningData(

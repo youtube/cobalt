@@ -10,9 +10,8 @@
 #ifndef NET_DCSCTP_PUBLIC_DCSCTP_OPTIONS_H_
 #define NET_DCSCTP_PUBLIC_DCSCTP_OPTIONS_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 
 #include "net/dcsctp/public/types.h"

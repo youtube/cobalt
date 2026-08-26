@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "api/adaptation/resource.h"
+#include "api/array_view.h"
 #include "api/call/bitrate_allocation.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller.h"
@@ -103,7 +104,7 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
                           video_stream_encoder_for_test = nullptr);
   ~VideoSendStreamImpl() override;
 
-  void DeliverRtcp(const uint8_t* packet, size_t length);
+  void DeliverRtcp(ArrayView<const uint8_t> packet);
 
   // webrtc::VideoSendStream implementation.
   void Start() override;
@@ -121,6 +122,8 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
                                SetParametersCallback callback) override;
   Stats GetStats() override;
   void SetStats(const Stats& stats) override;
+
+  void SetCsrcs(ArrayView<const uint32_t> csrcs) override;
 
   void StopPermanentlyAndGetRtpStates(RtpStateMap* rtp_state_map,
                                       RtpPayloadStateMap* payload_state_map);

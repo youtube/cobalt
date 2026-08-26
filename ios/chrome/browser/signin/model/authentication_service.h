@@ -83,7 +83,7 @@ class AuthenticationService : public KeyedService,
 
   // Returns the service status, see ServiceStatus. This value can be observed
   // using AuthenticationServiceObserver::OnServiceStatusChanged().
-  ServiceStatus GetServiceStatus();
+  ServiceStatus GetServiceStatus() const;
 
   // Reauth prompt tracking
 
@@ -145,6 +145,9 @@ class AuthenticationService : public KeyedService,
   // This needs to be invoked when the application enters foreground to
   // sync the accounts between the IdentityManager and the SSO library.
   void OnApplicationWillEnterForeground();
+
+  // Whether the sign-in is not disabled.
+  bool SigninEnabled() const;
 
  private:
   friend class AuthenticationServiceTestBase;
@@ -239,7 +242,8 @@ class AuthenticationService : public KeyedService,
   void OnIdentitiesInProfileChanged() override;
   void OnRefreshTokenUpdated(id<SystemIdentity> identity) override;
   void OnAccessTokenRefreshFailed(id<SystemIdentity> identity,
-                                  id<RefreshAccessTokenError> error) override;
+                                  id<RefreshAccessTokenError> error,
+                                  const std::set<std::string>& scopes) override;
 
   // Fires `OnPrimaryAccountRestricted` on all observers.
   void FirePrimaryAccountRestricted();

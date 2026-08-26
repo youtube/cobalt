@@ -38,6 +38,7 @@ import org.jni_zero.CalledByNativeForTesting;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.AconfigFlaggedApiDelegate;
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.Callback;
@@ -45,6 +46,7 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.PackageManagerUtils;
+import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.lifetime.Destroyable;
@@ -53,15 +55,14 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
-import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.display.DisplayAndroid.DisplayAndroidObserver;
 import org.chromium.ui.gfx.OverlayTransform;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.permissions.AndroidPermissionDelegate;
 import org.chromium.ui.permissions.PermissionCallback;
@@ -160,12 +161,6 @@ public class WindowAndroid
 
     private ProgressBarConfig.@Nullable Provider mProgressBarConfigProvider;
 
-    /** An interface to notify listeners that a context menu is closed. */
-    public interface OnCloseContextMenuListener {
-        /** Called when a context menu has been closed. */
-        void onContextMenuClosed();
-    }
-
     /** An interface to notify listeners of the changes in activity state. */
     public interface ActivityStateObserver {
         /** Called when the activity goes into paused state. */
@@ -204,9 +199,6 @@ public class WindowAndroid
         return null;
     }
 
-    private final ObserverList<OnCloseContextMenuListener> mContextMenuCloseListeners =
-            new ObserverList<>();
-
     private @Nullable ModalDialogManager mModalDialogManagerForTesting;
 
     private @Nullable Consumer<Boolean> mOcclusionObserver;
@@ -219,6 +211,8 @@ public class WindowAndroid
 
     private boolean mIsTopResumedActivity;
     private final boolean mActivityTopResumedSupported;
+
+    private @Nullable AconfigFlaggedApiDelegate mAconfigFlaggedApiDelegate;
 
     /**
      * @param context The application {@link Context}.
@@ -245,6 +239,7 @@ public class WindowAndroid
                 trackOcclusion);
         mIntentRequestTracker = (IntentRequestTrackerImpl) tracker;
         mInsetObserver = insetObserver;
+        mApplicationBottomInsetSupplier.setInsetObserver(mInsetObserver);
     }
 
     /**
@@ -268,25 +263,16 @@ public class WindowAndroid
         mDisplayAndroid = display;
         mDisplayAndroid.addObserver(this);
 
-        // Using this setting is gated to Q due to bugs on Razer phones which can freeze the device
-        // if the API is used. See crbug.com/990646.
         // Disable refresh rate change on TV platforms, as it may cause black screen flicker due to
         // display mode changes.
-        mAllowChangeRefreshRate = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !isTv(context);
+        mAllowChangeRefreshRate = !isTv(context);
 
         // Multiple refresh rate support is only available on M+.
         recomputeSupportedRefreshRates();
 
         // Configuration.isDisplayServerWideColorGamut must be queried from the window's context.
-        // Because of crbug.com/756180, many devices report true for isScreenWideColorGamut in
-        // 8.0.0, even when they don't actually support wide color gamut.
         // TODO(boliu): Observe configuration changes to update the value of isScreenWideColorGamut.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                && !Build.VERSION.RELEASE.equals("8.0.0")
-                && ContextUtils.activityFromContext(context) != null) {
-            // Cobalt: Configuration.isScreenWideColorGamut() requires API level 26 (Android O).
-            // Guard it to prevent NoSuchMethodError on older devices (e.g. SDK 24/25)
-            // as Cobalt supports SDK 24. See b/508072838.
+        if (ContextUtils.activityFromContext(context) != null) {
             Configuration configuration = context.getResources().getConfiguration();
             boolean isScreenWideColorGamut = configuration.isScreenWideColorGamut();
             display.updateIsDisplayServerWideColorGamut(isScreenWideColorGamut);
@@ -313,13 +299,10 @@ public class WindowAndroid
     }
 
     private boolean shouldTrackOcclusion() {
-        // Enable occlusion only for desktop Android. For non-desktop Android, occlusion signals
-        // from Android should be the same as the Activity lifecycle signals that already control
-        // web contents occlusion. Also, on rotate Android seems to send a spurious occlusion
-        // signal. See crbug.com/380209799 for details.
+        // On rotate Android seems to send a spurious occlusion signal. See crbug.com/380209799 for
+        // details.
         return mTrackOcclusion
                 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
-                && BuildConfig.IS_DESKTOP_ANDROID
                 && UiAndroidFeatureList.sAndroidWindowOcclusion.isEnabled();
     }
 
@@ -348,7 +331,7 @@ public class WindowAndroid
 
         var thresholds = new TrustedPresentationThresholds(Float.MIN_VALUE, Float.MIN_VALUE, 1);
         mOcclusionObserver =
-                new Consumer<Boolean>() {
+                new Consumer<>() {
                     @Override
                     public void accept(Boolean visible) {
                         mOcclusionSupplier.set(!visible);
@@ -689,8 +672,7 @@ public class WindowAndroid
      */
     public void onVisibilityChanged(boolean visible) {
         if (mNativeWindowAndroid == 0) return;
-        WindowAndroidJni.get()
-                .onVisibilityChanged(mNativeWindowAndroid, WindowAndroid.this, visible);
+        WindowAndroidJni.get().onVisibilityChanged(mNativeWindowAndroid, visible);
     }
 
     /**
@@ -700,7 +682,7 @@ public class WindowAndroid
     protected void onActivityStopped() {
         if (mNativeWindowAndroid == 0) return;
         for (ActivityStateObserver observer : mActivityStateObservers) observer.onActivityStopped();
-        WindowAndroidJni.get().onActivityStopped(mNativeWindowAndroid, WindowAndroid.this);
+        WindowAndroidJni.get().onActivityStopped(mNativeWindowAndroid);
     }
 
     /**
@@ -709,7 +691,7 @@ public class WindowAndroid
      */
     protected void onActivityStarted() {
         if (mNativeWindowAndroid == 0) return;
-        WindowAndroidJni.get().onActivityStarted(mNativeWindowAndroid, WindowAndroid.this);
+        WindowAndroidJni.get().onActivityStarted(mNativeWindowAndroid);
     }
 
     protected void onActivityPaused() {
@@ -883,7 +865,7 @@ public class WindowAndroid
         // Destroys the c++ WindowAndroid object if one has been created.
         if (mNativeWindowAndroid != 0) {
             // Native code clears |mNativeWindowAndroid|.
-            WindowAndroidJni.get().destroy(mNativeWindowAndroid, WindowAndroid.this);
+            WindowAndroidJni.get().destroy(mNativeWindowAndroid);
         }
 
         mUnownedUserDataHost.destroy();
@@ -916,7 +898,7 @@ public class WindowAndroid
             mNativeWindowAndroid =
                     WindowAndroidJni.get()
                             .init(
-                                    WindowAndroid.this,
+                                    this,
                                     mDisplayAndroid.getDisplayId(),
                                     getMouseWheelScrollFactor(),
                                     getWindowIsWideColorGamut());
@@ -956,7 +938,6 @@ public class WindowAndroid
     // gamut (on supported hardware and os). However it is important for embedders like WebView
     // which do not make the wide gamut decision to check this at run time.
     private boolean getWindowIsWideColorGamut() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false;
         Window window = getWindow();
         if (window == null) return false;
         return window.isWideColorGamut();
@@ -996,30 +977,6 @@ public class WindowAndroid
      */
     public ApplicationViewportInsetSupplier getApplicationBottomInsetSupplier() {
         return mApplicationBottomInsetSupplier;
-    }
-
-    /** Adds a listener that will be notified whenever a ContextMenu is closed. */
-    public void addContextMenuCloseListener(OnCloseContextMenuListener listener) {
-        mContextMenuCloseListeners.addObserver(listener);
-    }
-
-    /**
-     * Removes a listener from the list of listeners that will be notified when a
-     * ContextMenu is closed.
-     */
-    public void removeContextMenuCloseListener(OnCloseContextMenuListener listener) {
-        mContextMenuCloseListeners.removeObserver(listener);
-    }
-
-    /**
-     * This hook is called whenever the context menu is being closed (either by
-     * the user canceling the menu with the back/menu button, or when an item is
-     * selected).
-     */
-    public void onContextMenuClosed() {
-        for (OnCloseContextMenuListener listener : mContextMenuCloseListeners) {
-            listener.onContextMenuClosed();
-        }
     }
 
     /**
@@ -1101,8 +1058,7 @@ public class WindowAndroid
     @Override
     public void onRefreshRateChanged(float refreshRate) {
         if (mNativeWindowAndroid != 0) {
-            WindowAndroidJni.get()
-                    .onUpdateRefreshRate(mNativeWindowAndroid, WindowAndroid.this, refreshRate);
+            WindowAndroidJni.get().onUpdateRefreshRate(mNativeWindowAndroid, refreshRate);
         }
     }
 
@@ -1139,12 +1095,6 @@ public class WindowAndroid
 
     @CalledByNative
     public void setWideColorEnabled(boolean enabled) {
-        // Although this API was added in Android O, it was buggy.
-        // Restrict to Android Q, where it was fixed.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            assert !enabled;
-            return;
-        }
         Window window = getWindow();
         if (window == null) return;
 
@@ -1187,9 +1137,7 @@ public class WindowAndroid
             if (mNativeWindowAndroid != 0) {
                 WindowAndroidJni.get()
                         .onSupportedRefreshRatesUpdated(
-                                mNativeWindowAndroid,
-                                WindowAndroid.this,
-                                getSupportedRefreshRates());
+                                mNativeWindowAndroid, getSupportedRefreshRates());
             }
         }
     }
@@ -1267,7 +1215,7 @@ public class WindowAndroid
 
     void onOverlayTransformUpdated() {
         if (mNativeWindowAndroid != 0) {
-            WindowAndroidJni.get().onOverlayTransformUpdated(mNativeWindowAndroid, this);
+            WindowAndroidJni.get().onOverlayTransformUpdated(mNativeWindowAndroid);
         }
     }
 
@@ -1406,6 +1354,18 @@ public class WindowAndroid
         mPointerLockingViewPrvFocusChangeListener = null;
     }
 
+    @CalledByNative
+    private boolean setHasKeyboardCapture(boolean hasCapture) {
+        Window window = getWindow();
+        if (window == null) return false;
+        if (mAconfigFlaggedApiDelegate == null) {
+            mAconfigFlaggedApiDelegate =
+                    ServiceLoaderUtil.maybeCreate(AconfigFlaggedApiDelegate.class);
+            if (mAconfigFlaggedApiDelegate == null) return false;
+        }
+        return mAconfigFlaggedApiDelegate.setKeyboardCaptureEnabled(window, hasCapture);
+    }
+
     @NativeMethods
     interface Natives {
         long init(
@@ -1414,27 +1374,25 @@ public class WindowAndroid
                 float scrollFactor,
                 boolean windowIsWideColorGamut);
 
-        void onVisibilityChanged(long nativeWindowAndroid, WindowAndroid caller, boolean visible);
+        void onVisibilityChanged(long nativeWindowAndroid, boolean visible);
 
-        void onActivityStopped(long nativeWindowAndroid, WindowAndroid caller);
+        void onActivityStopped(long nativeWindowAndroid);
 
-        void onActivityStarted(long nativeWindowAndroid, WindowAndroid caller);
+        void onActivityStarted(long nativeWindowAndroid);
 
-        void onUpdateRefreshRate(long nativeWindowAndroid, WindowAndroid caller, float refreshRate);
+        void onUpdateRefreshRate(long nativeWindowAndroid, float refreshRate);
 
-        void destroy(long nativeWindowAndroid, WindowAndroid caller);
+        void destroy(long nativeWindowAndroid);
 
         void onSupportedRefreshRatesUpdated(
-                long nativeWindowAndroid,
-                WindowAndroid caller,
-                float @Nullable [] supportedRefreshRates);
+                long nativeWindowAndroid, float @Nullable [] supportedRefreshRates);
 
         void onAdaptiveRefreshRateInfoChanged(
                 long nativeWindowAndroid,
                 boolean supportsAdaptiveRefreshRate,
                 float suggestedFrameRateHigh);
 
-        void onOverlayTransformUpdated(long nativeWindowAndroid, WindowAndroid caller);
+        void onOverlayTransformUpdated(long nativeWindowAndroid);
 
         void sendUnfoldLatencyBeginTimestamp(long nativeWindowAndroid, long beginTimestampMs);
 

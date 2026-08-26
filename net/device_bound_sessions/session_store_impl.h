@@ -59,12 +59,10 @@ class NET_EXPORT SessionStoreImpl : public SessionStore {
   // SessionStore implementation:
   void LoadSessions(LoadSessionsCallback callback) override;
   void SaveSession(const SchemefulSite& site, const Session& session) override;
-  void DeleteSession(const SchemefulSite& site,
-                     const Session::Id& session_id) override;
+  void DeleteSession(const SessionKey& key) override;
   SessionsMap GetAllSessions() const override;
   void RestoreSessionBindingKey(
-      const SchemefulSite& site,
-      const Session::Id& session_id,
+      const SessionKey& session_key,
       RestoreSessionBindingKeyCallback callback) override;
 
   DBStatus db_status() const { return db_status_; }
@@ -79,6 +77,8 @@ class NET_EXPORT SessionStoreImpl : public SessionStore {
                            PruneLoadedEntryWithInvalidSession);
   FRIEND_TEST_ALL_PREFIXES(SessionStoreImplTest,
                            PruneLoadedEntryWithSessionMissingWrappedKey);
+  FRIEND_TEST_ALL_PREFIXES(SessionStoreImplTest,
+                           PruneLoadedEntryWithInvalidRefreshInitiator);
 
   void OnDatabaseLoaded(LoadSessionsCallback callback,
                         base::ElapsedTimer timer,

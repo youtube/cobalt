@@ -65,13 +65,8 @@ class FacilitatedPaymentsPaymentMethodsControllerBridge
     }
 
     @Override
-    public boolean showFinancialAccountsManagementSettings(Context context) {
-        if (context == null) {
-            return false;
-        }
-        SettingsNavigationFactory.createSettingsNavigation()
-                .startSettings(context, SettingsNavigation.SettingsFragment.FINANCIAL_ACCOUNTS);
-        return true;
+    public void onPaymentAppSelected(String packageName, String activityName) {
+        // TODO(crbug.com/433642700): Use the JNI bridge to invoke the selected payment app.
     }
 
     @Override

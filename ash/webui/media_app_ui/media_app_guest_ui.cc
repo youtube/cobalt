@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "ash/webui/media_app_ui/media_app_guest_ui.h"
 
@@ -23,6 +19,7 @@
 #include "base/memory/ref_counted_memory.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
+#include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "chromeos/ash/components/mantis/media_app/mantis_untrusted_service_manager.h"
 #include "chromeos/ash/components/specialized_features/feature_access_checker.h"

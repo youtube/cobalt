@@ -6,10 +6,28 @@
 
 namespace content {
 
+PermissionResult::PermissionResult()
+    : status(PermissionStatus::ASK),
+      source(PermissionStatusSource::UNSPECIFIED) {}
+
 PermissionResult::PermissionResult(
     PermissionStatus permission_status,
-    PermissionStatusSource permission_status_source)
-    : status(permission_status), source(permission_status_source) {}
+    PermissionStatusSource permission_status_source,
+    std::optional<PermissionSetting> retrieved_permission_setting)
+    : status(permission_status),
+      source(permission_status_source),
+      retrieved_permission_setting(retrieved_permission_setting) {}
+
+PermissionResult::PermissionResult(const PermissionResult& other) {
+  status = other.status;
+  source = other.source;
+  retrieved_permission_setting = other.retrieved_permission_setting;
+}
+
+PermissionResult& PermissionResult::operator=(PermissionResult& other) =
+    default;
+PermissionResult::PermissionResult(PermissionResult&&) = default;
+PermissionResult& PermissionResult::operator=(PermissionResult&&) = default;
 
 PermissionResult::~PermissionResult() = default;
 

@@ -13,9 +13,13 @@
 
 class GURL;
 
+namespace url {
+class Origin;
+}  // namespace url
+
 namespace payments::facilitated {
 
-class EwalletManager;
+class PaymentLinkManager;
 class FacilitatedPaymentsClient;
 class PixManager;
 
@@ -45,26 +49,28 @@ class FacilitatedPaymentsDriver {
 
   // Inform the `PixManager` about `copied_text` being copied to
   // the clipboard. It is invoked only for the primary main frame.
-  virtual void OnTextCopiedToClipboard(const GURL& render_frame_host_url,
-                                       const std::u16string& copied_text,
-                                       ukm::SourceId ukm_source_id);
+  virtual void OnTextCopiedToClipboard(
+      const GURL& render_frame_host_url,
+      const url::Origin& render_frame_host_origin,
+      const std::u16string& copied_text,
+      ukm::SourceId ukm_source_id);
 
-  // Inform the `EwalletManager` to trigger the eWallet push payment flow. The
-  // payment information is included in the `payment_link_url` contained by the
-  // page with URL as `page_url`.
-  virtual void TriggerEwalletPushPayment(const GURL& payment_link_url,
-                                         const GURL& page_url,
-                                         ukm::SourceId ukm_source_id);
+  // Inform the `PaymentLinkManager` to trigger the payment link push payment
+  // flow. The payment information is included in the `payment_link_url`
+  // contained by the page with URL as `page_url`.
+  virtual void TriggerPaymentLinkPushPayment(const GURL& payment_link_url,
+                                             const GURL& page_url,
+                                             ukm::SourceId ukm_source_id);
 
   virtual void SetPixManagerForTesting(std::unique_ptr<PixManager> pix_manager);
-  virtual void SetEwalletManagerForTesting(
-      std::unique_ptr<EwalletManager> ewallet_manager);
+  virtual void SetPaymentLinkManagerForTesting(
+      std::unique_ptr<PaymentLinkManager> payment_link_manager);
 
  private:
   const raw_ref<FacilitatedPaymentsClient> facilitated_payments_client_;
   FacilitatedPaymentsApiClientCreator api_client_creator_;
   std::unique_ptr<PixManager> pix_manager_;
-  std::unique_ptr<EwalletManager> ewallet_manager_;
+  std::unique_ptr<PaymentLinkManager> payment_link_manager_;
 };
 
 }  // namespace payments::facilitated

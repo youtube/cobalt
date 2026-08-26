@@ -23,7 +23,8 @@
 #include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
 #include "chrome/browser/ash/app_mode/kiosk_controller.h"
 #include "chrome/browser/ash/app_mode/kiosk_system_session.h"
-#include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_manager.h"
+#include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
+#include "chrome/browser/chromeos/app_mode/kiosk_app_level_logs_manager_wrapper.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/web_contents.h"
@@ -70,11 +71,6 @@ class KioskControllerImpl : public KioskController,
 
   KioskSystemSession* GetKioskSystemSession() override;
 
-  kiosk_vision::TelemetryProcessor* GetKioskVisionTelemetryProcessor() override;
-
-  kiosk_vision::InternalsPageProcessor* GetKioskVisionInternalsPageProcessor()
-      override;
-
  private:
   // `user_manager::UserManager::Observer` implementation:
   void OnUserLoggedIn(const user_manager::User& user) override;
@@ -97,16 +93,20 @@ class KioskControllerImpl : public KioskController,
   void AppendWebApps(std::vector<KioskApp>& apps) const;
   void AppendChromeApps(std::vector<KioskApp>& apps) const;
   void AppendIsolatedWebApps(std::vector<KioskApp>& apps) const;
+  void AppendArcvmApps(std::vector<KioskApp>& apps) const;
 
   SEQUENCE_CHECKER(sequence_checker_);
 
   const raw_ref<PrefService> local_state_;
 
   KioskIwaManager GUARDED_BY_CONTEXT(sequence_checker_) iwa_manager_;
-  WebKioskAppManager GUARDED_BY_CONTEXT(sequence_checker_) web_app_manager_;
+  KioskWebAppManager GUARDED_BY_CONTEXT(sequence_checker_) web_app_manager_;
   KioskChromeAppManager GUARDED_BY_CONTEXT(sequence_checker_)
       chrome_app_manager_;
   KioskArcvmAppManager GUARDED_BY_CONTEXT(sequence_checker_) arcvm_app_manager_;
+
+  std::unique_ptr<chromeos::KioskAppLevelLogsManagerWrapper> GUARDED_BY_CONTEXT(
+      sequence_checker_) kiosk_log_manager_wrapper_;
 
   // Created once the Kiosk session launch starts. Only not null during the
   // kiosk launch.

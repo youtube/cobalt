@@ -165,10 +165,10 @@ ImageDecoderExternal::ImageDecoderExternal(ScriptState* script_state,
   DCHECK(init->hasData());
   DCHECK(init->data());
 
-  constexpr char kNoneOption[] = "none";
   auto color_behavior = ColorBehavior::kTag;
-  if (init->colorSpaceConversion() == kNoneOption)
+  if (init->colorSpaceConversion() == V8ColorSpaceConversion::Enum::kNone) {
     color_behavior = ColorBehavior::kIgnore;
+  }
 
   auto desired_size = SkISize::MakeEmpty();
   if (init->hasDesiredWidth() && init->hasDesiredHeight())
@@ -198,7 +198,7 @@ ImageDecoderExternal::ImageDecoderExternal(ScriptState* script_state,
       return;
     }
 
-    decoder_ = std::make_unique<WTF::SequenceBound<ImageDecoderCore>>(
+    decoder_ = std::make_unique<SequenceBound<ImageDecoderCore>>(
         decode_task_runner_, mime_type_, /*data=*/nullptr,
         /*data_complete=*/false, color_behavior, desired_size,
         animation_option_);
@@ -265,7 +265,7 @@ ImageDecoderExternal::ImageDecoderExternal(ScriptState* script_state,
   construction_succeeded_ = true;
   data_complete_ = true;
   completed_property_->ResolveWithUndefined();
-  decoder_ = std::make_unique<WTF::SequenceBound<ImageDecoderCore>>(
+  decoder_ = std::make_unique<SequenceBound<ImageDecoderCore>>(
       decode_task_runner_, mime_type_, std::move(segment_reader),
       data_complete_, color_behavior, desired_size, animation_option_);
 

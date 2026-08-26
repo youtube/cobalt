@@ -17,7 +17,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_observer.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/policy/core/common/policy_service.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -40,8 +39,6 @@ class PrefServiceSyncable;
 class TestingProfileManager : public ProfileObserver {
  public:
   explicit TestingProfileManager(TestingBrowserProcess* browser_process);
-  TestingProfileManager(TestingBrowserProcess* browser_process,
-                        ScopedTestingLocalState* local_state);
   TestingProfileManager(const TestingProfileManager&) = delete;
   TestingProfileManager& operator=(const TestingProfileManager&) = delete;
   ~TestingProfileManager() override;
@@ -141,7 +138,6 @@ class TestingProfileManager : public ProfileObserver {
   const base::FilePath& profiles_dir();
   ProfileManager* profile_manager();
   ProfileAttributesStorage* profile_attributes_storage();
-  ScopedTestingLocalState* local_state() { return local_state_; }
 
   // ProfileObserver:
   void OnProfileWillBeDestroyed(Profile* profile) override;
@@ -174,12 +170,6 @@ class TestingProfileManager : public ProfileObserver {
 
   // Weak reference to the browser process on which the ProfileManager is set.
   raw_ptr<TestingBrowserProcess> browser_process_;
-
-  // Local state in which all the profiles are registered.
-  raw_ptr<ScopedTestingLocalState> local_state_;
-
-  // Owned local state for when it's not provided in the constructor.
-  std::unique_ptr<ScopedTestingLocalState> owned_local_state_;
 
   // Weak reference to the profile manager.
   raw_ptr<ProfileManager, DanglingUntriaged> profile_manager_;

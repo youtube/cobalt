@@ -55,17 +55,16 @@ class SecurePaymentConfirmationApp : public PaymentApp,
       content::WebContents* web_contents_to_observe,
       const std::string& effective_relying_party_identity,
       const std::u16string& payment_instrument_label,
+      const std::u16string& payment_instrument_details,
       std::unique_ptr<SkBitmap> payment_instrument_icon,
       std::vector<uint8_t> credential_id,
       std::unique_ptr<PasskeyBrowserBinder> passkey_browser_binder,
+      bool device_supports_browser_bound_keys_in_hardware,
       const url::Origin& merchant_origin,
       base::WeakPtr<PaymentRequestSpec> spec,
       mojom::SecurePaymentConfirmationRequestPtr request,
       std::unique_ptr<webauthn::InternalAuthenticator> authenticator,
-      const std::u16string& network_label,
-      std::unique_ptr<SkBitmap> network_icon,
-      const std::u16string& issuer_label,
-      std::unique_ptr<SkBitmap> issuer_icon);
+      std::vector<PaymentApp::PaymentEntityLogo> payment_entities_logos);
   ~SecurePaymentConfirmationApp() override;
 
   SecurePaymentConfirmationApp(const SecurePaymentConfirmationApp& other) =
@@ -84,8 +83,7 @@ class SecurePaymentConfirmationApp : public PaymentApp,
   std::u16string GetLabel() const override;
   std::u16string GetSublabel() const override;
   const SkBitmap* icon_bitmap() const override;
-  const SkBitmap* issuer_bitmap() const override;
-  const SkBitmap* network_bitmap() const override;
+  std::vector<PaymentEntityLogo*> GetPaymentEntitiesLogos() override;
   bool IsValidForModifier(const std::string& method) const override;
   base::WeakPtr<PaymentApp> AsWeakPtr() override;
   bool HandlesShippingAddress() const override;
@@ -103,16 +101,13 @@ class SecurePaymentConfirmationApp : public PaymentApp,
   // WebContentsObserver implementation.
   void RenderFrameDeleted(content::RenderFrameHost* render_frame_host) override;
 
-  std::u16string network_label() const { return network_label_; }
-
-  std::u16string issuer_label() const { return issuer_label_; }
-
   PasskeyBrowserBinder* GetPasskeyBrowserBinderForTesting();
 
  private:
   void OnGetBrowserBoundKey(
       base::WeakPtr<Delegate> delegate,
       blink::mojom::PublicKeyCredentialRequestOptionsPtr options,
+      bool is_new,
       std::unique_ptr<BrowserBoundKey> browser_bound_key);
   void OnGetAssertion(
       base::WeakPtr<Delegate> delegate,
@@ -126,6 +121,7 @@ class SecurePaymentConfirmationApp : public PaymentApp,
 
   const std::string effective_relying_party_identity_;
   const std::u16string payment_instrument_label_;
+  const std::u16string payment_instrument_details_;
   const std::unique_ptr<SkBitmap> payment_instrument_icon_;
   const std::vector<uint8_t> credential_id_;
   const url::Origin merchant_origin_;
@@ -133,14 +129,16 @@ class SecurePaymentConfirmationApp : public PaymentApp,
   const mojom::SecurePaymentConfirmationRequestPtr request_;
   std::unique_ptr<webauthn::InternalAuthenticator> authenticator_;
   std::unique_ptr<PasskeyBrowserBinder> passkey_browser_binder_;
+  // `device_supports_browser_bound_keys_in_hardware` is not set if
+  // passkey_browser_binder was not provided.
+  const bool device_supports_browser_bound_keys_in_hardware_ = false;
   std::unique_ptr<BrowserBoundKey> browser_bound_key_;
   std::string challenge_;
   blink::mojom::GetAssertionAuthenticatorResponsePtr response_;
 
-  const std::u16string network_label_;
-  const std::unique_ptr<SkBitmap> network_icon_;
-  const std::u16string issuer_label_;
-  const std::unique_ptr<SkBitmap> issuer_icon_;
+  // This contains the logos of the entities facilitating the transaction. There
+  // may be up to 2 logos.
+  std::vector<PaymentEntityLogo> payment_entities_logos_;
 
   base::WeakPtrFactory<SecurePaymentConfirmationApp> weak_ptr_factory_{this};
 };

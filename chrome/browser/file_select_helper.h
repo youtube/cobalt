@@ -15,7 +15,6 @@
 #include "build/build_config.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/common/files_scan_data.h"
-#include "components/safe_browsing/buildflags.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "net/base/directory_lister.h"
@@ -28,6 +27,7 @@
 
 class Profile;
 class ScopedDisallowPictureInPicture;
+class ScopedTuckPictureInPicture;
 
 namespace content {
 class FileSelectListener;
@@ -124,16 +124,6 @@ class FileSelectHelper : public base::RefCountedThreadSafe<
   void GetFileTypesInThreadPool(blink::mojom::FileChooserParamsPtr params);
   void GetSanitizedFilenameOnUIThread(
       blink::mojom::FileChooserParamsPtr params);
-#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION)
-  // Safe Browsing checks are only applied when `params->mode` is
-  // `kSave`, which is only for PPAPI requests.
-  void CheckDownloadRequestWithSafeBrowsing(
-      const base::FilePath& default_path,
-      blink::mojom::FileChooserParamsPtr params);
-  void ProceedWithSafeBrowsingVerdict(const base::FilePath& default_path,
-                                      blink::mojom::FileChooserParamsPtr params,
-                                      bool allowed_by_safe_browsing);
-#endif
   void RunFileChooserOnUIThread(const base::FilePath& default_path,
                                 blink::mojom::FileChooserParamsPtr params);
 
@@ -334,6 +324,9 @@ class FileSelectHelper : public base::RefCountedThreadSafe<
   // When not null, this prevents picture-in-picture windows from opening.
   std::unique_ptr<ScopedDisallowPictureInPicture>
       scoped_disallow_picture_in_picture_;
+
+  // When not null, this tucks picture-in-picture windows out of the way.
+  std::unique_ptr<ScopedTuckPictureInPicture> scoped_tuck_picture_in_picture_;
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)

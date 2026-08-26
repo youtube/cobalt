@@ -26,9 +26,6 @@ const char kOptimizationGuideServiceModelQualtiyDefaultURL[] =
 const char kLoadedHintLocalHistogramString[] =
     "OptimizationGuide.LoadedHint.Result";
 
-const char kModelValidationErrorHistogramString[] =
-    "OptimizationGuide.ModelValidation.OnDevice.DidError";
-
 const char kOptimizationGuideLanguageOverrideHeaderKey[] =
     "x-optimization-guide-language-override";
 
@@ -38,9 +35,6 @@ const base::FilePath::CharType kOptimizationGuideHintStore[] =
 const base::FilePath::CharType
     kOldOptimizationGuidePredictionModelMetadataStore[] =
         FILE_PATH_LITERAL("optimization_guide_model_metadata_store");
-
-const base::FilePath::CharType kOldOptimizationGuidePredictionModelDownloads[] =
-    FILE_PATH_LITERAL("optimization_guide_prediction_model_downloads");
 
 const base::FilePath::CharType kOptimizationGuideModelStoreDirPrefix[] =
     FILE_PATH_LITERAL("optimization_guide_model_store");
@@ -53,6 +47,12 @@ const base::FilePath::CharType kWeightsFile[] =
 
 const base::FilePath::CharType kExperimentalCacheFile[] =
     FILE_PATH_LITERAL("cache.bin");
+
+const base::FilePath::CharType kEncoderCacheFile[] =
+    FILE_PATH_LITERAL("encoder_cache.bin");
+
+const base::FilePath::CharType kAdapterCacheFile[] =
+    FILE_PATH_LITERAL("adapter_cache.bin");
 
 const base::FilePath::CharType kTsDataFile[] = FILE_PATH_LITERAL("ts.bin");
 

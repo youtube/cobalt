@@ -9,8 +9,17 @@
  */
 
 #include <atomic>
+#include <string>
 
+#include "absl/strings/str_cat.h"
+#include "api/jsep.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats_report.h"
 #include "api/stats/rtcstats_objects.h"
+#include "api/test/network_emulation/dual_pi2_network_queue.h"
+#include "api/test/network_emulation/network_emulation_interfaces.h"
+#include "api/transport/ecn_marking.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -19,8 +28,10 @@
 #include "modules/rtp_rtcp/source/rtcp_packet/transport_feedback.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "pc/test/mock_peer_connection_observers.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/network_constants.h"
 #include "test/create_frame_generator_capturer.h"
-#include "test/field_trial.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/peer_scenario/peer_scenario.h"
@@ -111,11 +122,10 @@ DataRate GetAvailableSendBitrate(
 }
 
 TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
-  test::ScopedFieldTrials trials(
-      "WebRTC-RFC8888CongestionControlFeedback/Enabled/");
   PeerScenario s(*test_info_);
 
-  PeerScenarioClient::Config config = PeerScenarioClient::Config();
+  PeerScenarioClient::Config config;
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
   config.disable_encryption = true;
   PeerScenarioClient* caller = s.CreateClient(config);
   PeerScenarioClient* callee = s.CreateClient(config);
@@ -176,22 +186,17 @@ TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
 
   s.ProcessMessages(TimeDelta::Seconds(2));
   EXPECT_GT(send_node_feedback_counter.FeedbackAccordingToRfc8888(), 0);
-  // TODO: bugs.webrtc.org/42225697 - Fix bug. Caller sends both transport
-  // sequence number feedback and congestion control feedback. So
-  // callee still send packets with transport sequence number header extensions
-  // even though it has been removed from the answer.
-  // EXPECT_EQ(send_node_feedback_counter.FeedbackAccordingToTransportCc(), 0);
+  EXPECT_EQ(send_node_feedback_counter.FeedbackAccordingToTransportCc(), 0);
 
   EXPECT_GT(ret_node_feedback_counter.FeedbackAccordingToRfc8888(), 0);
   EXPECT_EQ(ret_node_feedback_counter.FeedbackAccordingToTransportCc(), 0);
 }
 
-TEST(L4STest, CallerAdaptToLinkCapacityWithoutEcn) {
-  test::ScopedFieldTrials trials(
-      "WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithoutEcn) {
   PeerScenario s(*test_info_);
 
-  PeerScenarioClient::Config config = PeerScenarioClient::Config();
+  PeerScenarioClient::Config config;
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
   PeerScenarioClient* caller = s.CreateClient(config);
   PeerScenarioClient* callee = s.CreateClient(config);
 
@@ -209,7 +214,9 @@ TEST(L4STest, CallerAdaptToLinkCapacityWithoutEcn) {
   auto signaling = s.ConnectSignaling(caller, callee, {caller_to_callee},
                                       {callee_to_caller});
   PeerScenarioClient::VideoSendTrackConfig video_conf;
-  video_conf.generator.squares_video->framerate = 15;
+  video_conf.generator.squares_video->framerate = 30;
+  video_conf.generator.squares_video->width = 640;
+  video_conf.generator.squares_video->height = 360;
   caller->CreateVideo("VIDEO_1", video_conf);
 
   signaling.StartIceSignaling();
@@ -221,16 +228,62 @@ TEST(L4STest, CallerAdaptToLinkCapacityWithoutEcn) {
   s.ProcessMessages(TimeDelta::Seconds(3));
   DataRate available_bwe =
       GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
-  EXPECT_GT(available_bwe.kbps(), 500);
+  EXPECT_GT(available_bwe.kbps(), 450);
+  EXPECT_LT(available_bwe.kbps(), 610);
+}
+
+// Note - this test only test that the
+// caller adapt to the link capacity. It does not test that the caller uses ECN
+// to adapt even though the network can mark packets with CE.
+// TODO: bugs.webrtc.org/42225697 - actually test that the caller adapt to ECN
+// marking.
+TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithEcn) {
+  PeerScenario s(*test_info_);
+  PeerScenarioClient::Config config;
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
+
+  PeerScenarioClient* caller = s.CreateClient(config);
+  PeerScenarioClient* callee = s.CreateClient(config);
+
+  DualPi2NetworkQueueFactory dual_pi_factory({});
+  auto caller_to_callee = s.net()
+                              ->NodeBuilder()
+                              .queue_factory(dual_pi_factory)
+                              .capacity(DataRate::KilobitsPerSec(600))
+                              .Build()
+                              .node;
+  auto callee_to_caller = s.net()->NodeBuilder().Build().node;
+  s.net()->CreateRoute(caller->endpoint(), {caller_to_callee},
+                       callee->endpoint());
+  s.net()->CreateRoute(callee->endpoint(), {callee_to_caller},
+                       caller->endpoint());
+
+  auto signaling = s.ConnectSignaling(caller, callee, {caller_to_callee},
+                                      {callee_to_caller});
+  PeerScenarioClient::VideoSendTrackConfig video_conf;
+  video_conf.generator.squares_video->framerate = 30;
+  video_conf.generator.squares_video->width = 640;
+  video_conf.generator.squares_video->height = 360;
+  caller->CreateVideo("VIDEO_1", video_conf);
+
+  signaling.StartIceSignaling();
+  std::atomic<bool> offer_exchange_done(false);
+  signaling.NegotiateSdp([&](const SessionDescriptionInterface& answer) {
+    offer_exchange_done = true;
+  });
+  s.WaitAndProcess(&offer_exchange_done);
+  s.ProcessMessages(TimeDelta::Seconds(3));
+  DataRate available_bwe =
+      GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
+  EXPECT_GT(available_bwe.kbps(), 450);
   EXPECT_LT(available_bwe.kbps(), 610);
 }
 
 TEST(L4STest, SendsEct1UntilFirstFeedback) {
-  test::ScopedFieldTrials trials(
-      "WebRTC-RFC8888CongestionControlFeedback/Enabled/");
   PeerScenario s(*test_info_);
 
-  PeerScenarioClient::Config config = PeerScenarioClient::Config();
+  PeerScenarioClient::Config config;
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
   config.disable_encryption = true;
   PeerScenarioClient* caller = s.CreateClient(config);
   PeerScenarioClient* callee = s.CreateClient(config);
@@ -281,11 +334,10 @@ TEST(L4STest, SendsEct1UntilFirstFeedback) {
 }
 
 TEST(L4STest, SendsEct1AfterRouteChange) {
-  test::ScopedFieldTrials trials(
-      "WebRTC-RFC8888CongestionControlFeedback/Enabled/");
   PeerScenario s(*test_info_);
 
   PeerScenarioClient::Config config;
+  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
   config.disable_encryption = true;
   config.endpoints = {{0, {.type = AdapterType::ADAPTER_TYPE_WIFI}}};
   PeerScenarioClient* caller = s.CreateClient(config);

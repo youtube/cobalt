@@ -12,7 +12,9 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/url_formatter/url_formatter.h"
+#include "extensions/common/extension_urls.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "ui/base/mojom/window_open_disposition.mojom.h"
 #include "ui/base/window_open_disposition.h"
@@ -46,9 +48,18 @@ void ZeroStatePromoPageHandler::LaunchWebStoreLink(
       break;
   }
 
-  NavigateParams params(profile_, url, ::ui::PAGE_TRANSITION_AUTO_BOOKMARK);
+  std::string_view utm_source =
+      (feature_engagement::IPHExtensionsZeroStatePromoVariant::
+           kCustomUiChipIph ==
+       feature_engagement::kIPHExtensionsZeroStatePromoVariantParam.Get())
+          ? extension_urls::kCustomUiChipIphUtmSource
+          : extension_urls::kCustomUiPlainLinkIphUtmSource;
+  GURL url_with_utm = extension_urls::AppendUtmSource(url, utm_source);
+
+  NavigateParams params(profile_, url_with_utm,
+                        ::ui::PAGE_TRANSITION_AUTO_BOOKMARK);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
   Navigate(&params);
   base::UmaHistogramEnumeration(
-      "Extension.ZeroStatePromo.IphActionChromeWebStoreLink", link);
+      "Extensions.ZeroStatePromo.IphActionChromeWebStoreLink", link);
 }

@@ -10,7 +10,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <variant>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -18,9 +17,6 @@
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "components/invalidation/invalidation_listener.h"
-#include "components/invalidation/public/invalidation.h"
-#include "components/invalidation/public/invalidation_handler.h"
-#include "components/invalidation/public/invalidation_util.h"
 #include "components/policy/core/common/cloud/cloud_policy_core.h"
 #include "components/policy/core/common/cloud/cloud_policy_store.h"
 #include "components/policy/core/common/cloud/policy_invalidation_scope.h"
@@ -30,23 +26,11 @@ class Clock;
 class SequencedTaskRunner;
 }
 
-namespace invalidation {
-class InvalidationService;
-}
-
 namespace policy {
-
-// The invalidation service.
-using InvalidationServicePtr = raw_ptr<invalidation::InvalidationService>;
-using InvalidationListenerPtr = raw_ptr<invalidation::InvalidationListener>;
-
-// The state of the object.
-enum class State { UNINITIALIZED, STOPPED, STARTED, SHUT_DOWN };
 
 // Listens for and provides policy invalidations.
 class CloudPolicyInvalidator
-    : public invalidation::InvalidationHandler,
-      public invalidation::InvalidationListener::Observer,
+    : public invalidation::InvalidationListener::Observer,
       public CloudPolicyCore::Observer,
       public CloudPolicyStore::Observer {
  public:
@@ -71,6 +55,9 @@ class CloudPolicyInvalidator
 
   // |scope| indicates the invalidation scope that this invalidator
   // is responsible for.
+  // |invalidation_listener| provides invalidations and is observed during the
+  // whole invaldiator's lifetime. Must remain valid until the invalidator is
+  // destroyed.
   // |core| is the cloud policy core which connects the various policy objects.
   // It must remain valid until Shutdown is called.
   // |task_runner| is used for scheduling delayed tasks. It must post tasks to
@@ -81,10 +68,9 @@ class CloudPolicyInvalidator
   // |device_local_account_id| is a unique identity for invalidator with
   // DeviceLocalAccount |scope| to have unique owner name. May be let empty
   // if scope is not DeviceLocalAccount.
-  // TODO(b/341376574): Add unit tests for `invalidation::InvalidationListener`
-  // setup.
   CloudPolicyInvalidator(
       PolicyInvalidationScope scope,
+      invalidation::InvalidationListener* invalidation_listener,
       CloudPolicyCore* core,
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
       base::Clock* clock,
@@ -92,6 +78,7 @@ class CloudPolicyInvalidator
       const std::string& device_local_account_id);
   CloudPolicyInvalidator(
       PolicyInvalidationScope scope,
+      invalidation::InvalidationListener* invalidation_listener,
       CloudPolicyCore* core,
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
       base::Clock* clock,
@@ -100,29 +87,8 @@ class CloudPolicyInvalidator
   CloudPolicyInvalidator& operator=(const CloudPolicyInvalidator&) = delete;
   ~CloudPolicyInvalidator() override;
 
-  // Initializes the invalidator. No invalidations will be generated before this
-  // method is called. This method must only be called once.
-  // `invalidation_service` or `invalidation_listener` is the invalidation
-  // service to use and must remain valid until Shutdown is called.
-  void Initialize(std::variant<invalidation::InvalidationService*,
-                               invalidation::InvalidationListener*>
-                      invalidation_service_or_listener);
-
-  // Shuts down and disables invalidations. It must be called before the object
-  // is destroyed.
-  void Shutdown();
-
   // The highest invalidation version that was handled already.
   int64_t highest_handled_invalidation_version() const;
-
-  invalidation::InvalidationService* invalidation_service_for_test() const;
-
-  // invalidation::InvalidationHandler:
-  void OnInvalidatorStateChange(invalidation::InvalidatorState state) override;
-  void OnIncomingInvalidation(
-      const invalidation::Invalidation& invalidation) override;
-  std::string GetOwnerName() const override;
-  bool IsPublicTopic(const invalidation::Topic& topic) const override;
 
   // CloudPolicyCore::Observer:
   void OnCoreConnected(CloudPolicyCore* core) override;
@@ -155,7 +121,8 @@ class CloudPolicyInvalidator
     ~PolicyInvalidationHandler();
 
     // Handles an invalidation to the policy.
-    void HandleInvalidation(const invalidation::Invalidation& invalidation);
+    void HandleInvalidation(
+        const invalidation::DirectInvalidation& invalidation);
 
     // Informs the core's refresh scheduler about whether invalidations are
     // enabled.
@@ -244,45 +211,17 @@ class CloudPolicyInvalidator
     base::WeakPtrFactory<PolicyInvalidationHandler> weak_factory_{this};
   };
 
-  // Returns true if `this` is observing `invalidation_service_` or
-  // `invalidation_listener_`.
+  // Returns true if ready to receive invalidations.
   bool IsRegistered() const;
 
-  // Returns true if `IsRegistered()` and `invalidation_service_` or
-  // `invalidation_listener_` is enabled.
+  // Returns true if ready to receive invalidations and invalidations are
+  // enabled.
   bool AreInvalidationsEnabled() const;
-
-  // Update topic subscription with the invalidation service based on the
-  // given policy data.
-  void UpdateSubscriptionWithInvalidationService(
-      const enterprise_management::PolicyData* policy);
-
-  // The event executed when the store is loaded.
-  void HandleOnStoreLoadedForListener(
-      invalidation::InvalidationListener* listener);
-
-  // Registers this handler with |invalidation_service_| if needed and
-  // subscribes to the given |topic| with the invalidation service.
-  void RegisterWithInvalidationService(const invalidation::Topic& topic);
-
-  // Unregisters this handler and unsubscribes from the current topic with
-  // the invalidation service.
-  // TODO(crbug.com/40676667): Topic subscriptions remain active after browser
-  // restart, so explicit unsubscription here causes redundant (un)subscription
-  // traffic (and potentially leaking subscriptions).
-  void UnregisterWithInvalidationService();
-
-  State state_;
 
   PolicyInvalidationHandler policy_invalidation_handler_;
 
   // The invalidation scope this invalidator is responsible for.
   const PolicyInvalidationScope scope_;
-
-  // The unique name to be returned with by GetOwnerName().
-  // TODO(b/341376574): Remove once does not implement
-  // `invalidation::InvalidationHandler`.
-  const std::string owner_name_;
 
   // The cloud policy core.
   raw_ptr<CloudPolicyCore> core_;
@@ -292,9 +231,7 @@ class CloudPolicyInvalidator
   base::ScopedObservation<CloudPolicyStore, CloudPolicyInvalidator>
       store_observation_{this};
 
-  std::variant<InvalidationServicePtr, InvalidationListenerPtr>
-      invalidation_service_or_listener_ =
-          static_cast<InvalidationServicePtr>(nullptr);
+  raw_ptr<invalidation::InvalidationListener> invalidation_listener_;
 
   invalidation::InvalidationsExpected are_invalidations_expected_ =
       invalidation::InvalidationsExpected::kMaybe;
@@ -302,12 +239,7 @@ class CloudPolicyInvalidator
   base::ScopedObservation<invalidation::InvalidationListener,
                           CloudPolicyInvalidator>
       invalidation_listener_observation_{this};
-  base::ScopedObservation<invalidation::InvalidationService,
-                          CloudPolicyInvalidator>
-      invalidation_service_observation_{this};
 
-  // The topic representing the policy in the invalidation service.
-  invalidation::Topic topic_;
   const std::string device_local_account_id_;
 
   // A thread checker to make sure that callbacks are invoked on the correct

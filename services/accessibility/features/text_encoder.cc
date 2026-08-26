@@ -17,23 +17,24 @@
 #include "gin/array_buffer.h"
 #include "gin/converter.h"
 #include "gin/data_object_builder.h"
-#include "gin/handle.h"
 #include "gin/public/wrapper_info.h"
-#include "services/accessibility/features/registered_wrappable.h"
 #include "v8/include/v8-array-buffer.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8-isolate.h"
 #include "v8/include/v8-local-handle.h"
 #include "v8/include/v8-primitive.h"
 #include "v8/include/v8-typed-array.h"
+#include "v8/include/cppgc/allocation.h"
 
 namespace ax {
 
 // static
-gin::WrapperInfo TextEncoder::kWrapperInfo = {gin::kEmbedderNativeGin};
 
 // static
-gin::Handle<TextEncoder> TextEncoder::Create(v8::Local<v8::Context> context) {
-  return gin::CreateHandle(context->GetIsolate(), new TextEncoder(context));
+v8::Local<v8::Object> TextEncoder::Create(v8::Isolate* isolate) {
+  auto* encoder = cppgc::MakeGarbageCollected<TextEncoder>(
+      isolate->GetCppHeap()->GetAllocationHandle());
+  return encoder->GetWrapper(isolate).ToLocalChecked();
 }
 
 gin::ObjectTemplateBuilder TextEncoder::GetObjectTemplateBuilder(
@@ -41,6 +42,10 @@ gin::ObjectTemplateBuilder TextEncoder::GetObjectTemplateBuilder(
   // Note: We do not support TextEncoder::encodeInto.
   return gin::Wrappable<TextEncoder>::GetObjectTemplateBuilder(isolate)
       .SetMethod("encode", &TextEncoder::Encode);
+}
+
+const gin::WrapperInfo* TextEncoder::wrapper_info() const {
+  return &kWrapperInfo;
 }
 
 void TextEncoder::Encode(gin::Arguments* arguments) {
@@ -75,7 +80,8 @@ void TextEncoder::Encode(gin::Arguments* arguments) {
   arguments->GetFunctionCallbackInfo()->GetReturnValue().Set(result);
 }
 
-TextEncoder::TextEncoder(v8::Local<v8::Context> context)
-    : RegisteredWrappable(context) {}
+TextEncoder::TextEncoder() = default;
+
+TextEncoder::~TextEncoder() = default;
 
 }  // namespace ax

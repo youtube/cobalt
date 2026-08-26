@@ -5,24 +5,28 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_SAVE_AND_FILL_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_SAVE_AND_FILL_MANAGER_H_
 
-#include "base/memory/raw_ref.h"
-
 namespace autofill::payments {
 
-class PaymentsAutofillClient;
-
-// Owned by PaymentsAutofillClient. There is one instance of this class per Web
-// Contents. This class manages the flow for the Save and Fill dialog.
+// Interface for managing the Save and Fill dialog flow.
 class SaveAndFillManager {
  public:
-  explicit SaveAndFillManager(PaymentsAutofillClient* payments_autofill_client);
+  using CardSaveAndFillDialogUserDecision =
+      PaymentsAutofillClient::CardSaveAndFillDialogUserDecision;
+  using UserProvidedCardSaveAndFillDetails =
+      PaymentsAutofillClient::UserProvidedCardSaveAndFillDetails;
+  using FillCardCallback = base::OnceCallback<void(const CreditCard&)>;
+
+  SaveAndFillManager() = default;
   SaveAndFillManager(const SaveAndFillManager& other) = delete;
   SaveAndFillManager& operator=(const SaveAndFillManager& other) = delete;
-  ~SaveAndFillManager();
+  virtual ~SaveAndFillManager() = default;
 
- private:
-  // The associated payments autofill client.
-  const raw_ref<PaymentsAutofillClient> payments_autofill_client_;
+  // Initiates the Save and Fill flow after the user accepts the Save and Fill
+  // suggestion.
+  virtual void OnDidAcceptCreditCardSaveAndFillSuggestion(
+      FillCardCallback fill_card_callback) = 0;
+  // Returns true if the maximum number of strikes has been reached.
+  virtual bool IsMaxStrikesLimitReached() = 0;
 };
 
 }  // namespace autofill::payments

@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/android/apk_assets.h"
@@ -13,6 +14,7 @@
 #include "base/android/jni_string.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -31,17 +33,22 @@ namespace {
 using FileDescriptor = int;
 
 bool g_locale_paks_in_apk = false;
-bool g_load_secondary_locale_paks = false;
+bool g_load_non_webview_locale_paks = false;
 // It is okay to cache and share these file descriptors since the
 // ResourceBundle singleton never closes the handles.
 FileDescriptor g_chrome_100_percent_fd = -1;
 FileDescriptor g_resources_pack_fd = -1;
-FileDescriptor g_locale_pack_fd = -1;
-FileDescriptor g_secondary_locale_pack_fd = -1;
+
+std::vector<ResourceBundle::FdAndRegion>& GetLocalePaksGlobal() {
+  // Required since `static std::vector<ResourceBundle::FdAndRegion>` requires a
+  // global destructor.
+  static base::NoDestructor<std::vector<ResourceBundle::FdAndRegion>>
+      locale_paks;
+  return *locale_paks;
+}
+
 base::MemoryMappedFile::Region g_chrome_100_percent_region;
 base::MemoryMappedFile::Region g_resources_pack_region;
-base::MemoryMappedFile::Region g_locale_pack_region;
-base::MemoryMappedFile::Region g_secondary_locale_pack_region;
 
 bool LoadFromApkOrFile(const char* apk_path,
                        const base::FilePath* disk_path,
@@ -69,18 +76,19 @@ bool LoadFromApkOrFile(const char* apk_path,
 // Returns the path within the apk for the given locale's .pak file, or an
 // empty string if it doesn't exist.
 // Only locale paks for the active Android language can be retrieved.
-// If |in_split| is true, look into bundle split-specific location (e.g.
+// If `in_split` is true, look into bundle split-specific location (e.g.
 // 'assets/locales#lang_<lang>/<locale>.pak', otherwise use the default
 // WebView-related location, i.e. 'assets/stored-locales/<locale>.pak'.
-// If |log_error|, logs the path to logcat, but does not abort.
-std::string GetPathForAndroidLocalePakWithinApk(const std::string& locale,
+// If `log_error`, logs the path to logcat, but does not abort.
+std::string GetPathForAndroidLocalePakWithinApk(std::string_view locale,
+                                                ResourceBundle::Gender gender,
                                                 bool in_bundle,
                                                 bool log_error) {
   JNIEnv* env = base::android::AttachCurrentThread();
   base::android::ScopedJavaLocalRef<jstring> ret =
       Java_ResourceBundle_getLocalePakResourcePath(
-          env, base::android::ConvertUTF8ToJavaString(env, locale), in_bundle,
-          log_error);
+          env, base::android::ConvertUTF8ToJavaString(env, locale),
+          static_cast<jint>(gender), in_bundle, log_error);
   if (ret.obj() == nullptr) {
     return std::string();
   }
@@ -89,11 +97,12 @@ std::string GetPathForAndroidLocalePakWithinApk(const std::string& locale,
 
 FileDescriptor LoadLocalePakFromApk(
     const std::string& app_locale,
+    ResourceBundle::Gender gender,
     bool in_split,
     base::MemoryMappedFile::Region* out_region) {
   bool log_error = true;
-  std::string locale_path_within_apk =
-      GetPathForAndroidLocalePakWithinApk(app_locale, in_split, log_error);
+  std::string locale_path_within_apk = GetPathForAndroidLocalePakWithinApk(
+      app_locale, gender, in_split, log_error);
   if (locale_path_within_apk.empty()) {
     return -1;
   }
@@ -109,11 +118,130 @@ std::unique_ptr<DataPack> LoadDataPackFromLocalePak(
   return data_pack;
 }
 
-bool LocaleDataPakExists(const std::string& locale,
+bool LocaleDataPakExists(std::string_view locale,
+                         ResourceBundle::Gender gender,
                          bool in_split,
                          bool log_error) {
-  return !GetPathForAndroidLocalePakWithinApk(locale, in_split, log_error)
+  return !GetPathForAndroidLocalePakWithinApk(locale, gender, in_split,
+                                              log_error)
               .empty();
+}
+
+bool LoadLocaleResourcesForLocaleAndGender(
+    const std::string& app_locale,
+    const ResourceBundle::Gender gender,
+    ResourceBundle::FdAndRegion* webview_locale_pack,
+    ResourceBundle::FdAndRegion* non_webview_locale_pack,
+    std::vector<std::unique_ptr<ResourceHandle>>* locale_resources_data) {
+  // Some Chromium apps have two sets of .pak files for their UI strings, i.e.:
+  //
+  // a) WebView strings, which are always stored uncompressed under
+  //    assets/stored-locales/ inside the APK or App Bundle.
+  //
+  // b) For APKs, the Chrome UI strings are stored under assets/locales/.
+  //
+  // c) For App Bundles, Chrome UI strings are stored uncompressed under
+  //    assets/locales#lang_<lang>/ (where <lang> is an Android language code)
+  //    and assets/fallback-locales/ (for en-US.pak only).
+  //
+  // Which .pak files to load are determined here by two global variables with
+  // the following meaning:
+  //
+  //  g_locale_paks_in_apk:
+  //    If true, load the WebView strings from stored-locales/<locale>.pak file
+  //    as the webview locale pak file.
+  //
+  //    If false, try to load it from the app bundle specific location
+  //    (e.g. locales#lang_<language>/<locale>.pak). If the latter does not
+  //    exist, try to lookup the APK-specific locale .pak file.
+  //
+  //    g_locale_paks_in_apk is set by SetLocalePaksStoredInApk() which
+  //    is called from the WebView startup code.
+  //
+  //  g_load_non_webview_locale_paks:
+  //    If true, load the Webview strings from stored-locales/<locale>.pak file
+  //    as the non-webview locale pak file. Otherwise don't load a non-webview
+  //    locale at all.
+  //
+  //    This is set by DetectAndSetLoadNonWebViewLocalePaks() which is called
+  //    during ChromeMainDelegate::PostEarlyInitialization(). It will set the
+  //    value to true iff there are stored-locale/ .pak files.
+  //
+  // In other words, if both |g_locale_paks_in_apk| and
+  // |g_load_non_webview_locale_paks| are true, the stored-locales file will be
+  // loaded twice as both the webview and non-webview. However, this should
+  // never happen in practice.
+
+  // Load webview locale .pak file.
+  if (g_locale_paks_in_apk) {
+    webview_locale_pack->fd = LoadLocalePakFromApk(
+        app_locale, gender, false /* in_split */, &webview_locale_pack->region);
+  } else {
+    webview_locale_pack->fd = -1;
+
+    CHECK(ResourceBundle::HasSharedInstance());
+
+    // Support overridden pak path for testing.
+    base::FilePath locale_file_path =
+        ResourceBundle::GetSharedInstance().GetOverriddenPakPath();
+    if (locale_file_path.empty()) {
+      // Try to find the uncompressed split-specific asset file.
+      webview_locale_pack->fd =
+          LoadLocalePakFromApk(app_locale, gender, true /* in_split */,
+                               &webview_locale_pack->region);
+    }
+    if (webview_locale_pack->fd < 0) {
+      // Otherwise, try to locate the side-loaded locale .pak file (for tests).
+      if (locale_file_path.empty()) {
+        auto path =
+            ResourceBundle::GetSharedInstance().GetLocaleFilePath(app_locale);
+        if (base::PathExists(path)) {
+          locale_file_path = std::move(path);
+        }
+      }
+
+      if (locale_file_path.empty()) {
+        // It's possible that there is no locale.pak.
+        LOG(WARNING) << "locale_file_path.empty() for locale " << app_locale;
+        return false;
+      }
+      auto flags =
+          static_cast<uint32_t>(base::File::FLAG_OPEN | base::File::FLAG_READ);
+      webview_locale_pack->fd =
+          base::File(locale_file_path, flags).TakePlatformFile();
+      webview_locale_pack->region = base::MemoryMappedFile::Region::kWholeFile;
+    }
+  }
+
+  auto locale_data = LoadDataPackFromLocalePak(webview_locale_pack->fd,
+                                               webview_locale_pack->region);
+
+  if (!locale_data.get()) {
+    return false;
+  }
+
+  locale_resources_data->push_back(std::move(locale_data));
+
+  // Load non-webview locale .pak file if it exists. For debug build monochrome,
+  // a non-webview locale pak will always be loaded; however, it should be
+  // unnecessary for loading locale resources because the webview locale pak
+  // would have a copy of all the resources in the non-webview locale pak.
+  if (g_load_non_webview_locale_paks) {
+    non_webview_locale_pack->fd =
+        LoadLocalePakFromApk(app_locale, gender, false /* in_split */,
+                             &non_webview_locale_pack->region);
+
+    locale_data = LoadDataPackFromLocalePak(non_webview_locale_pack->fd,
+                                            non_webview_locale_pack->region);
+
+    if (!locale_data.get()) {
+      return false;
+    }
+
+    locale_resources_data->push_back(std::move(locale_data));
+  }
+
+  return true;
 }
 
 }  // namespace
@@ -132,10 +260,11 @@ void ResourceBundle::LoadCommonResources() {
 }
 
 // static
-bool ResourceBundle::LocaleDataPakExists(const std::string& locale) {
+bool ResourceBundle::LocaleDataPakExists(std::string_view locale,
+                                         Gender gender) {
   const bool in_split = !g_locale_paks_in_apk;
-  const bool exists =
-      ::ui::LocaleDataPakExists(locale, in_split, false /* log_error */);
+  const bool exists = ::ui::LocaleDataPakExists(locale, gender, in_split,
+                                                /*log_error=*/false);
   if (exists || !in_split) {
     return exists;
   }
@@ -147,102 +276,49 @@ bool ResourceBundle::LocaleDataPakExists(const std::string& locale) {
 
 std::string ResourceBundle::LoadLocaleResources(const std::string& pref_locale,
                                                 bool crash_on_failure) {
-  DCHECK(!locale_resources_data_.get() &&
-         !secondary_locale_resources_data_.get())
-      << "locale.pak already loaded";
+  DCHECK_EQ(locale_resources_data_.size(), 0u) << "locale.pak already loaded";
   std::string app_locale = l10n_util::GetApplicationLocale(pref_locale);
 
-  // Some Chromium apps have two sets of .pak files for their UI strings, i.e.:
-  //
-  // a) WebView strings, which are always stored uncompressed under
-  //    assets/stored-locales/ inside the APK or App Bundle.
-  //
-  // b) For APKs, the Chrome UI strings are stored under assets/locales/.
-  //
-  // c) For App Bundles, Chrome UI strings are stored uncompressed under
-  //    assets/locales#lang_<lang>/ (where <lang> is an Android language code)
-  //    and assets/fallback-locales/ (for en-US.pak only).
-  //
-  // Which .pak files to load are determined here by two global variables with
-  // the following meaning:
-  //
-  //  g_locale_paks_in_apk:
-  //    If true, load the WebView strings from stored-locales/<locale>.pak file
-  //    as the primary locale pak file.
-  //
-  //    If false, try to load it from the app bundle specific location
-  //    (e.g. locales#lang_<language>/<locale>.pak). If the latter does not
-  //    exist, try to lookup the APK-specific locale .pak file.
-  //
-  //    g_locale_paks_in_apk is set by SetLocalePaksStoredInApk() which
-  //    is called from the WebView startup code.
-  //
-  //  g_load_secondary_locale_paks:
-  //    If true, load the Webview strings from stored-locales/<locale>.pak file
-  //    as the secondary locale pak file. Otherwise don't load a secondary
-  //    locale at all.
-  //
-  //    This is set by DetectAndSetLoadSecondaryLocalePaks() which is called
-  //    during ChromeMainDelegate::PostEarlyInitialization(). It will set the
-  //    value to true iff there are stored-locale/ .pak files.
-  //
-  // In other words, if both |g_locale_paks_in_apk| and
-  // |g_load_secondary_locale_paks| are true, the stored-locales file will be
-  // loaded twice as both the primary and secondary. However, this should
-  // never happen in practice.
+  // TODO(crbug.com/420947195): Fetch user's gender (behind a flag).
+  const Gender gender = Gender::kDefault;
 
-  // Load primary locale .pak file.
-  if (g_locale_paks_in_apk) {
-    g_locale_pack_fd =
-        LoadLocalePakFromApk(app_locale, false, &g_locale_pack_region);
-  } else {
-    // Support overridden pak path for testing.
-    base::FilePath locale_file_path = GetOverriddenPakPath();
-    if (locale_file_path.empty()) {
-      // Try to find the uncompressed split-specific asset file.
-      g_locale_pack_fd =
-          LoadLocalePakFromApk(app_locale, true, &g_locale_pack_region);
-    }
-    if (g_locale_pack_fd < 0) {
-      // Otherwise, try to locate the side-loaded locale .pak file (for tests).
-      if (locale_file_path.empty()) {
-        auto path = GetLocaleFilePath(app_locale);
-        if (base::PathExists(path))
-          locale_file_path = std::move(path);
-      }
+  FdAndRegion webview_locale_pack;
+  FdAndRegion non_webview_locale_pack;
+  non_webview_locale_pack.fd = -1;
 
-      if (locale_file_path.empty()) {
-        // It's possible that there is no locale.pak.
-        LOG(WARNING) << "locale_file_path.empty() for locale " << app_locale;
-        return std::string();
-      }
-      auto flags =
-          static_cast<uint32_t>(base::File::FLAG_OPEN | base::File::FLAG_READ);
-      g_locale_pack_fd = base::File(locale_file_path, flags).TakePlatformFile();
-      g_locale_pack_region = base::MemoryMappedFile::Region::kWholeFile;
-    }
-  }
-
-  locale_resources_data_ =
-      LoadDataPackFromLocalePak(g_locale_pack_fd, g_locale_pack_region);
-
-  if (!locale_resources_data_.get()) {
+  if (!LoadLocaleResourcesForLocaleAndGender(
+          app_locale, gender, &webview_locale_pack, &non_webview_locale_pack,
+          &locale_resources_data_)) {
     return std::string();
   }
 
-  // Load secondary locale .pak file if it exists. For debug build monochrome,
-  // a secondary locale pak will always be loaded; however, it should be
-  // unnecessary for loading locale resources because the primary locale pak
-  // would have a copy of all the resources in the secondary locale pak.
-  if (g_load_secondary_locale_paks) {
-    g_secondary_locale_pack_fd = LoadLocalePakFromApk(
-        app_locale, false, &g_secondary_locale_pack_region);
+  std::vector<ResourceBundle::FdAndRegion>& locale_packs =
+      GetLocalePaksGlobal();
+  CHECK_EQ(locale_packs.size(), 0u);
 
-    secondary_locale_resources_data_ = LoadDataPackFromLocalePak(
-        g_secondary_locale_pack_fd, g_secondary_locale_pack_region);
+  webview_locale_pack.purpose = LocalePakPurpose::kWebViewMain;
+  locale_packs.push_back(webview_locale_pack);
 
-    if (!secondary_locale_resources_data_.get()) {
+  if (non_webview_locale_pack.fd >= 0) {
+    non_webview_locale_pack.purpose = LocalePakPurpose::kNonWebViewMain;
+    locale_packs.push_back(non_webview_locale_pack);
+  }
+
+  if (gender != Gender::kDefault) {
+    non_webview_locale_pack.fd = -1;
+
+    if (!LoadLocaleResourcesForLocaleAndGender(
+            app_locale, Gender::kDefault, &webview_locale_pack,
+            &non_webview_locale_pack, &locale_resources_data_)) {
       return std::string();
+    }
+
+    webview_locale_pack.purpose = LocalePakPurpose::kWebViewFallback;
+    locale_packs.push_back(webview_locale_pack);
+
+    if (non_webview_locale_pack.fd >= 0) {
+      non_webview_locale_pack.purpose = LocalePakPurpose::kNonWebViewFallback;
+      locale_packs.push_back(non_webview_locale_pack);
     }
   }
 
@@ -257,10 +333,11 @@ void SetLocalePaksStoredInApk(bool value) {
   g_locale_paks_in_apk = value;
 }
 
-void DetectAndSetLoadSecondaryLocalePaks() {
-  // Auto-detect based on en-US whether secondary locale .pak files exist.
-  g_load_secondary_locale_paks =
-      LocaleDataPakExists("en-US", false /* in_split */, false /* log_error */);
+void DetectAndSetLoadNonWebViewLocalePaks() {
+  // Auto-detect based on en-US whether non-webview locale .pak files exist.
+  g_load_non_webview_locale_paks =
+      LocaleDataPakExists("en-US", ResourceBundle::Gender::kDefault,
+                          false /* in_split */, false /* log_error */);
 }
 
 void LoadMainAndroidPackFile(const char* path_within_apk,
@@ -298,21 +375,25 @@ FileDescriptor GetCommonResourcesPackFd(
   return g_chrome_100_percent_fd;
 }
 
-FileDescriptor GetLocalePackFd(base::MemoryMappedFile::Region* out_region) {
-  DCHECK_GE(g_locale_pack_fd, 0);
-  *out_region = g_locale_pack_region;
-  return g_locale_pack_fd;
-}
-
-FileDescriptor GetSecondaryLocalePackFd(
-    base::MemoryMappedFile::Region* out_region) {
-  *out_region = g_secondary_locale_pack_region;
-  return g_secondary_locale_pack_fd;
+const std::vector<ResourceBundle::FdAndRegion>& GetLocalePaks() {
+  const std::vector<ResourceBundle::FdAndRegion>& locale_packs =
+      GetLocalePaksGlobal();
+  CHECK_GT(locale_packs.size(), 0u);
+  return locale_packs;
 }
 
 void SetNoAvailableLocalePaksForTest() {
   Java_ResourceBundle_setNoAvailableLocalePaks(
       base::android::AttachCurrentThread());
+}
+
+void UnloadAndroidLocaleResources() {
+  GetLocalePaksGlobal().clear();
+}
+
+std::vector<ResourceBundle::FdAndRegion> SwapAndroidGlobalsForTesting(
+    const std::vector<ResourceBundle::FdAndRegion>& new_locale_packs) {
+  return std::exchange(GetLocalePaksGlobal(), new_locale_packs);
 }
 
 }  // namespace ui

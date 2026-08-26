@@ -10,27 +10,27 @@
 #include "gin/arguments.h"
 #include "gin/converter.h"
 #include "gin/data_object_builder.h"
-#include "gin/handle.h"
 #include "gin/public/wrapper_info.h"
 #include "mojo/public/c/system/types.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "services/accessibility/features/mojo/mojo_handle.h"
-#include "services/accessibility/features/registered_wrappable.h"
 #include "services/accessibility/features/v8_manager.h"
+#include "v8/include/cppgc/allocation.h"
 #include "v8/include/v8-context.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8-isolate.h"
 #include "v8/include/v8-local-handle.h"
+#include "v8/include/v8-object.h"
 #include "v8/include/v8-primitive.h"
 
 namespace ax {
 
 // static
-gin::WrapperInfo Mojo::kWrapperInfo = {gin::kEmbedderNativeGin};
-
-// static
-gin::Handle<Mojo> Mojo::Create(v8::Local<v8::Context> context) {
-  return gin::CreateHandle(context->GetIsolate(), new Mojo(context));
+v8::Local<v8::Object> Mojo::Create(v8::Isolate* isolate) {
+  Mojo* mojo = cppgc::MakeGarbageCollected<Mojo>(
+      isolate->GetCppHeap()->GetAllocationHandle());
+  return mojo->GetWrapper(isolate).ToLocalChecked();
 }
 
 gin::ObjectTemplateBuilder Mojo::GetObjectTemplateBuilder(
@@ -58,6 +58,10 @@ gin::ObjectTemplateBuilder Mojo::GetObjectTemplateBuilder(
       .SetValue("RESULT_SHOULD_WAIT", MOJO_RESULT_SHOULD_WAIT);
 }
 
+const gin::WrapperInfo* Mojo::wrapper_info() const {
+  return &kWrapperInfo;
+}
+
 void Mojo::CreateMessagePipe(gin::Arguments* arguments) {
   v8::Isolate* isolate = arguments->isolate();
   CHECK(isolate);
@@ -78,11 +82,10 @@ void Mojo::CreateMessagePipe(gin::Arguments* arguments) {
   v8_result_dict.Set("result", result);
 
   if (result == MOJO_RESULT_OK) {
-    v8::Local<v8::Context> context = arguments->GetHolderCreationContext();
     v8_result_dict
-        .Set("handle0", MojoHandle::Create(context, mojo::ScopedHandle::From(
+        .Set("handle0", MojoHandle::Create(isolate, mojo::ScopedHandle::From(
                                                         std::move(handle0))))
-        .Set("handle1", MojoHandle::Create(context, mojo::ScopedHandle::From(
+        .Set("handle1", MojoHandle::Create(isolate, mojo::ScopedHandle::From(
                                                         std::move(handle1))));
   }
 
@@ -103,12 +106,12 @@ void Mojo::BindInterface(gin::Arguments* arguments) {
   std::string interface_name;
   gin::ConvertFromV8(isolate, v8_interface_name, &interface_name);
 
-  gin::Handle<MojoHandle> gin_handle;
-  if (!gin::ConvertFromV8(isolate, args[1], &gin_handle)) {
+  MojoHandle* mojo_handle;
+  if (!gin::ConvertFromV8(isolate, args[1], &mojo_handle)) {
     LOG(ERROR) << "Failed to get handle from Mojo::BindInterface";
     return;
   }
-  auto handle = mojo::ScopedMessagePipeHandle::From(gin_handle->TakeHandle());
+  auto handle = mojo::ScopedMessagePipeHandle::From(mojo_handle->TakeHandle());
 
   mojo::GenericPendingReceiver receiver(interface_name, std::move(handle));
 
@@ -120,6 +123,8 @@ void Mojo::BindInterface(gin::Arguments* arguments) {
                                                         std::move(receiver));
 }
 
-Mojo::Mojo(v8::Local<v8::Context> context) : RegisteredWrappable(context) {}
+Mojo::Mojo() = default;
+
+Mojo::~Mojo() = default;
 
 }  // namespace ax

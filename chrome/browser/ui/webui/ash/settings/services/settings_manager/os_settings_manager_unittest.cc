@@ -38,6 +38,7 @@
 #include "chromeos/ash/experiences/arc/arc_features.h"
 #include "chromeos/ash/experiences/arc/test/arc_util_test_support.h"
 #include "components/account_id/account_id.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "components/user_manager/user_manager.h"
 #include "components/user_manager/user_names.h"
@@ -65,9 +66,7 @@ class OsSettingsManagerTest : public testing::Test {
   // testing::Test:
   void SetUp() override {
     scoped_feature_list_.InitWithFeatures(
-        {ash::features::kInputDeviceSettingsSplit,
-         ash::features::kPeripheralCustomization, arc::kPerAppLanguage},
-        {});
+        {ash::features::kPeripheralCustomization, arc::kPerAppLanguage}, {});
     ASSERT_TRUE(profile_manager_.SetUp());
     Profile* profile = profile_manager_.CreateTestingProfile(
         TestingProfile::kDefaultProfileUserName);

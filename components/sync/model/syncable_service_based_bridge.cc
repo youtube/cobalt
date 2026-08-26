@@ -14,6 +14,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/memory_usage_estimator.h"
 #include "base/trace_event/trace_event.h"
@@ -25,6 +26,7 @@
 #include "components/sync/model/sync_change.h"
 #include "components/sync/model/syncable_service.h"
 #include "components/sync/protocol/data_type_state_helper.h"
+#include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/persisted_entity_data.pb.h"
 #include "components/sync/protocol/proto_memory_estimations.h"
@@ -93,7 +95,9 @@ std::optional<ModelError> ParseInMemoryStoreOnBackendSequence(
   for (const DataTypeStore::Record& record : *record_list) {
     sync_pb::PersistedEntityData persisted_entity;
     if (!persisted_entity.ParseFromString(record.value)) {
-      return ModelError(FROM_HERE, "Failed deserializing data.");
+      return ModelError(
+          FROM_HERE,
+          ModelError::Type::kSyncableServiceBasedBridgeFailedToDeserializeData);
     }
 
     in_memory_store->emplace(record.id, std::move(persisted_entity));
@@ -321,14 +325,12 @@ SyncableServiceBasedBridge::GetAllDataForDebugging() {
 
 std::string SyncableServiceBasedBridge::GetClientTag(
     const EntityData& entity_data) const {
-  // Not supported as per SupportsGetClientTag().
-  NOTREACHED();
+  return syncable_service_->GetClientTag(entity_data);
 }
 
 std::string SyncableServiceBasedBridge::GetStorageKey(
     const EntityData& entity_data) const {
-  // Not supported as per SupportsGetStorageKey().
-  NOTREACHED();
+  return syncable_service_->GetClientTag(entity_data);
 }
 
 bool SyncableServiceBasedBridge::IsEntityDataValid(
@@ -339,7 +341,7 @@ bool SyncableServiceBasedBridge::IsEntityDataValid(
 }
 
 bool SyncableServiceBasedBridge::SupportsGetClientTag() const {
-  return false;
+  return syncable_service_->SupportsGetClientTag();
 }
 
 bool SyncableServiceBasedBridge::SupportsGetStorageKey() const {
@@ -492,7 +494,17 @@ void SyncableServiceBasedBridge::OnSyncableServiceReady(
           /*min=*/base::Milliseconds(1),
           /*max=*/base::Seconds(60), /*buckets=*/50);
     }
+  } else {
+    // If the metadata was empty or invalid, then the metadata should have been
+    // cleared by the processor. Consequently, the syncable service should also
+    // be informed to clear any stale data.
+    syncable_service_->StayStoppedAndMaybeClearData(type_);
   }
+  base::UmaHistogramBoolean(
+      base::StrCat(
+          {"Sync.SyncableService.MaybeClearDataIfMetadataEmptyOrInvalid.",
+           DataTypeToHistogramSuffix(type_)}),
+      !change_processor()->IsTrackingMetadata());
 }
 
 std::optional<ModelError> SyncableServiceBasedBridge::StartSyncableService() {

@@ -14,12 +14,15 @@
 #include "build/build_config.h"
 #include "chrome/browser/picture_in_picture/auto_pip_setting_overlay_view.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_widget_fade_animator.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+#include "chrome/browser/picture_in_picture/scoped_tuck_picture_in_picture.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/overlay/back_to_tab_button.h"
 #include "chrome/browser/ui/views/overlay/close_image_button.h"
 #include "chrome/browser/ui/views/overlay/hang_up_button.h"
 #include "chrome/browser/ui/views/overlay/minimize_button.h"
+#include "chrome/browser/ui/views/overlay/overlay_window_live_caption_button.h"
 #include "chrome/browser/ui/views/overlay/overlay_window_live_caption_dialog.h"
 #include "chrome/browser/ui/views/overlay/playback_image_button.h"
 #include "chrome/browser/ui/views/overlay/simple_overlay_window_image_button.h"
@@ -48,6 +51,8 @@
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/vector2d.h"
+#include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/animation/widget_fade_animator.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/toggle_button.h"
 #include "ui/views/controls/image_view.h"
@@ -795,6 +800,49 @@ TEST_F(VideoOverlayWindowViewsTest, LiveStatusNotDrawnWhen2024UIIsDisabled) {
   ASSERT_EQ(nullptr, live_status);
 }
 
+TEST_F(VideoOverlayWindowViewsTest, CanBeTuckedToTheSideOfTheScreen) {
+  // Place the window on the left side of the screen.
+  SetDisplayWorkArea({0, 0, 2000, 2000});
+  overlay_window().SetBounds({{400, 400}, {500, 500}});
+
+  // If we tell it to force tucking, it should tuck to the left side of the
+  // screen.
+  overlay_window().SetForcedTucking(true);
+  overlay_window().FinishTuckAnimationForTesting();
+  EXPECT_LT(overlay_window().GetWindowBoundsInScreen().x(), 0);
+
+  // If we tell it to stop tucking, it should be put back in its original
+  // position.
+  overlay_window().SetForcedTucking(false);
+  overlay_window().FinishTuckAnimationForTesting();
+  EXPECT_EQ(overlay_window().GetWindowBoundsInScreen().x(), 400);
+}
+
+TEST_F(VideoOverlayWindowViewsTest, UntucksWhenReshownIfNecessary) {
+  // Place the window on the left side of the screen.
+  SetDisplayWorkArea({0, 0, 2000, 2000});
+  overlay_window().SetBounds({{400, 400}, {500, 500}});
+  overlay_window().ShowInactive();
+
+  // Start tucking via a ScopedTuckPictureInPicture.
+  auto scoped_tuck = std::make_unique<ScopedTuckPictureInPicture>();
+  overlay_window().FinishTuckAnimationForTesting();
+  EXPECT_LT(overlay_window().GetWindowBoundsInScreen().x(), 0);
+
+  // Hide ourselves. This will mean if tucking ends then the
+  // PictureInPictureWindowManager won't actually notify us.
+  overlay_window().Hide();
+
+  // End tucking.
+  scoped_tuck.reset();
+
+  // Show ourselves. We should check with the PictureInPictureWindowManager and
+  // realize we should no longer tuck.
+  overlay_window().ShowInactive();
+  overlay_window().FinishTuckAnimationForTesting();
+  EXPECT_EQ(overlay_window().GetWindowBoundsInScreen().x(), 400);
+}
+
 TEST_F(VideoOverlayWindowViewsTest,
        ReplayAndForward10SecondsNotDrawnWhen2024UIIsDisabled) {
   overlay_window().ForceControlsVisibleForTesting(true);
@@ -821,7 +869,7 @@ TEST_F(VideoOverlayWindowViewsTest, OriginNotDrawnWhen2024UIIsDisabled) {
 TEST_F(VideoOverlayWindowViewsTest,
        LiveCaptionButtonNotDrawnWhen2024UIIsDisabled) {
   overlay_window().ForceControlsVisibleForTesting(true);
-  SimpleOverlayWindowImageButton* live_caption_button =
+  OverlayWindowLiveCaptionButton* live_caption_button =
       overlay_window().live_caption_button_for_testing();
   ASSERT_EQ(nullptr, live_caption_button);
 }
@@ -1270,13 +1318,23 @@ TEST_F(VideoOverlayWindowViewsWith2024UITest, VideoConferencingUI) {
 TEST_F(VideoOverlayWindowViewsWith2024UITest, LiveCaption) {
   overlay_window().ForceControlsVisibleForTesting(true);
   profile().GetPrefs()->SetBoolean(prefs::kLiveCaptionEnabled, false);
-  SimpleOverlayWindowImageButton* live_caption_button =
+  OverlayWindowLiveCaptionButton* live_caption_button =
       overlay_window().live_caption_button_for_testing();
   OverlayWindowLiveCaptionDialog* live_caption_dialog =
       overlay_window().live_caption_dialog_for_testing();
 
   ASSERT_NE(nullptr, live_caption_button);
   ASSERT_NE(nullptr, live_caption_dialog);
+
+  {
+    // The accessible data of the toggle button should show the state as
+    // collapsed.
+    ui::AXNodeData node_data;
+    live_caption_button->GetViewAccessibility().GetAccessibleNodeData(
+        &node_data);
+    EXPECT_FALSE(node_data.HasState(ax::mojom::State::kExpanded));
+    EXPECT_TRUE(node_data.HasState(ax::mojom::State::kCollapsed));
+  }
 
   // The live caption button should start visible and the live caption dialog
   // should start invisible.
@@ -1291,6 +1349,16 @@ TEST_F(VideoOverlayWindowViewsWith2024UITest, LiveCaption) {
   live_caption_button_clicker.NotifyClick(dummy_event);
   WaitForLayout();
   EXPECT_TRUE(live_caption_dialog->IsDrawn());
+
+  {
+    // The accessible data of the toggle button should show the state as
+    // expanded once the dialog is there.
+    ui::AXNodeData node_data;
+    live_caption_button->GetViewAccessibility().GetAccessibleNodeData(
+        &node_data);
+    EXPECT_TRUE(node_data.HasState(ax::mojom::State::kExpanded));
+    EXPECT_FALSE(node_data.HasState(ax::mojom::State::kCollapsed));
+  }
 
   // The live caption button should be enabled and toggled off, while the live
   // translate button should be disabled and toggled off.
@@ -1314,4 +1382,218 @@ TEST_F(VideoOverlayWindowViewsWith2024UITest, LiveCaption) {
   EXPECT_TRUE(live_caption_toggle_button->GetIsOn());
   EXPECT_TRUE(live_translate_toggle_button->GetEnabled());
   EXPECT_FALSE(live_translate_toggle_button->GetIsOn());
+}
+
+TEST_F(VideoOverlayWindowViewsWith2024UITest, LiveCaption_MouseClickOutside) {
+  overlay_window().ForceControlsVisibleForTesting(true);
+  OverlayWindowLiveCaptionButton* live_caption_button =
+      overlay_window().live_caption_button_for_testing();
+  OverlayWindowLiveCaptionDialog* live_caption_dialog =
+      overlay_window().live_caption_dialog_for_testing();
+
+  ASSERT_NE(nullptr, live_caption_button);
+  ASSERT_NE(nullptr, live_caption_dialog);
+
+  // The live caption button should start visible and the live caption dialog
+  // should start invisible.
+  WaitForLayout();
+  EXPECT_TRUE(live_caption_button->IsDrawn());
+  EXPECT_FALSE(live_caption_dialog->IsDrawn());
+
+  // Pressing the live caption button should display the live caption dialog.
+  views::test::ButtonTestApi live_caption_button_clicker(live_caption_button);
+  ui::MouseEvent dummy_event(ui::EventType::kMousePressed, gfx::Point(0, 0),
+                             gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
+  live_caption_button_clicker.NotifyClick(dummy_event);
+  WaitForLayout();
+  EXPECT_TRUE(live_caption_dialog->IsDrawn());
+
+  // Clicking outside of the live caption dialog should close the live caption
+  // dialog.
+  gfx::Point outside_point = live_caption_dialog->bounds().origin();
+  outside_point.Offset(-20, -20);
+  ui::MouseEvent click_outside_event(ui::EventType::kMousePressed,
+                                     outside_point, outside_point,
+                                     ui::EventTimeForNow(), 0, 0);
+  overlay_window().OnMouseEvent(&click_outside_event);
+  EXPECT_FALSE(live_caption_dialog->IsDrawn());
+}
+
+TEST_F(VideoOverlayWindowViewsWith2024UITest, LiveCaption_GestureTapOutside) {
+  overlay_window().ForceControlsVisibleForTesting(true);
+  OverlayWindowLiveCaptionButton* live_caption_button =
+      overlay_window().live_caption_button_for_testing();
+  OverlayWindowLiveCaptionDialog* live_caption_dialog =
+      overlay_window().live_caption_dialog_for_testing();
+
+  ASSERT_NE(nullptr, live_caption_button);
+  ASSERT_NE(nullptr, live_caption_dialog);
+
+  // The live caption button should start visible and the live caption dialog
+  // should start invisible.
+  WaitForLayout();
+  EXPECT_TRUE(live_caption_button->IsDrawn());
+  EXPECT_FALSE(live_caption_dialog->IsDrawn());
+
+  // Pressing the live caption button should display the live caption dialog.
+  views::test::ButtonTestApi live_caption_button_clicker(live_caption_button);
+  ui::MouseEvent dummy_event(ui::EventType::kMousePressed, gfx::Point(0, 0),
+                             gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
+  live_caption_button_clicker.NotifyClick(dummy_event);
+  WaitForLayout();
+  EXPECT_TRUE(live_caption_dialog->IsDrawn());
+
+  // Tapping outside of the live caption dialog should close the live caption
+  // dialog.
+  gfx::Point outside_point = live_caption_dialog->bounds().origin();
+  outside_point.Offset(-20, -20);
+  ui::GestureEvent tap_outside_event(
+      outside_point.x(), outside_point.y(), 0, base::TimeTicks::Now(),
+      ui::GestureEventDetails(ui::EventType::kGestureTap));
+  overlay_window().OnGestureEvent(&tap_outside_event);
+  EXPECT_FALSE(live_caption_dialog->IsDrawn());
+}
+
+TEST_F(VideoOverlayWindowViewsWith2024UITest, InitialTitleAndScrimVisibility) {
+  overlay_window().ForceControlsVisibleForTesting(false);
+  overlay_window().ShowInactive();
+  WaitForLayout();
+
+  // The initial title hide timer should be running.
+  EXPECT_TRUE(
+      overlay_window().initial_title_hide_timer_for_testing().IsRunning());
+
+  // Title and scrim should be visible.
+  EXPECT_TRUE(overlay_window().AreTitleAndScrimVisibleForTesting());
+}
+
+TEST_F(VideoOverlayWindowViewsWith2024UITest, TitleAndScrimHideAfterTimer) {
+  overlay_window().ShowInactive();
+  WaitForLayout();
+
+  // Fast forward time to fire the timer.
+  task_environment()->FastForwardBy(
+      VideoOverlayWindowViews::kTitleShowDuration);
+
+  // Timer should not be running anymore.
+  EXPECT_FALSE(
+      overlay_window().initial_title_hide_timer_for_testing().IsRunning());
+
+  // Title and scrim should now be animating to hidden.
+  EXPECT_FALSE(overlay_window().AreTitleAndScrimVisibleForTesting());
+  EXPECT_FALSE(overlay_window().AreControlsVisible());
+}
+
+TEST_F(VideoOverlayWindowViewsWith2024UITest, MouseHoverShowsAllControls) {
+  overlay_window().ShowInactive();
+  WaitForLayout();
+
+  // Move mouse over the window.
+  const auto controls_top_scrim_bounds =
+      overlay_window().controls_top_scrim_view_for_testing()->bounds();
+  const gfx::Point moved_location(controls_top_scrim_bounds.CenterPoint());
+  ui::MouseEvent moved_event(ui::EventType::kMouseMoved, moved_location,
+                             moved_location, ui::EventTimeForNow(), ui::EF_NONE,
+                             ui::EF_NONE);
+  overlay_window().OnMouseEvent(&moved_event);
+
+  // Timer should not be running anymore.
+  EXPECT_FALSE(
+      overlay_window().initial_title_hide_timer_for_testing().IsRunning());
+
+  // All controls should now be visible or animating to visible.
+  EXPECT_TRUE(overlay_window().AreTitleAndScrimVisibleForTesting());
+  EXPECT_TRUE(overlay_window().AreControlsVisible());
+}
+
+class VideoOverlayWindowWithShowAnimationTest
+    : public VideoOverlayWindowViewsTest {
+ public:
+  void SetUp() override {
+    AddEnabledFeature(media::kPictureInPictureShowWindowAnimation);
+    VideoOverlayWindowViewsTest::SetUp();
+#if BUILDFLAG(IS_WIN)
+    GTEST_SKIP() << "Fade in animation is disabled on Windows.";
+#endif
+  }
+};
+
+TEST_F(VideoOverlayWindowWithShowAnimationTest,
+       FadeInAnimationIsUsedOnWindowShow) {
+  // ShowInactive should trigger the fade-in animation.
+  overlay_window().ShowInactive();
+
+  // Get the PiP fade animator.
+  PictureInPictureWidgetFadeAnimator* pip_fade_animator =
+      overlay_window().get_fade_animator_for_testing();
+  EXPECT_NE(nullptr, pip_fade_animator);
+
+  // Get the widget fade animator and verify that it is fading in.
+  views::WidgetFadeAnimator* widget_fade_animator =
+      pip_fade_animator->GetWidgetFadeAnimatorForTesting();
+  EXPECT_NE(nullptr, widget_fade_animator);
+  EXPECT_TRUE(widget_fade_animator->IsFadingIn());
+}
+
+TEST_F(VideoOverlayWindowWithShowAnimationTest,
+       FadeInAnimationIsCancelledOnHide) {
+  overlay_window().ShowInactive();
+
+  // Get the PiP fade animator.
+  PictureInPictureWidgetFadeAnimator* pip_fade_animator =
+      overlay_window().get_fade_animator_for_testing();
+  EXPECT_NE(nullptr, pip_fade_animator);
+
+  // Get the widget fade animator and verify that it is fading in.
+  views::WidgetFadeAnimator* widget_fade_animator =
+      pip_fade_animator->GetWidgetFadeAnimatorForTesting();
+  EXPECT_NE(nullptr, widget_fade_animator);
+  EXPECT_TRUE(widget_fade_animator->IsFadingIn());
+
+  // Hiding the window should cancel the animation.
+  overlay_window().Hide();
+  EXPECT_EQ(nullptr, overlay_window()
+                         .get_fade_animator_for_testing()
+                         ->GetWidgetFadeAnimatorForTesting());
+}
+
+TEST_F(VideoOverlayWindowWithShowAnimationTest,
+       FadeInAnimationIsCancelledOnClose) {
+  overlay_window().ShowInactive();
+
+  // Get the PiP fade animator.
+  PictureInPictureWidgetFadeAnimator* pip_fade_animator =
+      overlay_window().get_fade_animator_for_testing();
+  EXPECT_NE(nullptr, pip_fade_animator);
+
+  // Get the widget fade animator and verify that it is fading in.
+  views::WidgetFadeAnimator* widget_fade_animator =
+      pip_fade_animator->GetWidgetFadeAnimatorForTesting();
+  EXPECT_NE(nullptr, widget_fade_animator);
+  EXPECT_TRUE(widget_fade_animator->IsFadingIn());
+
+  // Closing the window should cancel the animation.
+  overlay_window().Close();
+  EXPECT_EQ(nullptr, overlay_window()
+                         .get_fade_animator_for_testing()
+                         ->GetWidgetFadeAnimatorForTesting());
+}
+
+TEST_F(VideoOverlayWindowWithShowAnimationTest,
+       AnimatorIsResetWhenWidgetIsDestroyedDuringAnimation) {
+  overlay_window().ShowInactive();
+
+  // Get the PiP fade animator.
+  PictureInPictureWidgetFadeAnimator* pip_fade_animator =
+      overlay_window().get_fade_animator_for_testing();
+  EXPECT_NE(nullptr, pip_fade_animator);
+
+  // Get the widget fade animator and verify that it is fading in.
+  views::WidgetFadeAnimator* widget_fade_animator =
+      pip_fade_animator->GetWidgetFadeAnimatorForTesting();
+  EXPECT_NE(nullptr, widget_fade_animator);
+  EXPECT_TRUE(widget_fade_animator->IsFadingIn());
+
+  // Destroying the widget during the animation should not crash.
+  DestroyOverlayWindow();
 }

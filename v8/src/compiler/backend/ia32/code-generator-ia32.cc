@@ -293,43 +293,42 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand operand,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode)
+                       Register value, Register scratch, RecordWriteMode mode,
+                       StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         operand_(operand),
         value_(value),
-        scratch0_(scratch0),
-        scratch1_(scratch1),
+        scratch_(scratch),
         mode_(mode),
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
         zone_(gen->zone()) {
-    DCHECK(!AreAliased(object, scratch0, scratch1));
-    DCHECK(!AreAliased(value, scratch0, scratch1));
+    DCHECK(!AreAliased(object, scratch));
+    DCHECK(!AreAliased(value, scratch));
   }
 
   void Generate() final {
-    __ CheckPageFlag(value_, scratch0_,
+    __ CheckPageFlag(value_, scratch_,
                      MemoryChunk::kPointersToHereAreInterestingMask, zero,
                      exit());
-    __ lea(scratch1_, operand_);
+    __ lea(scratch_, operand_);
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
-      __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+      __ CallEphemeronKeyBarrier(object_, scratch_, save_fp_mode);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode,
+      __ CallRecordWriteStubSaveRegisters(object_, scratch_, save_fp_mode,
                                           StubCallMode::kCallWasmRuntimeStub);
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode);
+      __ CallRecordWriteStubSaveRegisters(object_, scratch_, save_fp_mode);
     }
   }
 
@@ -337,8 +336,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const object_;
   Operand const operand_;
   Register const value_;
-  Register const scratch0_;
-  Register const scratch1_;
+  Register const scratch_;
   RecordWriteMode const mode_;
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
@@ -918,6 +916,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchNop:
       // don't emit code for nops.
       break;
+    case kArchPause:
+      __ pause();
+      break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
           BuildTranslation(instr, -1, 0, 0, OutputFrameStateCombine::Ignore());
@@ -993,8 +994,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index);
-      Register scratch0 = i.TempRegister(0);
-      Register scratch1 = i.TempRegister(1);
+      Register scratch = i.TempRegister(0);
 
       if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
@@ -1003,19 +1003,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Check(not_equal, AbortReason::kOperandIsCleared);
       }
 
-      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
-                                                   scratch0, scratch1, mode,
-                                                   DetermineStubCallMode());
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, value, scratch, mode, DetermineStubCallMode());
       if (arch_opcode == kArchStoreWithWriteBarrier) {
         __ mov(operand, value);
       } else {
-        __ mov(scratch0, value);
-        __ xchg(scratch0, operand);
+        __ mov(scratch, value);
+        __ xchg(scratch, operand);
       }
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, scratch0,
+      __ CheckPageFlag(object, scratch,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
       __ bind(ool->exit());
@@ -3583,6 +3582,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xchg(i.InputRegister(0), i.MemoryOperand(1));
       break;
     }
+    case kAtomicExchangeWithWriteBarrier: {
+      Register scratch = i.TempRegister(0);
+      Register object = i.InputRegister(1);
+      Register written_value = i.TempRegister(1);
+      Operand operand = i.MemoryOperand(1);
+      __ mov(written_value, i.InputRegister(0));
+      __ xchg(i.InputRegister(0), operand);
+      if (v8_flags.disable_write_barriers) break;
+      // Emit write barrier.
+      if (v8_flags.debug_code) {
+        // Checking that |written_value| is not a cleared weakref: our write
+        // barrier does not support that for now.
+        __ cmp(written_value, Immediate(kClearedWeakHeapObjectLower32));
+        __ Check(not_equal, AbortReason::kOperandIsCleared);
+      }
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, written_value, scratch,
+          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ JumpIfSmi(written_value, ool->exit());
+      __ CheckPageFlag(object, scratch,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
     case kIA32Word32AtomicPairExchange: {
       DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr));
       Label exchange;
@@ -3626,6 +3650,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeWord32: {
       __ lock();
       __ cmpxchg(i.MemoryOperand(2), i.InputRegister(1));
+      break;
+    }
+    case kAtomicCompareExchangeWithWriteBarrier: {
+      Register written_value = i.TempRegister(0);
+      Register object = i.InputRegister(2);
+      Operand operand = i.MemoryOperand(2);
+      __ mov(written_value, i.InputRegister(1));
+      __ lock();
+      __ cmpxchg(operand, i.InputRegister(1));
+      if (v8_flags.disable_write_barriers) break;
+      // Emit write barrier.
+      if (v8_flags.debug_code) {
+        // Checking that |written_value| is not a cleared weakref: our write
+        // barrier does not support that for now.
+        __ cmp(written_value, Immediate(kClearedWeakHeapObjectLower32));
+        __ Check(not_equal, AbortReason::kOperandIsCleared);
+      }
+      // Reuse eax (the result register) as a scratch register for the write
+      // barrier.
+      __ Push(eax);
+      Register scratch = eax;
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, written_value, scratch,
+          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ JumpIfSmi(written_value, ool->exit());
+      __ CheckPageFlag(object, scratch,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
+      __ bind(ool->exit());
+      __ Pop(eax);
       break;
     }
     case kIA32Word32AtomicPairCompareExchange: {
@@ -3864,9 +3918,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&done);
 }
 
-void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+#if V8_ENABLE_WEBASSEMBLY
+void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
+                                                FlagsCondition condition) {
   UNREACHABLE();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
                                                   BranchInfo* branch) {
@@ -4134,7 +4191,17 @@ void CodeGenerator::AssembleConstructFrame() {
                Immediate(static_cast<int32_t>(
                    call_descriptor->ParameterSlotCount() * kSystemPointerSize +
                    CommonFrameConstants::kFixedFrameSizeAboveFp)));
-        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ wasm_call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+                     RelocInfo::WASM_STUB_CALL);
+        // If the call succesfully grew the stack, we don't expect it to have
+        // allocated any heap objects or otherwise triggered any GC.
+        // If it was not able to grow the stack, it may have triggered a GC when
+        // allocating the stack overflow exception object, but the call did not
+        // return in this case.
+        // So either way, we can just ignore any references and record an empty
+        // safepoint here.
+        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
+        RecordSafepoint(reference_map);
         for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); i++) {
           __ Movdqu(wasm::kFpParamRegisters[i], Operand(esp, kSimd128Size * i));
         }

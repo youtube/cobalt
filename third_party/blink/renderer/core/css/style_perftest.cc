@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 // A benchmark to verify style performance (and also hooks into layout,
 // but not generally layout itself). This isolates style from paint etc.,
 // for more stable benchmarking and profiling. Note that this test
@@ -17,8 +12,10 @@
 #include <string_view>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/json/json_reader.h"
+#include "base/strings/string_view_util.h"
 #include "testing/perf/perf_result_reporter.h"
 #include "testing/perf/perf_test.h"
 #include "third_party/blink/renderer/core/css/container_query_data.h"
@@ -43,10 +40,10 @@
 namespace blink {
 
 // The HTML left by the dumper script will contain any <style> tags that were
-// in the DOM, which will be interpreted by setInnerHTML() and converted to
-// style sheets. However, we already have our own canonical list of sheets
-// (from the JSON) that we want to use. Keeping both will make for duplicated
-// rules, enabling rules and sheets that have since been deleted
+// in the DOM, which will be interpreted by SetInnerHTMLWithoutTrustedTypes()
+// and converted to style sheets. However, we already have our own canonical
+// list of sheets (from the JSON) that we want to use. Keeping both will make
+// for duplicated rules, enabling rules and sheets that have since been deleted
 // (occasionally even things like “display: none !important”) and so on.
 // Thus, as a kludge, we strip all <style> tags from the HTML here before
 // parsing.
@@ -103,7 +100,7 @@ static std::unique_ptr<DummyPageHolder> LoadDumpedPage(
 
   Document& document = page->GetDocument();
   StyleEngine& engine = document.GetStyleEngine();
-  document.documentElement()->setInnerHTML(
+  document.documentElement()->SetInnerHTMLWithoutTrustedTypes(
       StripStyleTags(WTF::String(*dict.FindString("html"))),
       ASSERT_NO_EXCEPTION);
 
@@ -187,7 +184,7 @@ static StylePerfResult MeasureStyleForDumpedPage(
   size_t orig_gc_allocated_bytes =
       blink::ProcessHeap::TotalAllocatedObjectSize();
   size_t orig_partition_allocated_bytes =
-      WTF::Partitions::TotalSizeOfCommittedPages();
+      Partitions::TotalSizeOfCommittedPages();
 
   std::unique_ptr<DummyPageHolder> page;
 
@@ -241,8 +238,7 @@ static StylePerfResult MeasureStyleForDumpedPage(
   test::RunPendingTasks();
 
   size_t gc_allocated_bytes = blink::ProcessHeap::TotalAllocatedObjectSize();
-  size_t partition_allocated_bytes =
-      WTF::Partitions::TotalSizeOfCommittedPages();
+  size_t partition_allocated_bytes = Partitions::TotalSizeOfCommittedPages();
 
   result.gc_allocated_bytes = gc_allocated_bytes - orig_gc_allocated_bytes;
   result.partition_allocated_bytes =
@@ -267,8 +263,9 @@ static void MeasureAndPrintStyleForDumpedPage(const char* filename,
       MeasureStyleForDumpedPage(filename, parse_only, &reporter);
   if (result.skipped) {
     char msg[256];
-    snprintf(msg, sizeof(msg), "Skipping %s test because %s could not be read",
-             label, filename);
+    UNSAFE_TODO(snprintf(msg, sizeof(msg),
+                         "Skipping %s test because %s could not be read", label,
+                         filename));
     GTEST_SKIP_(msg);
   }
 

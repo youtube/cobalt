@@ -12,6 +12,7 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/cancelable_task_tracker.h"
+#include "build/branding_buildflags.h"
 #include "chrome/browser/ui/autofill/autofill_popup_controller.h"
 #include "chrome/browser/ui/autofill/mock_autofill_popup_controller.h"
 #include "chrome/browser/ui/browser.h"
@@ -49,10 +50,54 @@ Suggestion CreatePasswordSuggestion(const std::u16string& main_text) {
   return suggestion;
 }
 
+Suggestion CreateTryThisRecoverySuggestion(const std::u16string& main_text) {
+  Suggestion suggestion(main_text, SuggestionType::kBackupPasswordEntry);
+  suggestion.icon = Suggestion::Icon::kRecoveryPassword;
+  suggestion.additional_label = u"******";
+  suggestion.additional_label_alignment_right = true;
+  return suggestion;
+}
+
+Suggestion CreateTroubleSigninInSuggestion(const std::u16string& main_text) {
+  Suggestion suggestion(main_text, SuggestionType::kBackupPasswordEntry);
+  suggestion.icon = Suggestion::Icon::kQuestionMark;
+  suggestion.main_text.is_primary = Suggestion::Text::IsPrimary(false);
+  return suggestion;
+}
+
+Suggestion CreateBackupPasswordSuggestion(const std::u16string& main_text) {
+  Suggestion suggestion(main_text, SuggestionType::kBackupPasswordEntry);
+  suggestion.icon = Suggestion::Icon::kRecoveryPassword;
+  suggestion.labels = {{Suggestion::Text(u"*****")}};
+  suggestion.additional_label = u"Recovery";
+  return suggestion;
+}
+
+Suggestion CreateFreeformFooter() {
+  const std::u16string kMainText =
+      u"You recently changed a password found in a public data breach. In case "
+      "of trouble, Google Password Manager can help you sign in.";
+  Suggestion suggestion(kMainText, SuggestionType::kFreeformFooter);
+  suggestion.acceptability =
+      Suggestion::Acceptability::kUnacceptableWithDeactivatedStyle;
+  return suggestion;
+}
+
 Suggestion CreateSuggestionWithChildren(const std::u16string& main_text,
+                                        SuggestionType type,
                                         std::vector<Suggestion> children) {
-  Suggestion suggestion(main_text, SuggestionType::kAddressEntry);
+  Suggestion suggestion(main_text, type);
   suggestion.children = std::move(children);
+  return suggestion;
+}
+
+Suggestion CreateAllLoyaltyCardsEntry() {
+  Suggestion suggestion = CreateSuggestionWithChildren(
+      u"All_loyalty_cards_entry", SuggestionType::kAllLoyaltyCardsEntry,
+      {Suggestion(u"CVS", SuggestionType::kLoyaltyCardEntry)});
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  suggestion.icon = Suggestion::Icon::kGoogleWalletMonochrome;
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
   return suggestion;
 }
 
@@ -65,6 +110,9 @@ const Suggestion kSuggestions[] = {
                Suggestion::Icon::kLocation,
                SuggestionType::kAddressEntry),
     CreatePasswordSuggestion(u"Password_entry"),
+    CreateTryThisRecoverySuggestion(u"Try_this_recovery_password"),
+    CreateTroubleSigninInSuggestion(u"Trouble_signing_in_entry"),
+    CreateBackupPasswordSuggestion(u"Backup_password_entry"),
     Suggestion("Autofill_options",
                minor_texts,
                "label",
@@ -81,9 +129,12 @@ const Suggestion kSuggestions[] = {
                Suggestion::Icon::kGlobe,
                SuggestionType::kSeePromoCodeDetails)};
 
-const Suggestion kExpandableSuggestions[] = {CreateSuggestionWithChildren(
-    u"Address_entry",
-    {Suggestion(u"Username", SuggestionType::kPasswordEntry)})};
+const Suggestion kExpandableSuggestions[] = {
+    CreateSuggestionWithChildren(
+        u"Address_entry",
+        SuggestionType::kAddressEntry,
+        {Suggestion(u"Username", SuggestionType::kPasswordEntry)}),
+    CreateAllLoyaltyCardsEntry()};
 
 class MockPasswordFaviconLoader : public PasswordFaviconLoader {
  public:
@@ -203,13 +254,7 @@ class CreatePopupRowViewTest : public BaseCreatePopupRowViewTest {
       user_education::NewBadgeController::DisableNewBadgesForTesting();
 };
 
-// TODO(crbug.com/40261456): Re-enable failing test on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_SuggestionRowUiTest DISABLED_SuggestionRowUiTest
-#else
-#define MAYBE_SuggestionRowUiTest SuggestionRowUiTest
-#endif
-IN_PROC_BROWSER_TEST_P(CreatePopupRowViewTest, MAYBE_SuggestionRowUiTest) {
+IN_PROC_BROWSER_TEST_P(CreatePopupRowViewTest, SuggestionRowUiTest) {
   CreateRowView(std::get<Suggestion>(GetParam()),
                 std::get<std::optional<PopupRowView::CellType>>(GetParam()));
   ShowAndVerifyUi();
@@ -243,6 +288,13 @@ IN_PROC_BROWSER_TEST_F(CreatePopupRowViewTest, FilterMatchHighlighting) {
       /*selected_cell=*/std::nullopt,
       AutofillPopupController::SuggestionFilterMatch{.main_text_match =
                                                          gfx::Range(1, 5)});
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(CreatePopupRowViewTest, FreeformFooter) {
+  CreateRowView(CreateFreeformFooter(),
+                /*selected_cell=*/std::nullopt,
+                /*filter_match=*/std::nullopt);
   ShowAndVerifyUi();
 }
 

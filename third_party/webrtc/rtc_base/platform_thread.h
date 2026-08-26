@@ -12,15 +12,14 @@
 #define RTC_BASE_PLATFORM_THREAD_H_
 
 #include <functional>
-#include <string>
-#if !defined(WEBRTC_WIN)
-#include <pthread.h>
-#endif
-
 #include <optional>
 
 #include "absl/strings/string_view.h"
-#include "rtc_base/platform_thread_types.h"
+#include "rtc_base/platform_thread_types.h"  // IWYU pragma: keep
+
+#if !defined(WEBRTC_WIN)
+#include <pthread.h>  // IWYU pragma: keep
+#endif
 
 namespace webrtc {
 
@@ -118,14 +117,5 @@ class PlatformThread final {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::PlatformThread;
-using ::webrtc::ThreadAttributes;
-using ::webrtc::ThreadPriority;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_PLATFORM_THREAD_H_

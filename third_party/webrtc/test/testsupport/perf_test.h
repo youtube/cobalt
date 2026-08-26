@@ -11,7 +11,7 @@
 #ifndef TEST_TESTSUPPORT_PERF_TEST_H_
 #define TEST_TESTSUPPORT_PERF_TEST_H_
 
-#include <sstream>
+#include <cstdio>
 #include <string>
 #include <vector>
 

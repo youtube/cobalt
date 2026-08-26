@@ -11,15 +11,17 @@
 #ifndef TEST_PC_E2E_ECHO_ECHO_EMULATION_H_
 #define TEST_PC_E2E_ECHO_ECHO_EMULATION_H_
 
-#include <atomic>
-#include <deque>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/sequence_checker.h"
 #include "api/test/pclf/media_configuration.h"
 #include "modules/audio_device/include/test_audio_device.h"
+#include "rtc_base/buffer.h"
 #include "rtc_base/swap_queue.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

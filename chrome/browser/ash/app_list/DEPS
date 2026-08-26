@@ -37,7 +37,6 @@ include_rules = [
   "+chrome/browser/autocomplete",
   "+chrome/browser/bitmap_fetcher",
   "+chrome/browser/bookmarks",
-  "+chrome/browser/browser_process.h",
   "+chrome/browser/chromeos/launcher_search",
   "+chrome/browser/extensions/chrome_app_icon.h",
   "+chrome/browser/extensions/context_menu_matcher.h",
@@ -55,7 +54,6 @@ include_rules = [
   "+chrome/browser/favicon",
   "+chrome/browser/feature_engagement",
   "+chrome/browser/history",
-  "+chrome/browser/image_decoder",
   "+chrome/browser/metrics",
   "+chrome/browser/notifications",
   "+chrome/browser/platform_util.h",
@@ -66,8 +64,6 @@ include_rules = [
   "+chrome/browser/signin",
   "+chrome/browser/sync",
   "+chrome/browser/trusted_vault",
-  "+chrome/browser/ui/app_icon_loader_delegate.h",
-  "+chrome/browser/ui/app_icon_loader.h",
   "+chrome/browser/ui/app_list",
   "+chrome/browser/ui/ash",
   "+chrome/browser/ui/browser_commands.h",
@@ -111,18 +107,27 @@ include_rules = [
   "+ash/resources",
   "+ash/strings",
   "+components/app_constants",
+  "+components/app_icon_loader",
   "+components/services/app_service/public",
 ]
 
 specific_include_rules = {
-  "app_service_app_item_browsertest\.cc": [
+  "app_service_app_item_browsertest\\.cc": [
     "+ash/app_list/app_list_controller_impl.h",
     "+ash/app_list/app_list_model_provider.h",
     "+ash/app_list/model/app_list_item.h",
     "+ash/shell.h",
   ],
 
-  "app_list_sort_browsertest\.cc": [
+  ".*unittest\\.cc": [
+    "+chrome/browser/global_features.h",
+  ],
+
+  ".*browsertest\\.cc": [
+    "+chrome/browser/browser_process.h",
+  ],
+
+  "app_list_sort_browsertest\\.cc": [
     "+ash/app_list/app_list_model_provider.h",
     "+ash/app_list/views/app_list_item_view.h",
     "+ash/app_list/views/app_list_menu_model_adapter.h",
@@ -131,7 +136,7 @@ specific_include_rules = {
     "+ash/shell.h",
   ],
 
-  "app_list_syncable_service_unittest\.cc": [
+  "app_list_syncable_service_unittest\\.cc": [
     "+cc/base/math_util.h",
   ],
 }

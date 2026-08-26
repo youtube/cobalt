@@ -7,6 +7,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/rand_util.h"
 #include "components/safe_browsing/content/browser/notification_content_detection/notification_content_detection_constants.h"
+#include "components/safe_browsing/content/browser/notification_content_detection/notifications_global_cache_list.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "third_party/blink/public/common/notifications/platform_notification_data.h"
 #include "third_party/blink/public/mojom/notifications/notification.mojom.h"
@@ -41,14 +42,22 @@ void NotificationContentDetectionService::
   // LiteRT model. Since this does not own `notification_data`, create a deep
   // copy and pass it along so that the value is safe to change.
   blink::PlatformNotificationData notification_data_copy = notification_data;
-  database_manager_->CheckUrlForHighConfidenceAllowlist(
-      origin,
-      base::BindOnce(&NotificationContentDetectionService::
-                         OnCheckUrlForHighConfidenceAllowlist,
-                     weak_factory_.GetWeakPtr(),
-                     base::OwnedRef(notification_data_copy),
-                     base::TimeTicks::Now(), origin, is_allowlisted_by_user,
-                     std::move(model_verdict_callback)));
+  if (base::FeatureList::IsEnabled(
+          kGlobalCacheListForGatingNotificationProtections)) {
+    OnCheckUrlForHighConfidenceAllowlist(
+        notification_data_copy, base::TimeTicks::Now(), origin,
+        is_allowlisted_by_user, std::move(model_verdict_callback),
+        IsDomainInNotificationsGlobalCacheList(origin), std::nullopt);
+  } else {
+    database_manager_->CheckUrlForHighConfidenceAllowlist(
+        origin,
+        base::BindOnce(&NotificationContentDetectionService::
+                           OnCheckUrlForHighConfidenceAllowlist,
+                       weak_factory_.GetWeakPtr(),
+                       base::OwnedRef(notification_data_copy),
+                       base::TimeTicks::Now(), origin, is_allowlisted_by_user,
+                       std::move(model_verdict_callback)));
+  }
 }
 
 void NotificationContentDetectionService::SetModelForTesting(
@@ -74,21 +83,12 @@ void NotificationContentDetectionService::OnCheckUrlForHighConfidenceAllowlist(
       did_match_allowlist || is_allowlisted_by_user;
   if (should_skip_notification_warning) {
     // If the `origin` is on the high confidence allowlist or was allowlisted by
-    // the user, then display the notification before checking the model.
+    // the user, then display the notification before checking the model for
+    // logging metrics.
     std::move(model_verdict_callback)
         .Run(/*is_suspicious=*/false,
              NotificationContentDetectionModel::GetSerializedMetadata(
                  did_match_allowlist, is_allowlisted_by_user, std::nullopt));
-    // The model check should happen at a sampled rate for notifications from
-    // allowlisted sites for collecting metrics. This rate is defined by the
-    // `kOnDeviceNotificationContentDetectionModelAllowlistSamplingRate` feature
-    // parameter.
-    if (did_match_allowlist &&
-        base::RandDouble() * 100 >=
-            kOnDeviceNotificationContentDetectionModelAllowlistSamplingRate
-                .Get()) {
-      return;
-    }
     // Perform inference with model on `notification_contents` for metrics.
     // Since `model_verdict_callback` was already run above, use `DoNothing()`
     // as the callback.

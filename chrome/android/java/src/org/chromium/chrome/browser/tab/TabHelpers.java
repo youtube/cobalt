@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.tab;
 
 import android.app.Activity;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.SwipeRefreshHandler;
 import org.chromium.chrome.browser.accessibility.AccessibilityTabHelper;
 import org.chromium.chrome.browser.complex_tasks.TaskTabHelper;
@@ -15,21 +17,22 @@ import org.chromium.chrome.browser.dom_distiller.ReaderModeManager;
 import org.chromium.chrome.browser.dom_distiller.TabDistillabilityProvider;
 import org.chromium.chrome.browser.infobar.InfoBarContainer;
 import org.chromium.chrome.browser.media.ui.MediaSessionTabHelper;
-import org.chromium.chrome.browser.password_check.PasswordCheckUkmRecorder;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData;
-import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
+import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 
 /** Helper class that initializes various tab UserData objects. */
+@NullMarked
 public final class TabHelpers {
     private TabHelpers() {}
 
     /**
      * Creates Tab helper objects upon Tab creation.
+     *
      * @param tab {@link Tab} to create helpers for.
      * @param parentTab {@link Tab} parent tab
      */
-    static void initTabHelpers(Tab tab, Tab parentTab) {
+    static void initTabHelpers(Tab tab, @Nullable Tab parentTab) {
         TabUma.createForTab(tab);
         TabStateAttributes.createForTab(tab, ((TabImpl) tab).getCreationState());
         TabDistillabilityProvider.createForTab(tab);
@@ -39,7 +42,6 @@ public final class TabHelpers {
         TaskTabHelper.createForTab(tab, parentTab);
         TabBrowserControlsConstraintsHelper.createForTab(tab);
         if (ReaderModeManager.isEnabled()) ReaderModeManager.createForTab(tab);
-        PasswordCheckUkmRecorder.createForTab(tab);
         AccessibilityTabHelper.createForTab(tab);
 
         // The following will start prefetching data for the price drops feature, so
@@ -74,7 +76,7 @@ public final class TabHelpers {
                 && tab.getWindowAndroid() != null
                 && tab.getWindowAndroid().getActivity().get() != null) {
             Activity activity = tab.getWindowAndroid().getActivity().get();
-            if (EdgeToEdgeControllerFactory.isSupportedConfiguration(activity)) {
+            if (EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled(activity)) {
                 DisplayCutoutTabHelper.from(tab);
             }
         }

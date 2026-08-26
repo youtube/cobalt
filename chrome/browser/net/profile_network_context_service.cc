@@ -23,8 +23,10 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -84,6 +86,7 @@
 #include "net/base/features.h"
 #include "net/cert/asn1_util.h"
 #include "net/disk_cache/backend_experiment.h"
+#include "net/disk_cache/buildflags.h"
 #include "net/http/http_auth_preferences.h"
 #include "net/http/http_util.h"
 #include "net/net_buildflags.h"
@@ -102,7 +105,6 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "chrome/browser/ash/kcer/kcer_factory_ash.h"
-#include "chrome/browser/ash/net/client_cert_store_ash.h"
 #include "chrome/browser/ash/net/client_cert_store_kcer.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/certificate_provider/certificate_provider.h"
@@ -268,6 +270,14 @@ void UpdateCookieSettings(Profile* profile, ContentSettingsType type) {
   } else {
     settings = HostContentSettingsMapFactory::GetForProfile(profile)
                    ->GetSettingsForOneType(type);
+    if (type == ContentSettingsType::STORAGE_ACCESS ||
+        type == ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS) {
+      // The network service only cares about "granted" settings, so we don't
+      // bother to send any others.
+      std::erase_if(settings, [](const auto& setting) {
+        return setting.GetContentSetting() != CONTENT_SETTING_ALLOW;
+      });
+    }
   }
   profile->ForEachLoadedStoragePartition(
       [&](content::StoragePartition* storage_partition) {
@@ -282,8 +292,7 @@ std::unique_ptr<net::ClientCertStore> GetWrappedCertStore(
     std::unique_ptr<net::ClientCertStore> platform_store) {
   client_certificates::CertificateProvisioningService*
       profile_provisioning_service = nullptr;
-  if (profile && client_certificates::features::
-                     IsManagedClientCertificateForUserEnabled()) {
+  if (profile) {
     profile_provisioning_service = client_certificates::
         CertificateProvisioningServiceFactory::GetForProfile(profile);
   }
@@ -400,10 +409,90 @@ bool NeedsIpProtection(const IpProtectionCoreHost* ipp_core_host,
                            !net::features::kIpPrivacyOnlyInIncognito.Get());
 }
 
+constexpr std::string_view kDiskCacheExperimentNameSeparator = " ";
+constexpr std::string_view kDiskCacheExperimentNameNone = "None";
+// The date and prefix for the disk cache backend experiment.
+#define DISK_CACHE_EXPERIMENT_DATE_PREFIX "20250725-DiskCache-"
+constexpr std::string_view kDiskCacheExperimentNameDefault =
+    DISK_CACHE_EXPERIMENT_DATE_PREFIX "Default";
+constexpr std::string_view kDiskCacheExperimentNameSimple =
+    DISK_CACHE_EXPERIMENT_DATE_PREFIX "Simple";
+constexpr std::string_view kDiskCacheExperimentNameBlockfile =
+    DISK_CACHE_EXPERIMENT_DATE_PREFIX "Blockfile";
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+constexpr std::string_view kDiskCacheExperimentNameSql =
+    DISK_CACHE_EXPERIMENT_DATE_PREFIX "Sql";
+#endif  // ENABLE_DISK_CACHE_SQL_BACKEND
+
+std::string_view GetDiskCacheBackendExperimentString() {
+  if (!disk_cache::InBackendExperiment()) {
+    return "";
+  }
+  switch (net::features::kDiskCacheBackendParam.Get()) {
+    case net::features::DiskCacheBackend::kDefault:
+      return kDiskCacheExperimentNameDefault;
+    case net::features::DiskCacheBackend::kSimple:
+      return kDiskCacheExperimentNameSimple;
+    case net::features::DiskCacheBackend::kBlockfile:
+      return kDiskCacheExperimentNameBlockfile;
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+    case net::features::DiskCacheBackend::kSql:
+      return kDiskCacheExperimentNameSql;
+#endif  // ENABLE_DISK_CACHE_SQL_BACKEND
+  }
+  NOTREACHED();
+}
+
+bool GetHttpCacheBackendResetParam(PrefService* local_state) {
+  // Get the field trial groups.  If the server cannot be reached, then
+  // this corresponds to "None" for each experiment.
+  base::FieldTrial* isolation_key_field_trial =
+      base::FeatureList::GetFieldTrial(
+          net::features::kSplitCacheByNetworkIsolationKey);
+  base::FieldTrial* credentials_field_trial = base::FeatureList::GetFieldTrial(
+      net::features::kSplitCacheByIncludeCredentials);
+
+  std::vector<std::string_view> experiment_parts;
+  // SplitCacheByNetworkIsolationKey experiment:
+  experiment_parts.push_back(isolation_key_field_trial
+                                 ? isolation_key_field_trial->group_name()
+                                 : kDiskCacheExperimentNameNone);
+  // This used to be used for keying on main frame only vs main frame +
+  // innermost frame, but the feature was removed, and now it's always
+  // keyed on both.
+  experiment_parts.push_back(kDiskCacheExperimentNameNone);
+  // This used to be for keying on scheme + eTLD+1 vs origin, but the trial
+  // was removed, and now it's always keyed on eTLD+1. Still keeping a
+  // third "None" to avoid resetting the disk cache.
+  experiment_parts.push_back(kDiskCacheExperimentNameNone);
+  // SplitCacheByIncludeCredentials experiment:
+  experiment_parts.push_back(credentials_field_trial
+                                 ? credentials_field_trial->group_name()
+                                 : kDiskCacheExperimentNameNone);
+
+  // Add the disk cache backend experiment group if active.
+  std::string_view backend_experiment = GetDiskCacheBackendExperimentString();
+  if (!backend_experiment.empty()) {
+    experiment_parts.push_back(backend_experiment);
+  }
+
+  const std::string current_field_trial_status =
+      base::JoinString(experiment_parts, kDiskCacheExperimentNameSeparator);
+
+  const std::string previous_field_trial_status =
+      local_state->GetString(kHttpCacheFinchExperimentGroups);
+  local_state->SetString(kHttpCacheFinchExperimentGroups,
+                         current_field_trial_status);
+
+  return !previous_field_trial_status.empty() &&
+         current_field_trial_status != previous_field_trial_status;
+}
+
 }  // namespace
 
 ProfileNetworkContextService::ProfileNetworkContextService(Profile* profile)
-    : profile_(profile), proxy_config_monitor_(profile) {
+    : profile_(profile),
+      proxy_config_monitor_(std::make_unique<ProxyConfigMonitor>(profile)) {
   TRACE_EVENT0("startup", "ProfileNetworkContextService::ctor");
   PrefService* profile_prefs = profile->GetPrefs();
   quic_allowed_.Init(prefs::kQuicAllowed, profile_prefs,
@@ -457,22 +546,20 @@ ProfileNetworkContextService::ProfileNetworkContextService(Profile* profile)
 #endif
 
 #if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
-  if (base::FeatureList::IsEnabled(features::kEnableCertManagementUIV2Write)) {
-    // Register observer to update certificates when changes are made to the
-    // server cert database. Unretained is safe as the
-    // `server_cert_database_observer_` is a CallbackListSubscription which
-    // will unregister the observer once the ProfileNetworkContextService is
-    // destroyed.
-    net::ServerCertificateDatabaseService* server_cert_db_service =
-        net::ServerCertificateDatabaseServiceFactory::GetForBrowserContext(
-            profile_);
-    // The service can be null for AshInternals profiles.
-    if (server_cert_db_service) {
-      server_cert_database_observer_ =
-          server_cert_db_service->AddObserver(base::BindRepeating(
-              &ProfileNetworkContextService::UpdateAdditionalCertificates,
-              base::Unretained(this)));
-    }
+  // Register observer to update certificates when changes are made to the
+  // server cert database. Unretained is safe as the
+  // `server_cert_database_observer_` is a CallbackListSubscription which
+  // will unregister the observer once the ProfileNetworkContextService is
+  // destroyed.
+  net::ServerCertificateDatabaseService* server_cert_db_service =
+      net::ServerCertificateDatabaseServiceFactory::GetForBrowserContext(
+          profile_);
+  // The service can be null for AshInternals profiles.
+  if (server_cert_db_service) {
+    server_cert_database_observer_ =
+        server_cert_db_service->AddObserver(base::BindRepeating(
+            &ProfileNetworkContextService::UpdateAdditionalCertificates,
+            base::Unretained(this)));
   }
 #endif
 
@@ -507,6 +594,9 @@ void ProfileNetworkContextService::ConfigureNetworkContextParams(
     network::mojom::NetworkContextParams* network_context_params,
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
+  if (is_shutting_down_) {
+    return;
+  }
   ConfigureNetworkContextParamsInternal(in_memory, relative_partition_path,
                                         network_context_params,
                                         cert_verifier_creation_params);
@@ -527,6 +617,7 @@ void ProfileNetworkContextService::ConfigureNetworkContextParams(
   }
 }
 
+// static
 void ProfileNetworkContextService::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(embedder_support::kAlternateErrorPagesEnabled,
@@ -707,6 +798,9 @@ ProfileNetworkContextService::GetCertificatePolicy(
   }
 
   for (const base::Value& cert_b64 : prefs->GetList(prefs::kCACertificates)) {
+    if (!cert_b64.is_string()) {
+      continue;
+    }
     std::optional<std::vector<uint8_t>> decoded_opt =
         base::Base64Decode(cert_b64.GetString());
 
@@ -824,20 +918,20 @@ ProfileNetworkContextService::GetCertificatePolicy(
 }
 
 void ProfileNetworkContextService::UpdateAdditionalCertificates() {
+  CHECK(!is_shutting_down_);
+
 #if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
-  if (base::FeatureList::IsEnabled(features::kEnableCertManagementUIV2Write)) {
-    net::ServerCertificateDatabaseService* cert_db_service =
-        net::ServerCertificateDatabaseServiceFactory::GetForBrowserContext(
-            profile_);
-    // The service can be null for AshInternals profiles. If it's null, fall
-    // through to updating the additional certs without it.
-    if (cert_db_service) {
-      cert_db_service->GetAllCertificates(
-          base::BindOnce(&ProfileNetworkContextService::
-                             UpdateAdditionalCertificatesWithUserAddedCerts,
-                         weak_factory_.GetWeakPtr()));
-      return;
-    }
+  net::ServerCertificateDatabaseService* cert_db_service =
+      net::ServerCertificateDatabaseServiceFactory::GetForBrowserContext(
+          profile_);
+  // The service can be null for AshInternals profiles. If it's null, fall
+  // through to updating the additional certs without it.
+  if (cert_db_service) {
+    cert_db_service->GetAllCertificates(
+        base::BindOnce(&ProfileNetworkContextService::
+                           UpdateAdditionalCertificatesWithUserAddedCerts,
+                       weak_factory_.GetWeakPtr()));
+    return;
   }
 #endif
   profile_->ForEachLoadedStoragePartition(
@@ -928,6 +1022,10 @@ ProfileNetworkContextService::CertificatePoliciesForView::operator=(
 
 ProfileNetworkContextService::CertificatePoliciesForView
 ProfileNetworkContextService::GetCertificatePolicyForView() {
+  // This method is called by the certificate manager WebUI, which should be
+  // destroyed before this service begins shutting down (and therefore can't
+  // call this method after shutdown has started).
+  CHECK(!is_shutting_down_);
   CertificatePoliciesForView policies;
   policies.certificate_policies =
       GetCertificatePolicy(profile_->GetDefaultStoragePartition()->GetPath());
@@ -1079,6 +1177,9 @@ ProfileNetworkContextService::CreateCookieManagerParams(
 void ProfileNetworkContextService::FlushCachedClientCertIfNeeded(
     const net::HostPortPair& host,
     const scoped_refptr<net::X509Certificate>& certificate) {
+  if (is_shutting_down_) {
+    return;
+  }
   profile_->ForEachLoadedStoragePartition(
       [&](content::StoragePartition* storage_partition) {
         storage_partition->GetNetworkContext()->FlushCachedClientCertIfNeeded(
@@ -1087,7 +1188,7 @@ void ProfileNetworkContextService::FlushCachedClientCertIfNeeded(
 }
 
 void ProfileNetworkContextService::FlushProxyConfigMonitorForTesting() {
-  proxy_config_monitor_.FlushForTesting();
+  proxy_config_monitor_->FlushForTesting();  // IN-TEST
 }
 
 void ProfileNetworkContextService::SetDiscardDomainReliabilityUploadsForTesting(
@@ -1116,21 +1217,17 @@ void ProfileNetworkContextService::CreateClientCertIssuerSourcesWithDBCerts(
         std::move(certs)));
   }
 
-  // Intermediates from NSS are used unconditionally. There are 2 reasons why
-  // the NSS source is used:
-  // 1) If the ServerCertificateDatabase feature is not enabled
-  // (kEnableCertManagementUIV2Write is false), user-added intermediates
-  // still come from NSS, so checking NSS is required.
-  // 2) Device-wide ONC intermediate certificates may be needed as well. It's
-  // unclear if the use of device-wide policy in non-signin-profile client cert
-  // verification was intended or just an accidental side effect of NSS state
-  // being global, but enterprises might be depending on it (at least one
-  // browser_test depends on it:
+  // Intermediates from NSS are used unconditionally as device-wide ONC
+  // intermediate certificates may be needed. It's unclear if the use of
+  // device-wide policy in non-signin-profile client cert verification was
+  // intended or just an accidental side effect of NSS state being global, but
+  // enterprises might be depending on it (at least one browser_test depends on
+  // it:
   // SuccessViaCaAndIntermediate/SigninFrameWebviewClientCertsLoginTest.LockscreenTest/0).
-  // TODO(https://crbug.com/40554868): once kEnableCertManagementUIV2Write has
-  // fully launched, consider removing the NSS source and making this read from
-  // the device ONC policy directly (or decide if using the device ONC policy
-  // here is not intended and change the test to not do that).
+  // TODO(https://crbug.com/40554868): consider removing the NSS source and
+  // making this read from the device ONC policy directly, or decide if using
+  // the device ONC policy here is not intended and remove and change the test
+  // to not do that.
   sources.push_back(
       std::make_unique<net::ClientCertStoreNSS::IssuerSourceNSS>());
 
@@ -1139,19 +1236,16 @@ void ProfileNetworkContextService::CreateClientCertIssuerSourcesWithDBCerts(
 
 void ProfileNetworkContextService::CreateClientCertIssuerSources(
     net::ClientCertIssuerSourceGetterCallback callback) {
-  if (base::FeatureList::IsEnabled(features::kEnableCertManagementUIV2Write)) {
-    net::ServerCertificateDatabaseService* cert_db_service =
-        net::ServerCertificateDatabaseServiceFactory::GetForBrowserContext(
-            profile_);
-    // The service can be null for AshInternals profiles. If it's null fall
-    // through to creating the ClientCertIssuerSource without it.
-    if (cert_db_service) {
-      cert_db_service->GetAllCertificates(
-          base::BindOnce(&ProfileNetworkContextService::
-                             CreateClientCertIssuerSourcesWithDBCerts,
-                         weak_factory_.GetWeakPtr(), std::move(callback)));
-      return;
-    }
+  net::ServerCertificateDatabaseService* cert_db_service =
+      net::ServerCertificateDatabaseServiceFactory::GetForBrowserContext(
+          profile_);
+  // The service can be null for AshInternals profiles. If it's null fall
+  // through to creating the ClientCertIssuerSource without it.
+  if (cert_db_service) {
+    cert_db_service->GetAllCertificates(base::BindOnce(
+        &ProfileNetworkContextService::CreateClientCertIssuerSourcesWithDBCerts,
+        weak_factory_.GetWeakPtr(), std::move(callback)));
+    return;
   }
 
   CreateClientCertIssuerSourcesWithDBCerts(std::move(callback),
@@ -1168,8 +1262,11 @@ ProfileNetworkContextService::GetClientCertIssuerSourceFactory() {
 
 std::unique_ptr<net::ClientCertStore>
 ProfileNetworkContextService::CreateClientCertStore() {
-  if (!client_cert_store_factory_.is_null()) {
-    return client_cert_store_factory_.Run();
+  if (is_shutting_down_) {
+    return nullptr;
+  }
+  if (!client_cert_store_factory_for_testing_.is_null()) {
+    return client_cert_store_factory_for_testing_.Run();
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1183,41 +1280,9 @@ ProfileNetworkContextService::CreateClientCertStore() {
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
-  bool use_system_key_slot = false;
-  // Enable client certificates for the Chrome OS sign-in frame, if this feature
-  // is not disabled by a flag.
-  // Note that while this applies to the whole sign-in profile / lock screen
-  // profile, client certificates will only be selected for the StoragePartition
-  // currently used in the sign-in frame (see SigninPartitionManager).
-  if (ash::ProfileHelper::IsSigninProfile(profile_) ||
-      ash::ProfileHelper::IsLockScreenProfile(profile_)) {
-    use_system_key_slot = true;
-  }
-
-  if (ash::features::ShouldUseKcerClientCertStore()) {
-    return std::make_unique<ash::ClientCertStoreKcer>(
-        std::move(certificate_provider),
-        kcer::KcerFactoryAsh::GetKcer(profile_),
-        GetClientCertIssuerSourceFactory());
-  } else {
-    std::string username_hash;
-    const user_manager::User* user =
-        ash::ProfileHelper::Get()->GetUserByProfile(profile_);
-    if (user && !user->username_hash().empty()) {
-      username_hash = user->username_hash();
-
-      // Use the device-wide system key slot only if the user is affiliated on
-      // the device.
-      if (user->IsAffiliated()) {
-        use_system_key_slot = true;
-      }
-    }
-
-    return std::make_unique<ash::ClientCertStoreAsh>(
-        std::move(certificate_provider), use_system_key_slot, username_hash,
-        base::BindRepeating(&CreateCryptoModuleBlockingPasswordDelegate,
-                            kCryptoModulePasswordClientAuth));
-  }
+  return std::make_unique<ash::ClientCertStoreKcer>(
+      std::move(certificate_provider), kcer::KcerFactoryAsh::GetKcer(profile_),
+      GetClientCertIssuerSourceFactory());
 
 #elif BUILDFLAG(USE_NSS_CERTS)
   std::unique_ptr<net::ClientCertStore> store =
@@ -1245,44 +1310,6 @@ ProfileNetworkContextService::CreateClientCertStore() {
 #endif
 }
 
-bool GetHttpCacheBackendResetParam(PrefService* local_state) {
-  // Get the field trial groups.  If the server cannot be reached, then
-  // this corresponds to "None" for each experiment.
-  base::FieldTrial* field_trial = base::FeatureList::GetFieldTrial(
-      net::features::kSplitCacheByNetworkIsolationKey);
-  std::string current_field_trial_status =
-      (field_trial ? field_trial->group_name() : "None");
-  // This used to be used for keying on main frame only vs main frame +
-  // innermost frame, but the feature was removed, and now it's always keyed on
-  // both.
-  current_field_trial_status += " None";
-  // This used to be for keying on scheme + eTLD+1 vs origin, but the trial was
-  // removed, and now it's always keyed on eTLD+1. Still keeping a third "None"
-  // to avoid resetting the disk cache.
-  current_field_trial_status += " None ";
-
-  field_trial = base::FeatureList::GetFieldTrial(
-      net::features::kSplitCacheByIncludeCredentials);
-  current_field_trial_status +=
-      (field_trial ? field_trial->group_name() : "None");
-
-  if (disk_cache::InBackendExperiment()) {
-    if (disk_cache::InSimpleBackendExperimentGroup()) {
-      current_field_trial_status += " 20241007-DiskCache-Simple";
-    } else {
-      current_field_trial_status += " 20241007-DiskCache-Blockfile";
-    }
-  }
-
-  std::string previous_field_trial_status =
-      local_state->GetString(kHttpCacheFinchExperimentGroups);
-  local_state->SetString(kHttpCacheFinchExperimentGroups,
-                         current_field_trial_status);
-
-  return !previous_field_trial_status.empty() &&
-         current_field_trial_status != previous_field_trial_status;
-}
-
 void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
     bool in_memory,
     const base::FilePath& relative_partition_path,
@@ -1300,7 +1327,6 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
   g_browser_process->system_network_context_manager()
       ->ConfigureDefaultNetworkContextParams(network_context_params);
 
-  network_context_params->enable_zstd = true;
   network_context_params->accept_language = ComputeAcceptLanguage();
   network_context_params->enable_referrers = enable_referrers_.GetValue();
 
@@ -1409,7 +1435,7 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
     network_context_params->hsts_policy_bypass_list.push_back(*string_value);
   }
 
-  proxy_config_monitor_.AddToNetworkContextParams(network_context_params);
+  proxy_config_monitor_->AddToNetworkContextParams(network_context_params);
 
   network_context_params->enable_certificate_reporting = true;
 
@@ -1458,10 +1484,12 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
     // Note: in the case of Network Service restarts, we assume that
     // `profile_supports_policy_certs` will be calculated the same way on
     // subsequent NetworkContext creations as it was on the first one.
+    // Using `base::Unretained(this)` here is safe because we call
+    // `StopObservingCertChanges()` in `Shutdown()` which clears the callback.
     if (policy_cert_service && !policy_cert_service->IsObservingCertChanges()) {
       policy_cert_service->StartObservingCertChanges(base::BindRepeating(
           &ProfileNetworkContextService::UpdateAdditionalCertificates,
-          weak_factory_.GetWeakPtr()));
+          base::Unretained(this)));
     }
   }
 #endif
@@ -1471,8 +1499,7 @@ void ProfileNetworkContextService::ConfigureNetworkContextParamsInternal(
   // add an isManaged() check here.
 
 #if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
-  if (base::FeatureList::IsEnabled(features::kEnableCertManagementUIV2Write) &&
-      net::ServerCertificateDatabaseServiceFactory::GetForBrowserContext(
+  if (net::ServerCertificateDatabaseServiceFactory::GetForBrowserContext(
           profile_)) {
     cert_verifier_creation_params->wait_for_update = true;
     UpdateAdditionalCertificates();
@@ -1591,4 +1618,37 @@ void ProfileNetworkContextService::OnContentSettingChanged(
       }
       return;
   }
+}
+
+void ProfileNetworkContextService::Shutdown() {
+  is_shutting_down_ = true;
+
+#if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
+  server_cert_database_observer_ = {};
+#endif
+
+  cert_policy_update_timer_.Stop();
+  ct_policy_update_timer_.Stop();
+
+  HostContentSettingsMapFactory::GetForProfile(profile_)->RemoveObserver(this);
+  cookie_settings_observation_.Reset();
+  cookie_settings_ = nullptr;
+
+#if BUILDFLAG(IS_CHROMEOS)
+  policy::PolicyCertService* policy_cert_service =
+      policy::PolicyCertServiceFactory::GetForProfile(profile_);
+
+  if (policy_cert_service && policy_cert_service->IsObservingCertChanges()) {
+    policy_cert_service->StopObservingCertChanges();
+  }
+#endif
+
+  pref_change_registrar_.RemoveAll();
+  enable_referrers_.Destroy();
+  pref_accept_language_.Destroy();
+  quic_allowed_.Destroy();
+
+  proxy_config_monitor_ = nullptr;
+
+  profile_ = nullptr;
 }

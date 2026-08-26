@@ -230,10 +230,9 @@ static inline bool FeatureWithValidIdent(const String& media_feature,
   }
 
   if (RuntimeEnabledFeatures::CSSScrollDirectionContainerQueriesEnabled()) {
-    if (media_feature == media_feature_names::kScrollDirectionMediaFeature) {
+    if (media_feature == media_feature_names::kDirectionMediaFeature) {
       switch (ident) {
         case CSSValueID::kNone:
-        case CSSValueID::kAny:
         case CSSValueID::kTop:
         case CSSValueID::kLeft:
         case CSSValueID::kBottom:
@@ -251,6 +250,11 @@ static inline bool FeatureWithValidIdent(const String& media_feature,
           return false;
       }
     }
+  }
+
+  if (RuntimeEnabledFeatures::CSSFallbackContainerQueriesEnabled() &&
+      media_feature == media_feature_names::kFallbackMediaFeature) {
+    return ident == CSSValueID::kNone;
   }
 
   return false;
@@ -308,8 +312,7 @@ static inline bool FeatureExpectingInteger(const String& media_feature,
       media_feature == media_feature_names::kMinColorIndexMediaFeature ||
       media_feature == media_feature_names::kMonochromeMediaFeature ||
       media_feature == media_feature_names::kMaxMonochromeMediaFeature ||
-      media_feature == media_feature_names::kMinMonochromeMediaFeature ||
-      media_feature == media_feature_names::kFallbackMediaFeature) {
+      media_feature == media_feature_names::kMinMonochromeMediaFeature) {
     return true;
   }
 
@@ -511,6 +514,14 @@ std::optional<MediaQueryExpValue> MediaQueryExpValue::Consume(
   DCHECK_EQ(media_feature, media_feature.LowerASCII())
       << "Under the assumption that custom properties in style() container "
          "queries are currently the only case sensitive features";
+
+  if (media_feature == media_feature_names::kFallbackMediaFeature) {
+    if (CSSValue* fallback_value =
+            css_parsing_utils::ConsumeSinglePositionTryFallback(stream,
+                                                                context)) {
+      return MediaQueryExpValue(*fallback_value);
+    }
+  }
 
   CSSPrimitiveValue* value = css_parsing_utils::ConsumeInteger(
       stream, context, -std::numeric_limits<double>::max() /* minimum_value */);
@@ -851,7 +862,7 @@ MediaQueryExpNode::FeatureFlags MediaQueryFeatureExpNode::CollectFeatureFlags()
                media_feature_names::kScrollableMediaFeature) {
       return kFeatureScrollable;
     } else if (exp_.MediaFeature() ==
-               media_feature_names::kScrollDirectionMediaFeature) {
+               media_feature_names::kDirectionMediaFeature) {
       return kFeatureScrollDirection;
     } else if (exp_.MediaFeature() ==
                media_feature_names::kFallbackMediaFeature) {

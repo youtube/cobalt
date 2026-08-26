@@ -39,10 +39,6 @@
 #include "ui/views/widget/any_widget_observer.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ui/ash/test_util.h"
-#endif
-
 #if BUILDFLAG(IS_MAC)
 #include "chrome/browser/ui/browser_commands.h"
 #endif
@@ -207,9 +203,8 @@ class DownloadBubbleInteractiveUiTest
   auto DownloadBubblePromoIsActive(bool active, const base::Feature& feature) {
     return base::BindOnce(
         [](Browser* browser, bool active, const base::Feature& feature) {
-          return active == BrowserView::GetBrowserViewForBrowser(browser)
-                               ->GetFeaturePromoControllerForTesting()
-                               ->IsPromoActive(feature);
+          return active == BrowserUserEducationInterface::From(browser)
+                               ->IsFeaturePromoActive(feature);
         },
         browser(), active, std::cref(feature));
   }
@@ -461,9 +456,9 @@ IN_PROC_BROWSER_TEST_F(DownloadBubbleInteractiveUiTest,
       WaitForState(kDownloadsButtonVisible, false),
       // Download a file to make the partial bubble show up, if enabled.
       Do(DownloadTestFile()),
-      // This step is fine and won't be flaky on ChromeOS, because waiting for
-      // the element to show includes waiting for the server to notify us that
-      // we are in immersive mode.
+      // This step shouldn't be flaky because waiting for the element to show
+      // includes waiting for the server to notify us that we are in immersive
+      // mode.
       WaitForState(kDownloadsButtonVisible, true),
       Check(DownloadBubbleIsShowingDetails(IsPartialViewEnabled())),
       // Hide the bubble, if enabled, so it's not showing while tearing down the

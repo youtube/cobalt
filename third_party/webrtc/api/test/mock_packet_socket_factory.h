@@ -48,12 +48,5 @@ static_assert(!std::is_abstract_v<MockPacketSocketFactory>, "");
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::MockPacketSocketFactory;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // API_TEST_MOCK_PACKET_SOCKET_FACTORY_H_

@@ -15,6 +15,8 @@
 #ifndef MEDIA_STARBOARD_STARBOARD_UTILS_H_
 #define MEDIA_STARBOARD_STARBOARD_UTILS_H_
 
+#include <optional>
+
 #include "media/base/audio_codecs.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
@@ -23,7 +25,6 @@
 #include "media/base/video_decoder_config.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/hdr_metadata.h"
 
 namespace media {
@@ -44,7 +45,7 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
 
 SbMediaColorMetadata MediaToSbMediaColorMetadata(
     const VideoColorSpace& color_space,
-    const absl::optional<gfx::HDRMetadata>& hdr_metadata,
+    const std::optional<gfx::HDRMetadata>& hdr_metadata,
     const std::string& mime_type);
 
 // Extract the value of "codecs" parameter from |mime_type|. It will return

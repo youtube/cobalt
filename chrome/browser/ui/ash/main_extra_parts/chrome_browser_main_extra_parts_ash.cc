@@ -35,7 +35,6 @@
 #include "chrome/browser/ash/app_restore/full_restore_service.h"
 #include "chrome/browser/ash/auth/active_session_fingerprint_client_impl.h"
 #include "chrome/browser/ash/boca/boca_app_client_impl.h"
-#include "chrome/browser/ash/browser_delegate/browser_controller_impl.h"
 #include "chrome/browser/ash/geolocation/system_geolocation_source.h"
 #include "chrome/browser/ash/growth/campaigns_manager_client_impl.h"
 #include "chrome/browser/ash/growth/campaigns_manager_session.h"
@@ -248,7 +247,8 @@ void ChromeBrowserMainExtraPartsAsh::PreProfileInit() {
   screen_orientation_delegate_ =
       std::make_unique<ScreenOrientationDelegateChromeos>();
 
-  app_list_client_ = std::make_unique<AppListClientImpl>();
+  app_list_client_ =
+      std::make_unique<AppListClientImpl>(user_manager::UserManager::Get());
 
   // Must be available at login screen, so initialize before profile.
   accessibility_controller_client_ =
@@ -455,8 +455,6 @@ void ChromeBrowserMainExtraPartsAsh::PostProfileInit(Profile* profile,
             g_browser_process->GetFeatures()->application_locale_storage());
   }
 
-  browser_controller_ = std::make_unique<ash::BrowserControllerImpl>();
-
   if (ash::features::IsWelcomeExperienceEnabled()) {
     peripherals_app_delegate_ =
         std::make_unique<ash::PeripheralsAppDelegateImpl>();
@@ -556,6 +554,9 @@ void ChromeBrowserMainExtraPartsAsh::PostMainMessageLoopRun() {
 
   // Initialized in PreProfileInit (which may not get called in some tests).
   login_readahead_performer_.reset();
+  if (device::GeolocationSystemPermissionManager::GetInstance()) {
+    device::GeolocationSystemPermissionManager::GetInstance()->Shutdown();
+  }
   device::GeolocationSystemPermissionManager::SetInstance(nullptr);
   system_tray_client_.reset();
   session_controller_client_.reset();

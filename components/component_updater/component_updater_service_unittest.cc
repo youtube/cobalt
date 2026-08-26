@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -34,10 +35,12 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using Configurator = update_client::Configurator;
-using Result = update_client::CrxInstaller::Result;
-using TestConfigurator = update_client::TestConfigurator;
-using UpdateClient = update_client::UpdateClient;
+namespace component_updater {
+
+using Configurator = ::update_client::Configurator;
+using Result = ::update_client::CrxInstaller::Result;
+using TestConfigurator = ::update_client::TestConfigurator;
+using UpdateClient = ::update_client::UpdateClient;
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -45,8 +48,6 @@ using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::Return;
 using ::testing::Unused;
-
-namespace component_updater {
 
 class MockInstaller : public update_client::CrxInstaller {
  public:
@@ -230,7 +231,7 @@ std::unique_ptr<ComponentUpdateService> TestComponentUpdateServiceFactory(
 }
 
 ComponentUpdaterTest::ComponentUpdaterTest() {
-  EXPECT_CALL(update_client(), AddObserver(_)).Times(1);
+  EXPECT_CALL(update_client(), AddObserver(_));
   auto scheduler = std::make_unique<MockUpdateScheduler>();
   scheduler_ = scheduler.get();
   ON_CALL(*scheduler_, Schedule(_, _, _, _))
@@ -243,7 +244,7 @@ ComponentUpdaterTest::ComponentUpdaterTest() {
 }
 
 ComponentUpdaterTest::~ComponentUpdaterTest() {
-  EXPECT_CALL(update_client(), RemoveObserver(_)).Times(1);
+  EXPECT_CALL(update_client(), RemoveObserver(_));
 }
 
 void ComponentUpdaterTest::RunThreads() {
@@ -276,17 +277,17 @@ void ComponentUpdaterTest::Schedule(
 
 TEST_F(ComponentUpdaterTest, AddObserver) {
   MockServiceObserver observer;
-  EXPECT_CALL(update_client(), AddObserver(&observer)).Times(1);
-  EXPECT_CALL(update_client(), Stop()).Times(1);
-  EXPECT_CALL(scheduler(), Stop()).Times(1);
+  EXPECT_CALL(update_client(), AddObserver(&observer));
+  EXPECT_CALL(update_client(), Stop());
+  EXPECT_CALL(scheduler(), Stop());
   component_updater().AddObserver(&observer);
 }
 
 TEST_F(ComponentUpdaterTest, RemoveObserver) {
   MockServiceObserver observer;
-  EXPECT_CALL(update_client(), RemoveObserver(&observer)).Times(1);
-  EXPECT_CALL(update_client(), Stop()).Times(1);
-  EXPECT_CALL(scheduler(), Stop()).Times(1);
+  EXPECT_CALL(update_client(), RemoveObserver(&observer));
+  EXPECT_CALL(update_client(), Stop());
+  EXPECT_CALL(scheduler(), Stop());
   component_updater().RemoveObserver(&observer);
 }
 
@@ -300,19 +301,13 @@ TEST_F(ComponentUpdaterTest, RegisterComponent) {
       base::MakeRefCounted<MockInstaller>();
   EXPECT_CALL(*installer, Uninstall()).WillOnce(Return(true));
 
-  using update_client::abag_hash;
-  using update_client::jebg_hash;
-
   const std::string id1 = "abagagagagagagagagagagagagagagag";
   const std::string id2 = "jebgalgnebhfojomionfpkfelancnnkf";
-  std::vector<std::string> ids;
-  ids.push_back(id1);
-  ids.push_back(id2);
 
-  std::vector<uint8_t> hash;
-  hash.assign(std::begin(abag_hash), std::end(abag_hash));
   ComponentRegistration component1(
-      id1, /*name=*/{}, hash, base::Version("1.0"), /*fingerprint=*/{}, {},
+      id1, /*name=*/{}, base::ToVector(update_client::abag_hash),
+      base::Version("1.0"),
+      /*fingerprint=*/{}, {},
       /*action_handler=*/nullptr, installer,
       /*requires_network_encryption=*/false,
       /*supports_group_policy_enable_component_updates=*/true,
@@ -320,9 +315,9 @@ TEST_F(ComponentUpdaterTest, RegisterComponent) {
       /*allow_updates_on_metered_connection=*/true,
       /*allow_updates=*/true);
 
-  hash.assign(std::begin(jebg_hash), std::end(jebg_hash));
   ComponentRegistration component2(
-      id2, /*name=*/{}, hash, base::Version("0.9"),
+      id2, /*name=*/{}, base::ToVector(update_client::jebg_hash),
+      base::Version("0.9"),
       /*fingerprint=*/{}, /*installer_attributes=*/{},
       /*action_handler=*/nullptr, installer,
       /*requires_network_encryption=*/false,
@@ -336,10 +331,10 @@ TEST_F(ComponentUpdaterTest, RegisterComponent) {
   EXPECT_CALL(update_client(), Update(_, _, _, _, _))
       .WillRepeatedly(Invoke(&loop_handler, &LoopHandler::OnUpdate));
 
-  EXPECT_CALL(update_client(), IsUpdating(id1)).Times(1);
-  EXPECT_CALL(update_client(), Stop()).Times(1);
-  EXPECT_CALL(scheduler(), Schedule(_, _, _, _)).Times(1);
-  EXPECT_CALL(scheduler(), Stop()).Times(1);
+  EXPECT_CALL(update_client(), IsUpdating(id1));
+  EXPECT_CALL(update_client(), Stop());
+  EXPECT_CALL(scheduler(), Schedule(_, _, _, _));
+  EXPECT_CALL(scheduler(), Stop());
 
   EXPECT_TRUE(component_updater().RegisterComponent(component1));
   EXPECT_TRUE(component_updater().RegisterComponent(component2));
@@ -375,21 +370,19 @@ TEST_F(ComponentUpdaterTest, OnDemandUpdate) {
   // to each |OnDemand| invocation, and calls to |Stop| when the mocks are
   // torn down.
   LoopHandler loop_handler(2, quit_closure());
-  EXPECT_CALL(scheduler(), Schedule(_, _, _, _)).Times(1);
+  EXPECT_CALL(scheduler(), Schedule(_, _, _, _));
   EXPECT_CALL(update_client(), Install(_, _, _, _))
       .WillOnce(Invoke(&loop_handler, &LoopHandler::OnInstall));
   EXPECT_CALL(update_client(), Update(_, _, _, _, _))
       .WillOnce(Invoke(&loop_handler, &LoopHandler::OnUpdate));
-  EXPECT_CALL(update_client(), Stop()).Times(1);
-  EXPECT_CALL(scheduler(), Stop()).Times(1);
+  EXPECT_CALL(update_client(), Stop());
+  EXPECT_CALL(scheduler(), Stop());
 
   {
-    using update_client::jebg_hash;
-    std::vector<uint8_t> hash;
-    hash.assign(std::begin(jebg_hash), std::end(jebg_hash));
     EXPECT_TRUE(cus.RegisterComponent(ComponentRegistration(
-        "jebgalgnebhfojomionfpkfelancnnkf", /*name=*/{}, hash,
-        base::Version("0.9"), /*fingerprint=*/{}, /*installer_attributes=*/{},
+        "jebgalgnebhfojomionfpkfelancnnkf", /*name=*/{},
+        base::ToVector(update_client::jebg_hash), base::Version("0.9"),
+        /*fingerprint=*/{}, /*installer_attributes=*/{},
         /*action_handler=*/nullptr, base::MakeRefCounted<MockInstaller>(),
         /*requires_network_encryption=*/false,
         /*supports_group_policy_enable_component_updates=*/true,
@@ -398,14 +391,11 @@ TEST_F(ComponentUpdaterTest, OnDemandUpdate) {
         /*allow_updates=*/true)));
   }
   {
-    using update_client::abag_hash;
-    std::vector<uint8_t> hash;
-    hash.assign(std::begin(abag_hash), std::end(abag_hash));
     EXPECT_TRUE(cus.RegisterComponent(ComponentRegistration(
-        "abagagagagagagagagagagagagagagag", /*name=*/{}, hash,
-        base::Version("0.9"), /*fingerprint=*/{},
-        /*installer_attributes=*/{}, /*action_handler=*/nullptr,
-        base::MakeRefCounted<MockInstaller>(),
+        "abagagagagagagagagagagagagagagag", /*name=*/{},
+        base::ToVector(update_client::abag_hash), base::Version("0.9"),
+        /*fingerprint=*/{}, /*installer_attributes=*/{},
+        /*action_handler=*/nullptr, base::MakeRefCounted<MockInstaller>(),
         /*requires_network_encryption=*/false,
         /*supports_group_policy_enable_component_updates=*/true,
         /*allow_cached_copies=*/true,
@@ -436,20 +426,16 @@ TEST_F(ComponentUpdaterTest, MaybeThrottle) {
   // Don't run periodic update task.
   ON_CALL(scheduler(), Schedule(_, _, _, _)).WillByDefault(Return());
 
-  using update_client::jebg_hash;
-  std::vector<uint8_t> hash;
-  hash.assign(std::begin(jebg_hash), std::end(jebg_hash));
-
   LoopHandler loop_handler(1, quit_closure());
   EXPECT_CALL(update_client(), Install(_, _, _, _))
       .WillOnce(Invoke(&loop_handler, &LoopHandler::OnInstall));
-  EXPECT_CALL(update_client(), Stop()).Times(1);
-  EXPECT_CALL(scheduler(), Schedule(_, _, _, _)).Times(1);
-  EXPECT_CALL(scheduler(), Stop()).Times(1);
+  EXPECT_CALL(update_client(), Stop());
+  EXPECT_CALL(scheduler(), Schedule(_, _, _, _));
+  EXPECT_CALL(scheduler(), Stop());
 
   EXPECT_TRUE(component_updater().RegisterComponent(ComponentRegistration(
-      "jebgalgnebhfojomionfpkfelancnnkf", /*name=*/{}, hash,
-      base::Version("0.9"), {},
+      "jebgalgnebhfojomionfpkfelancnnkf", /*name=*/{},
+      base::ToVector(update_client::jebg_hash), base::Version("0.9"), {},
       /*installer_attributes=*/{}, /*action_handler=*/nullptr,
       base::MakeRefCounted<MockInstaller>(),
       /*requires_network_encryption=*/false,
@@ -471,14 +457,11 @@ TEST_F(ComponentUpdaterTest, ComponentDetails) {
   const std::string id = "abagagagagagagagagagagagagagagag";
   const std::string name = "test_name";
 
-  using update_client::abag_hash;
-  std::vector<uint8_t> hash;
-  hash.assign(std::begin(abag_hash), std::end(abag_hash));
-
   const auto version = base::Version("1.0");
 
   ComponentRegistration component(
-      id, name, hash, version, /*fingerprint=*/{}, {},
+      id, name, base::ToVector(update_client::abag_hash), version,
+      /*fingerprint=*/{}, {},
       /*action_handler=*/nullptr, base::MakeRefCounted<MockInstaller>(),
       /*requires_network_encryption=*/false,
       /*supports_group_policy_enable_component_updates=*/true,
@@ -509,14 +492,11 @@ TEST_F(ComponentUpdaterTest, UpdatesDisabled) {
   const std::string id = "abagagagagagagagagagagagagagagag";
   const std::string name = "test_name";
 
-  using update_client::abag_hash;
-  std::vector<uint8_t> hash;
-  hash.assign(std::begin(abag_hash), std::end(abag_hash));
-
   const auto version = base::Version("1.0");
 
   ComponentRegistration component(
-      id, name, hash, version, /*fingerprint=*/{}, {},
+      id, name, base::ToVector(update_client::abag_hash), version,
+      /*fingerprint=*/{}, {},
       /*action_handler=*/nullptr, base::MakeRefCounted<MockInstaller>(),
       /*requires_network_encryption=*/false,
       /*supports_group_policy_enable_component_updates=*/true,

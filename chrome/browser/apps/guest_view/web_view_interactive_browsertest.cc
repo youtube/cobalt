@@ -299,11 +299,30 @@ class WebViewInteractiveTest : public extensions::PlatformAppBrowserTest {
         base::StringPrintf("onAppMessage('%s');", message.c_str())));
   }
 
-  void SetupTest(const std::string& app_name,
-                 const std::string& guest_url_spec) {
+  void SetupTest(const std::string& app_name) {
     ASSERT_TRUE(StartEmbeddedTestServer());
 
     LoadAndLaunchPlatformApp(app_name.c_str(), "connected");
+
+    guest_view_ = GetGuestViewManager()->WaitForSingleGuestViewCreated();
+    ASSERT_TRUE(
+        guest_view_->GetGuestMainFrame()->GetProcess()->IsForGuestsOnly());
+
+    embedder_web_contents_ = guest_view_->embedder_web_contents();
+
+    gfx::Rect offset = embedder_web_contents_->GetContainerBounds();
+    corner_ = offset.origin();
+  }
+
+  void SetupTextSelectionTest(const std::string& app_name,
+                              const std::string& guest_url_spec) {
+    ASSERT_TRUE(StartEmbeddedTestServer());
+
+    LoadAndLaunchPlatformApp(app_name.c_str(), "launched");
+    // Start the test using the guest_url_spec.
+    SendMessageToEmbedder(guest_url_spec);
+    ExtensionTestMessageListener listener("connected");
+    ASSERT_TRUE(listener.WaitUntilSatisfied());
 
     guest_view_ = GetGuestViewManager()->WaitForSingleGuestViewCreated();
     ASSERT_TRUE(
@@ -552,8 +571,7 @@ class DISABLED_WebViewPopupInteractiveTest : public WebViewInteractiveTest {};
 #define MAYBE_PointerLock DISABLED_PointerLock
 #endif
 IN_PROC_BROWSER_TEST_F(WebViewPointerLockInteractiveTest, MAYBE_PointerLock) {
-  SetupTest("web_view/pointer_lock",
-            "/extensions/platform_apps/web_view/pointer_lock/guest.html");
+  SetupTest("web_view/pointer_lock");
 
   // Move the mouse over the Lock Pointer button.
   ASSERT_TRUE(ui_test_utils::SendMouseMoveSync(
@@ -623,8 +641,7 @@ IN_PROC_BROWSER_TEST_F(WebViewPointerLockInteractiveTest, MAYBE_PointerLock) {
 #endif
 IN_PROC_BROWSER_TEST_F(WebViewPointerLockInteractiveTest,
                        MAYBE_PointerLockFocus) {
-  SetupTest("web_view/pointer_lock_focus",
-            "/extensions/platform_apps/web_view/pointer_lock_focus/guest.html");
+  SetupTest("web_view/pointer_lock_focus");
 
   // Move the mouse over the Lock Pointer button.
   ASSERT_TRUE(ui_test_utils::SendMouseMoveSync(
@@ -859,9 +876,7 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, EditCommands) {
 // Tests that guests receive edit commands and respond appropriately.
 IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, EditCommandsNoMenu) {
   ExtensionTestMessageListener focus_listener("Focused");
-  SetupTest("web_view/edit_commands_no_menu",
-            "/extensions/platform_apps/web_view/edit_commands_no_menu/"
-            "guest.html");
+  SetupTest("web_view/edit_commands_no_menu");
   ASSERT_TRUE(ui_test_utils::ShowAndFocusNativeWindow(GetPlatformAppWindow()));
   // Ensure that an input gets focused before sending a key event.
   ASSERT_TRUE(focus_listener.WaitUntilSatisfied());
@@ -1168,8 +1183,9 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_Focus_InputMethod) {
 #endif
 #if !BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_LongPressSelection) {
-  SetupTest("web_view/text_selection",
-            "/extensions/platform_apps/web_view/text_selection/guest.html");
+  SetupTextSelectionTest(
+      "web_view/text_selection",
+      "/extensions/platform_apps/web_view/text_selection/guest.html");
   ASSERT_TRUE(GetGuestView());
   ASSERT_TRUE(embedder_web_contents());
   ASSERT_TRUE(ui_test_utils::ShowAndFocusNativeWindow(GetPlatformAppWindow()));
@@ -1220,8 +1236,9 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, MAYBE_LongPressSelection) {
 
 #if BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, TextSelection) {
-  SetupTest("web_view/text_selection",
-            "/extensions/platform_apps/web_view/text_selection/guest.html");
+  SetupTextSelectionTest(
+      "web_view/text_selection",
+      "/extensions/platform_apps/web_view/text_selection/guest.html");
   ASSERT_TRUE(GetGuestView());
   ASSERT_TRUE(ui_test_utils::ShowAndFocusNativeWindow(
       GetPlatformAppWindow()));
@@ -1246,8 +1263,9 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, TextSelection) {
 // Verifies that asking for a word lookup from a guest will lead to a returned
 // mojo callback from the renderer containing the right selected word.
 IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, WordLookup) {
-  SetupTest("web_view/text_selection",
-            "/extensions/platform_apps/web_view/text_selection/guest.html");
+  SetupTextSelectionTest(
+      "web_view/text_selection",
+      "/extensions/platform_apps/web_view/text_selection/guest.html");
   ASSERT_TRUE(GetGuestView());
   ASSERT_TRUE(ui_test_utils::ShowAndFocusNativeWindow(GetPlatformAppWindow()));
 
@@ -1260,6 +1278,30 @@ IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, WordLookup) {
   // showing the context menu.
   SimulateRWHMouseClick(GetGuestRenderFrameHost()->GetRenderWidgetHost(),
                         blink::WebMouseEvent::Button::kRight, 20, 20);
+  // Wait for the response form the guest renderer.
+  text_input_local_frame.WaitForGetStringForRange();
+
+  // Sanity check.
+  ASSERT_EQ("AAAA", text_input_local_frame.GetStringFromRange().substr(0, 4));
+}
+
+// Same test as above, but with a selection living inside shadow DOM.
+IN_PROC_BROWSER_TEST_F(WebViewInteractiveTest, WordLookupShadowDom) {
+  SetupTextSelectionTest(
+      "web_view/text_selection",
+      "/extensions/platform_apps/web_view/text_selection/guest_shadow.html");
+  ASSERT_TRUE(GetGuestView());
+  ASSERT_TRUE(ui_test_utils::ShowAndFocusNativeWindow(GetPlatformAppWindow()));
+
+  content::TextInputTestLocalFrame text_input_local_frame;
+  text_input_local_frame.SetUp(GetGuestRenderFrameHost());
+
+  // Lookup some string through context menu.
+  ContextMenuNotificationObserver menu_observer(IDC_CONTENT_CONTEXT_LOOK_UP);
+  // Simulating a mouse click at a position to highlight text in guest and
+  // showing the context menu.
+  SimulateRWHMouseClick(GetGuestRenderFrameHost()->GetRenderWidgetHost(),
+                        blink::WebMouseEvent::Button::kRight, 50, 50);
   // Wait for the response form the guest renderer.
   text_input_local_frame.WaitForGetStringForRange();
 

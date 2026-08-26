@@ -10,13 +10,19 @@
 
 #include "modules/audio_processing/ns/noise_suppressor.h"
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/ns/fast_math.h"
+#include "modules/audio_processing/ns/ns_common.h"
+#include "modules/audio_processing/ns/ns_config.h"
+#include "modules/audio_processing/ns/suppression_params.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {

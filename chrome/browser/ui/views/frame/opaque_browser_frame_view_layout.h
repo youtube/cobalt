@@ -38,6 +38,7 @@ class OpaqueBrowserFrameViewLayout : public views::LayoutManager {
 
   // Constants public for testing only.
   static constexpr int kNonClientExtraTopThickness = 1;
+  static constexpr int kFrameShadowThickness = 1;
   static const int kTopFrameEdgeThickness;
   static const int kSideFrameEdgeThickness;
   static const int kIconLeftSpacing;
@@ -66,8 +67,6 @@ class OpaqueBrowserFrameViewLayout : public views::LayoutManager {
                                        int total_width) const;
   gfx::Rect GetBoundsForWebAppFrameToolbar(
       const gfx::Size& toolbar_preferred_size) const;
-  void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
-                               views::Label& window_title_label) const;
 
   // Returns the bounds of the window required to display the content area at
   // the specified bounds.

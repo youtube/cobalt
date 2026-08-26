@@ -2,13 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "third_party/blink/renderer/platform/image-decoders/fast_shared_buffer_reader.h"
 
+#include <array>
+
+#include "base/compiler_specific.h"
 #include "skia/ext/skia_utils_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/image-decoders/image_decoder_test_helpers.h"
@@ -51,7 +49,7 @@ struct SegmentReaders {
 }  // namespace
 
 TEST(FastSharedBufferReaderTest, nonSequentialReads) {
-  char reference_data[kDefaultTestSize];
+  std::array<uint8_t, kDefaultTestSize> reference_data;
   PrepareReferenceData(reference_data);
   scoped_refptr<SharedBuffer> data = SharedBuffer::Create();
   data->Append(reference_data);
@@ -61,20 +59,21 @@ TEST(FastSharedBufferReaderTest, nonSequentialReads) {
     FastSharedBufferReader reader(segment_reader);
     // Read size is prime such there will be a segment-spanning
     // read eventually.
-    char temp_buffer[17];
+    std::array<uint8_t, 17> temp_buffer;
     for (size_t data_position = 0;
-         data_position + sizeof(temp_buffer) < sizeof(reference_data);
-         data_position += sizeof(temp_buffer)) {
-      const char* block = reader.GetConsecutiveData(
-          data_position, sizeof(temp_buffer), temp_buffer);
-      ASSERT_FALSE(
-          memcmp(block, reference_data + data_position, sizeof(temp_buffer)));
+         data_position + temp_buffer.size() < sizeof(reference_data);
+         data_position += temp_buffer.size()) {
+      base::span<const uint8_t> block = reader.GetConsecutiveData(
+          data_position, temp_buffer.size(), temp_buffer);
+      ASSERT_EQ(
+          base::span(reference_data).subspan(data_position, temp_buffer.size()),
+          block);
     }
   }
 }
 
 TEST(FastSharedBufferReaderTest, readBackwards) {
-  char reference_data[kDefaultTestSize];
+  std::array<uint8_t, kDefaultTestSize> reference_data;
   PrepareReferenceData(reference_data);
   scoped_refptr<SharedBuffer> data = SharedBuffer::Create();
   data->Append(reference_data);
@@ -84,22 +83,23 @@ TEST(FastSharedBufferReaderTest, readBackwards) {
     FastSharedBufferReader reader(segment_reader);
     // Read size is prime such there will be a segment-spanning
     // read eventually.
-    char temp_buffer[17];
-    for (size_t data_offset = sizeof(temp_buffer);
+    std::array<uint8_t, 17> temp_buffer;
+    for (size_t data_offset = temp_buffer.size();
          data_offset < sizeof(reference_data);
-         data_offset += sizeof(temp_buffer)) {
-      const char* block =
+         data_offset += temp_buffer.size()) {
+      base::span<const uint8_t> block =
           reader.GetConsecutiveData(sizeof(reference_data) - data_offset,
-                                    sizeof(temp_buffer), temp_buffer);
-      ASSERT_FALSE(memcmp(block,
-                          reference_data + sizeof(reference_data) - data_offset,
-                          sizeof(temp_buffer)));
+                                    temp_buffer.size(), temp_buffer);
+      ASSERT_EQ(base::span(reference_data)
+                    .subspan(sizeof(reference_data) - data_offset,
+                             temp_buffer.size()),
+                block);
     }
   }
 }
 
 TEST(FastSharedBufferReaderTest, byteByByte) {
-  char reference_data[kDefaultTestSize];
+  std::array<uint8_t, kDefaultTestSize> reference_data;
   PrepareReferenceData(reference_data);
   scoped_refptr<SharedBuffer> data = SharedBuffer::Create();
   data->Append(reference_data);
@@ -117,7 +117,7 @@ TEST(FastSharedBufferReaderTest, byteByByte) {
 // buffer doesn't try to read off the end of the buffer.
 TEST(FastSharedBufferReaderTest, readAllOverlappingLastSegmentBoundary) {
   const unsigned kDataSize = 2 * kDefaultSegmentTestSize;
-  char reference_data[kDataSize];
+  std::array<uint8_t, kDataSize> reference_data;
   PrepareReferenceData(reference_data);
   scoped_refptr<SharedBuffer> data = SharedBuffer::Create();
   data->Append(reference_data);
@@ -125,16 +125,17 @@ TEST(FastSharedBufferReaderTest, readAllOverlappingLastSegmentBoundary) {
   SegmentReaders reader_struct(data);
   for (auto segment_reader : reader_struct.segment_readers) {
     FastSharedBufferReader reader(segment_reader);
-    char buffer[kDataSize] = {};
-    const char* result = reader.GetConsecutiveData(0, kDataSize, buffer);
-    ASSERT_FALSE(memcmp(result, reference_data, kDataSize));
+    std::array<uint8_t, kDataSize> buffer;
+    base::span<const uint8_t> result =
+        reader.GetConsecutiveData(0, kDataSize, buffer);
+    ASSERT_EQ(base::span(reference_data), result);
   }
 }
 
 // Verify that reading past the end of the buffer does not break future reads.
 TEST(SegmentReaderTest, readPastEndThenRead) {
   const unsigned kDataSize = 2 * kDefaultSegmentTestSize;
-  char reference_data[kDataSize];
+  std::array<uint8_t, kDataSize> reference_data;
   PrepareReferenceData(reference_data);
   scoped_refptr<SharedBuffer> data = SharedBuffer::Create();
   data->Append(base::span(reference_data).first(kDefaultSegmentTestSize));
@@ -153,7 +154,7 @@ TEST(SegmentReaderTest, readPastEndThenRead) {
 
 TEST(SegmentReaderTest, getAsSkData) {
   const unsigned kDataSize = 4 * kDefaultSegmentTestSize;
-  char reference_data[kDataSize];
+  std::array<uint8_t, kDataSize> reference_data;
   PrepareReferenceData(reference_data);
   scoped_refptr<SharedBuffer> data = SharedBuffer::Create();
   for (size_t i = 0; i < 4; ++i) {
@@ -182,7 +183,7 @@ TEST(SegmentReaderTest, getAsSkData) {
 
 TEST(SegmentReaderTest, variableSegments) {
   const size_t kDataSize = 3.5 * kDefaultSegmentTestSize;
-  char reference_data[kDataSize];
+  std::array<uint8_t, kDataSize> reference_data;
   PrepareReferenceData(reference_data);
   auto reference_data_span = base::as_byte_span(reference_data);
 

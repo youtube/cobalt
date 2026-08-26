@@ -19,7 +19,7 @@ from util import manifest_utils
 from util import server_utils
 import action_helpers  # build_utils adds //build to sys.path.
 
-_LINT_MD_URL = 'https://chromium.googlesource.com/chromium/src/+/main/build/android/docs/lint.md'  # pylint: disable=line-too-long
+_LINT_MD_URL = 'https://chromium.googlesource.com/chromium/src/+/main/build/android/docs/lint.md'
 
 # These checks are not useful for chromium.
 _DISABLED_ALWAYS = [
@@ -27,6 +27,12 @@ _DISABLED_ALWAYS = [
     "AppLinkUrlError",  # As a browser, we have intent filters without a host.
     "Assert",  # R8 --force-enable-assertions is used to enable java asserts.
     "InflateParams",  # Null is ok when inflating views for dialogs.
+    # Android apps are associated with domains of the same owner. Chrome uses
+    # the Credential Manager API to support filling *any* site with a third
+    # party password manager. Therefore, the list of sign-in domains would be
+    # infinite and this warning must be suppressed.
+    "CredentialManagerMisuse",
+    "CredManMissingDal",  # Has false-positives, TODO(crbug.com/420855219).
     "InlinedApi",  # Constants are copied so they are always available.
     "LintBaseline",  # Don't warn about using baseline.xml files.
     "LintBaselineFixed",  # We dont care if baseline.xml has unused entries.
@@ -36,12 +42,14 @@ _DISABLED_ALWAYS = [
     "NetworkSecurityConfig",  # Breaks on library certificates b/269783280.
     "ObsoleteLintCustomCheck",  # We have no control over custom lint checks.
     "OldTargetApi",  # We sometimes need targetSdkVersion to not be latest.
+    "PrivateResource",  # Triggers on our own R.java files.
     "StringFormatCount",  # Has false-positives.
     "SwitchIntDef",  # Many C++ enums are not used at all in java.
     "Typos",  # Strings are committed in English first and later translated.
     "VisibleForTests",  # Does not recognize "ForTesting" methods.
     "UniqueConstants",  # Chromium enums allow aliases.
     "UnusedAttribute",  # Chromium apks have various minSdkVersion values.
+    "UnusedTranslation",  # Triggers from .aar files with extra translations.
 ]
 
 _RES_ZIP_DIR = 'RESZIPS'
@@ -62,8 +70,7 @@ def _GenerateProjectFile(android_manifest,
                          classpath=None,
                          srcjar_sources=None,
                          resource_sources=None,
-                         custom_lint_jars=None,
-                         custom_annotation_zips=None,
+                         aars=None,
                          android_sdk_version=None,
                          baseline_path=None):
   project = ElementTree.Element('project')
@@ -111,19 +118,15 @@ def _GenerateProjectFile(android_manifest,
     for resource_file in resource_sources:
       resource = ElementTree.SubElement(main_module, 'resource')
       resource.set('file', resource_file)
-  if custom_lint_jars:
-    for lint_jar in custom_lint_jars:
-      lint = ElementTree.SubElement(main_module, 'lint-checks')
-      lint.set('file', lint_jar)
-  if custom_annotation_zips:
-    for annotation_zip in custom_annotation_zips:
-      annotation = ElementTree.SubElement(main_module, 'annotations')
-      annotation.set('file', annotation_zip)
+  if aars:
+    for aar in aars:
+      lint = ElementTree.SubElement(main_module, 'aar')
+      lint.set('file', aar)
   return project
 
 
 def _RetrieveBackportedMethods(backported_methods_path):
-  with open(backported_methods_path) as f:
+  with open(backported_methods_path, encoding='utf-8') as f:
     methods = f.read().splitlines()
   # Methods look like:
   #   java/util/Set#of(Ljava/lang/Object;)Ljava/util/Set;
@@ -147,15 +150,22 @@ def _GenerateConfigXmlTree(orig_config_path, backported_methods):
   return root_node
 
 
-def _GenerateAndroidManifest(original_manifest_path, extra_manifest_paths,
-                             min_sdk_version, android_sdk_version):
+def _GenerateAndroidManifest(manifest_paths, min_sdk_version,
+                             android_sdk_version):
+
+  if not manifest_paths:
+    root_manifest = os.path.join(build_utils.DIR_SOURCE_ROOT, 'build',
+                                 'android', 'AndroidManifest.xml')
+  else:
+    root_manifest = manifest_paths[0]
+    manifest_paths = manifest_paths[1:]
   # Set minSdkVersion in the manifest to the correct value.
-  doc, manifest, app_node = manifest_utils.ParseManifest(original_manifest_path)
+  doc, manifest, app_node = manifest_utils.ParseManifest(root_manifest)
 
   # TODO(crbug.com/40148088): Should this be done using manifest merging?
   # Add anything in the application node of the extra manifests to the main
   # manifest to prevent unused resource errors.
-  for path in extra_manifest_paths:
+  for path in manifest_paths:
     _, _, extra_app_node = manifest_utils.ParseManifest(path)
     for node in extra_app_node:
       app_node.append(node)
@@ -174,20 +184,19 @@ def _GenerateAndroidManifest(original_manifest_path, extra_manifest_paths,
 def _WriteXmlFile(root, path):
   logging.info('Writing xml file %s', path)
   build_utils.MakeDirectory(os.path.dirname(path))
-  with action_helpers.atomic_output(path) as f:
+  with action_helpers.atomic_output(path, encoding='utf-8') as f:
     # Although we can write it just with ElementTree.tostring, using minidom
     # makes it a lot easier to read as a human (also on code search).
     f.write(
         minidom.parseString(ElementTree.tostring(
-            root, encoding='utf-8')).toprettyxml(indent='  ').encode('utf-8'))
+            root, encoding='utf-8')).toprettyxml(indent='  '))
 
 
 def _RunLint(custom_lint_jar_path,
              lint_jar_path,
              backported_methods_path,
              config_path,
-             manifest_path,
-             extra_manifest_paths,
+             manifest_paths,
              sources,
              classpath,
              cache_dir,
@@ -258,10 +267,6 @@ def _RunLint(custom_lint_jar_path,
         ','.join(_DISABLED_ALWAYS),
     ]
 
-  if not manifest_path:
-    manifest_path = os.path.join(build_utils.DIR_SOURCE_ROOT, 'build',
-                                 'android', 'AndroidManifest.xml')
-
   logging.info('Generating config.xml')
   backported_methods = _RetrieveBackportedMethods(backported_methods_path)
   config_xml_node = _GenerateConfigXmlTree(config_path, backported_methods)
@@ -270,8 +275,7 @@ def _RunLint(custom_lint_jar_path,
   cmd.extend(['--config', generated_config_path])
 
   logging.info('Generating Android manifest file')
-  android_manifest_tree = _GenerateAndroidManifest(manifest_path,
-                                                   extra_manifest_paths,
+  android_manifest_tree = _GenerateAndroidManifest(manifest_paths,
                                                    min_sdk_version,
                                                    android_sdk_version)
   # Just use a hardcoded name, since we may have different target names (and
@@ -292,24 +296,6 @@ def _RunLint(custom_lint_jar_path,
     resource_sources.extend(
         build_utils.ExtractAll(resource_zip, path=resource_dir))
 
-  logging.info('Extracting aars')
-  aar_root_dir = os.path.join(lint_gen_dir, _AAR_DIR)
-  shutil.rmtree(aar_root_dir, True)
-  custom_lint_jars = []
-  custom_annotation_zips = []
-  if aars:
-    for aar in aars:
-      # Use relative source for aar files since they are not generated.
-      aar_dir = os.path.join(aar_root_dir,
-                             os.path.splitext(_SrcRelative(aar))[0])
-      os.makedirs(aar_dir)
-      aar_files = build_utils.ExtractAll(aar, path=aar_dir)
-      for f in aar_files:
-        if f.endswith('lint.jar'):
-          custom_lint_jars.append(f)
-        elif f.endswith('annotations.zip'):
-          custom_annotation_zips.append(f)
-
   logging.info('Extracting srcjars')
   srcjar_root_dir = os.path.join(lint_gen_dir, _SRCJAR_DIR)
   shutil.rmtree(srcjar_root_dir, True)
@@ -326,10 +312,11 @@ def _RunLint(custom_lint_jar_path,
       srcjar_sources.extend(build_utils.ExtractAll(srcjar, path=srcjar_dir))
 
   logging.info('Generating project file')
-  project_file_root = _GenerateProjectFile(
-      lint_android_manifest_path, android_sdk_root, cache_dir, partials_dir,
-      sources, classpath, srcjar_sources, resource_sources, custom_lint_jars,
-      custom_annotation_zips, android_sdk_version, baseline)
+  project_file_root = _GenerateProjectFile(lint_android_manifest_path,
+                                           android_sdk_root, cache_dir,
+                                           partials_dir, sources, classpath,
+                                           srcjar_sources, resource_sources,
+                                           aars, android_sdk_version, baseline)
 
   project_xml_path = os.path.join(lint_gen_dir, 'project.xml')
   _WriteXmlFile(project_file_root, project_xml_path)
@@ -385,7 +372,6 @@ def _RunLint(custom_lint_jar_path,
     end = time.time() - start
     logging.info('Lint command took %ss', end)
     if not is_debug:
-      shutil.rmtree(aar_root_dir, ignore_errors=True)
       shutil.rmtree(resource_root_dir, ignore_errors=True)
       shutil.rmtree(srcjar_root_dir, ignore_errors=True)
       if os.path.exists(project_xml_path):
@@ -408,9 +394,6 @@ def _ParseArgs(argv):
   parser = argparse.ArgumentParser()
   action_helpers.add_depfile_arg(parser)
   parser.add_argument('--target-name', help='Fully qualified GN target name.')
-  parser.add_argument('--skip-build-server',
-                      action='store_true',
-                      help='Avoid using the build server.')
   parser.add_argument('--use-build-server',
                       action='store_true',
                       help='Always use the build server.')
@@ -450,12 +433,9 @@ def _ParseArgs(argv):
                       'files.')
   parser.add_argument('--aars', help='GN list of included aars.')
   parser.add_argument('--srcjars', help='GN list of included srcjars.')
-  parser.add_argument('--manifest-path',
-                      help='Path to original AndroidManifest.xml')
-  parser.add_argument('--extra-manifest-paths',
+  parser.add_argument('--manifest-paths',
                       action='append',
-                      help='GYP-list of manifest paths to merge into the '
-                      'original AndroidManifest.xml')
+                      help='GYP-list of manifest paths, with base being first')
   parser.add_argument('--resource-sources',
                       default=[],
                       action='append',
@@ -477,8 +457,7 @@ def _ParseArgs(argv):
   args.aars = action_helpers.parse_gn_list(args.aars)
   args.srcjars = action_helpers.parse_gn_list(args.srcjars)
   args.resource_sources = action_helpers.parse_gn_list(args.resource_sources)
-  args.extra_manifest_paths = action_helpers.parse_gn_list(
-      args.extra_manifest_paths)
+  args.manifest_paths = action_helpers.parse_gn_list(args.manifest_paths)
   args.resource_zips = action_helpers.parse_gn_list(args.resource_zips)
   args.classpath = action_helpers.parse_gn_list(args.classpath)
 
@@ -503,9 +482,8 @@ def main():
     resource_sources.extend(build_utils.ReadSourcesList(resource_sources_file))
 
   possible_depfile_deps = (args.srcjars + args.resource_zips + sources +
-                           resource_sources + [
+                           resource_sources + args.manifest_paths + [
                                args.baseline,
-                               args.manifest_path,
                            ])
   depfile_deps = [p for p in possible_depfile_deps if p]
 
@@ -517,7 +495,7 @@ def main():
   # Avoid parallelizing cache creation since lint runs without the cache defeat
   # the purpose of creating the cache in the first place. Forward the command
   # after the depfile has been written as siso requires it.
-  if (not args.create_cache and not args.skip_build_server
+  if (not args.create_cache
       and server_utils.MaybeRunCommand(name=args.target_name,
                                        argv=sys.argv,
                                        stamp_file=args.stamp,
@@ -528,8 +506,7 @@ def main():
            args.lint_jar_path,
            args.backported_methods,
            args.config_path,
-           args.manifest_path,
-           args.extra_manifest_paths,
+           args.manifest_paths,
            sources,
            args.classpath,
            args.cache_dir,

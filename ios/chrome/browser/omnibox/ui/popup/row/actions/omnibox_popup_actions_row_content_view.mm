@@ -7,11 +7,12 @@
 #import "base/check.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/task/sequenced_task_runner.h"
-#import "ios/chrome/browser/omnibox/model/suggest_action.h"
+#import "ios/chrome/browser/omnibox/model/suggestions/suggest_action.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/ui/popup/omnibox_icon_view.h"
 #import "ios/chrome/browser/omnibox/ui/popup/row/actions/actions_view.h"
 #import "ios/chrome/browser/omnibox/ui/popup/row/omnibox_popup_row_delegate.h"
+#import "ios/chrome/browser/omnibox/ui/popup/row/omnibox_popup_row_trailing_button.h"
 #import "ios/chrome/browser/omnibox/ui/popup/row/omnibox_popup_row_util.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/elements/fade_truncating_label.h"
@@ -59,7 +60,7 @@ const CGFloat kActionScrollViewSeparatorSpace = 8;
   FadeTruncatingLabel* _secondaryLabelFading;
   UILabel* _secondaryLabelTruncating;
   OmniboxIconView* _leadingIconView;
-  ExtendedTouchTargetButton* _trailingButton;
+  OmniboxPopupRowTrailingButton* _trailingButton;
   UIStackView* _textStackView;
   UIView* _separator;
   UIView* _selectedBackgroundView;
@@ -142,9 +143,11 @@ const CGFloat kActionScrollViewSeparatorSpace = 8;
 
     // Trailing Button.
     _trailingButton =
-        [ExtendedTouchTargetButton buttonWithType:UIButtonTypeCustom];
+        [[OmniboxPopupRowTrailingButton alloc] initWithFrame:CGRectZero];
     _trailingButton.translatesAutoresizingMaskIntoConstraints = NO;
     _trailingButton.isAccessibilityElement = NO;
+    _trailingButton.contentMode = UIViewContentModeScaleAspectFit;
+
     [_trailingButton addTarget:self
                         action:@selector(trailingButtonTapped)
               forControlEvents:UIControlEventTouchUpInside];
@@ -288,6 +291,8 @@ const CGFloat kActionScrollViewSeparatorSpace = 8;
   _secondaryLabelTruncating.textAlignment = forcedTextAlignment;
 }
 
+#pragma mark - UIAccessibility
+
 - (NSString*)accessibilityLabel {
   return _primaryLabel.attributedText.string;
 }
@@ -355,19 +360,9 @@ const CGFloat kActionScrollViewSeparatorSpace = 8;
   }
 
   // Trailing Button.
-  if (configuration.trailingIcon) {
-    [_trailingButton setImage:configuration.trailingIcon
-                     forState:UIControlStateNormal];
-    _trailingButton.hidden = NO;
-    _trailingButton.tintColor = configuration.trailingIconTintColor;
-    _trailingButton.accessibilityIdentifier =
-        configuration.trailingButtonAccessibilityIdentifier;
-    _textTrailingToButtonConstraint.active = YES;
-  } else {
-    _textTrailingToButtonConstraint.active = NO;
-    _trailingButton.hidden = YES;
-    _trailingButton.accessibilityIdentifier = nil;
-  }
+  _trailingButton.trailingIconType = configuration.trailingIconType;
+  _trailingButton.isHighlighted = configuration.isBackgroundHighlighted;
+  _textTrailingToButtonConstraint.active = !_trailingButton.hidden;
 
   // Separator.
   _separator.hidden = !configuration.showSeparator;

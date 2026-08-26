@@ -53,8 +53,6 @@ def validate_property(prop, props_by_name):
         'Only longhands can be valid_for_cue [%s]' % name
     assert not prop.valid_for_marker or prop.is_longhand, \
         'Only longhands can be valid_for_marker [%s]' % name
-    assert not prop.valid_for_highlight_legacy or prop.is_longhand, \
-        'Only longhands can be valid_for_highlight_legacy [%s]' % name
     assert not prop.valid_for_highlight or prop.is_longhand, \
         'Only longhands can be valid_for_highlight [%s]' % name
     assert not prop.is_internal or prop.computable is None, \
@@ -371,6 +369,12 @@ class CSSProperties(object):
         assert not unvisited_property.visited_property, \
             'A property may not have multiple visited properties'
         unvisited_property.visited_property = property_
+        # NOTE: Currently, we note that a property is valid for :visited
+        # iff it has a corresponding -internal-visited-* property
+        # (i.e., some other property is visited_property_for it). Once
+        # those properties go away, we will need to make this flag explicit
+        # on the (unvisited) property instead.
+        unvisited_property.valid_for_visited = True
 
     def set_derived_surrogate_attributes(self, property_):
         if not property_.surrogate_for:
@@ -565,6 +569,10 @@ class CSSProperties(object):
 
         property_.in_origin_trial = property_.runtime_flag and \
             property_.runtime_flag in self._origin_trial_features
+
+        assert not property_.is_shorthand or not property_.in_origin_trial, \
+            'Shorthand property [%s] cannot be controlled by an origin trial. See https://crbug.com/425974279' \
+            % property_.name
 
         self.set_derived_visited_attributes(property_)
         self.set_derived_surrogate_attributes(property_)

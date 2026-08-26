@@ -41,23 +41,12 @@ class OptimizationGuidePermissionsUtilTest : public testing::Test {
 
 TEST_F(OptimizationGuidePermissionsUtilTest,
        IsUserPermittedToFetchHintsDefaultUser) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      {optimization_guide::features::kRemoteOptimizationGuideFetching});
-
   EXPECT_FALSE(IsUserPermittedToFetchFromRemoteOptimizationGuide(
       /*is_off_the_record=*/false, pref_service()));
 }
 
-TEST_F(
-    OptimizationGuidePermissionsUtilTest,
-    IsUserPermittedToFetchHintsDefaultUserAnonymousDataCollectionEnabledFeatureEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {optimization_guide::features::kRemoteOptimizationGuideFetching,
-       optimization_guide::features::
-           kRemoteOptimizationGuideFetchingAnonymousDataConsent},
-      {});
+TEST_F(OptimizationGuidePermissionsUtilTest,
+       IsUserPermittedToFetchHintsDefaultUserAnonymousDataCollectionEnabled) {
   SetUrlKeyedAnonymizedDataCollectionEnabled(true);
 
   EXPECT_TRUE(IsUserPermittedToFetchFromRemoteOptimizationGuide(
@@ -66,38 +55,7 @@ TEST_F(
 
 TEST_F(OptimizationGuidePermissionsUtilTest,
        IsUserPermittedToFetchHintsDefaultUserAnonymousDataCollectionDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {optimization_guide::features::kRemoteOptimizationGuideFetching,
-       optimization_guide::features::
-           kRemoteOptimizationGuideFetchingAnonymousDataConsent},
-      {});
   SetUrlKeyedAnonymizedDataCollectionEnabled(false);
-
-  EXPECT_FALSE(IsUserPermittedToFetchFromRemoteOptimizationGuide(
-      /*is_off_the_record=*/false, pref_service()));
-}
-
-TEST_F(
-    OptimizationGuidePermissionsUtilTest,
-    IsUserPermittedToFetchHintsDefaultUserAnonymousDataCollectionEnabledFeatureNotEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {optimization_guide::features::kRemoteOptimizationGuideFetching},
-      {optimization_guide::features::
-           kRemoteOptimizationGuideFetchingAnonymousDataConsent});
-  SetUrlKeyedAnonymizedDataCollectionEnabled(true);
-
-  EXPECT_FALSE(IsUserPermittedToFetchFromRemoteOptimizationGuide(
-      /*is_off_the_record=*/false, pref_service()));
-}
-
-TEST_F(OptimizationGuidePermissionsUtilTest,
-       IsUserPermittedToFetchHintsAllConsentsEnabledButHintsFetchingDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {}, {optimization_guide::features::kRemoteOptimizationGuideFetching});
-  SetUrlKeyedAnonymizedDataCollectionEnabled(true);
 
   EXPECT_FALSE(IsUserPermittedToFetchFromRemoteOptimizationGuide(
       /*is_off_the_record=*/false, pref_service()));

@@ -30,27 +30,15 @@ public class FakeSearchEngineCountryDelegate extends SearchEngineCountryDelegate
     /**
      * Supplier used as the main way to mock the search engine choice device backend.
      *
-     * <p>Makes {@link #getIsDeviceChoiceRequiredSupplier()}'s supplier return {@code true} on
-     * start, indicating that the blocking dialog should be shown, and updates it to {@code false}
-     * when {@link #launchDeviceChoiceScreens()} is called. If a timeout is configured (see {@link
-     * SearchEnginesFeatureUtils#clayBlockingDialogTimeoutMillis()}, the initial value will be
-     * emitted at half of the timeout duration instead, to exercise the delayed response path.
+     * <p>Makes {@link #getIsDeviceChoiceRequiredSupplier()}'s supplier return {@code null} on
+     * start, emits {@code true} after 3 seconds, indicating that the blocking dialog should be
+     * shown, and updates it to {@code false} when {@link #launchDeviceChoiceScreens()} is called.
      */
     @MainThread
     public FakeSearchEngineCountryDelegate(boolean enableLogging) {
         ThreadUtils.assertOnUiThread();
 
         mEnableLogging = enableLogging;
-        if (mEnableLogging) {
-            if (SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING)) {
-                Log.i(TAG, "Initialising with ClayBlocking enabled");
-            } else {
-                Log.i(
-                        TAG,
-                        "Initialising with ClayBlocking disabled: Going silent and deferring to"
-                                + " base implementation.");
-            }
-        }
     }
 
     @VisibleForTesting
@@ -62,9 +50,6 @@ public class FakeSearchEngineCountryDelegate extends SearchEngineCountryDelegate
     @MainThread
     public Promise<String> getDeviceCountry() {
         ThreadUtils.assertOnUiThread();
-        if (!SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING)) {
-            return super.getDeviceCountry();
-        }
 
         String countryCode = "IE"; // CLDR country code for Ireland.
         if (mEnableLogging) {
@@ -75,10 +60,6 @@ public class FakeSearchEngineCountryDelegate extends SearchEngineCountryDelegate
 
     @Override
     public @Nullable Instant getDeviceBrowserSelectedTimestamp() {
-        if (!SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING)) {
-            return super.getDeviceBrowserSelectedTimestamp();
-        }
-
         if (mEnableLogging) {
             Log.i(TAG, "getDeviceBrowserSelectedTimestamp()");
         }
@@ -89,9 +70,6 @@ public class FakeSearchEngineCountryDelegate extends SearchEngineCountryDelegate
     @MainThread
     public boolean isDeviceChoiceDialogEligible() {
         ThreadUtils.assertOnUiThread();
-        if (!SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING)) {
-            return super.isDeviceChoiceDialogEligible();
-        }
 
         if (mEnableLogging) {
             Log.i(TAG, "isDeviceChoiceDialogEligible() -> true");
@@ -103,9 +81,6 @@ public class FakeSearchEngineCountryDelegate extends SearchEngineCountryDelegate
     @MainThread
     public ObservableSupplier<Boolean> getIsDeviceChoiceRequiredSupplier() {
         ThreadUtils.assertOnUiThread();
-        if (!SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING)) {
-            return super.getIsDeviceChoiceRequiredSupplier();
-        }
 
         if (mEnableLogging) {
             Log.i(
@@ -118,11 +93,6 @@ public class FakeSearchEngineCountryDelegate extends SearchEngineCountryDelegate
 
     @Override
     public void refreshDeviceChoiceRequiredNow(int reason) {
-        if (!SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING)) {
-            super.refreshDeviceChoiceRequiredNow(reason);
-            return;
-        }
-
         if (mEnableLogging) {
             Log.i(TAG, "refreshDeviceChoiceRequiredNow()");
         }
@@ -132,9 +102,6 @@ public class FakeSearchEngineCountryDelegate extends SearchEngineCountryDelegate
     @MainThread
     public void launchDeviceChoiceScreens() {
         ThreadUtils.assertOnUiThread();
-        if (!SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING)) {
-            super.launchDeviceChoiceScreens();
-        }
 
         if (mEnableLogging) {
             Log.i(TAG, "launchDeviceChoiceScreens() -> updating supplier");
@@ -146,9 +113,6 @@ public class FakeSearchEngineCountryDelegate extends SearchEngineCountryDelegate
     @MainThread
     public void notifyDeviceChoiceEvent(@DeviceChoiceEventType int eventType) {
         ThreadUtils.assertOnUiThread();
-        if (!SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING)) {
-            super.notifyDeviceChoiceEvent(eventType);
-        }
 
         if (mEnableLogging) {
             Log.i(TAG, "notifyDeviceChoiceEvent(%d)", eventType);
@@ -160,24 +124,16 @@ public class FakeSearchEngineCountryDelegate extends SearchEngineCountryDelegate
         // implementation, which does not trigger connections and queries unless the supplier is
         // needed.
         if (mIsChoiceRequired == null) {
-            int dialogTimeoutMillis = SearchEnginesFeatureUtils.clayBlockingDialogTimeoutMillis();
-            if (dialogTimeoutMillis > 0) {
-                // A dialog timeout is configured, so make the fake delegate exercise it: Start with
-                // no provided response, but emit the `true` value halfway to the deadline.
-                mIsChoiceRequired = new ObservableSupplierImpl<>();
-                ThreadUtils.postOnUiThreadDelayed(
-                        () -> {
-                            if (mEnableLogging) {
-                                Log.i(TAG, "triggering the delayed supplier response.");
-                            }
-                            assumeNonNull(mIsChoiceRequired).set(true);
-                        },
-                        // Don't go beyond 3 seconds timeout, it doesn't help with testing and looks
-                        // broken.
-                        Math.min(dialogTimeoutMillis / 2, 3000));
-            } else {
-                mIsChoiceRequired = new ObservableSupplierImpl<>(true);
-            }
+            // Fake the backend taking some time to respond.
+            mIsChoiceRequired = new ObservableSupplierImpl<>();
+            ThreadUtils.postOnUiThreadDelayed(
+                    () -> {
+                        if (mEnableLogging) {
+                            Log.i(TAG, "triggering the delayed supplier response.");
+                        }
+                        assumeNonNull(mIsChoiceRequired).set(true);
+                    },
+                    3000);
 
             if (mEnableLogging) {
                 mIsChoiceRequired.addObserver(

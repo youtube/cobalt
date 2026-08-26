@@ -50,6 +50,7 @@
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.h"
 #include "chrome/browser/ui/views/user_education/browser_help_bubble.h"
 #include "chrome/grit/branded_strings.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
@@ -59,6 +60,7 @@
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/omnibox_text_util.h"
+#include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/security_state/core/security_state.h"
@@ -539,6 +541,10 @@ void OmniboxViewViews::SetFocus(bool is_user_initiated) {
   model()->ConsumeCtrlKey();
 }
 
+void OmniboxViewViews::RequestViewFocus() {
+  RequestFocus();
+}
+
 int OmniboxViewViews::GetTextWidth() const {
   // Returns the width necessary to display the current text, including any
   // necessary space for the cursor or border/margin.
@@ -604,9 +610,10 @@ void OmniboxViewViews::ExecuteCommand(int command_id, int event_flags) {
     case IDC_PASTE_AND_GO:
       model()->PasteAndGo(GetClipboardText(/*notify_if_restricted=*/true));
       return;
+    case IDC_EDIT_SEARCH_ENGINES:
     case IDC_SHOW_FULL_URLS:
     case IDC_SHOW_GOOGLE_LENS_SHORTCUT:
-    case IDC_EDIT_SEARCH_ENGINES:
+    case IDC_SHOW_SEARCH_TOOLS:
       location_bar_view_->command_updater()->ExecuteCommand(command_id);
       return;
 
@@ -1246,8 +1253,10 @@ bool OmniboxViewViews::OnMousePressed(const ui::MouseEvent& event) {
   // Show on-focus suggestions if either:
   //  - The textfield doesn't already have focus.
   //  - Or if the textfield is empty, to cover the NTP ZeroSuggest case.
-  if (event.IsOnlyLeftMouseButton() && (!HasFocus() || GetText().empty())) {
-    model()->StartZeroSuggestRequest();
+  if (!base::FeatureList::IsEnabled(omnibox::kShowPopupOnMouseReleased)) {
+    if (event.IsOnlyLeftMouseButton() && (!HasFocus() || GetText().empty())) {
+      model()->StartZeroSuggestRequest();
+    }
   }
 
   const bool handled = views::Textfield::OnMousePressed(event);
@@ -1332,6 +1341,21 @@ void OmniboxViewViews::OnMouseReleased(const ui::MouseEvent& event) {
     // Select all in the reverse direction so as not to scroll the caret
     // into view and shift the contents jarringly.
     SelectAll(true);
+  }
+  // When the user has released the left mouse button only, show on-focus
+  // suggestions if `select_all_on_mouse_release_` is true (or if the textfield
+  // is empty, to cover the NTP ZeroSuggest case).
+  //
+  // Note that ZeroSuggest is run on mouse release rather than on mouse press in
+  // order to delay the omnibox text shift (due to presenting the popup) until
+  // after the mouse events are handled. Otherwise, when a small, unintentional
+  // drag is detected, the mouse cursor might end up a few characters distant
+  // from the original click position, leading to selection of some characters
+  // rather than the whole-URL selection the user intended.
+  if (base::FeatureList::IsEnabled(omnibox::kShowPopupOnMouseReleased) &&
+      event.IsOnlyLeftMouseButton() &&
+      (select_all_on_mouse_release_ || GetText().empty())) {
+    model()->StartZeroSuggestRequest();
   }
   select_all_on_mouse_release_ = false;
 
@@ -1437,6 +1461,14 @@ bool OmniboxViewViews::HandleAccessibleAction(
 void OmniboxViewViews::OnFocus() {
   views::Textfield::OnFocus();
 
+  // If focus is returning from the AIM button, there is no need for any of the
+  // usual bookkeeping, since the omnibox was logically considered to have
+  // retained focus.
+  if (model()->FocusIsReturningFromAimButton()) {
+    model()->SetFocusIsReturningFromAimButton(false);
+    return;
+  }
+
   // TODO(tommycli): This does not seem like it should be necessary.
   // Investigate why it's needed and see if we can remove it.
   model()->ResetDisplayTexts();
@@ -1468,6 +1500,16 @@ void OmniboxViewViews::OnFocus() {
 }
 
 void OmniboxViewViews::OnBlur() {
+  views::Textfield::OnBlur();
+
+  // If focus is going to the AIM button, there is no need for any of the usual
+  // bookkeeping, since the omnibox will logically be considered to have
+  // retained focus.
+  if (model()->FocusIsGoingToAimButton()) {
+    model()->SetFocusIsGoingToAimButton(false);
+    return;
+  }
+
   // Save the user's existing selection to restore it later.
   saved_selection_for_focus_change_ = GetSelectedRange();
 
@@ -1493,7 +1535,6 @@ void OmniboxViewViews::OnBlur() {
     RevertAll();
   }
 
-  views::Textfield::OnBlur();
   model()->OnWillKillFocus();
 
   // If ZeroSuggest is active, and there is evidence that there is a text
@@ -1513,7 +1554,7 @@ void OmniboxViewViews::OnBlur() {
   model()->OnKillFocus();
 
   // Deselect the text. Ensures the cursor is an I-beam.
-  SetSelectedRange(gfx::Range(0));
+  SetSelectedRange(gfx::Range(GetCursorPosition()));
 
   // When deselected, elide and reset scroll position. After eliding, the old
   // scroll offset is meaningless (since the string is guaranteed to fit within
@@ -1595,7 +1636,8 @@ bool OmniboxViewViews::IsCommandIdEnabled(int command_id) const {
 
   // These menu items are only shown when they are valid.
   if (command_id == IDC_SHOW_FULL_URLS ||
-      command_id == IDC_SHOW_GOOGLE_LENS_SHORTCUT) {
+      command_id == IDC_SHOW_GOOGLE_LENS_SHORTCUT ||
+      command_id == IDC_SHOW_SEARCH_TOOLS) {
     return true;
   }
 
@@ -1613,12 +1655,6 @@ std::u16string OmniboxViewViews::GetSelectionClipboardText() const {
 }
 
 void OmniboxViewViews::DoInsertChar(char16_t ch) {
-  // Note: Using `Textfield::GetText()` instead of the `OmniboxView`
-  // implementation because the latter makes full string copies of the former.
-  if (model()->MaybeAccelerateKeywordSelection(Textfield::GetText(), ch)) {
-    return;
-  }
-
   // When the fakebox is focused, ignore whitespace input because if the
   // fakebox is hidden and there's only whitespace in the omnibox, it's
   // difficult for the user to see that the focus moved to the omnibox.
@@ -1721,7 +1757,9 @@ void OmniboxViewViews::CandidateWindowClosed(
 #endif
 
 void OmniboxViewViews::ContentsChanged(views::Textfield* sender,
-                                       const std::u16string& new_contents) {}
+                                       const std::u16string& new_contents) {
+  saved_selection_for_focus_change_ = gfx::Range::InvalidRange();
+}
 
 bool OmniboxViewViews::HandleKeyEvent(views::Textfield* textfield,
                                       const ui::KeyEvent& event) {
@@ -2042,6 +2080,11 @@ void OmniboxViewViews::UpdateContextMenu(ui::SimpleMenuModel* menu_contents) {
         IDC_SHOW_GOOGLE_LENS_SHORTCUT,
         IDS_CONTEXT_MENU_SHOW_GOOGLE_LENS_SHORTCUT);
   }
+
+  if (omnibox_feature_configs::Toolbelt::Get().enabled) {
+    menu_contents->AddCheckItemWithStringId(IDC_SHOW_SEARCH_TOOLS,
+                                            IDS_CONTEXT_MENU_SHOW_SEARCH_TOOLS);
+  }
 }
 
 bool OmniboxViewViews::IsCommandIdChecked(int id) const {
@@ -2052,6 +2095,10 @@ bool OmniboxViewViews::IsCommandIdChecked(int id) const {
   if (id == IDC_SHOW_GOOGLE_LENS_SHORTCUT) {
     return location_bar_view_->profile()->GetPrefs()->GetBoolean(
         omnibox::kShowGoogleLensShortcut);
+  }
+  if (id == IDC_SHOW_SEARCH_TOOLS) {
+    return location_bar_view_->profile()->GetPrefs()->GetBoolean(
+        omnibox::kShowSearchTools);
   }
   return false;
 }
@@ -2117,10 +2164,12 @@ void OmniboxViewViews::PerformDrop(
   if (std::optional<ui::OSExchangeData::UrlInfo> url_result =
           data.GetURLAndTitle(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
       url_result.has_value()) {
-    text = omnibox::StripJavascriptSchemas(base::UTF8ToUTF16(url_result->url.spec()));
+    text = omnibox::StripJavascriptSchemas(
+        base::UTF8ToUTF16(url_result->url.spec()));
   } else if (const std::optional<std::u16string> text_result = data.GetString();
              text_result.has_value()) {
-    text = omnibox::StripJavascriptSchemas(base::CollapseWhitespace(*text_result, true));
+    text = omnibox::StripJavascriptSchemas(
+        base::CollapseWhitespace(*text_result, true));
   } else {
     output_drag_op = DragOperation::kNone;
     return;

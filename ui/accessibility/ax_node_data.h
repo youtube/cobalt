@@ -7,17 +7,21 @@
 
 #include <stdint.h>
 
-#include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
+#include "ui/accessibility/ax_attributes.h"
 #include "ui/accessibility/ax_base_export.h"
+#include "ui/accessibility/ax_bitset.h"
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_node_id_forward.h"
 #include "ui/accessibility/ax_relative_bounds.h"
+#include "ui/accessibility/ax_states.h"
 #include "ui/accessibility/ax_text_attributes.h"
 #include "ui/gfx/geometry/rect_f.h"
 
@@ -32,6 +36,115 @@ AX_BASE_EXPORT bool IsNodeIdIntAttribute(ax::mojom::IntAttribute attr);
 // Return true if |attr| should be interpreted as a list of ids of
 // nodes in the same tree.
 AX_BASE_EXPORT bool IsNodeIdIntListAttribute(ax::mojom::IntListAttribute attr);
+
+class AX_BASE_EXPORT AXBoolStore {
+ public:
+  virtual ~AXBoolStore() = default;
+
+  virtual bool Has(ax::mojom::BoolAttribute attr) const = 0;
+  virtual bool Get(ax::mojom::BoolAttribute attr) const = 0;
+  virtual void Set(ax::mojom::BoolAttribute attr, bool value) = 0;
+  virtual void Remove(ax::mojom::BoolAttribute attr) = 0;
+
+  // Returns the number of attributes currently set in the store.
+  virtual size_t Size() const = 0;
+
+  // Returns the total memory footprint of the store in bytes, including any
+  // heap allocations.
+  virtual size_t ObjectSize() const = 0;
+
+  virtual bool IsBitset() const = 0;
+  virtual bool IsEqual(const AXBoolStore& other) const = 0;
+  virtual std::unique_ptr<AXBoolStore> Clone() const = 0;
+  virtual void Clear() = 0;
+  virtual void Merge(const AXBoolStore& other) = 0;
+  virtual void ForEach(base::FunctionRef<void(ax::mojom::BoolAttribute, bool)>
+                           callback) const = 0;
+  virtual void PopulateFromBitset(
+      const AXBitset<ax::mojom::BoolAttribute>& source_bitset) = 0;
+  virtual void PopulateFromMap(
+      const base::flat_map<ax::mojom::BoolAttribute, bool>& source_map) = 0;
+
+  // The following methods break the abstraction of the AXBoolStore
+  // interface by exposing the underlying concrete implementation type.
+  //
+  // Their use should be limited to performance-critical code paths where
+  // type-aware algorithms are necessary (e.g., in diffing logic like
+  // CallIfAttributeValuesChanged).
+  //
+  // For all general-purpose interaction, prefer the standard virtual methods
+  // of this interface (Set/Get/Has/ForEach/etc.).
+  virtual const AXBitset<ax::mojom::BoolAttribute>& GetBitsetStore() const = 0;
+  virtual const AXBoolAttributes& GetVectorStore() const = 0;
+};
+
+class AX_BASE_EXPORT AXVectorBoolStore : public AXBoolStore {
+ public:
+  AXVectorBoolStore();
+  ~AXVectorBoolStore() override;
+
+  AXVectorBoolStore(const AXVectorBoolStore& other);
+
+  // AXBoolStore implementation.
+  bool Has(ax::mojom::BoolAttribute attr) const override;
+  bool Get(ax::mojom::BoolAttribute attr) const override;
+  void Set(ax::mojom::BoolAttribute attr, bool value) override;
+  void Remove(ax::mojom::BoolAttribute attr) override;
+  bool IsBitset() const override;
+  bool IsEqual(const AXBoolStore& other) const override;
+  std::unique_ptr<AXBoolStore> Clone() const override;
+  void Clear() override;
+  size_t Size() const override;
+  size_t ObjectSize() const override;
+  void ForEach(base::FunctionRef<void(ax::mojom::BoolAttribute, bool)> callback)
+      const override;
+  void Merge(const AXBoolStore& other) override;
+  void PopulateFromBitset(
+      const AXBitset<ax::mojom::BoolAttribute>& source_bitset) override;
+  void PopulateFromMap(const base::flat_map<ax::mojom::BoolAttribute, bool>&
+                           source_map) override;
+  const AXBitset<ax::mojom::BoolAttribute>& GetBitsetStore() const override;
+  const AXBoolAttributes& GetVectorStore() const override;
+
+  bool IsEqual(const AXVectorBoolStore& other) const;
+
+ private:
+  AXBoolAttributes list_;
+};
+
+class AX_BASE_EXPORT AXBitsetBoolStore : public AXBoolStore {
+ public:
+  AXBitsetBoolStore();
+  ~AXBitsetBoolStore() override;
+
+  AXBitsetBoolStore(const AXBitsetBoolStore& other);
+
+  // AXBoolStore implementation.
+  bool Has(ax::mojom::BoolAttribute attr) const override;
+  bool Get(ax::mojom::BoolAttribute attr) const override;
+  void Set(ax::mojom::BoolAttribute attr, bool value) override;
+  void Remove(ax::mojom::BoolAttribute attr) override;
+  bool IsBitset() const override;
+  bool IsEqual(const AXBoolStore& other) const override;
+  std::unique_ptr<AXBoolStore> Clone() const override;
+  void Clear() override;
+  size_t Size() const override;
+  size_t ObjectSize() const override;
+  void Merge(const AXBoolStore& other) override;
+  void ForEach(base::FunctionRef<void(ax::mojom::BoolAttribute, bool)> callback)
+      const override;
+  void PopulateFromBitset(
+      const AXBitset<ax::mojom::BoolAttribute>& source_bitset) override;
+  void PopulateFromMap(const base::flat_map<ax::mojom::BoolAttribute, bool>&
+                           source_map) override;
+  const AXBitset<ax::mojom::BoolAttribute>& GetBitsetStore() const override;
+  const AXBoolAttributes& GetVectorStore() const override;
+
+  bool IsEqual(const AXBitsetBoolStore& other) const;
+
+ private:
+  AXBitset<ax::mojom::BoolAttribute> bitset_;
+};
 
 // A compact representation of the accessibility information for a
 // single accessible object, in a form that can be serialized and sent from
@@ -57,42 +170,60 @@ struct AX_BASE_EXPORT AXNodeData final {
 
   // Accessing accessibility attributes:
   //
-  // There are dozens of possible attributes for an accessibility node,
-  // but only a few tend to apply to any one object, so we store them
-  // in sparse arrays of <attribute id, attribute value> pairs, organized
-  // by type (bool, int, float, string, int list).
+  // There are dozens of possible attributes for an accessibility node, but only
+  // a few tend to apply to any one object, so we store them in sorted sparse
+  // arrays of <attribute id, attribute value> pairs, organized by type (bool,
+  // int, float, string, int list, string list).
   //
-  // There are three accessors for each type of attribute: one that returns
-  // true if the attribute is present and false if not, one that takes a
-  // pointer argument and returns true if the attribute is present (if you
-  // need to distinguish between the default value and a missing attribute),
-  // and another that returns the default value for that type if the
-  // attribute is not present. In addition, strings can be returned as
-  // either std::string or std::u16string, for convenience.
+  // There are two accessors for each type of attribute: one that returns true
+  // if the attribute is present and false if not, and another that returns the
+  // default value for that type (e.g., false for a bool or an empty container
+  // for a string or list) if the attribute is not present. In addition, strings
+  // can be returned as either std::string or std::u16string, for convenience.
 
-  bool HasBoolAttribute(ax::mojom::BoolAttribute attribute) const;
-  bool GetBoolAttribute(ax::mojom::BoolAttribute attribute) const;
-
-  bool HasFloatAttribute(ax::mojom::FloatAttribute attribute) const;
-  float GetFloatAttribute(ax::mojom::FloatAttribute attribute) const;
-
-  bool HasIntAttribute(ax::mojom::IntAttribute attribute) const;
-  int GetIntAttribute(ax::mojom::IntAttribute attribute) const;
-
-  bool HasStringAttribute(ax::mojom::StringAttribute attribute) const;
+  bool HasBoolAttribute(ax::mojom::BoolAttribute attribute) const {
+    return bool_attributes->Has(attribute);
+  }
+  bool GetBoolAttribute(ax::mojom::BoolAttribute attribute) const {
+    return bool_attributes->Get(attribute);
+  }
+  bool HasFloatAttribute(ax::mojom::FloatAttribute attribute) const {
+    return float_attributes.Has(attribute);
+  }
+  float GetFloatAttribute(ax::mojom::FloatAttribute attribute) const {
+    return float_attributes.Get(attribute);
+  }
+  bool HasIntAttribute(ax::mojom::IntAttribute attribute) const {
+    return int_attributes.Has(attribute);
+  }
+  int GetIntAttribute(ax::mojom::IntAttribute attribute) const {
+    return int_attributes.Get(attribute);
+  }
+  bool HasStringAttribute(ax::mojom::StringAttribute attribute) const {
+    return string_attributes.Has(attribute);
+  }
   const std::string& GetStringAttribute(
-      ax::mojom::StringAttribute attribute) const;
-
+      ax::mojom::StringAttribute attribute) const {
+    return string_attributes.Get(attribute);
+  }
   std::u16string GetString16Attribute(
-      ax::mojom::StringAttribute attribute) const;
-
-  bool HasIntListAttribute(ax::mojom::IntListAttribute attribute) const;
+      ax::mojom::StringAttribute attribute) const {
+    return base::UTF8ToUTF16(GetStringAttribute(attribute));
+  }
+  bool HasIntListAttribute(ax::mojom::IntListAttribute attribute) const {
+    return intlist_attributes.Has(attribute);
+  }
   const std::vector<int32_t>& GetIntListAttribute(
-      ax::mojom::IntListAttribute attribute) const;
-
-  bool HasStringListAttribute(ax::mojom::StringListAttribute attribute) const;
+      ax::mojom::IntListAttribute attribute) const {
+    return intlist_attributes.Get(attribute);
+  }
+  bool HasStringListAttribute(ax::mojom::StringListAttribute attribute) const {
+    return stringlist_attributes.Has(attribute);
+  }
   const std::vector<std::string>& GetStringListAttribute(
-      ax::mojom::StringListAttribute attribute) const;
+      ax::mojom::StringListAttribute attribute) const {
+    return stringlist_attributes.Get(attribute);
+  }
 
   bool HasHtmlAttribute(const char* attribute) const;
   const std::string& GetHtmlAttribute(const char* attribute) const;
@@ -107,29 +238,53 @@ struct AX_BASE_EXPORT AXNodeData final {
   // have wanted or what existing code already assumes.
   //
 
-  void AddBoolAttribute(ax::mojom::BoolAttribute attribute, bool value);
+  void AddBoolAttribute(ax::mojom::BoolAttribute attribute, bool value) {
+    bool_attributes->Set(attribute, value);
+  }
   void AddChildTreeId(const AXTreeID& tree_id);
-  void AddIntAttribute(ax::mojom::IntAttribute attribute, int32_t value);
-  void AddFloatAttribute(ax::mojom::FloatAttribute attribute, float value);
+  void AddIntAttribute(ax::mojom::IntAttribute attribute, int32_t value) {
+    int_attributes.Set(attribute, value);
+  }
+  void AddFloatAttribute(ax::mojom::FloatAttribute attribute, float value) {
+    float_attributes.Set(attribute, value);
+  }
   // This method cannot be used to set kChildTreeId due to a common
   // misuse of base::UnguessableToken serialization. Use AddChildTreeId instead.
   void AddStringAttribute(ax::mojom::StringAttribute attribute,
-                          const std::string& value);
+                          const std::string& value) {
+    string_attributes.Set(attribute, value);
+  }
   void AddIntListAttribute(ax::mojom::IntListAttribute attribute,
-                           const std::vector<int32_t>& value);
+                           const std::vector<int32_t>& value) {
+    intlist_attributes.Set(attribute, value);
+  }
   void AddStringListAttribute(ax::mojom::StringListAttribute attribute,
-                              const std::vector<std::string>& value);
+                              const std::vector<std::string>& value) {
+    stringlist_attributes.Set(attribute, value);
+  }
 
   //
   // Removing accessibility attributes.
   //
 
-  void RemoveBoolAttribute(ax::mojom::BoolAttribute attribute);
-  void RemoveIntAttribute(ax::mojom::IntAttribute attribute);
-  void RemoveFloatAttribute(ax::mojom::FloatAttribute attribute);
-  void RemoveStringAttribute(ax::mojom::StringAttribute attribute);
-  void RemoveIntListAttribute(ax::mojom::IntListAttribute attribute);
-  void RemoveStringListAttribute(ax::mojom::StringListAttribute attribute);
+  void RemoveBoolAttribute(ax::mojom::BoolAttribute attribute) {
+    bool_attributes->Remove(attribute);
+  }
+  void RemoveIntAttribute(ax::mojom::IntAttribute attribute) {
+    int_attributes.Remove(attribute);
+  }
+  void RemoveFloatAttribute(ax::mojom::FloatAttribute attribute) {
+    float_attributes.Remove(attribute);
+  }
+  void RemoveStringAttribute(ax::mojom::StringAttribute attribute) {
+    string_attributes.Remove(attribute);
+  }
+  void RemoveIntListAttribute(ax::mojom::IntListAttribute attribute) {
+    intlist_attributes.Remove(attribute);
+  }
+  void RemoveStringListAttribute(ax::mojom::StringListAttribute attribute) {
+    stringlist_attributes.Remove(attribute);
+  }
 
   //
   // Text attributes, such as spelling markers and style information.
@@ -206,14 +361,21 @@ struct AX_BASE_EXPORT AXNodeData final {
   void SetValue(const std::string& value);
   void SetValue(const std::u16string& value);
 
+  // Returns the field of state bits.
+  AXStates GetStates() const { return state; }
+
   // Returns true if the given enum bit is 1.
-  bool HasState(ax::mojom::State state) const;
+  bool HasState(ax::mojom::State a_state) const {
+    return ui::HasState(state, a_state);
+  }
   bool HasAction(ax::mojom::Action action) const;
   bool HasTextStyle(ax::mojom::TextStyle text_style) const;
 
   // Set or remove bits in the given enum's corresponding bitfield.
-  void AddState(ax::mojom::State state);
-  void RemoveState(ax::mojom::State state);
+  void AddState(ax::mojom::State a_state) { ui::AddState(state, a_state); }
+  void RemoveState(ax::mojom::State a_state) {
+    ui::RemoveState(state, a_state);
+  }
   void AddAction(ax::mojom::Action action);
   void RemoveAction(ax::mojom::Action action);
   void AddTextStyle(ax::mojom::TextStyle text_style);
@@ -245,6 +407,7 @@ struct AX_BASE_EXPORT AXNodeData final {
   void SetRestriction(ax::mojom::Restriction restriction);
   ax::mojom::ListStyle GetListStyle() const;
   void SetListStyle(ax::mojom::ListStyle list_style);
+  int GetPaintOrder() const;
   ax::mojom::TextAlign GetTextAlign() const;
   void SetTextAlign(ax::mojom::TextAlign text_align);
   ax::mojom::WritingDirection GetTextDirection() const;
@@ -369,18 +532,14 @@ struct AX_BASE_EXPORT AXNodeData final {
   // copyable struct.
   AXNodeID id = kInvalidAXNodeID;
   ax::mojom::Role role;
-  uint32_t state = 0U;
+  AXStates state{0U};
   uint64_t actions = 0ULL;
-  std::vector<std::pair<ax::mojom::StringAttribute, std::string>>
-      string_attributes;
-  std::vector<std::pair<ax::mojom::IntAttribute, int32_t>> int_attributes;
-  std::vector<std::pair<ax::mojom::FloatAttribute, float>> float_attributes;
-  std::vector<std::pair<ax::mojom::BoolAttribute, bool>> bool_attributes;
-  std::vector<std::pair<ax::mojom::IntListAttribute, std::vector<int32_t>>>
-      intlist_attributes;
-  std::vector<
-      std::pair<ax::mojom::StringListAttribute, std::vector<std::string>>>
-      stringlist_attributes;
+  AXStringAttributes string_attributes;
+  AXIntAttributes int_attributes;
+  AXFloatAttributes float_attributes;
+  std::unique_ptr<AXBoolStore> bool_attributes;
+  AXIntListAttributes intlist_attributes;
+  AXStringListAttributes stringlist_attributes;
   base::StringPairs html_attributes;
   std::vector<int32_t> child_ids;
 

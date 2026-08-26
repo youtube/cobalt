@@ -143,7 +143,7 @@ public class FeedSurfaceCoordinatorTest {
     }
 
     private static class TestTabModel extends EmptyTabModel {
-        public final ArrayList<TabModelObserver> mObservers = new ArrayList<TabModelObserver>();
+        public final ArrayList<TabModelObserver> mObservers = new ArrayList<>();
 
         @Override
         public void addObserver(TabModelObserver observer) {
@@ -466,10 +466,7 @@ public class FeedSurfaceCoordinatorTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN,
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE
-    })
+    @EnableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testEdgeToEdge() {
         mEdgeToEdgeSupplier.set(mEdgeToEdgeController);
         verify(mEdgeToEdgeController).registerAdjuster(mEdgePadAdjusterCaptor.capture());

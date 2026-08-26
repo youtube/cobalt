@@ -90,7 +90,7 @@ ReceiveStatisticsProxy::ReceiveStatisticsProxy(uint32_t remote_ssrc,
                                                Clock* clock,
                                                TaskQueueBase* worker_thread)
     : clock_(clock),
-      start_ms_(clock->TimeInMilliseconds()),
+      start_(clock->CurrentTime()),
       remote_ssrc_(remote_ssrc),
       // 1000ms window, scale 1000 for ms to s.
       decode_fps_estimator_(1000, 1000),
@@ -103,7 +103,6 @@ ReceiveStatisticsProxy::ReceiveStatisticsProxy(uint32_t remote_ssrc,
       last_content_type_(VideoContentType::UNSPECIFIED),
       last_codec_type_(kVideoCodecVP8),
       num_delayed_frames_rendered_(0),
-      sum_missed_render_deadline_ms_(0),
       timing_frame_info_counter_(kMovingMaxWindowMs),
       worker_thread_(worker_thread) {
   RTC_DCHECK(worker_thread);
@@ -125,14 +124,14 @@ void ReceiveStatisticsProxy::UpdateHistograms(
   char log_stream_buf[8 * 1024];
   SimpleStringBuilder log_stream(log_stream_buf);
 
-  int stream_duration_sec = (clock_->TimeInMilliseconds() - start_ms_) / 1000;
+  TimeDelta stream_duration = clock_->CurrentTime() - start_;
 
   if (stats_.frame_counts.key_frames > 0 ||
       stats_.frame_counts.delta_frames > 0) {
     RTC_HISTOGRAM_COUNTS_100000("WebRTC.Video.ReceiveStreamLifetimeInSeconds",
-                                stream_duration_sec);
+                                stream_duration.seconds());
     log_stream << "WebRTC.Video.ReceiveStreamLifetimeInSeconds "
-               << stream_duration_sec << '\n';
+               << stream_duration.seconds() << '\n';
   }
 
   log_stream << "Frames decoded " << stats_.frames_decoded << '\n';
@@ -145,7 +144,7 @@ void ReceiveStatisticsProxy::UpdateHistograms(
                << '\n';
   }
 
-  if (fraction_lost && stream_duration_sec >= metrics::kMinRunTimeInSeconds) {
+  if (fraction_lost && stream_duration >= metrics::kMinRunTime) {
     RTC_HISTOGRAM_PERCENTAGE("WebRTC.Video.ReceivedPacketsLostInPercent",
                              *fraction_lost);
     log_stream << "WebRTC.Video.ReceivedPacketsLostInPercent " << *fraction_lost
@@ -155,7 +154,7 @@ void ReceiveStatisticsProxy::UpdateHistograms(
   if (first_decoded_frame_time_ms_) {
     const int64_t elapsed_ms =
         (clock_->TimeInMilliseconds() - *first_decoded_frame_time_ms_);
-    if (elapsed_ms >= metrics::kMinRunTimeInSeconds * kNumMillisecsPerSec) {
+    if (elapsed_ms >= metrics::kMinRunTime.ms()) {
       int decoded_fps = static_cast<int>(
           (stats_.frames_decoded * 1000.0f / elapsed_ms) + 0.5f);
       RTC_HISTOGRAM_COUNTS_100("WebRTC.Video.DecodedFramesPerSecond",
@@ -171,8 +170,8 @@ void ReceiveStatisticsProxy::UpdateHistograms(
         if (num_delayed_frames_rendered_ > 0) {
           RTC_HISTOGRAM_COUNTS_1000(
               "WebRTC.Video.DelayedFramesToRenderer_AvgDelayInMs",
-              static_cast<int>(sum_missed_render_deadline_ms_ /
-                               num_delayed_frames_rendered_));
+              (sum_missed_render_deadline_ / num_delayed_frames_rendered_)
+                  .ms());
         }
       }
     }
@@ -335,7 +334,7 @@ void ReceiveStatisticsProxy::UpdateHistograms(
       // Don't report these 3 metrics unsliced, as more precise variants
       // are reported separately in this method.
       float flow_duration_sec = stats.flow_duration_ms / 1000.0;
-      if (flow_duration_sec >= metrics::kMinRunTimeInSeconds) {
+      if (flow_duration_sec >= metrics::kMinRunTime.seconds()) {
         int media_bitrate_kbps = static_cast<int>(stats.total_media_bytes * 8 /
                                                   flow_duration_sec / 1000);
         RTC_HISTOGRAM_COUNTS_SPARSE_10000(
@@ -369,7 +368,7 @@ void ReceiveStatisticsProxy::UpdateHistograms(
     rtp_rtx_stats.Add(*rtx_stats);
 
   TimeDelta elapsed = rtp_rtx_stats.TimeSinceFirstPacket(clock_->CurrentTime());
-  if (elapsed >= TimeDelta::Seconds(metrics::kMinRunTimeInSeconds)) {
+  if (elapsed >= metrics::kMinRunTime) {
     int64_t elapsed_sec = elapsed.seconds();
     RTC_HISTOGRAM_COUNTS_10000(
         "WebRTC.Video.BitrateReceivedInKbps",
@@ -745,10 +744,10 @@ void ReceiveStatisticsProxy::OnRenderedFrame(
   content_specific_stats->received_height.Add(frame_meta.height);
 
   // Consider taking stats_.render_delay_ms into account.
-  const int64_t time_until_rendering_ms =
-      frame_meta.render_time_ms() - frame_meta.decode_timestamp.ms();
-  if (time_until_rendering_ms < 0) {
-    sum_missed_render_deadline_ms_ += -time_until_rendering_ms;
+  const TimeDelta time_until_rendering =
+      frame_meta.render_time - frame_meta.decode_timestamp;
+  if (time_until_rendering < TimeDelta::Zero()) {
+    sum_missed_render_deadline_ += -time_until_rendering;
     ++num_delayed_frames_rendered_;
   }
 

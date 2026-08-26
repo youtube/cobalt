@@ -11,6 +11,7 @@
 
 #include "base/allocator/partition_alloc_support.h"
 #include "base/command_line.h"
+#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
@@ -32,7 +33,6 @@
 #include "components/viz/common/features.h"
 #include "components/viz/common/resources/peak_gpu_memory_tracker_util.h"
 #include "components/viz/service/gl/gpu_log_message_manager.h"
-#include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 #include "gpu/command_buffer/service/dawn_caching_interface.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/command_buffer/service/scheduler.h"
@@ -46,7 +46,6 @@
 #include "gpu/config/gpu_switches.h"
 #include "gpu/config/gpu_util.h"
 #include "gpu/ipc/common/gpu_client_ids.h"
-#include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 #include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "gpu/ipc/common/gpu_peak_memory.h"
 #include "gpu/ipc/common/memory_stats.h"
@@ -58,7 +57,6 @@
 #include "gpu/vulkan/buildflags.h"
 #include "ipc/ipc_channel_handle.h"
 #include "ipc/ipc_sync_channel.h"
-#include "ipc/ipc_sync_message_filter.h"
 #include "media/base/media_log.h"
 #include "media/base/media_switches.h"
 #include "media/gpu/buildflags.h"
@@ -98,15 +96,6 @@
 #include "components/chromeos_camera/gpu_mjpeg_decode_accelerator_factory.h"
 #include "components/chromeos_camera/mojo_jpeg_encode_accelerator_service.h"
 #include "components/chromeos_camera/mojo_mjpeg_decode_accelerator_service.h"
-
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
-#include "chromeos/ash/experiences/arc/video_accelerator/gpu_arc_video_decode_accelerator.h"
-#include "chromeos/ash/experiences/arc/video_accelerator/gpu_arc_video_decoder.h"
-#include "chromeos/ash/experiences/arc/video_accelerator/gpu_arc_video_encode_accelerator.h"
-#include "chromeos/ash/experiences/arc/video_accelerator/gpu_arc_video_protected_buffer_allocator.h"
-#include "chromeos/ash/experiences/arc/video_accelerator/protected_buffer_manager.h"
-#include "chromeos/ash/experiences/arc/video_accelerator/protected_buffer_manager_proxy.h"
-#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)
@@ -127,7 +116,7 @@
 #endif
 
 #if BUILDFLAG(SKIA_USE_METAL)
-#include "components/viz/common/gpu/metal_context_provider.h"
+#include "gpu/command_buffer/service/metal_context_provider.h"
 #endif
 
 #if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX)
@@ -141,6 +130,7 @@
 
 #if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_platform.h"
+#include "ui/ozone/public/surface_factory_ozone.h"
 #endif  // BUILDFLAG(IS_OZONE)
 
 namespace viz {
@@ -212,11 +202,6 @@ GpuServiceImpl::GpuServiceImpl(
           features::kClearGrShaderDiskCacheOnInvalidPrefix)) {
   DCHECK(!io_runner_->BelongsToCurrentThread());
 
-#if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
-  protected_buffer_manager_ = new arc::ProtectedBufferManager();
-#endif  // BUILDFLAG(IS_CHROMEOS) &&
-        // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
-
 #if BUILDFLAG(ENABLE_VULKAN)
   if (vulkan_implementation_) {
     bool is_native_vulkan =
@@ -228,8 +213,8 @@ GpuServiceImpl::GpuServiceImpl(
     bool is_native_gl =
         gpu_info_.gpu.vendor_id != 0xffff && gpu_info_.gpu.vendor_id != 0;
 
-    const bool is_thread_safe =
-        features::IsDrDcEnabled() && !gpu_driver_bug_workarounds_.disable_drdc;
+    const bool is_thread_safe = features::IsDrDcEnabled(gpu_feature_info);
+
     // If GL is using a real GPU, the gpu_info will be passed in and vulkan will
     // use the same GPU.
     vulkan_context_provider_ = VulkanInProcessContextProvider::Create(
@@ -311,10 +296,6 @@ GpuServiceImpl::~GpuServiceImpl() {
 
   bind_task_tracker_.TryCancelAll();
 
-  if (!in_host_process()) {
-    GpuLogMessageManager::GetInstance()->ShutdownLogging();
-  }
-
 #if BUILDFLAG(IS_WIN)
   gl::DirectCompositionOverlayCapsMonitor::GetInstance()->RemoveObserver(this);
 #endif
@@ -362,6 +343,9 @@ GpuServiceImpl::~GpuServiceImpl() {
       wait.Wait();
     }
   }
+
+  // WebNN must be destroyed before the scheduler is destroyed.
+  webnn_context_provider_.reset();
 
   // Scheduler must be destroyed before sync point manager is destroyed.
   owned_scheduler_.reset();
@@ -513,6 +497,8 @@ void GpuServiceImpl::InitializeWithHostInternal(
   scheduler_ = scheduler;
   shutdown_event_ = shutdown_event;
 
+  use_shader_cache_shm_count_ = std::move(use_shader_cache_shm_count);
+
   mojo::Remote<mojom::GpuHost> gpu_host(std::move(pending_gpu_host));
 
 #if BUILDFLAG(IS_LINUX)
@@ -523,14 +509,6 @@ void GpuServiceImpl::InitializeWithHostInternal(
                           gpu_info_for_hardware_gpu_,
                           gpu_feature_info_for_hardware_gpu_, gpu_extra_info_);
   gpu_host_ = mojo::SharedRemote<mojom::GpuHost>(gpu_host.Unbind(), io_runner_);
-  if (!in_host_process()) {
-    // The global callback is reset from the dtor. So Unretained() here is safe.
-    // Note that the callback can be called from any thread. Consequently, the
-    // callback cannot use a WeakPtr.
-    GpuLogMessageManager::GetInstance()->InstallPostInitializeLogHandler(
-        base::BindRepeating(&GpuServiceImpl::RecordLogMessage,
-                            base::Unretained(this)));
-  }
 
   // Defer creation of the render thread. This is to prevent it from handling
   // IPC messages before the sandbox has been enabled and all other necessary
@@ -539,8 +517,7 @@ void GpuServiceImpl::InitializeWithHostInternal(
       gpu_preferences_, this, watchdog_thread_.get(), main_runner_, io_runner_,
       scheduler_, sync_point_manager, shared_image_manager,
       gpu_memory_buffer_factory_.get(), gpu_feature_info_,
-      std::move(use_shader_cache_shm_count),
-      std::move(default_offscreen_surface),
+      &use_shader_cache_shm_count_, std::move(default_offscreen_surface),
       image_decode_accelerator_worker_.get(), vulkan_context_provider(),
       metal_context_provider(), dawn_context_provider(),
       dawn_caching_interface_factory(), gr_context_options_provider_);
@@ -549,7 +526,12 @@ void GpuServiceImpl::InitializeWithHostInternal(
       gpu_channel_manager_.get());
 
   // Create and Initialize compositor gpu thread.
-  {
+  if (features::IsDrDcEnabled(gpu_feature_info_)) {
+    // Add a crash key for DrDC.
+    static auto* drdc_crash_key = base::debug::AllocateCrashKeyString(
+        "is-drdc-enabled", base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(drdc_crash_key, "1");
+
     CompositorGpuThread::CreateParams params;
     params.gpu_channel_manager = gpu_channel_manager_.get();
     params.display =
@@ -565,10 +547,21 @@ void GpuServiceImpl::InitializeWithHostInternal(
                               : nullptr;
 #endif
 #if BUILDFLAG(SKIA_USE_DAWN)
+    // Initialize the thread-safe GraphiteSharedContext before starting the DrDC
+    // thread to prevent a race on accessing it via SharedContextState.
+    if (dawn_context_provider_ &&
+        dawn_context_provider_->use_thread_safe_shared_context()) {
+      dawn_context_provider_->InitializeThreadSafeGraphiteContext(
+          gpu::GetDefaultGraphiteContextOptions(gpu_driver_bug_workarounds_),
+          &use_shader_cache_shm_count_);
+    }
     params.dawn_context_provider = dawn_context_provider_.get();
 #endif
-    compositor_gpu_thread_ = CompositorGpuThread::MaybeCreate(params);
+
+    compositor_gpu_thread_ = CompositorGpuThread::Create(params);
   }
+
+  UMA_HISTOGRAM_BOOLEAN("GPU.DrDcEnabled", !!compositor_gpu_thread_);
 
 #if BUILDFLAG(IS_WIN)
   // Add GpuServiceImpl to DirectCompositionOverlayCapsMonitor observer list for
@@ -608,116 +601,7 @@ void GpuServiceImpl::SetVisibilityChangedCallback(
   visibility_changed_callback_ = std::move(callback);
 }
 
-void GpuServiceImpl::RecordLogMessage(int severity,
-                                      const std::string& header,
-                                      const std::string& message) {
-  // This can be run from any thread.
-  gpu_host_->RecordLogMessage(severity, std::move(header), std::move(message));
-}
-
 #if BUILDFLAG(IS_CHROMEOS)
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
-void GpuServiceImpl::CreateArcVideoDecodeAccelerator(
-    mojo::PendingReceiver<arc::mojom::VideoDecodeAccelerator> vda_receiver) {
-  DCHECK(io_runner_->BelongsToCurrentThread());
-  main_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          &GpuServiceImpl::CreateArcVideoDecodeAcceleratorOnMainThread,
-          weak_ptr_, std::move(vda_receiver)));
-}
-
-void GpuServiceImpl::CreateArcVideoDecoder(
-    mojo::PendingReceiver<arc::mojom::VideoDecoder> vd_receiver) {
-  DCHECK(io_runner_->BelongsToCurrentThread());
-  main_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&GpuServiceImpl::CreateArcVideoDecoderOnMainThread,
-                     weak_ptr_, std::move(vd_receiver)));
-}
-
-void GpuServiceImpl::CreateArcVideoEncodeAccelerator(
-    mojo::PendingReceiver<arc::mojom::VideoEncodeAccelerator> vea_receiver) {
-  DCHECK(io_runner_->BelongsToCurrentThread());
-  main_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          &GpuServiceImpl::CreateArcVideoEncodeAcceleratorOnMainThread,
-          weak_ptr_, std::move(vea_receiver)));
-}
-
-void GpuServiceImpl::CreateArcVideoProtectedBufferAllocator(
-    mojo::PendingReceiver<arc::mojom::VideoProtectedBufferAllocator>
-        pba_receiver) {
-  DCHECK(io_runner_->BelongsToCurrentThread());
-  main_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          &GpuServiceImpl::CreateArcVideoProtectedBufferAllocatorOnMainThread,
-          weak_ptr_, std::move(pba_receiver)));
-}
-
-void GpuServiceImpl::CreateArcProtectedBufferManager(
-    mojo::PendingReceiver<arc::mojom::ProtectedBufferManager> pbm_receiver) {
-  DCHECK(io_runner_->BelongsToCurrentThread());
-  main_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          &GpuServiceImpl::CreateArcProtectedBufferManagerOnMainThread,
-          weak_ptr_, std::move(pbm_receiver)));
-}
-
-void GpuServiceImpl::CreateArcVideoDecodeAcceleratorOnMainThread(
-    mojo::PendingReceiver<arc::mojom::VideoDecodeAccelerator> vda_receiver) {
-  CHECK(main_runner_->BelongsToCurrentThread());
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<arc::GpuArcVideoDecodeAccelerator>(
-          gpu_preferences_, gpu_channel_manager_->gpu_driver_bug_workarounds(),
-          protected_buffer_manager_),
-      std::move(vda_receiver));
-}
-
-void GpuServiceImpl::CreateArcVideoDecoderOnMainThread(
-    mojo::PendingReceiver<arc::mojom::VideoDecoder> vd_receiver) {
-  DCHECK(main_runner_->BelongsToCurrentThread());
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<arc::GpuArcVideoDecoder>(protected_buffer_manager_),
-      std::move(vd_receiver));
-}
-
-void GpuServiceImpl::CreateArcVideoEncodeAcceleratorOnMainThread(
-    mojo::PendingReceiver<arc::mojom::VideoEncodeAccelerator> vea_receiver) {
-  DCHECK(main_runner_->BelongsToCurrentThread());
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<arc::GpuArcVideoEncodeAccelerator>(
-          gpu_preferences_, gpu_channel_manager_->gpu_driver_bug_workarounds()),
-      std::move(vea_receiver));
-}
-
-void GpuServiceImpl::CreateArcVideoProtectedBufferAllocatorOnMainThread(
-    mojo::PendingReceiver<arc::mojom::VideoProtectedBufferAllocator>
-        pba_receiver) {
-  DCHECK(main_runner_->BelongsToCurrentThread());
-  auto gpu_arc_video_protected_buffer_allocator =
-      arc::GpuArcVideoProtectedBufferAllocator::Create(
-          protected_buffer_manager_);
-  if (!gpu_arc_video_protected_buffer_allocator)
-    return;
-  mojo::MakeSelfOwnedReceiver(
-      std::move(gpu_arc_video_protected_buffer_allocator),
-      std::move(pba_receiver));
-}
-
-void GpuServiceImpl::CreateArcProtectedBufferManagerOnMainThread(
-    mojo::PendingReceiver<arc::mojom::ProtectedBufferManager> pbm_receiver) {
-  DCHECK(main_runner_->BelongsToCurrentThread());
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<arc::GpuArcProtectedBufferManagerProxy>(
-          protected_buffer_manager_),
-      std::move(pbm_receiver));
-}
-#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
-
 void GpuServiceImpl::CreateJpegDecodeAccelerator(
     mojo::PendingReceiver<chromeos_camera::mojom::MjpegDecodeAccelerator>
         jda_receiver) {
@@ -807,13 +691,14 @@ void GpuServiceImpl::BindWebNNContextProvider(
   if (!webnn_context_provider_) {
     scoped_refptr<gpu::SharedContextState> shared_context_state =
         GetContextState();
-    if (!shared_context_state) {
-      return;
-    }
+    // `shared_context_state` may be nullptr if there is no GPU acceleration.
+    // For such case, WebNN CPU backend, e.g. TFLite XNNPACK, is still useful.
+
     // TODO(crbug.com/345352987): manage `WebNNContextProviderImpl` instance per
     // `client_id` in order to support memory metrics.
     webnn_context_provider_ = webnn::WebNNContextProviderImpl::Create(
         std::move(shared_context_state), gpu_feature_info_, gpu_info_,
+        shared_image_manager(),
         base::BindOnce(&GpuServiceImpl::LoseAllContexts, weak_ptr_),
         main_runner(), GetGpuScheduler(), client_id);
   }
@@ -833,6 +718,36 @@ void GpuServiceImpl::GetVideoMemoryUsageStats(
   }
   gpu::VideoMemoryUsageStats video_memory_usage_stats;
   gpu_channel_manager_->GetVideoMemoryUsageStats(&video_memory_usage_stats);
+
+  if (compositor_gpu_thread()) {
+    // when DrDC is enabled, add SKIA and SHARED_CONTEXT_STATE memory from
+    // CompositorGpuThread.
+    AddVideoMemoryUsageStatsOnCompositorGpu(std::move(callback),
+                                            video_memory_usage_stats);
+  } else {
+    std::move(callback).Run(video_memory_usage_stats);
+  }
+}
+
+void GpuServiceImpl::AddVideoMemoryUsageStatsOnCompositorGpu(
+    GetVideoMemoryUsageStatsCallback callback,
+    gpu::VideoMemoryUsageStats video_memory_usage_stats) {
+  // Called only when CompositorGpuThread exists.
+  CompositorGpuThread* thread = compositor_gpu_thread();
+  DCHECK(thread);
+  if (!thread->task_runner()->BelongsToCurrentThread()) {
+    thread->task_runner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&GpuServiceImpl::AddVideoMemoryUsageStatsOnCompositorGpu,
+                       weak_ptr_, std::move(callback),
+                       video_memory_usage_stats));
+    return;
+  }
+
+  uint64_t size = thread->GetSharedContextState()->GetMemoryUsage();
+  video_memory_usage_stats.process_map[base::GetCurrentProcId()].video_memory +=
+      size;
+  video_memory_usage_stats.bytes_allocated += size;
   std::move(callback).Run(video_memory_usage_stats);
 }
 
@@ -1354,26 +1269,31 @@ bool GpuServiceImpl::OnBeginFrameDerivedImpl(const BeginFrameArgs& args) {
 #if BUILDFLAG(IS_LINUX)
 bool GpuServiceImpl::IsGMBNV12Supported() {
   CHECK(main_runner_->BelongsToCurrentThread());
+
+  // Determine whether it's possible to create an NV12 NativePixmap with
+  // GPU_READ_CPU_READ_WRITE usage (the relevant usage for the clients of this
+  // method).
   auto buffer_format = gfx::BufferFormat::YUV_420_BIPLANAR;
   auto buffer_usage = gfx::BufferUsage::GPU_READ_CPU_READ_WRITE;
 
   if (!IsNativeBufferSupported(buffer_format, buffer_usage)) {
     return false;
   }
+
   auto size = gfx::Size(2, 2);
+  scoped_refptr<gfx::NativePixmap> pixmap =
+      ui::OzonePlatform::GetInstance()
+          ->GetSurfaceFactoryOzone()
+          ->CreateNativePixmap(gpu::kNullSurfaceHandle,
+                               vulkan_context_provider()
+                                   ? vulkan_context_provider()->GetDeviceQueue()
+                                   : nullptr,
+                               size, buffer_format, buffer_usage, size);
+  if (!pixmap.get() || pixmap->ExportHandle().planes.empty()) {
+    return false;
+  }
 
-  // Note that |gmb_id| and |client_id| does not matter here as this is the
-  // first GMB which will created and immediately destroyed.
-  auto gmb_id = gfx::GpuMemoryBufferId(
-      static_cast<int>(gpu::MappableSIClientGmbId::kGpuServiceImpl));
-  auto client_id = gpu::kMappableSIClientId;
-  auto gmb_handle = gpu_memory_buffer_factory_->CreateGpuMemoryBuffer(
-      gmb_id, size, /*framebuffer_size=*/size, buffer_format, buffer_usage,
-      client_id, gpu::kNullSurfaceHandle);
-
-  // Destroy the gmb_handle since it will be no longer needed.
-  gpu_memory_buffer_factory_->DestroyGpuMemoryBuffer(gmb_id, client_id);
-  return !gmb_handle.is_null();
+  return true;
 }
 #endif
 
@@ -1433,7 +1353,7 @@ gpu::SharedImageManager* GpuServiceImpl::CreateSharedImageManager(
   // access to SharedImageManager on the viz thread to obtain the buffer
   // corresponding to a mailbox.
   const bool display_context_on_another_thread =
-      features::IsDrDcEnabled() && !gpu_driver_bug_workarounds_.disable_drdc;
+      features::IsDrDcEnabled(gpu_feature_info_);
 
   // |display_context_on_another_thread|, features::IsUsingRawDraw(),
   // kAlwaysUseRealBufferTestingOnOzone, and kSharedBitmapToSharedImage

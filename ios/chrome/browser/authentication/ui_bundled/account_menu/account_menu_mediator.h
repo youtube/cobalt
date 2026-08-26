@@ -40,6 +40,9 @@ class SyncService;
 @property(nonatomic, weak) id<SyncErrorSettingsCommandHandler>
     syncErrorSettingsCommandHandler;
 
+// Whether the account menu’s interaction is blocked.
+@property(nonatomic, assign, readonly) BOOL userInteractionsBlocked;
+
 - (instancetype)initWithSyncService:(syncer::SyncService*)syncService
               accountManagerService:
                   (ChromeAccountManagerService*)accountManagerService
@@ -55,8 +58,9 @@ class SyncService;
 // Disconnects the mediator.
 - (void)disconnect;
 
-// Informs the mediator that the Add Account process is done.
-- (void)accountAddedIsDone;
+// Informs the mediator that the Account Menu is back as the top view. It must
+// be updated and can be interacted with.
+- (void)accountMenuIsUsable;
 
 @end
 

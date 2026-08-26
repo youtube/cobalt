@@ -11,20 +11,20 @@
 #ifndef TEST_TESTSUPPORT_IVF_VIDEO_FRAME_GENERATOR_H_
 #define TEST_TESTSUPPORT_IVF_VIDEO_FRAME_GENERATOR_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
-#include <string>
 
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
-#include "api/sequence_checker.h"
 #include "api/test/frame_generator_interface.h"
-#include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
 #include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/utility/ivf_file_reader.h"
 #include "rtc_base/event.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 namespace test {

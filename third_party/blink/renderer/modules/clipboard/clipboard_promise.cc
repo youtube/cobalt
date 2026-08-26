@@ -10,6 +10,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "build/build_config.h"
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
@@ -26,6 +27,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/modules/clipboard/clipboard.h"
 #include "third_party/blink/renderer/modules/clipboard/clipboard_item.h"
 #include "third_party/blink/renderer/modules/clipboard/clipboard_reader.h"
@@ -33,11 +35,13 @@
 #include "third_party/blink/renderer/modules/permissions/permission_utils.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
 #include "third_party/blink/renderer/platform/scheduler/public/worker_pool.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "ui/base/clipboard/clipboard_constants.h"
 
 // There are 2 clipboard permissions defined in the spec:
@@ -215,7 +219,7 @@ void ClipboardPromise::WriteNextRepresentation() {
   if (!clipboard_writer_) {
     script_promise_resolver_->RejectWithDOMException(
         DOMExceptionCode::kNotAllowedError,
-        "Type " + type + " is not supported");
+        StrCat({"Type ", type, " is not supported"}));
     return;
   }
   clipboard_writer_->WriteToSystem(clipboard_item_data);
@@ -233,8 +237,9 @@ void ClipboardPromise::RejectFromReadOrDecodeFailure() {
           : "Failed to read or decode Blob for clipboard item type ";
   script_promise_resolver_->RejectWithDOMException(
       DOMExceptionCode::kDataError,
-      exception_text +
-          clipboard_item_data_[clipboard_representation_index_].first + ".");
+      StrCat({exception_text,
+              clipboard_item_data_[clipboard_representation_index_].first,
+              "."}));
 }
 
 void ClipboardPromise::HandleRead(ClipboardUnsanitizedFormats* formats) {
@@ -250,9 +255,9 @@ void ClipboardPromise::HandleRead(ClipboardUnsanitizedFormats* formats) {
     }
     if (unsanitized_formats[0] != ui::kMimeTypeHtml) {
       script_promise_resolver_->RejectWithDOMException(
-          DOMExceptionCode::kNotAllowedError, "The unsanitized type " +
-                                                  unsanitized_formats[0] +
-                                                  " is not supported.");
+          DOMExceptionCode::kNotAllowedError,
+          StrCat({"The unsanitized type ", unsanitized_formats[0],
+                  " is not supported."}));
       return;
     }
     // HTML is the only standard format that can be read without any processing
@@ -337,6 +342,16 @@ void ClipboardPromise::HandleReadWithPermission(
     return;
   }
 
+#if BUILDFLAG(IS_MAC)
+  // Check macOS platform permission state if the runtime flag is enabled
+  if (RuntimeEnabledFeatures::MacSystemClipboardPermissionCheckEnabled()) {
+    GetLocalFrame()->GetSystemClipboard()->GetPlatformPermissionState(
+        WTF::BindOnce(&ClipboardPromise::OnPlatformPermissionResultForRead,
+                      WrapPersistent(this)));
+    return;
+  }
+#endif
+  // Non-Mac platforms or when flag is disabled proceed directly
   SystemClipboard* system_clipboard = GetLocalFrame()->GetSystemClipboard();
   system_clipboard->ReadAvailableCustomAndStandardFormats(WTF::BindOnce(
       &ClipboardPromise::OnReadAvailableFormatNames, WrapPersistent(this)));
@@ -429,10 +444,63 @@ void ClipboardPromise::HandleReadTextWithPermission(
     return;
   }
 
+#if BUILDFLAG(IS_MAC)
+  // Check macOS platform permission state if the runtime flag is enabled
+  if (RuntimeEnabledFeatures::MacSystemClipboardPermissionCheckEnabled()) {
+    GetLocalFrame()->GetSystemClipboard()->GetPlatformPermissionState(
+        WTF::BindOnce(&ClipboardPromise::OnPlatformPermissionResultForReadText,
+                      WrapPersistent(this)));
+    return;
+  }
+#endif
+  // Non-Mac platforms or when flag is disabled proceed directly
   String text = GetLocalFrame()->GetSystemClipboard()->ReadPlainText(
       mojom::blink::ClipboardBuffer::kStandard);
   script_promise_resolver_->DowncastTo<IDLString>()->Resolve(text);
 }
+
+#if BUILDFLAG(IS_MAC)
+void ClipboardPromise::OnPlatformPermissionResultForReadText(
+    mojom::blink::PlatformClipboardPermissionState state) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!GetExecutionContext()) {
+    return;
+  }
+
+  if (state == mojom::blink::PlatformClipboardPermissionState::kDeny) {
+    UseCounter::Count(GetExecutionContext(),
+                      WebFeature::kClipboardPlatformPermissionDenied);
+    script_promise_resolver_->RejectWithDOMException(
+        DOMExceptionCode::kNotAllowedError, "Permission denied by system.");
+    return;
+  }
+
+  String text = GetLocalFrame()->GetSystemClipboard()->ReadPlainText(
+      mojom::blink::ClipboardBuffer::kStandard);
+  script_promise_resolver_->DowncastTo<IDLString>()->Resolve(text);
+}
+
+void ClipboardPromise::OnPlatformPermissionResultForRead(
+    mojom::blink::PlatformClipboardPermissionState state) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!GetExecutionContext()) {
+    return;
+  }
+
+  if (state == mojom::blink::PlatformClipboardPermissionState::kDeny) {
+    UseCounter::Count(GetExecutionContext(),
+                      WebFeature::kClipboardPlatformPermissionDenied);
+    script_promise_resolver_->RejectWithDOMException(
+        DOMExceptionCode::kNotAllowedError, "Permission denied by system.");
+    return;
+  }
+
+  // For read operations, proceed to read available formats
+  SystemClipboard* system_clipboard = GetLocalFrame()->GetSystemClipboard();
+  system_clipboard->ReadAvailableCustomAndStandardFormats(WTF::BindOnce(
+      &ClipboardPromise::OnReadAvailableFormatNames, WrapPersistent(this)));
+}
+#endif
 
 void ClipboardPromise::HandlePromiseWrite(
     GCedHeapVector<Member<V8UnionBlobOrString>>* clipboard_item_list) {
@@ -472,8 +540,8 @@ void ClipboardPromise::WriteClipboardItemData(
            !type_with_args.Contains(web_custom_format))) {
         script_promise_resolver_->RejectWithDOMException(
             DOMExceptionCode::kNotAllowedError,
-            "Type " + type + " does not match the blob's type " +
-                type_with_args);
+            StrCat({"Type ", type, " does not match the blob's type ",
+                    type_with_args}));
         return;
       }
     }
@@ -511,7 +579,7 @@ void ClipboardPromise::HandleWriteWithPermission(
     if (!ClipboardItem::supports(type)) {
       script_promise_resolver_->RejectWithDOMException(
           DOMExceptionCode::kNotAllowedError,
-          "Type " + type + " not supported on write.");
+          StrCat({"Type ", type, " not supported on write."}));
       return;
     }
   }

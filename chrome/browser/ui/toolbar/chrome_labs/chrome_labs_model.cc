@@ -10,7 +10,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "chrome/browser/flag_descriptions.h"
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -67,6 +66,12 @@ LabInfo::~LabInfo() = default;
 ChromeLabsModel::ChromeLabsModel() : lab_info_(GetData()) {}
 
 ChromeLabsModel::~ChromeLabsModel() = default;
+
+// static
+ChromeLabsModel* ChromeLabsModel::GetInstance() {
+  static base::NoDestructor<ChromeLabsModel> instance;
+  return instance.get();
+}
 
 const std::vector<LabInfo>& ChromeLabsModel::GetLabInfo() const {
   return *lab_info_;

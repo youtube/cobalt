@@ -50,7 +50,7 @@ class StartupBrowserCreatorImpl {
   StartupBrowserCreatorImpl(const StartupBrowserCreatorImpl&) = delete;
   StartupBrowserCreatorImpl& operator=(const StartupBrowserCreatorImpl&) =
       delete;
-  ~StartupBrowserCreatorImpl() = default;
+  ~StartupBrowserCreatorImpl();
 
   // If command line specifies kiosk mode, or full screen mode, switch
   // to full screen.
@@ -71,6 +71,11 @@ class StartupBrowserCreatorImpl {
   Browser* OpenURLsInBrowser(Browser* browser,
                              chrome::startup::IsProcessStartup process_startup,
                              const std::vector<GURL>& urls);
+
+  void SetCurrentChromeVersionStringForTesting(
+      const std::optional<std::string>& version) {
+    current_chrome_version_string_for_testing_ = version;
+  }
 
  private:
   FRIEND_TEST_ALL_PREFIXES(BrowserTest, RestorePinnedTabs);
@@ -102,6 +107,8 @@ class StartupBrowserCreatorImpl {
                            DetermineStartupTabs_NewFeaturesPage);
   FRIEND_TEST_ALL_PREFIXES(StartupBrowserCreatorImplTest,
                            DetermineStartupTabs_PrivacySandbox);
+  FRIEND_TEST_ALL_PREFIXES(StartupBrowserCreatorImplTest,
+                           DetermineNonMilestoneUpdate);
 
   enum class LaunchResult {
     kNormally,
@@ -116,12 +123,6 @@ class StartupBrowserCreatorImpl {
 
     StartupTabs tabs;  // List of startup tabs.
     LaunchResult launch_result;
-  };
-
-  enum class WelcomeRunType {
-    NONE,                // Do not inject the welcome page for this run.
-    FIRST_TAB,           // Inject the welcome page as the first tab.
-    FIRST_RUN_LAST_TAB,  // Inject the welcome page as the last first-run tab.
   };
 
   // Window behaviors possible when opening Chrome.
@@ -178,7 +179,6 @@ class StartupBrowserCreatorImpl {
       chrome::startup::IsProcessStartup process_startup,
       bool is_ephemeral_profile,
       bool is_post_crash_launch,
-      bool has_incompatible_applications,
       bool promotional_tabs_enabled,
       bool whats_new_enabled,
       bool privacy_sandbox_confirmation_required);
@@ -217,6 +217,17 @@ class StartupBrowserCreatorImpl {
       bool was_mac_login_or_resume,
       bool restore_tabbed_browser);
 
+  // Show a toast if a non milestone update is detected.
+  static void MaybeShowNonMilestoneUpdateToast(
+      Browser* browser,
+      const std::string& current_version_string);
+
+  // Return whether the current version update is non milestone update.
+  // e.g, from 140.0.7297.0 to 140.0.7297.3 should return true.
+  // from 140.0.7297.0 to 141.0.7327.0 should return false.
+  static bool IsNonMilestoneUpdate(const std::string& last_version_string,
+                                   const std::string& current_version_string);
+
   // Returns whether `switches::kKioskMode` is set on the command line of
   // the current process. This is a static method to avoid accidentally reading
   // it from `command_line_`.
@@ -227,6 +238,8 @@ class StartupBrowserCreatorImpl {
   raw_ptr<Profile> profile_ = nullptr;
   raw_ptr<StartupBrowserCreator> browser_creator_;
   chrome::startup::IsFirstRun is_first_run_;
+
+  std::optional<std::string> current_chrome_version_string_for_testing_;
 };
 
 #endif  // CHROME_BROWSER_UI_STARTUP_STARTUP_BROWSER_CREATOR_IMPL_H_

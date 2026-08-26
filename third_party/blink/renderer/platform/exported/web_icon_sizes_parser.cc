@@ -43,9 +43,9 @@ static inline wtf_size_t FindEndOfWord(const String& string, wtf_size_t start) {
 static inline int PartialStringToInt(const String& string,
                                      wtf_size_t start,
                                      wtf_size_t end) {
-  return WTF::VisitCharacters(
+  return VisitCharacters(
       StringView(string, start, end - start), [](auto chars) {
-        return CharactersToInt(chars, WTF::NumberParsingOptions(), nullptr);
+        return CharactersToInt(chars, NumberParsingOptions(), nullptr);
       });
 }
 

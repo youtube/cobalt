@@ -210,7 +210,7 @@ test("device_unittests") {
     ]
 
     deps += [
-      "//components/sync/protocol:protocol",
+      "//components/sync/protocol",
       "//device/fido:mocks",
       "//services/data_decoder/public/cpp:test_support",
     ]
@@ -481,6 +481,10 @@ test("device_unittests") {
   if (is_chromeos) {
     deps += [ "//chromeos/dbus/u2f" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
   # The following tests fail to build when udev is disabled.
   if (is_cobalt && is_linux_without_udev) {

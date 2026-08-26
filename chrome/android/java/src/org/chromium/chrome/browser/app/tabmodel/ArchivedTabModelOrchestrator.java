@@ -4,9 +4,10 @@
 
 package org.chromium.chrome.browser.app.tabmodel;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ApplicationState;
@@ -22,6 +23,9 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.crypto.CipherFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -42,12 +46,14 @@ import org.chromium.chrome.browser.tabmodel.AsyncTabParamsManager;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorBase;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabmodel.TabbedModeTabPersistencePolicy;
+import org.chromium.chrome.browser.tabpersistence.TabMetadataFileManager;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
@@ -64,6 +70,7 @@ import java.util.concurrent.TimeUnit;
  * the store and selector. This class is tied to a profile, and will be cleaned up when the profile
  * goes away.
  */
+@NullMarked
 public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implements Destroyable {
     public static final String ARCHIVED_TAB_SELECTOR_UNIQUE_TAG = "archived";
 
@@ -77,8 +84,8 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
         public void onTabModelCreated(TabModel archivedTabModel);
     }
 
-    private static ProfileKeyedMap<ArchivedTabModelOrchestrator> sProfileMap;
-    private static ArchivedTabModelOrchestrator sInstanceForTesting;
+    private static @Nullable ProfileKeyedMap<ArchivedTabModelOrchestrator> sProfileMap;
+    private static @Nullable ArchivedTabModelOrchestrator sInstanceForTesting;
 
     // TODO(crbug.com/333572160): Rely on PKM destroy infra when it's working.
     @VisibleForTesting
@@ -110,7 +117,9 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
             new TabArchiver.Observer() {
                 @Override
                 public void onDeclutterPassCompleted() {
-                    saveState();
+                    if (!ChromeFeatureList.sTabModelInitFixes.isEnabled()) {
+                        saveState();
+                    }
                 }
 
                 @Override
@@ -210,6 +219,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
                 });
     }
 
+    @SuppressWarnings("NullAway")
     @Override
     public void destroy() {
         if (mCallbackController != null) {
@@ -302,7 +312,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
         return mArchivedTabCountSupplier;
     }
 
-    public TabModel getTabModel() {
+    public @Nullable TabModel getTabModel() {
         // If the tab model selector isn't ready yet, then return a placeholder supplier
         if (getTabModelSelector() == null) return null;
         return getTabModelSelector().getModel(/* incognito= */ false);
@@ -327,7 +337,15 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
      */
     public void maybeCreateAndInitTabModels(
             TabContentManager tabContentManager, CipherFactory cipherFactory) {
+        // NullAway complains about the early return. Split the method in two so the inner method
+        // is the initializer.
         if (mInitCalled) return;
+        maybeCreateAndInitTabModelsInternal(tabContentManager, cipherFactory);
+    }
+
+    @Initializer
+    private void maybeCreateAndInitTabModelsInternal(
+            TabContentManager tabContentManager, CipherFactory cipherFactory) {
         ThreadUtils.assertOnUiThread();
         assert tabContentManager != null;
 
@@ -347,7 +365,8 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
 
         mTabPersistencePolicy =
                 new TabbedModeTabPersistencePolicy(
-                        TabPersistentStore.getMetadataFileName(ARCHIVED_TAB_SELECTOR_UNIQUE_TAG),
+                        TabMetadataFileManager.getMetadataFileName(
+                                ARCHIVED_TAB_SELECTOR_UNIQUE_TAG),
                         /* otherMetadataFileName= */ null,
                         /* mergeTabsOnStartup= */ false,
                         /* tabMergingEnabled= */ false) {
@@ -389,11 +408,12 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
 
         mArchivedTabCountSupplier.setupInternalObservers(model, mTabGroupSyncService);
 
-        mHistoricalTabModelObserver =
-                new HistoricalTabModelObserver(
-                        getTabModelSelector()
-                                .getTabGroupModelFilterProvider()
-                                .getTabGroupModelFilter(/* isIncognito= */ false));
+        TabGroupModelFilter regularFilter =
+                getTabModelSelector()
+                        .getTabGroupModelFilterProvider()
+                        .getTabGroupModelFilter(/* isIncognito= */ false);
+        assumeNonNull(regularFilter);
+        mHistoricalTabModelObserver = new HistoricalTabModelObserver(regularFilter);
     }
 
     private void doDeclutterPassAndScheduleNext(
@@ -483,7 +503,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
     private void rescueArchivedTabGroups() {
         if (mTabGroupSyncService == null) return;
 
-        if (mRescueTabGroupsCalled) return;
+        if (mRescueTabGroupsCalled) return; // prevents calling when already called once
         mRescueTabGroupsCalled = true;
 
         // Clear all {@link SavedTabGroup}s of possible archived status as the rescue operation.
@@ -514,17 +534,23 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
     public void onNativeLibraryReady(TabContentManager tabContentManager) {
         if (mNativeLibraryReadyCalled) return;
         mNativeLibraryReadyCalled = true;
-
         super.onNativeLibraryReady(tabContentManager);
+        onNativeLibraryReadyInternal();
+    }
 
+    @Initializer
+    private void onNativeLibraryReadyInternal() {
         mTabArchiveSettings = new TabArchiveSettings(ChromeSharedPreferences.getInstance());
         mTabArchiveSettings.addObserver(mTabArchiveSettingsObserver);
-        mTabGroupSyncService = TabGroupSyncServiceFactory.getForProfile(mProfile);
+        mTabGroupSyncService = assumeNonNull(TabGroupSyncServiceFactory.getForProfile(mProfile));
+        TabGroupModelFilter regularFilter =
+                getTabModelSelector()
+                        .getTabGroupModelFilterProvider()
+                        .getTabGroupModelFilter(/* isIncognito= */ false);
+        assumeNonNull(regularFilter);
         mTabArchiver =
                 new TabArchiverImpl(
-                        mTabModelSelector
-                                .getTabGroupModelFilterProvider()
-                                .getTabGroupModelFilter(/* isIncognito= */ false),
+                        regularFilter,
                         mArchivedTabCreator,
                         mTabArchiveSettings,
                         System::currentTimeMillis,
@@ -534,7 +560,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
 
     @Override
     public void loadState(
-            boolean ignoreIncognitoFiles, Callback<String> onStandardActiveIndexRead) {
+            boolean ignoreIncognitoFiles, @Nullable Callback<String> onStandardActiveIndexRead) {
         if (mLoadStateCalled) return;
         mLoadStateCalled = true;
         assert ignoreIncognitoFiles : "Must ignore incognito files for archived tabs.";
@@ -574,8 +600,18 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
 
     private void resumeSaveTabList(TabbedModeTabModelOrchestrator orchestrator) {
         // Re-enable #saveTabListAsynchronously after running a bulk operation.
-        orchestrator.getTabPersistentStore().resumeSaveTabList();
-        mTabPersistentStore.resumeSaveTabList();
+        if (ChromeFeatureList.sTabModelInitFixes.isEnabled()) {
+            // This triggers saves to the backing stores. It's possible we crash/are shutdown after
+            // the first and before the second. For this reason, it's critical that we resume the
+            // archived side before the tabbed side. This will cause tab duplication instead of data
+            // loss. Duplication will be cleaned up and handled on the next restart. While data loss
+            // would not be recoverable.
+            mTabPersistentStore.resumeSaveTabList();
+            orchestrator.getTabPersistentStore().resumeSaveTabList();
+        } else {
+            orchestrator.getTabPersistentStore().resumeSaveTabList();
+            mTabPersistentStore.resumeSaveTabList();
+        }
     }
 
     // Testing-specific methods

@@ -11,6 +11,7 @@
 
 #include "base/functional/callback.h"
 #include "chrome/browser/controlled_frame/controlled_frame_test_base.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-forward.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -38,6 +39,11 @@ struct PermissionRequestTestCase {
   std::set<network::mojom::PermissionsPolicyFeature> policy_features;
   // Corresponding ContentSettingsType(s) of the permission.
   std::set<ContentSettingsType> content_settings_type;
+
+  // Wait for js 'document.hasFocus()';
+  // Default is false to not make tests longer
+  // where it is not necessary.
+  bool must_wait_for_document_focus = false;
 };
 
 enum class EmbedderPolicy {
@@ -71,6 +77,11 @@ struct DisabledPermissionTestCase {
   std::set<network::mojom::PermissionsPolicyFeature> policy_features;
   std::string success_result;
   std::string failure_result;
+
+  // Wait for js 'document.hasFocus()';
+  // Default is false to not make tests longer
+  // where it is not necessary.
+  bool must_wait_for_document_focus = false;
 };
 
 struct DisabledPermissionTestParam {
@@ -113,6 +124,11 @@ class ControlledFramePermissionRequestTestBase
       content::RenderFrameHost* app_frame,
       const std::string& expected_permission_name,
       bool allow_permission);
+
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
 };
 
 }  // namespace controlled_frame

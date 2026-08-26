@@ -9,12 +9,12 @@
 #include <utility>
 
 #include "base/command_line.h"
-#include "base/lazy_instance.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/types/expected.h"
+#include "build/branding_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/devtools/chrome_devtools_manager_delegate.h"
 #include "chrome/browser/devtools/devtools_window.h"
@@ -40,7 +40,12 @@
 
 namespace {
 
-base::LazyInstance<bool>::Leaky g_tethering_enabled = LAZY_INSTANCE_INITIALIZER;
+bool g_tethering_enabled = false;
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+bool g_enable_default_user_data_dir_check_for_chromium_branding_for_testing =
+    false;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 const uint16_t kMinTetheringPort = 9333;
 const uint16_t kMaxTetheringPort = 9444;
@@ -86,8 +91,9 @@ class TCPServerSocketFactory
 
   std::unique_ptr<net::ServerSocket> CreateForTethering(
       std::string* name) override {
-    if (!g_tethering_enabled.Get())
+    if (!g_tethering_enabled) {
       return nullptr;
+    }
 
     if (last_tethering_port_ == kMaxTetheringPort)
       last_tethering_port_ = kMinTetheringPort;
@@ -108,9 +114,15 @@ IsRemoteDebuggingAllowed(const std::optional<bool>& is_default_user_data_dir,
     return base::unexpected(
         RemoteDebuggingServer::NotStartedReason::kDisabledByPolicy);
   }
-
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-  if (base::FeatureList::IsEnabled(features::kDevToolsDebuggingRestrictions) &&
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  constexpr bool default_user_data_dir_check_enabled = true;
+#else
+  const bool default_user_data_dir_check_enabled =
+      g_enable_default_user_data_dir_check_for_chromium_branding_for_testing;
+#endif
+
+  if (default_user_data_dir_check_enabled &&
       is_default_user_data_dir.value_or(true)) {
     return base::unexpected(
         RemoteDebuggingServer::NotStartedReason::kDisabledByDefaultUserDataDir);
@@ -125,8 +137,15 @@ RemoteDebuggingServer::RemoteDebuggingServer() = default;
 
 // static
 void RemoteDebuggingServer::EnableTetheringForDebug() {
-  g_tethering_enabled.Get() = true;
+  g_tethering_enabled = true;
 }
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+// static
+void RemoteDebuggingServer::EnableDefaultUserDataDirCheckForTesting() {
+  g_enable_default_user_data_dir_check_for_chromium_branding_for_testing = true;
+}
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 // static
 base::expected<std::unique_ptr<RemoteDebuggingServer>,

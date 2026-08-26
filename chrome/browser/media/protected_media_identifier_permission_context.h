@@ -6,13 +6,13 @@
 #define CHROME_BROWSER_MEDIA_PROTECTED_MEDIA_IDENTIFIER_PERMISSION_CONTEXT_H_
 
 #include "chrome/browser/profiles/profile.h"
-#include "components/permissions/permission_context_base.h"
+#include "components/permissions/content_setting_permission_context_base.h"
 #include "components/permissions/permission_request_id.h"
 
 // Manages protected media identifier permissions flow, and delegates UI
 // handling via PermissionQueueController.
 class ProtectedMediaIdentifierPermissionContext
-    : public permissions::PermissionContextBase {
+    : public permissions::ContentSettingPermissionContextBase {
  public:
   explicit ProtectedMediaIdentifierPermissionContext(
       content::BrowserContext* browser_context);
@@ -24,8 +24,8 @@ class ProtectedMediaIdentifierPermissionContext
 
   ~ProtectedMediaIdentifierPermissionContext() override;
 
-  // PermissionContextBase implementation.
-  ContentSetting GetPermissionStatusInternal(
+  // ContentSettingPermissionContextBase implementation.
+  ContentSetting GetContentSettingStatusInternal(
       content::RenderFrameHost* render_frame_host,
       const GURL& requesting_origin,
       const GURL& embedding_origin) const override;

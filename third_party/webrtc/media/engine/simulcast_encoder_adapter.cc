@@ -10,11 +10,10 @@
 
 #include "media/engine/simulcast_encoder_adapter.h"
 
-#include <stdio.h>
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <iterator>
 #include <memory>
 #include <numeric>

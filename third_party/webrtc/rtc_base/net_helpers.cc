@@ -17,11 +17,10 @@
 #if defined(WEBRTC_WIN)
 #include <ws2spi.h>
 #include <ws2tcpip.h>
-
 #endif
-#if defined(WEBRTC_POSIX) && !defined(__native_client__)
+#if defined(WEBRTC_POSIX)
 #include <arpa/inet.h>
-#endif  // defined(WEBRTC_POSIX) && !defined(__native_client__)
+#endif  // defined(WEBRTC_POSIX)
 
 namespace webrtc {
 

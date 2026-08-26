@@ -12,6 +12,7 @@
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/google/core/common/google_util.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "components/strings/grit/components_strings.h"
@@ -184,6 +185,8 @@ const CGFloat kSpinnerButtonPadding = 18;
     [self unregisterTextField:self.passphrase];
   }
   _uiBlocker.reset();
+  [self.presentationDelegate
+      syncEncryptionPassphraseTableViewControllerDidDisappear:self];
 }
 
 #pragma mark - SettingsRootTableViewController
@@ -262,10 +265,12 @@ const CGFloat kSpinnerButtonPadding = 18;
   TableViewLinkHeaderFooterItem* footerItem =
       [[TableViewLinkHeaderFooterItem alloc] initWithType:ItemTypeFooter];
   footerItem.text = self.footerMessage;
-  footerItem.urls = @[ [[CrURL alloc]
-      initWithGURL:google_util::AppendGoogleLocaleParam(
-                       GURL(kSyncGoogleDashboardURL),
-                       GetApplicationContext()->GetApplicationLocale())] ];
+  footerItem.urls =
+      @[ [[CrURL alloc] initWithGURL:google_util::AppendGoogleLocaleParam(
+                                         GURL(kSyncGoogleDashboardURL),
+                                         GetApplicationContext()
+                                             ->GetApplicationLocaleStorage()
+                                             ->Get())] ];
   return footerItem;
 }
 
@@ -299,10 +304,12 @@ const CGFloat kSpinnerButtonPadding = 18;
   return YES;
 }
 
-- (void)signInPressed {
+- (void)enterPressed {
   DCHECK(!_settingsAreDismissed);
   DCHECK([_passphrase text].length);
   ProfileIOS* profile = self.browser->GetProfile();
+  base::RecordAction(
+      base::UserMetricsAction("MobileSyncPassphraseSettingsEnter"));
 
   if (!_syncObserver.get()) {
     _syncObserver.reset(new SyncObserverBridge(
@@ -347,6 +354,8 @@ const CGFloat kSpinnerButtonPadding = 18;
 
 - (void)cancelPressed {
   CHECK(self.presentModally);
+  base::RecordAction(
+      base::UserMetricsAction("MobileSyncPassphraseSettingsCancel"));
   [self.navigationController.presentingViewController
       dismissViewControllerAnimated:YES
                          completion:nil];
@@ -361,7 +370,7 @@ const CGFloat kSpinnerButtonPadding = 18;
         initWithTitle:l10n_util::GetNSString(IDS_IOS_SYNC_DECRYPT_BUTTON)
                 style:UIBarButtonItemStylePlain
                target:self
-               action:@selector(signInPressed)];
+               action:@selector(enterPressed)];
   }
   submitButtonItem.enabled = [self areAllFieldsFilled];
 
@@ -496,7 +505,7 @@ const CGFloat kSpinnerButtonPadding = 18;
 - (void)textFieldDidEndEditing:(id)sender {
   if (sender == self.passphrase) {
     if ([self areAllFieldsFilled]) {
-      [self signInPressed];
+      [self enterPressed];
     } else {
       [self clearFieldsOnError:l10n_util::GetNSString(
                                    IDS_SYNC_EMPTY_PASSPHRASE_ERROR)];
@@ -580,12 +589,6 @@ const CGFloat kSpinnerButtonPadding = 18;
 }
 
 - (void)settingsWillBeDismissed {
-  if (_settingsAreDismissed) {
-    // This method can be called twice when the account is removed. Related to
-    // crbug.com/1480441.
-    return;
-  }
-
   // Remove observer bridges.
   _syncObserver.reset();
   _identityManagerObserver.reset();

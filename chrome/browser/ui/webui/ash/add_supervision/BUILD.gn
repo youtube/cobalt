@@ -54,6 +54,7 @@ static_library("add_supervision") {
     "//chrome/browser/resources/chromeos/add_supervision:resources_grit",
     "//chrome/browser/resources/chromeos/supervision:resources",
     "//chrome/browser/resources/chromeos/supervision:resources_grit",
+    "//chrome/browser/signin",
     "//components/constrained_window",
     "//components/google/core/common",
     "//components/services/app_service/public/cpp:app_types",
@@ -66,6 +67,10 @@ static_library("add_supervision") {
     "//ui/web_dialogs",
     "//ui/webui",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("unit_tests") {

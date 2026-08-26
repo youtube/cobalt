@@ -9,10 +9,9 @@
  */
 #include "modules/video_coding/svc/scalability_structure_test_helpers.h"
 
-#include <stdint.h>
-
 #include <bitset>
 #include <cstddef>
+#include <cstdint>
 #include <utility>
 #include <vector>
 

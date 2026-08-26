@@ -161,6 +161,10 @@ export class SettingsCreditCardListEntryElement extends
     return this.creditCard.metadata!.isVirtualCardEnrolled!;
   }
 
+  private getCardIdentifierAriaLabel_(): string {
+    return this.creditCard.metadata!.summaryLabel || '';
+  }
+
   private getSummaryAriaLabel_(): string {
     const cardNumberDescription =
         this.getCardNumberDescription_(this.creditCard);
@@ -214,11 +218,10 @@ export class SettingsCreditCardListEntryElement extends
   }
 
   /**
-   * Returns expiration date if applicable.
+   * Returns expiration date.
    */
   private getExpirationlabel_(): string {
-    return this.isVirtualCardEnrolled_() ? '' :
-                                           ' · ' + this.getCardExpiryDate_();
+    return ' · ' + this.getCardExpiryDate_();
   }
 
   /**
@@ -262,13 +265,19 @@ export class SettingsCreditCardListEntryElement extends
       case CardSummarySublabelType.VIRTUAL_CARD_WITH_BENEFITS_TAG:
       case CardSummarySublabelType.VIRTUAL_CARD_WITH_CVC_TAG:
       case CardSummarySublabelType.VIRTUAL_CARD:
-        return this.getSummarySublabel_();
+        return this.shouldShowNewFopDisplay_() ?
+            this.i18n(
+                'creditCardExpDateA11yLabeled', this.getCardExpiryDate_()) +
+                this.getSummarySublabel_() :
+            this.getSummarySublabel_();
       case CardSummarySublabelType.EXPIRATION_DATE_WITH_CVC_AND_BENEFITS_TAG:
       case CardSummarySublabelType.EXPIRATION_DATE_WITH_BENEFITS_TAG:
       case CardSummarySublabelType.EXPIRATION_DATE_WITH_CVC_TAG:
       case CardSummarySublabelType.EXPIRATION_DATE:
         return this.i18n(
-            'creditCardExpDateA11yLabeled', this.getSummarySublabel_());
+            'creditCardExpDateA11yLabeled',
+            this.shouldShowNewFopDisplay_() ? this.getCardExpiryDate_() :
+                                              this.getSummarySublabel_());
       default:
         assertNotReached();
     }

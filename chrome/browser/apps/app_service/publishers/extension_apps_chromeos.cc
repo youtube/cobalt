@@ -28,12 +28,12 @@
 #include "base/values.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
+#include "chrome/browser/apps/app_service/chrome_app_deprecation/chrome_app_deprecation.h"
 #include "chrome/browser/apps/app_service/intent_util.h"
 #include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/apps/app_service/menu_util.h"
 #include "chrome/browser/apps/app_service/metrics/app_service_metrics.h"
-#include "chrome/browser/apps/app_service/publishers/chrome_app_deprecation.h"
 #include "chrome/browser/apps/app_service/publishers/extension_apps_util.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
 #include "chrome/browser/ash/app_list/extension_app_utils.h"
@@ -58,7 +58,6 @@
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
 #include "chrome/browser/ui/ash/session/session_controller_client_impl.h"
-#include "chrome/browser/web_applications/app_service/publisher_helper.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
@@ -662,12 +661,8 @@ void ExtensionAppsChromeOs::OnIsCapturingVideoChanged(
   const webapps::AppId* web_app_id =
       web_app::WebAppTabHelper::GetAppId(web_contents);
   if (web_app_id) {
-    if (web_app::WebAppProvider::GetForWebApps(profile()) &&
-        !web_app::IsAppServiceShortcut(
-            *web_app_id, *web_app::WebAppProvider::GetForWebApps(profile()))) {
-      // This media access is coming from a web app.
-      return;
-    }
+    // This media access is coming from a web app.
+    return;
   }
 
   std::string app_id = app_constants::kChromeAppId;
@@ -693,12 +688,8 @@ void ExtensionAppsChromeOs::OnIsCapturingAudioChanged(
   const webapps::AppId* web_app_id =
       web_app::WebAppTabHelper::GetAppId(web_contents);
   if (web_app_id) {
-    if (web_app::WebAppProvider::GetForWebApps(profile()) &&
-        !web_app::IsAppServiceShortcut(
-            *web_app_id, *web_app::WebAppProvider::GetForWebApps(profile()))) {
-      // This media access is coming from a web app.
-      return;
-    }
+    // This media access is coming from a web app.
+    return;
   }
 
   std::string app_id = app_constants::kChromeAppId;

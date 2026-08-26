@@ -9,9 +9,8 @@
  */
 #include "modules/video_coding/codecs/av1/libaom_av1_encoder.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -19,7 +18,6 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/container/inlined_vector.h"
 #include "api/environment/environment.h"
@@ -87,7 +85,7 @@ aom_superblock_size_t GetSuperblockSize(int width, int height, int threads) {
 class LibaomAv1Encoder final : public VideoEncoder {
  public:
   LibaomAv1Encoder(const Environment& env, LibaomAv1EncoderSettings settings);
-  ~LibaomAv1Encoder();
+  ~LibaomAv1Encoder() override;
 
   int InitEncode(const VideoCodec* codec_settings,
                  const Settings& settings) override;
@@ -524,7 +522,7 @@ void LibaomAv1Encoder::SetSvcRefFrameConfig(
   static constexpr int kAv1NumBuffers = 8;
 
   aom_svc_ref_frame_config_t ref_frame_config = {};
-  RTC_CHECK_LE(layer_frame.Buffers().size(), ABSL_ARRAYSIZE(kPreferedSlotName));
+  RTC_CHECK_LE(layer_frame.Buffers().size(), std::size(kPreferedSlotName));
   for (size_t i = 0; i < layer_frame.Buffers().size(); ++i) {
     const CodecBufferUsage& buffer = layer_frame.Buffers()[i];
     int slot_name = kPreferedSlotName[i];
@@ -786,7 +784,7 @@ int32_t LibaomAv1Encoder::Encode(
             /*data=*/static_cast<const uint8_t*>(pkt->data.frame.buf),
             /*size=*/pkt->data.frame.sz));
 
-        if ((pkt->data.frame.flags & AOM_EFLAG_FORCE_KF) != 0) {
+        if ((pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0) {
           layer_frame->Keyframe();
         }
 

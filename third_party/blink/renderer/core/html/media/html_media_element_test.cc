@@ -104,7 +104,7 @@ class MockWebMediaPlayer : public EmptyWebMediaPlayer {
   MOCK_METHOD1(SetLatencyHint, void(double));
   MOCK_METHOD1(SetWasPlayedWithUserActivationAndHighMediaEngagement,
                void(bool));
-  MOCK_METHOD1(EnabledAudioTracksChanged, void(const std::vector<TrackId>&));
+  MOCK_METHOD1(EnabledAudioTracksChanged, void(std::optional<TrackId>));
   MOCK_METHOD1(SelectedVideoTrackChanged, void(std::optional<TrackId>));
   MOCK_METHOD4(
       Load,
@@ -411,7 +411,8 @@ class HTMLMediaElementTest : public testing::TestWithParam<MediaTestParam> {
 
   void ResetWebMediaPlayer() const { Media()->web_media_player_.reset(); }
 
-  void MediaContextLifecycleStateChanged(mojom::FrameLifecycleState state) {
+  void MediaContextLifecycleStateChanged(
+      mojom::blink::FrameLifecycleState state) {
     Media()->ContextLifecycleStateChanged(state);
   }
 
@@ -1044,28 +1045,16 @@ TEST_P(HTMLMediaElementTest, ContextFrozen) {
   test::RunPendingTasks();
   SetReadyState(HTMLMediaElement::kHaveFutureData);
 
-  // First, set frozen but with auto resume.
+  // Set to frozen.
   EXPECT_CALL((*MockMediaPlayer()), OnFrozen());
-  EXPECT_FALSE(Media()->paused());
   GetExecutionContext()->SetLifecycleState(
-      mojom::FrameLifecycleState::kFrozenAutoResumeMedia);
-  EXPECT_TRUE(Media()->paused());
-  testing::Mock::VerifyAndClearExpectations(MockMediaPlayer());
-
-  // Now, if we set back to running the media should auto resume.
-  GetExecutionContext()->SetLifecycleState(
-      mojom::FrameLifecycleState::kRunning);
-  EXPECT_FALSE(Media()->paused());
-
-  // Then set to frozen without auto resume.
-  EXPECT_CALL((*MockMediaPlayer()), OnFrozen());
-  GetExecutionContext()->SetLifecycleState(mojom::FrameLifecycleState::kFrozen);
+      mojom::blink::FrameLifecycleState::kFrozen);
   EXPECT_TRUE(Media()->paused());
   testing::Mock::VerifyAndClearExpectations(MockMediaPlayer());
 
   // Now, the media should stay paused.
   GetExecutionContext()->SetLifecycleState(
-      mojom::FrameLifecycleState::kRunning);
+      mojom::blink::FrameLifecycleState::kRunning);
   EXPECT_TRUE(Media()->paused());
 }
 
@@ -1758,8 +1747,7 @@ TEST_P(HTMLMediaElementTest, CanFreezeWithoutMediaPlayerAttached) {
   EXPECT_TRUE(MediaIsPlaying());
 
   // Freeze with auto resume.
-  MediaContextLifecycleStateChanged(
-      mojom::FrameLifecycleState::kFrozenAutoResumeMedia);
+  MediaContextLifecycleStateChanged(mojom::blink::FrameLifecycleState::kFrozen);
 
   EXPECT_FALSE(MediaIsPlaying());
 }
@@ -1780,8 +1768,7 @@ TEST_P(HTMLMediaElementTest, CanFreezeWithMediaPlayerAttached) {
   EXPECT_TRUE(MediaIsPlaying());
 
   // Freeze with auto resume.
-  MediaContextLifecycleStateChanged(
-      mojom::FrameLifecycleState::kFrozenAutoResumeMedia);
+  MediaContextLifecycleStateChanged(mojom::blink::FrameLifecycleState::kFrozen);
 
   EXPECT_FALSE(MediaIsPlaying());
 }
@@ -1978,7 +1965,7 @@ TEST_P(HTMLMediaElementTest,
   const auto* tracker_before_append = video->visibility_tracker_for_tests();
 
   // Create div and append video element to it.
-  video->GetDocument().body()->setInnerHTML(
+  video->GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
       "<div id='container' style='width:200px; height:200px;'></div>");
   video->GetDocument()
       .body()
@@ -2042,7 +2029,7 @@ TEST_P(HTMLMediaElementTest,
 
   auto* video = To<HTMLVideoElement>(Media());
 
-  video->GetDocument().body()->setInnerHTML(
+  video->GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
       "<div id='fullscreen-div' style='width:200px; height:200px;'></div>");
   Element* fullscreen_div = video->GetDocument().body()->getElementById(
       AtomicString("fullscreen-div"));
@@ -2174,7 +2161,7 @@ TEST_P(
                                          tracker_before_append));
 
   // Create a div and append the video element to it.
-  video->GetDocument().body()->setInnerHTML(
+  video->GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
       "<div id='container' style='width:200px; height:200px;'></div>");
   video->GetDocument()
       .body()
@@ -2402,9 +2389,9 @@ TEST_P(HTMLMediaElementTest, StartVideoWithTrackSelectionFragment) {
   EXPECT_CALL(*MockMediaPlayer(), OnTimeUpdate());
 
   EXPECT_CALL(*MockMediaPlayer(), EnabledAudioTracksChanged(_))
-      .WillOnce([](const std::vector<WebMediaPlayer::TrackId>& tracks) {
-        ASSERT_EQ(tracks.size(), 1u);
-        ASSERT_EQ(tracks[0], "audio2");
+      .WillOnce([](std::optional<WebMediaPlayer::TrackId> tracks) {
+        ASSERT_TRUE(tracks.has_value());
+        ASSERT_EQ(tracks.value(), "audio2");
       });
 
   if (!audio_only) {
@@ -2525,9 +2512,9 @@ TEST_P(HTMLMediaElementTest, StartVideoWithDoubleTrackSelection) {
   EXPECT_CALL(*MockMediaPlayer(), OnTimeUpdate());
 
   EXPECT_CALL(*MockMediaPlayer(), EnabledAudioTracksChanged(_))
-      .WillOnce([](const std::vector<WebMediaPlayer::TrackId>& tracks) {
-        ASSERT_EQ(tracks.size(), 1u);
-        ASSERT_EQ(tracks[0], "audio3");
+      .WillOnce([](std::optional<WebMediaPlayer::TrackId> tracks) {
+        ASSERT_TRUE(tracks.has_value());
+        ASSERT_EQ(tracks.value(), "audio3");
       });
   EXPECT_CALL(*MockMediaPlayer(), SelectedVideoTrackChanged(_)).Times(0);
 

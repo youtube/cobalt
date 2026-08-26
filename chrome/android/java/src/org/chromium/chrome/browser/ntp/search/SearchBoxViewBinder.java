@@ -14,6 +14,9 @@ import android.widget.TextView;
 
 import androidx.core.widget.ImageViewCompat;
 
+import com.airbnb.lottie.LottieAnimationView;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.ViewUtils;
@@ -22,13 +25,14 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
 /** Responsible for building and setting properties on the search box on new tab page. */
+@NullMarked
 class SearchBoxViewBinder
         implements PropertyModelChangeProcessor.ViewBinder<PropertyModel, View, PropertyKey> {
     @Override
     public final void bind(PropertyModel model, View view, PropertyKey propertyKey) {
-        ImageView voiceSearchButton =
-                view.findViewById(org.chromium.chrome.R.id.voice_search_button);
-        ImageView lensButton = view.findViewById(org.chromium.chrome.R.id.lens_camera_button);
+        ImageView voiceSearchButton = view.findViewById(R.id.voice_search_button);
+        ImageView lensButton = view.findViewById(R.id.lens_camera_button);
+        LottieAnimationView composeplateButton = view.findViewById(R.id.composeplate_button);
         View searchBoxContainer = view;
         final TextView searchBoxTextView = searchBoxContainer.findViewById(R.id.search_box_text);
 
@@ -59,6 +63,10 @@ class SearchBoxViewBinder
                     model.get(SearchBoxProperties.VOICE_SEARCH_VISIBILITY)
                             ? View.VISIBLE
                             : View.GONE);
+        } else if (SearchBoxProperties.COMPOSEPLATE_BUTTON_VISIBILITY == propertyKey) {
+            ((SearchBoxContainerView) view)
+                    .setComposeplateButtonVisibility(
+                            model.get(SearchBoxProperties.COMPOSEPLATE_BUTTON_VISIBILITY));
         } else if (SearchBoxProperties.LENS_VISIBILITY == propertyKey) {
             lensButton.setVisibility(
                     model.get(SearchBoxProperties.LENS_VISIBILITY) ? View.VISIBLE : View.GONE);
@@ -85,12 +93,14 @@ class SearchBoxViewBinder
             boolean isHintVisible = model.get(SearchBoxProperties.SEARCH_HINT_VISIBILITY);
             searchBoxTextView.setHint(
                     isHintVisible
-                            ? view.getContext()
-                                    .getString(org.chromium.chrome.R.string.omnibox_empty_hint)
+                            ? view.getContext().getString(R.string.omnibox_empty_hint)
                             : null);
         } else if (SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK == propertyKey) {
             voiceSearchButton.setOnClickListener(
                     model.get(SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK));
+        } else if (SearchBoxProperties.COMPOSEPLATE_BUTTON_CLICK_CALLBACK == propertyKey) {
+            composeplateButton.setOnClickListener(
+                    model.get(SearchBoxProperties.COMPOSEPLATE_BUTTON_CLICK_CALLBACK));
         } else if (SearchBoxProperties.SEARCH_BOX_HEIGHT == propertyKey) {
             ViewGroup.LayoutParams lp = searchBoxContainer.getLayoutParams();
             lp.height = model.get(SearchBoxProperties.SEARCH_BOX_HEIGHT);
@@ -112,6 +122,9 @@ class SearchBoxViewBinder
             searchBoxTextView.setTextSize(
                     TypedValue.COMPLEX_UNIT_SP,
                     model.get(SearchBoxProperties.SEARCH_BOX_TEXT_SIZE));
+        } else if (SearchBoxProperties.COMPOSEPLATE_BUTTON_ICON_RAW_RES_ID == propertyKey) {
+            composeplateButton.setAnimation(
+                    model.get(SearchBoxProperties.COMPOSEPLATE_BUTTON_ICON_RAW_RES_ID));
         } else {
             assert false : "Unhandled property detected in SearchBoxViewBinder!";
         }

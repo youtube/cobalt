@@ -130,6 +130,11 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
   // with the specified `guid`.
   const Iban* GetIbanByGUID(const std::string& guid) const;
 
+  // Returns the `AutofillOfferData` with the specified `offer_id`, or nullptr
+  // if there is no promo code with the specified `offer_id`.
+  const AutofillOfferData* GetMerchantPromoCodeByOfferId(
+      const int64_t offer_id) const;
+
   // Returns the IBAN if any cached IBAN in `server_ibans_` has the same
   // `instrument_id` as the given `instrument_id`, otherwise returns nullptr.
   const Iban* GetIbanByInstrumentId(int64_t instrument_id) const;
@@ -506,8 +511,20 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
   // Returns the value of the FacilitatedPaymentsPix user pref.
   bool IsFacilitatedPaymentsPixUserPrefEnabled() const;
 
+  // Sets the FacilitatedPaymentsPixAccountLinking user pref value to `enabled`.
+  void SetFacilitatedPaymentsPixAccountLinkingUserPref(bool enabled);
+
+  // Returns the value of the FacilitatedPaymentsPixAccountLinking user pref.
+  bool IsFacilitatedPaymentsPixAccountLinkingUserPrefEnabled() const;
+
   // Returns the value of the FacilitatedPaymentsEwallet user pref.
   bool IsFacilitatedPaymentsEwalletUserPrefEnabled() const;
+
+  // Returns the value of the FacilitatedPaymentsA2AEnabled user pref.
+  bool IsFacilitatedPaymentsA2AUserPrefEnabled() const;
+
+  // Sets the FacilitatedPaymentsA2ATriggeredOnce user pref value to `enabled`.
+  void SetFacilitatedPaymentsA2ATriggeredOnce(bool enabled);
 
   // Whether server cards or IBANs are enabled and should be suggested to the
   // user.
@@ -559,6 +576,9 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
   void LogStoredPaymentsDataMetrics() const;
 
   void SetPrefService(PrefService* pref_service);
+
+  // Returns the value of the AutofillBnplEnabled pref.
+  virtual bool IsAutofillBnplPrefEnabled() const;
 
   void NotifyObservers();
 
@@ -633,13 +653,7 @@ class PaymentsDataManager : public AutofillWebDataServiceObserverOnUISequence,
   bool IsCardBenefitsSyncEnabled() const;
 
   // Returns whether Autofill card benefit suggestion labels should be blocked.
-  bool ShouldBlockCardBenefitSuggestionLabels(
-      const CreditCard& credit_card,
-      const url::Origin& origin,
-      const AutofillOptimizationGuide* optimization_guide) const;
-
-  // Returns the value of the AutofillBnplEnabled pref.
-  virtual bool IsAutofillBnplPrefEnabled() const;
+  bool ShouldBlockCardBenefitSuggestionLabels() const;
 
   // Checks whether any new card art url is synced. If so, attempt to fetch the
   // image based on the url.

@@ -8,6 +8,7 @@
 #include <optional>
 #include <tuple>
 
+#include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "components/input/render_widget_host_input_event_router.h"
@@ -32,6 +33,7 @@
 #include "content/test/test_page_broadcast.h"
 #include "content/test/test_render_frame_host.h"
 #include "content/test/test_web_contents.h"
+#include "ipc/constants.mojom.h"
 #include "media/base/video_frame.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -412,7 +414,7 @@ TestRenderViewHost::~TestRenderViewHost() {
 
 bool TestRenderViewHost::CreateTestRenderView() {
   return CreateRenderView(/*opener_frame_token=*/std::nullopt,
-                          /*proxy_route_id=*/MSG_ROUTING_NONE,
+                          /*proxy_route_id=*/IPC::mojom::kRoutingIdNone,
                           /*window_was_created_with_opener=*/false,
                           /*navigation_metrics_token=*/std::nullopt);
 }
@@ -432,7 +434,7 @@ bool TestRenderViewHost::CreateRenderView(
   // creating the mojo connections and calling RenderFrameCreated().
   RenderFrameHostImpl* main_frame = nullptr;
   RenderFrameProxyHost* proxy_host = nullptr;
-  if (main_frame_routing_id_ != MSG_ROUTING_NONE) {
+  if (main_frame_routing_id_ != IPC::mojom::kRoutingIdNone) {
     main_frame = RenderFrameHostImpl::FromID(GetProcess()->GetDeprecatedID(),
                                              main_frame_routing_id_);
   } else {
@@ -539,7 +541,11 @@ void TestRenderViewHost::TestOnUpdateStateWithFile(
 
 RenderViewHostImplTestHarness::RenderViewHostImplTestHarness()
     : RenderViewHostTestHarness(
-          base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+          base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+  // Disable IgnoreDuplicateNavs to ensure tests run with predictable navigation
+  // behavior and don't have navigations unintentionally ignored.
+  scoped_feature_list_.InitAndDisableFeature(features::kIgnoreDuplicateNavs);
+}
 
 RenderViewHostImplTestHarness::~RenderViewHostImplTestHarness() = default;
 

@@ -94,10 +94,11 @@ constexpr auto kBadPath = std::to_array<const char*>({
 
 class MockRequireCTDelegate : public RequireCTDelegate {
  public:
-  MOCK_CONST_METHOD3(IsCTRequiredForHost,
-                     CTRequirementLevel(std::string_view hostname,
-                                        const X509Certificate* chain,
-                                        const HashValueVector& hashes));
+  MOCK_CONST_METHOD3(
+      IsCTRequiredForHost,
+      CTRequirementLevel(std::string_view hostname,
+                         const X509Certificate* chain,
+                         const std::vector<SHA256HashValue>& hashes));
 
  protected:
   ~MockRequireCTDelegate() override = default;
@@ -120,24 +121,15 @@ bool operator==(const TransportSecurityState::PKPState& lhs,
          lhs.domain == rhs.domain;
 }
 
-net::HashValueVector DeserializeHashes(
+std::vector<SHA256HashValue> DeserializeHashes(
     base::span<const char* const> serialized_hashes) {
-  net::HashValueVector result;
+  std::vector<SHA256HashValue> result;
   for (const auto* serialized_hash : serialized_hashes) {
     net::HashValue h(HASH_VALUE_SHA256);
     CHECK(h.FromString(std::string_view(serialized_hash)));
-    result.push_back(h);
+    result.push_back(h.sha256hashvalue());
   }
   return result;
-}
-
-std::vector<std::vector<uint8_t>> UnpackRawHashes(
-    const net::HashValueVector& hashes) {
-  std::vector<std::vector<uint8_t>> raws;
-  for (const auto& hash : hashes) {
-    raws.emplace_back(base::ToVector(hash.span()));
-  }
-  return raws;
 }
 
 }  // namespace
@@ -169,14 +161,14 @@ class TransportSecurityStateTest : public ::testing::Test,
 
   static HashValueVector GetSampleSPKIHashes() {
     HashValueVector spki_hashes;
-    HashValue hash({});
+    HashValue hash(GetSampleSPKIHash(1));
     spki_hashes.push_back(hash);
     return spki_hashes;
   }
 
-  static HashValue GetSampleSPKIHash(uint8_t value) {
-    HashValue hash(HASH_VALUE_SHA256);
-    std::ranges::fill(hash.span(), value);
+  static SHA256HashValue GetSampleSPKIHash(uint8_t value) {
+    SHA256HashValue hash;
+    hash.fill(value);
     return hash;
   }
 
@@ -642,20 +634,20 @@ TEST_F(TransportSecurityStateTest, NewPinsOverride) {
   state.AddHPKP("example.com", expiry, true, HashValueVector(1, hash1));
 
   ASSERT_TRUE(state.GetDynamicPKPState("foo.example.com", &pkp_state));
-  ASSERT_EQ(1u, pkp_state.spki_hashes.size());
-  EXPECT_EQ(pkp_state.spki_hashes[0], hash1);
+  EXPECT_THAT(pkp_state.spki_hashes,
+              testing::UnorderedElementsAre(hash1.sha256hashvalue()));
 
   state.AddHPKP("foo.example.com", expiry, false, HashValueVector(1, hash2));
 
   ASSERT_TRUE(state.GetDynamicPKPState("foo.example.com", &pkp_state));
-  ASSERT_EQ(1u, pkp_state.spki_hashes.size());
-  EXPECT_EQ(pkp_state.spki_hashes[0], hash2);
+  EXPECT_THAT(pkp_state.spki_hashes,
+              testing::UnorderedElementsAre(hash2.sha256hashvalue()));
 
   state.AddHPKP("foo.example.com", expiry, false, HashValueVector(1, hash3));
 
   ASSERT_TRUE(state.GetDynamicPKPState("foo.example.com", &pkp_state));
-  ASSERT_EQ(1u, pkp_state.spki_hashes.size());
-  EXPECT_EQ(pkp_state.spki_hashes[0], hash3);
+  EXPECT_THAT(pkp_state.spki_hashes,
+              testing::UnorderedElementsAre(hash3.sha256hashvalue()));
 }
 
 // Setting `is_top_level_nav` true prevents the upgrade from being blocked by
@@ -747,8 +739,8 @@ TEST_F(TransportSecurityStateTest, PinValidationWithoutRejectedCerts) {
   scoped_feature_list_.InitAndEnableFeature(
       features::kStaticKeyPinningEnforcement);
 
-  HashValueVector good_hashes = DeserializeHashes(kGoodPath);
-  HashValueVector bad_hashes = DeserializeHashes(kBadPath);
+  std::vector<SHA256HashValue> good_hashes = DeserializeHashes(kGoodPath);
+  std::vector<SHA256HashValue> bad_hashes = DeserializeHashes(kBadPath);
 
   TransportSecurityState state;
   state.SetPinningListAlwaysTimelyForTesting(true);
@@ -784,10 +776,10 @@ TEST_F(TransportSecurityStateTest, DecodePreloadedSingle) {
   EXPECT_EQ(TransportSecurityState::STSState::MODE_FORCE_HTTPS,
             sts_state.upgrade_mode);
   EXPECT_TRUE(pkp_state.include_subdomains);
-  ASSERT_EQ(1u, pkp_state.spki_hashes.size());
-  EXPECT_EQ(pkp_state.spki_hashes[0], GetSampleSPKIHash(0x1));
-  ASSERT_EQ(1u, pkp_state.bad_spki_hashes.size());
-  EXPECT_EQ(pkp_state.bad_spki_hashes[0], GetSampleSPKIHash(0x2));
+  EXPECT_THAT(pkp_state.spki_hashes,
+              testing::UnorderedElementsAre(GetSampleSPKIHash(0x1)));
+  EXPECT_THAT(pkp_state.bad_spki_hashes,
+              testing::UnorderedElementsAre(GetSampleSPKIHash(0x2)));
 }
 
 // More advanced test for the HSTS preload process where the trie (generated
@@ -820,8 +812,8 @@ TEST_F(TransportSecurityStateTest, DecodePreloadedMultiplePrefix) {
       GetStaticDomainState(&state, "hpkp.example.com", &sts_state, &pkp_state));
   EXPECT_TRUE(sts_state == TransportSecurityState::STSState());
   EXPECT_TRUE(pkp_state.include_subdomains);
-  EXPECT_EQ(1U, pkp_state.spki_hashes.size());
-  EXPECT_EQ(pkp_state.spki_hashes[0], GetSampleSPKIHash(0x1));
+  EXPECT_THAT(pkp_state.spki_hashes,
+              testing::UnorderedElementsAre(GetSampleSPKIHash(0x1)));
   EXPECT_EQ(0U, pkp_state.bad_spki_hashes.size());
 
   sts_state = TransportSecurityState::STSState();
@@ -832,10 +824,10 @@ TEST_F(TransportSecurityStateTest, DecodePreloadedMultiplePrefix) {
   EXPECT_EQ(TransportSecurityState::STSState::MODE_FORCE_HTTPS,
             sts_state.upgrade_mode);
   EXPECT_TRUE(pkp_state.include_subdomains);
-  EXPECT_EQ(1U, pkp_state.spki_hashes.size());
-  EXPECT_EQ(pkp_state.spki_hashes[0], GetSampleSPKIHash(0x2));
-  EXPECT_EQ(1U, pkp_state.bad_spki_hashes.size());
-  EXPECT_EQ(pkp_state.bad_spki_hashes[0], GetSampleSPKIHash(0x1));
+  EXPECT_THAT(pkp_state.spki_hashes,
+              testing::UnorderedElementsAre(GetSampleSPKIHash(0x2)));
+  EXPECT_THAT(pkp_state.bad_spki_hashes,
+              testing::UnorderedElementsAre(GetSampleSPKIHash(0x1)));
 }
 
 // More advanced test for the HSTS preload process where the trie (generated
@@ -870,8 +862,8 @@ TEST_F(TransportSecurityStateTest, DecodePreloadedMultipleMix) {
       GetStaticDomainState(&state, "hpkp.example.com", &sts_state, &pkp_state));
   EXPECT_TRUE(sts_state == TransportSecurityState::STSState());
   EXPECT_TRUE(pkp_state.include_subdomains);
-  EXPECT_EQ(1U, pkp_state.spki_hashes.size());
-  EXPECT_EQ(pkp_state.spki_hashes[0], GetSampleSPKIHash(0x1));
+  EXPECT_THAT(pkp_state.spki_hashes,
+              testing::UnorderedElementsAre(GetSampleSPKIHash(0x1)));
   EXPECT_EQ(0U, pkp_state.bad_spki_hashes.size());
 
   sts_state = TransportSecurityState::STSState();
@@ -889,8 +881,8 @@ TEST_F(TransportSecurityStateTest, DecodePreloadedMultipleMix) {
       GetStaticDomainState(&state, "badssl.com", &sts_state, &pkp_state));
   EXPECT_TRUE(sts_state == TransportSecurityState::STSState());
   EXPECT_TRUE(pkp_state.include_subdomains);
-  EXPECT_EQ(1U, pkp_state.spki_hashes.size());
-  EXPECT_EQ(pkp_state.spki_hashes[0], GetSampleSPKIHash(0x1));
+  EXPECT_THAT(pkp_state.spki_hashes,
+              testing::UnorderedElementsAre(GetSampleSPKIHash(0x1)));
   EXPECT_EQ(0U, pkp_state.bad_spki_hashes.size());
 
   sts_state = TransportSecurityState::STSState();
@@ -901,10 +893,10 @@ TEST_F(TransportSecurityStateTest, DecodePreloadedMultipleMix) {
   EXPECT_EQ(TransportSecurityState::STSState::MODE_FORCE_HTTPS,
             sts_state.upgrade_mode);
   EXPECT_TRUE(pkp_state.include_subdomains);
-  EXPECT_EQ(1U, pkp_state.spki_hashes.size());
-  EXPECT_EQ(pkp_state.spki_hashes[0], GetSampleSPKIHash(0x2));
-  EXPECT_EQ(1U, pkp_state.bad_spki_hashes.size());
-  EXPECT_EQ(pkp_state.bad_spki_hashes[0], GetSampleSPKIHash(0x1));
+  EXPECT_THAT(pkp_state.spki_hashes,
+              testing::UnorderedElementsAre(GetSampleSPKIHash(0x2)));
+  EXPECT_THAT(pkp_state.bad_spki_hashes,
+              testing::UnorderedElementsAre(GetSampleSPKIHash(0x1)));
 
   sts_state = TransportSecurityState::STSState();
   pkp_state = TransportSecurityState::PKPState();
@@ -960,9 +952,9 @@ TEST_F(TransportSecurityStateTest, RequireCTConsultsDelegate) {
       ImportCertFromFile(GetTestCertsDirectory(), "expired_cert.pem");
   ASSERT_TRUE(cert);
 
-  HashValueVector hashes;
+  std::vector<SHA256HashValue> hashes;
   hashes.push_back(
-      HashValue(X509Certificate::CalculateFingerprint256(cert->cert_buffer())));
+      X509Certificate::CalculateFingerprint256(cert->cert_buffer()));
 
   // If CT is required, then the requirements are not met if the CT policy
   // wasn't met, but are met if the policy was met or the build was out of
@@ -1044,9 +1036,9 @@ TEST(CTEmergencyDisableTest, CTEmergencyDisable) {
       ImportCertFromFile(GetTestCertsDirectory(), "expired_cert.pem");
   ASSERT_TRUE(cert);
 
-  HashValueVector hashes;
+  std::vector<SHA256HashValue> hashes;
   hashes.push_back(
-      HashValue(X509Certificate::CalculateFingerprint256(cert->cert_buffer())));
+      X509Certificate::CalculateFingerprint256(cert->cert_buffer()));
 
   TransportSecurityState state;
   state.SetCTEmergencyDisabled(true);
@@ -1485,7 +1477,7 @@ TEST_F(TransportSecurityStateStaticTest, BuiltinCertPins) {
   EXPECT_TRUE(state.GetStaticPKPState("chrome.google.com", &pkp_state));
   EXPECT_TRUE(HasStaticPublicKeyPins("chrome.google.com"));
 
-  HashValueVector hashes;
+  std::vector<SHA256HashValue> hashes;
   // Checks that a built-in list does exist.
   EXPECT_FALSE(pkp_state.CheckPublicKeyPins(hashes));
   EXPECT_FALSE(HasStaticPublicKeyPins("www.paypal.com"));
@@ -1612,7 +1604,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsListValidPin) {
   base::test::ScopedFeatureList scoped_feature_list_;
   scoped_feature_list_.InitAndEnableFeature(
       features::kStaticKeyPinningEnforcement);
-  HashValueVector bad_hashes = DeserializeHashes(kBadPath);
+  std::vector<SHA256HashValue> bad_hashes = DeserializeHashes(kBadPath);
 
   TransportSecurityState state;
   EnableStaticPins(&state);
@@ -1625,7 +1617,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsListValidPin) {
   // host.
   TransportSecurityState::PinSet test_pinset(
       /*name=*/"test",
-      /*static_spki_hashes=*/UnpackRawHashes(bad_hashes),
+      /*static_spki_hashes=*/bad_hashes,
       /*bad_static_spki_hashes=*/{});
   TransportSecurityState::PinSetInfo test_pinsetinfo(
       /*hostname=*/kHost, /*pinset_name=*/"test",
@@ -1641,7 +1633,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsListNotValidPin) {
   base::test::ScopedFeatureList scoped_feature_list_;
   scoped_feature_list_.InitAndEnableFeature(
       features::kStaticKeyPinningEnforcement);
-  HashValueVector good_hashes = DeserializeHashes(kGoodPath);
+  std::vector<SHA256HashValue> good_hashes = DeserializeHashes(kGoodPath);
 
   TransportSecurityState state;
   EnableStaticPins(&state);
@@ -1655,7 +1647,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsListNotValidPin) {
   TransportSecurityState::PinSet test_pinset(
       /*name=*/"test",
       /*static_spki_hashes=*/{},
-      /*bad_static_spki_hashes=*/UnpackRawHashes(good_hashes));
+      /*bad_static_spki_hashes=*/good_hashes);
   TransportSecurityState::PinSetInfo test_pinsetinfo(
       /*hostname=*/kHost, /* pinset_name=*/"test",
       /*include_subdomains=*/false);
@@ -1679,7 +1671,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsEmptyList) {
   base::test::ScopedFeatureList scoped_feature_list_;
   scoped_feature_list_.InitAndEnableFeature(
       features::kStaticKeyPinningEnforcement);
-  HashValueVector bad_hashes = DeserializeHashes(kBadPath);
+  std::vector<SHA256HashValue> bad_hashes = DeserializeHashes(kBadPath);
 
   TransportSecurityState state;
   EnableStaticPins(&state);
@@ -1704,7 +1696,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsIncludeSubdomains) {
   // expected hashes for the tld of this domain. kGoodPath is used here because
   // it's a path that is accepted prior to any updates, and this test will
   // validate it is rejected afterwards.
-  HashValueVector unpinned_hashes = DeserializeHashes(kGoodPath);
+  std::vector<SHA256HashValue> unpinned_hashes = DeserializeHashes(kGoodPath);
 
   TransportSecurityState state;
   EnableStaticPins(&state);
@@ -1720,7 +1712,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsIncludeSubdomains) {
   // kBadPath is used for convenience.
   TransportSecurityState::PinSet test_pinset(
       /*name=*/"test",
-      /*static_spki_hashes=*/UnpackRawHashes(DeserializeHashes(kBadPath)),
+      /*static_spki_hashes=*/DeserializeHashes(kBadPath),
       /*bad_static_spki_hashes=*/{});
   // The host used in the test is "example.sub.test", so this pinset will only
   // match due to include subdomains.
@@ -1743,7 +1735,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsIncludeSubdomainsTLD) {
   // expected hashes for the tld of this domain. kGoodPath is used here because
   // it's a path that is accepted prior to any updates, and this test will
   // validate it is rejected afterwards.
-  HashValueVector unpinned_hashes = DeserializeHashes(kGoodPath);
+  std::vector<SHA256HashValue> unpinned_hashes = DeserializeHashes(kGoodPath);
 
   TransportSecurityState state;
   EnableStaticPins(&state);
@@ -1758,7 +1750,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsIncludeSubdomainsTLD) {
   // kBadPath is used for convenience.
   TransportSecurityState::PinSet test_pinset(
       /*name=*/"test",
-      /*static_spki_hashes=*/UnpackRawHashes(DeserializeHashes(kBadPath)),
+      /*static_spki_hashes=*/DeserializeHashes(kBadPath),
       /*bad_static_spki_hashes=*/{});
   // The host used in the test is "example.test", so this pinset will only match
   // due to include subdomains.
@@ -1781,7 +1773,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsDontIncludeSubdomains) {
   // it's a path that is accepted prior to any updates, and this test will
   // validate it is accepted or rejected afterwards depending on whether the
   // domain is an exact match.
-  HashValueVector unpinned_hashes = DeserializeHashes(kGoodPath);
+  std::vector<SHA256HashValue> unpinned_hashes = DeserializeHashes(kGoodPath);
 
   TransportSecurityState state;
   EnableStaticPins(&state);
@@ -1796,7 +1788,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsDontIncludeSubdomains) {
   // kBadPath is used for convenience.
   TransportSecurityState::PinSet test_pinset(
       /*name=*/"test",
-      /*static_spki_hashes=*/UnpackRawHashes(DeserializeHashes(kBadPath)),
+      /*static_spki_hashes=*/DeserializeHashes(kBadPath),
       /*bad_static_spki_hashes=*/{});
   // The host used in the test is "example.test", so this pinset will not match
   // due to include subdomains not being set.
@@ -1820,7 +1812,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsListTimestamp) {
   base::test::ScopedFeatureList scoped_feature_list_;
   scoped_feature_list_.InitAndEnableFeature(
       features::kStaticKeyPinningEnforcement);
-  HashValueVector bad_hashes = DeserializeHashes(kBadPath);
+  std::vector<SHA256HashValue> bad_hashes = DeserializeHashes(kBadPath);
 
   TransportSecurityState state;
   EnableStaticPins(&state);
@@ -1838,7 +1830,7 @@ TEST_F(TransportSecurityStateTest, UpdateKeyPinsListTimestamp) {
   TransportSecurityState::PinSet test_pinset(
       /*name=*/"test",
       /*static_spki_hashes=*/{},
-      /*bad_static_spki_hashes=*/UnpackRawHashes(bad_hashes));
+      /*bad_static_spki_hashes=*/bad_hashes);
   TransportSecurityState::PinSetInfo test_pinsetinfo(
       /*hostname=*/kHost, /* pinset_name=*/"test",
       /*include_subdomains=*/false);
@@ -1871,7 +1863,7 @@ class TransportSecurityStatePinningKillswitchTest
 };
 
 TEST_F(TransportSecurityStatePinningKillswitchTest, PinningKillswitchSet) {
-  HashValueVector bad_hashes = DeserializeHashes(kBadPath);
+  std::vector<SHA256HashValue> bad_hashes = DeserializeHashes(kBadPath);
 
   TransportSecurityState state;
   EnableStaticPins(&state);

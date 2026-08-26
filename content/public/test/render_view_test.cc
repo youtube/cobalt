@@ -16,6 +16,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/escape.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
@@ -45,6 +46,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
+#include "services/tracing/public/cpp/trace_startup.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
@@ -71,7 +73,6 @@
 #include "third_party/blink/public/web/web_script_source.h"
 #include "third_party/blink/public/web/web_v8_features.h"
 #include "third_party/blink/public/web/web_view.h"
-#include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_provider.h"
 #include "ui/color/color_provider_manager.h"
 #include "ui/color/color_provider_source.h"
@@ -401,6 +402,9 @@ void RenderViewTest::SetUp() {
       test_io_thread_->task_runner(),
       mojo::core::ScopedIPCSupport::ShutdownPolicy::FAST);
 
+  tracing::InitTracingPostFeatureList(/*enable_consumer=*/false,
+                                      /*will_trace_thread_restart=*/false);
+
   // Subclasses can set render_thread_ with their own implementation before
   // calling RenderViewTest::SetUp().
   // The render thread needs to exist before blink::Initialize. It also mirrors
@@ -457,15 +461,6 @@ void RenderViewTest::SetUp() {
   // Ensure that we register any necessary schemes when initializing WebKit,
   // since we are using a MockRenderThread.
   RenderThreadImpl::RegisterSchemes();
-
-  // This check is needed because when run under content_browsertests,
-  // ResourceBundle isn't initialized (since we have to use a diferent test
-  // suite implementation than for content_unittests). For browser_tests, this
-  // is already initialized.
-  if (!ui::ResourceBundle::HasSharedInstance()) {
-    ui::ResourceBundle::InitSharedInstanceWithLocale(
-        "en-US", nullptr, ui::ResourceBundle::DO_NOT_LOAD_COMMON_RESOURCES);
-  }
 
   process_ = std::make_unique<RenderProcess>();
 

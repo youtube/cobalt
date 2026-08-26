@@ -22,6 +22,13 @@ ChromeVoxLearnModeTest = class extends ChromeVoxE2ETest {
     globalThis.doBrailleKeyEvent = this.doBrailleKeyEvent.bind(this);
   }
 
+  /** @override */
+  async setUpDeferred() {
+    await super.setUpDeferred();
+    const imports = TestImportManager.getImports();
+    globalThis.LearnModeBridge = imports.LearnModeBridge;
+  }
+
   async runOnLearnModePage() {
     return new Promise(async resolve => {
       const mockFeedback = this.createMockFeedback();
@@ -45,10 +52,6 @@ ChromeVoxLearnModeTest = class extends ChromeVoxE2ETest {
   }
 
   makeMockKeyEvent(params) {
-    // Fake out these functions.
-    params.preventDefault = () => {};
-    params.stopPropagation = () => {};
-
     // Set defaults if not defined.
     params.repeat = params.repeat || false;
 
@@ -61,16 +64,16 @@ ChromeVoxLearnModeTest = class extends ChromeVoxE2ETest {
   }
 
   doKeyUp(evt) {
-    return async () =>
-               await LearnModeBridge.onKeyUp(this.makeMockKeyEvent(evt));
+    return async () => await LearnModeBridge.onKeyUp();
   }
 
   doLearnModeGesture(gesture) {
-    return async () => await LearnModeBridge.onAccessibilityGesture(gesture);
+    return async () =>
+               await LearnModeBridge.onAccessibilityGestureForTest(gesture);
   }
 
   doBrailleKeyEvent(evt) {
-    return async () => await LearnModeBridge.onBrailleKeyEvent(evt);
+    return async () => await LearnModeBridge.onBrailleKeyEventForTest(evt);
   }
 };
 
@@ -117,7 +120,7 @@ AX_TEST_F('ChromeVoxLearnModeTest', 'KeyboardInputRepeat', async function() {
 
 AX_TEST_F('ChromeVoxLearnModeTest', 'Gesture', async function() {
   const [mockFeedback, evt] = await this.runOnLearnModePage();
-  await LearnModeBridge.clearTouchExploreOutputTime();
+  await LearnModeBridge.clearTouchExploreOutputTimeForTest();
   mockFeedback.call(doLearnModeGesture(Gesture.SWIPE_RIGHT1))
       .expectSpeechWithQueueMode(
           'Swipe one finger right', QueueMode.CATEGORY_FLUSH)
@@ -191,7 +194,6 @@ AX_TEST_F('ChromeVoxLearnModeTest', 'HardwareFunctionKeys', async function() {
 AX_TEST_F(
     'ChromeVoxLearnModeTest', 'CommandHandlersDisabled', async function() {
       const [mockFeedback, evt] = await this.runOnLearnModePage();
-      await LearnModeBridge.ready();
       assertTrue(BrailleCommandHandler.instance.bypassed_);
       assertTrue(GestureCommandHandler.instance.bypassed_);
       await mockFeedback.replay();

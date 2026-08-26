@@ -23,12 +23,13 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_STRING_HASH_H_
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hasher.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
-namespace WTF {
+namespace blink {
 
 // The GetHash() functions in below HashTraits do not support null strings.
 // find(), Contains(), and insert() on HashMap<String,...> cause a null-pointer
@@ -76,7 +77,9 @@ struct HashTraits<String> : SimpleClassHashTraits<String> {
     return GetHash(reinterpret_cast<const char*>(key));
   }
   static unsigned GetHash(const UChar* key) {
-    return ComputeHashForWideString(key, LengthOfNullTerminatedString(key));
+    return blink::ComputeHashForWideString(
+        // SAFETY: Safe when input is null-terminated string.
+        UNSAFE_BUFFERS({key, blink::LengthOfNullTerminatedString(key)}));
   }
 
   static bool Equal(const String& a, const char* b) { return a == b; }
@@ -102,13 +105,13 @@ struct HashTraits<String> : SimpleClassHashTraits<String> {
   }
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 namespace std {
 template <>
-struct hash<WTF::String> {
-  size_t operator()(const WTF::String& string) const {
-    return WTF::GetHash(string);
+struct hash<blink::String> {
+  size_t operator()(const blink::String& string) const {
+    return blink::GetHash(string);
   }
 };
 }  // namespace std

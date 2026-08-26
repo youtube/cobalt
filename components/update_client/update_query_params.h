@@ -18,15 +18,15 @@ class UpdateQueryParamsDelegate;
 // browser process.
 class UpdateQueryParams {
  public:
-  enum ProdId { CHROME = 0, CRX, WEBVIEW };
+  enum ProdId { CHROME = 0, CRX, WEBVIEW, IOS_WEBVIEW };
 
   UpdateQueryParams() = delete;
   UpdateQueryParams(const UpdateQueryParams&) = delete;
   UpdateQueryParams& operator=(const UpdateQueryParams&) = delete;
 
   // Generates a string of URL query parameters for Omaha. Includes the
-  // following fields: "os", "arch", "nacl_arch", "prod", "prodchannel",
-  // "prodversion", and "lang"
+  // following fields: "os", "arch", "prod", "prodchannel", "prodversion", and
+  // "lang"
   static std::string Get(ProdId prod);
 
   // Returns the value we use for the "prod=" parameter. Possible return values
@@ -40,12 +40,6 @@ class UpdateQueryParams {
   // Returns the value we use for the "arch=" parameter. Possible return values
   // include: "x86", "x64", and "arm".
   static const char* GetArch();
-
-  // Returns the value we use for the "nacl_arch" parameter. Note that this may
-  // be different from the "arch" parameter above (e.g. one may be 32-bit and
-  // the other 64-bit). Possible return values include: "x86-32", "x86-64",
-  // "arm", "mips32", and "ppc64".
-  static const char* GetNaclArch();
 
   // Returns the current version of Chrome/Chromium.
   static std::string GetProdVersion();

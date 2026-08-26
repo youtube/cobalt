@@ -231,7 +231,7 @@ void ArcOpenUrlDelegateImpl::OpenUrlFromArc(const GURL& url) {
   }
 
   GURL url_to_open = ConvertArcUrlToExternalFileUrlIfNeeded(url);
-  ash::NewWindowDelegate::GetPrimary()->OpenUrl(
+  ash::NewWindowDelegate::GetInstance()->OpenUrl(
       url_to_open, ash::NewWindowDelegate::OpenUrlFrom::kArc,
       ash::NewWindowDelegate::Disposition::kNewForegroundTab);
 }
@@ -341,7 +341,7 @@ void ArcOpenUrlDelegateImpl::OpenArcCustomTab(
   // because of the CustomTabSessionImpl object getting destroyed.
   ash::BrowserDelegate* custom_tab_browser =
       ash::BrowserController::GetInstance()->CreateCustomTab(
-          user, std::move(web_contents));
+          user.GetAccountId(), std::move(web_contents));
   CHECK(custom_tab_browser);
 
   // TODO(crbug.com/41454219): Remove this temporary conversion to InterfacePtr

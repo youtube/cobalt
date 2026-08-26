@@ -236,11 +236,11 @@ TEST_F(ObjectTest, NoSideEffectsToString) {
       "Error: fisk hest");
   CheckObject(i_isolate(), factory->NewJSObject(i_isolate()->object_function()),
               "#<Object>");
-  CheckObject(
-      i_isolate(),
-      factory->NewJSProxy(factory->NewJSObject(i_isolate()->object_function()),
-                          factory->NewJSObject(i_isolate()->object_function())),
-      "#<Object>");
+  CheckObject(i_isolate(),
+              factory->NewJSProxy(
+                  factory->NewJSObject(i_isolate()->object_function()),
+                  factory->NewJSObject(i_isolate()->object_function()), false),
+              "#<Object>");
 }
 
 TEST_F(ObjectTest, EnumCache) {
@@ -722,6 +722,105 @@ TEST_F(ObjectTest, AddDataPropertyNameCollisionDeprecatedMap) {
                               StoreOrigin::kNamed)
           .IsJust(),
       "");
+}
+
+namespace {
+
+i::DirectHandle<i::String> v8_str(i::Isolate* isolate, const char* str) {
+  return isolate->factory()->NewStringFromAsciiChecked(str);
+}
+
+}  // namespace
+
+TEST_F(ObjectTest, LookupIteratorWithStringLookupStartObject) {
+  v8::HandleScope scope(isolate());
+  // Factory* factory = i_isolate()->factory();
+  i::Isolate* ii = i_isolate();
+
+  i::DirectHandle<String> str = v8_str(ii, "some boom");
+  i::DirectHandle<String> length_str = v8_str(ii, "length");
+
+  // Various "abc".blah like lookups.
+  CHECK(!LookupIterator(ii, str, v8_str(ii, "abc")).IsFound());
+  CHECK(!LookupIterator(ii, str, v8_str(ii, "-10")).IsFound());
+
+  {
+    // Various operations with "abc".length.
+    LookupIterator it(ii, str, length_str);
+    CHECK(it.IsFound());
+
+    CHECK_EQ(9, Smi::ToInt(*Object::GetProperty(&it).ToHandleChecked()));
+
+    // Try to set property using both throwing and non-throwing modes.
+    CHECK_EQ(false,
+             Object::SetProperty(&it, v8_str(ii, "15"),
+                                 StoreOrigin::kMaybeKeyed, Just(kDontThrow))
+                 .FromJust());
+
+    CHECK(Object::SetProperty(&it, v8_str(ii, "15"), StoreOrigin::kMaybeKeyed,
+                              Just(kThrowOnError))
+              .IsNothing());
+    ii->clear_exception();
+  }
+
+  {
+    // Various operations with other named properties.
+    LookupIterator it(ii, str, v8_str(ii, "blah"));
+    CHECK(!it.IsFound());
+
+    CHECK(IsUndefined(*Object::GetProperty(&it).ToHandleChecked()));
+
+    // Try to set property using both throwing and non-throwing modes.
+    CHECK_EQ(false,
+             Object::SetProperty(&it, v8_str(ii, "15"),
+                                 StoreOrigin::kMaybeKeyed, Just(kDontThrow))
+                 .FromJust());
+
+    CHECK(Object::SetProperty(&it, v8_str(ii, "15"), StoreOrigin::kMaybeKeyed,
+                              Just(kThrowOnError))
+              .IsNothing());
+    ii->clear_exception();
+  }
+
+  {
+    // Various operations with indexed properties.
+    LookupIterator it(ii, str, 1);
+    CHECK(it.IsFound());
+
+    CHECK(v8_str(ii, "o")->Equals(
+        Cast<String>(*Object::GetProperty(&it).ToHandleChecked())));
+
+    // Try to set property using both throwing and non-throwing modes.
+    CHECK_EQ(false,
+             Object::SetProperty(&it, v8_str(ii, "15"),
+                                 StoreOrigin::kMaybeKeyed, Just(kDontThrow))
+                 .FromJust());
+
+    CHECK(Object::SetProperty(&it, v8_str(ii, "15"), StoreOrigin::kMaybeKeyed,
+                              Just(kThrowOnError))
+              .IsNothing());
+    ii->clear_exception();
+  }
+
+  const int non_existent_indices[] = {153, String::kMaxLength + 1};
+  for (size_t i = 0; i < arraysize(non_existent_indices); i++) {
+    // Various operations with indexed properties.
+    LookupIterator it(ii, str, non_existent_indices[i]);
+    CHECK(!it.IsFound());
+
+    CHECK(IsUndefined(*Object::GetProperty(&it).ToHandleChecked()));
+
+    // Try to set property using both throwing and non-throwing modes.
+    CHECK_EQ(false,
+             Object::SetProperty(&it, v8_str(ii, "15"),
+                                 StoreOrigin::kMaybeKeyed, Just(kDontThrow))
+                 .FromJust());
+
+    CHECK(Object::SetProperty(&it, v8_str(ii, "15"), StoreOrigin::kMaybeKeyed,
+                              Just(kThrowOnError))
+              .IsNothing());
+    ii->clear_exception();
+  }
 }
 
 }  // namespace internal

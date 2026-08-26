@@ -6,7 +6,6 @@
 
 #include <stddef.h>
 
-#include <array>
 #include <memory>
 #include <string>
 #include <utility>
@@ -47,13 +46,17 @@ constexpr char16_t kTabsKeyword[] = u"@tabs";
 constexpr char16_t kGeminiKeyword[] = u"@gemini";
 
 const std::string kBookmarksUrl =
-    TemplateURLStarterPackData::bookmarks.destination_url;
+    template_url_starter_pack_data::bookmarks.destination_url;
 const std::string kHistoryUrl =
-    TemplateURLStarterPackData::history.destination_url;
-const std::string kTabsUrl = TemplateURLStarterPackData::tabs.destination_url;
-const std::string kPageUrl = TemplateURLStarterPackData::page.destination_url;
+    template_url_starter_pack_data::history.destination_url;
+const std::string kTabsUrl =
+    template_url_starter_pack_data::tabs.destination_url;
 const std::string kGeminiUrl =
-    TemplateURLStarterPackData::Gemini.destination_url;
+    template_url_starter_pack_data::gemini.destination_url;
+const std::string kPageUrl =
+    template_url_starter_pack_data::page.destination_url;
+const std::string kAiModeUrl =
+    template_url_starter_pack_data::ai_mode.destination_url;
 
 struct TestData {
   const std::u16string input;
@@ -110,7 +113,7 @@ class FeaturedSearchProviderTest : public testing::Test {
       matches = provider_->matches();
       ASSERT_EQ(cases[i].output.size(), matches.size());
       for (size_t j = 0; j < cases[i].output.size(); ++j) {
-        EXPECT_EQ(GURL(cases[i].output[j]), matches[j].destination_url);
+        EXPECT_EQ(matches[j].destination_url, GURL(cases[i].output[j]));
       }
     }
   }
@@ -148,7 +151,7 @@ class FeaturedSearchProviderTest : public testing::Test {
   // Populate the TemplateURLService with starter pack entries.
   void AddStarterPackEntriesToTemplateUrlService() {
     std::vector<std::unique_ptr<TemplateURLData>> turls =
-        TemplateURLStarterPackData::GetStarterPackEngines();
+        template_url_starter_pack_data::GetStarterPackEngines();
     for (auto& turl : turls) {
       client_->GetTemplateURLService()->Add(
           std::make_unique<TemplateURL>(std::move(*turl)));
@@ -159,7 +162,9 @@ class FeaturedSearchProviderTest : public testing::Test {
   void AddFeaturedEnterpriseSearchEngine(
       const std::u16string& keyword,
       const std::string& url,
-      const TemplateURLData::PolicyOrigin& policy_origin) {
+      const TemplateURLData::PolicyOrigin& policy_origin,
+      const TemplateURLData::ActiveStatus& is_active =
+          TemplateURLData::ActiveStatus::kTrue) {
     TemplateURLData template_url_data;
     template_url_data.SetKeyword(keyword);
     template_url_data.SetShortName(keyword + u" Name");
@@ -168,6 +173,7 @@ class FeaturedSearchProviderTest : public testing::Test {
     template_url_data.enforced_by_policy = true;
     template_url_data.featured_by_policy = true;
     template_url_data.safe_for_autoreplace = false;
+    template_url_data.is_active = is_active;
 
     client_->GetTemplateURLService()->Add(
         std::make_unique<TemplateURL>(template_url_data));
@@ -232,7 +238,7 @@ TEST_F(FeaturedSearchProviderTest, StarterPack) {
       {u"@gemini", {}},
 
       // Typing '@' should give all the starter pack suggestions.
-      {u"@", {kBookmarksUrl, kHistoryUrl, kTabsUrl}},
+      {u"@", {kAiModeUrl, kBookmarksUrl, kHistoryUrl, kTabsUrl}},
 
       // Typing a portion of "@bookmarks" should give the bookmarks suggestion.
       {std::u16string(kBookmarksKeyword, 0, 3), {kBookmarksUrl}},
@@ -268,7 +274,7 @@ TEST_F(FeaturedSearchProviderTest, StarterPackExpansion) {
       {u"gemi", {}},
 
       // Typing '@' should give all the starter pack suggestions.
-      {u"@", {kBookmarksUrl, kGeminiUrl, kHistoryUrl, kTabsUrl}},
+      {u"@", {kAiModeUrl, kBookmarksUrl, kGeminiUrl, kHistoryUrl, kTabsUrl}},
 
       // Typing a portion of "@bookmarks" should give the bookmarks suggestion.
       {std::u16string(kBookmarksKeyword, 0, 3), {kBookmarksUrl}},
@@ -306,7 +312,7 @@ TEST_F(FeaturedSearchProviderTest, StarterPackExpansionRelevance) {
   provider_->Start(input, false);
   EXPECT_TRUE(provider_->done());
   ACMatches matches = provider_->matches();
-  ASSERT_EQ(TemplateURLStarterPackData::GetStarterPackEngines().size(),
+  ASSERT_EQ(template_url_starter_pack_data::GetStarterPackEngines().size(),
             matches.size());
 
   // Sort the matches according to relevances (in descending order), and make
@@ -315,15 +321,12 @@ TEST_F(FeaturedSearchProviderTest, StarterPackExpansionRelevance) {
     return x.relevance > y.relevance;
   });
 
-  auto expected_match_order = std::to_array<std::string>({
-      kGeminiUrl,
-      kBookmarksUrl,
-      kHistoryUrl,
-      kPageUrl,
-      kTabsUrl,
-  });
+  auto expected_match_order = std::vector<std::string>{
+      kAiModeUrl, kGeminiUrl, kHistoryUrl, kBookmarksUrl, kPageUrl, kTabsUrl,
+  };
+  ASSERT_EQ(matches.size(), expected_match_order.size());
   for (size_t i = 0; i < matches.size(); i++) {
-    EXPECT_EQ(matches[i].destination_url, GURL(expected_match_order[i]));
+    EXPECT_EQ(matches[i].destination_url, GURL(expected_match_order[i])) << i;
   }
 }
 
@@ -337,14 +340,16 @@ TEST_F(FeaturedSearchProviderTest, FeaturedEnterpriseSearch) {
                                     TemplateURLData::PolicyOrigin::kSiteSearch);
   AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(1), FeaturedUrlN(1),
                                     TemplateURLData::PolicyOrigin::kSiteSearch);
+  // Inactive featured enterprise keywords should not be shown.
   AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(3), FeaturedUrlN(3),
+                                    TemplateURLData::PolicyOrigin::kSiteSearch,
+                                    TemplateURLData::ActiveStatus::kFalse);
+  AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(5), FeaturedUrlN(5),
                                     TemplateURLData::PolicyOrigin::kSiteSearch);
   AddFeaturedEnterpriseSearchEngine(
       FeaturedKeywordN(4), FeaturedUrlN(4),
       TemplateURLData::PolicyOrigin::kSearchAggregator);
   // At most 4 featured enterprise keywords should be shown.
-  AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(5), FeaturedUrlN(5),
-                                    TemplateURLData::PolicyOrigin::kSiteSearch);
   AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(6), FeaturedUrlN(6),
                                     TemplateURLData::PolicyOrigin::kSiteSearch);
   AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(7), FeaturedUrlN(7),
@@ -365,13 +370,13 @@ TEST_F(FeaturedSearchProviderTest, FeaturedEnterpriseSearch) {
       // alphabetical order). Re-ordering by relevance will be made
       // later on.
       {u"@",
-       {kBookmarksUrl, FeaturedUrlN(1), FeaturedUrlN(2), FeaturedUrlN(3),
-        FeaturedUrlN(4), kGeminiUrl, kHistoryUrl, kTabsUrl}},
+       {kAiModeUrl, kBookmarksUrl, FeaturedUrlN(1), FeaturedUrlN(2),
+        FeaturedUrlN(4), FeaturedUrlN(5), kGeminiUrl, kHistoryUrl, kTabsUrl}},
 
       // Typing a portion of "@featured" should give the featured engine
       // suggestions.
       {std::u16string(FeaturedKeywordN(1), 0, 3),
-       {FeaturedUrlN(1), FeaturedUrlN(2), FeaturedUrlN(3), FeaturedUrlN(4)}},
+       {FeaturedUrlN(1), FeaturedUrlN(2), FeaturedUrlN(4), FeaturedUrlN(5)}},
       {FeaturedKeywordN(1), {FeaturedUrlN(1)}},
   };
 
@@ -406,7 +411,7 @@ TEST_F(FeaturedSearchProviderTest, ZeroSuggestStarterPackIPHSuggestion) {
   AddStarterPackEntriesToTemplateUrlService();
   std::vector<TestData> typing_scheme_cases = {
       // Typing '@' should give all the starter pack suggestions, and no IPH.
-      {u"@", {kBookmarksUrl, kGeminiUrl, kHistoryUrl, kTabsUrl}}};
+      {u"@", {kAiModeUrl, kBookmarksUrl, kGeminiUrl, kHistoryUrl, kTabsUrl}}};
   RunTest(typing_scheme_cases);
 }
 
@@ -449,7 +454,8 @@ TEST_F(FeaturedSearchProviderTest,
   EXPECT_EQ(matches.size(), 0u);
 }
 
-TEST_F(FeaturedSearchProviderTest, ZeroSuggestFeaturedSearchIPHSuggestion) {
+TEST_F(FeaturedSearchProviderTest,
+       ZeroSuggestFeaturedEnterpriseSiteSearchIPHSuggestion) {
   base::test::ScopedFeatureList features;
   features.InitWithFeatures({omnibox::kStarterPackExpansion},
                             {omnibox::kStarterPackIPH});
@@ -460,23 +466,25 @@ TEST_F(FeaturedSearchProviderTest, ZeroSuggestFeaturedSearchIPHSuggestion) {
                                     TemplateURLData::PolicyOrigin::kSiteSearch);
   AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(1), FeaturedUrlN(1),
                                     TemplateURLData::PolicyOrigin::kSiteSearch);
+  // Inactive featured enterprise keywords should not be shown or included in
+  // IPH.
   AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(3), FeaturedUrlN(3),
-                                    TemplateURLData::PolicyOrigin::kSiteSearch);
-  AddFeaturedEnterpriseSearchEngine(
-      FeaturedKeywordN(4), FeaturedUrlN(4),
-      TemplateURLData::PolicyOrigin::kSearchAggregator);
+                                    TemplateURLData::PolicyOrigin::kSiteSearch,
+                                    TemplateURLData::ActiveStatus::kFalse);
 
   // "Focus" omnibox with zero input to put us in Zero suggest mode.
   AutocompleteInput input;
   input.set_focus_type(metrics::INTERACTION_FOCUS);
 
   // Run the provider, there should be one match corresponding to IPH for
-  // featured Enterprise search.
+  // Enterprise search aggregator.
   provider_->Start(input, false);
   ACMatches matches = provider_->matches();
   EXPECT_EQ(matches.size(), 1u);
   EXPECT_EQ(matches[0].type, AutocompleteMatchType::NULL_RESULT_MESSAGE);
-  EXPECT_EQ(matches[0].iph_type, IphType::kFeaturedEnterpriseSearch);
+  EXPECT_EQ(matches[0].iph_type, IphType::kFeaturedEnterpriseSiteSearch);
+  EXPECT_EQ(matches[0].contents,
+            u"Type @ to search across featured1.com, featured2.com");
 
   // Not in ZPS, the IPH should not be provided.
   input.set_focus_type(metrics::INTERACTION_DEFAULT);
@@ -488,13 +496,13 @@ TEST_F(FeaturedSearchProviderTest, ZeroSuggestFeaturedSearchIPHSuggestion) {
   std::vector<TestData> typing_scheme_cases = {
       // Typing '@' should give all the starter pack suggestions, and no IPH.
       {u"@",
-       {kBookmarksUrl, FeaturedUrlN(1), FeaturedUrlN(2), FeaturedUrlN(3),
-        FeaturedUrlN(4), kGeminiUrl, kHistoryUrl, kTabsUrl}}};
+       {kAiModeUrl, kBookmarksUrl, FeaturedUrlN(1), FeaturedUrlN(2), kGeminiUrl,
+        kHistoryUrl, kTabsUrl}}};
   RunTest(typing_scheme_cases);
 }
 
 TEST_F(FeaturedSearchProviderTest,
-       ZeroSuggestFeaturedSearchIPHSuggestion_DeleteMatch) {
+       ZeroSuggestFeaturedSiteSearchIPHSuggestion_DeleteMatch) {
   history_embeddings::ScopedFeatureParametersForTesting feature_parameters(
       base::BindOnce([](history_embeddings::FeatureParameters& parameters) {
         parameters.omnibox_scoped = false;
@@ -511,18 +519,18 @@ TEST_F(FeaturedSearchProviderTest,
                                     TemplateURLData::PolicyOrigin::kSiteSearch);
   AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(1), FeaturedUrlN(1),
                                     TemplateURLData::PolicyOrigin::kSiteSearch);
+  // Inactive featured enterprise keywords should not be shown or included in
+  // IPH.
   AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(3), FeaturedUrlN(3),
-                                    TemplateURLData::PolicyOrigin::kSiteSearch);
-  AddFeaturedEnterpriseSearchEngine(
-      FeaturedKeywordN(4), FeaturedUrlN(4),
-      TemplateURLData::PolicyOrigin::kSearchAggregator);
+                                    TemplateURLData::PolicyOrigin::kSiteSearch,
+                                    TemplateURLData::ActiveStatus::kFalse);
 
   // "Focus" omnibox with zero input to put us in Zero suggest mode.
   AutocompleteInput input;
   input.set_focus_type(metrics::INTERACTION_FOCUS);
 
   // Run the provider, there should be one match corresponding to IPH for
-  // featured Enterprise search.
+  // featured Enterprise site search.
   PrefService* prefs = client_->GetPrefs();
   EXPECT_FALSE(prefs->GetBoolean(
       omnibox::kDismissedFeaturedEnterpriseSiteSearchIphPrefName));
@@ -530,7 +538,9 @@ TEST_F(FeaturedSearchProviderTest,
   ACMatches matches = provider_->matches();
   EXPECT_EQ(matches.size(), 1u);
   EXPECT_EQ(matches[0].type, AutocompleteMatchType::NULL_RESULT_MESSAGE);
-  EXPECT_EQ(matches[0].iph_type, IphType::kFeaturedEnterpriseSearch);
+  EXPECT_EQ(matches[0].iph_type, IphType::kFeaturedEnterpriseSiteSearch);
+  EXPECT_EQ(matches[0].contents,
+            u"Type @ to search across featured1.com, featured2.com");
 
   // Call `DeleteMatch()`, match should be deleted from `matches_` and the pref
   // should be set to false.
@@ -547,7 +557,7 @@ TEST_F(FeaturedSearchProviderTest,
 }
 
 TEST_F(FeaturedSearchProviderTest,
-       ZeroSuggestStarerPackIPHAfterFeaturedSearchIPHDeleted) {
+       ZeroSuggestStarterPackIPHAfterFeaturedSiteSearchIPHDeleted) {
   history_embeddings::ScopedFeatureParametersForTesting feature_parameters(
       base::BindOnce([](history_embeddings::FeatureParameters& parameters) {
         parameters.omnibox_scoped = false;
@@ -565,18 +575,18 @@ TEST_F(FeaturedSearchProviderTest,
                                     TemplateURLData::PolicyOrigin::kSiteSearch);
   AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(1), FeaturedUrlN(1),
                                     TemplateURLData::PolicyOrigin::kSiteSearch);
+  // Inactive featured enterprise keywords should not be shown or included in
+  // IPH.
   AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(3), FeaturedUrlN(3),
-                                    TemplateURLData::PolicyOrigin::kSiteSearch);
-  AddFeaturedEnterpriseSearchEngine(
-      FeaturedKeywordN(4), FeaturedUrlN(4),
-      TemplateURLData::PolicyOrigin::kSearchAggregator);
+                                    TemplateURLData::PolicyOrigin::kSiteSearch,
+                                    TemplateURLData::ActiveStatus::kFalse);
 
   // "Focus" omnibox with zero input to put us in Zero suggest mode.
   AutocompleteInput input;
   input.set_focus_type(metrics::INTERACTION_FOCUS);
 
   // Run the provider, there should be one match corresponding to IPH for
-  // featured Enterprise search.
+  // featured Enterprise site search.
   PrefService* prefs = client_->GetPrefs();
   EXPECT_FALSE(prefs->GetBoolean(
       omnibox::kDismissedFeaturedEnterpriseSiteSearchIphPrefName));
@@ -585,7 +595,7 @@ TEST_F(FeaturedSearchProviderTest,
   ACMatches matches = provider_->matches();
   EXPECT_EQ(matches.size(), 1u);
   EXPECT_EQ(matches[0].type, AutocompleteMatchType::NULL_RESULT_MESSAGE);
-  EXPECT_EQ(matches[0].iph_type, IphType::kFeaturedEnterpriseSearch);
+  EXPECT_EQ(matches[0].iph_type, IphType::kFeaturedEnterpriseSiteSearch);
 
   // Call `DeleteMatch()`, match should be deleted from `matches_` and the pref
   // should be set to false.
@@ -618,6 +628,154 @@ TEST_F(FeaturedSearchProviderTest,
   provider_->Start(input, false);
   matches = provider_->matches();
   EXPECT_EQ(matches.size(), 0u);
+}
+
+TEST_F(FeaturedSearchProviderTest,
+       ZeroSuggestEnterpriseSearchAggregatorIPHSuggestion) {
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures({omnibox::kStarterPackExpansion},
+                            {omnibox::kStarterPackIPH});
+
+  AddStarterPackEntriesToTemplateUrlService();
+
+  AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(1), FeaturedUrlN(1),
+                                    TemplateURLData::PolicyOrigin::kSiteSearch);
+  AddFeaturedEnterpriseSearchEngine(
+      FeaturedKeywordN(4), FeaturedUrlN(4),
+      TemplateURLData::PolicyOrigin::kSearchAggregator);
+
+  // "Focus" omnibox with zero input to put us in Zero suggest mode.
+  AutocompleteInput input;
+  input.set_focus_type(metrics::INTERACTION_FOCUS);
+
+  // Run the provider, there should be one match corresponding to IPH for
+  // Enterprise search aggregator.
+  provider_->Start(input, false);
+  ACMatches matches = provider_->matches();
+  EXPECT_EQ(matches.size(), 1u);
+  EXPECT_EQ(matches[0].type, AutocompleteMatchType::NULL_RESULT_MESSAGE);
+  EXPECT_EQ(matches[0].iph_type, IphType::kEnterpriseSearchAggregator);
+
+  // Not in ZPS, the IPH should not be provided.
+  input.set_focus_type(metrics::INTERACTION_DEFAULT);
+  provider_->Start(input, false);
+  matches = provider_->matches();
+  EXPECT_EQ(matches.size(), 0u);
+
+  // "@" state - Confirm expected starter pack is still shown but no ZPS.
+  std::vector<TestData> typing_scheme_cases = {
+      // Typing '@' should give all the starter pack suggestions, and no IPH.
+      {u"@",
+       {kAiModeUrl, kBookmarksUrl, FeaturedUrlN(1), FeaturedUrlN(4), kGeminiUrl,
+        kHistoryUrl, kTabsUrl}}};
+  RunTest(typing_scheme_cases);
+}
+TEST_F(FeaturedSearchProviderTest,
+       ZeroSuggestEnterpriseSearchAggregatorIPHSuggestion_DeleteMatch) {
+  history_embeddings::ScopedFeatureParametersForTesting feature_parameters(
+      base::BindOnce([](history_embeddings::FeatureParameters& parameters) {
+        parameters.omnibox_scoped = false;
+      }));
+  base::test::ScopedFeatureList features;
+  features.InitWithFeaturesAndParameters(
+      {{history_embeddings::kHistoryEmbeddings, {}},
+       {omnibox::kStarterPackExpansion, {}}},
+      {omnibox::kStarterPackIPH});
+
+  AddStarterPackEntriesToTemplateUrlService();
+
+  AddFeaturedEnterpriseSearchEngine(
+      FeaturedKeywordN(4), FeaturedUrlN(4),
+      TemplateURLData::PolicyOrigin::kSearchAggregator);
+
+  // "Focus" omnibox with zero input to put us in Zero suggest mode.
+  AutocompleteInput input;
+  input.set_focus_type(metrics::INTERACTION_FOCUS);
+
+  // Run the provider, there should be one match corresponding to IPH for
+  // Enterprise search aggregator.
+  PrefService* prefs = client_->GetPrefs();
+  EXPECT_FALSE(prefs->GetBoolean(
+      omnibox::kDismissedFeaturedEnterpriseSiteSearchIphPrefName));
+  provider_->Start(input, false);
+  ACMatches matches = provider_->matches();
+  EXPECT_EQ(matches.size(), 1u);
+  EXPECT_EQ(matches[0].type, AutocompleteMatchType::NULL_RESULT_MESSAGE);
+  EXPECT_EQ(matches[0].iph_type, IphType::kEnterpriseSearchAggregator);
+
+  // Call `DeleteMatch()`, match should be deleted from `matches_` and the pref
+  // should be set to false.
+  provider_->DeleteMatch(matches[0]);
+  matches = provider_->matches();
+  EXPECT_EQ(matches.size(), 0u);
+  EXPECT_TRUE(prefs->GetBoolean(
+      omnibox::kDismissedEnterpriseSearchAggregatorIphPrefName));
+
+  // Run the provider again, IPH match should not be provided.
+  provider_->Start(input, false);
+  matches = provider_->matches();
+  EXPECT_EQ(matches.size(), 0u);
+}
+TEST_F(
+    FeaturedSearchProviderTest,
+    ZeroSuggestFeaturedSiteSearchIPHAfterEnterpriseSearchAggregatorIPHDeleted) {
+  history_embeddings::ScopedFeatureParametersForTesting feature_parameters(
+      base::BindOnce([](history_embeddings::FeatureParameters& parameters) {
+        parameters.omnibox_scoped = false;
+      }));
+  base::test::ScopedFeatureList features;
+  features.InitWithFeaturesAndParameters(
+      {{history_embeddings::kHistoryEmbeddings, {}},
+       {omnibox::kStarterPackExpansion, {}},
+       {omnibox::kStarterPackIPH, {}}},
+      {});
+
+  AddStarterPackEntriesToTemplateUrlService();
+
+  AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(1), FeaturedUrlN(1),
+                                    TemplateURLData::PolicyOrigin::kSiteSearch);
+  AddFeaturedEnterpriseSearchEngine(
+      FeaturedKeywordN(4), FeaturedUrlN(4),
+      TemplateURLData::PolicyOrigin::kSearchAggregator);
+
+  // "Focus" omnibox with zero input to put us in Zero suggest mode.
+  AutocompleteInput input;
+  input.set_focus_type(metrics::INTERACTION_FOCUS);
+
+  // Run the provider, there should be one match corresponding to IPH for
+  // Enterprise search aggregator.
+  PrefService* prefs = client_->GetPrefs();
+  EXPECT_FALSE(prefs->GetBoolean(
+      omnibox::kDismissedEnterpriseSearchAggregatorIphPrefName));
+  EXPECT_FALSE(prefs->GetBoolean(
+      omnibox::kDismissedFeaturedEnterpriseSiteSearchIphPrefName));
+  provider_->Start(input, false);
+  ACMatches matches = provider_->matches();
+  EXPECT_EQ(matches.size(), 1u);
+  EXPECT_EQ(matches[0].type, AutocompleteMatchType::NULL_RESULT_MESSAGE);
+  EXPECT_EQ(matches[0].iph_type, IphType::kEnterpriseSearchAggregator);
+
+  // Call `DeleteMatch()`, match should be deleted from `matches_` and the pref
+  // should be set to false.
+  provider_->DeleteMatch(matches[0]);
+  matches = provider_->matches();
+  EXPECT_EQ(matches.size(), 0u);
+  EXPECT_TRUE(prefs->GetBoolean(
+      omnibox::kDismissedEnterpriseSearchAggregatorIphPrefName));
+  EXPECT_FALSE(prefs->GetBoolean(
+      omnibox::kDismissedFeaturedEnterpriseSiteSearchIphPrefName));
+
+  // Run the provider again, there should be one match corresponding to IPH for
+  // featured Enterprise site search. The match should not include the search
+  // aggregator keyword.
+  EXPECT_FALSE(prefs->GetBoolean(
+      omnibox::kDismissedFeaturedEnterpriseSiteSearchIphPrefName));
+  provider_->Start(input, false);
+  matches = provider_->matches();
+  EXPECT_EQ(matches.size(), 1u);
+  EXPECT_EQ(matches[0].type, AutocompleteMatchType::NULL_RESULT_MESSAGE);
+  EXPECT_EQ(matches[0].iph_type, IphType::kFeaturedEnterpriseSiteSearch);
+  EXPECT_EQ(matches[0].contents, u"Type @ to search across featured1.com");
 }
 
 TEST_F(FeaturedSearchProviderTest, HistoryEmbedding_Iphs) {
@@ -861,13 +1019,14 @@ TEST_F(FeaturedSearchProviderTest, OffTheRecord_FeaturedEnterpriseSearch) {
   // mode. However, the match and IPH for enterprise site search engine should
   // still show.
   EXPECT_CALL(*client_, IsOffTheRecord()).WillRepeatedly(testing::Return(true));
-  RunAndVerifyIph(input, {{IphType::kFeaturedEnterpriseSearch,
-                           u"Type @ to search featured1.com"}});
+  RunAndVerifyIph(input, {{IphType::kFeaturedEnterpriseSiteSearch,
+                           u"Type @ to search across featured1.com"}});
 
   // "@" state.
   std::vector<TestData> typing_scheme_cases = {
       // Typing '@' should give all the starter pack suggestions (excluding
       // history), featured site search engine, and no IPH.
-      {u"@", {kBookmarksUrl, FeaturedUrlN(1), kGeminiUrl, kTabsUrl}}};
+      {u"@",
+       {kAiModeUrl, kBookmarksUrl, FeaturedUrlN(1), kGeminiUrl, kTabsUrl}}};
   RunTest(typing_scheme_cases);
 }

@@ -11,8 +11,8 @@
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/strings/grit/components_strings.h"
-#include "content/public/browser/federated_auth_autofill_source.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/federated_auth_autofill_source.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -148,9 +148,9 @@ ContentIdentityCredentialDelegate::GetVerifiedAutofillSuggestions(
         account->identity_provider->format &&
         *account->identity_provider->format == blink::mojom::Format::kSdJwt;
     bool is_returning_credential =
-        account->login_state &&
-        *account->login_state ==
-            content::IdentityRequestAccount::LoginState::kSignIn;
+        account->idp_claimed_login_state.value_or(
+            account->browser_trusted_login_state) ==
+        content::IdentityRequestAccount::LoginState::kSignIn;
     if (!delegated && !is_returning_credential) {
       continue;
     }

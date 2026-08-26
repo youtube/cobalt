@@ -232,7 +232,7 @@ history::mojom::HistoryEntryPtr HistoryEntryToMojom(
   result_mojom->domain = base::UTF16ToUTF8(domain);
 
   result_mojom->fallback_favicon_text =
-      base::UTF16ToASCII(favicon::GetFallbackIconText(entry.url));
+      base::UTF16ToUTF8(favicon::GetFallbackIconText(entry.url));
 
   result_mojom->time = entry.time.InMillisecondsFSinceUnixEpoch();
 
@@ -259,9 +259,8 @@ history::mojom::HistoryEntryPtr HistoryEntryToMojom(
   if (entry.is_search_result) {
     snippet_string = entry.snippet;
   } else {
-    base::Time midnight = clock->Now().LocalMidnight();
     std::u16string date_str =
-        ui::TimeFormat::RelativeDate(entry.time, &midnight);
+        ui::TimeFormat::RelativeDate(entry.time, clock->Now().LocalMidnight());
     if (date_str.empty()) {
       date_str = base::TimeFormatFriendlyDate(entry.time);
     } else {

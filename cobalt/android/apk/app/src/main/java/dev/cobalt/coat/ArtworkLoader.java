@@ -106,11 +106,11 @@ public class ArtworkLoader {
   /**
    * Crops the bitmap to 16:9 aspect ratio if necessary.
    *
-   * If the bitmap is taller than 16:9, it is cropped from the center. If it is already 16:9 or
+   * <p>If the bitmap is taller than 16:9, it is cropped from the center. If it is already 16:9 or
    * wider, it is returned as is.
    *
-   * The input bitmap is recycled if a new cropped bitmap is created.
-   * NOTE: This method is accessed from google3(http://shortn/_SoIqBrEPhR).
+   * <p>The input bitmap is recycled if a new cropped bitmap is created. NOTE: This method is
+   * accessed from google3(http://shortn/_SoIqBrEPhR).
    *
    * @param bitmap The source bitmap.
    * @return The 16:9 cropped bitmap, or the original bitmap.

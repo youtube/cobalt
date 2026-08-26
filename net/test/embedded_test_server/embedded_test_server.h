@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
@@ -49,6 +50,7 @@ namespace test_server {
 
 class EmbeddedTestServerConnectionListener;
 class HttpConnection;
+class HttpConnectProxyHandler;
 class HttpResponse;
 class HttpResponseDelegate;
 struct HttpRequest;
@@ -450,6 +452,11 @@ class EmbeddedTestServer {
   // Checks if the server has started listening for incoming connections.
   bool Started() const { return listen_socket_.get() != nullptr; }
 
+  // Checks if the server has started running the message loop.
+  bool StartedAcceptingConnection() const {
+    return io_thread_.get() != nullptr;
+  }
+
   static base::FilePath GetRootCertPemPath();
 
   HostPortPair host_port_pair() const {
@@ -558,6 +565,15 @@ class EmbeddedTestServer {
   //    Start*WithHandle() API variants is recommended for proper shutdown
   //    handling.
   void RegisterAuthHandler(const HandleRequestCallback& callback);
+
+  // Makes the server act as an HTTP/HTTPS CONNECT proxy. Must be invoked before
+  // the server is fully started. Only supports HTTP/1.x. All CONNECT requests
+  // to a port in `dest_ports` are go to the matching port on localhost,
+  // regardless of what destination host is actually provided. CONNECT requests
+  // to other destinations will then result 502 responses.
+  //
+  // Must be called before the EmbeddedTestServer starts accepting connections.
+  void EnableConnectProxy(base::span<const HostPortPair> proxied_destinations);
 
   // Adds a handler callback to process WebSocket upgrade requests.
   // |callback| will be invoked on the server's IO thread when a request
@@ -702,6 +718,11 @@ class EmbeddedTestServer {
   // is checked first; requests without valid credentials return an error
   // immediately without reaching other handlers.
   HandleRequestCallback auth_handler_;
+
+  // Optional handle to make the test server work as an HTTP/1 proxy. Created on
+  // main thread, but destroyed on `io_thread_`, as it may own sockets for
+  // tunnels.
+  std::unique_ptr<HttpConnectProxyHandler> http_connect_proxy_handler_;
 
   // Vector of registered and default request handlers and monitors.
   std::vector<HandleUpgradeRequestCallback> upgrade_request_handlers_;

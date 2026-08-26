@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/targets.star", "targets")
+load("@chromium-luci//targets.star", "targets")
 
 targets.binaries.console_test_launcher(
     name = "absl_hardening_tests",
@@ -473,13 +473,6 @@ targets.binaries.generated_script(
     skip_usage_check = True,
 )
 
-targets.binaries.console_test_launcher(
-    name = "chrome_java_test_wpr_tests",
-    label = "//chrome/test/android:chrome_java_test_wpr_tests",
-    # All references have been moved to starlark
-    skip_usage_check = True,
-)
-
 targets.binaries.generated_script(
     name = "chrome_junit_tests",
     label = "//chrome/android:chrome_junit_tests",
@@ -921,6 +914,12 @@ targets.binaries.console_test_launcher(
     label = "//device:device_unittests",
 )
 
+targets.binaries.console_test_launcher(
+    name = "device_realtarget_browsertests",
+    label = "//chrome/test:device_realtarget_browsertests",
+    skip_usage_check = True,
+)
+
 targets.binaries.generated_script(
     name = "disk_usage_tast_test",
     label = "//chromeos:disk_usage_tast_test",
@@ -1027,6 +1026,12 @@ targets.binaries.generated_script(
 targets.binaries.console_test_launcher(
     name = "video_decode_accelerator_tests",
     label = "//media/gpu/test:video_decode_accelerator_tests",
+)
+
+targets.binaries.console_test_launcher(
+    name = "video_encode_accelerator_tests",
+    label = "//media/gpu/test:video_encode_accelerator_tests",
+    skip_usage_check = True,
 )
 
 targets.binaries.console_test_launcher(
@@ -1562,11 +1567,6 @@ targets.binaries.console_test_launcher(
     skip_usage_check = True,
 )
 
-targets.binaries.console_test_launcher(
-    name = "nacl_loader_unittests",
-    label = "//components/nacl/loader:nacl_loader_unittests",
-)
-
 targets.binaries.generated_script(
     name = "build_rust_tests",
     label = "//build/rust/tests:build_rust_tests",
@@ -1680,13 +1680,6 @@ targets.binaries.generated_script(
 )
 
 targets.binaries.generated_script(
-    name = "password_check_junit_tests",
-    label = "//chrome/browser/password_check/android:password_check_junit_tests",
-    # All references have been moved to starlark
-    skip_usage_check = True,
-)
-
-targets.binaries.generated_script(
     name = "password_manager_junit_tests",
     label = "//chrome/browser/password_manager/android:password_manager_junit_tests",
     # All references have been moved to starlark
@@ -1792,11 +1785,6 @@ targets.binaries.console_test_launcher(
     label = "//tools/mac/power:power_sampler_unittests",
     # All references have been moved to starlark
     skip_usage_check = True,
-)
-
-targets.binaries.console_test_launcher(
-    name = "ppapi_unittests",
-    label = "//ppapi:ppapi_unittests",
 )
 
 targets.binaries.console_test_launcher(

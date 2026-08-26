@@ -149,7 +149,7 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="User Certs subpage"/>
 </enum>
 
-<!-- LINT.ThenChange(/ui/webui/resources/cr_components/certificate_manager/navigation_v2.ts:PageHistogramEnum) -->
+<!-- LINT.ThenChange(/chrome/browser/resources/certificate_manager/navigation_v2.ts:PageHistogramEnum) -->
 
 <enum name="ConnectionInfo">
   <summary>
@@ -209,44 +209,20 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Zstd"/>
 </enum>
 
-<enum name="CorsAccessCheckError">
-  <summary>
-    The detailed error type for CORS check failures. See
-    services/network/public/mojom/cors.mojom for detailed information.
-  </summary>
-  <int value="0" label="kDisallowedByMode"/>
-  <int value="1" label="kInvalidResponse"/>
-  <int value="2" label="kWildcardOriginNotAllowed"/>
-  <int value="3" label="kMissingAllowOriginHeader"/>
-  <int value="4" label="kMultipleAllowOriginValues"/>
-  <int value="5" label="kInvalidAllowOriginValue"/>
-  <int value="6" label="kAllowOriginMismatch"/>
-  <int value="7" label="kInvalidAllowCredentials"/>
-  <int value="8" label="kCorsDisabledScheme"/>
-  <int value="9" label="kPreflightInvalidStatus"/>
-  <int value="10" label="kPreflightDisallowedRedirect"/>
-  <int value="11" label="kPreflightWildcardOriginNotAllowed"/>
-  <int value="12" label="kPreflightMissingAllowOriginHeader"/>
-  <int value="13" label="kPreflightMultipleAllowOriginValues"/>
-  <int value="14" label="kPreflightInvalidAllowOriginValue"/>
-  <int value="15" label="kPreflightAllowOriginMismatch"/>
-  <int value="16" label="kPreflightInvalidAllowCredentials"/>
-  <int value="17" label="kPreflightMissingAllowPrivateNetwork"/>
-  <int value="18" label="kPreflightInvalidAllowPrivateNetwork"/>
-  <int value="19" label="kInvalidAllowMethodsPreflightResponse"/>
-  <int value="20" label="kInvalidAllowHeadersPreflightResponse"/>
-  <int value="21" label="kMethodDisallowedByPreflightResponse"/>
-  <int value="22" label="kHeaderDisallowedByPreflightResponse"/>
-  <int value="23" label="kRedirectContainsCredentials"/>
-  <int value="24" label="kInsecurePrivateNetwork"/>
-  <int value="25" label="kInvalidPrivateNetworkAccess"/>
-  <int value="26" label="kUnexpectedPrivateNetworkAccess"/>
-  <int value="27" label="kPreflightMissingPrivateNetworkAccessId"/>
-  <int value="28" label="kPreflightMissingPrivateNetworkAccessName"/>
-  <int value="29" label="kPrivateNetworkAccessPermissionUnavailable"/>
-  <int value="30" label="kPrivateNetworkAccessPermissionDenied"/>
-  <int value="31" label="kLocalNetworkAccessPermissionDenied"/>
+<!-- LINT.IfChange(DeviceBoundSessionDeletionReason) -->
+
+<enum name="DeviceBoundSessionDeletionReason">
+  <int value="0" label="Expired"/>
+  <int value="1" label="Failed to restore key from disk"/>
+  <int value="2" label="Failed to unwrap key"/>
+  <int value="3" label="Removed from storage partition"/>
+  <int value="4" label="User-initiated browser data removal"/>
+  <int value="5" label="Server requested termination"/>
+  <int value="6" label="Invalid session params"/>
+  <int value="7" label="Fatal error during refresh"/>
 </enum>
+
+<!-- LINT.ThenChange(//services/network/public/mojom/device_bound_sessions.mojom:DeviceBoundSessionDeletionReason) -->
 
 <!-- LINT.IfChange(DeviceBoundSessionError) -->
 
@@ -269,6 +245,12 @@ chromium-metrics-reviews@google.com.
   <int value="15" label="Same-site mismatch scope origin"/>
   <int value="16" label="Same-site mismatch refresh URL"/>
   <int value="17" label="Invalid scope origin"/>
+  <int value="18" label="Mismatched session id"/>
+  <int value="19" label="Invalid refresh initiators"/>
+  <int value="20" label="Invalid scope rule"/>
+  <int value="21" label="Missing scope"/>
+  <int value="22" label="No credentials"/>
+  <int value="23" label="Invalid include_site in scope"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/device_bound_sessions/session_error.h:DeviceBoundSessionError) -->
@@ -507,6 +489,48 @@ chromium-metrics-reviews@google.com.
   <int value="19" label="SpdyProxy Secure Server (Invalid)"/>
 </enum>
 
+<!-- LINT.IfChange(HttpCacheNotCoveredReason) -->
+
+<enum name="HttpCacheNotCoveredReason">
+  <int value="0" label="No Reason">Should not happen.</int>
+  <int value="1" label="Reading Auth Response">
+    Stopped caching to read the response body of an auth response.
+  </int>
+  <int value="2" label="Network Error">
+    A network error happened in the headers phase.
+  </int>
+  <int value="3" label="Partial Response Validation">
+    A partial response could not be validated, and it was not due to auth.
+  </int>
+  <int value="4" label="Delete Full Entry">
+    We have a full entry, but the server sent a range response that should
+    replace it.
+  </int>
+  <int value="5" label="Partial Request">Partial requests are hard to log.</int>
+  <int value="6" label="Range Header Found">
+    Original request had a Range header.
+  </int>
+  <int value="7" label="Truncated Entry">The cache entry was truncated.</int>
+  <int value="8" label="Partial Validation">
+    Validating a partial entry, and they are hard to log.
+  </int>
+  <int value="9" label="Pre Conditionalized">
+    The request was externally conditionalized and didn't match our existing
+    cache entry.
+  </int>
+  <int value="10" label="Validate Partial">
+    Attempt to validate a partial response failed.
+  </int>
+  <int value="11" label="Ignore Range Request">
+    Range-related failure led to calling IgnoreRangeRequest().
+  </int>
+  <int value="12" label="Blocked By Ip Space">
+    Cached IP address space blocked by Private Network Access policy.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(//net/http/http_cache_transaction.h:OtherStatusReason) -->
+
 <enum name="HttpCachePattern">
   <int value="0" label="Undefined"/>
   <int value="1" label="Not Covered"/>
@@ -677,26 +701,45 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//net/cert/cert_verify_proc_builtin.h:NetCertVerifier1QwacResult) -->
 
-<!-- LINT.IfChange(NetCertVerifier2QwacResult) -->
+<!-- LINT.IfChange(NetCertVerifier2QwacBindingResult) -->
 
-<enum name="NetCertVerifier2QwacResult">
-  <int value="0" label="error parsing 2-QWAC leaf certificate"/>
-  <int value="1" label="certificate does not have 2-QWAC indicators"/>
-  <int value="2"
-      label="Has some QWAC-like indicators, but they are inconsistent or
-             incomplete"/>
-  <int value="3" label="2-QWAC verification succeeded"/>
-  <int value="4" label="certificate name invalid"/>
-  <int value="5" label="certificate date invalid"/>
-  <int value="6" label="authority invalid"/>
-  <int value="7" label="invalid"/>
-  <int value="8" label="weak key"/>
-  <int value="9" label="name constraint violation"/>
-  <int value="10" label="other certificate error"/>
-  <int value="11" label="other error"/>
+<enum name="NetCertVerifier2QwacBindingResult">
+  <int value="0" label="other error"/>
+  <int value="1" label="binding verification succeeded"/>
+  <int value="2" label="binding parsing error"/>
+  <int value="3" label="binding signature invalid"/>
+  <int value="4" label="TLS certificate not bound"/>
+  <int value="5" label="error parsing 2-QWAC leaf certificate"/>
+  <int value="6" label="2-QWAC certificate does not have 2-QWAC indicators"/>
+  <int value="7"
+      label="2-QWAC certificate has some QWAC-like indicators, but they are
+             inconsistent or incomplete"/>
+  <int value="8" label="2-QWAC certificate name invalid"/>
+  <int value="9" label="2-QWAC certificate date invalid"/>
+  <int value="10" label="2-QWAC certificate authority invalid"/>
+  <int value="11" label="2-QWAC certificate invalid"/>
+  <int value="12" label="2-QWAC certificate weak key"/>
+  <int value="13" label="2-QWAC certificate name constraint violation"/>
+  <int value="14" label="other 2-QWAC certificate error"/>
 </enum>
 
-<!-- LINT.ThenChange(//net/cert/cert_verify_proc_builtin.h:NetCertVerifier2QwacResult) -->
+<!-- LINT.ThenChange(//net/cert/cert_verify_proc_builtin.h:NetCertVerifier2QwacBindingResult) -->
+
+<!-- LINT.IfChange(NetCertVerifier2QwacLinkProcessingResult) -->
+
+<enum name="NetCertVerifier2QwacLinkProcessingResult">
+  <int value="0" label="QwacStatus already present"/>
+  <int value="1" label="unacceptable SSLInfo"/>
+  <int value="2" label="no 2-QWAC Link header"/>
+  <int value="3" label="invalid 2-QWAC Link header"/>
+  <int value="4" label="non-relative 2-QWAC Link URL"/>
+  <int value="5" label="download failed or disallowed"/>
+  <int value="6" label="verification failed"/>
+  <int value="7" label="valid 2-QWAC"/>
+  <int value="8" label="QwacStatus destroyed before processing finished"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/net/qwac_web_contents_observer.h:NetCertVerifier2QwacLinkProcessingResult) -->
 
 <enum name="NetErrorPageEvents">
   <int value="0" label="Error Page Shown">
@@ -1971,18 +2014,33 @@ Called by update_net_trust_anchors.py.-->
   <int value="10" label="Corrupt journal entry">
     Deserialization of a journal entry failed. Journal loading incomplete.
   </int>
-  <int value="11" label="Couldnt create cache file">
+  <int value="11" label="Couldn't create cache file">
     Couldn't write a new snapshot.baf file. Persistence abandoned.
   </int>
-  <int value="12" label="Couldnt Create Journal">
+  <int value="12" label="Couldn't create journal">
     Couldn't create a new journal.baj file. Persistence abandoned.
   </int>
-  <int value="13" label="Couldnt Start Journal">
+  <int value="13" label="Couldn't start journal">
     Couldn't write to journal.baj file. Persistence abandoned.
+  </int>
+  <int value="14" label="Operations init failed">
+    Target directory doesn't exist, and can't create it. Persistence abandoned.
   </int>
 </enum>
 
 <!-- LINT.ThenChange(//net/http/no_vary_search_cache_storage.cc:Result) -->
+
+<!-- LINT.IfChange(NoVarySearchDirectoryCreateResult) -->
+
+<enum name="NoVarySearchDirectoryCreateResult">
+  <int value="0" label="Already existed">Directory already existed.</int>
+  <int value="1" label="Created">Directory successfully created.</int>
+  <int value="2" label="Create failed">
+    Directory didn't exist and couldn't be created.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(//net/http/no_vary_search_cache_storage_file_operations.cc:CreateDirectoryResult) -->
 
 <!-- LINT.IfChange(NoVarySearchHeaderParseResult) -->
 
@@ -2019,6 +2077,31 @@ Called by update_net_trust_anchors.py.-->
 </enum>
 
 <!-- LINT.ThenChange(//net/http/http_no_vary_search_data.h:NoVarySearchHeaderParseResult) -->
+
+<!-- LINT.IfChange(NoVarySearchRenameOrDeleteResult) -->
+
+<enum name="NoVarySearchRenameOrDeleteResult">
+  <int value="0" label="Source did not exist">
+    The file was not present in the old location.
+  </int>
+  <int value="1" label="Source deleted">
+    The file was present in both the old and the new locations. The file in the
+    old location was deleted.
+  </int>
+  <int value="2" label="Deletion failed">
+    The file was present in both the old and the new locations. An attempt to
+    delete the file in the old location failed.
+  </int>
+  <int value="3" label="Renamed">
+    The file was moved from the old location to the new location.
+  </int>
+  <int value="4" label="Rename failed">
+    An attempt to move the file from the old location to the new location
+    failed.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(//net/http/no_vary_search_cache_storage_file_operations.cc:RenameResult) -->
 
 <!-- LINT.IfChange(NoVarySearchUseResult) -->
 
@@ -2663,6 +2746,19 @@ Called by update_net_trust_anchors.py.-->
   <int value="6" label="WRITE_STATUS_FAILED_TO_COALESCE_PACKET"/>
 </enum>
 
+<!-- LINT.IfChange(RequestPriority) -->
+
+<enum name="RequestPriority">
+  <int value="0" label="THROTTLED"/>
+  <int value="1" label="IDLE"/>
+  <int value="2" label="LOWEST"/>
+  <int value="3" label="LOW"/>
+  <int value="4" label="MEDIUM"/>
+  <int value="5" label="HIGHEST"/>
+</enum>
+
+<!-- LINT.ThenChange(//net/base/request_priority.h:RequestPriority) -->
+
 <enum name="ResolutionCategory">
   <int value="0" label="RESOLVE_SUCCESS"/>
   <int value="1" label="RESOLVE_FAIL"/>
@@ -2824,6 +2920,45 @@ Called by update_net_trust_anchors.py.-->
   <int value="3" label="imported from socket"/>
 </enum>
 
+<!-- LINT.IfChange(SqlDiskCacheFakeIndexFileError) -->
+
+<enum name="SqlDiskCacheFakeIndexFileError">
+  <int value="0" label="OkNew"/>
+  <int value="1" label="OkExisting"/>
+  <int value="2" label="CreateFileFailed"/>
+  <int value="3" label="WriteFileFailed"/>
+  <int value="4" label="WrongFileSize"/>
+  <int value="5" label="OpenFileFailed"/>
+  <int value="6" label="ReadFileFailed"/>
+  <int value="7" label="WrongMagicNumber"/>
+  <int value="8" label="FailedToCreateDirectory"/>
+</enum>
+
+<!-- LINT.ThenChange(//net/disk_cache/sql/sql_backend_impl.h:FakeIndexFileError) -->
+
+<!-- LINT.IfChange(SqlDiskCacheStoreError) -->
+
+<enum name="SqlDiskCacheStoreError">
+  <int value="0" label="Ok"/>
+  <int value="1" label="FailedToCreateDirectory"/>
+  <int value="2" label="FailedToOpenDatabase"/>
+  <int value="3" label="FailedToRazeIncompatibleDatabase"/>
+  <int value="4" label="FailedToStartTransaction"/>
+  <int value="5" label="FailedToCommitTransaction"/>
+  <int value="6" label="FailedToInitializeMetaTable"/>
+  <int value="7" label="FailedToInitializeSchema"/>
+  <int value="8" label="FailedToSetEntryCountMetadata"/>
+  <int value="9" label="FailedToSetTotalSizeMetadata"/>
+  <int value="10" label="FailedToExecute"/>
+  <int value="11" label="InvalidData"/>
+  <int value="12" label="AlreadyExists"/>
+  <int value="13" label="NotFound"/>
+  <int value="14" label="InvalidArgument"/>
+  <int value="15" label="BodyEndMismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(//net/disk_cache/sql/sql_persistent_store.h:SqlDiskCacheStoreError) -->
+
 <enum name="SSLECHResult">
   <summary>The result of a TLS connection that offered ECH</summary>
   <int value="0" label="The connection succeeded on the initial connection"/>
@@ -2909,6 +3044,21 @@ Called by update_net_trust_anchors.py.-->
   <int value="7" label="QUIC"/>
 </enum>
 
+<enum name="SSLTrustAnchorIDsResult">
+  <summary>
+    The result of a TLS connection that advertised Trust Anchor IDs in DNS
+  </summary>
+  <int value="0" label="The connection succeeded on the initial connection"/>
+  <int value="1"
+      label="The connection failed on the initial connection, and the client
+             didn't retry"/>
+  <int value="2"
+      label="The connection succeeded after retrying with fresh Trust Anchor
+             IDs"/>
+  <int value="3"
+      label="The connection failed after retrying with fresh Trust Anchor IDs"/>
+</enum>
+
 <enum name="StorageAccessNetRequestKind">
   <int value="0" label="Same-origin request with storage access override"/>
   <int value="1"
@@ -2944,6 +3094,7 @@ Called by update_net_trust_anchors.py.-->
   <int value="7" label="Using existing SPDY session"/>
   <int value="8" label="Using existing QUIC session"/>
   <int value="9" label="Abort"/>
+  <int value="10" label="AttemptManagerDraining"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/socket/stream_socket_close_reason.h:StreamSocketCloseReason) -->
@@ -3735,6 +3886,24 @@ Called by update_net_trust_anchors.py.-->
     An unexpected internal error has occurred in the Platform Crypto Provider.
   </int>
 </enum>
+
+<!-- LINT.IfChange(WinHttpStatus) -->
+
+<enum name="WinHttpStatus">
+  <int value="0" label="Ok"/>
+  <int value="1" label="Aborted"/>
+  <int value="2" label="WinHttpOpenFailed"/>
+  <int value="3" label="WinHttpSetTimeoutsFailed"/>
+  <int value="4" label="WinHttpSetStatusCallbackFailed"/>
+  <int value="5" label="WinHttpGetIEProxyConfigForCurrentUserFailed"/>
+  <int value="6" label="WinHttpCreateProxyResolverFailed"/>
+  <int value="7" label="WinHttpGetProxyForURLExFailed"/>
+  <int value="8" label="StatusCallbackFailed"/>
+  <int value="9" label="WinHttpGetProxyResultFailed"/>
+  <int value="10" label="EmptyProxyList"/>
+</enum>
+
+<!-- LINT.ThenChange(//services/proxy_resolver_win/public/mojom/proxy_resolver_win.mojom:WinHttpStatus) -->
 
 <enum name="ZeroRttState">
   <int value="0" label="Attempted and succeeded"/>

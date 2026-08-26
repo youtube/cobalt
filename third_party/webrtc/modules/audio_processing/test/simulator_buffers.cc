@@ -10,8 +10,15 @@
 
 #include "modules/audio_processing/test/simulator_buffers.h"
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "api/audio/audio_processing.h"
+#include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/test/audio_buffer_tools.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/random.h"
 
 namespace webrtc {
 namespace test {

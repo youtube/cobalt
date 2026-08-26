@@ -146,7 +146,7 @@ Local<String> GetFunctionDescription(Local<Function> function) {
   if (IsJSFunction(*receiver)) {
     auto js_function = i::Cast<i::JSFunction>(receiver);
 #if V8_ENABLE_WEBASSEMBLY
-    if (js_function->shared()->HasWasmExportedFunctionData()) {
+    if (js_function->shared()->HasWasmExportedFunctionData(i_isolate)) {
       i::DirectHandle<i::WasmExportedFunctionData> function_data(
           js_function->shared()->wasm_exported_function_data(), i_isolate);
       int func_index = function_data->function_index();
@@ -926,7 +926,8 @@ uint32_t WasmScript::GetFunctionHash(int function_index) {
       wire_bytes.GetFunctionBytes(&func);
   // TODO(herhut): Maybe also take module, name and signature into account.
   return i::StringHasher::HashSequentialString(function_bytes.begin(),
-                                               function_bytes.length(), 0);
+                                               function_bytes.length(),
+                                               internal::HashSeed::Default());
 }
 
 Maybe<v8::MemorySpan<const uint8_t>> WasmScript::GetModuleBuildId() const {
@@ -1003,6 +1004,40 @@ void GetLoadedScripts(Isolate* v8_isolate,
       scripts.emplace_back(v8_isolate, ToApiHandle<Script>(script_handle));
     }
   }
+}
+
+std::optional<v8::ScriptOrigin> GetScriptOrigin(Isolate* v8_isolate,
+                                                int script_id) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(isolate);
+  {
+    i::DisallowGarbageCollection no_gc;
+    i::Script::Iterator iterator(isolate);
+    for (i::Tagged<i::Script> script = iterator.Next(); !script.is_null();
+         script = iterator.Next()) {
+      if (script->id() == script_id) {
+        i::DirectHandle<i::Object> scriptName(script->GetNameOrSourceURL(),
+                                              isolate);
+        i::DirectHandle<i::Object> source_map_url(script->source_mapping_url(),
+                                                  isolate);
+        i::DirectHandle<i::Object> host_defined_options(
+            script->host_defined_options(), isolate);
+        ScriptOriginOptions options(script->origin_options());
+        bool is_wasm = false;
+#if V8_ENABLE_WEBASSEMBLY
+        is_wasm = script->type() == i::Script::Type::kWasm;
+#endif  // V8_ENABLE_WEBASSEMBLY
+        v8::ScriptOrigin origin(
+            Utils::ToLocal(scriptName), script->line_offset(),
+            script->column_offset(), options.IsSharedCrossOrigin(),
+            script->id(), Utils::ToLocal(source_map_url), options.IsOpaque(),
+            is_wasm, options.IsModule(), Utils::ToLocal(host_defined_options));
+        return origin;
+      }
+    }
+  }
+
+  return std::nullopt;
 }
 
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* v8_isolate,
@@ -1352,6 +1387,13 @@ Coverage Coverage::CollectBestEffort(Isolate* isolate) {
   return Coverage(
       i::Coverage::CollectBestEffort(reinterpret_cast<i::Isolate*>(isolate)));
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+Coverage Coverage::CollectWasmData(Isolate* isolate) {
+  return Coverage(
+      i::Coverage::CollectWasmData(reinterpret_cast<i::Isolate*>(isolate)));
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void Coverage::SelectMode(Isolate* isolate, CoverageMode mode) {
   i::Coverage::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);

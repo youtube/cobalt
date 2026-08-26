@@ -19,7 +19,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,7 +38,9 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.ReusedCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.ui.accessibility.KeyboardFocusRow;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -56,12 +57,13 @@ import java.util.concurrent.TimeoutException;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class KeyboardFocusRowManagerTest {
 
-    @ClassRule
-    public static ChromeTabbedActivityTestRule sActivityTestRule =
-            new ChromeTabbedActivityTestRule();
+    @Rule
+    public ReusedCtaTransitTestRule<WebPageStation> mActivityTestRule =
+            ChromeTransitTestRules.blankPageStartReusedActivityRule();
 
     @Rule public MockitoRule mockito = MockitoJUnit.rule(); // todo delete if not needed
 
+    private WebPageStation mPage;
     private ChromeTabbedActivity mActivity;
     private KeyboardFocusRowManager mKeyboardFocusRowManager;
     private TabbedRootUiCoordinator mTabbedRootUiCoordinator;
@@ -69,21 +71,20 @@ public class KeyboardFocusRowManagerTest {
     @BeforeClass
     public static void setUpClass() {
         TabbedRootUiCoordinator.setDisableTopControlsAnimationsForTesting(true);
-        sActivityTestRule.startMainActivityOnBlankPage();
     }
 
     @Before
     public void setUp() {
-        mActivity = sActivityTestRule.getActivity();
+        mPage = mActivityTestRule.start();
+        mActivity = mPage.getActivity();
         mTabbedRootUiCoordinator =
-                (TabbedRootUiCoordinator)
-                        sActivityTestRule.getActivity().getRootUiCoordinatorForTesting();
+                (TabbedRootUiCoordinator) mActivity.getRootUiCoordinatorForTesting();
         mKeyboardFocusRowManager = mTabbedRootUiCoordinator.getKeyboardFocusRowManagerForTesting();
     }
 
     @Test
     @SmallTest
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature("KeyboardShortcuts")
     public void testSwitchKeyboardFocusRow_withTabletTabStrip() {
         // Put something in the content view so we can focus on it.
@@ -143,7 +144,7 @@ public class KeyboardFocusRowManagerTest {
 
     @Test
     @SmallTest
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature("KeyboardShortcuts")
     @EnableFeatures(ChromeFeatureList.ANDROID_BOOKMARK_BAR)
     public void testSwitchKeyboardFocusRow_withBookmarksBar() {
@@ -187,7 +188,7 @@ public class KeyboardFocusRowManagerTest {
     @Test
     @SmallTest
     @Feature("KeyboardShortcuts")
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @EnableFeatures(ChromeFeatureList.ANDROID_BOOKMARK_BAR)
     public void testSwitchKeyboardFocusRow_withBookmarkBarFocus() {
         ThreadUtils.runOnUiThreadBlocking(
@@ -221,7 +222,7 @@ public class KeyboardFocusRowManagerTest {
     @Test
     @SmallTest
     @Feature("KeyboardShortcuts")
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testSkipStripIfHidden() {
         ThreadUtils.runOnUiThreadBlocking(
                 () ->

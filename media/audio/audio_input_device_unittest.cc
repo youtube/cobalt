@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "media/audio/audio_input_device.h"
 
 #include <utility>
@@ -125,7 +120,7 @@ class AudioInputDeviceTest
     shared_memory_ = base::UnsafeSharedMemoryRegion::Create(memory_size);
     shared_memory_mapping_ = shared_memory_.Map();
     ASSERT_TRUE(shared_memory_.IsValid());
-    memset(shared_memory_mapping_.memory(), 0xff, memory_size);
+    std::ranges::fill(shared_memory_mapping_, 0xff);
 
     ASSERT_TRUE(
         CancelableSyncSocket::CreatePair(&browser_socket_, &renderer_socket_));
@@ -258,7 +253,8 @@ TEST_P(AudioInputDeviceTest, ConfirmReadsViaShmemFlag) {
 
   // Set the confirmation flag to 1. The AudioInputDevice should reset this to 0
   // after delivering audio.
-  base::subtle::Release_Store(&(buffer_->params.has_unread_data), 1);
+  std::atomic_ref<uint32_t> has_unread_data(buffer_->params.has_unread_data);
+  has_unread_data.store(1, std::memory_order_release);
   uint32_t buffer_index = 0;
   browser_socket_.Send(base::byte_span_from_ref(buffer_index));
 
@@ -279,7 +275,7 @@ TEST_P(AudioInputDeviceTest, ConfirmReadsViaShmemFlag) {
   while (!got_confirmation_signal &&
          base::TimeTicks::Now() - started_wait < base::Seconds(10)) {
     got_confirmation_signal =
-        base::subtle::NoBarrier_Load(&(buffer_->params.has_unread_data)) == 0;
+        has_unread_data.load(std::memory_order_relaxed) == 0;
   }
   EXPECT_TRUE(got_confirmation_signal);
 

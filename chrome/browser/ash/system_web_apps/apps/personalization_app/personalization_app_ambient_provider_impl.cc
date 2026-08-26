@@ -35,7 +35,7 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/ash/system_web_apps/apps/personalization_app/ambient_video_albums.h"
 #include "chrome/browser/ash/system_web_apps/apps/personalization_app/personalization_app_manager.h"
@@ -738,7 +738,7 @@ void PersonalizationAppAmbientProviderImpl::OnMachineStatisticsReady() {
              << " customization_id= " << customization_id.value_or("null");
     previews.emplace(
         mojom::AmbientTheme::kVideo,
-        GURL(customization_id == kJupiterScreensaverCustomizationId
+        GURL(GetDefaultAmbientVideo() == AmbientVideo::kJupiter
                  ? "chrome://personalization/time_of_day/thumbnails/jupiter.jpg"
                  : "chrome://personalization/time_of_day/thumbnails/"
                    "new_mexico.jpg"));

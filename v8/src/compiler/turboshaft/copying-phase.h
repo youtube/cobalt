@@ -17,6 +17,7 @@
 #include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -740,6 +741,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     while (block_to_inline_now_) {
       Block* input_block = block_to_inline_now_;
       block_to_inline_now_ = nullptr;
+      // We need to set {current_block_needs_variables_} to true, because even
+      // though we're cloning a block that has a single predecessor (and thus
+      // that shouldn't be emitted multiple times, and thus shouldn't need
+      // Variables), we could be unrolling a loop, in which case this block will
+      // be cloned in the same fashion multiple times and will indeed require
+      // Variables.
       ScopedModification<bool> set_true(&current_block_needs_variables_, true);
       if constexpr (trace_reduction) {
         std::cout << "Inlining " << PrintAsBlockHeader{*input_block} << "\n";

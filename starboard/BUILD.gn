@@ -49,7 +49,6 @@ if (!is_cobalt) {
       deps += [
         "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
         "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
-        "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
       ]
     }
 

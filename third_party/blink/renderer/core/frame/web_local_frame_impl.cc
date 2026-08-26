@@ -364,6 +364,10 @@ class ChromePrintContext : public PrintContext {
     GraphicsContext& context = builder.Context();
     context.SetPrintingMetafile(canvas->GetPrintingMetafile());
     context.SetPrinting(true);
+    if (frame_->GetDocument()->Printing()) {
+      context.SetPrintingInternalHeadersAndFooters(
+          frame_->GetPrintParams().printing_internal_headers_and_footers);
+    }
     context.BeginRecording();
     SpoolPage(context, page_index);
     canvas->drawPicture(context.EndRecording());
@@ -378,6 +382,8 @@ class ChromePrintContext : public PrintContext {
     GraphicsContext& context = builder.Context();
     context.SetPrintingMetafile(canvas->GetPrintingMetafile());
     context.SetPrinting(true);
+    context.SetPrintingInternalHeadersAndFooters(
+        frame_->GetPrintParams().printing_internal_headers_and_footers);
     context.BeginRecording();
 
     // Fill the whole background by white.
@@ -445,7 +451,9 @@ class ChromePrintContext : public PrintContext {
 
     auto* frame_view = GetFrame()->View();
     DCHECK(frame_view);
-    frame_view->UpdateLifecyclePhasesForPrinting();
+    if (!frame_view->UpdateLifecyclePhasesForPrinting()) {
+      return;
+    }
 
     if (!IsFrameValid() || page_index >= PageCount()) {
       // TODO(crbug.com/452672): The number of pages may change after layout for
@@ -569,7 +577,9 @@ class PaintPreviewContext : public PrintContext {
     if (!GetFrame()->GetDocument() ||
         !GetFrame()->GetDocument()->GetLayoutView())
       return false;
-    GetFrame()->View()->UpdateLifecyclePhasesForPrinting();
+    if (!GetFrame()->View()->UpdateLifecyclePhasesForPrinting()) {
+      return false;
+    }
     if (!GetFrame()->GetDocument() ||
         !GetFrame()->GetDocument()->GetLayoutView())
       return false;
@@ -1145,7 +1155,7 @@ v8::Local<v8::Context> WebLocalFrameImpl::MainWorldScriptContext() const {
 int32_t WebLocalFrameImpl::GetScriptContextWorldId(
     v8::Local<v8::Context> script_context) const {
   DCHECK_EQ(this, FrameForContext(script_context));
-  v8::Isolate* isolate = script_context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   return DOMWrapperWorld::World(isolate, script_context).GetWorldId();
 }
 
@@ -1242,6 +1252,10 @@ void WebLocalFrameImpl::DeprecatedStopLoading() {
   // FIXME: Figure out what we should really do here. It seems like a bug
   // that FrameLoader::stopLoading doesn't call stopAllLoaders.
   GetFrame()->Loader().StopAllLoaders(/*abort_client=*/true);
+}
+
+void WebLocalFrameImpl::RequestNetworkIdleCallback(base::OnceClosure callback) {
+  GetFrame()->RequestNetworkIdleCallback(std::move(callback));
 }
 
 void WebLocalFrameImpl::ReplaceSelection(const WebString& text) {
@@ -2673,6 +2687,10 @@ bool WebLocalFrameImpl::IsProvisional() const {
 }
 
 WebLocalFrameImpl* WebLocalFrameImpl::LocalRoot() {
+  return const_cast<WebLocalFrameImpl*>(std::as_const(*this).LocalRoot());
+}
+
+const WebLocalFrameImpl* WebLocalFrameImpl::LocalRoot() const {
   DCHECK(GetFrame());
   auto* result = FromFrame(GetFrame()->LocalFrameRoot());
   DCHECK(result);

@@ -91,14 +91,9 @@ GpuMemoryBufferFactoryDXGI::GetOrCreateD3D11Device() {
 }
 
 gfx::GpuMemoryBufferHandle
-GpuMemoryBufferFactoryDXGI::CreateGpuMemoryBufferOnIO(
-    gfx::GpuMemoryBufferId id,
-    const gfx::Size& size,
-    const gfx::Size& framebuffer_size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    int client_id,
-    SurfaceHandle surface_handle) {
+GpuMemoryBufferFactoryDXGI::CreateNativeGmbHandleOnIO(const gfx::Size& size,
+                                                      gfx::BufferFormat format,
+                                                      gfx::BufferUsage usage) {
   DCHECK(io_runner_);
 
   gfx::GpuMemoryBufferHandle result;
@@ -109,40 +104,30 @@ GpuMemoryBufferFactoryDXGI::CreateGpuMemoryBufferOnIO(
       base::BindOnce(
           [](gfx::GpuMemoryBufferHandle* out_gmb_handle,
              base::WaitableEvent* waitable_event,
-             GpuMemoryBufferFactoryDXGI* factory, gfx::GpuMemoryBufferId id,
-             const gfx::Size& size, const gfx::Size& framebuffer_size,
-             gfx::BufferFormat format, gfx::BufferUsage usage, int client_id,
-             SurfaceHandle surface_handle) {
-            *out_gmb_handle = factory->CreateGpuMemoryBuffer(
-                id, size, framebuffer_size, format, usage, client_id,
-                surface_handle);
+             GpuMemoryBufferFactoryDXGI* factory, const gfx::Size& size,
+             gfx::BufferFormat format, gfx::BufferUsage usage) {
+            *out_gmb_handle =
+                factory->CreateNativeGmbHandle(size, format, usage);
 
             waitable_event->Signal();
           },
-          &result, &event, this, id, size, framebuffer_size, format, usage,
-          client_id, surface_handle));
+          &result, &event, this, size, format, usage));
 
   event.Wait();
 
   return result;
 }
 
-gfx::GpuMemoryBufferHandle GpuMemoryBufferFactoryDXGI::CreateGpuMemoryBuffer(
-    gfx::GpuMemoryBufferId id,
+gfx::GpuMemoryBufferHandle GpuMemoryBufferFactoryDXGI::CreateNativeGmbHandle(
     const gfx::Size& size,
-    const gfx::Size& framebuffer_size,
     gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    int client_id,
-    SurfaceHandle surface_handle) {
+    gfx::BufferUsage usage) {
   if (io_runner_ && !io_runner_->BelongsToCurrentThread()) {
     // Thread-hop is required!
-    return CreateGpuMemoryBufferOnIO(id, size, framebuffer_size, format, usage,
-                                     client_id, surface_handle);
+    return CreateNativeGmbHandleOnIO(size, format, usage);
   }
 
-  TRACE_EVENT0("gpu", "GpuMemoryBufferFactoryDXGI::CreateGpuMemoryBuffer");
-  DCHECK_EQ(framebuffer_size, size);
+  TRACE_EVENT0("gpu", "GpuMemoryBufferFactoryDXGI::CreateNativeGmbHandle");
 
   gfx::GpuMemoryBufferHandle handle;
 
@@ -160,6 +145,9 @@ gfx::GpuMemoryBufferHandle GpuMemoryBufferFactoryDXGI::CreateGpuMemoryBuffer(
     case gfx::BufferFormat::BGRA_8888:
     case gfx::BufferFormat::BGRX_8888:
       dxgi_format = DXGI_FORMAT_B8G8R8A8_UNORM;
+      break;
+    case gfx::BufferFormat::RGBA_F16:
+      dxgi_format = DXGI_FORMAT_R16G16B16A16_FLOAT;
       break;
     case gfx::BufferFormat::YUV_420_BIPLANAR:
       dxgi_format = DXGI_FORMAT_NV12;
@@ -214,14 +202,9 @@ gfx::GpuMemoryBufferHandle GpuMemoryBufferFactoryDXGI::CreateGpuMemoryBuffer(
 
   handle = gfx::GpuMemoryBufferHandle(
       gfx::DXGIHandle(base::win::ScopedHandle(texture_handle)));
-  handle.id = id;
 
   return handle;
 }
-
-void GpuMemoryBufferFactoryDXGI::DestroyGpuMemoryBuffer(
-    gfx::GpuMemoryBufferId id,
-    int client_id) {}
 
 bool GpuMemoryBufferFactoryDXGI::FillSharedMemoryRegionWithBufferContents(
     gfx::GpuMemoryBufferHandle buffer_handle,

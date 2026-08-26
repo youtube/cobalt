@@ -21,6 +21,8 @@
 #include "absl/functional/any_invocable.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/data_rate.h"
+#include "api/units/data_size.h"
+#include "api/units/timestamp.h"
 
 namespace webrtc {
 
@@ -28,23 +30,34 @@ struct PacketInFlightInfo {
   PacketInFlightInfo(size_t size,
                      int64_t send_time_us,
                      uint64_t packet_id,
-                     webrtc::EcnMarking ecn)
+                     EcnMarking ecn)
       : size(size),
         send_time_us(send_time_us),
         packet_id(packet_id),
         ecn(ecn) {}
+  PacketInFlightInfo(DataSize size,
+                     Timestamp send_time,
+                     uint64_t packet_id,
+                     EcnMarking ecn)
+      : PacketInFlightInfo(size.bytes(), send_time.us(), packet_id, ecn) {}
+  PacketInFlightInfo(DataSize size, Timestamp send_time, uint64_t packet_id)
+      : PacketInFlightInfo(size.bytes(),
+                           send_time.us(),
+                           packet_id,
+                           EcnMarking::kNotEct) {}
 
   PacketInFlightInfo(size_t size, int64_t send_time_us, uint64_t packet_id)
-      : PacketInFlightInfo(size,
-                           send_time_us,
-                           packet_id,
-                           webrtc::EcnMarking::kNotEct) {}
+      : PacketInFlightInfo(size, send_time_us, packet_id, EcnMarking::kNotEct) {
+  }
+
+  DataSize packet_size() const { return DataSize::Bytes(size); }
+  Timestamp send_time() const { return Timestamp::Micros(send_time_us); }
 
   size_t size;
   int64_t send_time_us;
   // Unique identifier for the packet in relation to other packets in flight.
   uint64_t packet_id;
-  webrtc::EcnMarking ecn;
+  EcnMarking ecn;
 };
 
 struct PacketDeliveryInfo {
@@ -61,7 +74,7 @@ struct PacketDeliveryInfo {
 
   int64_t receive_time_us;
   uint64_t packet_id;
-  webrtc::EcnMarking ecn;
+  EcnMarking ecn;
 };
 
 // BuiltInNetworkBehaviorConfig is a built-in network behavior configuration

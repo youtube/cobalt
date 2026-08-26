@@ -32,6 +32,7 @@ rtc_library("frame_instrumentation_evaluation") {
     "../../api:array_view",
     "../../api:scoped_refptr",
     "../../api/video:video_frame",
+    "../../api/video:video_rtp_headers",
     "../../common_video:frame_instrumentation_data",
     "../../rtc_base:checks",
     "../../rtc_base:logging",
@@ -101,11 +102,24 @@ rtc_library("halton_frame_sampler") {
   ]
   deps = [
     ":halton_sequence",
+    ":video_frame_sampler",
     "../../api:scoped_refptr",
     "../../api/video:video_frame",
     "../../rtc_base:checks",
     "../../rtc_base:logging",
     "../../rtc_base:safe_minmax",
+  ]
+}
+
+rtc_library("video_frame_sampler") {
+  sources = [
+    "video_frame_sampler.cc",
+    "video_frame_sampler.h",
+  ]
+  deps = [
+    "../../api:scoped_refptr",
+    "../../api/video:video_frame",
+    "../../rtc_base:checks",
   ]
 }
 
@@ -126,8 +140,8 @@ rtc_library("utils") {
     "../../api:scoped_refptr",
     "../../api/video:video_frame",
     "../../rtc_base:checks",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
-    "//third_party/abseil-cpp/absl/strings:strings",
   ]
 }
 
@@ -149,6 +163,7 @@ if (rtc_include_tests) {
       ":frame_instrumentation_evaluation",
       "../../api:scoped_refptr",
       "../../api/video:video_frame",
+      "../../api/video:video_rtp_headers",
       "../../common_video:frame_instrumentation_data",
       "../../test:test_support",
     ]
@@ -201,6 +216,19 @@ if (rtc_include_tests) {
     sources = [ "halton_frame_sampler_unittest.cc" ]
     deps = [
       ":halton_frame_sampler",
+      ":video_frame_sampler",
+      "../../api:array_view",
+      "../../api:scoped_refptr",
+      "../../api/video:video_frame",
+      "../../test:test_support",
+    ]
+  }
+
+  rtc_library("video_frame_sampler_unittest") {
+    testonly = true
+    sources = [ "video_frame_sampler_unittest.cc" ]
+    deps = [
+      ":video_frame_sampler",
       "../../api:scoped_refptr",
       "../../api/video:video_frame",
       "../../test:test_support",
@@ -238,6 +266,7 @@ if (rtc_include_tests) {
       ":halton_frame_sampler_unittest",
       ":halton_sequence_unittest",
       ":utils_unittest",
+      ":video_frame_sampler_unittest",
     ]
   }
 }

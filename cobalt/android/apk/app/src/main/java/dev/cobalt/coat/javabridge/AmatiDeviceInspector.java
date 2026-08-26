@@ -20,27 +20,28 @@ import android.content.Context;
 import org.chromium.base.Log;
 
 /**
- * A simple example to implement CobaltJavaScriptAndroidObject.
- * Allows querying the platform for whether the device supports
- * GoogleTV (Googles see go/what-is-amati).
+ * A simple example to implement CobaltJavaScriptAndroidObject. Allows querying the platform for
+ * whether the device supports GoogleTV (Googles see go/what-is-amati).
  */
 public class AmatiDeviceInspector implements CobaltJavaScriptAndroidObject {
 
-    private final Context mContext;
+  private final Context mContext;
 
-    public AmatiDeviceInspector(Context context) {
-        this.mContext = context;
-    }
+  public AmatiDeviceInspector(Context context) {
+    this.mContext = context;
+  }
 
-    @Override
-    public String getJavaScriptInterfaceName() {
-        return "Android_AmatiDeviceInspector";
-    }
+  @Override
+  public String getJavaScriptInterfaceName() {
+    return "Android_AmatiDeviceInspector";
+  }
 
-    @CobaltJavaScriptInterface
-    public void printIsAmatiDevice() {
-        boolean isAmatiDevice =
-                mContext.getPackageManager().hasSystemFeature("com.google.android.feature.AMATI_EXPERIENCE");
-        Log.i(TAG, "It is running on an Amati device? " + isAmatiDevice);
-    }
+  @CobaltJavaScriptInterface
+  public void printIsAmatiDevice() {
+    boolean isAmatiDevice =
+        mContext
+            .getPackageManager()
+            .hasSystemFeature("com.google.android.feature.AMATI_EXPERIENCE");
+    Log.i(TAG, "It is running on an Amati device? " + isAmatiDevice);
+  }
 }

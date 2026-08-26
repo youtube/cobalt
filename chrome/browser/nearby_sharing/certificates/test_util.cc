@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "chrome/browser/nearby_sharing/certificates/test_util.h"
 
@@ -13,6 +9,7 @@
 #include <set>
 
 #include "base/no_destructor.h"
+#include "base/strings/string_view_util.h"
 #include "chrome/browser/nearby_sharing/certificates/constants.h"
 #include "device/bluetooth/public/cpp/bluetooth_address.h"
 #include "third_party/nearby/sharing/proto/timestamp.pb.h"

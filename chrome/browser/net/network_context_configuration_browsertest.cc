@@ -85,7 +85,6 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "net/test/gtest_util.h"
-#include "net/test/spawned_test_server/spawned_test_server.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/referrer_policy.h"
 #include "services/network/public/cpp/features.h"
@@ -1125,10 +1124,8 @@ IN_PROC_BROWSER_TEST_P(NetworkContextConfigurationBrowserTest,
       network::BlockingDnsLookup(network_context(), host_port_pair,
                                  std::move(params), network_anonymization_key);
   EXPECT_EQ(net::OK, result.error);
-  ASSERT_TRUE(result.resolved_addresses.has_value());
-  ASSERT_EQ(1u, result.resolved_addresses->size());
-  EXPECT_EQ(kAddress,
-            result.resolved_addresses.value()[0].ToStringWithoutPort());
+  ASSERT_EQ(1u, result.resolved_addresses.size());
+  EXPECT_EQ(kAddress, result.resolved_addresses[0].ToStringWithoutPort());
   // Make a cache-only request for the same hostname, for each other network
   // context, and make sure no result is returned.
   ForEachOtherContext(
@@ -1156,10 +1153,8 @@ IN_PROC_BROWSER_TEST_P(NetworkContextConfigurationBrowserTest,
       network::BlockingDnsLookup(network_context(), host_port_pair,
                                  std::move(params), network_anonymization_key);
   EXPECT_EQ(net::OK, result.error);
-  ASSERT_TRUE(result.resolved_addresses.has_value());
-  ASSERT_EQ(1u, result.resolved_addresses->size());
-  EXPECT_EQ(kAddress,
-            result.resolved_addresses.value()[0].ToStringWithoutPort());
+  ASSERT_EQ(1u, result.resolved_addresses.size());
+  EXPECT_EQ(kAddress, result.resolved_addresses[0].ToStringWithoutPort());
 }
 
 // Visits a URL with an HSTS header, and makes sure it is respected.

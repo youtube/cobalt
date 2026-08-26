@@ -12,6 +12,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/autofill/android/save_update_address_profile_prompt_view.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
@@ -64,18 +65,14 @@ class SaveUpdateAddressProfilePromptController {
   std::pair<std::u16string, std::u16string> GetDiffFromOldToNewProfile();
 
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject();
-  void OnUserAccepted(JNIEnv* env,
-                      const base::android::JavaParamRef<jobject>& obj);
-  void OnUserDeclined(JNIEnv* env,
-                      const base::android::JavaParamRef<jobject>& obj);
+  void OnUserAccepted(JNIEnv* env);
+  void OnUserDeclined(JNIEnv* env);
   void OnUserEdited(JNIEnv* env,
-                    const base::android::JavaParamRef<jobject>& obj,
                     const base::android::JavaParamRef<jobject>& jprofile);
   // Called whenever the prompt is dismissed (e.g. because the user already
   // accepted/declined/edited the profile (after OnUserAccepted/Declined/Edited
   // is called) or it was closed without interaction).
-  void OnPromptDismissed(JNIEnv* env,
-                         const base::android::JavaParamRef<jobject>& obj);
+  void OnPromptDismissed(JNIEnv* env);
 
  private:
   void RunSaveAddressProfileCallback(

@@ -65,7 +65,7 @@ ExtensionIconVariants GetIconVariants(Extension& extension) {
     return icon_variants;
   }
 
-  icon_variants.Parse(icon_variants_list);
+  icon_variants.Parse(extension, icon_variants_list);
 
   // Verify `icon_variants`, e.g. that at least one `icon_variant` is valid.
   if (icon_variants.IsEmpty()) {
@@ -116,17 +116,17 @@ void IconVariantsInfo::InitializeIconSets() {
     for (const auto& size : sizes) {
       // Add the size path pair to both extension icon sets if unspecified.
       if (color_schemes.empty()) {
-        dark_.Add(size.first, size.second);
-        light_.Add(size.first, size.second);
+        dark_.Add(size.first, size.second.relative_path().AsUTF8Unsafe());
+        light_.Add(size.first, size.second.relative_path().AsUTF8Unsafe());
         continue;
       }
 
       if (color_schemes.contains(ExtensionIconVariant::ColorScheme::kDark)) {
-        dark_.Add(size.first, size.second);
+        dark_.Add(size.first, size.second.relative_path().AsUTF8Unsafe());
       }
 
       if (color_schemes.contains(ExtensionIconVariant::ColorScheme::kLight)) {
-        light_.Add(size.first, size.second);
+        light_.Add(size.first, size.second.relative_path().AsUTF8Unsafe());
       }
     }
   }
@@ -194,7 +194,7 @@ bool IconVariantsHandler::Parse(Extension* extension, std::u16string* error) {
 }
 
 bool IconVariantsHandler::Validate(
-    const Extension* extension,
+    const Extension& extension,
     std::string* error,
     std::vector<InstallWarning>* warnings) const {
   // TODO(crbug.com/41419485): Validate icon existence.

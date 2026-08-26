@@ -889,8 +889,6 @@ FILE* OpenFile(const FilePath& filename, const char* mode) {
   return result;
 }
 
-// NaCl doesn't implement system calls to open files directly.
-#if !BUILDFLAG(IS_NACL)
 FILE* FileToFILE(File file, const char* mode) {
   PlatformFile unowned = file.GetPlatformFile();
   FILE* stream = fdopen(file.TakePlatformFile(), mode);
@@ -910,7 +908,6 @@ File FILEToFile(FILE* file_stream) {
     return File(File::GetLastFileError());
   return File(std::move(other_fd));
 }
-#endif  // !BUILDFLAG(IS_NACL)
 
 int ReadFile(const FilePath& filename, char* data, int max_size) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);

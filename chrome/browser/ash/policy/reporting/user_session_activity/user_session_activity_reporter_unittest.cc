@@ -22,7 +22,6 @@
 #include "chrome/browser/ash/power/ml/idle_event_notifier.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/policy/messaging_layer/proto/synced/user_session_activity.pb.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
@@ -348,8 +347,8 @@ TEST_F(UserSessionActivityReporterTest,
 
   // Create a list of users with types that should be ignored.
   user_manager::User* kIgnoredUserTypes[] = {
-      fake_user_manager_->AddKioskAppUser(account_id),
-      fake_user_manager_->AddWebKioskAppUser(account_id),
+      fake_user_manager_->AddKioskChromeAppUser(account_id),
+      fake_user_manager_->AddKioskWebAppUser(account_id),
       fake_user_manager_->AddGuestUser(),
       fake_user_manager_->AddChildUser(account_id),
   };

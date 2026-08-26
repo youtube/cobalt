@@ -11,32 +11,9 @@
 
 namespace features {
 
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2NewLimitAndScheduler);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2AllowActivationInBackground);
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2FallbackPrefetchSpecRules);
-
-// This allows controlling the behavior of multiple use of `PrefetchContainer`
-// if `kPrerender2FallbackPrefetchSpecRules` is enabled and `kPrefetchReusable`
-// is disabled. If `kPrefetchReusable` is enabled, the feature flag has
-// priority.
-//
-// TODO(crbug.com/373553133): Remove this control once a behavior is shipped and
-// stabilized.
-enum class Prerender2FallbackPrefetchReusablePolicy {
-  // Do not use `PrefetchReusable` code path.
-  kNotUse,
-  // Use if a prefetch is started by prerender.
-  kUseIfIsLikelyAheadOfPrerender,
-  // Use always.
-  kUseAlways,
-};
-CONTENT_EXPORT extern const base::FeatureParam<
-    Prerender2FallbackPrefetchReusablePolicy>
-    kPrerender2FallbackPrefetchReusablePolicy;
-
-CONTENT_EXPORT extern const base::FeatureParam<size_t>
-    kPrerender2FallbackBodySizeLimit;
 
 // Controls whether `PrefetchMatchResolver` use timeout for prefetch ahead of
 // prerender. We are going not to use timeout as it makes prerender fail. For
@@ -63,9 +40,11 @@ CONTENT_EXPORT extern const base::FeatureParam<
 // feature.
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2NoVarySearch);
 
-// A field trial param that controls the timeout for waiting on headers
+// A set of trial parameters that controls the timeout for waiting on headers
 // during navigation for the prerender URL matched by No-Vary-Search hint before
 // falling back to the default navigation path.
+
+// This is actually for "immediate"; see https://crbug.com/40287486.
 CONTENT_EXPORT extern const base::FeatureParam<int>
     kPrerender2NoVarySearchWaitForHeadersTimeoutEagerPrerender;
 CONTENT_EXPORT extern const base::FeatureParam<int>
@@ -82,6 +61,11 @@ CONTENT_EXPORT extern const base::FeatureParam<base::TimeDelta>
     kSuppressesPrerenderingOnSlowNetworkThreshold;
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2DisallowNonTrustworthyHttp);
+
+// If enabled, requests the compositor warm-up (crbug.com/41496019) for
+// Immediate/non-Immediate Speculation Rules prerenders.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForImmediate);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForNonImmediate);
 
 CONTENT_EXPORT bool UsePrefetchPrerenderIntegration();
 

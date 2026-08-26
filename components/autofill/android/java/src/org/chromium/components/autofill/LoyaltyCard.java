@@ -13,7 +13,7 @@ import org.chromium.url.GURL;
 
 import java.util.List;
 
-/** Represents a loyalty card coming from the the Google Wallet. */
+/** Represents a loyalty card coming from Google Wallet. */
 @JNINamespace("autofill")
 @NullMarked
 public class LoyaltyCard {
@@ -40,27 +40,33 @@ public class LoyaltyCard {
         mMerchantDomains = merchantDomains;
     }
 
-    public String getLoyaltyCardId() {
+    @CalledByNative
+    public @JniType("std::string") String getLoyaltyCardId() {
         return mLoyaltyCardId;
     }
 
-    public String getMerchantName() {
+    @CalledByNative
+    public @JniType("std::string") String getMerchantName() {
         return mMerchantName;
     }
 
-    public String getProgramName() {
+    @CalledByNative
+    public @JniType("std::string") String getProgramName() {
         return mProgramName;
     }
 
-    public GURL getProgramLogo() {
+    @CalledByNative
+    public @JniType("GURL") GURL getProgramLogo() {
         return mProgramLogo;
     }
 
-    public String getLoyaltyCardNumber() {
+    @CalledByNative
+    public @JniType("std::string") String getLoyaltyCardNumber() {
         return mLoyaltyCardNumber;
     }
 
-    public List<GURL> getMerchantDomains() {
+    @CalledByNative
+    public @JniType("std::vector<GURL>") List<GURL> getMerchantDomains() {
         return mMerchantDomains;
     }
 }

@@ -27,7 +27,7 @@ import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.test.AutomotiveContextWrapperTestRule;
+import org.chromium.chrome.test.OverrideContextWrapperTestRule;
 import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.util.XrUtils;
 
@@ -42,8 +42,8 @@ public class ChromeBaseAppCompatActivityUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
-    public AutomotiveContextWrapperTestRule mAutomotiveContextWrapperTestRule =
-            new AutomotiveContextWrapperTestRule();
+    public OverrideContextWrapperTestRule mAutomotiveContextWrapperTestRule =
+            new OverrideContextWrapperTestRule();
 
     @Mock private Context mContext;
     @Mock private WindowManager mWindowManager;
@@ -68,9 +68,13 @@ public class ChromeBaseAppCompatActivityUnitTest {
                 .getRealMetrics(any());
     }
 
+    // Verifies that Clank's internal scaling works.
     @Test
     @MediumTest
     public void testApplyOverridesForAutomotive_onAutomotiveDevice_scaleUpUi() {
+        DisplayUtil.setCarmaPhase1Version2ComplianceForTesting(true);
+        DisplayUtil.setIsDisplayCompatAppForTesting(false);
+
         mAutomotiveContextWrapperTestRule.setIsAutomotive(true);
 
         Configuration config = new Configuration();

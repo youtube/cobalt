@@ -899,7 +899,8 @@ void PopupViewViews::ShowIPHFeaturePromos() {
         params.body_params = iph_metadata.iph_params;
         params.screen_reader_params = iph_metadata.iph_params;
       }
-      browser->window()->MaybeShowFeaturePromo(std::move(params));
+      BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
+          std::move(params));
     }
   }
 }
@@ -1070,6 +1071,12 @@ void PopupViewViews::CreateSuggestionViews() {
                          kIPHAutofillBnplAffirmOrZipSuggestionFeature) {
             row_view->SetProperty(views::kElementIdentifierKey,
                                   kAutofillBnplAffirmOrZipSuggestionElementId);
+          } else if (feature ==
+                     &feature_engagement::
+                         kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature) {
+            row_view->SetProperty(
+                views::kElementIdentifierKey,
+                kAutofillBnplAffirmZipOrKlarnaSuggestionElementId);
           } else if (feature ==
                      &feature_engagement::
                          kIPHAutofillHomeWorkProfileSuggestionFeature) {
@@ -1431,6 +1438,9 @@ END_METADATA
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(
     PopupViewViews,
     kAutofillBnplAffirmOrZipSuggestionElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(
+    PopupViewViews,
+    kAutofillBnplAffirmZipOrKlarnaSuggestionElementId);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PopupViewViews,
                                       kAutofillCreditCardBenefitElementId);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(

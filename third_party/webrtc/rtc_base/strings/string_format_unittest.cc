@@ -10,10 +10,11 @@
 
 #include "rtc_base/strings/string_format.h"
 
+#include <algorithm>
+#include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "rtc_base/checks.h"
 #include "rtc_base/string_encode.h"
 #include "test/gtest.h"
 

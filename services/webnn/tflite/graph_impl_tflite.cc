@@ -23,6 +23,7 @@
 #include "services/webnn/public/cpp/webnn_trace.h"
 #include "services/webnn/public/cpp/webnn_types.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
+#include "services/webnn/public/mojom/webnn_device.mojom.h"
 #include "services/webnn/public/mojom/webnn_error.mojom.h"
 #include "services/webnn/public/mojom/webnn_graph.mojom.h"
 #include "services/webnn/queueable_resource_state.h"
@@ -36,9 +37,31 @@
 #include "services/webnn/webnn_constant_operand.h"
 #include "services/webnn/webnn_graph_impl.h"
 #include "services/webnn/webnn_switches.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/flatbuffers/src/include/flatbuffers/flatbuffers.h"
+#include "third_party/tflite/buildflags.h"
+#include "third_party/tflite/src/tensorflow/lite/c/common.h"
 #include "third_party/tflite/src/tensorflow/lite/interpreter_builder.h"
 #include "third_party/tflite/src/tensorflow/lite/stderr_reporter.h"
+
+#if BUILDFLAG(BUILD_TFLITE_WITH_NNAPI)
+#include "third_party/tflite/src/tensorflow/lite/core/c/c_api_types.h"
+#include "third_party/tflite/src/tensorflow/lite/delegates/nnapi/nnapi_delegate.h"
+#endif
+
+#if BUILDFLAG(BUILD_TFLITE_WITH_OPENCL)
+#include "third_party/tflite/src/tensorflow/lite/delegates/gpu/delegate.h"
+#endif
+
+#if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
+#include "third_party/tflite/src/tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h"
+#include "third_party/xnnpack/src/include/xnnpack.h"  // nogncheck
+#endif
+
+#if BUILDFLAG(WEBNN_USE_CHROME_ML_API)
+#include "services/on_device_model/ml/chrome_ml.h"      // nogncheck
+#include "services/on_device_model/ml/chrome_ml_api.h"  // nogncheck
+#endif
 
 #if BUILDFLAG(WEBNN_ENABLE_TFLITE_PROFILER)
 #include "third_party/tflite/src/tensorflow/lite/profiling/buffered_profiler.h"
@@ -129,7 +152,7 @@ class GraphImplTflite::ComputeResources {
       DumpModelToFile(self->model_content_);
     }
 
-    OpResolver op_resolver(context->options(), graph_requires_fp32_precision);
+    OpResolver op_resolver;
 
     self->model_weights_ = std::move(buffer_data);
     self->allocation_ = std::make_unique<::tflite::MemoryAllocation>(
@@ -142,9 +165,37 @@ class GraphImplTflite::ComputeResources {
     // On a lower-end system, use only one thread for 1 or 2 cores, use half
     // of the cores for less than 8 cores. On systems with more cores, the max
     // number threads is 4 to be used for inference.
-    builder.SetNumThreads(
-        std::min(4, (base::SysInfo::NumberOfProcessors() + 1) / 2));
+    int num_of_threads =
+        std::min(4, (base::SysInfo::NumberOfProcessors() + 1) / 2);
+    builder.SetNumThreads(num_of_threads);
+    self->SetUpDelegates(builder, context->options().device,
+                         graph_requires_fp32_precision, num_of_threads);
+
     TfLiteStatus status = builder(&self->interpreter_);
+
+    // If failed to build interpreter with delegates, re-build the interpreter
+    // with just the XNNPack delegate, then try again with no delegate.
+    if (status == kTfLiteDelegateError) {
+      self->delegates_.clear();
+      ::tflite::InterpreterBuilder builder_with_xnnpack(
+          self->model_->GetModel(), op_resolver,
+          ::tflite::DefaultErrorReporter(),
+          /*options=*/nullptr, self->allocation_.get());
+      builder_with_xnnpack.SetNumThreads(num_of_threads);
+      self->SetUpXNNPackDelegate(builder_with_xnnpack, num_of_threads);
+      status = builder_with_xnnpack(&self->interpreter_);
+    }
+
+    if (status == kTfLiteDelegateError) {
+      self->delegates_.clear();
+      ::tflite::InterpreterBuilder default_builder(
+          self->model_->GetModel(), op_resolver,
+          ::tflite::DefaultErrorReporter(),
+          /*options=*/nullptr, self->allocation_.get());
+      default_builder.SetNumThreads(num_of_threads);
+      status = default_builder(&self->interpreter_);
+    }
+
     if (status != kTfLiteOk) {
       return base::unexpected(
           mojom::Error::New(mojom::Error::Code::kUnknownError,
@@ -167,6 +218,23 @@ class GraphImplTflite::ComputeResources {
                             base::StrCat({"Unable to allocate tensors: ",
                                           TfLiteStatusToString(status)})));
     }
+
+    absl::flat_hash_set<mojom::Device> devices;
+    for (int i : self->interpreter_->execution_plan()) {
+      const auto& [node, registration] =
+          *self->interpreter_->node_and_registration(i);
+      // Delegate is nullptr if it's the default delegate.
+      if (!node.delegate) {
+        devices.insert(mojom::Device::kCpu);
+      } else {
+        auto result = std::ranges::find(
+            self->delegates_, node.delegate,
+            [](const DelegateInfo& info) { return info.delegate.get(); });
+        CHECK(result != self->delegates_.end());
+        devices.insert(result->device);
+      }
+    }
+    self->devices.assign(devices.begin(), devices.end());
 
     return self;
   }
@@ -263,10 +331,104 @@ class GraphImplTflite::ComputeResources {
 
     return buffers;
   }
+  std::vector<mojom::Device> devices;
 
  private:
+  using TfLiteDelegatePtr =
+      std::unique_ptr<TfLiteDelegate, void (*)(TfLiteDelegate*)>;
+
+  struct DelegateInfo {
+    DelegateInfo(
+        std::unique_ptr<TfLiteDelegate, void (*)(TfLiteDelegate*)> delegate,
+        mojom::Device device)
+        : delegate(std::move(delegate)), device(device) {}
+    ~DelegateInfo() = default;
+
+    DelegateInfo(const DelegateInfo&) = delete;
+    DelegateInfo& operator=(const DelegateInfo&) = delete;
+
+    DelegateInfo(DelegateInfo&&) = default;
+    DelegateInfo& operator=(DelegateInfo&&) = default;
+
+    TfLiteDelegatePtr delegate;
+    mojom::Device device;
+  };
+
+  void SetUpDelegates(::tflite::InterpreterBuilder& builder,
+                      mojom::Device context_device,
+                      bool graph_requires_fp32_precision,
+                      int num_of_threads) {
+#if BUILDFLAG(BUILD_TFLITE_WITH_NNAPI)
+    if (context_device == mojom::Device::kNpu) {
+      TfLiteDelegate* delegate = new ::tflite::StatefulNnApiDelegate();
+      builder.AddDelegate(delegate);
+      delegates_.emplace_back(
+          TfLiteDelegatePtr(
+              delegate,
+              [](TfLiteDelegate* delegate) {
+                // Cast `delegate` back to a C++ object type so that the correct
+                // destructor is invoked.
+                delete static_cast<::tflite::StatefulNnApiDelegate*>(delegate);
+              }),
+          mojom::Device::kNpu);
+    }
+#endif
+
+    if (context_device == mojom::Device::kGpu) {
+#if BUILDFLAG(WEBNN_USE_CHROME_ML_API)
+      // TODO(crbug.com/394119734): Simplify this check once these functions are
+      // always available.
+      auto* chrome_ml = ml::ChromeML::Get();
+      if (chrome_ml && chrome_ml->api().CreateGpuDelegate &&
+          chrome_ml->api().DestroyGpuDelegate) {
+        GpuDelegatePrecision precision = GpuDelegatePrecision::kFp16;
+        if (graph_requires_fp32_precision) {
+          precision = GpuDelegatePrecision::kFp32;
+        }
+        TfLiteDelegate* delegate =
+            ml::ChromeML::Get()->api().CreateGpuDelegateWithPrecision(
+                precision);
+        builder.AddDelegate(delegate);
+        delegates_.emplace_back(
+            TfLiteDelegatePtr(delegate,
+                              [](TfLiteDelegate* delegate) {
+                                ml::ChromeML::Get()->api().DestroyGpuDelegate(
+                                    delegate);
+                              }),
+            mojom::Device::kGpu);
+      }
+
+#elif BUILDFLAG(BUILD_TFLITE_WITH_OPENCL)
+      TfLiteDelegate* delegate = TfLiteGpuDelegateV2Create(nullptr);
+      builder.AddDelegate(delegate);
+      delegates_.emplace_back(
+          TfLiteDelegatePtr(delegate, TfLiteGpuDelegateV2Delete),
+          mojom::Device::kGpu);
+#endif
+    }
+
+    SetUpXNNPackDelegate(builder, num_of_threads);
+  }
+
+  void SetUpXNNPackDelegate(::tflite::InterpreterBuilder& builder,
+                            int num_of_threads) {
+#if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
+    auto opts = TfLiteXNNPackDelegateOptionsDefault();
+    opts.num_threads = num_of_threads;
+#if BUILDFLAG(WEBNN_ENABLE_TFLITE_PROFILER)
+    opts.runtime_flags = XNN_FLAG_BASIC_PROFILING;
+#endif
+    TfLiteDelegate* delegate = TfLiteXNNPackDelegateCreate(&opts);
+    builder.AddDelegate(delegate);
+    delegates_.emplace_back(
+        TfLiteDelegatePtr(delegate, TfLiteXNNPackDelegateDelete),
+        mojom::Device::kCpu);
+#endif
+  }
+
   flatbuffers::DetachedBuffer model_content_;
   std::vector<uint8_t> model_weights_;
+  std::vector<DelegateInfo> delegates_;
 
   // `model_` depends on `model_content_` outliving it.
   std::unique_ptr<::tflite::FlatBufferModel> model_;
@@ -274,7 +436,8 @@ class GraphImplTflite::ComputeResources {
   // `allocation_` depends on `model_weights_` outliving it.
   std::unique_ptr<::tflite::Allocation> allocation_;
 
-  // `interpreter_` depends on `model_` and `allocation_` outliving it.
+  // `interpreter_` depends on `model_`, `allocation_`, and `delegates_`
+  // outliving it.
   std::unique_ptr<::tflite::Interpreter> interpreter_;
 
 #if BUILDFLAG(WEBNN_ENABLE_TFLITE_PROFILER)
@@ -283,7 +446,7 @@ class GraphImplTflite::ComputeResources {
 };
 
 // static
-base::expected<std::unique_ptr<GraphImplTflite>, mojom::ErrorPtr>
+base::expected<scoped_refptr<GraphImplTflite>, mojom::ErrorPtr>
 GraphImplTflite::CreateAndBuild(
     mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
     mojom::GraphInfoPtr graph_info,
@@ -308,15 +471,16 @@ GraphImplTflite::CreateAndBuild(
       ComputeResources::Create(context, std::move(result.buffer),
                                std::move(result.buffer_data), constant_operands,
                                result.graph_requires_fp32_precision));
-  // TODO(crbug.com/418031018): Get devices that will be used for dispatch.
+  auto devices = std::move(compute_resources->devices);
   auto compute_resources_state =
       base::MakeRefCounted<QueueableResourceState<ComputeResources>>(
           std::move(compute_resources));
-  return base::WrapUnique(new GraphImplTflite(
+  return base::MakeRefCounted<GraphImplTflite>(
       std::move(receiver), std::move(compute_resource_info),
       std::move(result.input_name_to_index),
       std::move(result.output_name_to_index),
-      std::move(compute_resources_state), context, /*devices=*/{}));
+      std::move(compute_resources_state), context->AsWeakPtr(),
+      std::move(devices));
 }
 
 GraphImplTflite::~GraphImplTflite() = default;
@@ -328,10 +492,10 @@ GraphImplTflite::GraphImplTflite(
     base::flat_map<std::string, int> output_name_to_index,
     scoped_refptr<QueueableResourceState<ComputeResources>>
         compute_resources_state,
-    ContextImplTflite* context,
+    base::WeakPtr<WebNNContextImpl> context,
     std::vector<mojom::Device> devices)
     : WebNNGraphImpl(std::move(receiver),
-                     context,
+                     std::move(context),
                      std::move(compute_resource_info),
                      std::move(devices)),
       compute_resources_state_(std::move(compute_resources_state)),
@@ -339,8 +503,10 @@ GraphImplTflite::GraphImplTflite(
       output_name_to_index_(std::move(output_name_to_index)) {}
 
 void GraphImplTflite::DispatchImpl(
-    const base::flat_map<std::string, WebNNTensorImpl*> named_inputs,
-    const base::flat_map<std::string, WebNNTensorImpl*> named_outputs) {
+    const base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>>
+        named_inputs,
+    const base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>>
+        named_outputs) {
   ScopedTrace scoped_trace("GraphImplTflite::DispatchImpl");
 
   std::vector<
@@ -351,14 +517,14 @@ void GraphImplTflite::DispatchImpl(
 
   // The caller guarantees that all expected tensors have been provided.
   for (const auto& [name, tensor] : named_inputs) {
-    input_buffer_states.emplace_back(
-        input_name_to_index_.at(name),
-        static_cast<TensorImplTflite*>(tensor)->GetBufferState());
+    auto* tflite_tensor = static_cast<TensorImplTflite*>(tensor.get());
+    input_buffer_states.emplace_back(input_name_to_index_.at(name),
+                                     tflite_tensor->GetBufferState());
   }
   for (const auto& [name, tensor] : named_outputs) {
-    output_buffer_states.emplace_back(
-        output_name_to_index_.at(name),
-        static_cast<TensorImplTflite*>(tensor)->GetBufferState());
+    auto* tflite_tensor = static_cast<TensorImplTflite*>(tensor.get());
+    output_buffer_states.emplace_back(output_name_to_index_.at(name),
+                                      tflite_tensor->GetBufferState());
   }
 
   // Input tensors will be read from while the graph is executing, so lock them

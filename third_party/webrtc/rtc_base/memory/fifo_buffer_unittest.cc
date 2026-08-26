@@ -10,9 +10,8 @@
 
 #include "rtc_base/memory/fifo_buffer.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 
 #include "api/array_view.h"
 #include "rtc_base/stream.h"

@@ -13,6 +13,8 @@
 #include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/types/expected.h"
+#include "components/optimization_guide/core/delivery/model_util.h"
+#include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/model_execution/execute_remote_fn.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
@@ -23,16 +25,13 @@
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
 #include "components/optimization_guide/core/model_execution/optimization_guide_model_execution_error.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
-#include "components/optimization_guide/core/model_util.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
-#include "components/optimization_guide/core/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
-#include "components/optimization_guide/core/optimization_metadata.h"
 #include "components/optimization_guide/proto/common_types.pb.h"
 #include "net/base/url_util.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -100,7 +99,7 @@ using ModelExecutionError =
 ModelExecutionManager::ModelExecutionManager(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     signin::IdentityManager* identity_manager,
-    scoped_refptr<OnDeviceModelServiceController>
+    base::WeakPtr<OnDeviceModelServiceController>
         on_device_model_service_controller,
     OptimizationGuideLogger* optimization_guide_logger,
     base::WeakPtr<ModelQualityLogsUploaderService>
@@ -387,19 +386,19 @@ ModelExecutionManager::GetOnDeviceModelEligibility(
   return on_device_model_service_controller_->CanCreateSession(feature);
 }
 
-std::optional<optimization_guide::OnDeviceModelAdaptationMetadata>
+std::optional<OnDeviceModelAdaptationMetadata>
 ModelExecutionManager::GetOnDeviceModelAdaptationMetadata(
-    optimization_guide::ModelBasedCapabilityKey feature) {
+    ModelBasedCapabilityKey feature) {
   if (!on_device_model_service_controller_) {
     return std::nullopt;
   }
 
-  optimization_guide::OnDeviceModelAdaptationMetadata* metadata =
+  MaybeAdaptationMetadata metadata =
       on_device_model_service_controller_->GetFeatureMetadata(feature);
-  if (!metadata) {
+  if (!metadata.has_value()) {
     return std::nullopt;
   }
-  return *metadata;
+  return metadata.value();
 }
 
 std::optional<optimization_guide::SamplingParamsConfig>

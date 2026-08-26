@@ -196,6 +196,10 @@ sk_sp<PrecompileColorFilter> PrecompileColorFilters::Blend(SkSpan<const SkBlendM
 
 //--------------------------------------------------------------------------------------------------
 class PrecompileMatrixColorFilter : public PrecompileColorFilter {
+public:
+    PrecompileMatrixColorFilter(bool inHSLA) : fInHSLA(inHSLA) {}
+
+private:
     void addToKey(const KeyContext& keyContext,
                   PaintParamsKeyBuilder* builder,
                   PipelineDataGatherer* gatherer,
@@ -208,18 +212,20 @@ class PrecompileMatrixColorFilter : public PrecompileColorFilter {
                                                  0, 0, 0, 1, 0 };
 
         MatrixColorFilterBlock::MatrixColorFilterData matrixCFData(
-                kIdentity, /* inHSLA= */ false, /* clamp= */ true);
+                kIdentity, fInHSLA, /* clamp= */ true);
 
         MatrixColorFilterBlock::AddBlock(keyContext, builder, gatherer, matrixCFData);
     }
+
+    bool fInHSLA;
 };
 
 sk_sp<PrecompileColorFilter> PrecompileColorFilters::Matrix() {
-    return sk_make_sp<PrecompileMatrixColorFilter>();
+    return sk_make_sp<PrecompileMatrixColorFilter>(/*inHSLA=*/false);
 }
 
 sk_sp<PrecompileColorFilter> PrecompileColorFilters::HSLAMatrix() {
-    return sk_make_sp<PrecompileMatrixColorFilter>();
+    return sk_make_sp<PrecompileMatrixColorFilter>(/*inHSLA=*/true);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -399,15 +405,15 @@ private:
                   int desiredCombination) const override {
         SkASSERT(desiredCombination < fNumChildCombos);
 
-        SkAlphaType unusedWorkingAT;
+        const SkColorInfo& dstInfo = keyContext.dstColorInfo();
+        const SkAlphaType dstAT = dstInfo.alphaType();
         const sk_sp<SkColorSpace> dstCS = keyContext.dstColorInfo().colorSpace()
                                                   ? keyContext.dstColorInfo().refColorSpace()
                                                   : SkColorSpace::MakeSRGB();
-        const sk_sp<SkColorSpace> workingCS =
-                fWorkingFormatCalculator.workingFormat(dstCS, &unusedWorkingAT);
-
-        // The alpha type is unused for determining which color space transform block to use.
-        constexpr SkAlphaType kAlphaType = kPremul_SkAlphaType;
+        SkAlphaType workingAT;
+        sk_sp<SkColorSpace> workingCS = fWorkingFormatCalculator.workingFormat(dstCS, &workingAT);
+        SkColorInfo workingInfo(dstInfo.colorType(), workingAT, workingCS);
+        KeyContextWithColorInfo workingContext(keyContext, workingInfo);
 
         // Use two nested compose blocks to chain (dst->working), child, and (working->dst) together
         // while appearing as one block to the parent node.
@@ -418,20 +424,20 @@ private:
                             /* addInnerToKey= */ [&]() -> void {
                                 // Innermost (inner of inner compose)
                                 ColorSpaceTransformBlock::ColorSpaceTransformData data1(
-                                        dstCS.get(), kAlphaType, workingCS.get(), kAlphaType);
+                                        dstCS.get(), dstAT, workingCS.get(), workingAT);
                                 ColorSpaceTransformBlock::AddBlock(keyContext, builder, gatherer,
                                                                    data1);
                             },
                             /* addOuterToKey= */ [&]() -> void {
                                 // Middle (outer of inner compose)
-                                AddToKey<PrecompileColorFilter>(keyContext, builder, gatherer,
+                                AddToKey<PrecompileColorFilter>(workingContext, builder, gatherer,
                                                                 fChildOptions, desiredCombination);
                             });
                 },
                 /* addOuterToKey= */ [&]() -> void {
                     // Outermost (outer of outer compose)
                     ColorSpaceTransformBlock::ColorSpaceTransformData data2(
-                            workingCS.get(), kAlphaType, dstCS.get(), kAlphaType);
+                            workingCS.get(), workingAT, dstCS.get(), dstAT);
                     ColorSpaceTransformBlock::AddBlock(keyContext, builder, gatherer, data2);
                 });
     }

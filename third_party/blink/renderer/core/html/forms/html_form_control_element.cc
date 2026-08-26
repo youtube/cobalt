@@ -322,12 +322,6 @@ FocusableState HTMLFormControlElement::SupportsFocus(UpdateBehavior) const {
 
 bool HTMLFormControlElement::IsKeyboardFocusableSlow(
     UpdateBehavior update_behavior) const {
-  // Interest invoker targets with partial interest aren't keyboard focusable.
-  if (IsInPartialInterestPopover()) {
-    CHECK(RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
-        GetDocument().GetExecutionContext()));
-    return false;
-  }
   // Form control elements are always keyboard focusable if they are focusable
   // at all, and don't have a negative tabindex set.
   return IsFocusable(update_behavior) && tabIndex() >= 0;
@@ -357,37 +351,49 @@ bool HTMLFormControlElement::IsSuccessfulSubmitButton() const {
   return CanBeSuccessfulSubmitButton() && !IsDisabledFormControl();
 }
 
+// static
+bool HTMLFormControlElement::IsValidPopoverElement(const HTMLElement& element) {
+  if (!element.IsInTreeScope() ||
+      element.SupportsPopoverTriggering() == PopoverTriggerSupport::kNone ||
+      element.IsDisabledFormControl()) {
+    return false;
+  }
+  if (auto* form_element = DynamicTo<HTMLFormControlElement>(element)) {
+    return !(form_element->Form() && form_element->IsSuccessfulSubmitButton());
+  }
+  return RuntimeEnabledFeatures::ElementInternalsDotTypeEnabled() &&
+         element.IsCustomButton();
+}
+
+// static
 // The element referenced by the `popovertarget` attribute is returned if a)
 // that element exists, b) it is a valid Popover element, and c) this form
 // control supports popover triggering. The return value will include the
 // behavior, which is taken from the `popovertargetaction` attribute, and will
 // be kNone unless there is a valid popover target.
 HTMLFormControlElement::PopoverTargetElement
-HTMLFormControlElement::popoverTargetElement() {
+HTMLFormControlElement::popoverTargetElement(HTMLElement& element) {
   const PopoverTargetElement no_element{.popover = nullptr,
                                         .action = PopoverTriggerAction::kNone};
-  if (!IsInTreeScope() ||
-      SupportsPopoverTriggering() == PopoverTriggerSupport::kNone ||
-      IsDisabledFormControl() || (Form() && IsSuccessfulSubmitButton())) {
+  if (!IsValidPopoverElement(element)) {
     return no_element;
   }
 
   Element* target_element;
-  target_element = GetElementAttributeResolvingReferenceTarget(
+  target_element = element.GetElementAttributeResolvingReferenceTarget(
       html_names::kPopovertargetAttr);
-
 
   if (!target_element) {
     return no_element;
   }
   auto* target_popover = DynamicTo<HTMLElement>(target_element);
-  if (!target_popover || !target_popover->HasPopoverAttribute()) {
+  if (!target_popover || !target_popover->IsPopover()) {
     return no_element;
   }
   // The default action is "toggle".
   PopoverTriggerAction action = PopoverTriggerAction::kToggle;
   auto action_value =
-      getAttribute(html_names::kPopovertargetactionAttr).LowerASCII();
+      element.getAttribute(html_names::kPopovertargetactionAttr).LowerASCII();
   if (action_value == "show") {
     action = PopoverTriggerAction::kShow;
   } else if (action_value == "hide") {
@@ -396,8 +402,13 @@ HTMLFormControlElement::popoverTargetElement() {
   return PopoverTargetElement{.popover = target_popover, .action = action};
 }
 
-Element* HTMLFormControlElement::InterestTargetElement() const {
-  if (!RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
+HTMLFormControlElement::PopoverTargetElement
+HTMLFormControlElement::popoverTargetElement() {
+  return HTMLFormControlElement::popoverTargetElement(*this);
+}
+
+Element* HTMLFormControlElement::InterestForElement() const {
+  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
           GetDocument().GetExecutionContext())) {
     return nullptr;
   }
@@ -406,68 +417,76 @@ Element* HTMLFormControlElement::InterestTargetElement() const {
   }
 
   return GetElementAttributeResolvingReferenceTarget(
-      html_names::kInteresttargetAttr);
+      html_names::kInterestforAttr);
+}
+
+// static
+void HTMLFormControlElement::HandlePopoverActivation(Event& event,
+                                                     HTMLElement& element) {
+  if (event.type() != event_type_names::kDOMActivate ||
+      !IsValidPopoverElement(element)) {
+    return;
+  }
+  // CommandFor should have been handled in
+  // HTMLButtonElement::DefaultEventHandler
+  DCHECK((RuntimeEnabledFeatures::ElementInternalsDotTypeEnabled() &&
+          element.IsCustomButton()) ||
+         !IsA<HTMLButtonElement>(element) ||
+         !DynamicTo<HTMLButtonElement>(element)->commandForElement());
+
+  auto popover = popoverTargetElement(element);
+  if (popover.popover) {
+    bool event_target_was_nested_popover = false;
+    if (auto* target_node = event.target()->ToNode()) {
+      bool button_is_ancestor_of_popover =
+          element.IsShadowIncludingAncestorOf(*popover.popover);
+      event_target_was_nested_popover =
+          button_is_ancestor_of_popover &&
+          popover.popover->IsShadowIncludingInclusiveAncestorOf(*target_node);
+    }
+
+    if (!event_target_was_nested_popover) {
+      // Buttons with a popovertarget will invoke popovers, which is the same
+      // logic as an invoketarget with an appropriate command (e.g.
+      // togglePopover), sans the `CommandEvent` dispatch. Calling
+      // `HandleCommandInternal()` does not dispatch the event but can handle
+      // the popover triggering logic. `popovertargetaction` must also be
+      // mapped to the equivalent `command` string:
+      //  popovertargetaction=toggle -> command=togglePopover
+      //  popovertargetaction=show -> command=showPopover
+      //  popovertargetaction=hide -> command=hidePopover
+      // We must check to ensure the action is one of the available popover
+      // invoker actions so that popovertargetaction cannot be set to
+      // something like showModal.
+      CHECK_NE(element.SupportsPopoverTriggering(),
+               PopoverTriggerSupport::kNone);
+      CHECK_NE(popover.action, PopoverTriggerAction::kNone);
+      CommandEventType action;
+
+      switch (popover.action) {
+        case PopoverTriggerAction::kToggle:
+          action = CommandEventType::kTogglePopover;
+          break;
+        case PopoverTriggerAction::kShow:
+          action = CommandEventType::kShowPopover;
+          break;
+        case PopoverTriggerAction::kHide:
+          action = CommandEventType::kHidePopover;
+          break;
+        case PopoverTriggerAction::kNone:
+          NOTREACHED();
+      }
+
+      CHECK(popover.popover->IsValidBuiltinCommand(element, action));
+      popover.popover->HandleCommandInternal(element, action);
+    }
+  }
 }
 
 void HTMLFormControlElement::DefaultEventHandler(Event& event) {
   // Buttons that aren't form participants might be Invoker buttons or Popover
   // buttons.
-  if (event.type() == event_type_names::kDOMActivate && IsInTreeScope() &&
-      !IsDisabledFormControl() && (!Form() || !IsSuccessfulSubmitButton())) {
-    auto popover = popoverTargetElement();
-
-    // CommandFor should have been handled in
-    // HTMLButtonElement::DefaultEventHandler
-    DCHECK(!IsA<HTMLButtonElement>(this) ||
-           !DynamicTo<HTMLButtonElement>(this)->commandForElement());
-
-    if (popover.popover) {
-      bool event_target_was_nested_popover = false;
-      if (auto* target_node = event.target()->ToNode()) {
-        bool button_is_ancestor_of_popover =
-            IsShadowIncludingAncestorOf(*popover.popover);
-        event_target_was_nested_popover =
-            button_is_ancestor_of_popover &&
-            popover.popover->IsShadowIncludingInclusiveAncestorOf(*target_node);
-      }
-
-      if (!event_target_was_nested_popover) {
-        // Buttons with a popovertarget will invoke popovers, which is the same
-        // logic as an invoketarget with an appropriate command (e.g.
-        // togglePopover), sans the `CommandEvent` dispatch. Calling
-        // `HandleCommandInternal()` does not dispatch the event but can handle
-        // the popover triggering logic. `popovertargetaction` must also be
-        // mapped to the equivalent `command` string:
-        //  popovertargetaction=toggle -> command=togglePopover
-        //  popovertargetaction=show -> command=showPopover
-        //  popovertargetaction=hide -> command=hidePopover
-        // We must check to ensure the action is one of the available popover
-        // invoker actions so that popovertargetaction cannot be set to
-        // something like showModal.
-        auto trigger_support = SupportsPopoverTriggering();
-        CHECK_NE(trigger_support, PopoverTriggerSupport::kNone);
-        CHECK_NE(popover.action, PopoverTriggerAction::kNone);
-        CommandEventType action;
-
-        switch (popover.action) {
-          case PopoverTriggerAction::kToggle:
-            action = CommandEventType::kTogglePopover;
-            break;
-          case PopoverTriggerAction::kShow:
-            action = CommandEventType::kShowPopover;
-            break;
-          case PopoverTriggerAction::kHide:
-            action = CommandEventType::kHidePopover;
-            break;
-          case PopoverTriggerAction::kNone:
-            NOTREACHED();
-        }
-
-        CHECK(popover.popover->IsValidBuiltinCommand(*this, action));
-        popover.popover->HandleCommandInternal(*this, action);
-      }
-    }
-  }
+  HTMLFormControlElement::HandlePopoverActivation(event, *this);
   HTMLElement::DefaultEventHandler(event);
 }
 

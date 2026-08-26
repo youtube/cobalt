@@ -22,6 +22,7 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_browser_agent.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/pinned_tab_collection_consumer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_drag_drop_metrics.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/pinned_tabs/pinned_item.h"
@@ -106,8 +107,6 @@ web::WebStateID GetActivePinnedTabID(WebStateList* web_state_list) {
         std::make_unique<base::ScopedMultiSourceObservation<
             web::WebState, web::WebStateObserver>>(
             _webStateObserverBridge.get());
-    _tabImagesConfigurator =
-        std::make_unique<TabSnapshotAndFaviconConfigurator>(nullptr);
   }
   return self;
 }
@@ -120,14 +119,21 @@ web::WebStateID GetActivePinnedTabID(WebStateList* web_state_list) {
 
   _browser = browser;
 
-  _webStateList = browser ? browser->GetWebStateList() : nullptr;
-  _URLLoader = browser ? UrlLoadingBrowserAgent::FromBrowser(browser) : nullptr;
+  if (browser) {
+    _webStateList = browser->GetWebStateList();
+    _URLLoader = UrlLoadingBrowserAgent::FromBrowser(browser);
+    _tabImagesConfigurator =
+        std::make_unique<TabSnapshotAndFaviconConfigurator>(
+            nullptr, SnapshotBrowserAgent::FromBrowser(browser));
 
-  if (_webStateList) {
     _scopedWebStateListObservation->AddObservation(_webStateList);
 
     [self addWebStateObservations];
     [self populateConsumerItems];
+  } else {
+    _webStateList = nullptr;
+    _URLLoader = nullptr;
+    _tabImagesConfigurator.reset();
   }
 }
 

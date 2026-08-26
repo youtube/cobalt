@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "third_party/blink/renderer/platform/webrtc/convert_to_webrtc_video_frame_buffer.h"
 
+#include "base/compiler_specific.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/strcat.h"
 #include "gpu/command_buffer/client/test_shared_image_interface.h"
@@ -20,7 +16,6 @@
 #include "third_party/blink/renderer/platform/webrtc/webrtc_video_frame_adapter.h"
 #include "third_party/webrtc/api/video/video_frame_buffer.h"
 #include "third_party/webrtc/rtc_base/ref_counted_object.h"
-#include "ui/gfx/gpu_memory_buffer.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -299,8 +294,9 @@ TEST_F(ConvertToWebRtcVideoFrameBufferTest,
                       media::VideoPixelFormat::PIXEL_FORMAT_ARGB,
                       base::TimeDelta(), test_sii_.get());
   // fill mock image with whilte color.
-  memset(memory_frame->writable_data(media::VideoFrame::Plane::kARGB), 0xFF,
-         kCodedSize.GetArea() * 4);
+  UNSAFE_TODO(
+      memset(memory_frame->writable_data(media::VideoFrame::Plane::kARGB), 0xFF,
+             kCodedSize.GetArea() * 4));
 
   // Should call texture conversion.
   resources->ExpectCreateFrameWithRealImplementation();

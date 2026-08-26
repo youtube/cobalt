@@ -10,7 +10,6 @@
 #include <utility>
 #include <variant>
 
-#include "base/functional/overloaded.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
 #include "base/strings/string_split.h"
@@ -30,6 +29,7 @@
 #include "content/test/fenced_frame_test_utils.h"
 #include "services/network/public/mojom/shared_storage.mojom.h"
 #include "services/network/public/mojom/url_loader_network_service_observer.mojom.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -211,7 +211,7 @@ RenderFrameHost* CreateFencedFrame(RenderFrameHost* root,
 
   EvalJsResult result =
       EvalJs(root,
-             std::visit(base::Overloaded{
+             std::visit(absl::Overload{
                             [](const GURL& url) {
                               return JsReplace(
                                   "f.config = new FencedFrameConfig($1);", url);
@@ -225,7 +225,7 @@ RenderFrameHost* CreateFencedFrame(RenderFrameHost* root,
 
   observer.Wait();
 
-  EXPECT_TRUE(result.error.empty());
+  EXPECT_TRUE(result.is_ok());
 
   return fenced_frame_root_node->current_frame_host();
 }
@@ -284,7 +284,7 @@ GetPrivateAggregationHostPipeApiDisabledValue() {
   return PrivateAggregationHost::PipeResult::kApiDisabledInSettings;
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 base::WeakPtr<TestSharedStorageHeaderObserver>
 CreateAndOverrideSharedStorageHeaderObserver(StoragePartition* partition) {
   auto observer = std::make_unique<TestSharedStorageHeaderObserver>(partition);

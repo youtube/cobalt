@@ -32,6 +32,18 @@ void AIWritingAssistanceCreateClient<mojom::blink::AIWriter,
                                   ToMojoWriterCreateOptions(options_));
 }
 
+template <>
+void AIWritingAssistanceCreateClient<mojom::blink::AIWriter,
+                                     mojom::blink::AIManagerCreateWriterClient,
+                                     WriterCreateOptions,
+                                     Writer>::RemoteCanCreate(CanCreateCallback
+                                                                  callback) {
+  HeapMojoRemote<mojom::blink::AIManager>& ai_manager_remote =
+      AIInterfaceProxy::GetAIManagerRemote(GetExecutionContext());
+  ai_manager_remote->CanCreateWriter(ToMojoWriterCreateOptions(options_),
+                                     std::move(callback));
+}
+
 // static
 template <>
 AIMetrics::AISessionType WriterBase::GetSessionType() {
@@ -93,7 +105,7 @@ void WriterBase::RecordCreateOptionMetrics(
       break;
   }
   std::string metric_name =
-      AIMetrics::GetAIAPIUsageMetricName(WriterBase ::GetSessionType());
+      AIMetrics::GetAIAPIUsageMetricName(WriterBase::GetSessionType());
   base::UmaHistogramEnumeration(
       base::StrCat({metric_name, ".", function_name, ".CoreOptionTone"}),
       tone_metric);
@@ -130,7 +142,7 @@ void WriterBase::RecordCreateOptionMetrics(
   }
 }
 
-Writer::Writer(ExecutionContext* execution_context,
+Writer::Writer(ScriptState* script_state,
                scoped_refptr<base::SequencedTaskRunner> task_runner,
                mojo::PendingRemote<mojom::blink::AIWriter> pending_remote,
                WriterCreateOptions* options)
@@ -140,7 +152,7 @@ Writer::Writer(ExecutionContext* execution_context,
                               WriterCreateCoreOptions,
                               WriterCreateOptions,
                               WriterWriteOptions>(
-          execution_context,
+          script_state,
           task_runner,
           std::move(pending_remote),
           std::move(options),
@@ -164,17 +176,15 @@ ScriptPromise<IDLString> Writer::write(ScriptState* script_state,
                                        const WriterWriteOptions* options,
                                        ExceptionState& exception_state) {
   return AIWritingAssistanceBase::execute(script_state, writing_task, options,
-                                          exception_state,
-                                          AIMetrics::AIAPI::kWriterWrite);
+                                          exception_state);
 }
 
 ReadableStream* Writer::writeStreaming(ScriptState* script_state,
                                        const String& writing_task,
                                        const WriterWriteOptions* options,
                                        ExceptionState& exception_state) {
-  return AIWritingAssistanceBase::executeStreaming(
-      script_state, writing_task, options, exception_state,
-      AIMetrics::AIAPI::kWriterWriteStreaming);
+  return AIWritingAssistanceBase::executeStreaming(script_state, writing_task,
+                                                   options, exception_state);
 }
 
 ScriptPromise<IDLDouble> Writer::measureInputUsage(

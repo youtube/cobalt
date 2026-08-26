@@ -15,6 +15,7 @@
 #include "android_webview/browser/aw_web_ui_controller_factory.h"
 #include "android_webview/browser/metrics/aw_metrics_service_accessor.h"
 #include "android_webview/browser/metrics/aw_metrics_service_client.h"
+#include "android_webview/browser/metrics/memory_metrics_logger.h"
 #include "android_webview/browser/metrics/system_state_util.h"
 #include "android_webview/browser/network_service/aw_network_change_notifier_factory.h"
 #include "android_webview/common/aw_descriptors.h"
@@ -41,7 +42,6 @@
 #include "base/trace_event/named_trigger.h"
 #include "components/crash/content/browser/child_exit_observer_android.h"
 #include "components/crash/core/common/crash_key.h"
-#include "components/embedder_support/android/metrics/memory_metrics_logger.h"
 #include "components/embedder_support/origin_trials/component_updater_utils.h"
 #include "components/embedder_support/origin_trials/origin_trials_settings_storage.h"
 #include "components/heap_profiling/multi_process/supervisor.h"
@@ -337,7 +337,7 @@ void AwBrowserMainParts::RegisterSyntheticTrials() {
 int AwBrowserMainParts::PreMainMessageLoopRun() {
   TRACE_EVENT0("startup", "AwBrowserMainParts::PreMainMessageLoopRun");
   AwBrowserProcess::GetInstance()->PreMainMessageLoopRun();
-  browser_client_->InitBrowserContext();
+  browser_client_->InitBrowserContextStore();
   content::WebUIControllerFactory::RegisterFactory(
       AwWebUIControllerFactory::GetInstance());
   content::RenderFrameHost::AllowInjectingJavaScript();
@@ -368,7 +368,23 @@ void AwBrowserMainParts::PostCreateThreads() {
 
 bool AwBrowserMainParts::isWebViewStartupTasksExperimentEnabled() {
   return Java_AwBrowserMainParts_isWebViewStartupTasksLogicEnabled(
-      base::android::AttachCurrentThread());
+             base::android::AttachCurrentThread()) ||
+         base::CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kWebViewUseStartupTasksLogic);
+}
+
+bool AwBrowserMainParts::isWebViewStartupTasksExperimentEnabledP2() {
+  return Java_AwBrowserMainParts_isWebViewStartupTasksExperimentEnabledP2(
+             base::android::AttachCurrentThread()) ||
+         base::CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kWebViewUseStartupTasksLogicP2);
+}
+
+bool AwBrowserMainParts::isStartupTaskYieldToNativeExperimentEnabled() {
+  return Java_AwBrowserMainParts_isWebViewStartupTasksYieldToNativeExperimentEnabled(
+             base::android::AttachCurrentThread()) ||
+         base::CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kWebViewStartupTasksYieldToNative);
 }
 
 }  // namespace android_webview

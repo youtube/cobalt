@@ -11,8 +11,7 @@
 #ifndef P2P_TEST_NAT_SOCKET_FACTORY_H_
 #define P2P_TEST_NAT_SOCKET_FACTORY_H_
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -178,18 +177,5 @@ size_t UnpackAddressFromNAT(ArrayView<const uint8_t> buf,
                             SocketAddress* remote_addr);
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::kNATEncodedIPv4AddressSize;
-using ::webrtc::kNATEncodedIPv6AddressSize;
-using ::webrtc::NATInternalSocketFactory;
-using ::webrtc::NATSocketFactory;
-using ::webrtc::NATSocketServer;
-using ::webrtc::PackAddressForNAT;
-using ::webrtc::UnpackAddressFromNAT;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_TEST_NAT_SOCKET_FACTORY_H_

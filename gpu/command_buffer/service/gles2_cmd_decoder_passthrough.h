@@ -8,6 +8,7 @@
 #define GPU_COMMAND_BUFFER_SERVICE_GLES2_CMD_DECODER_PASSTHROUGH_H_
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -23,7 +24,6 @@
 #include "gpu/command_buffer/common/discardable_handle.h"
 #include "gpu/command_buffer/common/gles2_cmd_format.h"
 #include "gpu/command_buffer/common/gles2_cmd_utils.h"
-#include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/sync_token.h"
 #include "gpu/command_buffer/service/client_service_map.h"
 #include "gpu/command_buffer/service/context_group.h"
@@ -52,7 +52,6 @@ class ContextGroup;
 class GPUTracer;
 class MultiDrawManager;
 class GLES2DecoderPassthroughImpl;
-class GLES2ExternalFramebuffer;
 class PassthroughProgramCache;
 
 struct MappedBuffer {
@@ -181,12 +180,6 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
   // Releases the surface associated with the GL context.
   // The decoder should not be used until a new surface is set.
   void ReleaseSurface() override;
-
-  void SetDefaultFramebufferSharedImage(const Mailbox& mailbox,
-                                        int samples,
-                                        bool preserve,
-                                        bool needs_depth,
-                                        bool needs_stencil) override;
 
   // Make this decoder's GL context current.
   bool MakeCurrent() override;
@@ -578,7 +571,9 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
 
   // Use a limit that is at least ANGLE's IMPLEMENTATION_MAX_ACTIVE_TEXTURES
   // constant
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_COBALT)
+  // Increase kMaxTextureUnits from 64 to 96 to match hardware limits and prevent
+  // initialization failure of the passthrough command decoder.
   static constexpr size_t kMaxTextureUnits = 96;
 #else
   static constexpr size_t kMaxTextureUnits = 64;
@@ -723,7 +718,6 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
 
   GLenum emulated_default_framebuffer_format_;
   std::unique_ptr<EmulatedDefaultFramebuffer> emulated_back_buffer_;
-  std::unique_ptr<GLES2ExternalFramebuffer> external_default_framebuffer_;
 
   // Maximum 2D resource sizes for limiting offscreen framebuffer sizes
   GLint max_renderbuffer_size_ = 0;

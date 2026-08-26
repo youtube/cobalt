@@ -23,8 +23,8 @@ import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 /**
- *  A wrapper of SurfaceTexture class.
- * VideoSurfaceTexture allows native code to receive OnFrameAvailable event.
+ * A wrapper of SurfaceTexture class. VideoSurfaceTexture allows native code to receive
+ * OnFrameAvailable event.
  */
 @JNINamespace("starboard")
 public class VideoSurfaceTexture extends SurfaceTexture {

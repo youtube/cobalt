@@ -10,7 +10,7 @@
 
 #include "pc/media_stream.h"
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "api/media_stream_interface.h"
 #include "api/scoped_refptr.h"
@@ -37,7 +37,7 @@ class MockObserver : public ObserverInterface {
     notifier_->RegisterObserver(this);
   }
 
-  ~MockObserver() { Unregister(); }
+  ~MockObserver() override { Unregister(); }
 
   void Unregister() {
     if (notifier_) {
@@ -54,7 +54,7 @@ class MockObserver : public ObserverInterface {
 
 class MediaStreamTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     stream_ = MediaStream::Create(kStreamId1);
     ASSERT_TRUE(stream_.get() != nullptr);
 

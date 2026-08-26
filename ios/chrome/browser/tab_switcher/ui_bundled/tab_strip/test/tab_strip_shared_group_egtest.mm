@@ -12,7 +12,6 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_app_interface.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_constants.h"
@@ -52,9 +51,13 @@ id<GREYMatcher> TabStripGroupCellMatcher(NSString* title) {
                     grey_sufficientlyVisible(), nil);
 }
 
-// Adds a shared tab group and sets the user as `owner` or not of the group.
-void AddSharedGroup(BOOL owner) {
-  [TabGroupAppInterface prepareFakeSharedTabGroups:1 asOwner:owner];
+// Adds a shared tab group with a test URL and sets the user as `owner` or not
+// of the group.
+void AddSharedGroup(BOOL owner,
+                    net::test_server::EmbeddedTestServer* test_server) {
+  NSString* url = base::SysUTF8ToNSString(
+      GetQueryTitleURL(test_server, kSharedTabTitle).spec());
+  [TabGroupAppInterface prepareFakeSharedTabGroups:1 asOwner:owner url:url];
   // Sleep for 1 second to make sure that the shared group data are correctly
   // fetched.
   base::PlatformThread::Sleep(base::Seconds(1));
@@ -72,7 +75,6 @@ void AddSharedGroup(BOOL owner) {
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
-  config.features_enabled.push_back(kTabGroupSync);
   config.features_enabled.push_back(
       data_sharing::features::kDataSharingFeature);
   // Add the flag to use FakeTabGroupSyncService.
@@ -92,6 +94,11 @@ void AddSharedGroup(BOOL owner) {
   // `fakeIdentity2` joins shared groups as member.
   FakeSystemIdentity* identity = [FakeSystemIdentity fakeIdentity1];
   [SigninEarlGreyUI signinWithFakeIdentity:identity enableHistorySync:YES];
+
+  // Make sure that the MessagingBackendService is fully initialized.
+  NSError* error = [ChromeEarlGrey waitForMessagingBackendServiceInitialized];
+  GREYAssertNil(error, @"Failed to initialize MessagingBackendService: %@",
+                error);
 }
 
 - (void)tearDownHelper {
@@ -102,14 +109,10 @@ void AddSharedGroup(BOOL owner) {
 
 // Tests that deleting a shared tab group from tab strip works.
 - (void)testTabStripSharedGroupDeleteSharedGroup {
-  if (@available(iOS 17, *)) {
-  } else if ([ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_SKIPPED(@"Only available on iOS 17+ on iPad.");
-  }
   if ([ChromeEarlGrey isCompactWidth]) {
     EARL_GREY_TEST_SKIPPED(@"No tab strip on this device.");
   }
-  AddSharedGroup(/*owner=*/YES);
+  AddSharedGroup(/*owner=*/YES, self.testServer);
 
   // Long press the group.
   [[EarlGrey selectElementWithMatcher:TabStripGroupCellMatcher(kGroupTitle)]
@@ -140,14 +143,10 @@ void AddSharedGroup(BOOL owner) {
 
 // Tests that leaving a shared tab group from tab strip works.
 - (void)testTabStripSharedGroupLeaveSharedGroup {
-  if (@available(iOS 17, *)) {
-  } else if ([ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_SKIPPED(@"Only available on iOS 17+ on iPad.");
-  }
   if ([ChromeEarlGrey isCompactWidth]) {
     EARL_GREY_TEST_SKIPPED(@"No tab strip on this device.");
   }
-  AddSharedGroup(/*owner=*/NO);
+  AddSharedGroup(/*owner=*/NO, self.testServer);
 
   // Long press the group.
   [[EarlGrey selectElementWithMatcher:TabStripGroupCellMatcher(kGroupTitle)]
@@ -176,10 +175,65 @@ void AddSharedGroup(BOOL owner) {
   GREYAssertTrue(groupsLeaved, @"Failed to leave the shared group");
 }
 
+// Tests that the last tab alert is displayed when closing the last tab of a
+// shared group. The tested tab close flow are:
+// * Close from the tab strip using:
+//     - Cross button
+//     - Context menu and then 'Close Tab'
+- (void)testTabStripLastTabCloseInSharedGroupAlerts {
+  if ([ChromeEarlGrey isCompactWidth]) {
+    EARL_GREY_TEST_SKIPPED(@"No tab strip on this device.");
+  }
+
+  AddSharedGroup(/*owner=*/NO, self.testServer);
+
+  // Close the tab outside the group to avoid multiple match when trying to
+  // close the tab by pushing the close button.
+  [[EarlGrey selectElementWithMatcher:TabStripCellAtIndex(0)]
+      performAction:grey_longPress()];
+  [[EarlGrey selectElementWithMatcher:ButtonWithAccessibilityLabelId(
+                                          IDS_IOS_CONTENT_CONTEXT_CLOSETAB)]
+      performAction:grey_tap()];
+  [ChromeEarlGrey waitForMainTabCount:1];
+
+  id<GREYMatcher> sharedTabMatcher =
+      grey_allOf(grey_text(kSharedTabTitle), grey_sufficientlyVisible(), nil);
+  // Open the tab in shared group.
+  [[EarlGrey selectElementWithMatcher:sharedTabMatcher]
+      performAction:grey_tap()];
+
+  [ChromeEarlGrey waitForMainTabCount:1];
+
+  // Try to close the shared tab by using the context menu and check the alert.
+  [[EarlGrey selectElementWithMatcher:sharedTabMatcher]
+      performAction:grey_longPress()];
+  [[EarlGrey selectElementWithMatcher:ButtonWithAccessibilityLabelId(
+                                          IDS_IOS_CONTENT_CONTEXT_CLOSETAB)]
+      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:KeepSharedConfirmationButton()]
+      assertWithMatcher:grey_sufficientlyVisible()];
+  // Cancel.
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_CANCEL)] performAction:grey_tap()];
+  [ChromeEarlGrey waitForMainTabCount:1];
+
+  // Tap the close button of the tab cell and verify the alert.
+  id<GREYMatcher> currentTabCloseButtonMatcher = grey_allOf(
+      grey_accessibilityID(
+          TabStripTabItemConstants.closeButtonAccessibilityIdentifier),
+      grey_sufficientlyVisible(), nil);
+  [[EarlGrey selectElementWithMatcher:currentTabCloseButtonMatcher]
+      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:KeepSharedConfirmationButton()]
+      assertWithMatcher:grey_sufficientlyVisible()];
+  [ChromeEarlGrey waitForMainTabCount:1];
+}
+
 // Tests that when closing the last tab of shared group as an member of the
 // group, an alert is displayed and works.
 // TODO(crbug.com/415929742): Test fails on device.
-#if !TARGET_IPHONE_SIMULATOR
+#if !TARGET_OS_SIMULATOR
 #define MAYBE_testTabStripLastTabCloseInSharedGroupAlertAsMember \
   DISABLED_testTabStripLastTabCloseInSharedGroupAlertAsMember
 #else
@@ -187,15 +241,11 @@ void AddSharedGroup(BOOL owner) {
   testTabStripLastTabCloseInSharedGroupAlertAsMember
 #endif
 - (void)MAYBE_testTabStripLastTabCloseInSharedGroupAlertAsMember {
-  if (@available(iOS 17, *)) {
-  } else if ([ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_SKIPPED(@"Only available on iOS 17+ on iPad.");
-  }
   if ([ChromeEarlGrey isCompactWidth]) {
     EARL_GREY_TEST_SKIPPED(@"No tab strip on this device.");
   }
 
-  AddSharedGroup(/*owner=*/NO);
+  AddSharedGroup(/*owner=*/NO, self.testServer);
 
   // Open the tab in shared group.
   [[EarlGrey
@@ -268,7 +318,7 @@ void AddSharedGroup(BOOL owner) {
 // Tests that when closing the last tab of shared group as owner of the group,
 // an alert is displayed and works.
 // TODO(crbug.com/415929742): Test fails on device.
-#if !TARGET_IPHONE_SIMULATOR
+#if !TARGET_OS_SIMULATOR
 #define MAYBE_testTabStripLastTabCloseInSharedGroupAlertAsOwner \
   DISABLED_testTabStripLastTabCloseInSharedGroupAlertAsOwner
 #else
@@ -276,15 +326,11 @@ void AddSharedGroup(BOOL owner) {
   testTabStripLastTabCloseInSharedGroupAlertAsOwner
 #endif
 - (void)MAYBE_testTabStripLastTabCloseInSharedGroupAlertAsOwner {
-  if (@available(iOS 17, *)) {
-  } else if ([ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_SKIPPED(@"Only available on iOS 17+ on iPad.");
-  }
   if ([ChromeEarlGrey isCompactWidth]) {
     EARL_GREY_TEST_SKIPPED(@"No tab strip on this device.");
   }
 
-  AddSharedGroup(/*owner=*/YES);
+  AddSharedGroup(/*owner=*/YES, self.testServer);
 
   // Open the tab in shared group.
   [[EarlGrey

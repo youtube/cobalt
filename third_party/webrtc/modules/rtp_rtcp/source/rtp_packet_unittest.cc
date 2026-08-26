@@ -435,6 +435,14 @@ TEST(RtpPacketTest, SetReservedExtensionsAfterPayload) {
   EXPECT_TRUE(packet.SetExtension<TransmissionOffset>(kTimeOffset));
 }
 
+TEST(RtpPacketTest, SetPayload) {
+  const uint8_t payload[] = {1, 2, 3, 4, 2, 0, 42};
+  RtpPacket packet;
+  packet.SetPayload(payload);
+
+  EXPECT_THAT(packet.payload(), ElementsAreArray(payload));
+}
+
 TEST(RtpPacketTest, CreatePurePadding) {
   const size_t kPaddingSize = kMaxPaddingSize - 1;
   RtpPacketToSend packet(nullptr, 12 + kPaddingSize);

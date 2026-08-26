@@ -17,14 +17,13 @@ UserType DeviceLocalAccountTypeToUserType(
       // TODO(b/345700258): Unused in the production. Remove the case.
       NOTREACHED();
     case policy::DeviceLocalAccountType::kKioskApp:
-      return UserType::kKioskApp;
+      return UserType::kKioskChromeApp;
     case policy::DeviceLocalAccountType::kWebKioskApp:
-      return UserType::kWebKioskApp;
+      return UserType::kKioskWebApp;
     case policy::DeviceLocalAccountType::kKioskIsolatedWebApp:
       return UserType::kKioskIWA;
-    // TODO(crbug.com/388602323): Create new user type for ARCVM Kiosk.
     case policy::DeviceLocalAccountType::kArcvmKioskApp:
-      return UserType::kKioskIWA;
+      return UserType::kKioskArcvmApp;
   }
 }
 

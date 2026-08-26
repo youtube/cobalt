@@ -26,6 +26,16 @@ build = common.build {
       }
     },
   ]
+  action = super.get('action', []) + [
+    {
+      define_artifacts = {
+        regex = [
+          '**/*.tar.gz',
+          '**/*.zip',
+        ]
+      }
+    },
+  ]
   env_vars = super.env_vars + [
     {
       key = 'EXTRA_GN_ARGUMENTS'

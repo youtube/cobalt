@@ -63,19 +63,16 @@ AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
     scoped_refptr<gpu::ClientSharedImage> shared_image,
     const gpu::SyncToken& sync_token,
     GLuint shared_image_texture_id,
-    const gfx::Size& size,
-    viz::SharedImageFormat format,
     SkAlphaType alpha_type,
-    const gfx::ColorSpace& color_space,
     base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
     base::PlatformThreadRef context_thread_ref,
     scoped_refptr<base::SingleThreadTaskRunner> context_task_runner,
     viz::ReleaseCallback release_callback) {
   return base::AdoptRef(new AcceleratedStaticBitmapImage(
-      std::move(shared_image), sync_token, shared_image_texture_id, size,
-      format, alpha_type, color_space, ImageOrientationEnum::kDefault,
-      std::move(context_provider_wrapper), context_thread_ref,
-      std::move(context_task_runner), std::move(release_callback)));
+      std::move(shared_image), sync_token, shared_image_texture_id, alpha_type,
+      ImageOrientationEnum::kDefault, std::move(context_provider_wrapper),
+      context_thread_ref, std::move(context_task_runner),
+      std::move(release_callback)));
 }
 
 // static
@@ -83,10 +80,7 @@ scoped_refptr<AcceleratedStaticBitmapImage>
 AcceleratedStaticBitmapImage::CreateFromExternalSharedImage(
     gpu::ExportedSharedImage exported_shared_image,
     const gpu::SyncToken& sync_token,
-    const gfx::Size& size,
-    viz::SharedImageFormat format,
     SkAlphaType alpha_type,
-    const gfx::ColorSpace& color_space,
     base::OnceCallback<void(const gpu::SyncToken&)> external_callback) {
   auto shared_gpu_context = blink::SharedGpuContext::ContextProviderWrapper();
   if (!shared_gpu_context) {
@@ -116,8 +110,8 @@ AcceleratedStaticBitmapImage::CreateFromExternalSharedImage(
       shared_gpu_context, shared_image);
 
   return base::AdoptRef(new AcceleratedStaticBitmapImage(
-      std::move(shared_image), sync_token, 0u, size, format, alpha_type,
-      color_space, ImageOrientationEnum::kDefault, shared_gpu_context,
+      std::move(shared_image), sync_token, 0u, alpha_type,
+      ImageOrientationEnum::kDefault, shared_gpu_context,
       base::PlatformThreadRef(),
       ThreadScheduler::Current()->CleanupTaskRunner(),
       std::move(release_callback)));
@@ -127,10 +121,7 @@ AcceleratedStaticBitmapImage::AcceleratedStaticBitmapImage(
     scoped_refptr<gpu::ClientSharedImage> shared_image,
     const gpu::SyncToken& sync_token,
     GLuint shared_image_texture_id,
-    const gfx::Size& size,
-    viz::SharedImageFormat format,
     SkAlphaType alpha_type,
-    const gfx::ColorSpace& color_space,
     const ImageOrientation& orientation,
     base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
     base::PlatformThreadRef context_thread_ref,
@@ -138,10 +129,7 @@ AcceleratedStaticBitmapImage::AcceleratedStaticBitmapImage(
     viz::ReleaseCallback release_callback)
     : StaticBitmapImage(orientation),
       shared_image_(std::move(shared_image)),
-      size_(size),
-      format_(format),
       alpha_type_(alpha_type),
-      color_space_(color_space),
       context_provider_wrapper_(std::move(context_provider_wrapper)),
       mailbox_ref_(
           base::MakeRefCounted<MailboxRef>(sync_token,

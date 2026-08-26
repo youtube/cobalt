@@ -50,12 +50,14 @@ struct CONTENT_EXPORT PrerenderAttributes {
       ui::PageTransition transition_type,
       bool should_warm_up_compositor,
       bool should_prepare_paint_tree,
+      bool should_pause_javascript_execution,
       base::RepeatingCallback<bool(const GURL&,
                                    const std::optional<UrlMatchType>&)>
           url_match_predicate,
       base::RepeatingCallback<void(NavigationHandle&)>
           prerender_navigation_handle_callback,
-      scoped_refptr<PreloadPipelineInfoImpl> preload_pipeline_info);
+      scoped_refptr<PreloadPipelineInfoImpl> preload_pipeline_info,
+      bool allow_reuse);
 
   ~PrerenderAttributes();
 
@@ -126,6 +128,9 @@ struct CONTENT_EXPORT PrerenderAttributes {
   // then the intermediate result can be reused after activation.
   bool should_prepare_paint_tree = false;
 
+  // Whether to pause the renderer process's JavaScript execution.
+  bool should_pause_javascript_execution = false;
+
   // If the caller wants to override the default holdback processing, they can
   // set this. Otherwise, it will be computed as part of
   // PrerenderHostRegistry::CreateAndStartHost.
@@ -143,6 +148,9 @@ struct CONTENT_EXPORT PrerenderAttributes {
 
   // Information of preload pipeline that this prerender belongs to.
   scoped_refptr<PreloadPipelineInfoImpl> preload_pipeline_info;
+
+  // Whether the created prerender host can be reused for future navigations.
+  bool allow_reuse = false;
 
   // This is std::nullopt when prerendering is initiated by the browser.
   std::optional<base::UnguessableToken> initiator_devtools_navigation_token;

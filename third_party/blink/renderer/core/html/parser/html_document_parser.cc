@@ -44,6 +44,7 @@
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/core/css/media_values_cached.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
+#include "third_party/blink/renderer/core/dom/container_node.h"
 #include "third_party/blink/renderer/core/dom/document_fragment.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
@@ -185,6 +186,11 @@ bool BackgroundScanMainFrameOnly() {
 }
 
 bool IsPreloadScanningEnabled(Document* document) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kCobaltBypassHTMLPreloadScanner)) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   if (BackgroundScanMainFrameOnly() && !document->IsInOutermostMainFrame())
     return false;
   return document->GetSettings() &&
@@ -380,18 +386,18 @@ HTMLDocumentParser::HTMLDocumentParser(HTMLDocument& document,
 }
 
 HTMLDocumentParser::HTMLDocumentParser(
-    DocumentFragment* fragment,
+    ContainerNode* fragment_target,
     Element* context_element,
     ParserContentPolicy parser_content_policy,
     ParserPrefetchPolicy parser_prefetch_policy)
-    : HTMLDocumentParser(fragment->GetDocument(),
+    : HTMLDocumentParser(fragment_target->GetDocument(),
                          parser_content_policy,
                          kForceSynchronousParsing,
                          parser_prefetch_policy) {
   // Allow declarative shadow DOM for the fragment parser only if explicitly
   // enabled.
   bool include_shadow_roots =
-      fragment->GetDocument().GetDeclarativeShadowRootAllowState() ==
+      fragment_target->GetDocument().GetDeclarativeShadowRootAllowState() ==
       Document::DeclarativeShadowRootAllowState::kAllow;
 
   // For now document fragment parsing never reports errors.
@@ -401,7 +407,7 @@ HTMLDocumentParser::HTMLDocumentParser(
 
   // No script_runner_ in fragment parser.
   tree_builder_ = MakeGarbageCollected<HTMLTreeBuilder>(
-      this, fragment, context_element, parser_content_policy, options_,
+      this, fragment_target, context_element, parser_content_policy, options_,
       include_shadow_roots);
 }
 
@@ -457,10 +463,9 @@ HTMLDocumentParser::HTMLDocumentParser(Document& document,
   if (!document.GetFrame() && !document.IsPrefetchOnly())
     return;
 
-  if (prefetch_policy == kAllowPrefetching)
+  if (prefetch_policy == kAllowPrefetching && !ShouldSkipPreloadScan()) {
     preloader_ = MakeGarbageCollected<HTMLResourcePreloader>(document);
-
-  should_skip_preload_scan_ = ShouldSkipPreloadScan();
+  }
 }
 
 HTMLDocumentParser::~HTMLDocumentParser() {
@@ -553,8 +558,8 @@ void HTMLDocumentParser::PrepareToStopParsing() {
   if (script_runner_)
     GetDocument()->SetReadyState(Document::kInteractive);
 
-  // Setting the ready state above can fire mutation event and detach us from
-  // underneath. In that case, just bail out.
+  // Setting the ready state above can fire synchronous events and detach us
+  // from underneath. In that case, just bail out.
   if (IsDetached())
     return;
 
@@ -681,6 +686,10 @@ void HTMLDocumentParser::RunScriptsForPausedTreeBuilder() {
 
 void HTMLDocumentParser::ForcePlaintextForTextDocument() {
   tokenizer_.SetState(HTMLTokenizer::kPLAINTEXTState);
+}
+
+void HTMLDocumentParser::SetPatchScope(ContainerNode* node) {
+  tree_builder_->SetPatchScope(node);
 }
 
 bool HTMLDocumentParser::PumpTokenizer() {
@@ -855,8 +864,7 @@ bool HTMLDocumentParser::PumpTokenizer() {
   if (is_stopped_or_parsing_fragment)
     return false;
 
-  if (IsPaused() && preloader_ && !background_scanner_ &&
-      !should_skip_preload_scan_) {
+  if (IsPaused() && preloader_ && !background_scanner_) {
     if (!preload_scanner_) {
       preload_scanner_ =
           CreatePreloadScanner(TokenPreloadScanner::ScannerType::kMainDocument);
@@ -967,7 +975,7 @@ void HTMLDocumentParser::insert(const String& source) {
   // Call EndIfDelayed manually at the end to maintain preload behaviour.
   PumpTokenizerIfPossible();
 
-  if (IsPaused() && !should_skip_preload_scan_) {
+  if (IsPaused() && preloader_) {
     // Check the document.write() output with a separate preload scanner as
     // the main scanner can't deal with insertions.
     if (!insertion_preload_scanner_) {
@@ -996,7 +1004,7 @@ void HTMLDocumentParser::Append(const String& input_source) {
   ScanInBackground(input_source);
 
   if (!background_scanner_ && !preload_scanner_ && preloader_ &&
-      GetDocument()->Url().IsValid() && !should_skip_preload_scan_ &&
+      GetDocument()->Url().IsValid() &&
       (!task_runner_state_->IsSynchronous() ||
        GetDocument()->IsPrefetchOnly() || IsPaused())) {
     // If we're operating with a budget, we need to create a preload scanner to
@@ -1278,6 +1286,9 @@ void HTMLDocumentParser::NotifyParserPauseByUserTiming() {
     time_waiting_for_user_timing_ = base::TimeTicks::Now();
   }
   is_waiting_for_user_timing_ = true;
+  if (metrics_reporter_) {
+    metrics_reporter_->CountYieldByUserTiming();
+  }
 }
 
 void HTMLDocumentParser::NotifyParserResumeByUserTiming() {
@@ -1648,7 +1659,7 @@ void HTMLDocumentParser::ScanInBackground(const String& source) {
       // TODO(crbug.com/1329535): Support scanning prefetch documents in the
       // background.
       !GetDocument()->IsPrefetchOnly() &&
-      IsPreloadScanningEnabled(GetDocument()) && !should_skip_preload_scan_) {
+      IsPreloadScanningEnabled(GetDocument())) {
     // The background scanner should never be created if a main thread scanner
     // is already available.
     DCHECK(!preload_scanner_);
@@ -1795,6 +1806,11 @@ ALWAYS_INLINE bool HTMLDocumentParser::ShouldCheckTimeBudget(
 }
 
 bool HTMLDocumentParser::ShouldSkipPreloadScan() {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kCobaltBypassHTMLPreloadScanner)) {
+    return true;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   // Check if Document-Policy has Expect-No-Linked-Resources hint.
   auto* document = GetDocument();
   if (const auto* context = document->GetExecutionContext()) {

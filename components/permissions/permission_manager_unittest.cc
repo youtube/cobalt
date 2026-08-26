@@ -12,8 +12,8 @@
 #include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/permissions/content_setting_permission_context_base.h"
 #include "components/permissions/features.h"
-#include "components/permissions/permission_context_base.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/permissions/permission_util.h"
 #include "components/permissions/test/mock_permission_prompt_factory.h"
@@ -35,6 +35,12 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "url/origin.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/feature_list.h"
+#include "base/test/scoped_feature_list.h"
+#include "ui/android/ui_android_features.h"
+#endif  // IS_ANDROID
 
 using blink::PermissionType;
 using network::mojom::PermissionsPolicyFeature;
@@ -212,7 +218,8 @@ class PermissionManagerTest : public content::RenderViewHostTestHarness {
 
   bool IsPermissionOverridable(PermissionType permission,
                                const std::optional<url::Origin>& origin) {
-    return GetPermissionManager()->IsPermissionOverridable(permission, origin);
+    return GetPermissionManager()->IsPermissionOverridable(permission, origin,
+                                                           origin);
   }
 
   void ResetPermission(PermissionType permission,
@@ -365,6 +372,21 @@ TEST_F(PermissionManagerTest, GetPermissionStatusAfterSet) {
                         PermissionStatus::GRANTED);
 #endif
 }
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(PermissionManagerTest, AndroidWindowManagementPermission) {
+  // Enable kAndroidWindowManagementWebApi flag
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatureState(ui::kAndroidWindowManagementWebApi,
+                                           true);
+
+  CheckPermissionStatus(PermissionType::WINDOW_MANAGEMENT,
+                        PermissionStatus::ASK);
+  SetPermission(PermissionType::WINDOW_MANAGEMENT, PermissionStatus::GRANTED);
+  CheckPermissionStatus(PermissionType::WINDOW_MANAGEMENT,
+                        PermissionStatus::GRANTED);
+}
+#endif
 
 TEST_F(PermissionManagerTest, CheckPermissionResultDefault) {
   CheckPermissionResult(PermissionType::MIDI_SYSEX, PermissionStatus::ASK,
@@ -539,8 +561,9 @@ TEST_F(PermissionManagerTest, GetPermissionStatusDelegation) {
   // By default the parent should be able to request access, but not the child.
   EXPECT_EQ(PermissionStatus::ASK, GetPermissionStatusForCurrentDocument(
                                        PermissionType::GEOLOCATION, parent));
-  // Permission policy is no longer verified in PermissionContextBase, hence in
-  // this code a cross-origin iframe is allowed to use permission.
+  // Permission policy is no longer verified in
+  // PermissionContextBase, hence in this code a cross-origin
+  // iframe is allowed to use permission.
   EXPECT_EQ(PermissionStatus::ASK, GetPermissionStatusForCurrentDocument(
                                        PermissionType::GEOLOCATION, child));
 

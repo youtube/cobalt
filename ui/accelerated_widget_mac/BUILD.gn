@@ -57,6 +57,10 @@ component("accelerated_widget_mac") {
     ]
 
     frameworks += [ "OpenGL.framework" ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   if (is_mac || (is_ios && target_platform != "iphoneos")) {
@@ -88,6 +92,7 @@ test("accelerated_widget_mac_unittests") {
     "//base",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
+    "//components/metal_util",
     "//skia",
     "//testing/gmock",
     "//testing/gtest",

@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "gpu/command_buffer/service/dawn_platform.h"
 
+#include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -166,7 +162,8 @@ uint64_t DawnPlatform::AddTraceEvent(
       std::is_trivial_v<base::trace_event::TraceEventHandle> &&
           std::is_standard_layout_v<base::trace_event::TraceEventHandle>,
       "TraceEventHandle must be memcpy'able");
-  memcpy(&result, &handle, sizeof(base::trace_event::TraceEventHandle));
+  UNSAFE_TODO(
+      memcpy(&result, &handle, sizeof(base::trace_event::TraceEventHandle)));
   return result;
 }
 
@@ -243,11 +240,14 @@ bool DawnPlatform::IsFeatureEnabled(dawn::platform::Features feature) {
     case dawn::platform::Features::kWebGPUUseDXC:
       // (crbug.com/362247692): Feature is enabled by default.
       return true;
-    case dawn::platform::Features::kWebGPUUseTintIR:
-      return base::FeatureList::IsEnabled(features::kWebGPUUseTintIR);
     case dawn::platform::Features::kWebGPUUseVulkanMemoryModel:
       return base::FeatureList::IsEnabled(
           features::kWebGPUUseVulkanMemoryModel);
+    case dawn::platform::Features::kWebGPUEnableRangeAnalysisForRobustness:
+      return base::FeatureList::IsEnabled(
+          features::kWebGPUEnableRangeAnalysisForRobustness);
+    case dawn::platform::Features::kWebGPUUseSpirv14:
+      return base::FeatureList::IsEnabled(features::kWebGPUUseSpirv14);
     default:
       return false;
   }

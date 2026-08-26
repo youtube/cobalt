@@ -7,6 +7,7 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import {getRequiredElement} from 'chrome://resources/js/util.js';
 
 import {FrePageHandlerFactory, FrePageHandlerRemote, FreWebUiState} from './glic_fre.mojom-webui.js';
+import {GlicFreWebviewLoadAbortReason} from './metrics_enums.js';
 
 // Time to wait before showing loading panel.
 const PRE_HOLD_LOADING_TIME_MS = loadTimeData.getInteger('preLoadingTimeMs');
@@ -87,9 +88,13 @@ export class FreAppController {
       // present on all UI states except for `FreWebUiState.kReady`.
       const buttons = document.querySelectorAll('.close-button');
       for (const button of buttons) {
-        button.addEventListener('click', () => {
-          freHandler.dismissFre();
-        });
+        const parentPanel = button.closest('.panel');
+        if (parentPanel) {
+          button.addEventListener('click', () => {
+            chrome.metricsPrivate.recordUserAction('Glic.Fre.CloseWithX');
+            freHandler.dismissFre(this.panelIdToEnum(parentPanel.id));
+          });
+        }
       }
 
       document.getElementById('reload')?.addEventListener('click', () => {
@@ -101,7 +106,12 @@ export class FreAppController {
       if (ev.code === 'Escape') {
         ev.stopPropagation();
         ev.preventDefault();
-        freHandler.dismissFre();
+        const visiblePanel =
+            document.querySelector<HTMLElement>('.panel:not([hidden])');
+        if (visiblePanel) {
+          chrome.metricsPrivate.recordUserAction('Glic.Fre.CloseWithEsc');
+          freHandler.dismissFre(this.panelIdToEnum(visiblePanel.id));
+        }
       }
     });
 
@@ -125,8 +135,14 @@ export class FreAppController {
     // glic/intro...#noThanks
     if (urlHash === '#continue') {
       freHandler.acceptFre();
-    } else if (urlHash === '#noThanks') {
-      freHandler.dismissFre();
+    } else if (urlHash.startsWith('#noThanks')) {
+      const source = url.searchParams.get('source');
+      if (source === 'x_button') {
+        chrome.metricsPrivate.recordUserAction(`Glic.Fre.CloseWithX`);
+      } else {
+        chrome.metricsPrivate.recordUserAction('Glic.Fre.NoThanks');
+      }
+      freHandler.dismissFre(FreWebUiState.kReady);
     }
   }
 
@@ -169,6 +185,7 @@ export class FreAppController {
   reload(): void {
     this.destroyWebview();
     this.useReloadTimeout = true;
+    freHandler.freReloaded();
     this.setState(FreWebUiState.kBeginLoading);
   }
 
@@ -260,6 +277,11 @@ export class FreAppController {
     // Load the web client now that cookie sync is complete.
     this.destroyWebview();
 
+    // Signal to the fre controller that the web ui framework has completed
+    // loading and the remote web content is about to start loading in the
+    // webview. This is used to record timing metrics.
+    freHandler.logWebUiLoadComplete();
+
     this.webview.src = loadTimeData.getString('glicFreURL');
     this.loadingTimer = setTimeout(() => {
       this.setState(FreWebUiState.kShowLoading);
@@ -297,6 +319,12 @@ export class FreAppController {
         MAX_WAIT_TIME_MS;
     this.loadingTimer = setTimeout(() => {
       console.warn('Exceeded timeout in finishLoading');
+      chrome.metricsPrivate.recordUserAction('Glic.Fre.WebviewLoadTimedOut');
+      chrome.metricsPrivate.recordEnumerationValue(
+          'Glic.Fre.WebviewLoadAbortReason',
+          GlicFreWebviewLoadAbortReason.ERR_TIMED_OUT,
+          GlicFreWebviewLoadAbortReason.MAX_VALUE + 1);
+      freHandler.exceededTimeoutError();
       this.setState(FreWebUiState.kError);
     }, timeoutValue - MIN_HOLD_LOADING_TIME_MS);
   }
@@ -325,11 +353,66 @@ export class FreAppController {
     this.webviewEventTracker.add(
         webview, 'contentload', this.onContentLoad.bind(this));
     this.webviewEventTracker.add(
+        webview, 'loadabort', this.onLoadAbort.bind(this));
+    this.webviewEventTracker.add(
         webview, 'newwindow', this.onNewWindow.bind(this));
     this.webviewEventTracker.add(
         webview, 'sizechanged', this.onSizeChanged.bind(this));
 
     return webview;
+  }
+
+  private reasonStringToEnum(reason: string|undefined):
+      GlicFreWebviewLoadAbortReason {
+    switch (reason) {
+      case 'ERR_ABORTED':
+        return GlicFreWebviewLoadAbortReason.ERR_ABORTED;
+      case 'ERR_INVALID_URL':
+        return GlicFreWebviewLoadAbortReason.ERR_INVALID_URL;
+      case 'ERR_DISALLOWED_URL_SCHEME':
+        return GlicFreWebviewLoadAbortReason.ERR_DISALLOWED_URL_SCHEME;
+      case 'ERR_BLOCKED_BY_CLIENT':
+        return GlicFreWebviewLoadAbortReason.ERR_BLOCKED_BY_CLIENT;
+      case 'ERR_ADDRESS_UNREACHABLE':
+        return GlicFreWebviewLoadAbortReason.ERR_ADDRESS_UNREACHABLE;
+      case 'ERR_EMPTY_RESPONSE':
+        return GlicFreWebviewLoadAbortReason.ERR_EMPTY_RESPONSE;
+      case 'ERR_FILE_NOT_FOUND':
+        return GlicFreWebviewLoadAbortReason.ERR_FILE_NOT_FOUND;
+      case 'ERR_UNKNOWN_URL_SCHEME':
+        return GlicFreWebviewLoadAbortReason.ERR_UNKNOWN_URL_SCHEME;
+      case 'ERR_TIMED_OUT':
+        return GlicFreWebviewLoadAbortReason.ERR_TIMED_OUT;
+      case 'ERR_HTTP_RESPONSE_CODE_FAILURE':
+        return GlicFreWebviewLoadAbortReason.ERR_HTTP_RESPONSE_CODE_FAILURE;
+      default:
+        return GlicFreWebviewLoadAbortReason.UNKNOWN;
+    }
+  }
+
+  private onLoadAbort(e: any) {
+    const reasonEnum = this.reasonStringToEnum(e.reason);
+    chrome.metricsPrivate.recordUserAction('Glic.Fre.WebviewLoadAborted');
+    chrome.metricsPrivate.recordEnumerationValue(
+        'Glic.Fre.WebviewLoadAbortReason', reasonEnum,
+        GlicFreWebviewLoadAbortReason.MAX_VALUE + 1);
+
+    this.setState(FreWebUiState.kError);
+  }
+
+  private panelIdToEnum(panelId: string): FreWebUiState {
+    switch (panelId) {
+      case 'guestPanel':
+        return FreWebUiState.kReady;
+      case 'offlinePanel':
+        return FreWebUiState.kOffline;
+      case 'errorPanel':
+        return FreWebUiState.kError;
+      case 'loadingPanel':
+        return FreWebUiState.kShowLoading;
+      default:
+        return FreWebUiState.kUninitialized;
+    }
   }
 
   // Destroy the current webview and create a new one. This is necessary because

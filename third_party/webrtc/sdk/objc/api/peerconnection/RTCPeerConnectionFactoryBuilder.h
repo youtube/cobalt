@@ -14,6 +14,7 @@
 #include "api/audio/audio_processing.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
+#include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/scoped_refptr.h"
 #include "api/video_codecs/video_decoder_factory.h"
@@ -43,6 +44,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)setAudioDeviceModule:
     (webrtc::scoped_refptr<webrtc::AudioDeviceModule>)audioDeviceModule;
+
+- (void)setAudioDeviceModuleBuilder:
+    (webrtc::scoped_refptr<webrtc::AudioDeviceModule> (^)(
+        const webrtc::Environment &))audioDeviceModuleBuilder;
 
 - (void)setAudioProcessingModule:
     (webrtc::scoped_refptr<webrtc::AudioProcessing>)audioProcessingModule;

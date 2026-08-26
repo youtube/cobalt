@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // Since PartitionAlloc disallows c++20 ranges, use base::ranges instead.
 #ifndef PARTITION_ALLOC_PARTITION_ALLOC_BASE_RANGES_RANGES_H_
 #define PARTITION_ALLOC_PARTITION_ALLOC_BASE_RANGES_RANGES_H_
@@ -11,6 +16,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "partition_alloc/partition_alloc_base/cxx20_identity.h"
 #include "partition_alloc/partition_alloc_base/template_util.h"
 
 namespace partition_alloc::internal::base {
@@ -128,11 +134,15 @@ constexpr auto end(Range&& range) noexcept
 template <typename Range>
 using iterator_t = decltype(ranges::begin(std::declval<Range&>()));
 
+// Implementation of C++20's std::iter_value_t.
+template <typename Iterator>
+using iter_value_t = typename std::iterator_traits<Iterator>::value_type;
+
 // Implementation of C++20's std::ranges::range_value_t.
 //
 // Reference: https://wg21.link/ranges.syn#:~:text=range_value_t
 template <typename Range>
-using range_value_t = std::iter_value_t<iterator_t<Range>>;
+using range_value_t = iter_value_t<iterator_t<Range>>;
 
 }  // namespace ranges
 

@@ -11,6 +11,8 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
@@ -36,6 +38,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "crypto/hash.h"
+#include "ipc/constants.mojom.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
@@ -716,7 +719,7 @@ void SignedExchangeHandler::CheckAbsenceOfCookies(base::OnceClosure callback) {
           render_frame_host ? render_frame_host->GetProcess()->GetDeprecatedID()
                             : -1,
           render_frame_host ? render_frame_host->GetRoutingID()
-                            : MSG_ROUTING_NONE,
+                            : IPC::mojom::kRoutingIdNone,
           /*cookie_setting_overrides=*/
           render_frame_host ? render_frame_host->GetCookieSettingOverrides()
                             : net::CookieSettingOverrides(),

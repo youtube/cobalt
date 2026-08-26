@@ -24,7 +24,6 @@ import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserv
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
-import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeSupplier.ChangeObserver;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.WindowAndroid;
@@ -86,7 +85,6 @@ class BottomControlsMediator
     private @Nullable LayoutStateProvider mLayoutStateProvider;
 
     private @Nullable ChangeObserver mEdgeToEdgeChangeObserver;
-    private int mEdgeToEdgePaddingPx;
 
     /**
      * Build a new mediator that handles events from outside the bottom controls component.
@@ -186,22 +184,6 @@ class BottomControlsMediator
     }
 
     @Override
-    public void onControlsOffsetChanged(
-            int topOffset,
-            int topControlsMinHeightOffset,
-            boolean topControlsMinHeightChanged,
-            int bottomOffset,
-            int bottomControlsMinHeightOffset,
-            boolean bottomControlsMinHeightChanged,
-            boolean requestNewFrame,
-            boolean isVisibilityForced) {
-        // Method call routed to onBrowserControlsOffsetUpdate.
-        if (BottomControlsStacker.isDispatchingYOffset()) return;
-
-        setYOffset(bottomOffset - getBrowserControls().getBottomControlsMinHeight());
-    }
-
-    @Override
     public void onBottomControlsHeightChanged(
             int bottomControlsHeight, int bottomControlsMinHeight) {
         // TODO(331829509): Set position in a way that doesn't rely on browser controls size system.
@@ -234,9 +216,7 @@ class BottomControlsMediator
 
     private void onEdgeToEdgeChanged(
             int bottomInset, boolean isDrawingToEdge, boolean isPageOptInToEdge) {
-        mEdgeToEdgePaddingPx = isDrawingToEdge ? bottomInset : 0;
-
-        updateBrowserControlsHeight();
+        mBottomControlsStacker.requestLayerUpdate(false);
 
         int androidViewHeight = getAndroidViewHeight();
         if (androidViewHeight != mModel.get(BottomControlsProperties.ANDROID_VIEW_HEIGHT)) {
@@ -262,40 +242,17 @@ class BottomControlsMediator
      * The composited view is the composited version of the Android View. It is used to be able to
      * scroll the bottom controls off-screen synchronously. Since the bottom controls live below the
      * webcontents we re-size the webcontents through {@link
-     * BottomControlsStacker#setBottomControlsHeight(int, int, boolean)} whenever the composited
-     * view visibility changes.
+     * BottomControlsStacker#requestLayerUpdate(boolean)} whenever the composited view visibility
+     * changes.
      */
     private void updateCompositedViewVisibility() {
         final boolean isCompositedViewVisible = isCompositedViewVisible();
         mModel.set(BottomControlsProperties.COMPOSITED_VIEW_VISIBLE, isCompositedViewVisible);
-        updateBrowserControlsHeight();
-    }
-
-    private int getBrowserControlsHeight() {
-        int minHeight = getBrowserControls().getBottomControlsMinHeight();
-        int androidViewHeight = getAndroidViewHeight();
-
-        return isCompositedViewVisible() ? androidViewHeight + minHeight : minHeight;
+        mBottomControlsStacker.requestLayerUpdate(false);
     }
 
     private int getAndroidViewHeight() {
-        int edgeToEdgePadding = 0;
-
-        if (mEdgeToEdgeControllerSupplier.get() != null
-                && !EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled()) {
-            // TODO(https://crbug.com/327274751): Account for presence of Read Aloud when
-            // determining bottom controls height.
-            edgeToEdgePadding = mEdgeToEdgePaddingPx;
-        }
-
-        return mBottomControlsHeight + edgeToEdgePadding;
-    }
-
-    private void updateBrowserControlsHeight() {
-        mBottomControlsStacker.setBottomControlsHeight(
-                getBrowserControlsHeight(),
-                getBrowserControls().getBottomControlsMinHeight(),
-                false);
+        return mBottomControlsHeight;
     }
 
     boolean isCompositedViewVisible() {
@@ -361,7 +318,6 @@ class BottomControlsMediator
 
     @Override
     public void onBrowserControlsOffsetUpdate(int layerYOffset) {
-        assert BottomControlsStacker.isDispatchingYOffset();
         setYOffset(layerYOffset);
     }
 

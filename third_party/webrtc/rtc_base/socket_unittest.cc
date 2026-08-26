@@ -10,12 +10,10 @@
 
 #include "rtc_base/socket.h"
 
-#include <errno.h>
-#include <stdint.h>
-#include <string.h>
-
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
@@ -24,7 +22,6 @@
 #include "absl/strings/string_view.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/ecn_marking.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/async_udp_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/gunit.h"
@@ -992,7 +989,7 @@ void SocketTest::SingleFlowControlCallbackInternal(const IPAddress& loopback) {
   // Fill the socket buffer.
   char buf[1024 * 16] = {0};
   int sends = 0;
-  while (++sends && accepted->Send(&buf, arraysize(buf)) != -1) {
+  while (++sends && accepted->Send(&buf, std::size(buf)) != -1) {
   }
   EXPECT_TRUE(accepted->IsBlocking());
 
@@ -1003,7 +1000,7 @@ void SocketTest::SingleFlowControlCallbackInternal(const IPAddress& loopback) {
 
   // Pull data.
   for (int i = 0; i < sends; ++i) {
-    client->Recv(buf, arraysize(buf), nullptr);
+    client->Recv(buf, std::size(buf), nullptr);
   }
 
   // Expect at least one additional writable callback.
@@ -1015,7 +1012,7 @@ void SocketTest::SingleFlowControlCallbackInternal(const IPAddress& loopback) {
   // callbacks.
   int extras = 0;
   for (int i = 0; i < 100; ++i) {
-    accepted->Send(&buf, arraysize(buf));
+    accepted->Send(&buf, std::size(buf));
     Thread::Current()->ProcessMessages(1);
     if (sink.Check(accepted.get(), SSE_WRITE)) {
       extras++;

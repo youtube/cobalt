@@ -93,6 +93,9 @@
       ],
     },
   },
+  'isolate_profile_data': {
+    'isolate_profile_data': True
+  },
   'limited-capacity': {
     # Sometimes there are multiple tests that can be run only on one machine.
     # We need to increase timeouts so the tests dont expire before the machine is freed.
@@ -100,13 +103,6 @@
     'swarming': {
       'expiration': 10800,
     },
-  },
-  'linux-focal': {
-    'swarming': {
-      'dimensions': {
-        'os': 'Ubuntu-20.04'
-      }
-    }
   },
   'mac-m1-cpu': {
     'swarming': {
@@ -135,13 +131,6 @@
     'swarming': {
       'dimensions': {
         'os': 'Mac-11'
-      }
-    }
-  },
-  'linux-bionic': {
-    'swarming': {
-      'dimensions': {
-        'os': 'Ubuntu-18.04',
       }
     }
   },

@@ -295,13 +295,6 @@ class TestSession : public QuicSpdySession {
     return stream;
   }
 
-  TestStream* CreateOutgoingUnidirectionalStream() override {
-    TestStream* stream = new TestStream(GetNextOutgoingUnidirectionalStreamId(),
-                                        this, WRITE_UNIDIRECTIONAL);
-    ActivateStream(absl::WrapUnique(stream));
-    return stream;
-  }
-
   TestStream* CreateIncomingStream(QuicStreamId id) override {
     // Enforce the limit on the number of open streams.
     if (!VersionHasIetfQuicFrames(connection()->transport_version()) &&
@@ -330,7 +323,6 @@ class TestSession : public QuicSpdySession {
   bool ShouldCreateIncomingStream(QuicStreamId /*id*/) override { return true; }
 
   bool ShouldCreateOutgoingBidirectionalStream() override { return true; }
-  bool ShouldCreateOutgoingUnidirectionalStream() override { return true; }
 
   bool IsClosedStream(QuicStreamId id) {
     return QuicSession::IsClosedStream(id);
@@ -1961,7 +1953,7 @@ TEST_P(QuicSpdySessionTestClient, WritePriority) {
   session_->WritePriority(id, parent_stream_id,
                           Spdy3PriorityToHttp2Weight(priority), exclusive);
 
-  QuicStreamSendBuffer& send_buffer =
+  QuicStreamSendBufferBase& send_buffer =
       QuicStreamPeer::SendBuffer(headers_stream);
   ASSERT_EQ(1u, send_buffer.size());
 
@@ -1970,10 +1962,8 @@ TEST_P(QuicSpdySessionTestClient, WritePriority) {
   SpdyFramer spdy_framer(SpdyFramer::ENABLE_COMPRESSION);
   SpdySerializedFrame frame = spdy_framer.SerializeFrame(priority_frame);
 
-  const quiche::QuicheMemSlice& slice =
-      QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer)->slice;
   EXPECT_EQ(absl::string_view(frame.data(), frame.size()),
-            absl::string_view(slice.data(), slice.length()));
+            send_buffer.LatestWriteForTest());
 }
 
 TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
@@ -4153,13 +4143,11 @@ TEST_P(QuicSpdySessionTestClient, LimitEncoderDynamicTableSize) {
   stream->WriteHeaders(std::move(headers), /* fin = */ true, nullptr);
 
   EXPECT_TRUE(headers_stream->HasBufferedData());
-  QuicStreamSendBuffer& send_buffer =
+  QuicStreamSendBufferBase& send_buffer =
       QuicStreamPeer::SendBuffer(headers_stream);
   ASSERT_EQ(1u, send_buffer.size());
 
-  const quiche::QuicheMemSlice& slice =
-      QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer)->slice;
-  absl::string_view stream_data(slice.data(), slice.length());
+  absl::string_view stream_data = send_buffer.LatestWriteForTest();
 
   std::string expected_stream_data_1;
   ASSERT_TRUE(

@@ -20,34 +20,22 @@
   PrefService* prefService = GetApplicationContext()->GetLocalState();
 
   // Clear variations seed prefs.
-  GetApplicationContext()
-      ->GetVariationsService()
-      ->GetSeedStoreForTesting()
-      ->GetSeedReaderWriterForTesting()
-      ->ClearSeedInfo();
-  prefService->ClearPref(variations::prefs::kVariationsCountry);
-  prefService->ClearPref(variations::prefs::kVariationsLastFetchTime);
-  prefService->ClearPref(
-      variations::prefs::kVariationsPermanentConsistencyCountry);
+  variations::VariationsSeedStore* seed_store =
+      GetApplicationContext()->GetVariationsService()->GetSeedStoreForTesting();
+  seed_store->GetSeedReaderWriterForTesting()->ClearSeedInfo();
+  // Here session country is cleared for testing, but it should not be cleared
+  // for the regular seed.
+  seed_store->GetSeedReaderWriterForTesting()->ClearSessionCountry();
+  seed_store->ClearPermanentConsistencyCountryAndVersion();
   prefService->ClearPref(
       variations::prefs::kVariationsPermanentOverriddenCountry);
-  prefService->ClearPref(variations::prefs::kVariationsSeedDate);
-  prefService->ClearPref(variations::prefs::kVariationsSeedSignature);
 
   // Clear variations safe seed prefs.
-  GetApplicationContext()
-      ->GetVariationsService()
-      ->GetSeedStoreForTesting()
-      ->GetSafeSeedReaderWriterForTesting()
-      ->ClearSeedInfo();
-  prefService->ClearPref(variations::prefs::kVariationsSafeSeedDate);
-  prefService->ClearPref(variations::prefs::kVariationsSafeSeedFetchTime);
+  seed_store->GetSafeSeedReaderWriterForTesting()->ClearSeedInfo();
+  seed_store->GetSafeSeedReaderWriterForTesting()->ClearSessionCountry();
+  seed_store->GetSafeSeedReaderWriterForTesting()
+      ->ClearPermanentConsistencyCountryAndVersion();
   prefService->ClearPref(variations::prefs::kVariationsSafeSeedLocale);
-  prefService->ClearPref(
-      variations::prefs::kVariationsSafeSeedPermanentConsistencyCountry);
-  prefService->ClearPref(
-      variations::prefs::kVariationsSafeSeedSessionConsistencyCountry);
-  prefService->ClearPref(variations::prefs::kVariationsSafeSeedSignature);
 
   // Clear variations policy prefs.
   prefService->ClearPref(variations::prefs::kVariationsRestrictionsByPolicy);
@@ -80,7 +68,14 @@
           .compressed_seed_data = variations::kTestSeedData.GetCompressedData(),
           .base64_seed_data = variations::kTestSeedData.base64_compressed_data,
           .signature = variations::kTestSeedData.base64_signature,
-          .milestone = 92});
+          .milestone = 92,  // Milestone number is arbitrary.
+          .seed_date = base::Time::Now(),
+          .client_fetch_time = base::Time::Now(),
+          .session_country_code = "us",
+          .permanent_country_code = "us",
+          // Permanent version is not stored in the safe seed, only the country.
+          .permanent_country_version = "",
+      });
 }
 
 + (void)setCrashingRegularSeedAndSignature {
@@ -94,7 +89,13 @@
           .base64_seed_data =
               variations::kCrashingSeedData.base64_compressed_data,
           .signature = variations::kCrashingSeedData.base64_signature,
-          .milestone = 92});
+          .milestone = 92,  // Milestone number is arbitrary.
+          .seed_date = base::Time::Now(),
+          .client_fetch_time = base::Time::Now(),
+          .session_country_code = "us",
+          .permanent_country_code = "us",
+          .permanent_country_version = "1.2.3.4",
+      });
 }
 
 + (int)crashStreak {

@@ -51,6 +51,7 @@ class DecorationTitle {
   const gfx::Size& size() { return size_; }
 
  protected:
+  void SetShouldHideTitleText(bool hide);
   void setBounds(const gfx::Size& bounds, int start_space);
   virtual gfx::Size calculateSize(int favicon_width);
 
@@ -67,6 +68,10 @@ class DecorationTitle {
   bool is_rtl_;
 
   raw_ptr<ui::ResourceManager> resource_manager_;
+
+ private:
+  bool needs_refresh_ = true;
+  bool should_hide_title_text_ = false;
 };
 
 }  // namespace android

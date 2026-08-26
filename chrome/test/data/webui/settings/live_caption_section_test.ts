@@ -5,7 +5,7 @@
 import 'chrome://settings/lazy_load.js';
 
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import type {LanguageHelper, SettingsAddLanguagesDialogElement, SettingsLiveCaptionElement} from 'chrome://settings/lazy_load.js';
+import type {SettingsAddLanguagesDialogElement, SettingsLiveCaptionElement} from 'chrome://settings/lazy_load.js';
 import {CaptionsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
 import {CrSettingsPrefs, loadTimeData} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertStringContains, assertStringExcludes, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -15,7 +15,6 @@ import {eventToPromise} from 'chrome://webui-test/test_util.js';
 import {TestCaptionsBrowserProxy} from './test_captions_browser_proxy.js';
 
 suite('LiveCaptionSection', function() {
-  let languageHelper: LanguageHelper;
   let liveCaptionSection: SettingsLiveCaptionElement;
   let browserProxy: TestCaptionsBrowserProxy;
   let dialog: SettingsAddLanguagesDialogElement|null = null;
@@ -46,16 +45,19 @@ suite('LiveCaptionSection', function() {
     liveCaptionSection = document.createElement('settings-live-caption');
     liveCaptionSection.prefs = settingsPrefs.prefs;
     fakeDataBind(settingsPrefs, liveCaptionSection, 'prefs');
-    liveCaptionSection.languageHelper = settingsLanguages.languageHelper;
-    fakeDataBind(settingsLanguages, liveCaptionSection, 'language-helper');
+
+    // Reset default language before every test to prevent state from leaking
+    // from one test into another.
+    liveCaptionSection.setPrefValue(
+        'accessibility.captions.live_caption_language', 'en-US');
+
     document.body.appendChild(liveCaptionSection);
 
     flush();
-    languageHelper = liveCaptionSection.languageHelper;
-    return languageHelper.whenReady();
+    return settingsLanguages.whenReady();
   });
 
-  test('test caption.enable toggle', function() {
+  test('caption.enable toggle', function() {
     const settingsToggle =
         liveCaptionSection.shadowRoot!.querySelector<HTMLElement>(
             '#liveCaptionToggleButton');
@@ -146,5 +148,53 @@ suite('LiveCaptionSection', function() {
     flush();
     languagePacks = languageListDiv.querySelectorAll<HTMLElement>('.list-item');
     assertEquals(1, languagePacks.length);
+  });
+
+  test('more action button aria label', async function() {
+    const defaultLabel = loadTimeData.getString('defaultLanguageLabel');
+    const getMoreButtons = () =>
+        liveCaptionSection.shadowRoot!.querySelectorAll<HTMLElement>(
+            'cr-icon-button.icon-more-vert');
+    let moreButtons = getMoreButtons();
+
+    const englishButton = moreButtons[0]!;
+    assertStringContains(englishButton.ariaLabel!, 'English');
+    assertStringContains(englishButton.ariaLabel!, defaultLabel);
+
+    // Add a new language - French.
+    const addLanguagesButton =
+        liveCaptionSection.shadowRoot!.querySelector<HTMLElement>(
+            '#addLanguage')!;
+    addLanguagesButton.click();
+    flush();
+
+    dialog = liveCaptionSection.shadowRoot!.querySelector(
+        'settings-add-languages-dialog')!;
+    const whenDialogClosed = eventToPromise('close', dialog);
+    dialog.dispatchEvent(
+        new CustomEvent('languages-added', {detail: ['fr-FR']}));
+    dialog.$.dialog.close();
+    flush();
+
+    await Promise.all([
+      whenDialogClosed,
+      browserProxy.whenCalled('installLanguagePacks'),
+    ]);
+
+    // The new language (French) should not have the default label.
+    moreButtons = getMoreButtons();
+    const frenchButton = moreButtons[1]!;
+    assertStringContains(frenchButton.ariaLabel!, 'French');
+    assertStringExcludes(frenchButton.ariaLabel!, defaultLabel);
+
+    // Change the default language to French.
+    frenchButton.click();
+    liveCaptionSection.shadowRoot!
+        .querySelector<HTMLElement>('#make-default-button')!.click();
+    flush();
+    // The English button should no longer have the default label.
+    assertStringExcludes(englishButton.ariaLabel!, defaultLabel);
+    // The French button should have the default label.
+    assertStringContains(frenchButton.ariaLabel!, defaultLabel);
   });
 });

@@ -33,14 +33,14 @@
   /* TODO(crbug.com/40259490): Refactor the Avatar Button colors as Profile */ \
   /* Menu Button colors. */ \
   E_CPONLY(kColorAvatarButtonHighlightDefault) \
-  E_CPONLY(kColorAvatarButtonHighlightNormal) \
+  E_CPONLY(kColorAvatarButtonHighlightGuest) \
   E_CPONLY(kColorAvatarButtonHighlightSyncError) \
   E_CPONLY(kColorAvatarButtonHighlightSyncPaused) \
   E_CPONLY(kColorAvatarButtonHighlightSigninPaused) \
   E_CPONLY(kColorAvatarButtonHighlightExplicitText) \
   E_CPONLY(kColorAvatarButtonHighlightIncognito) \
   E_CPONLY(kColorAvatarButtonHighlightManagement) \
-  E_CPONLY(kColorAvatarButtonHighlightNormalForeground) \
+  E_CPONLY(kColorAvatarButtonHighlightGuestForeground) \
   E_CPONLY(kColorAvatarButtonHighlightDefaultForeground) \
   E_CPONLY(kColorAvatarButtonHighlightSyncErrorForeground) \
   E_CPONLY(kColorAvatarButtonHighlightIncognitoForeground) \
@@ -112,32 +112,16 @@
   E_CPONLY(kColorDesktopMediaTabListPreviewBackground) \
   /* Desktop to iOS promo bubble. */ \
   E_CPONLY(kColorDesktopToIOSPromoFooterSubtitleLabel) \
-  /* Common Download colors. */ \
+  /* Download bubble and toolbar button colors. */\
   E_CPONLY(kColorDownloadItemIconDangerous) \
   E_CPONLY(kColorDownloadItemTextDangerous) \
   E_CPONLY(kColorDownloadItemIconWarning) \
   E_CPONLY(kColorDownloadItemTextWarning) \
-  /* Download bubble colors. */\
   E_CPONLY(kColorDownloadBubbleInfoBackground) \
   E_CPONLY(kColorDownloadBubbleInfoIcon) \
   E_CPONLY(kColorDownloadBubbleRowHover) \
   E_CPONLY(kColorDownloadBubbleShowAllDownloadsIcon) \
   E_CPONLY(kColorDownloadBubblePrimaryIcon) \
-  /* Download shelf colors. */ \
-  E_CPONLY(kColorDownloadItemForeground) \
-  E_CPONLY(kColorDownloadItemForegroundDangerous) \
-  E_CPONLY(kColorDownloadItemForegroundDisabled) \
-  E_CPONLY(kColorDownloadItemForegroundSafe) \
-  E_CPONLY(kColorDownloadItemProgressRingBackground) \
-  E_CPONLY(kColorDownloadItemProgressRingForeground) \
-  E_CPONLY(kColorDownloadShelfBackground) \
-  E_CPONLY(kColorDownloadShelfButtonBackground) \
-  E_CPONLY(kColorDownloadShelfButtonText) \
-  E_CPONLY(kColorDownloadShelfButtonIcon) \
-  E_CPONLY(kColorDownloadShelfButtonIconDisabled) \
-  E_CPONLY(kColorDownloadShelfContentAreaSeparator) \
-  E_CPONLY(kColorDownloadShelfForeground) \
-  E_CPONLY(kColorDownloadStartedAnimationForeground) \
   E_CPONLY(kColorDownloadToolbarButtonActive) \
   E_CPONLY(kColorDownloadToolbarButtonAnimationBackground) \
   E_CPONLY(kColorDownloadToolbarButtonAnimationForeground) \
@@ -224,6 +208,7 @@
   /* Multi contents view colors. */ \
   E_CPONLY(kColorMulitContentsViewActiveContentOutline) \
   E_CPONLY(kColorMulitContentsViewInactiveContentOutline) \
+  E_CPONLY(kColorMulitContentsViewMiniToolbarForeground) \
   /* New tab button colors. */ \
   E_CPONLY(kColorNewTabButtonForegroundFrameActive) \
   E_CPONLY(kColorNewTabButtonForegroundFrameInactive) \
@@ -260,6 +245,24 @@
   E_CPONLY(kColorNewTabPageCartModuleDiscountChipForeground) \
   E_CPONLY(kColorNewTabPageChipBackground) \
   E_CPONLY(kColorNewTabPageChipForeground) \
+  E_CPONLY(kColorNewTabPageComposeboxBackground) \
+  E_CPONLY(kColorNewTabPageComposeboxFont) \
+  E_CPONLY(kColorNewTabPageComposeboxCancelButton) \
+  E_CPONLY(kColorNewTabPageComposeboxErrorScrimBackground) \
+  E_CPONLY(kColorNewTabPageComposeboxErrorScrimButtonBackground) \
+  E_CPONLY(kColorNewTabPageComposeboxErrorScrimButtonBackgroundHover) \
+  E_CPONLY(kColorNewTabPageComposeboxErrorScrimButtonText) \
+  E_CPONLY(kColorNewTabPageComposeboxErrorScrimForeground) \
+  E_CPONLY(kColorNewTabPageComposeboxHover) \
+  E_CPONLY(kColorNewTabPageComposeboxOutlineHcm) \
+  E_CPONLY(kColorNewTabPageComposeboxScrimBackground) \
+  E_CPONLY(kColorNewTabPageComposeboxSubmitButton) \
+  E_CPONLY(kColorNewTabPageComposeboxUploadButton) \
+  E_CPONLY(kColorNewTabPageComposeboxUploadButtonDisabled) \
+  E_CPONLY(kColorNewTabPageComposeboxFileChipBackground) \
+  E_CPONLY(kColorNewTabPageComposeboxFileChipText) \
+  E_CPONLY(kColorNewTabPageComposeboxPdfChipIcon) \
+  E_CPONLY(kColorNewTabPageComposeboxFileImageOverlay) \
   E_CPONLY(kColorNewTabPageControlBackgroundHovered) \
   E_CPONLY(kColorNewTabPageControlBackgroundSelected) \
   E_CPONLY(kColorNewTabPageDialogBackground) \
@@ -328,6 +331,7 @@
   /* New Tab Footer colors. */ \
   E_CPONLY(kColorNewTabFooterBackground) \
   E_CPONLY(kColorNewTabFooterText) \
+  E_CPONLY(kColorNewTabFooterLogoBackground) \
   /* Omnibox colors. */ \
   E_CPONLY(kColorOmniboxActionIcon) \
   E_CPONLY(kColorOmniboxActionIconHover) \
@@ -358,7 +362,7 @@
   E_CPONLY(kColorOmniboxResultsBackground) \
   E_CPONLY(kColorOmniboxResultsBackgroundHovered) \
   E_CPONLY(kColorOmniboxResultsBackgroundSelected) \
-  E_CPONLY(kColorOmniboxResultsBackgroundIPH) \
+  E_CPONLY(kColorOmniboxResultsBackgroundIph) \
   E_CPONLY(kColorOmniboxResultsButtonBorder) \
   E_CPONLY(kColorOmniboxResultsButtonIcon) \
   E_CPONLY(kColorOmniboxResultsButtonIconSelected) \
@@ -467,11 +471,10 @@
   E_CPONLY(kColorProductSpecificationsTonalButtonIcon) \
   /* Profile Menu colors. */ \
   E_CPONLY(kColorProfileMenuBackground) \
-  E_CPONLY(kColorProfileMenuHeaderBackground) \
   E_CPONLY(kColorProfileMenuIdentityInfoBackground) \
   E_CPONLY(kColorProfileMenuIdentityInfoTitle) \
   E_CPONLY(kColorProfileMenuIdentityInfoSubtitle) \
-  E_CPONLY(kColorProfileMenuSyncPromoButtonBackground) \
+  E_CPONLY(kColorProfileMenuPromoButtonsBackground) \
   /* Profiles colors. */ \
   E_CPONLY(kColorProfilesReauthDialogBorder) \
   /* PWA colors. */ \
@@ -667,8 +670,9 @@
   E_CPONLY(kColorSidePanelWallpaperSearchErrorButtonBackground) \
   E_CPONLY(kColorSidePanelWallpaperSearchErrorButtonText) \
   E_CPONLY(kColorSidePanelWallpaperSearchInspirationDescriptors) \
-  /* Split view empty state colors. */ \
+  /* Split view colors. */ \
   E_CPONLY(kColorSplitViewBackground) \
+  E_CPONLY(kColorSplitViewScrim) \
   /* Star rating view colors. */ \
   E_CPONLY(kColorStarRatingFullIcon) \
   E_CPONLY(kColorStarRatingEmptyIcon) \

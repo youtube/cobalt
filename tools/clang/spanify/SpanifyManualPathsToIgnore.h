@@ -153,6 +153,9 @@ inline constexpr std::array kSpanifyManualPathsToIgnore = {
     "ui/gl/gl_stub_autogen_gl.cc",
     "ui/gl/gl_stub_autogen_gl.h",
 
+    // Requested in crrev.com/c/6731996.
+    "net/websockets/websocket_frame.cc",
+
     // Exclude these generated files.
     //
     // An example of `spanify` picking them up can be seen at
@@ -166,6 +169,18 @@ inline constexpr std::array kSpanifyManualPathsToIgnore = {
     // Included inside a class declaration. Adding top-level #includes (e.g.,
     // for span.h, <vector>) here will cause compilation errors.
     "gpu/command_buffer/client/gles2_interface_autogen.h",
+
+    // This test seems to deliberately go out of bounds into other contiguous
+    // regions of memory.
+    "remoting/base/typed_buffer_unittest.cc",
+
+    // This test is explicitly testing unsafe buffers.
+    "base/unsafe_buffers_unittest.cc",
+
+    // This test does weird things having a heap of size zero, allocating it
+    // somewhere else and then assuming they can index it without knowing the
+    // bounds.
+    "third_party/blink/renderer/platform/heap/test/heap_test.cc",
 };
 
 #endif  // TOOLS_CLANG_SPANIFY_SPANIFYMANUALPATHSTOIGNORE_H_

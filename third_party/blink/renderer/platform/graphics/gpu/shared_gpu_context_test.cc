@@ -15,8 +15,8 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
-#include "third_party/blink/renderer/platform/graphics/test/fake_canvas_resource_host.h"
 #include "third_party/blink/renderer/platform/graphics/test/fake_gles2_interface.h"
 #include "third_party/blink/renderer/platform/graphics/test/fake_web_graphics_context_3d_provider.h"
 #include "third_party/blink/renderer/platform/graphics/test/gpu_test_utils.h"
@@ -184,19 +184,6 @@ TEST_F(SharedGpuContextTest, contextLossAutoRecovery) {
   // Context recreation results in old provider being discarded.
   EXPECT_TRUE(!!SharedGpuContext::ContextProviderWrapper());
   EXPECT_FALSE(!!context);
-}
-
-TEST_F(SharedGpuContextTest, GetRasterModeAutoRecovery) {
-  // Verifies that after a context loss, getting the raster mode from
-  // CanvasResourceHost will restore the context and succeed.
-  GlInterface().SetIsContextLost(true);
-  EXPECT_FALSE(SharedGpuContext::IsValidWithoutRestoring());
-  gfx::Size size(10, 10);
-  std::unique_ptr<FakeCanvasResourceHost> host =
-      std::make_unique<FakeCanvasResourceHost>(size);
-  host->SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
-  EXPECT_EQ(host->GetRasterMode(), RasterMode::kGPU);
-  EXPECT_TRUE(SharedGpuContext::IsValidWithoutRestoring());
 }
 
 TEST_F(SharedGpuContextTest, IsValidWithoutRestoring) {

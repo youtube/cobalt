@@ -143,8 +143,7 @@ class Page;
 // higher-level dependencies. In short: code that uses RenderFrameHost must be
 // back-forward cache aware, and code that does not use RenderFrameHost should
 // not have to be back-forward cache aware.
-class CONTENT_EXPORT RenderFrameHost : public IPC::Listener,
-                                       public IPC::Sender {
+class CONTENT_EXPORT RenderFrameHost : public IPC::Listener {
   // Do not remove this macro!
   // The macro is maintained by the memory safety team.
   ADVANCED_MEMORY_SAFETY_CHECKS();
@@ -161,7 +160,7 @@ class CONTENT_EXPORT RenderFrameHost : public IPC::Listener,
       const GlobalRenderFrameHostToken& frame_token);
 
   // Globally allows for injecting JavaScript into the main world. This feature
-  // is present only to support Android WebView, WebLayer, Fuchsia web.Contexts,
+  // is present only to support Android WebView, Fuchsia web.Contexts,
   // and CastOS content shell. It must not be used in other configurations.
   static void AllowInjectingJavaScript();
 
@@ -472,10 +471,16 @@ class CONTENT_EXPORT RenderFrameHost : public IPC::Listener,
   // in CreateChildFrame() or similar.
   virtual std::optional<base::UnguessableToken> GetEmbeddingToken() = 0;
 
-  // Returns the assigned name of the frame, the name of the iframe tag
-  // declaring it. For example, <iframe name="framename">[...]</iframe>. It is
-  // quite possible for a frame to have no name, in which case GetFrameName will
-  // return an empty string.
+  // Returns this frame's browsing context name, i.e. its "window.name".
+  // Initially, if the <iframe> element had a `name` attribute, that value
+  // will be used. The initial value is snapshotted from the element
+  // attribute; changing the attribute later does not change the browsing
+  // context name.
+  // In addition to HTML attributes, the name can also be set via
+  // window.open(), the target attribute of an <a> element, or by frames
+  // in a frameset. Subsequent changes to window.name in the renderer will
+  // be reflected here, though they will not be pushed back to the element
+  // attribute. If the frame never had a name, this returns an empty string.
   virtual const std::string& GetFrameName() = 0;
 
   // Returns true if the frame is display: none.
@@ -1165,9 +1170,8 @@ class CONTENT_EXPORT RenderFrameHost : public IPC::Listener,
   // See https://explainers-by-googlers.github.io/partitioned-popins/
   virtual bool ShouldPartitionAsPopin() const = 0;
 
-  // Returns true if this RenderFrameHost has access to unpartitioned storage
-  // and cookies.
-  virtual bool DoesDocumentHaveStorageAccess() = 0;
+  // Returns true if this RenderFrameHost has access to cookies.
+  virtual bool IsFullCookieAccessAllowed() = 0;
 
   // Sets the Storage Access API status for this RenderFrameHost.
   //

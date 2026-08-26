@@ -67,10 +67,11 @@ GridRangeBuilder::GridRangeBuilder(const ComputedStyle& grid_style,
                                    GridTrackSizingDirection track_direction,
                                    wtf_size_t auto_repetitions,
                                    wtf_size_t start_offset)
-    : GridRangeBuilder(grid_style.TemplateTracks(track_direction).track_list,
-                       grid_style.AutoTracks(track_direction),
-                       auto_repetitions,
-                       start_offset) {
+    : GridRangeBuilder(
+          grid_style.TemplateTracks(track_direction).GetTrackList(),
+          grid_style.AutoTracks(track_direction),
+          auto_repetitions,
+          start_offset) {
   // There is a special scenario where named grid areas can be specified through
   // the "grid-template" property with no specified explicit grid; such case is
   // tricky because the computed value of "grid-template-columns" is expected to
@@ -109,7 +110,9 @@ void GridRangeBuilder::EnsureTrackCoverage(
   end_lines_.emplace_back(start_line + span_length, grid_item_end_range_index);
 }
 
-GridRangeVector GridRangeBuilder::FinalizeRanges() {
+GridRangeVector GridRangeBuilder::FinalizeRanges(
+    bool needs_auto_track_size,
+    Vector<wtf_size_t>* collapsed_track_indexes) {
   DCHECK_EQ(start_lines_.size(), end_lines_.size());
 
   // Sort start and ending tracks from low to high.
@@ -186,7 +189,7 @@ GridRangeVector GridRangeBuilder::FinalizeRanges() {
 
       is_in_auto_fit_range =
           explicit_tracks_.RepeatType(current_explicit_repeater_index) ==
-          NGGridTrackRepeater::RepeatType::kAutoFit;
+          GridTrackRepeater::RepeatType::kAutoFit;
       next_explicit_repeater_start +=
           explicit_tracks_.RepeatSize(current_explicit_repeater_index) *
           explicit_tracks_.RepeatCount(current_explicit_repeater_index,
@@ -290,9 +293,19 @@ GridRangeVector GridRangeBuilder::FinalizeRanges() {
         *end_lines_[line_index].grid_item_range_index_to_cache = ranges.size();
     }
 
-    if (is_in_auto_fit_range && open_items_or_repeaters == 1) {
+    // Don't collapse tracks if we are in the first track sizing pass used to
+    // calculate the track size/count for repeat(auto-fit, auto).
+    if (is_in_auto_fit_range && open_items_or_repeaters == 1 &&
+        !needs_auto_track_size) {
       range.SetIsCollapsed();
       range.set_count = 0;
+      if (collapsed_track_indexes) {
+        wtf_size_t start_line = range.start_line;
+        for (wtf_size_t i = start_line; i < start_line + range.track_count;
+             ++i) {
+          collapsed_track_indexes->emplace_back(i);
+        }
+      }
     } else {
       // If this is a non-collapsed range, the number of sets in this range is
       // the number of track definitions in the current repeater clamped by the
@@ -322,8 +335,8 @@ GridRangeVector GridRangeBuilder::FinalizeRanges() {
   return ranges;
 }
 
-GridRangeBuilder::GridRangeBuilder(const NGGridTrackList& explicit_tracks,
-                                   const NGGridTrackList& implicit_tracks,
+GridRangeBuilder::GridRangeBuilder(const GridTrackList& explicit_tracks,
+                                   const GridTrackList& implicit_tracks,
                                    wtf_size_t auto_repetitions,
                                    wtf_size_t start_offset)
     : auto_repetitions_(auto_repetitions),
@@ -346,9 +359,15 @@ GridRangeBuilder::GridRangeBuilder(const NGGridTrackList& explicit_tracks,
         explicit_tracks_.RepeatCount(i, auto_repetitions_) *
         explicit_tracks_.RepeatSize(i);
 
-    // Subgrids can have zero auto repetitions.
+    // Subgrids can have zero auto repetitions. Grids with repeat(auto-fill,
+    // auto) also currently can have a track count of 0.
+    //
+    // TODO (almaher): Update this check depending on if we allow Grid to have
+    // repeat(auto-fill, auto) track definitions.
     if (repeater_track_count == 0) {
-      DCHECK(explicit_tracks_.IsSubgriddedAxis());
+      DCHECK(explicit_tracks_.IsSubgriddedAxis() ||
+             explicit_tracks_.HasAutoSizedRepeater() ||
+             implicit_tracks_.HasAutoSizedRepeater());
       continue;
     }
 
@@ -994,15 +1013,15 @@ void GridSizingTrackCollection::BuildSets(
                                    ? grid_available_size.inline_size
                                    : grid_available_size.block_size;
 
-  BuildSets(grid_style.TemplateTracks(track_direction_).track_list,
+  BuildSets(grid_style.TemplateTracks(track_direction_).GetTrackList(),
             grid_style.AutoTracks(track_direction_),
             available_size == kIndefiniteSize);
   InitializeSets(available_size);
 }
 
 void GridSizingTrackCollection::BuildSets(
-    const NGGridTrackList& explicit_track_list,
-    const NGGridTrackList& implicit_track_list,
+    const GridTrackList& explicit_track_list,
+    const GridTrackList& implicit_track_list,
     bool is_available_size_indefinite) {
   properties_.Reset();
   sets_.Shrink(0);
@@ -1098,6 +1117,11 @@ void GridSizingTrackCollection::BuildSets(
         if (set_track_size.HasPercentage()) {
           range.properties.SetProperty(
               TrackSpanProperties::kIsDependentOnAvailableSize);
+        }
+
+        if (auto_sized_repeater_track_index_ == kNotFound &&
+            set_track_size.IsTrackDefinitionAuto()) {
+          auto_sized_repeater_track_index_ = i;
         }
 
         CacheSetProperties(sets_.emplace_back(set_track_count, set_track_size,

@@ -195,6 +195,20 @@ const DrmSystem::Callbacks kStubDrmSystemCallbacks = {
     StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
     StubDrmSessionKeyStatusesChangedFunc};
 
+// Makes a global ref out of `surface_view`, which callers hand us as a raw
+// jobject that is usually a global ref. jni_zero only accepts local refs when
+// wrapping a raw jobject, so go through NewLocalRef() first.
+jni_zero::ScopedJavaGlobalRef<jobject> SurfaceViewToGlobalRef(
+    void* surface_view) {
+  if (!surface_view) {
+    return jni_zero::ScopedJavaGlobalRef<jobject>();
+  }
+  JNIEnv* env = AttachCurrentThread();
+  return jni_zero::ScopedJavaGlobalRef<jobject>(
+      env, jni_zero::ScopedJavaLocalRef<jobject>::Adopt(
+               env, env->NewLocalRef(static_cast<jobject>(surface_view))));
+}
+
 }  // namespace
 
 // TODO: Merge this with VideoFrameTracker, maybe?
@@ -343,16 +357,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       max_video_capabilities_(stream_config.max_video_capabilities),
       require_software_codec_(
           IsSoftwareDecoderRequired(stream_config.max_video_capabilities)),
-      force_big_endian_hdr_metadata_(
-          platform_options.force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_config.audio_session_id),
       max_video_input_size_(pipeline_config.max_input_size),
       use_dual_threads_(pipeline_config.use_dual_threads),
-      surface_view_(stream_config.surface_view
-                        ? jni_zero::ScopedJavaGlobalRef<jobject>(
-                              jni_zero::AttachCurrentThread(),
-                              static_cast<jobject>(stream_config.surface_view))
-                        : nullptr),
+      surface_view_(SurfaceViewToGlobalRef(stream_config.surface_view)),
       enable_flush_during_seek_(pipeline_config.enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34
                             ? platform_options.reset_delay_usec
@@ -363,8 +371,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       skip_flush_on_decoder_teardown_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipFlushOnDecoderTeardown)),
-      force_clear_surface_(pipeline_config.experimental_features.GetBool(
-          kMediaForceClearSurfaceView)),
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
           MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
@@ -451,9 +457,11 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
   // The video surface must be reset after tunnel mode playbacks. This prevents
   // video distortion on some platforms. For details, see http://b/182610842.
-  bool force_clear =
-      !tunnel_mode_audio_session_id_.has_value() && force_clear_surface_;
-  CleanUpVideoWindow(force_clear, decode_target_graphics_context_provider_);
+  if (tunnel_mode_audio_session_id_.has_value()) {
+    ResetVideoSurface();
+  } else {
+    CleanUpVideoSurface(decode_target_graphics_context_provider_);
+  }
 }
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
@@ -869,8 +877,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
-      force_big_endian_hdr_metadata_, max_video_input_size_, flush_delay_usec_,
-      use_dual_threads_, skip_video_frames_over_60_fps_,
+      max_video_input_size_, flush_delay_usec_, use_dual_threads_,
+      skip_video_frames_over_60_fps_,
       ignore_mediacodec_callbacks_during_flushing_, enable_ndk_video_,
       enable_trivial_optimizations_);
   if (result) {

@@ -10,9 +10,12 @@
 
 #include "rtc_base/time_utils.h"
 
+#include <cstdint>
+#include <ctime>
 #include <memory>
 
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"

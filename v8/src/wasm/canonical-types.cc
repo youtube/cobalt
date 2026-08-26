@@ -210,8 +210,11 @@ const CanonicalArrayType* TypeCanonicalizer::LookupArray(
 
 void TypeCanonicalizer::AddPredefinedArrayTypes() {
   static constexpr std::pair<CanonicalTypeIndex, CanonicalValueType>
-      kPredefinedArrayTypes[] = {{kPredefinedArrayI8Index, {kWasmI8}},
-                                 {kPredefinedArrayI16Index, {kWasmI16}}};
+      kPredefinedArrayTypes[] = {
+          {kPredefinedArrayI8Index, {kWasmI8}},
+          {kPredefinedArrayI16Index, {kWasmI16}},
+          {kPredefinedArrayExternRefIndex, {kWasmExternRef}},
+          {kPredefinedArrayFuncRefIndex, {kWasmFuncRef}}};
   canonical_types_.reserve(kNumberOfPredefinedTypes, &zone_);
   for (auto [index, element_type] : kPredefinedArrayTypes) {
     DCHECK_GT(kNumberOfPredefinedTypes, index.index);
@@ -393,7 +396,7 @@ CanonicalTypeIndex TypeCanonicalizer::FindCanonicalGroup(
 }
 
 size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 8048);
+  UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 8032);
   // The storage of the canonical group's types is accounted for via the
   // allocator below (which tracks the zone memory).
   base::MutexGuard mutex_guard(&mutex_);
@@ -443,8 +446,8 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
   DirectHandle<WeakFixedArray> new_rtts =
       WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
   WeakFixedArray::CopyElements(isolate, *new_rtts, 0, *old_rtts, 0, old_length);
-  MemsetTagged(new_rtts->RawFieldOfFirstElement() + old_length,
-               ClearedValue(isolate), new_length - old_length);
+  MemsetTagged(new_rtts->RawFieldOfFirstElement() + old_length, ClearedValue(),
+               new_length - old_length);
   heap->SetWasmCanonicalRtts(*new_rtts);
 }
 

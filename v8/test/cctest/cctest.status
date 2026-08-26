@@ -141,7 +141,6 @@
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-select-combine/*': [SKIP],
-  'test-instruction-scheduler/*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -186,6 +185,10 @@
   'test-api/ExternalArrays': [PASS, SLOW],
   'test-api/Threading*': [SKIP],
   'test-cpu-profiler/MultipleIsolates': [PASS, ['not pointer_compression', SLOW]],
+
+   # https://crbug.com/420743936
+  'test-run-wasm-f16/RunWasmLiftoff_F16x8ConvertI16x8': [PASS, ['all_arm64_features', SKIP]],
+  'test-run-wasm-f16/RunWasmTurbofan_F16x8ConvertI16x8': [PASS, ['all_arm64_features', SKIP]],
 }],  # 'arch == arm64 and simulator_run'
 
 ['arch == arm64 and system == macos and not simulator_run', {
@@ -515,6 +518,11 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
+['mode == debug and tsan', {
+  'test-serialize/StartupSerializer*': [PASS, NO_VARIANTS],
+}],  # mode == debug and tsan
+
+##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
@@ -581,6 +589,12 @@
 
   # --experimental-wasm-fp16
   'test-run-wasm-f16/*': [SKIP],
+
+  # -- Bug 435317720: Non-canonical NaNs are not propagated correctly in the Wasm interpreter.
+  'test-run-wasm/RunWasmInterpreter_Float32Add*': [SKIP],
+  'test-run-wasm/RunWasmInterpreter_Float32Sub*': [SKIP],
+  'test-run-wasm/RunWasmInterpreter_Float32Mul*': [SKIP],
+  'test-run-wasm/RunWasmInterpreter_Float32Div*': [SKIP],
 
  }],  # has_wasm_interpreter
 
@@ -883,5 +897,29 @@
   'test-run-wasm-64/RunWasmTurbofan_I64WasmRunner': [SLOW],
   'test-strings/Traverse': [SLOW],
 }],  # variant == conservative_stack_scanning
+
+##############################################################################
+['sandbox_hardware_support', {
+  # The liftoff-for-fuzzing configuration is currently incompatible with
+  # sandbox hardware support. See https://crbug.com/431949927.
+  'test-liftoff-for-fuzzing/*': [SKIP],
+
+  # Tests that require the sampler/profiler, which doesn't work on older kernel
+  # versions if hardware sandboxing is active. See https://crbug.com/429173713.
+  'test-cpu-profiler/*': [SKIP],
+  'test-profile-generator/*': [SKIP],
+  'test-streaming-compilation/*': [SKIP],
+  'test-api/SimpleCallbackWithProfiler': [SKIP],
+  'test-api/FastReturnValuesWithProfiler': [SKIP],
+  'test-api/FunctionTemplateWithProfiler': [SKIP],
+  'test-api/CallICFastApi_TrivialSignatureWithProfiler': [SKIP],
+  'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
+  'test-api/InterceptorCallICFastApi_TrivialSignatureWithProfiler': [SKIP],
+
+  # Tests that rely on Wasm trap handling, which is similarly not supported on
+  # older kernel versions. See again https://crbug.com/429173713.
+  'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-relaxed-simd/*': [SKIP],
+}] # sandbox_hardware_support
 
 ]

@@ -46,10 +46,10 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/service_worker_version_base_info.h"
+#include "content/public/common/buildflags.h"
 #include "media/mojo/buildflags.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "pdf/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/widevine/cdm/buildflags.h"
@@ -77,6 +77,10 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_web_contents_observer.h"
 #include "extensions/browser/extensions_browser_client.h"
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "chrome/browser/extensions/chrome_extensions_browser_interface_binders.h"
 #endif
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS) || BUILDFLAG(IS_WIN)
@@ -121,10 +125,6 @@
 #if BUILDFLAG(ENABLE_PLUGINS)
 #include "chrome/browser/guest_view/web_view/chrome_web_view_permission_helper_delegate.h"
 #include "chrome/browser/plugins/plugin_observer.h"
-#endif
-
-#if BUILDFLAG(ENABLE_PPAPI)
-#include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #endif
 
 #if BUILDFLAG(ENABLE_OFFLINE_PAGES)
@@ -368,8 +368,23 @@ void ChromeContentBrowserClient::
         mojo::BinderMapWithContext<
             const content::ServiceWorkerVersionBaseInfo&>* map) {
 #if !BUILDFLAG(IS_ANDROID)
-  map->Add<blink::mojom::BadgeService>(
-      base::BindRepeating(&BindBadgeServiceForServiceWorker));
+  map->Add<blink::mojom::BadgeService>(&BindBadgeServiceForServiceWorker);
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  const GURL& site = service_worker_version_info.scope;
+  if (!site.SchemeIs(extensions::kExtensionScheme)) {
+    return;
+  }
+
+  auto* extension = extensions::ExtensionRegistry::Get(browser_context)
+                        ->enabled_extensions()
+                        .GetByID(site.host());
+  if (!extension) {
+    return;
+  }
+  extensions::PopulateChromeServiceWorkerBindersForExtension(
+      map, browser_context, extension);
 #endif
 }
 
@@ -690,11 +705,4 @@ void ChromeContentBrowserClient::BindHostReceiverForRenderer(
   }
 #endif  // BUILDFLAG(HAS_SPELLCHECK_PANEL)
 #endif  // BUILDFLAG(ENABLE_SPELLCHECK)
-
-#if BUILDFLAG(ENABLE_PPAPI)
-  if (auto host_receiver = receiver.As<chrome::mojom::PpapiMetricsService>()) {
-    ChromeMetricsServiceAccessor::BindPpapiMetricsServiceReceiver(
-        std::move(host_receiver));
-  }
-#endif  // BUILDFLAG(ENABLE_PPAPI)
 }

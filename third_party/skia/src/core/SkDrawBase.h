@@ -13,14 +13,13 @@
 #include "include/core/SkPixmap.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSamplingOptions.h"
+#include "include/core/SkSpan.h"
 #include "include/core/SkStrokeRec.h"
 #include "include/private/base/SkDebug.h"
 #include "src/base/SkZip.h"
 #include "src/core/SkDrawTypes.h"
 #include "src/core/SkGlyphRunPainter.h"
 #include "src/core/SkMask.h"
-
-#include <cstddef>
 
 class SkArenaAlloc;
 class SkBitmap;
@@ -50,7 +49,10 @@ public:
     void drawRect(const SkRect& rect, const SkPaint& paint) const {
         this->drawRect(rect, paint, nullptr, nullptr);
     }
+    void drawOval(const SkRect&, const SkPaint&) const;
     void drawRRect(const SkRRect&, const SkPaint&) const;
+    // Specialized draw for RRect that only draws if it is nine-patchable.
+    bool drawRRectNinePatch(const SkRRect&, const SkPaint&) const;
     /**
      *  To save on mallocs, we allow a flag that tells us that srcPath is
      *  mutable, so that we don't have to make copies of it as we transform it.
@@ -83,7 +85,7 @@ public:
                        customBlitter);
     }
 
-    void drawDevicePoints(SkCanvas::PointMode, size_t count, const SkPoint[], const SkPaint&,
+    void drawDevicePoints(SkCanvas::PointMode, SkSpan<const SkPoint>, const SkPaint&,
                           SkDevice*) const;
 
     /** Helper function that creates a mask from a path and a required maskfilter.

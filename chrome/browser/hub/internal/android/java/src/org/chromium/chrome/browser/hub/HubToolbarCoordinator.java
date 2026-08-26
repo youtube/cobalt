@@ -7,6 +7,7 @@ import static org.chromium.chrome.browser.hub.HubColorMixer.COLOR_MIXER;
 
 import android.app.Activity;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageButton;
 
 import org.chromium.base.Callback;
@@ -14,6 +15,7 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
@@ -30,12 +32,16 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 @NullMarked
 public class HubToolbarCoordinator {
     private final Callback<Boolean> mIsAnimatingObserver = this::tryToTriggerAddToGroupIph;
+    private final Callback<Boolean> mBottomToolbarVisibilityObserver =
+            this::onBottomToolbarVisibilityChange;
     private final HubToolbarMediator mMediator;
     private final HubToolbarView mHubToolbarView;
     private final MenuButtonCoordinator mMenuButtonCoordinator;
     private final MenuButton mMenuButton;
     private final UserEducationHelper mUserEducationHelper;
     private final ObservableSupplier<Boolean> mIsAnimatingSupplier;
+    private final @Nullable ObservableSupplier<Boolean> mBottomToolbarVisibilitySupplier;
+    private final HubActionButtonCoordinator mActionButtonCoordinator;
 
     /**
      * Eagerly creates the component, but will not be rooted in the view tree yet.
@@ -48,6 +54,9 @@ public class HubToolbarCoordinator {
      * @param hubColorMixer Mixes the Hub Overview Color.
      * @param userEducationHelper Used to show IPHs.
      * @param isHubAnimatingSupplier Supplies whether a hub layout animation is running.
+     * @param bottomToolbarVisibilitySupplier Supplies bottom toolbar visibility state, can be null.
+     * @param currentTabSupplier The supplier of the current {@link Tab}.
+     * @param exitHubRunnable Used to exit the hub.
      */
     public HubToolbarCoordinator(
             Activity activity,
@@ -58,18 +67,40 @@ public class HubToolbarCoordinator {
             SearchActivityClient searchActivityClient,
             HubColorMixer hubColorMixer,
             UserEducationHelper userEducationHelper,
-            ObservableSupplier<Boolean> isHubAnimatingSupplier) {
+            ObservableSupplier<Boolean> isHubAnimatingSupplier,
+            @Nullable ObservableSupplier<Boolean> bottomToolbarVisibilitySupplier,
+            ObservableSupplier<@Nullable Tab> currentTabSupplier,
+            Runnable exitHubRunnable) {
         mUserEducationHelper = userEducationHelper;
         mMenuButtonCoordinator = menuButtonCoordinator;
         mIsAnimatingSupplier = isHubAnimatingSupplier;
+        mBottomToolbarVisibilitySupplier = bottomToolbarVisibilitySupplier;
+
+        Button hubActionButton = hubToolbarView.findViewById(R.id.toolbar_action_button);
+        mActionButtonCoordinator =
+                new HubActionButtonCoordinator(
+                        hubActionButton, hubToolbarView, paneManager, hubColorMixer);
+
         PropertyModel model =
                 new PropertyModel.Builder(HubToolbarProperties.ALL_KEYS)
                         .with(COLOR_MIXER, hubColorMixer)
                         .build();
         PropertyModelChangeProcessor.create(model, hubToolbarView, HubToolbarViewBinder::bind);
         mMediator =
-                new HubToolbarMediator(activity, model, paneManager, tracker, searchActivityClient);
+                new HubToolbarMediator(
+                        activity,
+                        model,
+                        paneManager,
+                        tracker,
+                        searchActivityClient,
+                        currentTabSupplier,
+                        exitHubRunnable);
         mHubToolbarView = hubToolbarView;
+
+        // Set up bottom toolbar visibility observer
+        if (mBottomToolbarVisibilitySupplier != null) {
+            mBottomToolbarVisibilitySupplier.addObserver(mBottomToolbarVisibilityObserver);
+        }
 
         mMenuButton = hubToolbarView.findViewById(R.id.menu_button_wrapper);
         ImageButton imageButton = mMenuButton.getImageButton();
@@ -102,6 +133,10 @@ public class HubToolbarCoordinator {
         mIsAnimatingSupplier.removeObserver(mIsAnimatingObserver);
     }
 
+    private void onBottomToolbarVisibilityChange(boolean isVisible) {
+        mActionButtonCoordinator.onActionButtonVisibilityChange(!isVisible);
+    }
+
     /** Returns the button view for a given pane if present. */
     public @Nullable View getPaneButton(@PaneId int paneId) {
         return mMediator.getButton(paneId);
@@ -111,6 +146,10 @@ public class HubToolbarCoordinator {
     public void destroy() {
         mMediator.destroy();
         mIsAnimatingSupplier.removeObserver(mIsAnimatingObserver);
+        if (mBottomToolbarVisibilitySupplier != null) {
+            mBottomToolbarVisibilitySupplier.removeObserver(mBottomToolbarVisibilityObserver);
+        }
+        mActionButtonCoordinator.destroy();
     }
 
     public boolean isSearchBoxVisible() {

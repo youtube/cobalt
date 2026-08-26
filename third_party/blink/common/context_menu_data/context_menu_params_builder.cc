@@ -26,6 +26,7 @@ blink::mojom::CustomContextMenuItemPtr MenuItemBuild(
     result->accelerator = std::move(accelerator);
   }
   result->label = item.label;
+  result->feature_name = item.feature_name;
   result->tool_tip = item.tool_tip;
   result->type =
       static_cast<blink::mojom::CustomContextMenuItemType>(item.type);
@@ -73,8 +74,8 @@ UntrustworthyContextMenuParams ContextMenuParamsBuilder::Build(
   params.referrer_policy = data.referrer_policy;
   params.suggested_filename = base::UTF8ToUTF16(data.suggested_filename);
   params.annotation_type = data.annotation_type;
-  params.opened_from_interest_target = data.opened_from_interest_target;
-  params.interest_target_node_id = data.interest_target_node_id;
+  params.opened_from_interest_for = data.opened_from_interest_for;
+  params.interest_for_node_id = data.interest_for_node_id;
 
   for (const auto& suggestion : data.dictionary_suggestions)
     params.dictionary_suggestions.push_back(suggestion);

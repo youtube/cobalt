@@ -9,19 +9,19 @@
  */
 #include "net/dcsctp/packet/chunk/forward_tsn_chunk.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "api/array_view.h"
+#include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
 #include "net/dcsctp/packet/chunk/forward_tsn_common.h"
-#include "net/dcsctp/packet/tlv_trait.h"
+#include "net/dcsctp/public/types.h"
 #include "rtc_base/strings/string_builder.h"
 
 namespace dcsctp {

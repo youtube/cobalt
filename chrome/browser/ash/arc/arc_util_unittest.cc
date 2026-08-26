@@ -154,7 +154,7 @@ class ChromeArcUtilTest : public testing::Test {
 
     ASSERT_TRUE(data_dir_.CreateUniqueTempDir());
     profile_manager_ = std::make_unique<TestingProfileManager>(
-        TestingBrowserProcess::GetGlobal(), &local_state_);
+        TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(profile_manager_->SetUp());
 
     profile_ = profile_manager_->CreateTestingProfile(kTestProfileName);
@@ -189,7 +189,6 @@ class ChromeArcUtilTest : public testing::Test {
   ash::ScopedCrosSettingsTestHelper cros_settings_test_helper_;
 
  private:
-  ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
   std::unique_ptr<base::test::ScopedCommandLine> command_line_;
   content::BrowserTaskEnvironment task_environment_;
   base::ScopedTempDir data_dir_;
@@ -267,20 +266,6 @@ TEST_F(ChromeArcUtilTest, IsArcAllowedForProfile_GuestAccount) {
       {"", "--arc-availability=officially-supported"});
   ScopedLogIn login(GetFakeUserManager(), user_manager::GuestAccountId());
   EXPECT_TRUE(IsArcAllowedForProfileOnFirstCall(profile()));
-}
-
-// The reven devices enable ignore-device-flex-arc-enabled-policy
-// flag is not allowed to use arc.
-TEST_F(ChromeArcUtilTest, IsArcAllowedForProfile_EnableIgnoreFlag_Reven) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatureState(
-      ash::features::kIgnoreDeviceFlexArcEnabledPolicy,
-      /*ignore VPN apps enable policy=*/true);
-  base::CommandLine::ForCurrentProcess()->InitFromArgv(
-      {"", "--arc-availability=officially-supported", "--reven-branding"});
-
-  SetArcvmDlcImageStatusForTesting(/*arcvm dlc image availability=*/true);
-  EXPECT_FALSE(IsArcAllowedForProfileOnFirstCall(profile()));
 }
 
 // The reven devices without the ARCVM DLC image is not allowed to

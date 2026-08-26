@@ -235,7 +235,7 @@ class TestTopChromeWebUIController : public TopChromeWebUIController {
  public:
   explicit TestTopChromeWebUIController(content::WebUI* web_ui)
       : TopChromeWebUIController(web_ui) {}
-  static std::string GetWebUIName() { return "Test"; }
+  static std::string_view GetWebUIName() { return "Test"; }
 };
 
 class TestTopChromeWebUIConfig
@@ -276,8 +276,15 @@ class WebUIContentsPreloadManagerPageLoadMetricsTest
 
 // Tests that the time from the WebUI is requested to when First Contentful
 // Paint (FCP) is recorded.
+// TODO(crbug.com/40168622, crbug.com/425989943): this is flaky due to times out
+// on asan and debug builds.
+#if defined(ADDRESS_SANITIZER) || !defined(NDEBUG)
+#define MAYBE_RequestToFCPAndLCP DISABLED_RequestToFCPAndLCP
+#else
+#define MAYBE_RequestToFCPAndLCP RequestToFCPAndLCP
+#endif
 IN_PROC_BROWSER_TEST_F(WebUIContentsPreloadManagerPageLoadMetricsTest,
-                       RequestToFCPAndLCP) {
+                       MAYBE_RequestToFCPAndLCP) {
   // Serves the test origin with files from the test data folder.
   auto url_loader_interceptor =
       content::URLLoaderInterceptor::ServeFilesFromDirectoryAtOrigin(
@@ -345,8 +352,9 @@ class WebUIContentsPreloadManagerHistoryClusterMetricTest
 
 // Tests that history cluster metrics are NOT recorded for a preloaded History
 // Clusters UI that is never shown.
+// TODO(https://crbug.com/435561866): Deflake and re-enable.
 IN_PROC_BROWSER_TEST_F(WebUIContentsPreloadManagerHistoryClusterMetricTest,
-                       PreloadButNeverShow) {
+                       DISABLED_PreloadButNeverShow) {
   base::HistogramTester histogram_tester;
   test_api().MaybePreloadForBrowserContext(browser()->profile());
   navigation_waiter()->Wait();
@@ -361,8 +369,9 @@ IN_PROC_BROWSER_TEST_F(WebUIContentsPreloadManagerHistoryClusterMetricTest,
 
 // Tests that history cluster metrics are recorded for a preloaded History
 // Clusters UI that is shown.
+// TODO(https://crbug.com/435561866): Deflake and re-enable.
 IN_PROC_BROWSER_TEST_F(WebUIContentsPreloadManagerHistoryClusterMetricTest,
-                       PreloadAndShow) {
+                       DISABLED_PreloadAndShow) {
   base::HistogramTester histogram_tester;
   test_api().MaybePreloadForBrowserContext(browser()->profile());
   navigation_waiter()->Wait();

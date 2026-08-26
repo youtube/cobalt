@@ -287,22 +287,6 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<JSObject> object) const {
   return IsTemplateFor(object->map());
 }
 
-bool TemplateInfo::TryGetIsolate(Isolate** isolate) const {
-  if (GetIsolateFromHeapObject(*this, isolate)) return true;
-  Isolate* isolate_value = Isolate::TryGetCurrent();
-  if (isolate_value != nullptr) {
-    *isolate = isolate_value;
-    return true;
-  }
-  return false;
-}
-
-Isolate* TemplateInfo::GetIsolateChecked() const {
-  Isolate* isolate;
-  CHECK(TryGetIsolate(&isolate));
-  return isolate;
-}
-
 bool TemplateInfo::is_cacheable() const {
   return IsCacheableBit::decode(template_info_flags());
 }

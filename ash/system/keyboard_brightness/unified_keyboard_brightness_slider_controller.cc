@@ -114,7 +114,7 @@ class UnifiedKeyboardBrightnessView : public UnifiedSliderView,
     base::UmaHistogramEnumeration(
         kPersonalizationEntryPointHistogramName,
         PersonalizationEntryPoint::kKeyboardBrightnessSlider);
-    NewWindowDelegate* primary_delegate = NewWindowDelegate::GetPrimary();
+    NewWindowDelegate* primary_delegate = NewWindowDelegate::GetInstance();
     primary_delegate->OpenPersonalizationHub();
     return;
   }
@@ -156,27 +156,15 @@ void UnifiedKeyboardBrightnessSliderController::SliderValueChanged(
     return;
   }
 
-  if (features::IsKeyboardBacklightControlInSettingsEnabled()) {
-    KeyboardBrightnessControlDelegate* keyboard_brightness_control_delegate =
-        Shell::Get()->keyboard_brightness_control_delegate();
-    if (!keyboard_brightness_control_delegate) {
-      return;
-    }
-    const double percent = value * 100;
-    keyboard_brightness_control_delegate->HandleSetKeyboardBrightness(
-        percent, /*gradual=*/true,
-        /*source=*/KeyboardBrightnessChangeSource::kQuickSettings);
+  KeyboardBrightnessControlDelegate* keyboard_brightness_control_delegate =
+      Shell::Get()->keyboard_brightness_control_delegate();
+  if (!keyboard_brightness_control_delegate) {
     return;
   }
-
-  power_manager::SetBacklightBrightnessRequest request;
-  request.set_percent(value * 100);
-  request.set_transition(
-      power_manager::SetBacklightBrightnessRequest_Transition_FAST);
-  request.set_cause(
-      power_manager::SetBacklightBrightnessRequest_Cause_USER_REQUEST);
-  chromeos::PowerManagerClient::Get()->SetKeyboardBrightness(
-      std::move(request));
+  const double percent = value * 100;
+  keyboard_brightness_control_delegate->HandleSetKeyboardBrightness(
+      percent, /*gradual=*/true,
+      /*source=*/KeyboardBrightnessChangeSource::kQuickSettings);
 }
 
 }  // namespace ash

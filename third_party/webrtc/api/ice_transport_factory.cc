@@ -62,7 +62,7 @@ scoped_refptr<IceTransportInterface> CreateIceTransport(
 
 scoped_refptr<IceTransportInterface> CreateIceTransport(IceTransportInit init) {
   return make_ref_counted<IceTransportWithTransportChannel>(
-      P2PTransportChannel::Create("", ICE_CANDIDATE_COMPONENT_RTP,
+      P2PTransportChannel::Create("standalone", ICE_CANDIDATE_COMPONENT_RTP,
                                   std::move(init)));
 }
 

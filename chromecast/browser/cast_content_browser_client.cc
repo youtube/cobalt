@@ -48,7 +48,6 @@
 #include "chromecast/browser/cast_web_contents.h"
 #include "chromecast/browser/cast_web_preferences.h"
 #include "chromecast/browser/cast_web_service.h"
-#include "chromecast/browser/default_navigation_throttle.h"
 #include "chromecast/browser/devtools/cast_devtools_manager_delegate.h"
 #include "chromecast/browser/general_audience_browsing_navigation_throttle.h"
 #include "chromecast/browser/general_audience_browsing_service.h"
@@ -89,6 +88,7 @@
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
+#include "ipc/constants.mojom.h"
 #include "media/audio/audio_thread_impl.h"
 #include "media/base/media_switches.h"
 #include "media/gpu/buildflags.h"
@@ -203,7 +203,6 @@ std::unique_ptr<CastService> CastContentBrowserClient::CreateCastService(
     CastSystemMemoryPressureEvaluatorAdjuster*
         cast_system_memory_pressure_evaluator_adjuster,
     PrefService* pref_service,
-    media::VideoPlaneController* video_plane_controller,
     CastWindowManager* window_manager,
     CastWebService* web_service,
     DisplaySettingsManager* display_settings_manager) {
@@ -804,7 +803,7 @@ void CastContentBrowserClient::CreateThrottlesForNavigation(
   if (chromecast::IsFeatureEnabled(kEnableGeneralAudienceBrowsing)) {
     registry.AddThrottle(
         std::make_unique<GeneralAudienceBrowsingNavigationThrottle>(
-            &registry.GetNavigationHandle(),
+            registry,
             general_audience_browsing_service_.get()));
   }
 }
@@ -814,7 +813,7 @@ void CastContentBrowserClient::RegisterNonNetworkSubresourceURLLoaderFactories(
     int render_frame_id,
     const std::optional<url::Origin>& request_initiator_origin,
     NonNetworkURLLoaderFactoryMap* factories) {
-  if (render_frame_id == MSG_ROUTING_NONE) {
+  if (render_frame_id == IPC::mojom::kRoutingIdNone) {
     LOG(ERROR) << "Service worker not supported.";
     return;
   }

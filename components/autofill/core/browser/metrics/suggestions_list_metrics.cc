@@ -65,6 +65,8 @@ void LogSuggestionsCount(size_t num_suggestions,
     case FillingProduct::kAutofillAi:
     case FillingProduct::kLoyaltyCard:
     case FillingProduct::kIdentityCredential:
+    case FillingProduct::kDataList:
+    case FillingProduct::kOneTimePassword:
       NOTREACHED();
   }
 }
@@ -84,11 +86,6 @@ void LogSuggestionAcceptedIndex(int index,
       base::UmaHistogramSparse("Autofill.SuggestionAcceptedIndex.Profile",
                                uma_index);
       break;
-    case FillingProduct::kPassword:
-    case FillingProduct::kNone:
-      base::UmaHistogramSparse("Autofill.SuggestionAcceptedIndex.Other",
-                               uma_index);
-      break;
     case FillingProduct::kAutocomplete:
       base::UmaHistogramSparse("Autofill.SuggestionAcceptedIndex.Autocomplete",
                                uma_index);
@@ -100,6 +97,10 @@ void LogSuggestionAcceptedIndex(int index,
     case FillingProduct::kAutofillAi:
     case FillingProduct::kMerchantPromoCode:
     case FillingProduct::kIdentityCredential:
+    case FillingProduct::kPassword:
+    case FillingProduct::kNone:
+    case FillingProduct::kDataList:
+    case FillingProduct::kOneTimePassword:
       // It is NOTREACHED because all other types should be handled separately.
       NOTREACHED();
   }
@@ -125,11 +126,13 @@ void LogAddressAutofillOnTypingSuggestionAccepted(
   base::UmaHistogramEnumeration(
       "Autofill.AddressSuggestionOnTyping.AddressFieldTypeUsed",
       field_type_used, FieldType::MAX_VALID_FIELD_TYPE);
+  FieldTypeSet field_types = autofill_trigger_field
+                                 ? autofill_trigger_field->Type().GetTypes()
+                                 : FieldTypeSet{};
   base::UmaHistogramBoolean(
       "Autofill.AddressSuggestionOnTypingAcceptance.FieldClassication",
-      autofill_trigger_field &&
-          autofill_trigger_field->Type().GetStorableType() >
-              FieldType::EMPTY_TYPE);
+      !FieldTypeSet{NO_SERVER_DATA, UNKNOWN_TYPE, EMPTY_TYPE}.contains_all(
+          field_types));
   if (autofill_trigger_field) {
     base::UmaHistogramCounts100(
         "Autofill.AddressSuggestionOnTypingAcceptance.NumberOfCharactersTyped",

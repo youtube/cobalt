@@ -21,6 +21,8 @@
 #include "components/policy/proto/chrome_device_policy.pb.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 
+class PrefService;
+
 namespace ownership {
 class OwnerKeyUtil;
 class PublicKey;
@@ -116,12 +118,15 @@ class DeviceSettingsService : public SessionManagerClient::Observer {
   ~DeviceSettingsService() override;
 
   // To be called on startup once threads are initialized and D-Bus is ready.
-  void SetSessionManager(SessionManagerClient* session_manager_client,
-                         scoped_refptr<ownership::OwnerKeyUtil> owner_key_util);
+  // `local_state` must be valid until `StopProcessing()`. `local_state` may be
+  // null only in tests.
+  void StartProcessing(PrefService* local_state,
+                       SessionManagerClient* session_manager_client,
+                       scoped_refptr<ownership::OwnerKeyUtil> owner_key_util);
 
   // Prevents the service from making further calls to session_manager_client
   // and stops any pending operations.
-  void UnsetSessionManager();
+  void StopProcessing();
 
   // Must only be used with a |device_mode| that has been read and verified by
   // the InstallAttributes class.
@@ -282,6 +287,8 @@ class DeviceSettingsService : public SessionManagerClient::Observer {
 
   // Processes pending callbacks from GetOwnershipStatusAsync().
   void RunPendingOwnershipStatusCallbacks();
+
+  raw_ptr<PrefService> local_state_ = nullptr;
 
   raw_ptr<SessionManagerClient> session_manager_client_ = nullptr;
   scoped_refptr<ownership::OwnerKeyUtil> owner_key_util_;

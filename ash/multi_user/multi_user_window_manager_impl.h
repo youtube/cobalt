@@ -26,7 +26,6 @@ enum class TabletState;
 
 namespace ash {
 
-class MultiUserWindowManagerDelegate;
 class UserSwitchAnimator;
 
 // MultiUserWindowManager associates windows with users and ensures the
@@ -62,8 +61,7 @@ class ASH_EXPORT MultiUserWindowManagerImpl
     ANIMATION_SPEED_DISABLED  // Unit tests which do not require animations.
   };
 
-  MultiUserWindowManagerImpl(MultiUserWindowManagerDelegate* delegate,
-                             const AccountId& account_id);
+  MultiUserWindowManagerImpl();
 
   MultiUserWindowManagerImpl(const MultiUserWindowManagerImpl&) = delete;
   MultiUserWindowManagerImpl& operator=(const MultiUserWindowManagerImpl&) =
@@ -84,6 +82,9 @@ class ASH_EXPORT MultiUserWindowManagerImpl
   const AccountId& GetUserPresentingWindow(
       const aura::Window* window) const override;
   const AccountId& CurrentAccountId() const override;
+  void AddObserver(MultiUserWindowManagerObserver* observer) override;
+  void RemoveObserver(MultiUserWindowManagerObserver* observer) override;
+  void SetPrimaryUser(const AccountId& account_id) override;
 
   // SessionObserver:
   void OnActiveUserSessionChanged(const AccountId& account_id) override;
@@ -211,8 +212,6 @@ class ASH_EXPORT MultiUserWindowManagerImpl
   // Returns the time for an animation.
   base::TimeDelta GetAdjustedAnimationTime(base::TimeDelta default_time) const;
 
-  raw_ptr<MultiUserWindowManagerDelegate> delegate_;
-
   // A lookup to see to which user the given window belongs to, where and if it
   // should get shown.
   WindowToEntryMap window_to_entry_;
@@ -223,7 +222,7 @@ class ASH_EXPORT MultiUserWindowManagerImpl
   // The currently selected active user. It is used to find the proper
   // visibility state in various cases. The state is stored here instead of
   // being read from the user manager to be in sync while a switch occurs.
-  AccountId current_account_id_;
+  std::optional<AccountId> current_account_id_;
 
   // Suppress changes to the visibility flag while we are changing it ourselves.
   bool suppress_visibility_changes_ = false;
@@ -233,6 +232,8 @@ class ASH_EXPORT MultiUserWindowManagerImpl
 
   // The animation between users.
   std::unique_ptr<UserSwitchAnimator> animation_;
+
+  base::ObserverList<MultiUserWindowManagerObserver> observers_;
 
   display::ScopedDisplayObserver display_observer_{this};
 };

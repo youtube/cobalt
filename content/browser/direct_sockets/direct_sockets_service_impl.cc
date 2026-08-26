@@ -10,9 +10,9 @@
 #include "base/check_deref.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
-#include "base/functional/overloaded.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
+#include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_version.h"
 #include "content/browser/storage_partition_impl.h"
@@ -42,6 +42,7 @@
 #include "services/network/public/mojom/restricted_udp_socket.mojom.h"
 #include "services/network/public/mojom/tcp_socket.mojom.h"
 #include "services/network/public/mojom/udp_socket.mojom.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/mojom/direct_sockets/direct_sockets.mojom.h"
 
@@ -108,7 +109,7 @@ bool ValidateRequest(const Context& context,
     return true;
   }
   return std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&](RenderFrameHost* rfh) {
             return delegate->ValidateRequest(*rfh, {address, port, protocol});
           },
@@ -159,7 +160,7 @@ bool RequiresPrivateNetworkAccess(const net::AddressList& addresses) {
   return std::ranges::any_of(
       addresses.endpoints(), [](const net::IPEndPoint& ip_endpoint) {
         return network::IPAddressToIPAddressSpace(ip_endpoint.address()) ==
-               network::mojom::IPAddressSpace::kPrivate;
+               network::mojom::IPAddressSpace::kLocal;
       });
 }
 
@@ -171,7 +172,7 @@ void RequestPrivateNetworkAccess(const Context& context,
     return;
   }
   return std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&](content::RenderFrameHost* rfh) {
             if (!rfh->IsFeatureEnabled(
                     network::mojom::PermissionsPolicyFeature::
@@ -558,11 +559,7 @@ void DirectSocketsServiceImpl::OpenBoundUDPSocket(
   }
 
   auto socket_options = network::mojom::UDPSocketOptions::New();
-  if (options->ipv6_only.has_value()) {
-    socket_options->ipv6_only = *options->ipv6_only
-                                    ? network::mojom::OptionalBool::kTrue
-                                    : network::mojom::OptionalBool::kFalse;
-  }
+  socket_options->ipv6_only = options->ipv6_only;
   if (options->send_buffer_size.has_value()) {
     socket_options->send_buffer_size = *options->send_buffer_size;
   }
@@ -612,12 +609,7 @@ void DirectSocketsServiceImpl::OpenTCPServerSocket(
   }
 
   auto server_options = network::mojom::TCPServerSocketOptions::New();
-
-  if (options->ipv6_only.has_value()) {
-    server_options->ipv6_only = *options->ipv6_only
-                                    ? network::mojom::OptionalBool::kTrue
-                                    : network::mojom::OptionalBool::kFalse;
-  }
+  server_options->ipv6_only = options->ipv6_only;
   // Substitute |options->backlog| with SOMAXCONN if not specified.
   server_options->backlog =
       std::min<uint32_t>(SOMAXCONN, options->backlog.value_or(SOMAXCONN));
@@ -669,7 +661,7 @@ network::mojom::NetworkContext* DirectSocketsServiceImpl::GetNetworkContext()
     return network_context;
   }
   return std::visit(
-      base::Overloaded{
+      absl::Overload{
           [](RenderFrameHost* rfh) {
             return rfh->GetStoragePartition()->GetNetworkContext();
           },
@@ -700,14 +692,14 @@ void DirectSocketsServiceImpl::OnResolveCompleteForTCPSocket(
     OpenTCPSocketCallback callback,
     int result,
     const net::ResolveErrorInfo&,
-    const std::optional<net::AddressList>& resolved_addresses,
-    const std::optional<net::HostResolverEndpointResults>&) {
+    const net::AddressList& resolved_addresses,
+    const net::HostResolverEndpointResults&) {
   if (result != net::OK) {
     FulfillWithError(std::move(callback), result);
     return;
   }
 
-  DCHECK(resolved_addresses && !resolved_addresses->empty());
+  DCHECK(!resolved_addresses.empty());
 
   auto socket_options = network::mojom::TCPConnectedSocketOptions::New();
   if (options->send_buffer_size.has_value()) {
@@ -722,8 +714,8 @@ void DirectSocketsServiceImpl::OnResolveCompleteForTCPSocket(
     socket_options->keep_alive_options = std::move(options->keep_alive_options);
   }
 
-  if (!RequiresPrivateNetworkAccess(*resolved_addresses)) {
-    CreateTCPConnectedSocketImpl(*resolved_addresses, std::move(socket_options),
+  if (!RequiresPrivateNetworkAccess(resolved_addresses)) {
+    CreateTCPConnectedSocketImpl(resolved_addresses, std::move(socket_options),
                                  std::move(socket), std::move(observer),
                                  std::move(callback));
     return;
@@ -733,7 +725,7 @@ void DirectSocketsServiceImpl::OnResolveCompleteForTCPSocket(
       context_,
       /*create_socket_callback=*/
       base::BindOnce(&DirectSocketsServiceImpl::CreateTCPConnectedSocketImpl,
-                     weak_factory_.GetWeakPtr(), *resolved_addresses,
+                     weak_factory_.GetWeakPtr(), resolved_addresses,
                      std::move(socket_options), std::move(socket),
                      std::move(observer)),
       /*finish_callback=*/std::move(callback));
@@ -765,14 +757,14 @@ void DirectSocketsServiceImpl::OnResolveCompleteForUDPSocket(
     OpenConnectedUDPSocketCallback callback,
     int result,
     const net::ResolveErrorInfo&,
-    const std::optional<net::AddressList>& resolved_addresses,
-    const std::optional<net::HostResolverEndpointResults>&) {
+    const net::AddressList& resolved_addresses,
+    const net::HostResolverEndpointResults&) {
   if (result != net::OK) {
     FulfillWithError(std::move(callback), result);
     return;
   }
 
-  DCHECK(resolved_addresses && !resolved_addresses->empty());
+  DCHECK(!resolved_addresses.empty());
 
   auto socket_options = network::mojom::UDPSocketOptions::New();
   if (options->send_buffer_size.has_value()) {
@@ -785,7 +777,7 @@ void DirectSocketsServiceImpl::OnResolveCompleteForUDPSocket(
   auto params = network::mojom::RestrictedUDPSocketParams::New();
   params->socket_options = std::move(socket_options);
 
-  const auto& peer_addr = resolved_addresses->front();
+  const auto& peer_addr = resolved_addresses.front();
   auto finish_callback = base::BindOnce(
       [](OpenConnectedUDPSocketCallback callback, net::IPEndPoint peer_addr,
          int result, const std::optional<net::IPEndPoint>& local_addr) {
@@ -793,9 +785,9 @@ void DirectSocketsServiceImpl::OnResolveCompleteForUDPSocket(
       },
       std::move(callback), peer_addr);
 
-  if (!RequiresPrivateNetworkAccess(*resolved_addresses)) {
+  if (!RequiresPrivateNetworkAccess(resolved_addresses)) {
     CreateRestrictedUDPSocketImpl(
-        resolved_addresses->front(),
+        resolved_addresses.front(),
         network::mojom::RestrictedUDPSocketMode::CONNECTED, std::move(params),
         std::move(restricted_udp_socket_receiver), std::move(listener),
         std::move(finish_callback));

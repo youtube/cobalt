@@ -18,62 +18,14 @@ This script handles the full lifecycle of building, packaging, deploying,
 and launching Cobalt (as a plugin or executable) or Cobalt tests on RDK.
 
 Usage Examples:
-  1. Build and deploy as Cobalt plugin (default: config: qa, out: out/evergreen-arm-hardfp-rdk_qa):
+  1. Build and deploy as Cobalt plugin (default: config: qa):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py
 
-  2. Deploy a pre-built package and run it:
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --out-dir ~/Downloads/evergreen-arm-hardfp-rdk_qa/ --skip-build --run
-
-  3. Build, deploy, and RUN Cobalt plugin on device:
+  2. Build, deploy, and RUN Cobalt plugin or tests on device:
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run
-
-  4. Build, deploy, and RUN nplb tests on device (uses devel config):
      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --tests nplb --run
 
-  5. Build and deploy as standalone executable (loader_app):
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --mode executable
-
-  6. Force deploy and run even if artifacts are up-to-date:
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --force-deploy
-
-  7. Reset RDK display and restart WPEFramework (fixes stuck displays/frozen sessions):
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --reset
-
-  8. Deploy only the libcobalt library:
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --only-lib
-
-  9. View filtered application logs (YouTube/Cobalt):
-     python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs
-
-  10. Follow application logs in real-time (journalctl -f):
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --logs --follow
-
-  11. View raw global OS/system logs (journalctl):
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --system-logs
-
-  12. Build, deploy, and run Cobalt plugin with Chrome DevTools remote debugging enabled:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --devtools
-
-  13. Download and install cross-compilation toolchain:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --setup-toolchain
-
-  14. Revert active Cobalt loader configuration to Cobalt 25:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --revert-c25
-
-  15. Launch Cobalt plugin with a deep link (e.g. video ID or URL parameter):
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py --run --deeplink "v=dQw4w9WgXcQ"
-  
-  16. Run Cobalt executable with native in-process heap profiling:
-      python3 starboard/contrib/rdk/src/third_party/starboard/rdk/arm/scripts/deploy_rdk.py \
-        --mode executable --run --config devel \
-        --param \
-          --enable-heap-profiling \
-          --memlog=all \
-          --memlog-stack-mode=native-with-thread-names \
-          --trace-startup=disabled-by-default-memory-infra \
-          --trace-startup-duration=15 \
-          --trace-startup-format=json \
-          --trace-startup-file=/tmp/trace_event.json
+  (For more complex workflows—such as deep-linking, profiling, DevTools, or log streaming—run the script with --help to see all available parameters.)
 """
 
 import argparse
@@ -253,6 +205,52 @@ def ensure_dolby_vision_policy(device_id: Optional[str], device_ip: Optional[str
     run_remote_command(f"echo 1 > {policy_file}", device_id, device_ip)
 
 
+def _extract_flag_key(arg: str) -> str:
+    """Extracts option key from flag string (e.g. '--foo' from '--foo=val' or '--foo')."""
+    return arg.split("=", 1)[0]
+
+
+def _filter_args_by_keys(base_args: List[str], override_args: List[str]) -> List[str]:
+    """Filters flags from base_args whose option keys match any flag in override_args."""
+    override_keys = {
+        _extract_flag_key(arg)
+        for arg in override_args
+        if arg.startswith("--")
+    }
+    return [
+        arg
+        for arg in base_args
+        if not (arg.startswith("--") and _extract_flag_key(arg) in override_keys)
+    ]
+
+
+def _merge_args(base_args: List[str], override_args: List[str]) -> List[str]:
+    """Replaces flags in base_args with matching option keys from override_args, and appends override_args."""
+    return _filter_args_by_keys(base_args, override_args) + override_args
+
+
+def remove_duplicate_sb_args(
+    cobalt_json_args: List[str],
+    script_args: Optional[List[str]] = None,
+    user_override_args: Optional[List[str]] = None,
+) -> List[str]:
+    """Combines cobalt_json_args, script_args, and user_override_args with key deduplication.
+
+    Precedence order (highest to lowest):
+      1. user_override_args (passed via --param)
+      2. script_args (script-added flags e.g. --remote-debugging-port=9222)
+      3. cobalt_json_args (pre-existing flags from WPEFramework cobalt.json / sbmainargs)
+    """
+    script_args = script_args or []
+    user_override_args = user_override_args or []
+
+    # 1. Merge script_args with user_override_args
+    override_args = _merge_args(script_args, user_override_args)
+
+    # 2. Merge cobalt_json_args with override_args
+    return _merge_args(cobalt_json_args, override_args)
+
+
 def launch_on_device(
     device_id: Optional[str],
     device_ip: Optional[str],
@@ -314,29 +312,17 @@ def launch_on_device(
             res = json.loads(res_str.strip())
             if "result" in res:
                 config = res["result"]
-                sb_args = config.get("sbmainargs", [])
+                cobalt_json_args = config.get("sbmainargs", [])
                 
-                # Filter out any existing url, profiling and remote debugging arguments to prevent duplicates
-                blocked_flags = {
-                    "--remote-debugging-port",
-                    "--enable-heap-profiling",
-                    "--memlog",
-                    "--memlog-stack-mode",
-                    "--trace-startup",
-                    "--trace-startup-duration",
-                    "--trace-startup-format",
-                    "--trace-startup-file",
-                    "--url",
-                }
-                sb_args = [arg for arg in sb_args if arg.split("=", 1)[0] not in blocked_flags]
-                
+                script_args = []
                 if devtools:
-                    sb_args.append("--remote-debugging-port=9222")
+                    script_args.append("--remote-debugging-port=9222")
 
-                if param:
-                    sb_args.extend(param)
+                user_override_args = param if param else []
 
-                config["sbmainargs"] = sb_args
+                config["sbmainargs"] = remove_duplicate_sb_args(
+                    cobalt_json_args, script_args, user_override_args
+                )
 
                 # Set configuration
                 rpc_set_config = json.dumps({
@@ -498,9 +484,23 @@ def parse_args() -> argparse.Namespace:
         "--param",
         nargs=argparse.REMAINDER,
         default=[],
-        help="Additional runtime parameter(s) to pass to StarboardMain (must be specified last).",
+        help=(
+            "Additional runtime parameter(s) to pass to StarboardMain (must be specified last). "
+            "All arguments must start with '--' (positional arguments are not supported)."
+        ),
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.param:
+        for arg in args.param:
+            if not arg.startswith("--"):
+                print(
+                    f"Error: All arguments passed to --param must start with '--' (positional arguments are not supported). "
+                    f"Positional argument '{arg}' is not supported."
+                )
+                sys.exit(1)
+
+    return args
 
 
 def get_model_name(device_id: str) -> Optional[str]:

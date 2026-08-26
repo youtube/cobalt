@@ -14,11 +14,14 @@ import androidx.annotation.Nullable;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.tab.TabArchiveSettings;
+import org.chromium.chrome.browser.tasks.tab_management.TabArchiveSettingsFragment;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
+import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
@@ -39,6 +42,7 @@ public class ArchivedTabsAutoDeletePromoCoordinator {
     private final BottomSheetController mBottomSheetController;
     private final TabArchiveSettings mTabArchiveSettings;
     private final PropertyModel mModel;
+    private SettingsNavigation mSettingsNavigation;
 
     private @Nullable ArchivedTabsAutoDeletePromoSheetContent mSheetContent;
     private @Nullable BottomSheetObserver mSheetObserver;
@@ -73,6 +77,7 @@ public class ArchivedTabsAutoDeletePromoCoordinator {
         mContext = context;
         mBottomSheetController = bottomSheetController;
         mTabArchiveSettings = tabArchiveSettings;
+        mSettingsNavigation = SettingsNavigationFactory.createSettingsNavigation();
 
         mModel = ArchivedTabsAutoDeletePromoProperties.createDefaultModel();
 
@@ -111,6 +116,8 @@ public class ArchivedTabsAutoDeletePromoCoordinator {
         // In case a previous show attempt was interrupted before cleanup completed
         cleanupSheetResourcesOnly();
 
+        String descriptionString = setPromoDescription();
+
         mIsFinalizedThisInstance = false;
 
         View contentView =
@@ -121,7 +128,7 @@ public class ArchivedTabsAutoDeletePromoCoordinator {
                 PropertyModelChangeProcessor.create(
                         mModel, contentView, ArchivedTabsAutoDeletePromoViewBinder::bind);
 
-        mSheetContent = new ArchivedTabsAutoDeletePromoSheetContent(contentView);
+        mSheetContent = new ArchivedTabsAutoDeletePromoSheetContent(contentView, descriptionString);
 
         mSheetObserver =
                 new EmptyBottomSheetObserver() {
@@ -169,18 +176,18 @@ public class ArchivedTabsAutoDeletePromoCoordinator {
             return;
         }
         mIsFinalizedThisInstance = true;
-
         boolean disableAutoDeleteFeature = mUserChoiceThisInstance == UserChoice.NO;
 
-        mTabArchiveSettings.setAutoDeleteEnabled(!disableAutoDeleteFeature);
+        mTabArchiveSettings.setAutoDeleteEnabled(true);
         mTabArchiveSettings.setAutoDeleteDecisionMade(true);
-
+        if (disableAutoDeleteFeature) {
+            mSettingsNavigation.startSettings(mContext, TabArchiveSettingsFragment.class);
+        }
         if (disableAutoDeleteFeature) {
             RecordUserAction.record("Tabs.ArchivedTabAutoDeletePromo.No");
         } else {
             RecordUserAction.record("Tabs.ArchivedTabAutoDeletePromo.Yes");
         }
-
         cleanupSheetResourcesOnly();
     }
 
@@ -204,11 +211,29 @@ public class ArchivedTabsAutoDeletePromoCoordinator {
         mIsSheetCurrentlyManagedByController = false;
     }
 
+    /* Sets and returns the auto delete delay variable in the description string. */
+    private String setPromoDescription() {
+        int autoDeleteTimeFrame = mTabArchiveSettings.getAutoDeleteTimeDeltaMonths();
+        String descriptionString =
+                mContext.getResources()
+                        .getQuantityString(
+                                R.plurals.archived_tabs_auto_delete_promo_description,
+                                autoDeleteTimeFrame,
+                                autoDeleteTimeFrame);
+        mModel.set(
+                ArchivedTabsAutoDeletePromoProperties.PROMO_DESCRIPTION_STRING, descriptionString);
+        return descriptionString;
+    }
+
     PropertyModel getModelForTesting() {
         return mModel;
     }
 
     boolean isSheetCurrentlyManagedForTesting() {
         return mIsSheetCurrentlyManagedByController;
+    }
+
+    void setSettingsNavigationForTesting(SettingsNavigation settingsNavigation) {
+        mSettingsNavigation = settingsNavigation;
     }
 }

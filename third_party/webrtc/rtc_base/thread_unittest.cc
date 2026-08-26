@@ -490,9 +490,8 @@ TEST(ThreadTest, ThreeThreadsBlockingCall) {
       IsRtcOk());
 }
 
-static void DelayedPostsWithIdenticalTimesAreProcessedInFifoOrder(
-    FakeClock& clock,
-    Thread& q) {
+void DelayedPostsWithIdenticalTimesAreProcessedInFifoOrder(FakeClock& clock,
+                                                           Thread& q) {
   std::vector<int> run_order;
 
   Event done;

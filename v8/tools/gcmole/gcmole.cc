@@ -664,6 +664,7 @@ class FunctionAnalyzer {
                    clang::CXXRecordDecl* heap_object_decl,
                    clang::CXXRecordDecl* smi_decl,
                    clang::CXXRecordDecl* tagged_index_decl,
+                   clang::CXXRecordDecl* cleared_weak_value_decl,
                    clang::ClassTemplateDecl* tagged_decl,
                    clang::CXXRecordDecl* no_gc_mole_decl,
                    clang::CXXRecordDecl* conservative_pinning_scope_decl,
@@ -672,6 +673,7 @@ class FunctionAnalyzer {
         heap_object_decl_(heap_object_decl),
         smi_decl_(smi_decl),
         tagged_index_decl_(tagged_index_decl),
+        cleared_weak_value_decl_(cleared_weak_value_decl),
         tagged_decl_(tagged_decl),
         no_gc_mole_decl_(no_gc_mole_decl),
         conservative_pinning_scope_decl_(conservative_pinning_scope_decl),
@@ -1289,7 +1291,7 @@ class FunctionAnalyzer {
 
   const clang::CXXRecordDecl* GetDefinitionOrNull(
       const clang::CXXRecordDecl* record) {
-    if (record == nullptr) return nullptr;
+    assert(record);
     if (!InV8Namespace(record)) return nullptr;
     if (!record->hasDefinition()) return nullptr;
     return record->getDefinition();
@@ -1321,7 +1323,8 @@ class FunctionAnalyzer {
         auto* tagged_type_record =
             template_args[0].getAsType()->getAsCXXRecordDecl();
         return tagged_type_record != smi_decl_ &&
-               tagged_type_record != tagged_index_decl_;
+               tagged_type_record != tagged_index_decl_ &&
+               tagged_type_record != cleared_weak_value_decl_;
       }
     }
 
@@ -1366,27 +1369,11 @@ class FunctionAnalyzer {
   }
 
   bool IsGCGuard(clang::QualType qtype) {
-    if (!no_gc_mole_decl_) return false;
-    if (qtype.isNull()) return false;
-    if (qtype->isNullPtrType()) return false;
-
-    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-
-    if (!definition) return false;
-    return no_gc_mole_decl_ == definition;
+    return IsSameType(qtype, no_gc_mole_decl_);
   }
 
   bool IsConservativePinningScope(clang::QualType qtype) {
-    if (!conservative_pinning_scope_decl_) return false;
-    if (qtype.isNull()) return false;
-    if (qtype->isNullPtrType()) return false;
-
-    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
-    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
-
-    if (!definition) return false;
-    return conservative_pinning_scope_decl_ == definition;
+    return IsSameType(qtype, conservative_pinning_scope_decl_);
   }
 
   Environment VisitDecl(clang::Decl* decl, Environment& env) {
@@ -1474,6 +1461,16 @@ class FunctionAnalyzer {
   }
 
  private:
+  bool IsSameType(clang::QualType qtype, clang::CXXRecordDecl* decl) {
+    if (!decl) return false;
+    if (qtype.isNull() || qtype->isNullPtrType()) return false;
+
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
+    if (!record) return false;
+
+    return record->getCanonicalDecl() == decl->getCanonicalDecl();
+  }
+
   void ReportUnsafe(const clang::Expr* expr, const std::string& msg) {
     clang::SourceLocation error_loc =
         clang::FullSourceLoc(expr->getExprLoc(), sm_);
@@ -1528,6 +1525,7 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* heap_object_decl_;
   clang::CXXRecordDecl* smi_decl_;
   clang::CXXRecordDecl* tagged_index_decl_;
+  clang::CXXRecordDecl* cleared_weak_value_decl_;
   clang::ClassTemplateDecl* tagged_decl_;
   clang::CXXRecordDecl* no_gc_mole_decl_;
   clang::CXXRecordDecl* conservative_pinning_scope_decl_;
@@ -1634,6 +1632,9 @@ class ProblemsFinder : public clang::ASTConsumer,
     clang::CXXRecordDecl* tagged_index_decl =
         v8_internal.Resolve<clang::CXXRecordDecl>("TaggedIndex");
 
+    clang::CXXRecordDecl* cleared_weak_value_decl =
+        v8_internal.Resolve<clang::CXXRecordDecl>("ClearedWeakValue");
+
     clang::ClassTemplateDecl* tagged_decl =
         v8_internal.Resolve<clang::ClassTemplateDecl>("Tagged");
 
@@ -1657,8 +1658,8 @@ class ProblemsFinder : public clang::ASTConsumer,
         tagged_index_decl != nullptr && tagged_decl != nullptr) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), heap_object_decl,
-          smi_decl, tagged_index_decl, tagged_decl, no_gc_mole_decl,
-          conservative_pinning_scope_decl, d_, sm_);
+          smi_decl, tagged_index_decl, cleared_weak_value_decl, tagged_decl,
+          no_gc_mole_decl, conservative_pinning_scope_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else if (g_verbose) {
       if (heap_object_decl == nullptr) {

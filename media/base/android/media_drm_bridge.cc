@@ -31,7 +31,6 @@
 #include "base/system/sys_info.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/pass_key.h"
-#include "media/base/android/android_util.h"
 #include "media/base/android/media_codec_util.h"
 #include "media/base/android/media_drm_bridge_client.h"
 #include "media/base/android/media_drm_bridge_delegate.h"
@@ -785,8 +784,7 @@ void MediaDrmBridge::SetMediaCryptoReadyCB(
   }
 
   std::move(media_crypto_ready_cb_)
-      .Run(CreateJavaObjectPtr(j_media_crypto_->obj()),
-           IsSecureCodecRequired());
+      .Run(j_media_crypto_, IsSecureCodecRequired());
 }
 
 bool MediaDrmBridge::SetPropertyStringForTesting(
@@ -810,28 +808,26 @@ bool MediaDrmBridge::SetPropertyStringForTesting(
 
 void MediaDrmBridge::OnMediaCryptoReady(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_media_drm,
     const JavaParamRef<jobject>& j_media_crypto) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DVLOG(1) << __func__;
 
   task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(&MediaDrmBridge::NotifyMediaCryptoReady,
-                                weak_factory_.GetWeakPtr(),
-                                CreateJavaObjectPtr(j_media_crypto.obj())));
+      FROM_HERE,
+      base::BindOnce(&MediaDrmBridge::NotifyMediaCryptoReady,
+                     weak_factory_.GetWeakPtr(),
+                     ScopedJavaGlobalRef<jobject>(env, j_media_crypto)));
 }
 
 void MediaDrmBridge::OnProvisionRequest(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_media_drm,
     const JavaParamRef<jstring>& j_default_url,
     const JavaParamRef<jbyteArray>& j_request_data) {
   DVLOG(1) << __func__;
 
   std::string request_data;
   JavaByteArrayToString(env, j_request_data, &request_data);
-  std::string default_url;
-  ConvertJavaStringToUTF8(env, j_default_url, &default_url);
+  std::string default_url = ConvertJavaStringToUTF8(env, j_default_url);
   task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&MediaDrmBridge::SendProvisioningRequest,
                                 weak_factory_.GetWeakPtr(), GURL(default_url),
@@ -840,7 +836,6 @@ void MediaDrmBridge::OnProvisionRequest(
 
 void MediaDrmBridge::OnProvisioningComplete(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& j_media_drm,
     bool success) {
   DVLOG(1) << __func__;
 
@@ -851,7 +846,6 @@ void MediaDrmBridge::OnProvisioningComplete(
 }
 
 void MediaDrmBridge::OnPromiseResolved(JNIEnv* env,
-                                       const JavaParamRef<jobject>& j_media_drm,
                                        jint j_promise_id) {
   task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&MediaDrmBridge::ResolvePromise,
@@ -860,7 +854,6 @@ void MediaDrmBridge::OnPromiseResolved(JNIEnv* env,
 
 void MediaDrmBridge::OnPromiseResolvedWithSession(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_media_drm,
     jint j_promise_id,
     const JavaParamRef<jbyteArray>& j_session_id) {
   std::string session_id;
@@ -873,7 +866,6 @@ void MediaDrmBridge::OnPromiseResolvedWithSession(
 
 void MediaDrmBridge::OnPromiseRejected(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_media_drm,
     jint j_promise_id,
     jint j_system_code,
     const JavaParamRef<jstring>& j_error_message) {
@@ -889,7 +881,6 @@ void MediaDrmBridge::OnPromiseRejected(
 
 void MediaDrmBridge::OnSessionMessage(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_media_drm,
     const JavaParamRef<jbyteArray>& j_session_id,
     jint j_message_type,
     const JavaParamRef<jbyteArray>& j_message) {
@@ -909,7 +900,6 @@ void MediaDrmBridge::OnSessionMessage(
 
 void MediaDrmBridge::OnSessionClosed(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_media_drm,
     const JavaParamRef<jbyteArray>& j_session_id) {
   DVLOG(2) << __func__;
   std::string session_id;
@@ -922,7 +912,6 @@ void MediaDrmBridge::OnSessionClosed(
 
 void MediaDrmBridge::OnSessionKeysChange(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_media_drm,
     const JavaParamRef<jbyteArray>& j_session_id,
     const JavaParamRef<jobjectArray>& j_keys_info,
     bool has_additional_usable_key,
@@ -979,7 +968,6 @@ void MediaDrmBridge::OnSessionKeysChange(
 // [5] https://github.com/w3c/encrypted-media/issues/58
 void MediaDrmBridge::OnSessionExpirationUpdate(
     JNIEnv* env,
-    const JavaParamRef<jobject>& j_media_drm,
     const JavaParamRef<jbyteArray>& j_session_id,
     jlong expiry_time_ms) {
   DVLOG(2) << __func__ << ": " << expiry_time_ms << " ms";
@@ -1063,7 +1051,8 @@ MediaDrmBridge::~MediaDrmBridge() {
   }
 
   if (media_crypto_ready_cb_) {
-    std::move(media_crypto_ready_cb_).Run(CreateJavaObjectPtr(nullptr), false);
+    ScopedJavaGlobalRef<jobject> global_ref;
+    std::move(media_crypto_ready_cb_).Run(global_ref, false);
   }
 
   // Rejects all pending promises.
@@ -1095,7 +1084,8 @@ HdcpVersion MediaDrmBridge::GetCurrentHdcpLevel() {
   return ToEmeHdcpVersion(current_hdcp_level_str);
 }
 
-void MediaDrmBridge::NotifyMediaCryptoReady(JavaObjectPtr j_media_crypto) {
+void MediaDrmBridge::NotifyMediaCryptoReady(
+    ScopedJavaGlobalRef<jobject> j_media_crypto) {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(j_media_crypto);
   DCHECK(!j_media_crypto_);
@@ -1103,7 +1093,7 @@ void MediaDrmBridge::NotifyMediaCryptoReady(JavaObjectPtr j_media_crypto) {
   j_media_crypto_ = std::move(j_media_crypto);
 
   UMA_HISTOGRAM_BOOLEAN("Media.EME.MediaCryptoAvailable",
-                        !j_media_crypto_->is_null());
+                        !j_media_crypto_.is_null());
 
   if (!media_crypto_ready_cb_) {
     return;
@@ -1111,8 +1101,7 @@ void MediaDrmBridge::NotifyMediaCryptoReady(JavaObjectPtr j_media_crypto) {
 
   // We have to use scoped_ptr to pass ScopedJavaGlobalRef with a callback.
   std::move(media_crypto_ready_cb_)
-      .Run(CreateJavaObjectPtr(j_media_crypto_->obj()),
-           IsSecureCodecRequired());
+      .Run(j_media_crypto_, IsSecureCodecRequired());
 }
 
 void MediaDrmBridge::SendProvisioningRequest(const GURL& default_url,

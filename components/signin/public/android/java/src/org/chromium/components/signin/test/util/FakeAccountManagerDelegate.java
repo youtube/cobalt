@@ -19,8 +19,8 @@ import org.chromium.components.signin.AccountManagerDelegateException;
 import org.chromium.components.signin.AccountsChangeObserver;
 import org.chromium.components.signin.AuthException;
 import org.chromium.components.signin.base.AccountInfo;
-import org.chromium.components.signin.base.CoreAccountId;
-import org.chromium.components.signin.base.GaiaId;
+import org.chromium.google_apis.gaia.CoreAccountId;
+import org.chromium.google_apis.gaia.GaiaId;
 import org.chromium.google_apis.gaia.GoogleServiceAuthError;
 import org.chromium.google_apis.gaia.GoogleServiceAuthErrorState;
 
@@ -122,15 +122,10 @@ public class FakeAccountManagerDelegate implements AccountManagerDelegate {
         }
     }
 
-    @Override
-    public boolean hasFeature(Account account, String feature) {
-        // Account features aren't supported in FakeAccountManagerDelegate.
-        return false;
-    }
 
     @Override
     public @CapabilityResponse int hasCapability(Account account, String capability) {
-        return hasFeature(account, capability) ? CapabilityResponse.YES : CapabilityResponse.NO;
+        return CapabilityResponse.NO;
     }
 
     @Override

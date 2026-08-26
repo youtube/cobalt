@@ -24,15 +24,15 @@ class VkTestContextImpl : public sk_gpu_test::VkTestContext {
 public:
     static VkTestContext* Create(VkTestContext* sharedContext) {
         skgpu::VulkanBackendContext backendContext;
-        skgpu::VulkanExtensions* extensions;
-        VkPhysicalDeviceFeatures2* features;
+        const skgpu::VulkanExtensions* extensions;
+        const sk_gpu_test::TestVkFeatures* features;
         bool ownsContext = true;
-        VkDebugReportCallbackEXT debugCallback = VK_NULL_HANDLE;
-        PFN_vkDestroyDebugReportCallbackEXT destroyCallback = nullptr;
+        VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
+        PFN_vkDestroyDebugUtilsMessengerEXT destroyCallback = nullptr;
         if (sharedContext) {
             backendContext = sharedContext->getVkBackendContext();
-            extensions = const_cast<skgpu::VulkanExtensions*>(sharedContext->getVkExtensions());
-            features = const_cast<VkPhysicalDeviceFeatures2*>(sharedContext->getVkFeatures());
+            extensions = sharedContext->getVkExtensions();
+            features = sharedContext->getVkFeatures();
             // We always delete the parent context last so make sure the child does not think they
             // own the vulkan context.
             ownsContext = false;
@@ -42,25 +42,29 @@ public:
                 return nullptr;
             }
 
-            extensions = new skgpu::VulkanExtensions();
-            features = new VkPhysicalDeviceFeatures2;
-            memset(features, 0, sizeof(VkPhysicalDeviceFeatures2));
-            if (!sk_gpu_test::CreateVkBackendContext(instProc, &backendContext, extensions,
-                                                     features, &debugCallback,
-                                                     nullptr, sk_gpu_test::CanPresentFn(),
+            skgpu::VulkanExtensions* ownedExtensions = new skgpu::VulkanExtensions();
+            sk_gpu_test::TestVkFeatures* ownedFeatures = new sk_gpu_test::TestVkFeatures;
+            extensions = ownedExtensions;
+            features = ownedFeatures;
+            if (!sk_gpu_test::CreateVkBackendContext(instProc,
+                                                     &backendContext,
+                                                     ownedExtensions,
+                                                     ownedFeatures,
+                                                     &debugMessenger,
+                                                     nullptr,
+                                                     sk_gpu_test::CanPresentFn(),
                                                      gCreateProtectedContext)) {
-                sk_gpu_test::FreeVulkanFeaturesStructs(features);
-                delete features;
-                delete extensions;
+                delete ownedExtensions;
+                delete ownedFeatures;
                 return nullptr;
             }
-            if (debugCallback != VK_NULL_HANDLE) {
-                destroyCallback = (PFN_vkDestroyDebugReportCallbackEXT) instProc(
-                        backendContext.fInstance, "vkDestroyDebugReportCallbackEXT");
+            if (debugMessenger != VK_NULL_HANDLE) {
+                destroyCallback = (PFN_vkDestroyDebugUtilsMessengerEXT)instProc(
+                        backendContext.fInstance, "vkDestroyDebugUtilsMessengerEXT");
             }
         }
-        return new VkTestContextImpl(backendContext, extensions, features, ownsContext,
-                                     debugCallback, destroyCallback);
+        return new VkTestContextImpl(
+                backendContext, extensions, features, ownsContext, debugMessenger, destroyCallback);
     }
 
     ~VkTestContextImpl() override { this->teardown(); }
@@ -92,14 +96,13 @@ protected:
             grVkDeviceWaitIdle(fVk.fDevice);
             grVkDestroyDevice(fVk.fDevice, nullptr);
 #ifdef SK_ENABLE_VK_LAYERS
-            if (fDebugCallback != VK_NULL_HANDLE) {
-                fDestroyDebugReportCallbackEXT(fVk.fInstance, fDebugCallback, nullptr);
+            if (fDebugMessenger != VK_NULL_HANDLE) {
+                fDestroyDebugUtilsMessengerEXT(fVk.fInstance, fDebugMessenger, nullptr);
             }
 #endif
             grVkDestroyInstance(fVk.fInstance, nullptr);
-            delete fExtensions;
 
-            sk_gpu_test::FreeVulkanFeaturesStructs(fFeatures);
+            delete fExtensions;
             delete fFeatures;
         }
     }
@@ -107,15 +110,15 @@ protected:
 private:
     VkTestContextImpl(const skgpu::VulkanBackendContext& backendContext,
                       const skgpu::VulkanExtensions* extensions,
-                      VkPhysicalDeviceFeatures2* features,
+                      const sk_gpu_test::TestVkFeatures* features,
                       bool ownsContext,
-                      VkDebugReportCallbackEXT debugCallback,
-                      PFN_vkDestroyDebugReportCallbackEXT destroyCallback)
+                      VkDebugUtilsMessengerEXT debugMessenger,
+                      PFN_vkDestroyDebugUtilsMessengerEXT destroyCallback)
             : VkTestContext(backendContext,
                             extensions,
                             features,
                             ownsContext,
-                            debugCallback,
+                            debugMessenger,
                             destroyCallback) {
         fFenceSupport = true;
     }

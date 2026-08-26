@@ -85,6 +85,7 @@ To import a third-party crate follow the steps below:
    ```
 1. Generate the `BUILD.gn` file for the new crate:
    * `vpython3 ./tools/crates/run_gnrt.py gen`
+1. Add `//third_party/rust/crate_name/OWNERS`
 1. Add the new files to git:
    * `git add -f third_party/rust/chromium_crates_io/vendor`.
      (The `-f` is important, as files may be skipped otherwise from a
@@ -119,6 +120,33 @@ a dependency chain across the groups, it will break the `gnrt vendor` step.
 You will need to fix the new crate so that it's deemed safe in unsafe review,
 or move the other dependent crates out of `"safe"` as well by setting their
 group in `gnrt_config.toml`.
+
+## Troubleshooting
+
+### Incomplete sources or inputs listing
+
+`gnrt` enumerates all `.rs` files as crate sources, but may need help
+with discovering additional files consumed with something like
+[`include_str!`](https://doc.rust-lang.org/std/macro.include_str.html).
+So, if you see:
+
+```
+ERROR: file not in GN sources:
+../../third_party/rust/chromium_crates_io/vendor/some_crate/README.md
+```
+
+Then you can:
+
+* Add the missing files to
+  `third_party/rust/chromium_crates_io/gnrt_config.toml` - for example:
+
+  ```
+  [crate.some_crate]
+  extra_input_roots = ['../README.md']
+  ```
+
+* Re-generate `BUILD.gn` files by running:
+  `tools/crates/run_gnrt.py gen`
 
 # Updating existing third-party crates
 

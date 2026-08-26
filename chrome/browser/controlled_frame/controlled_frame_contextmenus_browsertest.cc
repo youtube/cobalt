@@ -295,11 +295,11 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameContextMenusTest, RemoveAll) {
 
 // TODO(crbug.com/392208013): Fix and enable on Mac.
 #if BUILDFLAG(IS_MAC)
-#define MAYBE_OnShow DISABLED_OnShow
+#define MAYBE_ShowEvent DISABLED_ShowEvent
 #else
-#define MAYBE_OnShow OnShow
+#define MAYBE_ShowEvent ShowEvent
 #endif  // BUILDFLAG(IS_MAC)
-IN_PROC_BROWSER_TEST_F(ControlledFrameContextMenusTest, MAYBE_OnShow) {
+IN_PROC_BROWSER_TEST_F(ControlledFrameContextMenusTest, MAYBE_ShowEvent) {
   web_app::IsolatedWebAppUrlInfo url_info =
       CreateAndInstallEmptyApp(web_app::ManifestBuilder());
   content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
@@ -319,29 +319,13 @@ document.onShowHandler = function() {
     return ('FAIL: frame or frame.contextMenus is undefined');
   }
 
-  if (frame.contextMenus.onShow.hasListeners()) {
-    return 'FAIL: frame.contextMenus.onShow.hasListeners() \
-    returns true before addListener().';
-  }
-
-  frame.contextMenus.onShow.addListener(document.onShowHandler);
-
-  if (!frame.contextMenus.onShow.hasListeners()) {
-    return 'FAIL: frame.contextMenus.hasListeners() \
-    returns false after addListener().';
-  }
-
-  if (!frame.contextMenus.onShow.hasListener(document.onShowHandler)) {
-    return 'FAIL: frame.contextMenus.onShow.hasListener() \
-    returns false after addListener().';
-  }
-
+  frame.contextMenus.addEventListener('show', document.onShowHandler);
   return $1;
 })();
 )",
       kEvalSuccessStr);
 
-  // Add a listener for 'onShow' then simulate right click and expect the
+  // Add a listener for 'show' then simulate right click and expect the
   // listener to be triggered.
   ASSERT_EQ(content::EvalJs(app_frame, add_handler_script), kEvalSuccessStr);
 
@@ -361,23 +345,7 @@ document.onShowHandler = function() {
     return ('FAIL: frame or frame.contextMenus is undefined');
   }
 
-  if (!frame.contextMenus.onShow.hasListeners()) {
-    return 'FAIL: frame.contextMenus.onShow.hasListeners() \
-    returns false before removeListener().';
-  }
-
-  frame.contextMenus.onShow.removeListener(document.onShowHandler);
-
-  if (frame.contextMenus.onShow.hasListeners()) {
-    return 'FAIL: frame.contextMenus.hasListeners() \
-    returns true after removeListener().';
-  }
-
-  if (frame.contextMenus.onShow.hasListener(document.onShowHandler)) {
-    return 'FAIL: frame.contextMenus.onShow.hasListener() \
-    returns true after removeListener().';
-  }
-
+  frame.contextMenus.removeEventListener('show', document.onShowHandler);
   return $1;
 })();
 )",
@@ -391,7 +359,35 @@ document.onShowHandler = function() {
   ASSERT_EQ(content::EvalJs(app_frame, "document.onShowCount"), 1);
 }
 
-IN_PROC_BROWSER_TEST_F(ControlledFrameContextMenusTest, OnClicked) {
+IN_PROC_BROWSER_TEST_F(ControlledFrameContextMenusTest, NoLegacyOnShowEvent) {
+  web_app::IsolatedWebAppUrlInfo url_info =
+      CreateAndInstallEmptyApp(web_app::ManifestBuilder());
+  content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
+
+  ASSERT_TRUE(CreateControlledFrame(
+      app_frame, embedded_https_test_server().GetURL("/index.html")));
+
+  const auto* check_legacy_event_script = R"(
+new Promise(async (resolve, reject) => {
+  const frame = document.getElementsByTagName('controlledframe')[0];
+  if (!frame || !frame.contextMenus) {
+    reject('FAIL: frame or frame.contextMenus is undefined');
+    return;
+  }
+
+  if (frame.contextMenus.onShow) {
+    reject('FAIL: contextMenus object contains an onShow attribute');
+    return;
+  }
+  resolve('SUCCESS');
+});
+    )";
+
+  ASSERT_EQ(content::EvalJs(app_frame, check_legacy_event_script),
+            kEvalSuccessStr);
+}
+
+IN_PROC_BROWSER_TEST_F(ControlledFrameContextMenusTest, ClickEvent) {
   constexpr std::string kItemID = "107";
 
   web_app::IsolatedWebAppUrlInfo url_info =
@@ -413,11 +409,6 @@ new Promise(async (resolve, reject) => {
   {
     title: 'test_title',
     id: $1,
-    onclick: function(info){
-      document.clickedMenuItemId =
-          [...(document.clickedMenuItemId ?? []), info.menuItemId];
-      document.inlineOnClickedCount=(document.inlineOnClickedCount ?? 0) + 1;
-    }
   });
   resolve('SUCCESS');
 });
@@ -432,7 +423,7 @@ new Promise(async (resolve, reject) => {
       R"(
 document.onClickedHandler = function(info) {
   document.clickedMenuItemId =
-      [...(document.clickedMenuItemId ?? []), info.menuItemId];
+      [...(document.clickedMenuItemId ?? []), info.menuItem.id];
   document.globalOnClickedCount = (document.globalOnClickedCount ?? 0) + 1;
 };
 
@@ -442,29 +433,14 @@ document.onClickedHandler = function(info) {
     return ('FAIL: frame or frame.contextMenus is undefined');
   }
 
-  if (frame.contextMenus.onClicked.hasListeners()) {
-    return 'FAIL: frame.contextMenus.onClicked.hasListeners() \
-    returns true before addListener().';
-  }
-
-  frame.contextMenus.onClicked.addListener(document.onClickedHandler);
-
-  if (!frame.contextMenus.onClicked.hasListeners()) {
-    return 'FAIL: frame.contextMenus.hasListeners() \
-    returns false after addListener().';
-  }
-
-  if (!frame.contextMenus.onClicked.hasListener(document.onClickedHandler)) {
-    return 'FAIL: frame.contextMenus.onClicked.hasListener() \
-    returns false after addListener().';
-  }
-
+  frame.contextMenus.addEventListener('click', document.onClickedHandler);
   return $1;
 })();
 )",
       kEvalSuccessStr);
 
-  // Add a global listener for 'onClicked' then simulate clicking on menu item.
+  // Add a global listener for the 'clicked' event, then simulate clicking on
+  // menu item.
   ASSERT_EQ(content::EvalJs(app_frame, add_handler_script), kEvalSuccessStr);
 
   extensions::WebViewGuest* web_view_guest = GetWebViewGuest(app_frame);
@@ -474,11 +450,11 @@ document.onClickedHandler = function(info) {
   ASSERT_TRUE(controlled_frame);
   SimulateClickContextMenuItem(controlled_frame);
 
-  EXPECT_EQ(content::EvalJs(app_frame, "document.inlineOnClickedCount"), 1);
   EXPECT_EQ(content::EvalJs(app_frame, "document.globalOnClickedCount"), 1);
-  EXPECT_THAT(
-      content::EvalJs(app_frame, "document.clickedMenuItemId").ExtractList(),
-      Each(Eq(kItemID)));
+  EXPECT_THAT(content::EvalJs(app_frame, "document.clickedMenuItemId")
+                  .TakeValue()
+                  .TakeList(),
+              Each(Eq(kItemID)));
 
   auto remove_handler_script = content::JsReplace(
       R"(
@@ -488,45 +464,24 @@ document.onClickedHandler = function(info) {
     return ('FAIL: frame or frame.contextMenus is undefined');
   }
 
-  if (!frame.contextMenus.onClicked.hasListeners()) {
-    return 'FAIL: frame.contextMenus.onClicked.hasListeners() \
-    returns false before removeListener().';
-  }
-
-  frame.contextMenus.onClicked.removeListener(document.onClickedHandler);
-
-  if (frame.contextMenus.onClicked.hasListeners()) {
-    return 'FAIL: frame.contextMenus.hasListeners() \
-    returns true after removeListener().';
-  }
-
-  if (frame.contextMenus.onClicked.hasListener(document.onClickedHandler)) {
-    return 'FAIL: frame.contextMenus.onClicked.hasListener() \
-    returns true after removeListener().';
-  }
-
+  frame.contextMenus.removeEventListener('click', document.onClickedHandler);
   return $1;
 })();
 )",
       kEvalSuccessStr);
 
-  // Remove the global listener for 'onClicked' then simulate clicking on menu
+  // Remove the global listener for 'click' then simulate clicking on menu
   // item.
   ASSERT_EQ(content::EvalJs(app_frame, remove_handler_script), kEvalSuccessStr);
 
   SimulateClickContextMenuItem(controlled_frame);
-  EXPECT_EQ(content::EvalJs(app_frame, "document.inlineOnClickedCount"), 2);
   EXPECT_EQ(content::EvalJs(app_frame, "document.globalOnClickedCount"), 1);
   EXPECT_THAT(
       content::EvalJs(app_frame, "document.clickedMenuItemId").ExtractList(),
       Each(Eq(kItemID)));
 }
 
-IN_PROC_BROWSER_TEST_F(ControlledFrameContextMenusTest, UpdatedOnClickHandler) {
-  constexpr char kItemID[] = "221B";
-  constexpr char kFirstOnClickValue[] = "first handler";
-  constexpr char kSecondOnClickValue[] = "second handler";
-
+IN_PROC_BROWSER_TEST_F(ControlledFrameContextMenusTest, NoLegacyOnClickEvent) {
   web_app::IsolatedWebAppUrlInfo url_info =
       CreateAndInstallEmptyApp(web_app::ManifestBuilder());
   content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
@@ -534,66 +489,24 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameContextMenusTest, UpdatedOnClickHandler) {
   ASSERT_TRUE(CreateControlledFrame(
       app_frame, embedded_https_test_server().GetURL("/index.html")));
 
-  auto create_context_menu_script =
-      content::JsReplace(R"(
+  const auto* check_legacy_event_script = R"(
 new Promise(async (resolve, reject) => {
   const frame = document.getElementsByTagName('controlledframe')[0];
-  if (!frame || !frame.contextMenus || !frame.contextMenus.create) {
-    reject('FAIL: frame, frame.contextMenus, or ' +
-        'frame.contextMenus.create is undefined');
+  if (!frame || !frame.contextMenus) {
+    reject('FAIL: frame or frame.contextMenus is undefined');
     return;
   }
-  await frame.contextMenus.create(
-  {
-    title: 'test_title',
-    id: $1,
-    onclick: function(info){
-      document.executed_onclick_handler = $2;
-    }
-  });
-  resolve('SUCCESS');
-});
-    )",
-                         kItemID, kFirstOnClickValue);
 
-  // Create a ContextMenu item with a inline listener.
-  ASSERT_EQ(content::EvalJs(app_frame, create_context_menu_script),
-            kEvalSuccessStr);
-
-  auto update_context_menu_script =
-      content::JsReplace(R"(
-new Promise(async (resolve, reject) => {
-  const frame = document.getElementsByTagName('controlledframe')[0];
-  if (!frame || !frame.contextMenus || !frame.contextMenus.create) {
-    reject('FAIL: frame, frame.contextMenus, or ' +
-        'frame.contextMenus.create is undefined');
+  if (frame.contextMenus.onClick) {
+    reject('FAIL: contextMenus object contains an onClick attribute');
     return;
   }
-  await frame.contextMenus.update(
-  $1,
-  {
-    onclick: function(info){
-      document.executed_onclick_handler = $2;
-    }
-  });
   resolve('SUCCESS');
 });
-    )",
-                         kItemID, kSecondOnClickValue);
+    )";
 
-  // Update a ContextMenu item with a new onclick handler.
-  ASSERT_EQ(content::EvalJs(app_frame, update_context_menu_script),
+  ASSERT_EQ(content::EvalJs(app_frame, check_legacy_event_script),
             kEvalSuccessStr);
-
-  extensions::WebViewGuest* web_view_guest = GetWebViewGuest(app_frame);
-  ASSERT_TRUE(web_view_guest);
-  content::RenderFrameHost* controlled_frame =
-      web_view_guest->GetGuestMainFrame();
-  ASSERT_TRUE(controlled_frame);
-  SimulateClickContextMenuItem(controlled_frame);
-
-  EXPECT_EQ(content::EvalJs(app_frame, "document.executed_onclick_handler"),
-            kSecondOnClickValue);
 }
 
 }  // namespace controlled_frame

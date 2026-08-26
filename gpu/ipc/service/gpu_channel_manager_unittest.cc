@@ -21,6 +21,7 @@
 #include "gpu/ipc/common/gpu_channel.mojom.h"
 #include "gpu/ipc/service/gpu_channel.h"
 #include "gpu/ipc/service/gpu_channel_test_common.h"
+#include "ipc/constants.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 
@@ -34,10 +35,6 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
   GpuChannelManagerTest()
       : GpuChannelTestCommon(true /* use_stub_bindings */) {}
   ~GpuChannelManagerTest() override = default;
-
-  GpuChannelManager::GpuPeakMemoryMonitor* gpu_peak_memory_monitor() {
-    return &channel_manager()->peak_memory_monitor_;
-  }
 
   // Returns the peak memory usage from the channel_manager(). This will stop
   // tracking for |sequence_number|.
@@ -55,7 +52,7 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
     // Set default as max so that invalid cases can properly test 0u returns.
     uint64_t peak_memory = kUInt64_T_Max;
     auto allocation =
-        channel_manager()->peak_memory_monitor_.GetPeakMemoryUsage(
+        channel_manager()->peak_memory_monitor_->GetPeakMemoryUsage(
             sequence_num, &peak_memory);
     return peak_memory;
   }
@@ -65,9 +62,8 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
   void OnMemoryAllocatedChange(CommandBufferId id,
                                uint64_t old_size,
                                uint64_t new_size) {
-    static_cast<MemoryTracker::Observer*>(gpu_peak_memory_monitor())
-        ->OnMemoryAllocatedChange(id, old_size, new_size,
-                                  GpuPeakMemoryAllocationSource::UNKNOWN);
+    channel_manager()->peak_memory_monitor()->OnMemoryAllocatedChange(
+        id, old_size, new_size, GpuPeakMemoryAllocationSource::UNKNOWN);
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -82,7 +78,7 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
     int32_t kRouteId =
         static_cast<int32_t>(GpuChannelReservedRoutes::kMaxValue) + 1;
     auto init_params = mojom::CreateCommandBufferParams::New();
-    init_params->share_group_id = MSG_ROUTING_NONE;
+    init_params->share_group_id = IPC::mojom::kRoutingIdNone;
     init_params->stream_id = 0;
     init_params->stream_priority = SchedulingPriority::kNormal;
     init_params->attribs = ContextCreationAttribs();

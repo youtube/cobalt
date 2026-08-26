@@ -18,6 +18,7 @@
 #import "ios/chrome/browser/popup_menu/ui_bundled/overflow_menu/overflow_menu_action_provider.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/overflow_menu/overflow_menu_metrics.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/overflow_menu/overflow_menu_swift.h"
+#import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_backed_boolean.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
@@ -52,8 +53,13 @@ void AppendDestinationsToVector(const base::Value::List& from,
     if (!value.is_string()) {
       continue;
     }
+    std::optional<overflow_menu::Destination> destination =
+        overflow_menu::DestinationForStringName(value.GetString());
+    if (!destination) {
+      continue;
+    }
 
-    to.push_back(overflow_menu::DestinationForStringName(value.GetString()));
+    to.push_back(*destination);
   }
 }
 
@@ -67,8 +73,13 @@ void AddDestinationsToSet(const base::Value::List& from,
     if (!value.is_string()) {
       continue;
     }
+    std::optional<overflow_menu::Destination> destination =
+        overflow_menu::DestinationForStringName(value.GetString());
+    if (!destination) {
+      continue;
+    }
 
-    to.insert(overflow_menu::DestinationForStringName(value.GetString()));
+    to.insert(*destination);
   }
 }
 
@@ -526,9 +537,13 @@ base::Value::Dict DictFromBadgeData(const BadgeData badgeData) {
       continue;
     }
 
-    overflow_menu::Destination destination =
+    std::optional<overflow_menu::Destination> destination =
         overflow_menu::DestinationForStringName(key);
-    _destinationBadgeData[destination] = badgeData.value();
+    if (!destination) {
+      continue;
+    }
+
+    _destinationBadgeData[*destination] = badgeData.value();
   }
 
   [self loadShownDestinationsPref];
@@ -569,14 +584,38 @@ base::Value::Dict DictFromBadgeData(const BadgeData badgeData) {
 
   const base::Value::List* shownActions =
       storedActions.FindList(kShownActionsKey);
+
+  // Actions should be added only once to `actionOrderData`. If an action is
+  // both shown and hidden according to prefs, it is treated as a shown action.
+  std::unordered_set<overflow_menu::ActionType> actionsSet;
+
   if (shownActions) {
     for (const auto& value : *shownActions) {
       if (!value.is_string()) {
         continue;
       }
+      std::optional<overflow_menu::ActionType> actionType =
+          overflow_menu::ActionTypeForStringName(value.GetString());
+      if (!actionType) {
+        continue;
+      }
+      if (actionsSet.contains(*actionType)) {
+        continue;
+      }
+      if (*actionType == overflow_menu::ActionType::ReaderMode &&
+          !IsReaderModeAvailable()) {
+        // Reader mode may have been disabled since the last update, if so do
+        // not add it to `actionsSet`.
+        continue;
+      }
+      if (*actionType == overflow_menu::ActionType::Follow) {
+        // Follow has been deprecated. Do not add it to `actionSet`.
+        // TODO(crbug.com/435685705): Clean up the enum.
+        continue;
+      }
 
-      actionOrderData.shownActions.push_back(
-          overflow_menu::ActionTypeForStringName(value.GetString()));
+      actionsSet.insert(*actionType);
+      actionOrderData.shownActions.push_back(*actionType);
     }
   }
 
@@ -587,9 +626,28 @@ base::Value::Dict DictFromBadgeData(const BadgeData badgeData) {
       if (!value.is_string()) {
         continue;
       }
+      std::optional<overflow_menu::ActionType> actionType =
+          overflow_menu::ActionTypeForStringName(value.GetString());
+      if (!actionType) {
+        continue;
+      }
+      if (actionsSet.contains(*actionType)) {
+        continue;
+      }
+      if (*actionType == overflow_menu::ActionType::ReaderMode &&
+          !IsReaderModeAvailable()) {
+        // Reader mode may have been disabled since the last update, if so do
+        // not add it to `actionsSet`.
+        continue;
+      }
+      if (*actionType == overflow_menu::ActionType::Follow) {
+        // Follow has been deprecated. Do not add it to `actionSet`.
+        // TODO(crbug.com/435685705): Clean up the enum.
+        continue;
+      }
 
-      actionOrderData.hiddenActions.push_back(
-          overflow_menu::ActionTypeForStringName(value.GetString()));
+      actionsSet.insert(*actionType);
+      actionOrderData.hiddenActions.push_back(*actionType);
     }
   }
   _actionOrderData = actionOrderData;
@@ -675,6 +733,8 @@ base::Value::Dict DictFromBadgeData(const BadgeData badgeData) {
 // This handles new users with no stored data and new actions added.
 - (void)updateActionOrderData {
   ActionRanking availableActions = [self.actionProvider basePageActions];
+  std::set<overflow_menu::ActionType> sortedAvailableActions{
+      availableActions.begin(), availableActions.end()};
 
   // Add any available actions not present in shown or hidden to the shown list.
   std::set<overflow_menu::ActionType> knownActions(
@@ -683,8 +743,10 @@ base::Value::Dict DictFromBadgeData(const BadgeData badgeData) {
   knownActions.insert(_actionOrderData.hiddenActions.begin(),
                       _actionOrderData.hiddenActions.end());
 
-  std::set_difference(availableActions.begin(), availableActions.end(),
-                      knownActions.begin(), knownActions.end(),
+  // std::set_difference input ranges have to be sorted.
+  std::set_difference(sortedAvailableActions.begin(),
+                      sortedAvailableActions.end(), knownActions.begin(),
+                      knownActions.end(),
                       std::back_inserter(_actionOrderData.shownActions));
 
   [self flushActionsToPrefs];

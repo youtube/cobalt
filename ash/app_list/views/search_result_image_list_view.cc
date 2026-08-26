@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,6 +22,7 @@
 #include "base/files/file_path.h"
 #include "base/i18n/time_formatting.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -58,7 +60,8 @@ constexpr size_t kNumOfContentLabels = 3;
 // `image_info_container_`.
 std::u16string GetFormattedTime(base::Time time) {
   std::u16string date_time_of_day = base::TimeFormatTimeOfDay(time);
-  std::u16string relative_date = ui::TimeFormat::RelativeDate(time, nullptr);
+  std::u16string relative_date =
+      ui::TimeFormat::RelativeDate(time, std::nullopt);
   std::u16string formatted_time;
   if (!relative_date.empty()) {
     relative_date = base::ToLowerASCII(relative_date);

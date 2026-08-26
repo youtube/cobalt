@@ -19,18 +19,19 @@ class APIBindingHooks;
 // methods of the Binding prototype in binding.js.
 class APIBindingBridge final : public gin::Wrappable<APIBindingBridge> {
  public:
+  static constexpr gin::WrapperInfo kWrapperInfo = {
+      {gin::kEmbedderNativeGin}, gin::kAPIBindingBridge};
+
+  APIBindingBridge(const APIBindingBridge&) = delete;
+  APIBindingBridge& operator=(const APIBindingBridge&) = delete;
+
+  // Public for cppgc::MakeGarbageCollected.
   APIBindingBridge(APIBindingHooks* hooks,
                    v8::Local<v8::Context> context,
                    v8::Local<v8::Value> api_object,
                    const ExtensionId& extension_id,
                    const std::string& context_type);
-
-  APIBindingBridge(const APIBindingBridge&) = delete;
-  APIBindingBridge& operator=(const APIBindingBridge&) = delete;
-
   ~APIBindingBridge() override;
-
-  static gin::WrapperInfo kWrapperInfo;
 
   // gin::Wrappable:
   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
@@ -47,6 +48,8 @@ class APIBindingBridge final : public gin::Wrappable<APIBindingBridge> {
   // This should register any hooks that the JS needs for the given API.
   void RegisterCustomHook(v8::Isolate* isolate,
                           v8::Local<v8::Function> function);
+
+  const gin::WrapperInfo* wrapper_info() const override;
 
   // The id of the extension that owns the context this belongs to.
   ExtensionId extension_id_;

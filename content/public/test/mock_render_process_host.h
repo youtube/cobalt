@@ -25,7 +25,6 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_process_host_factory.h"
 #include "content/public/browser/storage_partition_config.h"
-#include "ipc/ipc_test_sink.h"
 #include "media/media_buildflags.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -67,10 +66,6 @@ class MockRenderProcessHost : public RenderProcessHost {
   MockRenderProcessHost& operator=(const MockRenderProcessHost&) = delete;
 
   ~MockRenderProcessHost() override;
-
-  // Provides access to all IPC messages that would have been sent to the
-  // renderer via this RenderProcessHost.
-  IPC::TestSink& sink() { return sink_; }
 
   // Provides test access to how many times a bad message has been received.
   int bad_msg_count() const { return bad_msg_count_; }
@@ -152,9 +147,6 @@ class MockRenderProcessHost : public RenderProcessHost {
   BrowserContext* GetBrowserContext() override;
   bool InSameStoragePartition(StoragePartition* partition) override;
   IPC::ChannelProxy* GetChannel() override;
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  void AddFilter(BrowserMessageFilter* filter) override;
-#endif
   base::TimeDelta GetChildProcessIdleTime() override;
   FilterURLResult FilterURL(bool empty_allowed, GURL* url) override;
   void EnableAudioDebugRecordings(const base::FilePath& file) override;
@@ -327,7 +319,6 @@ class MockRenderProcessHost : public RenderProcessHost {
 
  private:
   // Stores IPC messages that would have been sent to the renderer.
-  IPC::TestSink sink_;
   int bad_msg_count_;
   ChildProcessId id_;
   bool has_connection_;

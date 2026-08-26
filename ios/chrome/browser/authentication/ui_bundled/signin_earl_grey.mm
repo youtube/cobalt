@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
 
+#import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/policy/core/browser/signin/profile_separation_policies.h"
 #import "components/signin/public/base/signin_metrics.h"
@@ -62,6 +63,12 @@ using base::test::ios::WaitUntilConditionOrTimeout;
 
 - (BOOL)isIdentityAdded:(FakeSystemIdentity*)fakeIdentity {
   return [SigninEarlGreyAppInterface isIdentityAdded:fakeIdentity];
+}
+
+- (void)setPersistentAuthErrorForAccount:(const CoreAccountId&)accountId {
+  [SigninEarlGreyAppInterface
+      setPersistentAuthErrorForAccount:base::SysUTF8ToNSString(
+                                           accountId.ToString())];
 }
 
 - (NSString*)primaryAccountGaiaID {
@@ -280,9 +287,9 @@ using base::test::ios::WaitUntilConditionOrTimeout;
 
   // Verify whether there is a management dialog and interact with it to
   // complete the sign-in flow if present.
-  id<GREYMatcher> acceptButton = [ChromeMatchersAppInterface
-      buttonWithAccessibilityLabelID:
-          IDS_IOS_MANAGED_SIGNIN_WITH_USER_POLICY_CONTINUE_BUTTON_LABEL];
+  id<GREYMatcher> acceptButton =
+      chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+          IDS_IOS_MANAGED_SIGNIN_WITH_USER_POLICY_CONTINUE_BUTTON_LABEL);
   GREYWaitForAppToIdle(@"App failed to idle");
   BOOL hasDialog =
       [ChromeEarlGrey testUIElementAppearanceWithMatcher:acceptButton];
@@ -292,20 +299,17 @@ using base::test::ios::WaitUntilConditionOrTimeout;
 }
 
 // Confirms "Switch and Delete" when the alert dialog that data will be cleared
-// is shown. This dialog is only shown when multi profiles are not available.
-// Otherwise, this does nothing.
+// is shown.
 - (void)closeSwitchAndDeleteAlertIfAny {
-  if (![SigninEarlGrey areSeparateProfilesForManagedAccountsEnabled]) {
-    id<GREYMatcher> switchAndDeleteAlert =
-        grey_allOf(chrome_test_util::AlertAction(l10n_util::GetNSString(
-                       IDS_IOS_DATA_NOT_UPLOADED_SWITCH_DIALOG_BUTTON)),
-                   grey_sufficientlyVisible(), nil);
-    BOOL hasAlert = [ChromeEarlGrey
-        testUIElementAppearanceWithMatcher:switchAndDeleteAlert];
-    if (hasAlert) {
-      [[EarlGrey selectElementWithMatcher:switchAndDeleteAlert]
-          performAction:grey_tap()];
-    }
+  id<GREYMatcher> switchAndDeleteAlert =
+      grey_allOf(chrome_test_util::AlertAction(l10n_util::GetNSString(
+                     IDS_IOS_DATA_NOT_UPLOADED_SWITCH_DIALOG_BUTTON)),
+                 grey_sufficientlyVisible(), nil);
+  BOOL hasAlert =
+      [ChromeEarlGrey testUIElementAppearanceWithMatcher:switchAndDeleteAlert];
+  if (hasAlert) {
+    [[EarlGrey selectElementWithMatcher:switchAndDeleteAlert]
+        performAction:grey_tap()];
   }
 }
 

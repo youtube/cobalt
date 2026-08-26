@@ -40,6 +40,10 @@ SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictIoctl();
 // Crash if any other flag is used.
 SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictMmapFlags();
 
+// Restrict the flags argument in mremap(2).
+// Crash if any flags are used.
+SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictMremapFlagsForODML();
+
 // Restrict the prot argument in mprotect(2).
 // Only allow: PROT_READ | PROT_WRITE | PROT_EXEC.
 // PROT_BTI | PROT_MTE is additionally allowed on 64-bit Arm.
@@ -126,6 +130,14 @@ SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictGoogle3Threading(int sysno);
 // Restrict the flags of pipe2().
 SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictPipe2();
 
+// Restrict the flags of send(), sendfrom(), sendmsg(), and sendmmsg(), syscalls
+// that send a message to a socket. The flags are allowlisted, but in
+// particular, this denies MSG_OOB.
+SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictSockSendFlags(int sysno);
+
+// Restrict the flags of memfd_create(). The flags are allowlistred, but in
+// particular, this denies MFD_HUGETLB.
+SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictMemfdCreate();
 }  // namespace sandbox.
 
 #endif  // SANDBOX_LINUX_SECCOMP_BPF_HELPERS_SYSCALL_PARAMETERS_RESTRICTIONS_H_

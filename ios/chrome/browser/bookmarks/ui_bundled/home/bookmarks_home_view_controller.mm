@@ -26,10 +26,12 @@
 #import "components/bookmarks/common/bookmark_pref_names.h"
 #import "components/bookmarks/managed/managed_bookmark_service.h"
 #import "components/prefs/pref_service.h"
+#import "components/send_tab_to_self/features.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/app/tests_hook.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_configurator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/table_view_signin_promo_item.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_bridge_observer.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_storage_type.h"
@@ -68,6 +70,7 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/ui/elements/home_waiting_view.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_url_item.h"
@@ -243,6 +246,8 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   // Whether the navigation controller is being dismissed.
   // In which case, do not open anything on top of it.
   BOOL _isBeingDismissed;
+  // The Signin coordinator displayed, if any.
+  SigninCoordinator* _signinCoordinator;
 }
 
 @synthesize editingFolderCell = _editingFolderCell;
@@ -273,6 +278,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 
 - (void)shutdown {
   _isShutDown = YES;
+  [self stopSigninCoordinator];
   [self.editingFolderCell stopEdit];
   [self stopFolderChooserCoordinator];
   [self.bookmarksCoordinator stop];
@@ -417,6 +423,11 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 
   // Place the search bar in the navigation bar.
   self.navigationItem.searchController = self.searchController;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    self.navigationItem.searchBarPlacementAllowsToolbarIntegration = NO;
+  }
+#endif
   self.navigationItem.hidesSearchBarWhenScrolling = NO;
 
   self.searchTerm = @"";
@@ -525,7 +536,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 }
 
 - (void)keyCommand_close {
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self navigationBarCancel:nil];
 }
 
@@ -691,8 +702,16 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 }
 
 - (void)showSignin:(ShowSigninCommand*)command {
-  [self.applicationCommandsHandler showSignin:command
-                           baseViewController:self.navigationController];
+  __weak __typeof(self) weakSelf = self;
+  [command addSigninCompletion:^(SigninCoordinatorResult result,
+                                 id<SystemIdentity>) {
+    [weakSelf signinDidCompleteWithResult:result];
+  }];
+  _signinCoordinator = [SigninCoordinator
+      signinCoordinatorWithCommand:command
+                           browser:_browser.get()
+                baseViewController:self.navigationController];
+  [_signinCoordinator start];
 }
 
 - (void)configureSigninPromoWithConfigurator:
@@ -717,6 +736,13 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 - (void)showAccountSettings {
   [self ensureBookmarksCoordinator];
   [self.bookmarksCoordinator showAccountSettings];
+}
+
+#pragma mark - BookmarksHomeConsumer Helper
+
+- (void)signinDidCompleteWithResult:(SigninCoordinatorResult)result {
+  [self.mediator signinDidCompleteWithResult:result];
+  [self stopSigninCoordinator];
 }
 
 #pragma mark - Action sheet callbacks
@@ -1369,7 +1395,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   // No-op
 }
 
-#pragma mark - Accessibility
+#pragma mark - UIAccessibilityAction
 
 - (BOOL)accessibilityPerformEscape {
   if ([self isDisplayingBookmarkRoot]) {
@@ -1381,6 +1407,100 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 }
 
 #pragma mark - private
+
+// Creates a delete action for the swipe menu with destructive style (and red
+// color).
+- (UIContextualAction*)createDeleteActionForIndexPath:(NSIndexPath*)indexPath {
+  __weak __typeof(self) weakSelf = self;
+
+  return [UIContextualAction
+      contextualActionWithStyle:UIContextualActionStyleDestructive
+                          title:
+                              l10n_util::GetNSString(
+                                  IDS_IOS_REMINDER_NOTIFICATIONS_SWIPE_ACTION_DELETE)
+                        handler:^(UIContextualAction* action,
+                                  UIView* sourceView,
+                                  void (^completionHandler)(BOOL)) {
+                          [weakSelf
+                              handleDeleteActionForIndexPath:indexPath
+                                           completionHandler:completionHandler];
+                        }];
+}
+
+// Creates a remind action for the swipe menu with normal style (and orange
+// color).
+- (UIContextualAction*)createRemindActionForIndexPath:(NSIndexPath*)indexPath {
+  __weak __typeof(self) weakSelf = self;
+
+  UIContextualAction* remindAction = [UIContextualAction
+      contextualActionWithStyle:UIContextualActionStyleNormal
+                          title:
+                              l10n_util::GetNSString(
+                                  IDS_IOS_REMINDER_NOTIFICATIONS_SWIPE_ACTION_REMIND)
+                        handler:^(UIContextualAction* action,
+                                  UIView* sourceView,
+                                  void (^completionHandler)(BOOL)) {
+                          [weakSelf
+                              handleRemindActionForIndexPath:indexPath
+                                           completionHandler:completionHandler];
+                        }];
+
+  remindAction.backgroundColor = [UIColor colorNamed:kOrange500Color];
+
+  return remindAction;
+}
+
+// Handles the delete action for a cell at the given `indexPath` and calls the
+// `completionHandler` when complete. This is used by swipe actions.
+- (void)handleDeleteActionForIndexPath:(NSIndexPath*)indexPath
+                     completionHandler:(void (^)(BOOL))completionHandler {
+  const BookmarkNode* bookmarkNode = [self nodeAtIndexPath:indexPath];
+
+  BOOL canDeleteNode = bookmarkNode &&
+                       [self isNodeEditableByUser:bookmarkNode] &&
+                       [self isEditBookmarksEnabled];
+
+  if (!canDeleteNode) {
+    if (completionHandler) {
+      completionHandler(NO);
+    }
+    return;
+  }
+
+  [self deleteBookmarkNodeWithID:bookmarkNode->id()
+                      userAction:"MobileBookmarkManagerEntryDeleted"];
+
+  if (completionHandler) {
+    completionHandler(YES);
+  }
+}
+
+// Handles the remind action for a cell at the given `indexPath`, displays the
+// tab reminder UI for the selected item, and calls the `completionHandler` when
+// complete. This is used by swipe actions when Tab Reminders are enabled.
+- (void)handleRemindActionForIndexPath:(NSIndexPath*)indexPath
+                     completionHandler:(void (^)(BOOL))completionHandler {
+  const BookmarkNode* bookmarkNode = [self nodeAtIndexPath:indexPath];
+
+  if (!bookmarkNode) {
+    if (completionHandler) {
+      completionHandler(NO);
+    }
+    return;
+  }
+
+  [self.homeDelegate bookmarkHomeViewController:self
+             wantsToShowSetTabReminderUIForNode:bookmarkNode];
+
+  if (completionHandler) {
+    completionHandler(YES);
+  }
+}
+
+- (void)stopSigninCoordinator {
+  [_signinCoordinator stop];
+  _signinCoordinator = nil;
+}
 
 // Returns the profile.
 - (ProfileIOS*)profile {
@@ -1468,12 +1588,9 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 
 - (UIBarButtonItem*)customizedDoneButton {
   UIBarButtonItem* doneButton = [[UIBarButtonItem alloc]
-      initWithTitle:GetNSString(IDS_IOS_NAVIGATION_BAR_DONE_BUTTON)
-              style:UIBarButtonItemStyleDone
-             target:self
-             action:@selector(navigationBarCancel:)];
-  doneButton.accessibilityLabel =
-      GetNSString(IDS_IOS_NAVIGATION_BAR_DONE_BUTTON);
+      initWithBarButtonSystemItem:UIBarButtonSystemItemDone
+                           target:self
+                           action:@selector(navigationBarCancel:)];
   doneButton.accessibilityIdentifier =
       kBookmarksHomeNavigationBarDoneButtonIdentifier;
   return doneButton;
@@ -2502,7 +2619,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
                      cellForRowAtIndexPath:indexPath];
   UIView* selectedBackgroundView = [[UIView alloc] init];
   selectedBackgroundView.backgroundColor =
-      [UIColor colorNamed:kUpdatedTertiaryBackgroundColor];
+      [UIColor colorNamed:kTertiaryBackgroundColor];
   cell.selectedBackgroundView = selectedBackgroundView;
   TableViewItem* item = [self.tableViewModel itemAtIndexPath:indexPath];
 
@@ -2631,6 +2748,46 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 }
 
 #pragma mark - UITableViewDelegate
+
+- (UISwipeActionsConfiguration*)tableView:(UITableView*)tableView
+    trailingSwipeActionsConfigurationForRowAtIndexPath:(NSIndexPath*)indexPath {
+  const BookmarkNode* bookmarkNode = [self nodeAtIndexPath:indexPath];
+
+  if (!bookmarkNode) {
+    return nil;
+  }
+
+  NSMutableArray<UIContextualAction*>* actions = [NSMutableArray array];
+
+  BOOL canEditNode =
+      [self isNodeEditableByUser:bookmarkNode] && [self isEditBookmarksEnabled];
+
+  if (canEditNode) {
+    UIContextualAction* deleteAction =
+        [self createDeleteActionForIndexPath:indexPath];
+    [actions addObject:deleteAction];
+  }
+
+  if (send_tab_to_self::
+          IsSendTabIOSPushNotificationsEnabledWithTabReminders() &&
+      bookmarkNode->is_url()) {
+    UIContextualAction* remindAction =
+        [self createRemindActionForIndexPath:indexPath];
+    [actions addObject:remindAction];
+  }
+
+  if (!actions.count) {
+    return nil;
+  }
+
+  UISwipeActionsConfiguration* configuration =
+      [UISwipeActionsConfiguration configurationWithActions:actions];
+
+  // A full swipe automatically performs the first action (Delete).
+  configuration.performsFirstActionWithFullSwipe = canEditNode;
+
+  return configuration;
+}
 
 - (CGFloat)tableView:(UITableView*)tableView
     heightForRowAtIndexPath:(NSIndexPath*)indexPath {

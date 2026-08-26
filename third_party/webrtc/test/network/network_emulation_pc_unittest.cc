@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "api/audio_options.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -50,7 +51,7 @@ constexpr int kSamplingFrequency = 48000;
 constexpr char kSignalThreadName[] = "signaling_thread";
 
 bool AddIceCandidates(PeerConnectionWrapper* peer,
-                      std::vector<const IceCandidateInterface*> candidates) {
+                      std::vector<const IceCandidate*> candidates) {
   bool success = true;
   for (const auto candidate : candidates) {
     if (!peer->pc()->AddIceCandidate(candidate)) {

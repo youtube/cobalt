@@ -12,9 +12,11 @@
 #include "base/check.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/numerics/byte_conversions.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "net/base/io_buffer.h"
@@ -127,6 +129,9 @@ int FakeSocket::Write(
   DCHECK(buf);
   DCHECK(!write_pending_);
 
+  if (error_on_next_write_ != 0) {
+    return error_on_next_write_;
+  }
   if (async_write_) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,

@@ -5,12 +5,14 @@
 #include "chrome/browser/ui/views/tabs/tab_style_views.h"
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 #include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "cc/paint/paint_record.h"
 #include "cc/paint/paint_shader.h"
 #include "chrome/browser/themes/theme_properties.h"
@@ -44,6 +46,14 @@
 #include "ui/views/widget/widget.h"
 
 namespace {
+
+Tab* GetLeftTab(const Tab* tab) {
+  return tab->controller()->GetAdjacentTab(tab, base::i18n::IsRTL() ? 1 : -1);
+}
+
+Tab* GetRightTab(const Tab* tab) {
+  return tab->controller()->GetAdjacentTab(tab, base::i18n::IsRTL() ? -1 : 1);
+}
 
 // Updates a target value, returning true if it changed.
 template <class T>
@@ -282,16 +292,20 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
       const int right_separator_overlap =
           tab_style()->GetSeparatorSize().width() - left_separator_overlap;
 
-      if (expand_into_previous_separator) {
-        left -= (tab_style()->GetSeparatorMargins().right() +
-                 left_separator_overlap) *
-                scale;
+      // If there is a tab before this one, then expand into its overlap.
+      const Tab* const previous_tab = GetLeftTab(tab());
+      if (expand_into_previous_separator && previous_tab) {
+        left -= std::round((tab_style()->GetSeparatorMargins().right() +
+                            left_separator_overlap) *
+                           scale);
       }
 
-      if (expand_into_next_separator) {
-        right += (tab_style()->GetSeparatorMargins().left() +
-                  right_separator_overlap) *
-                 scale;
+      // If there is a tab after this one, then expand into its overlap.
+      const Tab* const next_tab = GetRightTab(tab());
+      if (expand_into_next_separator && next_tab) {
+        right += std::round((tab_style()->GetSeparatorMargins().left() +
+                             right_separator_overlap) *
+                            scale);
       }
     }
 
@@ -775,9 +789,7 @@ float TabStyleViewsImpl::GetSeparatorOpacity(bool for_layout,
   // combo button with a non-transparent background in place of the new tab
   // button, we should not show the trailing separator.
   if (!adjacent_tab) {
-    return (leading || features::HasTabstripComboButtonWithBackground())
-               ? 0.0f
-               : shown_separator_opacity;
+    return leading ? 0.0f : shown_separator_opacity;
   }
 
   // Do not show when the adjacent tab is displaying a visible shape.

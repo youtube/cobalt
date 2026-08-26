@@ -2,17 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "cc/metrics/frame_sequence_tracker.h"
 
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
@@ -32,7 +28,7 @@ namespace {
 
 const char* ParseNumber(const char* str, uint64_t* retvalue) {
   uint64_t number = 0;
-  for (; *str >= '0' && *str <= '9'; ++str) {
+  for (; *str >= '0' && *str <= '9'; UNSAFE_TODO(++str)) {
     number *= 10;
     number += *str - '0';
   }
@@ -42,31 +38,31 @@ const char* ParseNumber(const char* str, uint64_t* retvalue) {
 
 }  // namespace
 
-// Mock DroppedFrameCounter class in order to test the number of times that
+// Mock FrameSorter class in order to test the number of times that
 // frames get backfilled. This is necessary since `WillBeginImplFrame` creates
-// `CompositorFrameReporter`s for backfilled frames which submit to the DFC
+// `CompositorFrameReporter`s for backfilled frames which submit to FrameSorter
 // without a good interim spot to analyze the frame info contents.
-class DroppedFrameCounterMock : public DroppedFrameCounter {
+class FrameSorterMock : public FrameSorter {
  public:
-  MOCK_METHOD2(OnEndFrame, void(const viz::BeginFrameArgs&, const FrameInfo&));
+  MOCK_METHOD2(AddFrameResult,
+               void(const viz::BeginFrameArgs&, const FrameInfo&));
 };
 
-class FrameSequenceTrackerTest : public testing::Test, FrameSorterObserver {
+class FrameSequenceTrackerTest : public testing::Test,
+                                 public FrameSorterObserver {
  public:
   const uint32_t kImplDamage = 0x1;
   const uint32_t kMainDamage = 0x2;
 
   FrameSequenceTrackerTest()
-      : dfc_mock_(DroppedFrameCounterMock()),
-        collection_(/*is_single_threaded=*/false, &dfc_mock_),
+      : sorter_(FrameSorterMock()),
+        collection_(/*is_single_threaded=*/false),
         compositor_frame_reporting_controller_(
             std::make_unique<CompositorFrameReportingController>(
                 /*should_report_histograms=*/true,
                 /*should_report_ukm=*/false,
                 /*layer_tree_host_id=*/1)) {
-    dfc_mock_.set_total_counter(&total_frame_counter_);
     compositor_frame_reporting_controller_->SetFrameSorter(&sorter_);
-    compositor_frame_reporting_controller_->SetDroppedFrameCounter(&dfc_mock_);
     sorter_.AddObserver(this);
     tracker_ = collection_.StartScrollSequence(
         FrameSequenceTrackerType::kTouchScroll,
@@ -130,17 +126,11 @@ class FrameSequenceTrackerTest : public testing::Test, FrameSorterObserver {
     return collection_.frame_trackers_.contains(key);
   }
 
-  bool RemovalTrackerExists(unsigned index,
-                            FrameSequenceTrackerType type) const {
-    DCHECK_GT(collection_.removal_trackers_.size(), index);
-    return collection_.removal_trackers_[index]->type() == type;
-  }
-
   void GenerateSequence(const char* str) {
     const uint64_t source_id = 1;
     viz::BeginFrameArgs last_activated_main_args;
     while (*str) {
-      const char command = *str++;
+      const char command = *UNSAFE_TODO(str++);
       uint64_t sequence = 0, dummy = 0, last_activated_main = 0;
       switch (command) {
         case 'b':
@@ -152,27 +142,27 @@ class FrameSequenceTrackerTest : public testing::Test, FrameSorterObserver {
         case 's':
         case 'r':
           ASSERT_EQ(*str, '(') << command;
-          str = ParseNumber(++str, &sequence);
+          str = ParseNumber(UNSAFE_TODO(++str), &sequence);
           ASSERT_EQ(*str, ')');
-          ++str;
+          UNSAFE_TODO(++str);
           break;
 
         case 'N':
           ASSERT_EQ(*str, '(');
-          str = ParseNumber(++str, &dummy);
+          str = ParseNumber(UNSAFE_TODO(++str), &dummy);
           ASSERT_EQ(*str, ',');
-          str = ParseNumber(++str, &sequence);
+          str = ParseNumber(UNSAFE_TODO(++str), &sequence);
           ASSERT_EQ(*str, ')');
-          ++str;
+          UNSAFE_TODO(++str);
           break;
 
         case 'e':
           ASSERT_EQ(*str, '(');
-          str = ParseNumber(++str, &sequence);
+          str = ParseNumber(UNSAFE_TODO(++str), &sequence);
           ASSERT_EQ(*str, ',');
-          str = ParseNumber(++str, &last_activated_main);
+          str = ParseNumber(UNSAFE_TODO(++str), &last_activated_main);
           ASSERT_EQ(*str, ')');
-          ++str;
+          UNSAFE_TODO(++str);
           break;
 
         case 'R':
@@ -290,8 +280,6 @@ class FrameSequenceTrackerTest : public testing::Test, FrameSorterObserver {
     }
   }
 
-  void ReportMetrics() { tracker_->metrics_->ReportMetrics(); }
-
   base::TimeDelta TimeDeltaToReport() const {
     return tracker_->time_delta_to_report_;
   }
@@ -304,10 +292,6 @@ class FrameSequenceTrackerTest : public testing::Test, FrameSorterObserver {
   }
   unsigned NumberOfRemovalTrackers() const {
     return collection_.removal_trackers_.size();
-  }
-
-  uint64_t BeginImplFrameDataPreviousSequence() const {
-    return tracker_->begin_impl_frame_data_.previous_sequence;
   }
 
   void IncrementFramesExpected(uint32_t frames) {
@@ -332,9 +316,6 @@ class FrameSequenceTrackerTest : public testing::Test, FrameSorterObserver {
       FrameSequenceTracker* tracker) {
     return tracker->termination_status_;
   }
-  FrameSequenceTracker::TerminationStatus GetTerminationStatus() {
-    return tracker_->termination_status_;
-  }
 
   // FrameSorter observer function.
   void AddSortedFrame(const viz::BeginFrameArgs& args,
@@ -343,17 +324,15 @@ class FrameSequenceTrackerTest : public testing::Test, FrameSorterObserver {
   }
 
  protected:
-  TotalFrameCounter total_frame_counter_;
-  DroppedFrameCounterMock dfc_mock_;
+  FrameSorterMock sorter_;
   FrameSequenceTrackerCollection collection_;
-  FrameSorter sorter_;
   // Since CFRC destructor cleans up the FrameSorter's
-  // registered observers (in this case, DFC and FSTC)
+  // registered observers (in this case FSTC)
   // it needs to be declared last so that it will be
   // cleaned up first.
   std::unique_ptr<CompositorFrameReportingController>
       compositor_frame_reporting_controller_;
-  raw_ptr<FrameSequenceTracker, DanglingUntriaged> tracker_;
+  raw_ptr<FrameSequenceTracker> tracker_;
 };
 
 // Tests that the tracker works correctly when the source-id for the
@@ -420,6 +399,9 @@ TEST_F(FrameSequenceTrackerTest, ReportMetricsAtFixedInterval) {
   collection_.NotifyFrameEnd(args, args);
   FrameInfo frame_info;
   frame_info.final_state = FrameInfo::FrameFinalState::kPresentedAll;
+  // AddSortedFrame triggers metrics reporting and then calls `DestroyTrackers`,
+  // which also destroys tracker_.
+  tracker_ = nullptr;
   collection_.AddSortedFrame(args, frame_info);
   EXPECT_EQ(NumberOfTrackers(), 1u);
   // At NotifyFrameEnd, the tracker is removed from removal_tracker_ list.
@@ -626,6 +608,9 @@ TEST_F(FrameSequenceTrackerTest, TrackLastImplFrame24) {
   GenerateSequence("b(1)P(1)");
   collection_.StopSequence(FrameSequenceTrackerType::kTouchScroll);
   EXPECT_EQ(NumberOfRemovalTrackers(), 1u);
+  // GenerateSequence processes presentation events that complete the stopped
+  // tracker, tracker_, and destroys it.
+  tracker_ = nullptr;
   GenerateSequence("e(1,0)p(1)");
   EXPECT_EQ(NumberOfRemovalTrackers(), 0u);
 }
@@ -647,6 +632,9 @@ TEST_F(FrameSequenceTrackerTest, IgnoreImplFrameBeforeTermination) {
   EXPECT_EQ(NumberOfRemovalTrackers(), 1u);
   EXPECT_EQ(GetTerminationStatus(removal_tracker),
             FrameSequenceTracker::TerminationStatus::kScheduledForTermination);
+  // GenerateSequence will processes presentation events that will complete and
+  // destroy the scheduled-for-termination tracker, tracker_.
+  tracker_ = nullptr;
   GenerateSequence("P(1)");
   EXPECT_EQ(NumberOfRemovalTrackers(), 0u);
 }
@@ -655,6 +643,9 @@ TEST_F(FrameSequenceTrackerTest, TerminationWithNullPresentationTimeStamp) {
   GenerateSequence("b(1)");
   collection_.StopSequence(FrameSequenceTrackerType::kTouchScroll);
   EXPECT_EQ(NumberOfRemovalTrackers(), 1u);
+  // GenerateSequence will process and delete trackers on the removal list,
+  // including tracker_.
+  tracker_ = nullptr;
   // Even if the presentation timestamp is null, as long as this presentation
   // is acking the last impl frame, we consider that impl frame completed and
   // so the tracker is ready for termination.
@@ -843,6 +834,12 @@ TEST_F(FrameSequenceTrackerTest, CustomTrackers) {
 
 TEST_F(FrameSequenceTrackerTest, CustomTrackerOutOfOrderFramesMissingV3Data) {
   CustomTrackerResults results;
+
+  // Override the FrameSorter mock
+  FrameSorter frame_sorter;
+  compositor_frame_reporting_controller_->SetFrameSorter(&frame_sorter);
+  frame_sorter.AddObserver(this);
+
   collection_.set_custom_tracker_results_added_callback(
       base::BindLambdaForTesting([&](const CustomTrackerResults& reported) {
         for (const auto& pair : reported) {
@@ -860,11 +857,11 @@ TEST_F(FrameSequenceTrackerTest, CustomTrackerOutOfOrderFramesMissingV3Data) {
   // Dispatch 2 frames: frame 0 and frame 1.
   auto frame0_args = CreateBeginFrameArgs(source, ++sequence);
   DispatchCompleteFrame(frame0_args, kImplDamage | kMainDamage);
-  sorter_.AddNewFrame(frame0_args);
+  frame_sorter.AddNewFrame(frame0_args);
 
   auto frame1_args = CreateBeginFrameArgs(source, ++sequence);
   DispatchCompleteFrame(frame1_args, kImplDamage | kMainDamage);
-  sorter_.AddNewFrame(frame1_args);
+  frame_sorter.AddNewFrame(frame1_args);
 
   // Frame 1 gets its result before frame 0.
   FrameInfo frame_info;
@@ -872,20 +869,23 @@ TEST_F(FrameSequenceTrackerTest, CustomTrackerOutOfOrderFramesMissingV3Data) {
   frame_info.smooth_thread = FrameInfo::SmoothThread::kSmoothMain;
   frame_info.scroll_thread = FrameInfo::SmoothEffectDrivingThread::kMain;
   frame_info.sequence_number = frame1_args.frame_id.sequence_number;
-  sorter_.AddFrameResult(frame1_args, frame_info);
+  frame_sorter.AddFrameResult(frame1_args, frame_info);
 
   // Stop the tracker.
   collection_.StopCustomSequence(1);
 
   // Frame 0 gets its result after tracker is stopped. FrameSorter flushes all
   // frames and metrics for both frames should be recorded for v3.
-  sorter_.AddFrameResult(frame0_args, frame_info);
+  frame_sorter.AddFrameResult(frame0_args, frame_info);
 
   // Frame 2 is dispatched after the tracker is stopped and should be ignored.
   auto frame2_args = CreateBeginFrameArgs(source, ++sequence);
   DispatchCompleteFrame(frame2_args, kImplDamage | kMainDamage);
-  sorter_.AddNewFrame(frame2_args);
-  sorter_.AddFrameResult(frame2_args, frame_info);
+  frame_sorter.AddNewFrame(frame2_args);
+  frame_sorter.AddFrameResult(frame2_args, frame_info);
+
+  // The upcoming call to ClearAll will destroy tracker_.
+  tracker_ = nullptr;
 
   // Trigger metrics report.
   collection_.ClearAll();
@@ -901,10 +901,10 @@ TEST_F(FrameSequenceTrackerTest,
   uint64_t sequence = 0;
   const uint64_t kNumFramesSkipped = 5;
 
-  dfc_mock_.OnFirstContentfulPaintReceived();
+  sorter_.OnFirstContentfulPaintReceived();
   // Expect that kNumFramesSkipped are backfilled with the appropriate smooth
   // thread set.
-  EXPECT_CALL(dfc_mock_, OnEndFrame(testing::_, testing::_))
+  EXPECT_CALL(sorter_, AddFrameResult(testing::_, testing::_))
       .Times(kNumFramesSkipped)
       .WillRepeatedly([=](const viz::BeginFrameArgs& args,
                           const FrameInfo& frame_info) {
@@ -916,17 +916,19 @@ TEST_F(FrameSequenceTrackerTest,
   compositor_frame_reporting_controller_->SetFrameSequenceTrackerCollection(
       &collection_);
   auto frame0_args = CreateBeginFrameArgs(source, ++sequence);
-  compositor_frame_reporting_controller_->WillBeginImplFrame(frame0_args);
+  compositor_frame_reporting_controller_->WillBeginImplFrame(
+      frame0_args, /*will_throttle_main=*/false);
   compositor_frame_reporting_controller_->OnFinishImplFrame(
-      frame0_args.frame_id);
+      frame0_args.frame_id, /*not_waiting_for_main=*/false);
 
   // Starting frame 5 will trigger the callback expectation.
   auto frame5_args =
       CreateBeginFrameArgs(source, sequence + kNumFramesSkipped,
                            base::TimeTicks::Now() /*+ base::Seconds(5)*/);
-  compositor_frame_reporting_controller_->WillBeginImplFrame(frame5_args);
+  compositor_frame_reporting_controller_->WillBeginImplFrame(
+      frame5_args, /*will_throttle_main=*/false);
   // Clear the expectation before simulating finishing the frame.
-  testing::Mock::VerifyAndClearExpectations(&dfc_mock_);
+  testing::Mock::VerifyAndClearExpectations(&sorter_);
   compositor_frame_reporting_controller_->WillBeginMainFrame(frame5_args);
   compositor_frame_reporting_controller_->NotifyReadyToCommit(nullptr);
   compositor_frame_reporting_controller_->WillCommit();
@@ -937,7 +939,7 @@ TEST_F(FrameSequenceTrackerTest,
   compositor_frame_reporting_controller_->DidSubmitCompositorFrame(
       submit_info, frame5_args.frame_id, frame5_args.frame_id);
   compositor_frame_reporting_controller_->OnFinishImplFrame(
-      frame5_args.frame_id);
+      frame5_args.frame_id, /*not_waiting_for_main=*/false);
   viz::FrameTimingDetails ftd;
   compositor_frame_reporting_controller_->DidPresentCompositorFrame(
       submit_info.frame_token, ftd);

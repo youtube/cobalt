@@ -771,6 +771,9 @@ Called by update_extension_histograms.py.-->
   <int value="565" label="AUTOFILL_PRIVATE_ON_ENTITY_INSTANCES_CHANGED"/>
   <int value="566"
       label="ENTERPRISE_REPORTING_PRIVATE_ON_DATA_MASKING_RULES_TRIGGERED"/>
+  <int value="567"
+      label="PASSWORDS_PRIVATE_ON_SHOULD_SHOW_ACCOUNT_STORAGE_SETTING_TOGGLE_CHANGED"/>
+  <int value="568" label="PDF_VIEWER_PRIVATE_ON_SAVE_TO_DRIVE_PROGRESS"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_event_histogram_value.h:HistogramValue) -->
@@ -2822,6 +2825,14 @@ Called by update_extension_histograms.py.-->
   <int value="1937" label="BOOKMARKMANAGERPRIVATE_OPENINNEWTABGROUP"/>
   <int value="1938" label="CONTROLLEDFRAMEINTERNAL_CONTEXTMENUSUPDATE"/>
   <int value="1939" label="BOOKMARKMANAGERPRIVATE_ISACTIVETABINSPLIT"/>
+  <int value="1940" label="ENTERPRISE_LOGIN_EXITCURRENTMANAGEDGUESTSESSION"/>
+  <int value="1941"
+      label="PASSWORDSPRIVATE_SHOULDSHOWACCOUNTSTORAGESETTINGTOGGLE"/>
+  <int value="1942" label="EXPERIMENTALACTOR_PERFORMACTIONS"/>
+  <int value="1943" label="EXPERIMENTALACTOR_CREATETASK"/>
+  <int value="1944" label="EXPERIMENTALACTOR_REQUESTTABOBSERVATION"/>
+  <int value="1945" label="PDFVIEWERPRIVATE_SAVETODRIVE"/>
+  <int value="1946" label="SIDEPANEL_GETLAYOUT"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_function_histogram_value.h:HistogramValue) -->
@@ -3209,6 +3220,7 @@ Called by update_extension_permission.py.-->
   <int value="260" label="kExperimentalAiData"/>
   <int value="261" label="kOmniboxDirectInput"/>
   <int value="262" label="kExperimentalActor"/>
+  <int value="263" label="kEnterpriseLogin"/>
 </enum>
 
 <enum name="ExtensionPolicyReinstallReason">
@@ -3356,6 +3368,15 @@ Called by update_extension_permission.py.-->
   <int value="1" label="Chrome Web Store"/>
 </enum>
 
+<!-- LINT.IfChange(LoadExtensionFlag) -->
+
+<enum name="LoadExtensionFlag">
+  <int value="0" label="LoadExtension"/>
+  <int value="1" label="DisableExtensionsExcept"/>
+</enum>
+
+<!-- LINT.ThenChange(/chrome/browser/extensions/extension_service.h:LoadExtensionFlag) -->
+
 <enum name="LoadRulesetResult">
   <int value="0" label="Load succeeded"/>
   <int value="1" label="Load failed - Invalid path"/>
@@ -3499,6 +3520,7 @@ Called by update_extension_permission.py.-->
   <int value="8" label="Active Directory"/>
   <int value="9" label="Web App Kiosk"/>
   <int value="10" label="Isolated Web App Kiosk"/>
+  <int value="11" label="ARCVM App Kiosk"/>
 </enum>
 
 <enum name="SettingsOverriddenDialogResult">
@@ -3697,6 +3719,18 @@ Called by update_extension_permission.py.-->
   <int value="1" label="Allowlisted"/>
   <int value="2" label="Not allowlisted"/>
 </enum>
+
+<!-- LINT.IfChange(WebStoreLinkClicked) -->
+
+<enum name="WebStoreLinkClicked">
+  <int value="0" label="'Discover Extensions' link"/>
+  <int value="1" label="'Find Coupons' link"/>
+  <int value="2" label="'Write Better' link"/>
+  <int value="3" label="'Boost Productivity' link"/>
+  <int value="4" label="'Enhance with AI' link"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo.mojom:WebStoreLinkClicked) -->
 
 </enums>
 

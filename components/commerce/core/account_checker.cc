@@ -9,6 +9,7 @@
 #include "base/values.h"
 #include "components/commerce/core/commerce_constants.h"
 #include "components/commerce/core/commerce_feature_list.h"
+#include "components/commerce/core/commerce_utils.h"
 #include "components/commerce/core/pref_names.h"
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -20,6 +21,7 @@
 #include "components/sync/service/sync_service_utils.h"
 #include "components/sync/service/sync_user_settings.h"
 #include "components/unified_consent/url_keyed_data_collection_consent_helper.h"
+#include "google_apis/gaia/gaia_constants.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -184,9 +186,10 @@ void AccountChecker::FetchPriceEmailPref() {
           }
         })");
   auto endpoint_fetcher = CreateEndpointFetcher(
-      kOAuthName, GURL(kNotificationsPrefUrl), kGetHttpMethod, kContentType,
-      std::vector<std::string>{kOAuthScope}, kTimeout, kEmptyPostData,
-      traffic_annotation);
+      kOAuthName, GURL(kNotificationsPrefUrl),
+      endpoint_fetcher::HttpMethod::kGet, kContentType,
+      std::vector<std::string>{GaiaConstants::kChromeMemexOAuth2Scope},
+      kTimeout, kEmptyPostData, traffic_annotation);
   endpoint_fetcher.get()->Fetch(base::BindOnce(
       &AccountChecker::HandleFetchPriceEmailPrefResponse,
       weak_ptr_factory_.GetWeakPtr(), std::move(endpoint_fetcher)));
@@ -278,9 +281,10 @@ void AccountChecker::OnPriceEmailPrefChanged() {
           }
         })");
   auto endpoint_fetcher = CreateEndpointFetcher(
-      kOAuthName, GURL(kNotificationsPrefUrl), kPostHttpMethod, kContentType,
-      std::vector<std::string>{kOAuthScope}, kTimeout, post_data,
-      traffic_annotation);
+      kOAuthName, GURL(kNotificationsPrefUrl),
+      endpoint_fetcher::HttpMethod::kPost, kContentType,
+      std::vector<std::string>{GaiaConstants::kChromeMemexOAuth2Scope},
+      kTimeout, post_data, traffic_annotation);
   endpoint_fetcher.get()->Fetch(base::BindOnce(
       &AccountChecker::HandleSendPriceEmailPrefResponse,
       weak_ptr_factory_.GetWeakPtr(), std::move(endpoint_fetcher)));
@@ -313,7 +317,7 @@ void AccountChecker::OnSendPriceEmailPrefJsonParsed(
 std::unique_ptr<EndpointFetcher> AccountChecker::CreateEndpointFetcher(
     const std::string& oauth_consumer_name,
     const GURL& url,
-    const std::string& http_method,
+    const endpoint_fetcher::HttpMethod http_method,
     const std::string& content_type,
     const std::vector<std::string>& scopes,
     const base::TimeDelta& timeout,
@@ -326,10 +330,19 @@ std::unique_ptr<EndpointFetcher> AccountChecker::CreateEndpointFetcher(
       base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
           ? signin::ConsentLevel::kSignin
           : signin::ConsentLevel::kSync;
+  EndpointFetcher::RequestParams::Builder request_params =
+      EndpointFetcher::RequestParams::Builder(http_method, annotation_tag);
+  request_params.SetUrl(url)
+      .SetContentType(content_type)
+      .SetAuthType(endpoint_fetcher::OAUTH)
+      .SetOauthScopes(scopes)
+      .SetConsentLevel(consent_level)
+      .SetTimeout(timeout)
+      .SetOauthConsumerName(oauth_consumer_name)
+      .SetPostData(post_data);
+  MaybeUseAlternateShoppingServer(request_params);
   return std::make_unique<EndpointFetcher>(
-      url_loader_factory_, oauth_consumer_name, url, http_method, content_type,
-      scopes, timeout, post_data, annotation_tag, identity_manager_,
-      consent_level);
+      url_loader_factory_, identity_manager_, request_params.Build());
 }
 
 }  // namespace commerce

@@ -139,10 +139,9 @@ Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
         !maybe_key.is_null() && !Object::StrictEquals(*maybe_key, *detach_key);
   }
   if (key_mismatch) {
-    THROW_NEW_ERROR_RETURN_VALUE(
+    THROW_NEW_ERROR(
         isolate,
-        NewTypeError(MessageTemplate::kArrayBufferDetachKeyDoesntMatch),
-        Nothing<bool>());
+        NewTypeError(MessageTemplate::kArrayBufferDetachKeyDoesntMatch));
   }
 
   if (buffer->was_detached()) return Just(true);
@@ -206,17 +205,15 @@ Maybe<bool> JSArrayBuffer::GetResizableBackingStorePageConfiguration(
   if (!RoundUpToPageSize(byte_length, *page_size, JSArrayBuffer::kMaxByteLength,
                          initial_pages)) {
     if (should_throw == kDontThrow) return Nothing<bool>();
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength),
-        Nothing<bool>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
 
   if (!RoundUpToPageSize(max_byte_length, *page_size,
                          JSArrayBuffer::kMaxByteLength, max_pages)) {
     if (should_throw == kDontThrow) return Nothing<bool>();
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength),
-        Nothing<bool>());
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
   }
 
   return Just(true);
@@ -460,19 +457,22 @@ size_t JSTypedArray::GetVariableByteLengthOrOutOfBounds(
   DCHECK(!WasDetached());
   size_t own_byte_offset = byte_offset();
   if (is_length_tracking()) {
+    size_t own_element_size = element_size();
     if (is_backed_by_rab()) {
       size_t buffer_byte_length = buffer()->byte_length();
       if (own_byte_offset > buffer_byte_length) {
         out_of_bounds = true;
         return 0;
       }
-      return (buffer_byte_length - own_byte_offset);
+      // Round down to the nearest multiple of element size.
+      return RoundDown(buffer_byte_length - own_byte_offset, own_element_size);
     }
     // GSAB-backed TypedArrays can't be out of bounds.
     size_t buffer_byte_length =
         buffer()->GetBackingStore()->byte_length(std::memory_order_seq_cst);
     SBXCHECK(own_byte_offset <= buffer_byte_length);
-    return buffer_byte_length - own_byte_offset;
+    // Round down to the nearest multiple of element size.
+    return RoundDown(buffer_byte_length - own_byte_offset, own_element_size);
   }
   DCHECK(is_backed_by_rab());
   size_t own_byte_length = byte_length();

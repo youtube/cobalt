@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Теперь вам доступны только инструменты для уроков.</translation>
 <translation id="1762483337755424125">Зона показа расшифровки</translation>
 <translation id="1765169783255151332">Быстрое переключение клавиш</translation>
 <translation id="1768959921651994223">Тип аутентификации</translation>
@@ -317,7 +318,7 @@
 <translation id="2215920961700443347">Нет доступа к интернету. Подключитесь и повторите попытку.</translation>
 <translation id="2217935453350629363">Текущая частота</translation>
 <translation id="221994303562837085">Остановить запись</translation>
-<translation id="2224337661447660594">Нет подключения к Интернету</translation>
+<translation id="2224337661447660594">Нет подключения к интернету</translation>
 <translation id="222447520299472966">Выберите хотя бы одну художественную галерею.</translation>
 <translation id="2230005943220647148">По шкале Цельсия</translation>
 <translation id="2230051135190148440">CHAP</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Переключение раскладки клавиатуры</translation>
 <translation id="224421911978987610">долгая выдержка</translation>
 <translation id="2244834438220057800">зеленый</translation>
+<translation id="2248689665683494517">Минималистичный натюрморт с букетом полевых маков в стеклянной вазе на черном фоне</translation>
 <translation id="225692081236532131">Статус активации</translation>
 <translation id="2267285889943769271">Добавить скриншот</translation>
 <translation id="2268044343513325586">Уточнить</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Сбой: остановка работы</translation>
 <translation id="3102119246920354026">Кеш</translation>
 <translation id="3103783611481501187">сюрреализм</translation>
+<translation id="3119672627216736407">Доступен перевод</translation>
 <translation id="3122464029669770682">Процессор</translation>
 <translation id="3122614491980756867">пруды</translation>
 <translation id="3122883569442693641">Подробнее</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">шифон</translation>
 <translation id="4310735698903592804">Недавние обои, созданные при помощи искусственного интеллекта от Google</translation>
 <translation id="4320904097188876154">неоново-розовый</translation>
+<translation id="432961742358282111">Чтобы увидеть конвертацию единиц измерения, определение или перевод, нажмите правой кнопкой мыши или коснитесь и удерживайте. Этой функцией можно управлять с помощью стрелок влево и вправо.</translation>
 <translation id="4333390807948134856">Клавиша <ph name="KEY_NAME" /> нажата</translation>
 <translation id="4334293042716981313">Вы также можете <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />написать запрос сами<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">клавиша</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">Для завершения введите старый и новый пароли.</translation>
 <translation id="6061772781719867950">невыполненные HTTPS-запросы</translation>
 <translation id="6073292342939316679">уменьшить яркость клавиатуры</translation>
+<translation id="6074608334942655098">Больше не переводить</translation>
 <translation id="6074752328838739425">Скрыть краткий пересказ</translation>
 <translation id="6075872808778243331">Время ожидания HTTP (Android)</translation>
 <translation id="6078323886959318429">Добавить ярлык</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Задавайте вопросы на справочном форуме Chromebook.</translation>
-<translation id="7309823890857024809">Минималистичный натюрморт с букетом полевых маков в стеклянной вазе на черном фоне.</translation>
 <translation id="7311368985037279727">цвет клавиатуры</translation>
 <translation id="7317831949569936035">Регистрация в учебном заведении</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1592,7 +1596,7 @@
 <translation id="8017679124341497925">Ярлык изменен</translation>
 <translation id="802154636333426148">Ошибка скачивания</translation>
 <translation id="8027467664787098346">Подробнее о выбранных обоях</translation>
-<translation id="8028993641010258682">Размер</translation>
+<translation id="8028993641010258682">Толщина</translation>
 <translation id="8031884997696620457">HSPA+</translation>
 <translation id="80398733265834479">Включить автоматический цветовой режим</translation>
 <translation id="8041089156583427627">Отправить отзыв</translation>
@@ -1613,6 +1617,7 @@
 <translation id="8088963492174775412">Нажмите, чтобы начать запись</translation>
 <translation id="8094062939584182041">Разрешить Google отправлять вам сообщения об этой проблеме по электронной почте</translation>
 <translation id="8104083085214006426">Вы используете открытую небезопасную сеть.</translation>
+<translation id="8108879170356113798">Через <ph name="NUM_SECONDS" /> сек. вам будут доступны только инструменты для уроков.</translation>
 <translation id="811820734797650957">Запрос ping к шлюзу (Android)</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Подтвердить</translation>

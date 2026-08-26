@@ -31,7 +31,8 @@ source_set("inttest") {
     "//ios/chrome/browser/https_upgrades/model",
     "//ios/chrome/browser/omnibox/coordinator",
     "//ios/chrome/browser/omnibox/model",
-    "//ios/chrome/browser/omnibox/model:ui_bundled_interface",
+    "//ios/chrome/browser/omnibox/model:test_support",
+    "//ios/chrome/browser/omnibox/model/suggestions",
     "//ios/chrome/browser/omnibox/public",
     "//ios/chrome/browser/omnibox/public:constants",
     "//ios/chrome/browser/omnibox/public:features",
@@ -39,7 +40,6 @@ source_set("inttest") {
     "//ios/chrome/browser/omnibox/ui:omnibox_internal",
     "//ios/chrome/browser/omnibox/ui/popup",
     "//ios/chrome/browser/search_engines/model:template_url_service_factory",
-    "//ios/chrome/browser/sessions/model",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/url:constants",
@@ -77,6 +77,10 @@ source_set("eg2_tests") {
     "//ui/base:test_support",
   ]
   frameworks = [ "UIKit.framework" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("eg_app_support+eg2") {

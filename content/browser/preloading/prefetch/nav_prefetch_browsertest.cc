@@ -38,10 +38,6 @@ using net::test_server::ControllableHttpResponse;
 class NavPrefetchBrowserTest : public ContentBrowserTest,
                                public BackForwardCacheMetricsTestMatcher {
  public:
-  NavPrefetchBrowserTest() {
-    scoped_feature_list_.InitWithFeatures({features::kPrefetchReusable}, {});
-  }
-
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
     ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
@@ -65,7 +61,7 @@ class NavPrefetchBrowserTest : public ContentBrowserTest,
     auto candidate = blink::mojom::SpeculationCandidate::New();
     candidate->url = url;
     candidate->action = blink::mojom::SpeculationAction::kPrefetch;
-    candidate->eagerness = blink::mojom::SpeculationEagerness::kEager;
+    candidate->eagerness = blink::mojom::SpeculationEagerness::kImmediate;
     candidate->referrer = Referrer::SanitizeForRequest(
         url, blink::mojom::Referrer(
                  shell()->web_contents()->GetURL(),
@@ -211,7 +207,7 @@ IN_PROC_BROWSER_TEST_F(NavPrefetchBrowserTest, ServedToRedirectionChain) {
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/true,
           base::ScopedMockElapsedTimersForTest::kMockElapsedTime,
-          blink::mojom::SpeculationEagerness::kEager)});
+          blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 // TODO(crbug.com/345352974): Make it a web platform test instead.
@@ -361,8 +357,8 @@ IN_PROC_BROWSER_TEST_F(
     ExpectRestored(FROM_HERE);
   }
 
-  // Activate a prefetch again. Prefetch is served if `kPrefetchReusable` is
-  // enabled.
+  // Activate a prefetch again. Prefetch is served since it can be used multiple
+  // times.
   {
     TestNavigationObserver nav_observer(shell()->web_contents());
     nav_observer.set_wait_event(
@@ -450,7 +446,7 @@ IN_PROC_BROWSER_TEST_F(NavPrefetchBrowserTest, AuthRequested) {
           ToPreloadingFailureReason(PrefetchStatus::kPrefetchFailedNon2XX),
           /*accurate=*/true,
           /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kEager)});
+          blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 // Tests that prefetch fails when client cert is requested.
@@ -499,7 +495,7 @@ IN_PROC_BROWSER_TEST_F(NavPrefetchBrowserTest, ClientCertRequested) {
           ToPreloadingFailureReason(PrefetchStatus::kPrefetchFailedNetError),
           /*accurate=*/true,
           /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kEager)});
+          blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 // Tests that prefetch fails when cert is expired.
@@ -545,7 +541,7 @@ IN_PROC_BROWSER_TEST_F(NavPrefetchBrowserTest, CertExpired) {
           ToPreloadingFailureReason(PrefetchStatus::kPrefetchFailedNetError),
           /*accurate=*/true,
           /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kEager)});
+          blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 }  // namespace

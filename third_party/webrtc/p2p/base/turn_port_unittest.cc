@@ -7,68 +7,70 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
+#include "p2p/base/turn_port.h"
+
 #include <cstddef>
 #include <cstdint>
+#include <list>
+#include <memory>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/test/mock_async_dns_resolver.h"
+#include "api/test/mock_local_network_access_permission.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/stun.h"
-#include "p2p/base/connection_info.h"
-#include "p2p/base/port.h"
-#include "p2p/base/port_interface.h"
-#include "p2p/base/stun_request.h"
-#include "p2p/client/relay_port_factory_interface.h"
-#include "rtc_base/async_packet_socket.h"
-#include "rtc_base/ip_address.h"
-#include "rtc_base/net_helpers.h"
-#include "rtc_base/network.h"
-#include "rtc_base/network/received_packet.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
-#include "test/gmock.h"
-#include "test/wait_until.h"
-#if defined(WEBRTC_POSIX)
-#include <dirent.h>
-
-#include "absl/strings/string_view.h"
-#endif
-
-#include <list>
-#include <memory>
-#include <optional>
-#include <utility>
-#include <vector>
-
 #include "api/units/time_delta.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/base/connection.h"
+#include "p2p/base/connection_info.h"
 #include "p2p/base/p2p_constants.h"
+#include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
+#include "p2p/base/port_interface.h"
 #include "p2p/base/stun_port.h"
+#include "p2p/base/stun_request.h"
 #include "p2p/base/transport_description.h"
-#include "p2p/base/turn_port.h"
+#include "p2p/client/relay_port_factory_interface.h"
 #include "p2p/test/mock_dns_resolving_packet_socket_factory.h"
 #include "p2p/test/test_turn_customizer.h"
 #include "p2p/test/test_turn_server.h"
 #include "p2p/test/turn_server.h"
+#include "rtc_base/async_packet_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/gunit.h"
+#include "rtc_base/ip_address.h"
 #include "rtc_base/net_helper.h"
+#include "rtc_base/net_helpers.h"
+#include "rtc_base/network.h"
+#include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "system_wrappers/include/metrics.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/wait_until.h"
+
+#if defined(WEBRTC_POSIX)
+#include <dirent.h>  // IWYU pragma: keep
+#endif
 
 namespace {
 using ::testing::_;
@@ -84,82 +86,76 @@ using ::webrtc::Environment;
 using ::webrtc::IceCandidateType;
 using ::webrtc::SocketAddress;
 
-static const SocketAddress kLocalAddr1("11.11.11.11", 0);
-static const SocketAddress kLocalAddr2("22.22.22.22", 0);
-static const SocketAddress kLocalIPv6Addr("2401:fa00:4:1000:be30:5bff:fee5:c3",
-                                          0);
-static const SocketAddress kLocalIPv6Addr2("2401:fa00:4:2000:be30:5bff:fee5:d4",
-                                           0);
-static const SocketAddress kTurnUdpIntAddr("99.99.99.3",
-                                           webrtc::TURN_SERVER_PORT);
-static const SocketAddress kTurnTcpIntAddr("99.99.99.4",
-                                           webrtc::TURN_SERVER_PORT);
-static const SocketAddress kTurnUdpExtAddr("99.99.99.5", 0);
-static const SocketAddress kTurnAlternateIntAddr("99.99.99.6",
-                                                 webrtc::TURN_SERVER_PORT);
+const SocketAddress kLocalAddr1("11.11.11.11", 0);
+const SocketAddress kLocalAddr2("22.22.22.22", 0);
+const SocketAddress kLocalIPv6Addr("2401:fa00:4:1000:be30:5bff:fee5:c3", 0);
+const SocketAddress kLocalIPv6Addr2("2401:fa00:4:2000:be30:5bff:fee5:d4", 0);
+const SocketAddress kTurnUdpIntAddr("99.99.99.3", webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnTcpIntAddr("99.99.99.4", webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnUdpExtAddr("99.99.99.5", 0);
+const SocketAddress kTurnAlternateIntAddr("99.99.99.6",
+                                          webrtc::TURN_SERVER_PORT);
 // Port for redirecting to a TCP Web server. Should not work.
-static const SocketAddress kTurnDangerousAddr("99.99.99.7", 81);
+const SocketAddress kTurnDangerousAddr("99.99.99.7", 81);
 // Port 53 (the DNS port); should work.
-static const SocketAddress kTurnPort53Addr("99.99.99.7", 53);
+const SocketAddress kTurnPort53Addr("99.99.99.7", 53);
 // Port 80 (the HTTP port); should work.
-static const SocketAddress kTurnPort80Addr("99.99.99.7", 80);
+const SocketAddress kTurnPort80Addr("99.99.99.7", 80);
 // Port 443 (the HTTPS port); should work.
-static const SocketAddress kTurnPort443Addr("99.99.99.7", 443);
+const SocketAddress kTurnPort443Addr("99.99.99.7", 443);
 // The default TURN server port.
-static const SocketAddress kTurnIntAddr("99.99.99.7", webrtc::TURN_SERVER_PORT);
-static const SocketAddress kTurnIPv6IntAddr(
-    "2400:4030:2:2c00:be30:abcd:efab:cdef",
-    webrtc::TURN_SERVER_PORT);
-static const SocketAddress kTurnUdpIPv6IntAddr(
-    "2400:4030:1:2c00:be30:abcd:efab:cdef",
-    webrtc::TURN_SERVER_PORT);
-static const SocketAddress kTurnInvalidAddr("www.google.invalid.", 3478);
-static const SocketAddress kTurnValidAddr("www.google.valid.", 3478);
+const SocketAddress kTurnIntAddr("99.99.99.7", webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnIPv6IntAddr("2400:4030:2:2c00:be30:abcd:efab:cdef",
+                                     webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnUdpIPv6IntAddr("2400:4030:1:2c00:be30:abcd:efab:cdef",
+                                        webrtc::TURN_SERVER_PORT);
+const SocketAddress kTurnInvalidAddr("www.google.invalid.", 3478);
+const SocketAddress kTurnValidAddr("www.google.valid.", 3478);
 
-static const char kCandidateFoundation[] = "foundation";
-static const char kIceUfrag1[] = "TESTICEUFRAG0001";
-static const char kIceUfrag2[] = "TESTICEUFRAG0002";
-static const char kIcePwd1[] = "TESTICEPWD00000000000001";
-static const char kIcePwd2[] = "TESTICEPWD00000000000002";
-static const char kTurnUsername[] = "test";
-static const char kTurnPassword[] = "test";
+constexpr char kCandidateFoundation[] = "foundation";
+constexpr char kIceUfrag1[] = "TESTICEUFRAG0001";
+constexpr char kIceUfrag2[] = "TESTICEUFRAG0002";
+constexpr char kIcePwd1[] = "TESTICEPWD00000000000001";
+constexpr char kIcePwd2[] = "TESTICEPWD00000000000002";
+constexpr char kTurnUsername[] = "test";
+constexpr char kTurnPassword[] = "test";
 // This test configures the virtual socket server to simulate delay so that we
 // can verify operations take no more than the expected number of round trips.
-static constexpr unsigned int kSimulatedRtt = 50;
+constexpr unsigned int kSimulatedRtt = 50;
 // Connection destruction may happen asynchronously, but it should only
 // take one simulated clock tick.
-static constexpr unsigned int kConnectionDestructionDelay = 1;
+constexpr unsigned int kConnectionDestructionDelay = 1;
 // This used to be 1 second, but that's not always enough for getaddrinfo().
 // See: https://bugs.chromium.org/p/webrtc/issues/detail?id=5191
-static constexpr unsigned int kResolverTimeout = 10000;
+constexpr unsigned int kResolverTimeout = 10000;
 
 constexpr uint64_t kTiebreakerDefault = 44444;
 
-static const webrtc::ProtocolAddress kTurnUdpProtoAddr(kTurnUdpIntAddr,
-                                                       webrtc::PROTO_UDP);
-static const webrtc::ProtocolAddress kTurnTcpProtoAddr(kTurnTcpIntAddr,
-                                                       webrtc::PROTO_TCP);
-static const webrtc::ProtocolAddress kTurnTlsProtoAddr(kTurnTcpIntAddr,
-                                                       webrtc::PROTO_TLS);
-static const webrtc::ProtocolAddress kTurnUdpIPv6ProtoAddr(kTurnUdpIPv6IntAddr,
-                                                           webrtc::PROTO_UDP);
-static const webrtc::ProtocolAddress kTurnDangerousProtoAddr(kTurnDangerousAddr,
-                                                             webrtc::PROTO_TCP);
-static const webrtc::ProtocolAddress kTurnPort53ProtoAddr(kTurnPort53Addr,
-                                                          webrtc::PROTO_TCP);
-static const webrtc::ProtocolAddress kTurnPort80ProtoAddr(kTurnPort80Addr,
-                                                          webrtc::PROTO_TCP);
-static const webrtc::ProtocolAddress kTurnPort443ProtoAddr(kTurnPort443Addr,
-                                                           webrtc::PROTO_TCP);
-static const webrtc::ProtocolAddress kTurnPortInvalidHostnameProtoAddr(
+const webrtc::ProtocolAddress kTurnUdpProtoAddr(kTurnUdpIntAddr,
+                                                webrtc::PROTO_UDP);
+const webrtc::ProtocolAddress kTurnTcpProtoAddr(kTurnTcpIntAddr,
+                                                webrtc::PROTO_TCP);
+const webrtc::ProtocolAddress kTurnTlsProtoAddr(kTurnTcpIntAddr,
+                                                webrtc::PROTO_TLS);
+const webrtc::ProtocolAddress kTurnUdpIPv6ProtoAddr(kTurnUdpIPv6IntAddr,
+                                                    webrtc::PROTO_UDP);
+const webrtc::ProtocolAddress kTurnDangerousProtoAddr(kTurnDangerousAddr,
+                                                      webrtc::PROTO_TCP);
+const webrtc::ProtocolAddress kTurnPort53ProtoAddr(kTurnPort53Addr,
+                                                   webrtc::PROTO_TCP);
+const webrtc::ProtocolAddress kTurnPort80ProtoAddr(kTurnPort80Addr,
+                                                   webrtc::PROTO_TCP);
+const webrtc::ProtocolAddress kTurnPort443ProtoAddr(kTurnPort443Addr,
+                                                    webrtc::PROTO_TCP);
+const webrtc::ProtocolAddress kTurnPortInvalidHostnameProtoAddr(
     kTurnInvalidAddr,
     webrtc::PROTO_UDP);
-static const webrtc::ProtocolAddress kTurnPortValidHostnameProtoAddr(
+const webrtc::ProtocolAddress kTurnPortValidHostnameProtoAddr(
     kTurnValidAddr,
     webrtc::PROTO_UDP);
 
 #if defined(WEBRTC_LINUX) && !defined(WEBRTC_ANDROID)
-static int GetFDCount() {
+int GetFDCount() {
   struct dirent* dp;
   int fd_count = 0;
   DIR* dir = opendir("/proc/self/fd/");
@@ -196,7 +192,7 @@ class TestConnectionWrapper : public sigslot::has_slots<> {
         this, &TestConnectionWrapper::OnConnectionDestroyed);
   }
 
-  ~TestConnectionWrapper() {
+  ~TestConnectionWrapper() override {
     if (connection_) {
       connection_->SignalDestroyed.disconnect(this);
     }
@@ -285,9 +281,12 @@ class TurnPortTest : public ::testing::Test,
   bool CreateTurnPort(const SocketAddress& local_address,
                       absl::string_view username,
                       absl::string_view password,
-                      const ProtocolAddress& server_address) {
+                      const ProtocolAddress& server_address,
+                      LocalNetworkAccessPermissionFactoryInterface*
+                          lna_permission_factory = nullptr) {
     return CreateTurnPortWithAllParams(MakeNetwork(local_address), username,
-                                       password, server_address);
+                                       password, server_address,
+                                       lna_permission_factory);
   }
 
   bool CreateTurnPortWithNetwork(const Network* network,
@@ -304,7 +303,9 @@ class TurnPortTest : public ::testing::Test,
   bool CreateTurnPortWithAllParams(const Network* network,
                                    absl::string_view username,
                                    absl::string_view password,
-                                   const ProtocolAddress& server_address) {
+                                   const ProtocolAddress& server_address,
+                                   LocalNetworkAccessPermissionFactoryInterface*
+                                       lna_permission_factory = nullptr) {
     RelayServerConfig config;
     config.credentials = RelayCredentials(username, password);
     CreateRelayPortArgs args = {.env = env_};
@@ -316,6 +317,7 @@ class TurnPortTest : public ::testing::Test,
     args.server_address = &server_address;
     args.config = &config;
     args.turn_customizer = turn_customizer_.get();
+    args.lna_permission_factory = lna_permission_factory;
 
     turn_port_ = TurnPort::Create(args, 0, 0);
     if (!turn_port_) {
@@ -1008,7 +1010,7 @@ class TurnLoggingIdValidator : public StunMessageObserver {
  public:
   explicit TurnLoggingIdValidator(const char* expect_val)
       : expect_val_(expect_val) {}
-  ~TurnLoggingIdValidator() {}
+  ~TurnLoggingIdValidator() override {}
   void ReceivedMessage(const TurnMessage* msg) override {
     if (msg->type() == STUN_ALLOCATE_REQUEST) {
       const StunByteStringAttribute* attr =
@@ -1056,7 +1058,7 @@ TEST_F(TurnPortTest, TestTurnBadCredentials) {
                         {.timeout = TimeDelta::Millis(kSimulatedRtt * 3),
                          .clock = &fake_clock_}),
               IsRtcOk());
-  EXPECT_EQ(error_event_.error_text, "Unauthorized");
+  EXPECT_EQ(error_event_.error_text, "Unauthorized.");
 }
 
 // Test that we fail without emitting an error if we try to get an address from
@@ -1187,7 +1189,7 @@ TEST_F(TurnPortTest, TurnTcpAllocationNotDiscardedIfNotBoundToBestIP) {
 }
 
 // Regression test for crbug.com/webrtc/8972, caused by buggy comparison
-// between webrtc::IPAddress and webrtc::InterfaceAddress.
+// between IPAddress and InterfaceAddress.
 TEST_F(TurnPortTest, TCPPortNotDiscardedIfBoundToTemporaryIP) {
   networks_.emplace_back("unittest", "unittest", kLocalIPv6Addr.ipaddr(), 32);
   networks_.back().AddIP(
@@ -1939,7 +1941,7 @@ class MessageObserver : public StunMessageObserver {
       : message_counter_(message_counter),
         channel_data_counter_(channel_data_counter),
         attr_counter_(attr_counter) {}
-  virtual ~MessageObserver() {}
+  ~MessageObserver() override {}
   void ReceivedMessage(const TurnMessage* msg) override {
     if (message_counter_ != nullptr) {
       (*message_counter_)++;
@@ -2146,10 +2148,10 @@ class TurnPortWithMockDnsResolverTest : public TurnPortTest {
 TEST_F(TurnPortWithMockDnsResolverTest, TestHostnameResolved) {
   CreateTurnPort(kTurnUsername, kTurnPassword, kTurnPortValidHostnameProtoAddr);
   SetDnsResolverExpectations(
-      [](webrtc::MockAsyncDnsResolver* resolver,
-         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+      [](MockAsyncDnsResolver* resolver,
+         MockAsyncDnsResolverResult* resolver_result) {
         EXPECT_CALL(*resolver, Start(kTurnValidAddr, /*family=*/AF_INET, _))
-            .WillOnce([](const webrtc::SocketAddress& addr, int family,
+            .WillOnce([](const SocketAddress& addr, int family,
                          absl::AnyInvocable<void()> callback) { callback(); });
         EXPECT_CALL(*resolver, result)
             .WillRepeatedly(ReturnPointee(resolver_result));
@@ -2167,10 +2169,10 @@ TEST_F(TurnPortWithMockDnsResolverTest, TestHostnameResolvedIPv6Network) {
   CreateTurnPort(kLocalIPv6Addr, kTurnUsername, kTurnPassword,
                  kTurnPortValidHostnameProtoAddr);
   SetDnsResolverExpectations(
-      [](webrtc::MockAsyncDnsResolver* resolver,
-         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+      [](MockAsyncDnsResolver* resolver,
+         MockAsyncDnsResolverResult* resolver_result) {
         EXPECT_CALL(*resolver, Start(kTurnValidAddr, /*family=*/AF_INET6, _))
-            .WillOnce([](const webrtc::SocketAddress& addr, int family,
+            .WillOnce([](const SocketAddress& addr, int family,
                          absl::AnyInvocable<void()> callback) { callback(); });
         EXPECT_CALL(*resolver, result)
             .WillRepeatedly(ReturnPointee(resolver_result));
@@ -2181,5 +2183,212 @@ TEST_F(TurnPortWithMockDnsResolverTest, TestHostnameResolvedIPv6Network) {
       });
   TestTurnAllocateSucceeds(kSimulatedRtt * 2);
 }
+
+static struct IPAddressTypeTestConfig {
+  absl::string_view address;
+  IPAddressType address_type;
+} kAllIPAddressTypeTestConfigs[] = {
+    {"127.0.0.1", IPAddressType::kLoopback},
+    {"localhost", IPAddressType::kLoopback},
+    {"::1", IPAddressType::kLoopback},
+    {"10.0.0.3", IPAddressType::kPrivate},
+    {"fd00:4860:4860::8844", IPAddressType::kPrivate},
+    {"1.1.1.1", IPAddressType::kPublic},
+    {"2001:4860:4860::8888", IPAddressType::kPublic},
+};
+
+// Used by the test framework to print the param value for parameterized tests.
+std::string PrintToString(const IPAddressTypeTestConfig& param) {
+  return std::string(param.address);
+}
+
+class TurnPortIPAddressTypeMetricsTest
+    : public TurnPortWithMockDnsResolverTest,
+      public ::testing::WithParamInterface<IPAddressTypeTestConfig> {};
+
+TEST_P(TurnPortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
+  metrics::Reset();
+
+  SetDnsResolverExpectations(
+      [](webrtc::MockAsyncDnsResolver* resolver,
+         webrtc::MockAsyncDnsResolverResult* resolver_result) {
+        EXPECT_CALL(*resolver, Start(SocketAddress("localhost", 5000),
+                                     /*family=*/AF_INET, _))
+            .WillOnce([](const webrtc::SocketAddress& /* addr */,
+                         int /* family */,
+                         absl::AnyInvocable<void()> callback) { callback(); });
+        EXPECT_CALL(*resolver, result)
+            .WillRepeatedly(ReturnPointee(resolver_result));
+        EXPECT_CALL(*resolver_result, GetError).WillRepeatedly(Return(0));
+        EXPECT_CALL(*resolver_result, GetResolvedAddress(AF_INET, _))
+            .WillOnce(DoAll(SetArgPointee<1>(SocketAddress("127.0.0.1", 5000)),
+                            Return(true)));
+      });
+
+  ProtocolAddress server_address({GetParam().address, 5000}, PROTO_UDP);
+  SocketAddress local_address = server_address.address.family() == AF_INET6
+                                    ? kLocalIPv6Addr
+                                    : kLocalAddr1;
+  CreateTurnPort(local_address, kTurnUsername, kTurnPassword, server_address);
+  turn_port_->PrepareAddress();
+
+  ASSERT_THAT(WaitUntil([&] { return turn_port_->HasRequests(); }, IsTrue()),
+              IsRtcOk());
+
+  auto samples =
+      metrics::Samples("WebRTC.PeerConnection.Turn.ServerAddressType");
+  ASSERT_EQ(samples.size(), 1u);
+  EXPECT_EQ(samples[static_cast<int>(GetParam().address_type)], 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         TurnPortIPAddressTypeMetricsTest,
+                         ::testing::ValuesIn(kAllIPAddressTypeTestConfigs));
+
+struct LocalAreaNetworkPermissionTestConfig {
+  template <typename Sink>
+  friend void AbslStringify(
+      Sink& sink,
+      const LocalAreaNetworkPermissionTestConfig& config) {
+    sink.Append(config.address);
+    sink.Append("_");
+    switch (config.lna_permission_status) {
+      case webrtc::LocalNetworkAccessPermissionStatus::kDenied:
+        sink.Append("Denied");
+        break;
+      case webrtc::LocalNetworkAccessPermissionStatus::kGranted:
+        sink.Append("Granted");
+        break;
+    }
+  }
+
+  webrtc::LocalNetworkAccessPermissionStatus lna_permission_status;
+  absl::string_view address;
+  bool should_succeed;
+} kAllLocalAreNetworkPermissionTestConfigs[] = {
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "127.0.0.1",
+     /*should_succeed=*/false},
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "10.0.0.3",
+     /*should_succeed=*/false},
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "1.1.1.1",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "::1",
+     /*should_succeed=*/false},
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied,
+     "fd00:4860:4860::8844",
+     /*should_succeed=*/false},
+    {webrtc::LocalNetworkAccessPermissionStatus::kDenied,
+     "2001:4860:4860::8888",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "127.0.0.1",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "10.0.0.3",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "1.1.1.1",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "::1",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted,
+     "fd00:4860:4860::8844",
+     /*should_succeed=*/true},
+    {webrtc::LocalNetworkAccessPermissionStatus::kGranted,
+     "2001:4860:4860::8888",
+     /*should_succeed=*/true},
+};
+
+class TurnPortLocalNetworkAccessPermissionTest
+    : public TurnPortWithMockDnsResolverTest,
+      public ::testing::WithParamInterface<
+          LocalAreaNetworkPermissionTestConfig> {
+ protected:
+  void CreateTurnPort(
+      absl::string_view address,
+      LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory) {
+    ProtocolAddress server_address({address, 5000}, PROTO_UDP);
+
+    // Use the test's address instead of `server_address` because
+    // `server_address` might not be a resolved address with an unknown family.
+    SocketAddress local_address =
+        SocketAddress(GetParam().address, 5000).family() == AF_INET6
+            ? kLocalIPv6Addr
+            : kLocalAddr1;
+    TurnPortWithMockDnsResolverTest::CreateTurnPort(
+        local_address, kTurnUsername, kTurnPassword, server_address,
+        lna_permission_factory);
+  }
+
+  void setup_dns_resolver_mock() {
+    auto expectations =
+        [](webrtc::MockAsyncDnsResolver* resolver,
+           webrtc::MockAsyncDnsResolverResult* resolver_result) {
+          EXPECT_CALL(*resolver, Start(_, _, _))
+              .WillOnce(
+                  [](const webrtc::SocketAddress& /* addr */, int /* family */,
+                     absl::AnyInvocable<void()> callback) { callback(); });
+
+          EXPECT_CALL(*resolver, result)
+              .WillRepeatedly(ReturnPointee(resolver_result));
+          EXPECT_CALL(*resolver_result, GetError).WillRepeatedly(Return(0));
+          EXPECT_CALL(*resolver_result, GetResolvedAddress(_, _))
+              .WillOnce(DoAll(
+                  SetArgPointee<1>(SocketAddress(GetParam().address, 5000)),
+                  Return(true)));
+        };
+
+    SetDnsResolverExpectations(std::move(expectations));
+  }
+};
+
+TEST_P(TurnPortLocalNetworkAccessPermissionTest, ResolvedAddresses) {
+  turn_server_.AddInternalSocket({GetParam().address, 5000}, PROTO_UDP);
+
+  FakeLocalNetworkAccessPermissionFactory factory(
+      GetParam().lna_permission_status);
+  CreateTurnPort(GetParam().address, &factory);
+  turn_port_->PrepareAddress();
+
+  if (GetParam().should_succeed) {
+    EXPECT_THAT(WaitUntil([&] { return turn_ready_; }, IsTrue(),
+                          {.clock = &fake_clock_}),
+                IsRtcOk());
+    EXPECT_EQ(1u, turn_port_->Candidates().size());
+    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
+  } else {
+    EXPECT_THAT(WaitUntil([&] { return turn_error_; }, IsTrue(),
+                          {.clock = &fake_clock_}),
+                IsRtcOk());
+    EXPECT_EQ(0u, turn_port_->Candidates().size());
+    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
+  }
+}
+
+TEST_P(TurnPortLocalNetworkAccessPermissionTest, UnresolvedAddresses) {
+  turn_server_.AddInternalSocket({GetParam().address, 5000}, PROTO_UDP);
+  setup_dns_resolver_mock();
+
+  FakeLocalNetworkAccessPermissionFactory factory(
+      GetParam().lna_permission_status);
+  CreateTurnPort("fakehost.test", &factory);
+  turn_port_->PrepareAddress();
+
+  if (GetParam().should_succeed) {
+    EXPECT_THAT(WaitUntil([&] { return turn_ready_; }, IsTrue(),
+                          {.clock = &fake_clock_}),
+                IsRtcOk());
+    EXPECT_EQ(1u, turn_port_->Candidates().size());
+    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
+  } else {
+    EXPECT_THAT(WaitUntil([&] { return turn_error_; }, IsTrue(),
+                          {.clock = &fake_clock_}),
+                IsRtcOk());
+    EXPECT_EQ(0u, turn_port_->Candidates().size());
+    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    TurnPortLocalNetworkAccessPermissionTest,
+    ::testing::ValuesIn(kAllLocalAreNetworkPermissionTestConfigs));
 
 }  // namespace webrtc

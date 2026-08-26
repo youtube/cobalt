@@ -25,7 +25,6 @@ import android.widget.TextView;
 
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.widget.SwitchCompat;
-import androidx.core.content.res.ResourcesCompat;
 
 import org.chromium.base.StrictModeContext;
 import org.chromium.build.annotations.NullMarked;
@@ -453,7 +452,7 @@ public final class InfoBarControlLayout extends ViewGroup {
             Bitmap iconBitmap,
             int iconColorId,
             CharSequence primaryMessage,
-            CharSequence secondaryMessage,
+            @Nullable CharSequence secondaryMessage,
             int resourceId) {
         LinearLayout layout =
                 (LinearLayout)
@@ -559,9 +558,11 @@ public final class InfoBarControlLayout extends ViewGroup {
         return spinner;
     }
 
-    /** Creates and adds a full-width control with additional text describing what an InfoBar is for. */
+    /**
+     * Creates and adds a full-width control with additional text describing what an InfoBar is for.
+     */
     public View addDescription(CharSequence message) {
-        return addDescription(message, ResourcesCompat.ID_NULL);
+        return addDescription(message, Resources.ID_NULL);
     }
 
     /**
@@ -577,7 +578,7 @@ public final class InfoBarControlLayout extends ViewGroup {
         addView(descriptionView, params);
 
         descriptionView.setText(message);
-        if (textAppearanceId != ResourcesCompat.ID_NULL) {
+        if (textAppearanceId != Resources.ID_NULL) {
             descriptionView.setTextAppearance(getContext(), textAppearanceId);
         }
         descriptionView.setMovementMethod(LinkMovementMethod.getInstance());

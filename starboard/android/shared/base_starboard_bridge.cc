@@ -71,7 +71,7 @@ jboolean JNI_BaseStarboardBridge_InitJNI(
   SB_CHECK(env);
 
   // Initialize the singleton instance of StarboardBridge
-  StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge.obj());
+  StarboardBridge::GetInstance()->Initialize(env, j_starboard_bridge);
 
   StarboardBridge::GetInstance()->SetStartupMilestone(5);
   return true;
@@ -91,7 +91,7 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
   if (g_native_app_instance == nullptr) {
     auto command_line = std::make_unique<CommandLine>(GetArgs());
     LogInit(*command_line);
-    ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager.obj());
+    ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager);
     g_native_app_instance = new ApplicationAndroid(
         std::move(command_line), std::move(asset_manager),
         ConvertJavaStringToUTF8(env, j_files_dir),
@@ -206,7 +206,8 @@ SB_EXPORT_ANDROID StarboardBridge* StarboardBridge::GetInstance() {
   return base::Singleton<StarboardBridge>::get();
 }
 
-void StarboardBridge::Initialize(JNIEnv* env, jobject obj) {
+void StarboardBridge::Initialize(JNIEnv* env,
+                                 const jni_zero::JavaRef<jobject>& obj) {
   j_starboard_bridge_.Reset(env, obj);
 }
 
@@ -313,6 +314,11 @@ SB_EXPORT_ANDROID double StarboardBridge::GetScreenDiagonal(JNIEnv* env) {
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_BaseStarboardBridge_closeApp(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::RequestStop(JNIEnv* env, jint error_level) {
+  SB_CHECK(env);
+  Java_BaseStarboardBridge_requestStop(env, j_starboard_bridge_, error_level);
 }
 
 std::string StarboardBridge::GetTimeZoneId(JNIEnv* env) {

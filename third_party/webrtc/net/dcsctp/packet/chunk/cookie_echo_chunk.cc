@@ -9,16 +9,14 @@
  */
 #include "net/dcsctp/packet/chunk/cookie_echo_chunk.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
-#include <type_traits>
+#include <string>
 #include <vector>
 
 #include "api/array_view.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
-#include "net/dcsctp/packet/tlv_trait.h"
 
 namespace dcsctp {
 

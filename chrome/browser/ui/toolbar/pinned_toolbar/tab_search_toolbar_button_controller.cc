@@ -8,6 +8,7 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/tab_search_bubble_host.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/chrome_features.h"
@@ -17,6 +18,10 @@ TabSearchToolbarButtonController::TabSearchToolbarButtonController(
     TabSearchBubbleHost* tab_search_bubble_host)
     : browser_view_(browser_view) {
   tab_search_bubble_host_observation_.Observe(tab_search_bubble_host);
+  // https://crbug.com/435137909: This class is created post window
+  // construction. Need to call this again because this class does not exist
+  // when ToolbarView tries to call it from init.
+  UpdateForWebUITabStrip();
 }
 
 TabSearchToolbarButtonController::~TabSearchToolbarButtonController() = default;

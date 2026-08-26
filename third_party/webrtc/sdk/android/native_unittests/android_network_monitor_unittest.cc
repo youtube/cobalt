@@ -15,8 +15,8 @@
 #include "rtc_base/thread.h"
 #include "sdk/android/native_api/jni/application_context_provider.h"
 #include "sdk/android/src/jni/jni_helpers.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 namespace test {
@@ -71,7 +71,7 @@ class AndroidNetworkMonitorTest : public ::testing::Test {
   }
 
  protected:
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   webrtc::AutoThread main_thread_;
   std::unique_ptr<jni::AndroidNetworkMonitor> network_monitor_;
 };
@@ -115,9 +115,8 @@ TEST_F(AndroidNetworkMonitorTest, TestFindNetworkHandleUsingFullIpv6Address) {
 
 TEST_F(AndroidNetworkMonitorTest,
        TestFindNetworkHandleIgnoringIpv6TemporaryPart) {
-  ScopedKeyValueConfig field_trials(
-      field_trials_,
-      "WebRTC-FindNetworkHandleWithoutIpv6TemporaryPart/Enabled/");
+  field_trials_.Set("WebRTC-FindNetworkHandleWithoutIpv6TemporaryPart",
+                    "Enabled");
   // Start() updates the states introduced by the field trial.
   network_monitor_->Start();
   jni::NetworkHandle ipv6_handle = 200;
@@ -171,8 +170,7 @@ TEST_F(AndroidNetworkMonitorTest, TestFindNetworkHandleUsingIfName) {
 }
 
 TEST_F(AndroidNetworkMonitorTest, TestUnderlyingVpnType) {
-  ScopedKeyValueConfig field_trials(field_trials_,
-                                    "WebRTC-BindUsingInterfaceName/Enabled/");
+  field_trials_.Set("WebRTC-BindUsingInterfaceName", "Enabled");
   jni::NetworkHandle ipv4_handle = 100;
   webrtc::IPAddress ipv4_address(kTestIpv4Address);
   jni::NetworkInformation net_info =

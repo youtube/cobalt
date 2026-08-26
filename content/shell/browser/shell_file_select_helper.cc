@@ -5,6 +5,7 @@
 #include "content/shell/browser/shell_file_select_helper.h"
 
 #include "base/memory/scoped_refptr.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -112,11 +113,15 @@ void ShellFileSelectHelper::RunFileChooser(
   DCHECK(!listener_);
   DCHECK(!select_file_dialog_);
 
+  select_file_dialog_ = ui::SelectFileDialog::Create(this, nullptr);
+  if (!select_file_dialog_) {
+    listener->FileSelectionCanceled();
+    return;
+  }
+
   listener_ = std::move(listener);
   web_contents_ = content::WebContents::FromRenderFrameHost(render_frame_host)
                       ->GetWeakPtr();
-
-  select_file_dialog_ = ui::SelectFileDialog::Create(this, nullptr);
 
   select_file_types_ = GetFileTypesFromAcceptType(params->accept_types);
   select_file_types_->allowed_paths =

@@ -12,6 +12,7 @@
 
 #include "base/debug/alias.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "components/viz/common/switches.h"
@@ -25,6 +26,7 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/skia_utils.h"
 #include "gpu/command_buffer/service/texture_manager.h"
+#include "third_party/microsoft_dxheaders/src/include/composition/dcomp-preview.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
@@ -48,6 +50,22 @@ NOINLINE void CheckForLoopFailures() {
     NOTREACHED();
   }
   g_last_reshape_failure = now;
+}
+
+OutputSurface::DCSupportLevel GetDcSupportLevel() {
+  if (gl::DirectCompositionTextureSupported()) {
+    Microsoft::WRL::ComPtr<IDCompositionDevice3> dcomp_device =
+        gl::GetDirectCompositionDevice();
+
+    if (Microsoft::WRL::ComPtr<PREVIEW_IDCompositionDevice5> dcomp_device5;
+        SUCCEEDED(dcomp_device.As(&dcomp_device5))) {
+      return OutputSurface::DCSupportLevel::kDCompDynamicTexture;
+    }
+
+    return OutputSurface::DCSupportLevel::kDCompTexture;
+  }
+
+  return OutputSurface::DCSupportLevel::kDCLayers;
 }
 
 }  // namespace
@@ -130,10 +148,7 @@ SkiaOutputDeviceDComp::SkiaOutputDeviceDComp(
           features::kDirectCompositionUnlimitedOverlays)) {
     capabilities_.allowed_yuv_overlay_count = INT_MAX;
   }
-  capabilities_.dc_support_level =
-      gl::DirectCompositionTextureSupported()
-          ? OutputSurface::DCSupportLevel::kDCompTexture
-          : OutputSurface::DCSupportLevel::kDCLayers;
+  capabilities_.dc_support_level = GetDcSupportLevel();
   capabilities_.supports_post_sub_buffer = true;
   capabilities_.supports_delegated_ink = presenter_->SupportsDelegatedInk();
   capabilities_.pending_swap_params.max_pending_swaps =
@@ -276,6 +291,7 @@ void SkiaOutputDeviceDComp::ScheduleOverlays(
           BeginOverlayAccess(mailbox);
       if (overlay_image) {
         params.overlay_image = std::move(overlay_image);
+        params.damage_rect = dc_layer.damage_rect;
         scheduled_overlay_mailboxes_.insert(mailbox);
       } else {
         DLOG(ERROR) << "Failed to ProduceOverlay or GetDCLayerOverlayImage";
@@ -309,6 +325,8 @@ void SkiaOutputDeviceDComp::ScheduleOverlays(
         (dc_layer.format == MultiPlaneFormat::kP010);
     params.video_params.possible_video_fullscreen_letterboxing =
         dc_layer.possible_video_fullscreen_letterboxing;
+    params.video_params.is_full_screen_video =
+        dc_layer.overlay_type == gfx::OverlayType::kFullScreen;
   }
 
   // Schedule DC layer overlays to be presented at next SwapBuffers().

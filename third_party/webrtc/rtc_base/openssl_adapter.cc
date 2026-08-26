@@ -10,39 +10,50 @@
 
 #include "rtc_base/openssl_adapter.h"
 
-#include <errno.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/ssl3.h>
+#include <openssl/x509.h>
 
+#include <cerrno>
 #include <cstdint>
+#include <cstring>
+#include <ctime>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/async_socket.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/openssl_session_cache.h"
+#include "rtc_base/openssl_utility.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
+#include "rtc_base/strings/str_join.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/thread.h"
+
 #ifdef OPENSSL_IS_BORINGSSL
 #include <openssl/pool.h>
 
 #include "rtc_base/boringssl_certificate.h"
+#include "rtc_base/boringssl_identity.h"
 #include "rtc_base/openssl.h"
+#else
+#include "rtc_base/openssl_identity.h"
 #endif
-#include <openssl/x509.h>
-#include <string.h>
-#include <time.h>
-
-#include <memory>
 
 // Use CRYPTO_BUFFER APIs if available and we have no dependency on X509
 // objects.
@@ -50,21 +61,6 @@
     defined(WEBRTC_EXCLUDE_BUILT_IN_SSL_ROOT_CERTS)
 #define WEBRTC_USE_CRYPTO_BUFFER_CALLBACK
 #endif
-
-#include "absl/memory/memory.h"
-#include "api/units/time_delta.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
-#include "rtc_base/numerics/safe_conversions.h"
-#ifdef OPENSSL_IS_BORINGSSL
-#include "rtc_base/boringssl_identity.h"
-#else
-#include "rtc_base/openssl_identity.h"
-#endif
-#include "rtc_base/openssl_utility.h"
-#include "rtc_base/strings/str_join.h"
-#include "rtc_base/thread.h"
-
 //////////////////////////////////////////////////////////////////////
 // SocketBIO
 //////////////////////////////////////////////////////////////////////
@@ -258,8 +254,8 @@ void OpenSSLAdapter::SetIdentity(std::unique_ptr<SSLIdentity> identity) {
   identity_ =
       absl::WrapUnique(static_cast<BoringSSLIdentity*>(identity.release()));
 #else
-  identity_ = absl::WrapUnique(
-      static_cast<webrtc::OpenSSLIdentity*>(identity.release()));
+  identity_ =
+      absl::WrapUnique(static_cast<OpenSSLIdentity*>(identity.release()));
 #endif
 }
 
@@ -912,7 +908,7 @@ int OpenSSLAdapter::SSLVerifyInternal(int previous_status,
   }
   const BoringSSLCertificate cert(std::move(crypto_buffer));
 #else
-  const webrtc::OpenSSLCertificate cert(X509_STORE_CTX_get_current_cert(store));
+  const OpenSSLCertificate cert(X509_STORE_CTX_get_current_cert(store));
 #endif
   if (!ssl_cert_verifier_->Verify(cert)) {
     RTC_LOG(LS_INFO) << "Failed to verify certificate using custom callback";

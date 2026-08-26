@@ -210,22 +210,24 @@ bool VkTestHelper::setupBackendContext() {
         return false;
     }
 
-    fFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    fFeatures.pNext = nullptr;
-
     fBackendContext.fInstance = VK_NULL_HANDLE;
     fBackendContext.fDevice = VK_NULL_HANDLE;
 
-    if (!sk_gpu_test::CreateVkBackendContext(instProc, &fBackendContext, &fExtensions,
-                                             &fFeatures, &fDebugCallback, nullptr,
-                                             sk_gpu_test::CanPresentFn(), fIsProtected)) {
+    if (!sk_gpu_test::CreateVkBackendContext(instProc,
+                                             &fBackendContext,
+                                             &fExtensions,
+                                             &fFeatures,
+                                             &fDebugMessenger,
+                                             nullptr,
+                                             sk_gpu_test::CanPresentFn(),
+                                             fIsProtected)) {
         return false;
     }
     fDevice = fBackendContext.fDevice;
 
-    if (fDebugCallback != VK_NULL_HANDLE) {
-        fDestroyDebugCallback = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(
-                instProc(fBackendContext.fInstance, "vkDestroyDebugReportCallbackEXT"));
+    if (fDebugMessenger != VK_NULL_HANDLE) {
+        fDestroyDebugCallback = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+                instProc(fBackendContext.fInstance, "vkDestroyDebugUtilsMessengerEXT"));
     }
     ACQUIRE_INST_VK_PROC(DestroyInstance)
     ACQUIRE_INST_VK_PROC(DeviceWaitIdle)
@@ -256,16 +258,14 @@ VkTestHelper::~VkTestHelper() {
         fVkDestroyDevice(fDevice, nullptr);
         fDevice = VK_NULL_HANDLE;
     }
-    if (fDebugCallback != VK_NULL_HANDLE) {
-        fDestroyDebugCallback(fBackendContext.fInstance, fDebugCallback, nullptr);
+    if (fDebugMessenger != VK_NULL_HANDLE) {
+        fDestroyDebugCallback(fBackendContext.fInstance, fDebugMessenger, nullptr);
     }
 
     if (fBackendContext.fInstance != VK_NULL_HANDLE) {
         fVkDestroyInstance(fBackendContext.fInstance, nullptr);
         fBackendContext.fInstance = VK_NULL_HANDLE;
     }
-
-    sk_gpu_test::FreeVulkanFeaturesStructs(&fFeatures);
 }
 
 #endif // SK_VULKAN

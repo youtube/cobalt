@@ -40,6 +40,11 @@ BASE_FEATURE(kBookmarkTriggerForPrerender2,
              "BookmarkTriggerForPrerender2",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// This flag is used for enabling BookmarkBar triggered preconnect.
+BASE_FEATURE(kBookmarkTriggerForPreconnect,
+             "BookmarkTriggerForPreconnect",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables Certificate Transparency on Desktop and Android Browser (CT is
 // disabled in Android Webview, see aw_browser_context.cc).
 // Enabling CT enforcement requires maintaining a log policy, and the ability to
@@ -132,7 +137,11 @@ BASE_FEATURE(kFlexOrgManagementDisclosure,
 // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/Notifications/notifications_actions_customization.md
 BASE_FEATURE(kIncomingCallNotifications,
              "IncomingCallNotifications",
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
 
 #if !BUILDFLAG(IS_ANDROID)
 // Adds a "Snooze" action to mute notifications during screen sharing sessions.
@@ -146,7 +155,7 @@ BASE_FEATURE(kMuteNotificationSnoozeAction,
 // network request controlled by that policy is observed.
 BASE_FEATURE(kNetworkAnnotationMonitoring,
              "NetworkAnnotationMonitoring",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This flag is used for enabling New Tab Page triggered prerendering. See
 // crbug.com/1462832 for more details of New Tab Page triggered prerendering.

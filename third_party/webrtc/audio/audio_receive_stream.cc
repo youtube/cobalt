@@ -25,6 +25,7 @@
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/call/audio_sink.h"
+#include "api/crypto/frame_decryptor_interface.h"
 #include "api/environment/environment.h"
 #include "api/frame_transformer_interface.h"
 #include "api/neteq/neteq_factory.h"
@@ -428,9 +429,9 @@ bool AudioReceiveStreamImpl::SetMinimumPlayoutDelay(int delay_ms) {
   return channel_receive_->SetMinimumPlayoutDelay(delay_ms);
 }
 
-void AudioReceiveStreamImpl::DeliverRtcp(const uint8_t* packet, size_t length) {
+void AudioReceiveStreamImpl::DeliverRtcp(ArrayView<const uint8_t> packet) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  channel_receive_->ReceivedRTCPPacket(packet, length);
+  channel_receive_->ReceivedRTCPPacket(packet.data(), packet.size());
 }
 
 void AudioReceiveStreamImpl::SetSyncGroup(absl::string_view sync_group) {

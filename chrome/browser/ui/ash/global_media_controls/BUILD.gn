@@ -20,6 +20,7 @@ static_library("global_media_controls") {
 
   deps = [
     "//ash",
+    "//chrome/browser:browser_process",
     "//chrome/browser/ash/profiles",
     "//chrome/browser/media/router",
     "//chrome/browser/media/router:media_router_feature",
@@ -48,6 +49,7 @@ source_set("browser_tests") {
     "//base/test:test_support",
     "//chrome/browser/ash/crosapi",
     "//chrome/browser/ui",
+    "//chrome/browser/ui/global_media_controls",
     "//chrome/test:test_support",
     "//components/global_media_controls",
     "//components/global_media_controls:test_support",
@@ -57,6 +59,10 @@ source_set("browser_tests") {
     "//ui/events",
     "//ui/views",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("unit_tests") {

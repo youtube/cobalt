@@ -68,7 +68,8 @@ void CheckThrottleWillNotCauseCorsPreflight(
       cors_exempt_header_list);
   for (auto& header : headers.GetHeaderVector()) {
     if (!base::Contains(initial_headers, header.key) &&
-        !network::cors::IsCorsSafelistedHeader(header.key, header.value)) {
+        !network::cors::IsCorsSafelistedHeader(header.key, header.value) &&
+        net::HttpUtil::IsSafeHeader(header.key, header.value)) {
       bool is_cors_exempt = cors_exempt_header_flat_set.count(header.key);
       NOTREACHED()
           << "Throttle added cors unsafe header " << header.key
@@ -258,6 +259,17 @@ ThrottlingURLLoader::PriorityInfo::PriorityInfo(
     : priority(in_priority), intra_priority_value(in_intra_priority_value) {}
 
 // static
+std::unique_ptr<ThrottlingURLLoader> ThrottlingURLLoader::CreateLoader(
+    std::vector<std::unique_ptr<URLLoaderThrottle>> throttles,
+    network::mojom::URLLoaderClient* client,
+    const net::NetworkTrafficAnnotationTag& traffic_annotation,
+    ClientReceiverDelegate* client_receiver_delegate) {
+  return std::unique_ptr<ThrottlingURLLoader>(
+      new ThrottlingURLLoader(std::move(throttles), client, traffic_annotation,
+                              client_receiver_delegate));
+}
+
+// static
 std::unique_ptr<ThrottlingURLLoader> ThrottlingURLLoader::CreateLoaderAndStart(
     scoped_refptr<network::SharedURLLoaderFactory> factory,
     std::vector<std::unique_ptr<URLLoaderThrottle>> throttles,
@@ -271,9 +283,9 @@ std::unique_ptr<ThrottlingURLLoader> ThrottlingURLLoader::CreateLoaderAndStart(
     ClientReceiverDelegate* client_receiver_delegate,
     const std::vector<int>* initiator_origin_trial_features) {
   DCHECK(url_request);
-  std::unique_ptr<ThrottlingURLLoader> loader(
-      new ThrottlingURLLoader(std::move(throttles), client, traffic_annotation,
-                              client_receiver_delegate));
+  std::unique_ptr<ThrottlingURLLoader> loader =
+      CreateLoader(std::move(throttles), client, traffic_annotation,
+                   client_receiver_delegate);
   loader->Start(std::move(factory), request_id, options, url_request,
                 std::move(task_runner), std::move(cors_exempt_header_list),
                 initiator_origin_trial_features);
@@ -436,7 +448,11 @@ void ThrottlingURLLoader::Start(
 #endif
 
       base::Time start = base::Time::Now();
+      auto weak_ptr = weak_factory_.GetWeakPtr();
       throttle->WillStartRequest(url_request, &throttle_deferred);
+      if (!weak_ptr) {
+        return;
+      }
       RecordExecutionTimeHistogram(GetStageNameForHistogram(DEFERRED_START),
                                    start);
 
@@ -502,6 +518,7 @@ void ThrottlingURLLoader::StartNow() {
         start_info_->url_request.site_for_cookies, first_party_url_policy,
         start_info_->url_request.referrer_policy,
         start_info_->url_request.referrer.spec(),
+        start_info_->url_request.request_initiator,
         // Use status code 307 to preserve the method, so POST requests work.
         net::HTTP_TEMPORARY_REDIRECT, throttle_will_start_redirect_url_,
         std::nullopt, false, false, false);

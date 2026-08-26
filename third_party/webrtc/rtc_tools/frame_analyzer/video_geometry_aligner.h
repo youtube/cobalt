@@ -11,6 +11,7 @@
 #ifndef RTC_TOOLS_FRAME_ANALYZER_VIDEO_GEOMETRY_ALIGNER_H_
 #define RTC_TOOLS_FRAME_ANALYZER_VIDEO_GEOMETRY_ALIGNER_H_
 
+#include "api/scoped_refptr.h"
 #include "api/video/video_frame_buffer.h"
 #include "rtc_tools/video_file_reader.h"
 

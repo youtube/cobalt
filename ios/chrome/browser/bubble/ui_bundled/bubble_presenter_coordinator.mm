@@ -11,6 +11,8 @@
 #import "ios/chrome/browser/discover_feed/model/discover_feed_service.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_service_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
 #import "ios/chrome/browser/segmentation_platform/model/segmentation_platform_service_factory.h"
@@ -22,6 +24,7 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
+#import "ios/chrome/browser/shared/public/commands/page_action_menu_entry_point_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_strip_commands.h"
 #import "ios/chrome/browser/shared/public/commands/toolbar_commands.h"
@@ -55,6 +58,8 @@
           initWithLayoutGuideCenter:LayoutGuideCenterForBrowser(self.browser)
                   engagementTracker:engagementTracker
                        webStateList:self.browser->GetWebStateList()
+               fullscreenController:FullscreenController::FromBrowser(
+                                        self.browser)
       overlayPresenterForWebContent:webContentPresenter
                       infobarBanner:infobarBannerPresenter
                        infobarModal:infobarModalPresenter];
@@ -189,6 +194,13 @@
     }
     case InProductHelpType::kSwitchAccountsWithNTPAccountParticleDisc: {
       [_presenter presentSwitchAccountsWithNTPAccountParticleDiscBubble];
+      break;
+    }
+    case InProductHelpType::kPageActionMenu: {
+      CHECK(IsPageActionMenuEnabled());
+      _presenter.pageActionMenuEntryPointHandler = HandlerForProtocol(
+          commandDispatcher, PageActionMenuEntryPointCommands);
+      [_presenter presentPageActionMenuBubble];
       break;
     }
   }

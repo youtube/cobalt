@@ -16,6 +16,8 @@
 #import "ios/chrome/browser/authentication/ui_bundled/history_sync/history_sync_popup_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/history_sync/history_sync_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/add_account_signin/add_account_signin_manager.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/add_account_signin/add_account_signin_mediator.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/add_account_signin/add_account_signin_mediator_delegate.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator+protected.h"
 #import "ios/chrome/browser/shared/coordinator/alert/alert_coordinator.h"
@@ -38,6 +40,7 @@ using signin_metrics::AccessPoint;
 using signin_metrics::PromoAction;
 
 @interface AddAccountSigninCoordinator () <AddAccountSigninManagerDelegate,
+                                           AddAccountSigninMediatorDelegate,
                                            HistorySyncPopupCoordinatorDelegate>
 
 // Coordinator to display modal alerts to the user.
@@ -65,6 +68,7 @@ using signin_metrics::PromoAction;
   raw_ptr<AuthenticationService> _authenticationService;
   raw_ptr<syncer::SyncService> _syncService;
   ChangeProfileContinuationProvider _continuationProvider;
+  AddAccountSigninMediator* _mediator;
 }
 
 #pragma mark - Public
@@ -103,6 +107,10 @@ using signin_metrics::PromoAction;
   [super start];
   ProfileIOS* profile = self.profile->GetOriginalProfile();
   _authenticationService = AuthenticationServiceFactory::GetForProfile(profile);
+  _mediator = [[AddAccountSigninMediator alloc]
+      initWithAuthenticationService:AuthenticationServiceFactory::GetForProfile(
+                                        profile)];
+  _mediator.delegate = self;
   switch (_signinIntent) {
     case AddAccountSigninIntent::kAddAccount:
       // It is possible to have a primary identity when adding a secondary
@@ -110,10 +118,16 @@ using signin_metrics::PromoAction;
       // sign-in.
       break;
     case AddAccountSigninIntent::kPrimaryAccountReauth:
+      // The user wants to reauth their primary account.
+      CHECK(_authenticationService->HasPrimaryIdentity(
+                signin::ConsentLevel::kSignin),
+            base::NotFatalUntil::M143);
+      break;
     case AddAccountSigninIntent::kResignin:
+      // The user wants to add back their primary account.
       CHECK(!_authenticationService->HasPrimaryIdentity(
                 signin::ConsentLevel::kSignin),
-            base::NotFatalUntil::M142);
+            base::NotFatalUntil::M143);
       break;
   }
   _syncService = SyncServiceFactory::GetForProfile(profile);
@@ -130,6 +144,9 @@ using signin_metrics::PromoAction;
                  identityManager:_identityManager
       identityInteractionManager:identityInteractionManager];
   self.addAccountSigninManager.delegate = self;
+  // Note that, up to iOS 18, the view may disappear if the user turn off their
+  // screen, without informing the delegate, due to a bug in UIKit. See
+  // crbug.com/395959814.
   [self.addAccountSigninManager showSigninWithIntent:self.signinIntent];
 }
 
@@ -144,18 +161,17 @@ using signin_metrics::PromoAction;
 
   [self stopPostSigninManagerCoordinatorAnimated:animated];
   [self interruptAddAccountSigninManager:animated];
+  [self stopAlertCoordinator];
+  [self stopHistorySyncPopupCoordinator];
 
+  [_mediator disconnect];
+  _mediator.delegate = nil;
+  _mediator = nil;
   _accountManagerService = nullptr;
   _identityManager = nullptr;
   _authenticationService = nil;
   _continuationProvider.Reset();
   _syncService = nil;
-  // If one of those 3 DCHECK() fails, -[AddAccountSigninCoordinator
-  // runCompletionWithSigninResult] has not been called.
-  DCHECK(!self.addAccountSigninManager);
-  DCHECK(!self.alertCoordinator);
-  DCHECK(!self.postSigninManagerCoordinator);
-  DCHECK(!self.historySyncPopupCoordinator);
 }
 
 #pragma mark - AddAccountSigninManagerDelegate
@@ -189,8 +205,7 @@ using signin_metrics::PromoAction;
       DCHECK(error);
       __weak AddAccountSigninCoordinator* weakSelf = self;
       ProceduralBlock dismissAction = ^{
-        [weakSelf.alertCoordinator stop];
-        weakSelf.alertCoordinator = nil;
+        [weakSelf stopAlertCoordinator];
         [weakSelf
             addAccountDoneWithSigninResult:SigninCoordinatorResultCanceledByUser
                                   identity:nil];
@@ -231,6 +246,11 @@ using signin_metrics::PromoAction;
 }
 
 #pragma mark - Private
+
+- (void)stopAlertCoordinator {
+  [self.alertCoordinator stop];
+  self.alertCoordinator = nil;
+}
 
 - (void)interruptAddAccountSigninManager:(BOOL)animated {
   [self.addAccountSigninManager interruptAnimated:animated];
@@ -288,8 +308,7 @@ using signin_metrics::PromoAction;
   [self.alertCoordinator
       addItemWithTitle:l10n_util::GetNSString(IDS_OK)
                 action:^{
-                  [weakSelf.alertCoordinator stop];
-                  weakSelf.alertCoordinator = nil;
+                  [weakSelf stopAlertCoordinator];
                   [weakSelf continueAddAccountFlowWithSigninResult:
                                 SigninCoordinatorResultCanceledByUser
                                                           identity:nil];
@@ -390,6 +409,14 @@ using signin_metrics::PromoAction;
       break;
   }
   [self addAccountDoneWithSigninResult:signinResult identity:primaryIdentity];
+}
+
+#pragma mark - AddAccountSigninMediatorDelegate
+
+- (void)mediatorWantsToBeStopped:(AddAccountSigninMediator*)mediator {
+  CHECK_EQ(_mediator, mediator, base::NotFatalUntil::M144);
+  [self runCompletionWithSigninResult:SigninCoordinatorResultInterrupted
+                   completionIdentity:nil];
 }
 
 #pragma mark - NSObject

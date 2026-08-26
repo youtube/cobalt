@@ -24,8 +24,7 @@ class IdentityProviderPermissionRequest
 
  private:
   void PermissionDecided(
-      ContentSetting result,
-      bool is_one_time,
+      PermissionDecision decision,
       bool is_final_decision,
       const permissions::PermissionRequestData& request_data);
 

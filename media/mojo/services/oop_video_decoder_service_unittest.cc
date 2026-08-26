@@ -9,7 +9,6 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
-#include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "media/mojo/common/media_type_converters.h"
 #include "media/mojo/common/mojo_decoder_buffer_converter.h"
 #include "media/mojo/mojom/media_log.mojom.h"
@@ -20,7 +19,6 @@
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/gfx/gpu_memory_buffer.h"
 
 using testing::_;
 using testing::ByMove;
@@ -832,7 +830,7 @@ TEST_F(OOPVideoDecoderServiceTest,
   ASSERT_TRUE(auxiliary_endpoints->mock_media_log);
 
   MediaLogRecord media_log_record_to_send;
-  media_log_record_to_send.id = 2;
+  media_log_record_to_send.id = MediaPlayerLoggingID(2);
   media_log_record_to_send.type = MediaLogRecord::Type::kMediaStatus;
   media_log_record_to_send.params.Set("Test", "Value");
   media_log_record_to_send.time = base::TimeTicks::Now();

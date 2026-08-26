@@ -32,6 +32,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/infobars/core",
     "//components/prefs",
+    "//components/signin/public/base:signin_switches",
     "//components/sync/base:features",
     "//ios/chrome/app/strings:ios_strings_grit",
     "//ios/chrome/browser/infobars/model",
@@ -56,4 +57,8 @@ source_set("unit_tests") {
     "//third_party/ocmock",
     "//ui/base",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

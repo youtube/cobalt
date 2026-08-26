@@ -9,6 +9,7 @@
 
 #import "base/memory/weak_ptr.h"
 
+@protocol FacePileProviding;
 class TabGroup;
 enum class TabGroupActionType;
 namespace collaboration {
@@ -34,7 +35,8 @@ enum class CollaborationServiceShareOrManageEntryPoint;
 
 // Starts the leave or delete shared group flow.
 - (void)startLeaveOrDeleteSharedGroup:(base::WeakPtr<const TabGroup>)tabGroup
-                            forAction:(TabGroupActionType)actionType;
+                            forAction:(TabGroupActionType)actionType
+                     withConfirmation:(BOOL)confirmation;
 
 // Displays a snackbar after closing a tab group locally.
 - (void)showTabGroupIndicatorSnackbarAfterClosingGroup;
@@ -50,6 +52,9 @@ enum class CollaborationServiceShareOrManageEntryPoint;
                entryPoint:
                    (collaboration::CollaborationServiceShareOrManageEntryPoint)
                        entryPoint;
+
+// Returns a FacePile provider for `groupID`.
+- (id<FacePileProviding>)facePileProviderForGroupID:(const std::string&)groupID;
 
 @end
 

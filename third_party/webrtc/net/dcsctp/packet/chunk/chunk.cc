@@ -10,12 +10,10 @@
 #include "net/dcsctp/packet/chunk/chunk.h"
 
 #include <cstdint>
-#include <memory>
 #include <optional>
-#include <utility>
+#include <string>
 
 #include "api/array_view.h"
-#include "net/dcsctp/common/math.h"
 #include "net/dcsctp/packet/chunk/abort_chunk.h"
 #include "net/dcsctp/packet/chunk/cookie_ack_chunk.h"
 #include "net/dcsctp/packet/chunk/cookie_echo_chunk.h"
@@ -33,7 +31,7 @@
 #include "net/dcsctp/packet/chunk/shutdown_ack_chunk.h"
 #include "net/dcsctp/packet/chunk/shutdown_chunk.h"
 #include "net/dcsctp/packet/chunk/shutdown_complete_chunk.h"
-#include "net/dcsctp/packet/tlv_trait.h"
+#include "rtc_base/strings/string_builder.h"
 
 namespace dcsctp {
 

@@ -10,6 +10,7 @@
 #ifndef NET_DCSCTP_PUBLIC_TEXT_PCAP_PACKET_OBSERVER_H_
 #define NET_DCSCTP_PUBLIC_TEXT_PCAP_PACKET_OBSERVER_H_
 
+#include <cstdint>
 #include <string>
 
 #include "absl/strings/string_view.h"

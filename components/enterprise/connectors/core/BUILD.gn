@@ -21,6 +21,9 @@ source_set("core") {
     "connectors_prefs.h",
     "connectors_service_base.cc",
     "connectors_service_base.h",
+    "content_analysis_info_base.h",
+    "content_area_user_provider.cc",
+    "content_area_user_provider.h",
     "enterprise_connectors_policy_handler.cc",
     "enterprise_connectors_policy_handler.h",
     "enterprise_interstitial_base.cc",
@@ -43,6 +46,7 @@ source_set("core") {
 
   public_deps = [
     ":constants",
+    "//components/download/public/common:public",
     "//components/enterprise/common/proto:connectors_proto",
   ]
 
@@ -66,7 +70,7 @@ source_set("core") {
     "//components/security_interstitials/core:unsafe_resource",
     "//components/signin/public/identity_manager",
     "//components/strings:components_strings_grit",
-    "//components/url_matcher:url_matcher",
+    "//components/url_matcher",
     "//ui/base",
     "//ui/gfx/range",
   ]
@@ -77,6 +81,10 @@ source_set("core") {
 
   if (enterprise_client_certificates) {
     deps += [ "//components/enterprise/client_certificates/core" ]
+  }
+
+  if (enterprise_data_controls) {
+    deps += [ "//components/enterprise/data_controls/core/browser" ]
   }
 }
 
@@ -117,7 +125,7 @@ source_set("test_support") {
     "//components/prefs",
     "//net",
     "//net:test_support",
-    "//testing/gmock:gmock",
+    "//testing/gmock",
     "//url",
   ]
 }
@@ -144,7 +152,9 @@ source_set("unit_tests") {
     "//components/policy/core/common",
     "//components/prefs",
     "//components/prefs:test_support",
+    "//components/safe_browsing/core/common:features",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
+    "//net",
     "//testing/gtest",
     "//url",
   ]

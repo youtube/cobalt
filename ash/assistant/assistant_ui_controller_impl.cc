@@ -73,13 +73,6 @@ AssistantUiControllerImpl::~AssistantUiControllerImpl() {
   model_.RemoveObserver(this);
 }
 
-// static
-void AssistantUiControllerImpl::RegisterProfilePrefs(
-    PrefRegistrySimple* registry) {
-  registry->RegisterIntegerPref(
-      prefs::kAssistantNumSessionsWhereOnboardingShown, 0);
-}
-
 void AssistantUiControllerImpl::SetAssistant(assistant::Assistant* assistant) {
   assistant_ = assistant;
 }
@@ -103,6 +96,8 @@ void AssistantUiControllerImpl::SetKeyboardTraversalMode(
 }
 
 void AssistantUiControllerImpl::ShowUi(AssistantEntryPoint entry_point) {
+  // TODO: crbug.com/417538592 - open Gemini PWA via AppList and delete
+  // dependency to AssistantBrowserDelegate.
   if (ash::assistant::features::IsNewEntryPointEnabled()) {
     assistant::AssistantBrowserDelegate::Get()->OpenNewEntryPoint();
     return;

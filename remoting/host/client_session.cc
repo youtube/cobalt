@@ -415,6 +415,7 @@ void ClientSession::SelectDesktopDisplay(
   LOG(INFO) << "SelectDesktopDisplay "
             << "'" << select_display.id() << "'";
 
+#if BUILDFLAG(IS_CHROMEOS)
   if (HasCapability(capabilities_, protocol::kMultiStreamCapability)) {
     // TODO(lambroslambrou): Close the connection with a protocol error,
     // once we are sure the client will not send this request after
@@ -492,6 +493,11 @@ void ClientSession::SelectDesktopDisplay(
       UpdateFractionalFilterFallback();
     }
   }
+#else
+  // On non-ChromeOS platforms, multi-stream is forced and this protocol
+  // request is no longer meaningful.
+  LOG(WARNING) << "Ignoring deprecated SelectDesktopDisplayRequest.";
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 void ClientSession::ControlPeerConnection(
@@ -599,6 +605,13 @@ void ClientSession::OnConnectionAuthenticated(
   if (effective_policies_.curtain_required.has_value()) {
     options.set_enable_curtaining(*effective_policies_.curtain_required);
   }
+  // `allow_webauthn_forwarding` should not override the existing value for
+  // `enable_remote_webauthn` if it was not enabled for this connection mode.
+  if (options.enable_remote_webauthn() &&
+      effective_policies_.allow_webauthn_forwarding.has_value()) {
+    options.set_enable_remote_webauthn(
+        *effective_policies_.allow_webauthn_forwarding);
+  }
   // Create the desktop environment.
   // Note: The handlers for various other events use the created desktop
   // environment. Since those events may occur before the desktop environment
@@ -624,12 +637,7 @@ void ClientSession::CreateMediaStreams() {
     return;
   }
 
-  // Create a VideoStream to pump frames from the capturer to the client.
   DCHECK(video_streams_.empty());
-
-  auto video_stream = connection_->StartVideoStream(
-      webrtc::kFullDesktopScreenId,
-      desktop_environment_->CreateVideoCapturer(webrtc::kFullDesktopScreenId));
 
   // Create an AudioStream to pump audio from the capturer to the client.
   std::unique_ptr<protocol::AudioSource> audio_capturer =
@@ -637,6 +645,12 @@ void ClientSession::CreateMediaStreams() {
   if (audio_capturer) {
     audio_stream_ = connection_->StartAudioStream(std::move(audio_capturer));
   }
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Create the single video stream (non multi-stream mode) for ChromeOS.
+  auto video_stream = connection_->StartVideoStream(
+      webrtc::kFullDesktopScreenId,
+      desktop_environment_->CreateVideoCapturer(webrtc::kFullDesktopScreenId));
 
   video_stream->SetObserver(this);
 
@@ -654,6 +668,11 @@ void ClientSession::CreateMediaStreams() {
   // If multi-stream is enabled, this entry will get removed when the new
   // video-streams are created.
   video_streams_[webrtc::kInvalidScreenId] = std::move(video_stream);
+#else
+  // On non-ChromeOS platforms, create the per-monitor streams immediately,
+  // avoiding any transition from single-stream to multi-stream.
+  CreatePerMonitorVideoStreams();
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 void ClientSession::CreatePerMonitorVideoStreams() {
@@ -1188,8 +1207,15 @@ void ClientSession::OnDesktopDisplayChanged(
 
   LOG(INFO) << "ClientSession::OnDesktopDisplayChanged";
 
+  // On ChromeOS (It2Me) hosts, multi-stream depends on the client advertising
+  // the capability. On other platforms, multi-stream is enabled immediately
+  // on connection.
   bool multiStreamEnabled =
+#if BUILDFLAG(IS_CHROMEOS)
       HasCapability(capabilities_, protocol::kMultiStreamCapability);
+#else
+      true;
+#endif  // if BUILDFLAG(IS_CHROMEOS)
 
   // Scan display list to calculate the full desktop size.
   int min_x = 0;
@@ -1376,6 +1402,12 @@ void ClientSession::OnDesktopDetached() {
 void ClientSession::CreateFileTransferMessageHandler(
     const std::string& channel_name,
     std::unique_ptr<protocol::MessagePipe> pipe) {
+  if (!desktop_environment_) {
+    desktop_environment_ready_callbacks_.push_back(base::BindOnce(
+        &ClientSession::CreateFileTransferMessageHandler,
+        weak_factory_.GetWeakPtr(), channel_name, std::move(pipe)));
+    return;
+  }
   // FileTransferMessageHandler manages its own lifetime and is tied to the
   // lifetime of |pipe|. Once |pipe| is closed, this instance will be cleaned
   // up.
@@ -1395,6 +1427,12 @@ void ClientSession::CreateActionMessageHandler(
     std::vector<ActionRequest::Action> capabilities,
     const std::string& channel_name,
     std::unique_ptr<protocol::MessagePipe> pipe) {
+  if (!desktop_environment_) {
+    desktop_environment_ready_callbacks_.push_back(base::BindOnce(
+        &ClientSession::CreateActionMessageHandler, weak_factory_.GetWeakPtr(),
+        std::move(capabilities), channel_name, std::move(pipe)));
+    return;
+  }
   std::unique_ptr<ActionExecutor> action_executor =
       desktop_environment_->CreateActionExecutor();
   if (!action_executor) {
@@ -1421,6 +1459,12 @@ void ClientSession::CreateRemoteOpenUrlMessageHandler(
 void ClientSession::CreateUrlForwarderControlMessageHandler(
     const std::string& channel_name,
     std::unique_ptr<protocol::MessagePipe> pipe) {
+  if (!desktop_environment_) {
+    desktop_environment_ready_callbacks_.push_back(base::BindOnce(
+        &ClientSession::CreateUrlForwarderControlMessageHandler,
+        weak_factory_.GetWeakPtr(), channel_name, std::move(pipe)));
+    return;
+  }
   // UrlForwarderControlMessageHandler manages its own lifetime and is tied to
   // the lifetime of |pipe|. Once |pipe| is closed, this instance will be
   // cleaned up.
@@ -1432,6 +1476,12 @@ void ClientSession::CreateUrlForwarderControlMessageHandler(
 void ClientSession::CreateRemoteWebAuthnMessageHandler(
     const std::string& channel_name,
     std::unique_ptr<protocol::MessagePipe> pipe) {
+  if (!desktop_environment_) {
+    desktop_environment_ready_callbacks_.push_back(base::BindOnce(
+        &ClientSession::CreateRemoteWebAuthnMessageHandler,
+        weak_factory_.GetWeakPtr(), channel_name, std::move(pipe)));
+    return;
+  }
   // RemoteWebAuthnMessageHandler manages its own lifetime and is tied to the
   // lifetime of |pipe|. Once |pipe| is closed, this instance will be cleaned
   // up.

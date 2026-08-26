@@ -11,6 +11,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -323,8 +324,15 @@ IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
             expected_final_viewport_density);
 }
 
+// TODO(crbug.com/431787502): Re-enable this test
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_AverageViewportAdDensity_ImageAd \
+  DISABLED_AverageViewportAdDensity_ImageAd
+#else
+#define MAYBE_AverageViewportAdDensity_ImageAd AverageViewportAdDensity_ImageAd
+#endif
 IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
-                       AverageViewportAdDensity_ImageAd) {
+                       MAYBE_AverageViewportAdDensity_ImageAd) {
   SetRulesetWithRules(
       {subresource_filter::testing::CreateSuffixRule("pixel.png")});
 

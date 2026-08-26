@@ -13,10 +13,12 @@
 #include <stddef.h>
 
 #include <array>
+#include <optional>
 #include <string_view>
 
+#include "base/containers/span.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/gtest_util.h"
 #include "base/test/scoped_feature_list.h"
@@ -108,34 +110,28 @@ void SetupReplComp(
   }
 }
 
-bool CanonicalizeSpecialPath(const char* spec,
-                             const Component& path,
+bool CanonicalizeSpecialPath(std::optional<std::string_view> path,
                              CanonOutput* output,
                              Component* out_path) {
-  return CanonicalizePath(spec, path, CanonMode::kSpecialURL, output, out_path);
+  return CanonicalizePath(path, CanonMode::kSpecialURL, output, out_path);
 }
 
-bool CanonicalizeSpecialPath(const char16_t* spec,
-                             const Component& path,
+bool CanonicalizeSpecialPath(std::optional<std::u16string_view> path,
                              CanonOutput* output,
                              Component* out_path) {
-  return CanonicalizePath(spec, path, CanonMode::kSpecialURL, output, out_path);
+  return CanonicalizePath(path, CanonMode::kSpecialURL, output, out_path);
 }
 
-bool CanonicalizeNonSpecialPath(const char* spec,
-                                const Component& path,
+bool CanonicalizeNonSpecialPath(std::optional<std::string_view> path,
                                 CanonOutput* output,
                                 Component* out_path) {
-  return CanonicalizePath(spec, path, CanonMode::kNonSpecialURL, output,
-                          out_path);
+  return CanonicalizePath(path, CanonMode::kNonSpecialURL, output, out_path);
 }
 
-bool CanonicalizeNonSpecialPath(const char16_t* spec,
-                                const Component& path,
+bool CanonicalizeNonSpecialPath(std::optional<std::u16string_view> path,
                                 CanonOutput* output,
                                 Component* out_path) {
-  return CanonicalizePath(spec, path, CanonMode::kNonSpecialURL, output,
-                          out_path);
+  return CanonicalizePath(path, CanonMode::kNonSpecialURL, output, out_path);
 }
 
 }  // namespace
@@ -1485,31 +1481,29 @@ DualComponentCase kCommonPathCases[] = {
     {nullptr, L"/\xfdd0zyx", "/%EF%B7%90zyx", Component(0, 13), true},
 };
 
-typedef bool (*CanonFunc8Bit)(const char*,
-                              const Component&,
-                              CanonOutput*,
-                              Component*);
-typedef bool (*CanonFunc16Bit)(const char16_t*,
-                               const Component&,
+using CanonFunc8Bit = bool (*)(std::optional<std::string_view>,
                                CanonOutput*,
                                Component*);
-
-void DoPathTest(const DualComponentCase* path_cases,
-                size_t num_cases,
+using CanonFunc16Bit = bool (*)(std::optional<std::u16string_view>,
+                                CanonOutput*,
+                                Component*);
+void DoPathTest(base::span<const DualComponentCase> path_cases,
+                size_t spanification_suspected_redundant_num_cases,
                 CanonFunc8Bit canon_func_8,
                 CanonFunc16Bit canon_func_16) {
-  for (size_t i = 0; i < num_cases; i++) {
+  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
+  // redundant in M143.
+  CHECK(spanification_suspected_redundant_num_cases == path_cases.size(),
+        base::NotFatalUntil::M143);
+  for (size_t i = 0; i < spanification_suspected_redundant_num_cases; i++) {
     testing::Message scope_message;
     scope_message << path_cases[i].input8 << "," << path_cases[i].input16;
     SCOPED_TRACE(scope_message);
     if (path_cases[i].input8) {
-      int len = static_cast<int>(strlen(path_cases[i].input8));
-      Component in_comp(0, len);
       Component out_comp;
       std::string out_str;
       StdStringCanonOutput output(&out_str);
-      bool success =
-          canon_func_8(path_cases[i].input8, in_comp, &output, &out_comp);
+      bool success = canon_func_8(path_cases[i].input8, &output, &out_comp);
       output.Complete();
 
       EXPECT_EQ(path_cases[i].expected_success, success);
@@ -1521,14 +1515,11 @@ void DoPathTest(const DualComponentCase* path_cases,
     if (path_cases[i].input16) {
       std::u16string input16(
           test_utils::TruncateWStringToUTF16(path_cases[i].input16));
-      int len = static_cast<int>(input16.length());
-      Component in_comp(0, len);
       Component out_comp;
       std::string out_str;
       StdStringCanonOutput output(&out_str);
 
-      bool success =
-          canon_func_16(input16.c_str(), in_comp, &output, &out_comp);
+      bool success = canon_func_16(input16, &output, &out_comp);
       output.Complete();
 
       EXPECT_EQ(path_cases[i].expected_success, success);
@@ -1547,13 +1538,12 @@ TEST_F(URLCanonTest, SpecialPath) {
   // Manual test: embedded NULLs should be escaped and the URL should be marked
   // as valid.
   const char path_with_null[] = "/ab\0c";
-  Component in_comp(0, 5);
   Component out_comp;
 
   std::string out_str;
   StdStringCanonOutput output(&out_str);
-  bool success =
-      CanonicalizeSpecialPath(path_with_null, in_comp, &output, &out_comp);
+  bool success = CanonicalizeSpecialPath(
+      base::MakeStringViewWithNulChars(path_with_null), &output, &out_comp);
   output.Complete();
   EXPECT_TRUE(success);
   EXPECT_EQ("/ab%00c", out_str);
@@ -1569,7 +1559,7 @@ TEST_F(URLCanonTest, SpecialPath) {
   };
 
   DoPathTest(special_path_cases, std::size(special_path_cases),
-             CanonicalizeSpecialPath, CanonicalizePath);
+             CanonicalizeSpecialPath, CanonicalizeSpecialPath);
 }
 
 TEST_F(URLCanonTest, NonSpecialPath) {
@@ -1595,7 +1585,6 @@ TEST_F(URLCanonTest, PartialPath) {
       {".html", L".html", ".html", Component(0, 5), true},
       {"", L"", "", Component(0, 0), true},
   };
-
   DoPathTest(kCommonPathCases, std::size(kCommonPathCases),
              CanonicalizePartialPath, CanonicalizePartialPath);
   DoPathTest(partial_path_cases, std::size(partial_path_cases),
@@ -2480,9 +2469,7 @@ TEST_F(URLCanonTest, CanonicalizePathURLPath) {
     std::string out_str;
     StdStringCanonOutput output(&out_str);
     url::Component out_component;
-    CanonicalizePathURLPath(path_case.input.data(),
-                            Component(0, path_case.input.size()), &output,
-                            &out_component);
+    CanonicalizePathURLPath(path_case.input, &output, &out_component);
     output.Complete();
 
     EXPECT_EQ(path_case.expected, out_str);
@@ -2497,9 +2484,7 @@ TEST_F(URLCanonTest, CanonicalizePathURLPath) {
     url::Component out_component16;
     std::u16string input16(
         test_utils::TruncateWStringToUTF16(path_case.input16.data()));
-    CanonicalizePathURLPath(input16.c_str(),
-                            Component(0, path_case.input16.size()), &output16,
-                            &out_component16);
+    CanonicalizePathURLPath(input16, &output16, &out_component16);
     output16.Complete();
 
     EXPECT_EQ(path_case.expected, out_str16);

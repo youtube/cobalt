@@ -7,8 +7,8 @@
 #include "base/test/bind.h"
 #include "base/test/gtest_util.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
-#include "content/public/browser/federated_auth_autofill_source.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/federated_auth_autofill_source.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
@@ -300,7 +300,8 @@ TEST_F(ContentIdentityCredentialDelegateTest,
   IdentityRequestAccountPtr account = CreateTestAccount();
   // The delegated flow requires an IdP with a specific format.
   account->identity_provider->format = blink::mojom::Format::kSdJwt;
-  account->login_state = content::IdentityRequestAccount::LoginState::kSignUp;
+  account->idp_claimed_login_state =
+      content::IdentityRequestAccount::LoginState::kSignUp;
   std::vector<IdentityRequestAccountPtr> accounts = {account};
 
   EXPECT_CALL(mock, GetAutofillSuggestions).WillOnce(Return(accounts));
@@ -335,7 +336,8 @@ TEST_F(ContentIdentityCredentialDelegateTest,
       }));
 
   IdentityRequestAccountPtr account = CreateTestAccount();
-  account->login_state = content::IdentityRequestAccount::LoginState::kSignUp;
+  account->idp_claimed_login_state =
+      content::IdentityRequestAccount::LoginState::kSignUp;
   std::vector<IdentityRequestAccountPtr> accounts = {account};
 
   EXPECT_CALL(mock, GetAutofillSuggestions).WillOnce(Return(accounts));
@@ -356,7 +358,8 @@ TEST_F(ContentIdentityCredentialDelegateTest,
       }));
 
   IdentityRequestAccountPtr account = CreateTestAccount();
-  account->login_state = content::IdentityRequestAccount::LoginState::kSignIn;
+  account->idp_claimed_login_state =
+      content::IdentityRequestAccount::LoginState::kSignIn;
   std::vector<IdentityRequestAccountPtr> accounts = {account};
 
   EXPECT_CALL(mock, GetAutofillSuggestions).WillOnce(Return(accounts));

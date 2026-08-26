@@ -139,6 +139,15 @@ const SimpleFontData* CSSFontFace::GetFontData(
                 font_face_->GetSizeAdjust())
           : font_description;
 
+  if (RuntimeEnabledFeatures::FontFeatureSettingsDescriptorEnabled()) {
+    size_adjusted_description.MergeFontFeatureSettingsWithDescriptor(
+        font_face_->GetFontFeatureSettings().get());
+  }
+  if (RuntimeEnabledFeatures::FontVariationSettingsDescriptorEnabled()) {
+    size_adjusted_description.MergeFontVariationSettingsWithDescriptor(
+        font_face_->GetFontVariationSettings().get());
+  }
+
   // https://www.w3.org/TR/css-fonts-4/#src-desc
   // "When a font is needed the user agent iterates over the set of references
   // listed, using the first one it can successfully activate."

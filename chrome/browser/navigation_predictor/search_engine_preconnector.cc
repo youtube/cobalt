@@ -167,8 +167,7 @@ void SearchEnginePreconnector::PreconnectDSE() {
     return;
   }
 
-  if (!predictors::IsPreconnectAllowed(
-          Profile::FromBrowserContext(browser_context_))) {
+  if (!IsPreconnectEnabled()) {
     return;
   }
 
@@ -188,6 +187,8 @@ void SearchEnginePreconnector::PreconnectDSE() {
     keepalive_config->ping_interval_in_seconds =
         net::features::kPingIntervalInSeconds.Get();
     keepalive_config->enable_connection_keep_alive = true;
+    keepalive_config->quic_connection_options =
+        net::features::kQuicConnectionOptions.Get();
 
     if (!receiver_.is_bound()) {
       observer = receiver_.BindNewPipeAndPassRemote();
@@ -284,10 +285,9 @@ void SearchEnginePreconnector::StartPreconnectWithDelay(
                               base::Unretained(this)));
 }
 
-predictors::PreconnectManager&
-SearchEnginePreconnector::GetPreconnectManager() {
+content::PreconnectManager& SearchEnginePreconnector::GetPreconnectManager() {
   if (!preconnect_manager_) {
-    preconnect_manager_ = std::make_unique<predictors::PreconnectManager>(
+    preconnect_manager_ = content::PreconnectManager::Create(
         GetWeakPtr(), Profile::FromBrowserContext(browser_context_));
   }
 
@@ -317,6 +317,11 @@ void SearchEnginePreconnector::OnWebContentsVisibilityChanged(
   // Attempt reconnect again in case the visibility has changed after the last
   // preconnect attempt so that we will preconnect sooner.
   PreconnectDSE();
+}
+
+bool SearchEnginePreconnector::IsPreconnectEnabled() {
+  return predictors::IsPreconnectAllowed(
+      Profile::FromBrowserContext(browser_context_));
 }
 
 void SearchEnginePreconnector::OnSessionClosed() {

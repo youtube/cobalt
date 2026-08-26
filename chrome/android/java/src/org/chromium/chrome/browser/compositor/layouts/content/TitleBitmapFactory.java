@@ -14,17 +14,18 @@ import android.os.SystemClock;
 import android.text.Layout;
 import android.text.TextPaint;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.InflateException;
 
 import androidx.annotation.ColorInt;
-import androidx.annotation.Nullable;
 import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 
+import org.chromium.base.Log;
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -34,6 +35,7 @@ import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
 import org.chromium.ui.util.StyleUtils;
 
 /** A factory that creates text and favicon bitmaps. */
+@NullMarked
 public class TitleBitmapFactory {
     private static final String TAG = "TitleBitmapFactory";
 
@@ -127,10 +129,10 @@ public class TitleBitmapFactory {
     /**
      * Generates the favicon bitmap.
      *
-     * @param favicon   The favicon of the tab.
-     * @return          The Bitmap with the favicon.
+     * @param favicon The favicon of the tab.
+     * @return The Bitmap with the favicon.
      */
-    public Bitmap getFaviconBitmap(Bitmap favicon) {
+    public @Nullable Bitmap getFaviconBitmap(Bitmap favicon) {
         assert favicon != null;
         try {
             Bitmap b =
@@ -164,7 +166,7 @@ public class TitleBitmapFactory {
      * @param title The title of the group.
      * @return The Bitmap with the title.
      */
-    public Bitmap getTabTitleBitmap(String title) {
+    public @Nullable Bitmap getTabTitleBitmap(String title) {
         return getTitleBitmap(mTabTextPaint, mTabTextHeight, mTabTextYOffset, title);
     }
 
@@ -180,8 +182,7 @@ public class TitleBitmapFactory {
     public @Nullable Bitmap getGroupTitleBitmap(
             TabGroupModelFilter filter, Context context, Token groupId, String title) {
         if (!filter.tabGroupExists(groupId)) return null;
-        @TabGroupColorId
-        int colorId = filter.getTabGroupColor(filter.getRootIdFromTabGroupId(groupId));
+        @TabGroupColorId int colorId = filter.getTabGroupColor(groupId);
         @ColorInt
         int color =
                 TabGroupColorPickerUtils.getTabGroupColorPickerItemTextColor(
@@ -199,7 +200,8 @@ public class TitleBitmapFactory {
      * @param title The title of the tab.
      * @return The Bitmap with the title.
      */
-    public Bitmap getTitleBitmap(TextPaint textPaint, float height, float yOffset, String title) {
+    public @Nullable Bitmap getTitleBitmap(
+            TextPaint textPaint, float height, float yOffset, String title) {
         try {
             final long startTime = SystemClock.elapsedRealtime();
             boolean drawText = !TextUtils.isEmpty(title);

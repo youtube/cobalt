@@ -10,8 +10,6 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityManager.AppTask;
 import android.content.Context;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import android.util.Pair;
 import android.util.SparseArray;
 
@@ -27,6 +25,8 @@ import org.chromium.base.Token;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
 import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -134,11 +134,6 @@ public class TabWindowManagerImpl implements TabWindowManager {
     }
 
     @Override
-    public int getMaxSimultaneousSelectors() {
-        return mMaxSelectors;
-    }
-
-    @Override
     public @Nullable Pair<@WindowId Integer, TabModelSelector> requestSelector(
             Activity activity,
             ModalDialogManager modalDialogManager,
@@ -147,12 +142,12 @@ public class TabWindowManagerImpl implements TabWindowManager {
             NextTabPolicySupplier nextTabPolicySupplier,
             MismatchedIndicesHandler mismatchedIndicesHandler,
             @WindowId int windowId) {
-        if (windowId < 0 || windowId >= mMaxSelectors) return null;
+        if (windowId == INVALID_WINDOW_ID) return null;
 
         // Return the already existing selector if found.
         if (mActivityAssignments.get(activity) != null) {
             TabModelSelector assignedSelector = mActivityAssignments.get(activity);
-            for (int i = 0; i < mMaxSelectors; i++) {
+            for (Integer i : mSelectorsToWindowId.values()) {
                 if (mWindowIdToSelectors.get(i) == assignedSelector) {
                     @WindowId
                     int existingWindowId =
@@ -226,7 +221,7 @@ public class TabWindowManagerImpl implements TabWindowManager {
     @Override
     public @Nullable TabModelSelector requestSelectorWithoutActivity(
             @WindowId int windowId, Profile profile) {
-        if (windowId < 0 || windowId >= mMaxSelectors) return null;
+        if (windowId == INVALID_WINDOW_ID) return null;
 
         if (mWindowIdToSelectors.containsKey(windowId)) {
             return mWindowIdToSelectors.get(windowId);
@@ -269,9 +264,7 @@ public class TabWindowManagerImpl implements TabWindowManager {
             Activity newActivity,
             MismatchedIndicesHandler mismatchedIndicesHandler) {
         @WindowId int assignedWindowId = originallyAssignedWindowId;
-        if (requestedWindowId == originallyAssignedWindowId
-                // Needed for ActivityManager.RecentTaskInfo.taskId
-                || VERSION.SDK_INT < VERSION_CODES.Q) {
+        if (requestedWindowId == originallyAssignedWindowId) {
             return assignedWindowId;
         }
 
@@ -546,7 +539,7 @@ public class TabWindowManagerImpl implements TabWindowManager {
     }
 
     @Override
-    public void setArchivedTabModelSelector(TabModelSelector archivedTabModelSelector) {
+    public void setArchivedTabModelSelector(@Nullable TabModelSelector archivedTabModelSelector) {
         mArchivedTabModelSelector = archivedTabModelSelector;
     }
 
@@ -567,43 +560,62 @@ public class TabWindowManagerImpl implements TabWindowManager {
     }
 
     @Override
-    public void keepAllTabModelsLoaded(MultiInstanceManager multiInstanceManager, Profile profile) {
+    public void keepAllTabModelsLoaded(
+            MultiInstanceManager multiInstanceManager, Profile profile, TabModelSelector selector) {
         if (mKeepAllTabModelsLoaded) return;
 
         mKeepAllTabModelsLoaded = true;
+
         List<TabModelSelector> tabModelSelectorList = new ArrayList<>();
-        for (InstanceInfo instanceInfo : multiInstanceManager.getInstanceInfo()) {
-            @WindowId int windowId = instanceInfo.instanceId;
-            if (!mWindowIdToSelectors.containsKey(windowId)) {
-                tabModelSelectorList.add(requestSelectorWithoutActivity(windowId, profile));
-            } else {
-                tabModelSelectorList.add(mWindowIdToSelectors.get(windowId));
+        List<InstanceInfo> instanceInfoList = multiInstanceManager.getInstanceInfo();
+        if (instanceInfoList.isEmpty()) {
+            tabModelSelectorList.add(selector);
+        } else {
+            for (InstanceInfo instanceInfo : instanceInfoList) {
+                @WindowId int windowId = instanceInfo.instanceId;
+                if (!mWindowIdToSelectors.containsKey(windowId)) {
+                    tabModelSelectorList.add(requestSelectorWithoutActivity(windowId, profile));
+                } else {
+                    tabModelSelectorList.add(mWindowIdToSelectors.get(windowId));
+                }
             }
         }
-
         TabModelUtils.runOnTabStateInitialized(
                 () -> {
-                    TabGroupSyncService tabGroupSyncService =
-                            TabGroupSyncServiceFactory.getForProfile(profile);
-                    if (tabGroupSyncService == null) return;
+                    TabModel model = tabModelSelectorList.get(0).getModel(/* incognito= */ false);
 
-                    List<TabGroupModelFilter> filterList = new ArrayList<>();
-                    for (TabModelSelector selector : tabModelSelectorList) {
-                        // This process is async and it's possible something was shut down during
-                        // the wait for all these tab models to init. In that case, just bail and
-                        // try again next restart. This clean up is optional.
-                        if (!mSelectorsToWindowId.containsKey(selector)) {
-                            return;
-                        }
-
-                        filterList.add(
-                                selector.getTabGroupModelFilterProvider()
-                                        .getTabGroupModelFilter(/* isIncognito= */ false));
-                    }
-                    TabGroupSyncUtils.unmapLocalIdsNotInTabGroupModelFilterList(
-                            tabGroupSyncService, filterList);
+                    // TODO(https://crbug.com/420738506): Remove this post once the order is
+                    // flipped.
+                    PostTask.postTask(
+                            TaskTraits.UI_DEFAULT,
+                            () -> {
+                                model.broadcastSessionRestoreComplete();
+                                unmapOrphanedTabGroups(profile, tabModelSelectorList);
+                            });
                 },
                 tabModelSelectorList.toArray(new TabModelSelector[0]));
+    }
+
+    private void unmapOrphanedTabGroups(
+            Profile profile, List<TabModelSelector> tabModelSelectorList) {
+        TabGroupSyncService tabGroupSyncService = TabGroupSyncServiceFactory.getForProfile(profile);
+        if (tabGroupSyncService == null) return;
+
+        List<TabGroupModelFilter> filterList = new ArrayList<>();
+        for (TabModelSelector selector : tabModelSelectorList) {
+            // This process is async and it's possible something was shut down during
+            // the wait for all these tab models to init. In that case, just bail and
+            // try again next restart. This clean up is optional.
+            if (!mSelectorsToWindowId.containsKey(selector)) {
+                return;
+            }
+
+            filterList.add(
+                    selector.getTabGroupModelFilterProvider()
+                            .getTabGroupModelFilter(/* isIncognito= */ false));
+        }
+        TabGroupSyncUtils.unmapLocalIdsNotInTabGroupModelFilterList(
+                tabGroupSyncService, filterList);
     }
 
     @Override

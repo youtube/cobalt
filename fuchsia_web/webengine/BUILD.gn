@@ -62,7 +62,7 @@ _disallowed_extensions_deps = [
   # //extensions:extensions is addressed below.
   "//extensions:extensions_resources",
   "//extensions/browser/*",
-  "//extensions/common:common",
+  "//extensions/common",
   "//extensions/common:core_api_provider",
   "//extensions/common:export",
   "//extensions/common:mojom",
@@ -84,26 +84,12 @@ _disallowed_pdf_deps = [
   "//pdf/*",
 ]
 
-# Ppapi code should not be included as enable_ppapi is false.
-# Exclude everything except "//ppapi/buildflags/*", which is allowed.
-_disallowed_ppapi_deps = [
-  "//ppapi:*",
-  "//ppapi/c/*",
-  "//ppapi/cpp/*",
-  "//ppapi/host/*",
-  "//ppapi/lib/*",
-  "//ppapi/native_client/*",
-  "//ppapi/proxy/*",
-  "//ppapi/shared_impl/*",
-  "//ppapi/thunk/*",
-]
-
 # Although `enable_printing` is true on Fuchsia, no code should be linked.
 # "//printing:metafile" is used by //third_party/blink/renderer/core and
 # uses "//printing/common/*".
 # "//printing/mojom/*" is allowed because Blink public APIs use its types.
 _disallowed_printing_deps = [
-  "//printing:printing",
+  "//printing",
   "//printing:printing_base",
   "//printing/backend/*",
 ]
@@ -112,7 +98,7 @@ _disallowed_printing_deps = [
 # that depends on those targets once this is correctly supported.
 _disallowed_deps =
     _disallowed_cast_deps + _disallowed_extensions_deps + _disallowed_pdf_deps +
-    _disallowed_ppapi_deps + _disallowed_printing_deps +
+    _disallowed_printing_deps +
     [
       # Ensure WebEngine is not communicating with the Finch service until it
       # is explicitly supported. See crbug.com/1155712.
@@ -139,6 +125,7 @@ repack("web_engine_pak") {
     "$root_gen_dir/net/net_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
     "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_100_percent.pak",
+    "$root_gen_dir/ui/resources/ui_lottie_resources.pak",
     "$root_gen_dir/ui/resources/ui_resources_100_percent.pak",
   ]
 
@@ -385,6 +372,10 @@ component("web_engine_core") {
       "//components/cast_streaming/renderer",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("context_provider") {
@@ -401,7 +392,7 @@ source_set("context_provider") {
     "//base",
     "//components/fuchsia_component_support",
     "//fuchsia_web/common",
-    "//fuchsia_web/webinstance_host:webinstance_host",
+    "//fuchsia_web/webinstance_host",
     "//third_party/fuchsia-sdk/sdk/pkg/inspect_component_cpp",
     "//third_party/fuchsia-sdk/sdk/pkg/sys_cpp",
   ]
@@ -413,7 +404,7 @@ source_set("context_provider") {
 source_set("switches") {
   visibility += [
     "//fuchsia_web/shell:cast_streaming_shell_exe",
-    "//fuchsia_web/webinstance_host:webinstance_host",
+    "//fuchsia_web/webinstance_host",
   ]
   deps = [ "//base" ]
   public_deps = [ "//build:chromecast_buildflags" ]
@@ -600,7 +591,7 @@ test("web_engine_browsertests") {
     ":web_engine_core",
     "//components/fuchsia_component_support:annotations_manager",
     "//components/policy/content:safe_sites_navigation_throttle",
-    "//components/safe_search_api:safe_search_api",
+    "//components/safe_search_api",
     "//components/safe_search_api:test_support",
     "//components/version_info",
     "//content/public/browser",
@@ -732,6 +723,10 @@ test("web_engine_integration_tests") {
     "//third_party/fuchsia-sdk/sdk/pkg/sys/component/realm_builder_absolute.shard.cml",
     "//third_party/fuchsia-sdk/sdk/pkg/vulkan/client.shard.cml",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("cast_streaming_receiver") {

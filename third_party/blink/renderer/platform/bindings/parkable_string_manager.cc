@@ -15,6 +15,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/memory_allocator_dump.h"
+#include "build/buildflag.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/common/features.h"
@@ -154,8 +155,7 @@ bool ParkableStringManager::OnMemoryDump(
   dump->AddScalar("on_disk_free_chunks", "bytes",
                   data_allocator().free_chunks_size());
 
-  pmd->AddSuballocation(dump->guid(),
-                        WTF::Partitions::kAllocatedObjectPoolName);
+  pmd->AddSuballocation(dump->guid(), Partitions::kAllocatedObjectPoolName);
   return true;
 }
 
@@ -175,6 +175,15 @@ base::TimeDelta ParkableStringManager::AgingInterval() {
              : kAgingInterval;
 }
 
+#if BUILDFLAG(IS_COBALT)
+// static
+base::TimeDelta ParkableStringManager::FirstParkingDelay() {
+  return base::FeatureList::IsEnabled(features::kLessAggressiveParkableString)
+             ? kFirstParkingDelay
+             : kCobaltFirstParkingDelay;
+}
+#endif
+
 scoped_refptr<ParkableStringImpl> ParkableStringManager::Add(
     scoped_refptr<StringImpl>&& string,
     std::unique_ptr<ParkableStringImpl::SecureDigest> digest) {
@@ -191,9 +200,7 @@ scoped_refptr<ParkableStringImpl> ParkableStringManager::Add(
     // Otherwise the lookups below would not correctly deduplicate strings.
     std::unique_ptr<ParkableStringImpl::SecureDigest> expected_digest =
         ParkableStringImpl::HashString(string_impl.get());
-    base::span<const uint8_t> expected_span(*expected_digest);
-    base::span<const uint8_t> provided_span(*digest);
-    CHECK_EQ(expected_span, provided_span);
+    CHECK(*expected_digest == *digest);
 #endif  // DCHECK_IS_ON()
   }
   DCHECK(digest.get());
@@ -450,7 +457,11 @@ void ParkableStringManager::ScheduleAgingTaskIfNeeded() {
   // Delay the first aging tick, since this renderer may be short-lived, we do
   // not want to waste CPU time compressing memory that is going away soon.
   if (!first_string_aging_was_delayed_) {
+#if BUILDFLAG(IS_COBALT)
+    delay = FirstParkingDelay();
+#else
     delay = kFirstParkingDelay;
+#endif
     first_string_aging_was_delayed_ = true;
   }
 

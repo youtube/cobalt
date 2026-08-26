@@ -14,6 +14,8 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "components/guest_view/buildflags/buildflags.h"
@@ -44,6 +46,7 @@
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/process_map.h"
 #include "extensions/browser/rules_registry_ids.h"
+#include "extensions/browser/safe_browsing_delegate.h"
 #include "extensions/common/api/web_request/web_request_activity_log_constants.h"
 #include "extensions/common/error_utils.h"
 #include "extensions/common/extension_id.h"
@@ -1022,6 +1025,7 @@ int WebRequestEventRouter::OnBeforeRequest(
           // Collect redirect action data for the Extension Telemetry Service.
           if (action.type == DNRRequestAction::Type::REDIRECT) {
             ExtensionsBrowserClient::Get()
+                ->GetSafeBrowsingDelegate()
                 ->NotifyExtensionDeclarativeNetRequestRedirectAction(
                     browser_context, action.extension_id, request->url,
                     action.redirect_url.value());

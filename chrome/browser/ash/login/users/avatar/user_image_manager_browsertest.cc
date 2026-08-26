@@ -33,7 +33,6 @@
 #include "chrome/browser/ash/login/users/avatar/user_image_manager_test_util.h"
 #include "chrome/browser/ash/login/users/default_user_image/default_user_images.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash_factory.h"
-#include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/policy/core/user_cloud_policy_manager_ash.h"
 #include "chrome/browser/ash/policy/external_data/cloud_external_data_manager_base_test_util.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
@@ -51,6 +50,7 @@
 #include "chromeos/ash/components/dbus/userdataauth/userdataauth_client.h"
 #include "chromeos/ash/components/login/auth/public/auth_types.h"
 #include "chromeos/ash/components/login/auth/public/user_context.h"
+#include "chromeos/ash/components/policy/device_policy/device_policy_builder.h"
 #include "chromeos/dbus/constants/dbus_paths.h"
 #include "components/account_id/account_id.h"
 #include "components/ownership/mock_owner_key_util.h"
@@ -591,8 +591,8 @@ class UserImageManagerPolicyTest : public UserImageManagerTestBase,
         UserDataAuthClient::GetStubSanitizedUsername(cryptohome_id_);
     const base::FilePath user_key_file =
         user_keys_dir.AppendASCII(sanitized_username).AppendASCII("policy.pub");
-    std::vector<uint8_t> user_key_bits;
-    ASSERT_TRUE(user_policy_.GetSigningKey()->ExportPublicKey(&user_key_bits));
+    std::vector<uint8_t> user_key_bits =
+        user_policy_.GetSigningKey()->ToSubjectPublicKeyInfo();
     ASSERT_TRUE(base::CreateDirectory(user_key_file.DirName()));
     ASSERT_TRUE(base::WriteFile(user_key_file, user_key_bits));
     user_policy_.policy_data().set_username(

@@ -8,12 +8,10 @@ import static org.chromium.components.content_settings.PrefNames.COOKIE_CONTROLS
 
 import android.app.PendingIntent;
 import android.content.ComponentCallbacks2;
-import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
 import android.os.SystemClock;
@@ -90,9 +88,7 @@ import org.chromium.components.embedder_support.util.Origin;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.externalauth.ExternalAuthUtils;
 import org.chromium.components.user_prefs.UserPrefs;
-import org.chromium.components.variations.SyntheticTrialAnnotationMode;
 import org.chromium.content_public.browser.BrowserStartupController;
-import org.chromium.content_public.browser.ChildProcessLauncherHelper;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.Referrer;
 import org.chromium.network.mojom.ReferrerPolicy;
@@ -111,6 +107,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Implementation of the ICustomTabsService interface.
@@ -210,8 +207,31 @@ public class CustomTabsConnection {
         "Invalid referrer for session"
     };
 
-    private static final String SYNTHETIC_FIELDTRIAL_CCT_EXPERIMENT_OVERRIDE =
-            "CCT_EXPERIMENT_OVERRIDE";
+    // NOTE: This must be kept in sync with the definitions in CustomTabsCallback.java in AndroidX
+    // browser lib and the enums in /tools/metrics/histograms/metadata/custom_tabs/enums.xml.
+    // LINT.IfChange(CustomTabsNavigationEvent)
+    @IntDef({
+        CustomTabsNavigationEvent.NAVIGATION_STARTED,
+        CustomTabsNavigationEvent.NAVIGATION_FINISHED,
+        CustomTabsNavigationEvent.NAVIGATION_FAILED,
+        CustomTabsNavigationEvent.NAVIGATION_ABORTED,
+        CustomTabsNavigationEvent.TAB_SHOWN,
+        CustomTabsNavigationEvent.TAB_HIDDEN
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface CustomTabsNavigationEvent {
+        int NAVIGATION_STARTED = CustomTabsCallback.NAVIGATION_STARTED;
+        int NAVIGATION_FINISHED = CustomTabsCallback.NAVIGATION_FINISHED;
+        int NAVIGATION_FAILED = CustomTabsCallback.NAVIGATION_FAILED;
+        int NAVIGATION_ABORTED = CustomTabsCallback.NAVIGATION_ABORTED;
+        int TAB_SHOWN = CustomTabsCallback.TAB_SHOWN;
+        int TAB_HIDDEN = CustomTabsCallback.TAB_HIDDEN;
+
+        int NUM_ENTRIES = 6;
+    }
+
+    // LINT.ThenChange(/tools/metrics/histograms/metadata/custom_tabs/enums.xml:CustomTabsNavigationEvent)
+
     private static CustomTabsConnection sInstance;
     private @Nullable String mTrustedPublisherUrlPackage;
 
@@ -232,13 +252,6 @@ public class CustomTabsConnection {
     // Caches the previous height reported via |onResized|. Used for extraCallback
     // |ON_RESIZED_CALLLBACK| which cares about height only.
     private int mPrevHeight;
-
-    /** Whether Dynamic Features are enabled. CCT Intents can override the feature set. */
-    private boolean mIsDynamicIntentFeatureOverridesEnabled =
-            ChromeFeatureList.sCctIntentFeatureOverrides.isEnabled();
-
-    @Nullable private List<String> mDynamicEnabledFeatures;
-    @Nullable private List<String> mDynamicDisabledFeatures;
 
     // Async tab prewarming can cause flakiness in tests when it runs after test shutdown and
     // triggers LifetimeAsserts.
@@ -331,10 +344,10 @@ public class CustomTabsConnection {
         return json;
     }
 
-    /*
+    /**
      * Logging for page load metrics callback, if service has enabled logging.
      *
-     * No rate-limiting, can be spammy if the app is misbehaved.
+     * <p>No rate-limiting, can be spammy if the app is misbehaved.
      *
      * @param args arguments of the callback.
      */
@@ -411,37 +424,36 @@ public class CustomTabsConnection {
         mClientManager.overridePackageNameForSessionForTesting(session, packageName); // IN-TEST
     }
 
-    /** Warmup activities that should only happen once. */
-    private static void initializeBrowser(final Context context) {
-        ThreadUtils.assertOnUiThread();
-        ChromeBrowserInitializer.getInstance().handleSynchronousStartupWithGpuWarmUp();
-        ChildProcessLauncherHelper.warmUpOnAnyThread(context);
+    public boolean warmup() {
+        return warmup(null);
     }
 
-    public boolean warmup(long flags) {
+    public boolean warmup(Runnable completionCallback) {
         try (TraceEvent e = TraceEvent.scoped("CustomTabsConnection.warmup")) {
-            boolean success = warmupInternal(true, null);
+            boolean success = warmupInternal(completionCallback);
             logCall("warmup()", success);
             return success;
         }
     }
 
     /**
-     * @return Whether {@link CustomTabsConnection#warmup(long)} has been called.
+     * @return Whether native initialization has finished.
      */
     public boolean hasWarmUpBeenFinished() {
-        return mWarmupHasBeenFinished.get();
+        if (ChromeFeatureList.sCctFixWarmup.isEnabled()) {
+            return ChromeBrowserInitializer.getInstance().isFullBrowserInitialized();
+        } else {
+            return mWarmupHasBeenFinished.get();
+        }
     }
 
     /**
      * Starts as much as possible in anticipation of a future navigation.
      *
-     * @param mayCreateSpareWebContents true if warmup() can create a spare renderer.
-     * @param internalCallback callback to be called after all processes are finished.
+     * @param completionCallback callback to be called after all processes are finished.
      * @return true for success.
      */
-    private boolean warmupInternal(
-            final boolean mayCreateSpareWebContents, Runnable internalCallback) {
+    private boolean warmupInternal(Runnable completionCallback) {
         // Here and in mayLaunchUrl(), don't do expensive work for background applications.
         if (!isCallerForegroundOrSelf()) return false;
         int uid = Binder.getCallingUid();
@@ -461,29 +473,43 @@ public class CustomTabsConnection {
         // 5. RequestThrottler first access has to be done only once.
 
         // (1)
-        if (!initialized) {
+        final boolean fixWarmupEnabled = ChromeFeatureList.sCctFixWarmup.isEnabled();
+        boolean shouldStartBrowser =
+                fixWarmupEnabled
+                        && !ChromeBrowserInitializer.getInstance().isFullBrowserInitialized();
+        boolean legacyShouldStartBrowser = !fixWarmupEnabled && !initialized;
+        if (shouldStartBrowser || legacyShouldStartBrowser) {
             tasks.add(
                     TaskTraits.UI_DEFAULT,
                     () -> {
                         try (TraceEvent e =
                                 TraceEvent.scoped("CustomTabsConnection.initializeBrowser()")) {
-                            initializeBrowser(ContextUtils.getApplicationContext());
+                            ChromeBrowserInitializer.getInstance()
+                                    .handleSynchronousStartupWithGpuWarmUp();
                             ProcessInitializationHandler.getInstance().initNetworkChangeNotifier();
-                            mWarmupHasBeenFinished.set(true);
+                            if (legacyShouldStartBrowser) mWarmupHasBeenFinished.set(true);
                         }
                     });
         }
 
         // (2)
-        if (mayCreateSpareWebContents && !mHiddenTabHolder.hasHiddenTab()) {
+        if (!mHiddenTabHolder.hasHiddenTab()) {
             tasks.add(
                     TaskTraits.UI_DEFAULT,
                     () -> {
-                        // Temporary fix for https://crbug.com/797832.
-                        // TODO(lizeb): Properly fix instead of papering over the bug, this code
-                        // should not be scheduled unless startup is done. See
-                        // https://crbug.com/797832.
-                        if (!BrowserStartupController.getInstance().isFullBrowserStarted()) return;
+                        if (mHiddenTabHolder.hasHiddenTab()) return;
+
+                        // TODO(https://crbug.com/423415329): I'm pretty sure this is fixed, just
+                        // rolling this out with the flagged change in case it isn't fixed.
+                        if (!fixWarmupEnabled) {
+                            // Temporary fix for https://crbug.com/797832.
+                            // TODO(lizeb): Properly fix instead of papering over the bug, this code
+                            // should not be scheduled unless startup is done. See
+                            // https://crbug.com/797832.
+                            if (!BrowserStartupController.getInstance().isFullBrowserStarted()) {
+                                return;
+                            }
+                        }
                         try (TraceEvent e = TraceEvent.scoped("CreateSpareWebContents")) {
                             createSpareWebContents(ProfileManager.getLastUsedRegularProfile());
                         }
@@ -525,7 +551,7 @@ public class CustomTabsConnection {
                     });
         }
 
-        tasks.add(TaskTraits.UI_DEFAULT, () -> notifyWarmupIsDone(uid, internalCallback));
+        tasks.add(TaskTraits.UI_DEFAULT, () -> notifyWarmupIsDone(uid, completionCallback));
         tasks.start(false);
         mWarmupTasks = tasks;
         return true;
@@ -651,18 +677,14 @@ public class CustomTabsConnection {
 
         final int uid = Binder.getCallingUid();
 
-        // Things below need the browser process to be initialized.
-
-        // Forbids warmup() from creating a spare renderer, as prerendering wouldn't reuse
-        // it. Checking whether prerendering is enabled requires the native library to be loaded,
-        // which is not necessarily the case yet.
-        if (!warmupInternal(false, null)) return false; // Also does the foreground check.
+        if (!warmupInternal(null)) return false;
 
         if (!mClientManager.updateStatsAndReturnWhetherAllowed(
                 session, uid, urlString, otherLikelyBundles != null)) {
             return false;
         }
 
+        // Run after the first chained warmup task completes and native is initialized.
         PostTask.postTask(
                 TaskTraits.UI_DEFAULT,
                 () -> {
@@ -745,7 +767,7 @@ public class CustomTabsConnection {
                 };
 
         // (1)
-        warmupInternal(true, validateOrigin);
+        warmupInternal(validateOrigin);
     }
 
     @VisibleForTesting
@@ -775,27 +797,33 @@ public class CustomTabsConnection {
             boolean retryIfNotLoaded) {
         ThreadUtils.assertOnUiThread();
         try (TraceEvent e = TraceEvent.scoped("CustomTabsConnection.mayLaunchUrlOnUiThread")) {
-            // doMayLaunchUrlInternal() is always called once the native level initialization is
-            // done, at least the initial profile load. However, at that stage the startup callback
-            // may not have run, which causes ProfileManager.getLastUsedRegularProfile() to throw an
-            // exception. But the tasks have been posted by then, so reschedule ourselves, only
-            // once.
-            if (!BrowserStartupController.getInstance().isFullBrowserStarted()) {
-                if (retryIfNotLoaded) {
-                    PostTask.postTask(
-                            TaskTraits.UI_DEFAULT,
-                            () -> {
-                                doMayLaunchUrlOnUiThread(
-                                        lowConfidence,
-                                        session,
-                                        uid,
-                                        urlString,
-                                        extras,
-                                        otherLikelyBundles,
-                                        false);
-                            });
+            // TODO(https://crbug.com/423415329): I'm pretty sure this is fixed, just
+            // rolling this out with the flagged change in case it isn't fixed.
+            if (!ChromeFeatureList.sCctFixWarmup.isEnabled()) {
+                // doMayLaunchUrlInternal() is always called once the native level initialization is
+                // done, at least the initial profile load. However, at that stage the startup
+                // callback
+                // may not have run, which causes ProfileManager.getLastUsedRegularProfile() to
+                // throw an
+                // exception. But the tasks have been posted by then, so reschedule ourselves, only
+                // once.
+                if (!BrowserStartupController.getInstance().isFullBrowserStarted()) {
+                    if (retryIfNotLoaded) {
+                        PostTask.postTask(
+                                TaskTraits.UI_DEFAULT,
+                                () -> {
+                                    doMayLaunchUrlOnUiThread(
+                                            lowConfidence,
+                                            session,
+                                            uid,
+                                            urlString,
+                                            extras,
+                                            otherLikelyBundles,
+                                            false);
+                                });
+                    }
+                    return;
                 }
-                return;
             }
 
             enableExperimentIdsIfNecessary(extras);
@@ -1071,12 +1099,19 @@ public class CustomTabsConnection {
      * @param session The Binder object identifying a session.
      * @param url The URL the tab is for.
      * @param referrer The referrer to use for |url|.
+     * @param intentDataProvider The {@link BrowserServicesIntentDataProvider} created from the
+     *     Custom Tabs Intent.
      * @return The hidden tab, or null.
      */
     public @Nullable HiddenTabHolder.HiddenTab takeHiddenTab(
-            @Nullable SessionHolder<?> session, String url, Intent intent) {
+            @Nullable SessionHolder<?> session,
+            String url,
+            BrowserServicesIntentDataProvider intentDataProvider) {
         return mHiddenTabHolder.takeHiddenTab(
-                session, mClientManager.getIgnoreFragmentsForSession(session), url, intent);
+                session,
+                mClientManager.getIgnoreFragmentsForSession(session),
+                url,
+                intentDataProvider);
     }
 
     /**
@@ -1098,7 +1133,9 @@ public class CustomTabsConnection {
                     bundleToJson(intent.getExtras()));
         }
 
-        if (ChromeBrowserInitializer.getInstance().isFullBrowserInitialized()) {
+        if (ChromeBrowserInitializer.getInstance().isFullBrowserInitialized()
+                && ChromeFeatureList.isEnabled(ChromeFeatureList.CCT_FIX_WARMUP)
+                && ChromeFeatureList.isEnabled(ChromeFeatureList.CCT_EARLY_NAV)) {
             CustomTabsConnectionJni.get().emitIntentHandledTrigger();
         }
 
@@ -1586,110 +1623,11 @@ public class CustomTabsConnection {
             return false;
         }
         logCallback("onNavigationEvent()", navigationEvent);
+        RecordHistogram.recordEnumeratedHistogram(
+                "CustomTabs.NavigationEvent",
+                navigationEvent,
+                CustomTabsNavigationEvent.NUM_ENTRIES);
         return true;
-    }
-
-    /** Resets dynamic experiment features that can be enabled/disabled via an Intent. */
-    @VisibleForTesting
-    void resetDynamicFeatures() {
-        mDynamicEnabledFeatures = null;
-        mDynamicDisabledFeatures = null;
-    }
-
-    /**
-     * Does setup of dynamic experiment features that can be enabled/disabled via an Intent.
-     *
-     * @param intent The {@link Intent} that is active, to be scanned for enable/disable Extras.
-     * @return Whether the setup will actually change the active feature set.
-     */
-    boolean setupDynamicFeatures(Intent intent) {
-        SessionHolder<?> session = SessionHolder.getSessionHolderFromIntent(intent);
-        if (!mIsDynamicIntentFeatureOverridesEnabled
-                || (!CustomTabIntentDataProvider.isTrustedCustomTab(intent, session)
-                        && !CommandLine.getInstance()
-                                .hasSwitch("cct-client-firstparty-override"))) {
-            return false;
-        }
-        return setupDynamicFeaturesInternal(intent);
-    }
-
-    @VisibleForTesting
-    boolean setupDynamicFeaturesInternal(Intent intent) {
-        // TODO(crbug.com/40884078) Add support for separate dynamic experiments per session!
-        // Early exits if any CCT client app has already set or cleared dynamic experiments.
-        if (mDynamicEnabledFeatures != null || mDynamicDisabledFeatures != null) return false;
-
-        ArrayList<String> enabledExperiments =
-                IntentUtils.safeGetStringArrayListExtra(
-                        intent, CustomTabIntentDataProvider.EXPERIMENTS_ENABLE);
-        ArrayList<String> disabledExperiments =
-                IntentUtils.safeGetStringArrayListExtra(
-                        intent, CustomTabIntentDataProvider.EXPERIMENTS_DISABLE);
-        if (!areExperimentsSupported(enabledExperiments, disabledExperiments)) return false;
-
-        mDynamicEnabledFeatures = enabledExperiments;
-        mDynamicDisabledFeatures = disabledExperiments;
-        if (UmaSessionStats.isMetricsServiceAvailable()) {
-            boolean isEnabling = enabledExperiments != null;
-            String groupPrefix = isEnabling ? "Enable_" : "Disable_";
-            List<String> featuresUsed = isEnabling ? enabledExperiments : disabledExperiments;
-            String groupName = groupPrefix + String.join("_", featuresUsed);
-            UmaSessionStats.registerSyntheticFieldTrial(
-                    SYNTHETIC_FIELDTRIAL_CCT_EXPERIMENT_OVERRIDE,
-                    groupName,
-                    SyntheticTrialAnnotationMode.CURRENT_LOG);
-        } else {
-            Log.w(TAG, "The Metrics Service is not available, so no synthetic field trial");
-        }
-        return true;
-    }
-
-    /**
-     * Determines whether the given enable and disable features are currently supported.
-     * @param enabledExperiments A list of Features to enable.
-     * @param disabledExperiments A list of Features to disable.
-     * @return Whether this set of Features is allowed to be overridden by an Intent.
-     */
-    @VisibleForTesting
-    boolean areExperimentsSupported(
-            List<String> enabledExperiments, List<String> disabledExperiments) {
-        return false;
-    }
-
-    // TODO(crbug.com/40274032): Remove this and other dynamic feature related methods.
-    /**
-     * Determines if the given Feature is enabled after factoring in active Intent overrides.
-     *
-     * @see #setupDynamicFeatures
-     * @param featureName The Feature to check if it's enabled.
-     * @return Whether the given Feature is effectively enabled given active overrides.
-     */
-    public boolean isDynamicFeatureEnabled(String featureName) {
-        if (mIsDynamicIntentFeatureOverridesEnabled) {
-            if (mDynamicEnabledFeatures != null && mDynamicEnabledFeatures.contains(featureName)) {
-                return true;
-            }
-            if (mDynamicDisabledFeatures != null
-                    && mDynamicDisabledFeatures.contains(featureName)) {
-                return false;
-            }
-        }
-        Log.e(TAG, "Unsupported Feature!");
-        return false;
-    }
-
-    @VisibleForTesting
-    void setIsDynamicFeaturesEnabled(boolean isDynamicFeaturesEnabled) {
-        mIsDynamicIntentFeatureOverridesEnabled = isDynamicFeaturesEnabled;
-    }
-
-    /**
-     * Returns whether the given feature is enabled with Intent overrides.
-     * @param featureName The feature to check.
-     * @return Whether the feature is enabled with Intent overrides.
-     */
-    public boolean isDynamicFeatureEnabledWithOverrides(String featureName) {
-        return mDynamicEnabledFeatures != null && mDynamicEnabledFeatures.contains(featureName);
     }
 
     /**
@@ -1904,7 +1842,7 @@ public class CustomTabsConnection {
         // cgroups a process is part of can be queried by reading /proc/<pid>/cgroup, which is
         // world-readable.
         String cgroupFilename = "/proc/" + pid + "/cgroup";
-        String controllerName = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? "cpuset" : "cpu";
+        String controllerName = "cpuset";
         try (BufferedReader reader = new BufferedReader(new FileReader(cgroupFilename))) {
             String line = null;
             while ((line = reader.readLine()) != null) {
@@ -2178,10 +2116,22 @@ public class CustomTabsConnection {
      * Returns an alternate handler for taps on the Custom Tabs Omnibox, or null if the default
      * handler should be used.
      */
+    // TODO(crbug.com/422969546): Remove this method once the new method is used.
     @Nullable
     public Consumer<Tab> getAlternateOmniboxTapHandler(
             BrowserServicesIntentDataProvider intentData) {
         return null;
+    }
+
+    /**
+     * Returns an alternate handler for taps on the Custom Tabs Omnibox. The function returns true
+     * if the tap was handled, false otherwise.
+     */
+    // TODO(crbug.com/422969546): Rename to getAlternateOmniboxTapHandler once the old method is
+    // removed.
+    public Function<Tab, Boolean> getAlternateOmniboxTapHandlerWithVerification(
+            BrowserServicesIntentDataProvider intentData) {
+        return (tab) -> false;
     }
 
     /** Specifies what content should be presented by the CustomTabs instance in location bar. */

@@ -55,10 +55,14 @@ class IOSChromeSyncedTabDelegate
  private:
   friend class web::WebStateUserData<IOSChromeSyncedTabDelegate>;
 
-  explicit IOSChromeSyncedTabDelegate(web::WebState* web_state);
+  explicit IOSChromeSyncedTabDelegate(web::WebState* web_state,
+                                      SessionID window_id);
 
   // The associated WebState.
   const raw_ptr<web::WebState> web_state_;
+
+  // Identifier of the window the tab is in.
+  const SessionID window_id_;
 
   // Cached value of last_active_time, sometimes returned instead of the
   // last_active_time from the WebState.

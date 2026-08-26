@@ -64,7 +64,7 @@ struct DtmfEvent;
 struct ExpandFactory;
 struct PreemptiveExpandFactory;
 
-class NetEqImpl : public webrtc::NetEq {
+class NetEqImpl : public NetEq {
  public:
   enum class OutputType {
     kNormalSpeech,
@@ -156,6 +156,8 @@ class NetEqImpl : public webrtc::NetEq {
 
   bool RegisterPayloadType(int rtp_payload_type,
                            const SdpAudioFormat& audio_format) override;
+
+  bool CreateDecoder(int rtp_payload_type) override;
 
   // Removes `rtp_payload_type` from the codec database. Returns 0 on success,
   // -1 on failure.

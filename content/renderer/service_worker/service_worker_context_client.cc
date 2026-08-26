@@ -13,6 +13,7 @@
 #include "base/check_op.h"
 #include "base/containers/to_vector.h"
 #include "base/debug/alias.h"
+#include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -380,9 +381,6 @@ void ServiceWorkerContextClient::WillDestroyWorkerContext(
   interface_provider_receiver_.reset();
   registry_.clear();
 
-  // At this point WillStopCurrentWorkerThread is already called, so
-  // worker_task_runner_->RunsTasksInCurrentSequence() returns false
-  // (while we're still on the worker thread).
   proxy_ = nullptr;
 
   // We have to clear callbacks now, as they need to be freed on the

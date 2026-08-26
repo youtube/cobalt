@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_LENS_LENS_OVERLAY_SIDE_PANEL_COORDINATOR_H_
 #define CHROME_BROWSER_UI_LENS_LENS_OVERLAY_SIDE_PANEL_COORDINATOR_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/lens/core/mojom/geometry.mojom.h"
 #include "chrome/browser/lens/core/mojom/lens_side_panel.mojom.h"
@@ -325,6 +326,9 @@ class LensOverlaySidePanelCoordinator
 
   // Called to get the URL for the "open in new tab" button.
   GURL GetOpenInNewTabUrl();
+
+  // Called to get the lens side panel's preferred default width.
+  int GetPreferredDefaultWidth();
 
   std::unique_ptr<views::View> CreateLensOverlayResultsView(
       SidePanelEntryScope& scope);

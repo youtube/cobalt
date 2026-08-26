@@ -56,7 +56,8 @@ class WindowManagementTest : public InProcessBrowserTest {
 };
 
 // TODO(crbug.com/40115071): Windows crashes static casting to ScreenWin.
-#if BUILDFLAG(IS_WIN)
+// TODO(crbug.com/433855037): Disabling on Mac due to flakiness.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #define MAYBE_NoCrashOnEventsDuringHandlerPrint \
   DISABLED_NoCrashOnEventsDuringHandlerPrint
 #else
@@ -103,7 +104,7 @@ IN_PROC_BROWSER_TEST_F(WindowManagementTest,
       });
   )";
   content::WebContentsAddedObserver web_contents_added_observer;
-  ASSERT_TRUE(EvalJs(tab, script).error.empty());
+  ASSERT_TRUE(EvalJs(tab, script).is_ok());
 
   // Alter the display to trigger the currentscreenchange event and print().
 #if BUILDFLAG(IS_CHROMEOS)

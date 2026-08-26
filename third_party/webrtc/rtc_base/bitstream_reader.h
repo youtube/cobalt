@@ -13,6 +13,9 @@
 
 #include <stdint.h>
 
+#include <string>
+#include <type_traits>
+
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"

@@ -17,6 +17,7 @@
 #include "services/network/public/mojom/http_raw_headers.mojom.h"
 #include "services/network/public/mojom/shared_dictionary_error.mojom.h"
 #include "services/network/public/mojom/sri_message_signature.mojom.h"
+#include "services/network/public/mojom/unencoded_digest.mojom.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
 
 namespace content {
@@ -58,7 +59,8 @@ DevToolsAgentHostImpl* NetworkServiceDevToolsObserver::GetDevToolsAgentHost() {
         FrameTreeNode::GloballyFindByID(frame_tree_node_id_);
     if (!frame_tree_node)
       return nullptr;
-    return RenderFrameDevToolsAgentHost::GetFor(frame_tree_node);
+    return RenderFrameDevToolsAgentHost::GetForWithAncestorFallback(
+        frame_tree_node);
   }
   auto host = DevToolsAgentHostImpl::GetForId(devtools_agent_id_);
   if (!host)
@@ -173,7 +175,7 @@ void NetworkServiceDevToolsObserver::OnPrivateNetworkRequest(
                    .SetDetails(std::move(details))
                    .Build();
   devtools_instrumentation::ReportBrowserInitiatedIssue(
-      ftn->current_frame_host(), issue.get());
+      ftn->current_frame_host(), std::move(issue));
 }
 
 void NetworkServiceDevToolsObserver::OnCorsPreflightRequest(
@@ -261,7 +263,7 @@ void NetworkServiceDevToolsObserver::OnCorsError(
                    .SetDetails(std::move(details))
                    .SetIssueId(cors_error_status.issue_id.ToString())
                    .Build();
-  devtools_instrumentation::ReportBrowserInitiatedIssue(rfhi, issue.get());
+  devtools_instrumentation::ReportBrowserInitiatedIssue(rfhi, std::move(issue));
 }
 
 void NetworkServiceDevToolsObserver::OnOrbError(
@@ -291,7 +293,7 @@ void NetworkServiceDevToolsObserver::OnOrbError(
           .SetCode(protocol::Audits::InspectorIssueCodeEnum::GenericIssue)
           .SetDetails(std::move(details))
           .Build();
-  devtools_instrumentation::ReportBrowserInitiatedIssue(rfhi, issue.get());
+  devtools_instrumentation::ReportBrowserInitiatedIssue(rfhi, std::move(issue));
 }
 
 void NetworkServiceDevToolsObserver::OnSubresourceWebBundleMetadata(
@@ -465,6 +467,23 @@ protocol::String ConvertToDevtoolsEnum(
   }
 }
 
+protocol::String ConvertToDevtoolsEnum(
+    network::mojom::UnencodedDigestIssue error) {
+  using network::mojom::UnencodedDigestIssue;
+  namespace UnencodedDigestErrorEnum =
+      protocol::Audits::UnencodedDigestErrorEnum;
+  switch (error) {
+    case UnencodedDigestIssue::kMalformedDictionary:
+      return UnencodedDigestErrorEnum::MalformedDictionary;
+    case UnencodedDigestIssue::kUnknownAlgorithm:
+      return UnencodedDigestErrorEnum::UnknownAlgorithm;
+    case UnencodedDigestIssue::kIncorrectDigestType:
+      return UnencodedDigestErrorEnum::IncorrectDigestType;
+    case UnencodedDigestIssue::kIncorrectDigestLength:
+      return UnencodedDigestErrorEnum::IncorrectDigestLength;
+  }
+}
+
 }  // namespace
 
 void NetworkServiceDevToolsObserver::OnSharedDictionaryError(
@@ -494,7 +513,7 @@ void NetworkServiceDevToolsObserver::OnSharedDictionaryError(
               protocol::Audits::InspectorIssueCodeEnum::SharedDictionaryIssue)
           .SetDetails(std::move(details))
           .Build();
-  devtools_instrumentation::ReportBrowserInitiatedIssue(rfhi, issue.get());
+  devtools_instrumentation::ReportBrowserInitiatedIssue(rfhi, std::move(issue));
 }
 
 void NetworkServiceDevToolsObserver::OnSRIMessageSignatureIssue(
@@ -531,9 +550,38 @@ void NetworkServiceDevToolsObserver::OnSRIMessageSignatureIssue(
                          SRIMessageSignatureIssue)
             .SetDetails(std::move(details))
             .Build();
-    devtools_instrumentation::ReportBrowserInitiatedIssue(rfhi,
-                                                          devtools_issue.get());
+    devtools_instrumentation::ReportBrowserInitiatedIssue(
+        rfhi, std::move(devtools_issue));
   }
+}
+
+void NetworkServiceDevToolsObserver::OnUnencodedDigestError(
+    const std::string& devtool_request_id,
+    const GURL& url,
+    network::mojom::UnencodedDigestIssue issue) {
+  RenderFrameHostImpl* rfhi = GetRenderFrameHostImplFrom(frame_tree_node_id_);
+  if (!rfhi) {
+    return;
+  }
+  auto affected_request = protocol::Audits::AffectedRequest::Create()
+                              .SetRequestId(devtool_request_id)
+                              .SetUrl(url.spec())
+                              .Build();
+  auto issue_details = protocol::Audits::UnencodedDigestIssueDetails::Create()
+                           .SetError(ConvertToDevtoolsEnum(issue))
+                           .SetRequest(std::move(affected_request))
+                           .Build();
+  auto details = protocol::Audits::InspectorIssueDetails::Create()
+                     .SetUnencodedDigestIssueDetails(std::move(issue_details))
+                     .Build();
+  auto devtools_issue =
+      protocol::Audits::InspectorIssue::Create()
+          .SetCode(
+              protocol::Audits::InspectorIssueCodeEnum::UnencodedDigestIssue)
+          .SetDetails(std::move(details))
+          .Build();
+  devtools_instrumentation::ReportBrowserInitiatedIssue(
+      rfhi, std::move(devtools_issue));
 }
 
 void NetworkServiceDevToolsObserver::Clone(

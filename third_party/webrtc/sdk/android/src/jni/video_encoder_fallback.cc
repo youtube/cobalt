@@ -10,10 +10,14 @@
 
 #include <jni.h>
 
+#include <memory>
+#include <utility>
+
 #include "api/environment/environment.h"
+#include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/video_encoder_software_fallback_wrapper.h"
 #include "sdk/android/generated_video_jni/VideoEncoderFallback_jni.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/src/jni/video_encoder_wrapper.h"
 #include "third_party/jni_zero/jni_zero.h"
 

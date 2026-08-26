@@ -238,7 +238,7 @@ NSIndexPath* CreateIndexPath(NSInteger index) {
     // If the active item is the last inserted item, it needs to be animated
     // differently.
     if (selectedCell.pinnedItemIdentifier == _lastInsertedItemID) {
-      activeItem.isAppearing = YES;
+      activeItem.shouldUseBVCSnapshot = YES;
     }
 
     selectionItem = [LegacyGridTransitionItem
@@ -273,8 +273,8 @@ NSIndexPath* CreateIndexPath(NSInteger index) {
   attributes.frame = [self.collectionView convertRect:attributes.frame
                                                toView:nil];
 
-  return [TabGridTransitionItem itemWithView:cell
-                               originalFrame:attributes.frame];
+  return [TabGridTransitionItem itemWithSnapshot:cell.snapshot
+                                   originalFrame:attributes.frame];
 }
 
 - (BOOL)isCollectionEmpty {

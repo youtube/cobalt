@@ -14,6 +14,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
+#include "base/types/optional_ref.h"
 #include "components/signin/internal/identity_manager/account_tracker_service.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service_delegate.h"
@@ -24,14 +25,13 @@
 #include "components/webdata/common/web_data_service_base.h"
 #include "components/webdata/common/web_data_service_consumer.h"
 #include "crypto/process_bound_string.h"
+#include "google_apis/gaia/google_service_auth_error.h"
 #include "net/base/backoff_entry.h"
 #include "services/network/public/cpp/network_connection_tracker.h"
 
 class SigninClient;
 class TokenWebData;
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 class TokenBindingHelper;
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
 // This enum is used to know if an account is known by the client has a valid
 // refresh token or not.
@@ -52,6 +52,17 @@ enum class RevokeAllTokensOnLoad {
   kExplicitRevoke = 2
 };
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(AccountMoveDecision)
+enum class AccountMoveDecision {
+  kCanMoveWithRefreshToken = 0,
+  kCannotMoveAlreadyExists = 1,
+  kCannotMoveInsertWithoutRefreshToken = 2,
+  kMaxValue = kCannotMoveInsertWithoutRefreshToken
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:AccountMoveDecision)
+
 class MutableProfileOAuth2TokenServiceDelegate
     : public ProfileOAuth2TokenServiceDelegate,
       public WebDataServiceConsumer,
@@ -66,9 +77,7 @@ class MutableProfileOAuth2TokenServiceDelegate
       scoped_refptr<TokenWebData> token_web_data,
       signin::AccountConsistencyMethod account_consistency,
       RevokeAllTokensOnLoad revoke_all_tokens_on_load,
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
       std::unique_ptr<TokenBindingHelper> token_binding_helper,
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
       FixRequestErrorCallback fix_request_error_callback);
 
   MutableProfileOAuth2TokenServiceDelegate(
@@ -88,7 +97,6 @@ class MutableProfileOAuth2TokenServiceDelegate
   std::string GetTokenForMultilogin(
       const CoreAccountId& account_id) const override;
   bool RefreshTokenIsAvailable(const CoreAccountId& account_id) const override;
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   bool IsRefreshTokenBound(const CoreAccountId& account_id) const override;
   std::vector<uint8_t> GetWrappedBindingKey(
       const CoreAccountId& account_id) const override;
@@ -97,7 +105,6 @@ class MutableProfileOAuth2TokenServiceDelegate
       std::string_view challenge,
       std::string_view ephemeral_public_key,
       TokenBindingHelper::GenerateAssertionCallback callback) override;
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   std::vector<CoreAccountId> GetAccounts() const override;
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
       const override;
@@ -174,7 +181,6 @@ class MutableProfileOAuth2TokenServiceDelegate
                            ExtractCredentials);
   FRIEND_TEST_ALL_PREFIXES(MutableProfileOAuth2TokenServiceDelegateTest,
                            TokenReencryption);
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   FRIEND_TEST_ALL_PREFIXES(
       MutableProfileOAuth2TokenServiceDelegateBoundTokensTest,
       UpdateBoundToken);
@@ -187,7 +193,6 @@ class MutableProfileOAuth2TokenServiceDelegate
   FRIEND_TEST_ALL_PREFIXES(
       MutableProfileOAuth2TokenServiceDelegateBoundTokensTest,
       ClearBoundTokenOnStartup);
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   FRIEND_TEST_ALL_PREFIXES(MutableProfileOAuth2TokenServiceDelegateTest,
                            KeepPrimaryAccountTokenOnStartupWithClearOnExit);
 
@@ -199,13 +204,10 @@ class MutableProfileOAuth2TokenServiceDelegate
   // ProfileOAuth2TokenServiceDelegate implementation:
   void LoadCredentialsInternal(
       const CoreAccountId& primary_account_id) override;
-  void UpdateCredentialsInternal(const CoreAccountId& account_id,
-                                 const std::string& refresh_token
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-                                 ,
-                                 const std::vector<uint8_t>& wrapped_binding_key
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-                                 ) override;
+  void UpdateCredentialsInternal(
+      const CoreAccountId& account_id,
+      const std::string& refresh_token,
+      const std::vector<uint8_t>& wrapped_binding_key) override;
   void RevokeAllCredentialsInternal(
       signin_metrics::SourceForRefreshTokenOperation source) override;
   void RevokeCredentialsInternal(const CoreAccountId& account_id) override;
@@ -221,13 +223,12 @@ class MutableProfileOAuth2TokenServiceDelegate
       bool should_reencrypt = false);
 
   // Updates the in-memory representation of the credentials.
-  void UpdateCredentialsInMemory(const CoreAccountId& account_id,
-                                 const std::string& refresh_token
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-                                 ,
-                                 const std::vector<uint8_t>& wrapped_binding_key
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-  );
+  void UpdateCredentialsInMemory(
+      const CoreAccountId& account_id,
+      const std::string& refresh_token,
+      const std::vector<uint8_t>& wrapped_binding_key,
+      base::optional_ref<const GoogleServiceAuthError> error_for_invalid_token =
+          std::nullopt);
 
   // Sets refresh token in error.
   void InvalidateTokenForMultilogin(
@@ -236,12 +237,8 @@ class MutableProfileOAuth2TokenServiceDelegate
   // Persists credentials for |account_id|. Enables overriding for
   // testing purposes, or other cases, when accessing the DB is not desired.
   void PersistCredentials(const CoreAccountId& account_id,
-                          const std::string& refresh_token
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-                          ,
-                          const std::vector<uint8_t>& wrapped_binding_key
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-  );
+                          const std::string& refresh_token,
+                          const std::vector<uint8_t>& wrapped_binding_key);
 
   // Clears credentials persisted for |account_id|. Enables overriding for
   // testing purposes, or other cases, when accessing the DB is not desired.
@@ -254,15 +251,6 @@ class MutableProfileOAuth2TokenServiceDelegate
   void CancelWebTokenFetch();
 
   std::string GetRefreshToken(const CoreAccountId& account_id) const;
-
-  // Creates a new AccountStatus and adds it to the AccountStatusMap.
-  // The account must not be already in the map.
-  void AddAccountStatus(const CoreAccountId& account_id,
-                        const std::string& refresh_token,
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-                        const std::vector<uint8_t>& wrapped_binding_key,
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-                        const GoogleServiceAuthError& error);
 
   // Called at when tokens are loaded. Performs housekeeping tasks and notifies
   // the observers.
@@ -306,10 +294,8 @@ class MutableProfileOAuth2TokenServiceDelegate
   // error state.
   RevokeAllTokensOnLoad revoke_all_tokens_on_load_ = RevokeAllTokensOnLoad::kNo;
 
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   // This is null if token binding is disabled.
   const std::unique_ptr<TokenBindingHelper> token_binding_helper_;
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
   // Callback function that attempts to correct request errors.  Best effort
   // only.  Returns true if the error was fixed and retry should be reattempted.

@@ -120,10 +120,6 @@ class AppBrowserController : public ui::ColorProviderKey::InitializerSupplier,
   // Returns the text to flash in the title bar on app launch.
   std::u16string GetLaunchFlashText() const;
 
-  // Returns whether this controller was created for a
-  // Chrome App (platform app or legacy packaged app).
-  virtual bool IsHostedApp() const;
-
   // Whether the custom tab bar should be visible.
   virtual bool ShouldShowCustomTabBar() const;
 
@@ -178,10 +174,13 @@ class AppBrowserController : public ui::ColorProviderKey::InitializerSupplier,
   virtual std::u16string GetFormattedUrlOrigin() const = 0;
 
   // Gets the start_url for the app.
-  virtual GURL GetAppStartUrl() const = 0;
+  virtual const GURL& GetAppStartUrl() const = 0;
 
   // Gets the new tab URL for tabbed apps.
-  virtual GURL GetAppNewTabUrl() const;
+  virtual const GURL& GetAppNewTabUrl() const;
+
+  // Returns the pinned home tab if there is one, otherwise nullptr.
+  virtual content::WebContents* GetPinnedHomeTab() const;
 
   // Whether the app's tab strip should hide the new tab button, e.g. because
   // the app has a pinned home tab at the same URL as the new tab URL.
@@ -246,6 +245,9 @@ class AppBrowserController : public ui::ColorProviderKey::InitializerSupplier,
 
   // Whether the browser should show the reload button in the toolbar.
   virtual bool HasReloadButton() const;
+
+  // Returns true if there is a pending update available for this app.
+  virtual bool HasPendingUpdate() const;
 
   // Returns whether prevent close is enabled.
   bool IsPreventCloseEnabled() const;

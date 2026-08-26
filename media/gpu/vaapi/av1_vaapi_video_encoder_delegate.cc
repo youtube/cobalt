@@ -15,6 +15,8 @@
 #include <utility>
 
 #include "base/bits.h"
+#include "base/containers/auto_spanification_helper.h"
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "media/gpu/macros.h"
 #include "media/gpu/svc_layers.h"
@@ -195,15 +197,19 @@ scoped_refptr<AV1Picture> GetAV1Picture(
       reinterpret_cast<AV1Picture*>(job.picture().get()));
 }
 
-void DownscaleSegmentMap(const uint8_t* src_seg_map,
-                         uint32_t src_seg_size,
-                         size_t num_segments,
-                         uint8_t* dst_seg_map,
-                         uint32_t dst_seg_size,
-                         const gfx::Size& coded_size) {
+void DownscaleSegmentMap(
+    const uint8_t* src_seg_map,
+    uint32_t src_seg_size,
+    size_t num_segments,
+    base::span<uint8_t> dst_seg_map,
+    uint32_t spanification_suspected_redundant_dst_seg_size,
+    const gfx::Size& coded_size) {
+  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
+  // redundant in M143.
+  CHECK_EQ(spanification_suspected_redundant_dst_seg_size, dst_seg_map.size());
   CHECK(std::has_single_bit(src_seg_size));
-  CHECK(std::has_single_bit(dst_seg_size));
-  CHECK_LT(src_seg_size, dst_seg_size);
+  CHECK(std::has_single_bit(spanification_suspected_redundant_dst_seg_size));
+  CHECK_LT(src_seg_size, spanification_suspected_redundant_dst_seg_size);
 
   // We want to avoid doing a division operation for each src segment, so we
   // find the log of the segment size ratio and right shift by that instead to
@@ -211,7 +217,8 @@ void DownscaleSegmentMap(const uint8_t* src_seg_map,
   // compute the log, since we know the segment size ratios of going to be
   // powers of two.
   const uint32_t log_seg_size_ratio =
-      std::countl_zero(src_seg_size) - std::countl_zero(dst_seg_size);
+      std::countl_zero(src_seg_size) -
+      std::countl_zero(spanification_suspected_redundant_dst_seg_size);
   const uint32_t src_width =
       base::bits::AlignUp(static_cast<uint32_t>(coded_size.width()),
                           src_seg_size) /
@@ -222,12 +229,12 @@ void DownscaleSegmentMap(const uint8_t* src_seg_map,
       src_seg_size;
   const uint32_t dst_width =
       base::bits::AlignUp(static_cast<uint32_t>(coded_size.width()),
-                          dst_seg_size) /
-      dst_seg_size;
+                          spanification_suspected_redundant_dst_seg_size) /
+      spanification_suspected_redundant_dst_seg_size;
   const uint32_t dst_height =
       base::bits::AlignUp(static_cast<uint32_t>(coded_size.height()),
-                          dst_seg_size) /
-      dst_seg_size;
+                          spanification_suspected_redundant_dst_seg_size) /
+      spanification_suspected_redundant_dst_seg_size;
 
   std::vector<uint8_t> freq_distribution(num_segments * dst_width * dst_height);
 
@@ -256,8 +263,8 @@ void DownscaleSegmentMap(const uint8_t* src_seg_map,
           most_freq = i;
         }
       }
-      *dst_seg_map = most_freq;
-      dst_seg_map++;
+      dst_seg_map[0] = most_freq;
+      base::PostIncrementSpan(dst_seg_map);
     }
   }
 }
@@ -332,6 +339,8 @@ AV1BitstreamBuilder::FrameHeader FillAV1BuilderFrameHeader(
     pic_hdr.ref_order_hint[i] = 0;
   }
 
+  pic_hdr.cdef_damping_minus_3 = pic_param.cdef_damping_minus_3;
+  pic_hdr.cdef_bits = pic_param.cdef_bits;
   for (size_t i = 0; i < ARRAY_SIZE(current_params.cdef_y_pri_strength); i++) {
     pic_hdr.cdef_y_pri_strength[i] = current_params.cdef_y_pri_strength[i];
     pic_hdr.cdef_y_sec_strength[i] = current_params.cdef_y_sec_strength[i];
@@ -339,6 +348,8 @@ AV1BitstreamBuilder::FrameHeader FillAV1BuilderFrameHeader(
     pic_hdr.cdef_uv_sec_strength[i] = current_params.cdef_uv_sec_strength[i];
   }
   pic_hdr.reduced_tx_set = pic_param.picture_flags.bits.reduced_tx_set;
+  pic_hdr.tx_mode =
+      static_cast<libgav1::TxMode>(pic_param.mode_control_flags.bits.tx_mode);
   pic_hdr.segmentation_enabled =
       pic_param.segments.seg_flags.bits.segmentation_enabled;
   if (pic_hdr.segmentation_enabled) {
@@ -350,7 +361,10 @@ AV1BitstreamBuilder::FrameHeader FillAV1BuilderFrameHeader(
     pic_hdr.segmentation_update_data = true;
     for (uint32_t i = 0; i < pic_hdr.segment_number; i++) {
       pic_hdr.feature_data[i][0] = pic_param.segments.feature_data[i][0];
-      pic_hdr.feature_mask[i] = pic_param.segments.feature_mask[i];
+      for (uint32_t j = 0; j < libgav1::kSegmentFeatureMax; j++) {
+        pic_hdr.feature_enabled[i][j] =
+            !!(pic_param.segments.feature_mask[i] & (1 << j));
+      }
     }
   }
   pic_hdr.allow_screen_content_tools =
@@ -552,6 +566,10 @@ BitstreamBufferMetadata AV1VaapiVideoEncoderDelegate::GetMetadata(
 VaapiVideoEncoderDelegate::PrepareEncodeJobResult
 AV1VaapiVideoEncoderDelegate::PrepareEncodeJob(EncodeJob& encode_job) {
   if (frame_num_ == current_params_.intra_period) {
+    encode_job.ProduceKeyframe();
+  }
+
+  if (svc_layers_ && svc_layers_->IsKeyFrame()) {
     encode_job.ProduceKeyframe();
   }
 
@@ -946,8 +964,8 @@ bool AV1VaapiVideoEncoderDelegate::FillPictureParam(
     }
     segment_map_param.segmentMapDataSize = segmentation_map_.size();
     DownscaleSegmentMap(seg_data.segmentation_map, kSegmentGranularity,
-                        seg_data.delta_q_size, segmentation_map_.data(),
-                        seg_size_, coded_size_);
+                        seg_data.delta_q_size, segmentation_map_, seg_size_,
+                        coded_size_);
     segment_map_param.pSegmentMap = segmentation_map_.data();
   }
 

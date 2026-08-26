@@ -48,17 +48,21 @@ std::optional<gfx::PointF> InteractionPointFromWebNode(
   return gfx::PointF(rect.CenterPoint());
 }
 
-blink::WebNode GetNodeFromId(const content::RenderFrame& frame,
+blink::WebNode GetNodeFromId(const content::RenderFrame& local_root_frame,
                              int32_t node_id) {
-  const blink::WebLocalFrame* web_frame = frame.GetWebFrame();
+  const blink::WebLocalFrame* web_frame = local_root_frame.GetWebFrame();
   if (!web_frame) {
     return blink::WebNode();
   }
 
+  // The passed in frame must be a local root.
+  CHECK_EQ(web_frame, web_frame->LocalRoot());
+
   blink::WebNode node = blink::WebNode::FromDomNodeId(node_id);
-  // Make sure the node we're getting belongs to the document inside this
+  // Make sure the node we're getting belongs to a frame under the local root
   // frame.
-  if (node.IsNull() || node.GetDocument() != web_frame->GetDocument()) {
+  if (node.IsNull() || !node.GetDocument() || !node.GetDocument().GetFrame() ||
+      node.GetDocument().GetFrame()->LocalRoot() != web_frame) {
     return blink::WebNode();
   }
   return node;
@@ -72,10 +76,17 @@ bool IsNodeFocused(const content::RenderFrame& frame,
   return element == currently_focused;
 }
 
+bool IsPointWithinViewport(const gfx::Point& point,
+                           const content::RenderFrame& frame) {
+  CHECK(frame.GetWebFrame());
+  CHECK_EQ(frame.GetWebFrame(), frame.GetWebFrame()->LocalRoot());
+  gfx::Rect viewport(frame.GetWebFrame()->FrameWidget()->VisibleViewportSize());
+  return viewport.Contains(point);
+}
+
 bool IsPointWithinViewport(const gfx::PointF& point,
                            const content::RenderFrame& frame) {
-  gfx::Rect viewport(frame.GetWebFrame()->FrameWidget()->VisibleViewportSize());
-  return viewport.Contains(gfx::ToFlooredPoint(point));
+  return IsPointWithinViewport(gfx::ToFlooredPoint(point), frame);
 }
 
 std::string ToDebugString(const mojom::ToolTargetPtr& target) {
@@ -93,6 +104,16 @@ std::string ToDebugString(const mojom::ToolTargetPtr& target) {
   }
   ss << ")";
   return ss.str();
+}
+
+bool IsNodeWithinViewport(const blink::WebNode& node) {
+  blink::WebElement element = node.DynamicTo<blink::WebElement>();
+  if (element.IsNull()) {
+    return false;
+  }
+
+  gfx::Rect rect = element.VisibleBoundsInWidget();
+  return !rect.IsEmpty();
 }
 
 mojom::ActionResultPtr CreateAndDispatchClick(WebMouseEvent::Button button,

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_ALLOC_BASE_NUMERICS_SAFE_CONVERSIONS_H_
 #define PARTITION_ALLOC_PARTITION_ALLOC_BASE_NUMERICS_SAFE_CONVERSIONS_H_
 
@@ -12,7 +17,7 @@
 
 #include "partition_alloc/partition_alloc_base/numerics/safe_conversions_impl.h"
 
-#if defined(__ARMEL__) && !defined(__native_client__)
+#if defined(__ARMEL__)
 #include "partition_alloc/partition_alloc_base/numerics/safe_conversions_arm_impl.h"
 #define PA_BASE_HAS_OPTIMIZED_SAFE_CONVERSIONS (1)
 #else

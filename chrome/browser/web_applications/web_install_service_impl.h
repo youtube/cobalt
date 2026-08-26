@@ -16,11 +16,17 @@
 #include "third_party/blink/public/mojom/web_install/web_install.mojom.h"
 #include "url/gurl.h"
 
+namespace content {
+class WebContents;
+}
+
 namespace webapps {
 enum class InstallResultCode;
 enum class InstallableStatusCode;
 }
 namespace web_app {
+class AppLock;
+struct WebAppInstallInfo;
 class WebAppProvider;
 
 // Service side implementation for the Blink Web Install API. Takes the
@@ -50,6 +56,15 @@ class WebInstallServiceImpl
 
   void TryInstallCurrentDocument(InstallCallback callback);
 
+  void CheckForInstalledAppMaybeLaunch(content::WebContents* web_contents,
+                                       InstallCallback callback,
+                                       AppLock& lock,
+                                       base::Value::Dict& debug_value);
+
+  void OnIntentPickerMaybeLaunched(InstallCallback callback,
+                                   webapps::AppId app_id,
+                                   bool user_chose_to_open);
+
   void OnDidRetrieveManifestForCurrentDocumentInstall(
       InstallCallback callback,
       WebAppProvider* provider,
@@ -66,6 +81,19 @@ class WebInstallServiceImpl
       const std::optional<GURL>& manifest_id,
       InstallCallback callback,
       const std::vector<blink::mojom::PermissionStatus>& permission_status);
+
+  // `install_info` was fetched from an install url and is used to populate the
+  // background launch dialog.
+  void OnInstallInfoFromInstallUrlFetched(
+      InstallCallback callback,
+      webapps::AppId app_id,
+      const GURL& manifest_id,
+      std::unique_ptr<WebAppInstallInfo> install_info);
+
+  // Used by the launch dialog to report whether the user accepted the launch.
+  void OnBackgroundAppLaunchDialogClosed(InstallCallback callback,
+                                         const GURL& manifest_id,
+                                         bool accepted);
 
   // Used by web app install dialog code as the WebAppInstalledCallback.
   // Reports install success or failure back to Blink via `callback`.

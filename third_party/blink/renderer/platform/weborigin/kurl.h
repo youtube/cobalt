@@ -41,6 +41,12 @@
 #include "url/url_canon.h"
 #include "url/url_util.h"
 
+class GURL;
+
+namespace blink {
+
+class TextEncoding;
+
 // KURL stands for the URL parser in KDE's HTML Widget (KHTML). The name hasn't
 // changed since Blink forked WebKit, which in turn forked KHTML.
 //
@@ -58,14 +64,6 @@
 // - Internal reference to the URL protocol (scheme) to avoid String allocation
 //   for the callers that require it. Common protocols like http and https are
 //   stored as shared static strings.
-namespace WTF {
-class TextEncoding;
-}
-
-class GURL;
-
-namespace blink {
-
 class PLATFORM_EXPORT KURL {
   USING_FAST_MALLOC(KURL);
 
@@ -95,7 +93,7 @@ class PLATFORM_EXPORT KURL {
   // URL. Instead I think it would be better to treat all invalid base URLs
   // the same way we treate null and empty base URLs.
   KURL(const KURL& base, const String& relative);
-  KURL(const KURL& base, const String& relative, const WTF::TextEncoding&);
+  KURL(const KURL& base, const String& relative, const TextEncoding&);
 
   // For conversions from other structures that have already parsed and
   // canonicalized the URL. The input must be exactly what KURL would have
@@ -152,11 +150,7 @@ class PLATFORM_EXPORT KURL {
   bool CanRemoveHost() const;
 
   // Return true if this URL is hierarchical, which is equivalent to standard
-  // URLs.
-  //
-  // Important note: If kStandardCompliantNonSpecialSchemeURLParsing flag is
-  // enabled, returns true also for non-special URLs which don't have an opaque
-  // path.
+  // URLs, or non-specials URLs that don't have an opaque path.
   bool IsHierarchical() const;
 
   // Return true if this URL is a standard URL.
@@ -257,11 +251,11 @@ class PLATFORM_EXPORT KURL {
   void WriteIntoTrace(perfetto::TracedValue context) const;
 
  private:
-  friend struct WTF::HashTraits<blink::KURL>;
+  friend struct HashTraits<KURL>;
 
   void Init(const KURL& base,
             const String& relative,
-            const WTF::TextEncoding* query_encoding);
+            const TextEncoding* query_encoding);
 
   bool IsAboutURL(const char* allowed_path) const;
 
@@ -307,6 +301,19 @@ PLATFORM_EXPORT bool operator==(const String&, const KURL&);
 PLATFORM_EXPORT bool operator!=(const KURL&, const KURL&);
 PLATFORM_EXPORT bool operator!=(const KURL&, const String&);
 PLATFORM_EXPORT bool operator!=(const String&, const KURL&);
+// Resolve ambiguity when comparing a string literal and a KURL.
+inline bool operator==(const char* literal, const KURL& url) {
+  return String(literal) == url;
+}
+inline bool operator==(const KURL& url, const char* literal) {
+  return String(literal) == url;
+}
+inline bool operator!=(const char* literal, const KURL& url) {
+  return String(literal) != url;
+}
+inline bool operator!=(const KURL& url, const char* literal) {
+  return String(literal) != url;
+}
 
 // Pretty printer for gtest and base/logging.*.  It prepends and appends
 // double-quotes, and escapes characters other than ASCII printables.
@@ -352,20 +359,15 @@ PLATFORM_EXPORT String EncodeWithURLEscapeSequences(const StringView&);
 // anything other than two hex-digits.
 PLATFORM_EXPORT bool HasInvalidURLEscapeSequences(const String&);
 
-}  // namespace blink
-
-namespace WTF {
+template <>
+struct CrossThreadCopier<KURL> : public CrossThreadCopierPassThrough<KURL> {
+  STATIC_ONLY(CrossThreadCopier);
+};
 
 // Defined in kurl_hash.h.
 template <>
 struct HashTraits<blink::KURL>;
 
-template <>
-struct CrossThreadCopier<blink::KURL>
-    : public CrossThreadCopierPassThrough<blink::KURL> {
-  STATIC_ONLY(CrossThreadCopier);
-};
-
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WEBORIGIN_KURL_H_

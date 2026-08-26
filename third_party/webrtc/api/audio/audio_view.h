@@ -33,7 +33,7 @@ namespace webrtc {
 //   buffer. Channels can be enumerated and accessing the individual channel
 //   data is done via MonoView<>.
 //
-// The views are comparable to and built on webrtc::ArrayView<> but add
+// The views are comparable to and built on ArrayView<> but add
 // audio specific properties for the dimensions of the buffer and the above
 // specialized [de]interleaved support.
 //

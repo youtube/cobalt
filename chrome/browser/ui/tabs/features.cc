@@ -5,10 +5,15 @@
 #include "chrome/browser/ui/tabs/features.h"
 
 #include "base/feature_list.h"
-#include "chrome/browser/buildflags.h"
 #include "chrome/browser/ui/ui_features.h"
 
 namespace tabs {
+
+// Enables the debug UI used to visualize the tab strip model.
+// chrome://tab-strip-internals
+BASE_FEATURE(kDebugUITabStrip,
+             "DebugUITabStrip",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Splits pinned and unpinned tabs into separate TabStrips.
 // https://crbug.com/1346019
@@ -44,11 +49,13 @@ BASE_FEATURE(kTabSearchPositionSetting,
 
 BASE_FEATURE(kTabGroupShortcuts,
              "TabGroupShortcuts",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kVerticalTabs, "VerticalTabs", base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool CanShowTabSearchPositionSetting() {
   // Alternate tab search locations cannot be repositioned.
-  if (features::IsTabSearchMoving()) {
+  if (features::HasTabSearchToolbarButton()) {
     return false;
   }
 // Mac and other platforms will always have the tab search position in the
@@ -62,6 +69,10 @@ bool CanShowTabSearchPositionSetting() {
 
 bool AreTabGroupShortcutsEnabled() {
   return base::FeatureList::IsEnabled(kTabGroupShortcuts);
+}
+
+bool AreVerticalTabsEnabled() {
+  return base::FeatureList::IsEnabled(kVerticalTabs);
 }
 
 }  // namespace tabs

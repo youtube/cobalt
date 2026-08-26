@@ -188,7 +188,7 @@
 <translation id="1706391837335750954">DNS которгучун текшерүү</translation>
 <translation id="1708602061922134366">Көк (Google)</translation>
 <translation id="1710499924611012470">Атайын мүмкүнчүлүктөрдө өтүү</translation>
-<translation id="1715359911173058521">Сканерге туташа албай койду. Тармакка же USB туташууңузду текшерип, кайталап көрүңүз.</translation>
+<translation id="1715359911173058521">Сканерге туташа албай койду. Интернетти же USB аркылуу байланышты текшерип, кайталап көрүңүз.</translation>
 <translation id="1717874160321062422"><ph name="FIRST_MANAGER" /> менен <ph name="SECOND_MANAGER" /> башкарат</translation>
 <translation id="1718553040985966377">көл</translation>
 <translation id="1720424726586960395">жаркырак токой</translation>
@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Эми Окуу куралдарын гана колдоно аласыз</translation>
 <translation id="1762483337755424125">Транскрипция</translation>
 <translation id="1765169783255151332">Ачкычтарды тез которуштуруу</translation>
 <translation id="1768959921651994223">Аутентификациянын түрү</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Баскычтоптун калыбын которгуч</translation>
 <translation id="224421911978987610">узак экспозиция</translation>
 <translation id="2244834438220057800">жашыл</translation>
+<translation id="2248689665683494517">кара фондо айнек вазада турган кызгалдактардын минималисттик натюрморту</translation>
 <translation id="225692081236532131">Жандыруу абалы</translation>
 <translation id="2267285889943769271">Скриншот кошуу</translation>
 <translation id="2268044343513325586">Мыктылоо</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Басылып чыгарылган жок - Принтер токтоп калды</translation>
 <translation id="3102119246920354026">Кеш</translation>
 <translation id="3103783611481501187">сюрреалдык</translation>
+<translation id="3119672627216736407">Котормосу бар</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">бассейндер</translation>
 <translation id="3122883569442693641">Толук маалымат</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">шифон</translation>
 <translation id="4310735698903592804">Google сунуштаган ЖИ технологиялары менен түзүлгөн соңку тушкагаздар</translation>
 <translation id="4320904097188876154">кызгылтым неон</translation>
+<translation id="432961742358282111">Аныктамаларды, котормолорду жана бирдиктерди которуу үчүн оң баскычын чыкылдатып же коё бербей басып туруңуз. Бул функцияны Солго же Оңго жебе баскычы менен башкарасыз.</translation>
 <translation id="4333390807948134856"><ph name="KEY_NAME" /> баскычы басылды</translation>
 <translation id="4334293042716981313"><ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />өзүңүздүн сурамыңызды жазыңыз<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">баскыч</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">Бүтүрүү үчүн эски жана жаңы сырсөздөрүңүздү киргизиңиз</translation>
 <translation id="6061772781719867950">HTTP сурамдары орундалган жок</translation>
 <translation id="6073292342939316679">баскычтоптун жарыктыгын азайтуу</translation>
+<translation id="6074608334942655098">Которууну токтотуу</translation>
 <translation id="6074752328838739425">Корутундуну жашыруу</translation>
 <translation id="6075872808778243331">(Android) HTTP күтүү убакыты</translation>
 <translation id="6078323886959318429">Кыска жол кошуу</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Chromebook'тун Жардам форумундагы адистерден сураңыз</translation>
-<translation id="7309823890857024809">кара фондо айнек вазадагы бир нече мака нанду сабагынын минималдуу натюрморту</translation>
 <translation id="7311368985037279727">баскычтоптун түсү</translation>
 <translation id="7317831949569936035">Окуу жайын каттоо</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@
 <translation id="8088963492174775412">Жаздыруу үчүн басыңыз</translation>
 <translation id="8094062939584182041">Google'га бул маселе жөнүндө сизге электрондук кат жөнөтүүгө уруксат берүү</translation>
 <translation id="8104083085214006426">Ачык жана кооптуу тармакты колдонуп жатасыз</translation>
+<translation id="8108879170356113798"><ph name="NUM_SECONDS" /> секунддан кийин Окуу куралдарын гана колдоно аласыз</translation>
 <translation id="811820734797650957">(Android) Шлюздун байланышын текшерүүгө болот</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">Ырастоо</translation>

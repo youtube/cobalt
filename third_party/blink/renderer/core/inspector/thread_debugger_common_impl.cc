@@ -132,18 +132,18 @@ unsigned ThreadDebuggerCommonImpl::PromiseRejected(
     v8::Local<v8::Context> context,
     const String& error_message,
     v8::Local<v8::Value> exception,
-    std::unique_ptr<SourceLocation> location) {
+    SourceLocation* location) {
   const StringView default_message = "Uncaught (in promise)";
   String message = error_message;
   if (message.empty()) {
     message = "Uncaught (in promise)";
   } else if (message.StartsWith("Uncaught ")) {
-    message = "Uncaught (in promise)" + StringView(message, 8);
+    message = StrCat({"Uncaught (in promise)", StringView(message, 8)});
   }
 
-  ReportConsoleMessage(
-      ToExecutionContext(context), mojom::ConsoleMessageSource::kJavaScript,
-      mojom::ConsoleMessageLevel::kError, message, location.get());
+  ReportConsoleMessage(ToExecutionContext(context),
+                       mojom::ConsoleMessageSource::kJavaScript,
+                       mojom::ConsoleMessageLevel::kError, message, location);
   String url = location->Url();
   return GetV8Inspector()->exceptionThrown(
       context, ToV8InspectorStringView(default_message), exception,
@@ -485,19 +485,20 @@ bool ReadAdditionalSerializationParameters(
   v8::MaybeLocal<v8::Value> include_shadow_tree_parameter =
       additional_parameters->Get(
           context,
-          V8String(context->GetIsolate(), kIncludeShadowTreeParameterName));
+          V8String(v8::Isolate::GetCurrent(), kIncludeShadowTreeParameterName));
   if (!include_shadow_tree_parameter.IsEmpty()) {
     v8::Local<v8::Value> include_shadow_tree_value =
         include_shadow_tree_parameter.ToLocalChecked();
     if (!include_shadow_tree_value->IsUndefined()) {
       if (!include_shadow_tree_value->IsString()) {
         *error_message = ToV8InspectorStringBuffer(
-            String("Parameter " + String(kIncludeShadowTreeParameterName) +
-                   " should be of type string."));
+            StrCat({"Parameter ", kIncludeShadowTreeParameterName,
+                    " should be of type string."}));
         return false;
       }
-      String include_shadow_tree_string = ToCoreString(
-          context->GetIsolate(), include_shadow_tree_value.As<v8::String>());
+      String include_shadow_tree_string =
+          ToCoreString(v8::Isolate::GetCurrent(),
+                       include_shadow_tree_value.As<v8::String>());
 
       if (include_shadow_tree_string == kIncludeShadowTreeValueNone) {
         include_shadow_tree = ShadowTreeSerialization::kNone;
@@ -507,24 +508,24 @@ bool ReadAdditionalSerializationParameters(
         include_shadow_tree = ShadowTreeSerialization::kAll;
       } else {
         *error_message = ToV8InspectorStringBuffer(
-            String("Unknown value " + String(kIncludeShadowTreeParameterName) +
-                   ":" + include_shadow_tree_string));
+            StrCat({"Unknown value ", kIncludeShadowTreeParameterName, ":",
+                    include_shadow_tree_string}));
         return false;
       }
     }
   }
 
   v8::MaybeLocal<v8::Value> max_node_depth_parameter =
-      additional_parameters->Get(
-          context, V8String(context->GetIsolate(), kMaxNodeDepthParameterName));
+      additional_parameters->Get(context, V8String(v8::Isolate::GetCurrent(),
+                                                   kMaxNodeDepthParameterName));
   if (!max_node_depth_parameter.IsEmpty()) {
     v8::Local<v8::Value> max_node_depth_value =
         max_node_depth_parameter.ToLocalChecked();
     if (!max_node_depth_value->IsUndefined()) {
       if (!max_node_depth_value->IsInt32()) {
         *error_message = ToV8InspectorStringBuffer(
-            String("Parameter " + String(kMaxNodeDepthParameterName) +
-                   " should be of type int."));
+            StrCat({"Parameter ", kMaxNodeDepthParameterName,
+                    " should be of type int."}));
         return false;
       }
       max_node_depth = max_node_depth_value.As<v8::Int32>()->Value();
@@ -695,9 +696,9 @@ static v8::Maybe<bool> CreateDataProperty(v8::Local<v8::Context> context,
                                           v8::Local<v8::Object> object,
                                           v8::Local<v8::Name> key,
                                           v8::Local<v8::Value> value) {
-  v8::TryCatch try_catch(context->GetIsolate());
+  v8::TryCatch try_catch(v8::Isolate::GetCurrent());
   v8::Isolate::DisallowJavascriptExecutionScope throw_js(
-      context->GetIsolate(),
+      v8::Isolate::GetCurrent(),
       v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
   return object->CreateDataProperty(context, key, value);
 }
@@ -710,7 +711,7 @@ static void CreateFunctionPropertyWithData(
     v8::Local<v8::Value> data,
     const char* description,
     v8::SideEffectType side_effect_type) {
-  v8::Local<v8::String> func_name = V8String(context->GetIsolate(), name);
+  v8::Local<v8::String> func_name = V8String(v8::Isolate::GetCurrent(), name);
   v8::Local<v8::Function> func;
   if (!v8::Function::New(context, callback, data, 0,
                          v8::ConstructorBehavior::kThrow, side_effect_type)
@@ -718,14 +719,14 @@ static void CreateFunctionPropertyWithData(
     return;
   func->SetName(func_name);
   v8::Local<v8::String> return_value =
-      V8String(context->GetIsolate(), description);
+      V8String(v8::Isolate::GetCurrent(), description);
   v8::Local<v8::Function> to_string_function;
   if (v8::Function::New(context, ReturnDataCallback, return_value, 0,
                         v8::ConstructorBehavior::kThrow,
                         v8::SideEffectType::kHasNoSideEffect)
           .ToLocal(&to_string_function))
     CreateDataProperty(context, func,
-                       V8AtomicString(context->GetIsolate(), "toString"),
+                       V8AtomicString(v8::Isolate::GetCurrent(), "toString"),
                        to_string_function);
   CreateDataProperty(context, object, func_name, func);
 }
@@ -735,9 +736,9 @@ v8::Maybe<bool> ThreadDebuggerCommonImpl::CreateDataPropertyInArray(
     v8::Local<v8::Array> array,
     int index,
     v8::Local<v8::Value> value) {
-  v8::TryCatch try_catch(context->GetIsolate());
+  v8::TryCatch try_catch(v8::Isolate::GetCurrent());
   v8::Isolate::DisallowJavascriptExecutionScope throw_js(
-      context->GetIsolate(),
+      v8::Isolate::GetCurrent(),
       v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
   return array->CreateDataProperty(context, index, value);
 }
@@ -749,9 +750,10 @@ void ThreadDebuggerCommonImpl::CreateFunctionProperty(
     v8::FunctionCallback callback,
     const char* description,
     v8::SideEffectType side_effect_type) {
-  CreateFunctionPropertyWithData(context, object, name, callback,
-                                 v8::External::New(context->GetIsolate(), this),
-                                 description, side_effect_type);
+  CreateFunctionPropertyWithData(
+      context, object, name, callback,
+      v8::External::New(v8::Isolate::GetCurrent(), this), description,
+      side_effect_type);
 }
 
 void ThreadDebuggerCommonImpl::installAdditionalCommandLineAPI(
@@ -775,7 +777,7 @@ void ThreadDebuggerCommonImpl::installAdditionalCommandLineAPI(
       "function getAccessibleRole(node) { [Command Line API] }",
       v8::SideEffectType::kHasNoSideEffect);
 
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   ScriptEvaluationResult result =
       ClassicScript::CreateUnspecifiedScript(
           "(function(e) { console.log(e.type, e); })",

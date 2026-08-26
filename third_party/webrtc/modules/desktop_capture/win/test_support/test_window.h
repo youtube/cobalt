@@ -10,9 +10,6 @@
 #ifndef MODULES_DESKTOP_CAPTURE_WIN_TEST_SUPPORT_TEST_WINDOW_H_
 #define MODULES_DESKTOP_CAPTURE_WIN_TEST_SUPPORT_TEST_WINDOW_H_
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
 #include <windows.h>
 
 namespace webrtc {
@@ -40,6 +37,8 @@ WindowInfo CreateTestWindow(const WCHAR* window_title,
                             const WCHAR* window_class = kWindowClass);
 
 void ResizeTestWindow(HWND hwnd, int width, int height);
+
+void ResizeTestWindowToFullScreen(const HWND hwnd);
 
 void MoveTestWindow(HWND hwnd, int x, int y);
 

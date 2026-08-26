@@ -4,6 +4,8 @@
 
 #include "components/autofill/core/common/autofill_prefs.h"
 
+#include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
@@ -57,6 +59,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterIntegerPref(kAutocompleteLastVersionRetentionPolicy, 0);
   registry->RegisterStringPref(kAutofillUploadEncodingSeed, "");
   registry->RegisterDictionaryPref(kAutofillVoteUploadEvents);
+  registry->RegisterDictionaryPref(
+      kAutofillVoteSecondaryFormSignatureUploadEvents);
   registry->RegisterDictionaryPref(kAutofillMetadataUploadEvents);
   registry->RegisterTimePref(kAutofillUploadEventsLastResetTimestamp, {});
   registry->RegisterDictionaryPref(kAutofillSyncTransportOptIn);
@@ -91,10 +95,19 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kAutofillThirdPartyPasswordManagersAllowed,
                                 true);
   registry->RegisterBooleanPref(
+      kFacilitatedPaymentsEwallet, /*default_value=*/true,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterBooleanPref(
       kFacilitatedPaymentsPix, /*default_value=*/true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
   registry->RegisterBooleanPref(
-      kFacilitatedPaymentsEwallet, /*default_value=*/true,
+      kFacilitatedPaymentsPixAccountLinking, /*default_value=*/true,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterBooleanPref(
+      kFacilitatedPaymentsA2AEnabled, /*default_value=*/true,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterBooleanPref(
+      kFacilitatedPaymentsA2ATriggeredOnce, /*default_value=*/false,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 #endif
 
@@ -108,6 +121,18 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableSupportForHomeAndWork)) {
+    registry->RegisterDictionaryPref(
+        kAutofillHomeMetadata,
+        user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
+    registry->RegisterDictionaryPref(
+        kAutofillWorkMetadata,
+        user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
+    registry->RegisterIntegerPref(kAutofillSilentUpdatesToHomeAddress, 0);
+    registry->RegisterIntegerPref(kAutofillSilentUpdatesToWorkAddress, 0);
+  }
 }
 
 void MigrateDeprecatedAutofillPrefs(PrefService* pref_service) {
@@ -166,7 +191,24 @@ bool IsAutofillProfileEnabled(const PrefService* prefs) {
 }
 
 void SetAutofillProfileEnabled(PrefService* prefs, bool enabled) {
+  if (prefs->GetBoolean(kAutofillProfileEnabled) == enabled) {
+    return;
+  }
+
   prefs->SetBoolean(kAutofillProfileEnabled, enabled);
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(AutofillAddressOptInChange)
+  enum class AutofillAddressOptInChange {
+    kOptIn = 0,
+    kOptOut = 1,
+    kMaxValue = kOptOut
+  };
+  // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:AutofillAddressOptInChange)
+  using enum AutofillAddressOptInChange;
+  base::UmaHistogramEnumeration("Autofill.Address.IsEnabled.Change",
+                                enabled ? kOptIn : kOptOut);
 }
 
 bool IsPaymentMethodsMandatoryReauthEnabled(const PrefService* prefs) {
@@ -249,6 +291,20 @@ void ClearSyncTransportOptIns(PrefService* prefs) {
   prefs->SetDict(kAutofillSyncTransportOptIn, base::Value::Dict());
 }
 
+void SetFacilitatedPaymentsEwallet(PrefService* prefs, bool value) {
+#if BUILDFLAG(IS_ANDROID)
+  prefs->SetBoolean(kFacilitatedPaymentsEwallet, value);
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
+bool IsFacilitatedPaymentsEwalletEnabled(const PrefService* prefs) {
+#if BUILDFLAG(IS_ANDROID)
+  return prefs->GetBoolean(kFacilitatedPaymentsEwallet);
+#else
+  return false;
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
 void SetFacilitatedPaymentsPix(PrefService* prefs, bool value) {
 #if BUILDFLAG(IS_ANDROID)
   prefs->SetBoolean(kFacilitatedPaymentsPix, value);
@@ -263,17 +319,33 @@ bool IsFacilitatedPaymentsPixEnabled(const PrefService* prefs) {
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
-void SetFacilitatedPaymentsEwallet(PrefService* prefs, bool value) {
+void SetFacilitatedPaymentsPixAccountLinking(PrefService* prefs, bool value) {
 #if BUILDFLAG(IS_ANDROID)
-  prefs->SetBoolean(kFacilitatedPaymentsEwallet, value);
+  prefs->SetBoolean(kFacilitatedPaymentsPixAccountLinking, value);
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
-bool IsFacilitatedPaymentsEwalletEnabled(const PrefService* prefs) {
+bool IsFacilitatedPaymentsPixAccountLinkingEnabled(const PrefService* prefs) {
 #if BUILDFLAG(IS_ANDROID)
-  return prefs->GetBoolean(kFacilitatedPaymentsEwallet);
+  return prefs->GetBoolean(kFacilitatedPaymentsPixAccountLinking);
 #else
+  // Default to false on other platforms as the feature is Android-only.
   return false;
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
+bool IsFacilitatedPaymentsA2AEnabled(const PrefService* prefs) {
+#if BUILDFLAG(IS_ANDROID)
+  return prefs->GetBoolean(kFacilitatedPaymentsA2AEnabled);
+#else
+  // Default to false on other platforms as the feature is Android-only.
+  return false;
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
+void SetFacilitatedPaymentsA2ATriggeredOnce(PrefService* prefs, bool value) {
+#if BUILDFLAG(IS_ANDROID)
+  prefs->SetBoolean(kFacilitatedPaymentsA2ATriggeredOnce, value);
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 

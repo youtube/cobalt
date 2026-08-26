@@ -36,7 +36,6 @@
 #include "ui/gfx/geometry/mojom/geometry_mojom_traits.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/hdr_metadata.h"
-#include "ui/gfx/ipc/color/gfx_param_traits.h"
 #include "ui/gfx/mojom/hdr_metadata_mojom_traits.h"
 
 namespace mojo {
@@ -495,11 +494,6 @@ struct StructTraits<viz::mojom::TileQuadStateDataView, viz::DrawQuad> {
   static const gfx::RectF& tex_coord_rect(const viz::DrawQuad& input) {
     const viz::TileDrawQuad* quad = viz::TileDrawQuad::MaterialCast(&input);
     return quad->tex_coord_rect;
-  }
-
-  static const gfx::Size& texture_size(const viz::DrawQuad& input) {
-    const viz::TileDrawQuad* quad = viz::TileDrawQuad::MaterialCast(&input);
-    return quad->texture_size;
   }
 
   static bool nearest_neighbor(const viz::DrawQuad& input) {

@@ -136,10 +136,11 @@ void TestSVGTypeface::onFilterRec(SkScalerContextRec* rec) const {
     rec->setHinting(SkFontHinting::kNone);
 }
 
-void TestSVGTypeface::getGlyphToUnicodeMap(SkUnichar* glyphToUnicode) const {
+void TestSVGTypeface::getGlyphToUnicodeMap(SkSpan<SkUnichar> glyphToUnicode) const {
     SkDEBUGCODE(unsigned glyphCount = this->countGlyphs());
     fCMap.foreach ([=](const SkUnichar& c, const SkGlyphID& g) {
         SkASSERT(g < glyphCount);
+        SkASSERT(g < glyphToUnicode.size());
         glyphToUnicode[g] = c;
     });
 }
@@ -156,8 +157,9 @@ void TestSVGTypeface::onGetFontDescriptor(SkFontDescriptor* desc, bool* serializ
     *serialize = true;
 }
 
-void TestSVGTypeface::onCharsToGlyphs(const SkUnichar uni[], int count, SkGlyphID glyphs[]) const {
-    for (int i = 0; i < count; i++) {
+void TestSVGTypeface::onCharsToGlyphs(SkSpan<const SkUnichar> uni, SkSpan<SkGlyphID> glyphs) const {
+    SkASSERT(uni.size() == glyphs.size());
+    for (size_t i = 0; i < uni.size(); i++) {
         SkGlyphID* g = fCMap.find(uni[i]);
         glyphs[i]    = g ? *g : 0;
     }
@@ -178,8 +180,9 @@ public:
     SkTestSVGScalerContext(TestSVGTypeface& face,
                            const SkScalerContextEffects& effects,
                            const SkDescriptor* desc)
-            : SkScalerContext(face, effects, desc) {
-        fRec.getSingleMatrix(&fMatrix);
+        : SkScalerContext(face, effects, desc)
+        , fMatrix(fRec.getSingleMatrix())
+    {
         SkScalar upem = this->getTestSVGTypeface()->fUpem;
         fMatrix.preScale(1.f / upem, 1.f / upem);
     }
@@ -191,7 +194,7 @@ protected:
 
     SkVector computeAdvance(SkGlyphID glyphID) {
         auto advance = this->getTestSVGTypeface()->getAdvance(glyphID);
-        return fMatrix.mapXY(advance.fX, advance.fY);
+        return fMatrix.mapPoint(advance);
     }
 
     GlyphMetrics generateMetrics(const SkGlyph& glyph, SkArenaAlloc*) override {
@@ -241,11 +244,10 @@ protected:
         glyphData.render(&canvas);
     }
 
-    bool generatePath(const SkGlyph& glyph, SkPath* path, bool* modified) override {
+    std::optional<SkScalerContext::GeneratedPath> generatePath(const SkGlyph& glyph) override {
         // Should never get here since generateMetrics always sets the path to not exist.
         SK_ABORT("Path requested, but it should have been indicated that there isn't one.");
-        path->reset();
-        return false;
+        return {};
     }
 
     struct SVGGlyphDrawable : public SkDrawable {
@@ -800,7 +802,7 @@ void TestSVGTypeface::exportTtxCbdt(SkWStream* out, SkSpan<unsigned> strikeSizes
                 SkGlyphID gid = i;
                 SkScalar  advance;
                 SkRect    bounds;
-                font.getWidthsBounds(&gid, 1, &advance, &bounds, nullptr);
+                font.getWidthsBounds({&gid, 1}, {&advance, 1}, {&bounds, 1}, nullptr);
                 SkIRect ibounds = bounds.roundOut();
                 if (!SkTFitsIn<int8_t>(ibounds.fLeft) || !SkTFitsIn<int8_t>(ibounds.fTop) ||
                     !SkTFitsIn<uint8_t>(ibounds.width()) || !SkTFitsIn<uint8_t>(ibounds.height()) ||
@@ -839,7 +841,7 @@ void TestSVGTypeface::exportTtxCbdt(SkWStream* out, SkSpan<unsigned> strikeSizes
             SkGlyphID gid = i;
             SkScalar  advance;
             SkRect    bounds;
-            font.getWidthsBounds(&gid, 1, &advance, &bounds, nullptr);
+            font.getWidthsBounds({&gid, 1}, {&advance, 1}, {&bounds, 1}, nullptr);
             SkIRect ibounds = bounds.roundOut();
             if (ibounds.isEmpty()) {
                 continue;
@@ -967,8 +969,7 @@ void TestSVGTypeface::exportTtxCbdt(SkWStream* out, SkSpan<unsigned> strikeSizes
                 "lastGlyphIndex=\"1\">\n");
         for (int i = 0; i < fGlyphCount; ++i) {
             SkGlyphID gid = i;
-            SkRect    bounds;
-            font.getBounds(&gid, 1, &bounds, nullptr);
+            SkRect    bounds = font.getBounds(gid, nullptr);
             if (bounds.isEmpty()) {
                 continue;
             }
@@ -1075,7 +1076,7 @@ void TestSVGTypeface::exportTtxSbix(SkWStream* out, SkSpan<unsigned> strikeSizes
             SkGlyphID gid = i;
             SkScalar  advance;
             SkRect    bounds;
-            font.getWidthsBounds(&gid, 1, &advance, &bounds, nullptr);
+            font.getWidthsBounds({&gid, 1}, {&advance, 1}, {&bounds, 1}, nullptr);
             SkIRect ibounds = bounds.roundOut();
             if (ibounds.isEmpty()) {
                 continue;
@@ -1363,7 +1364,9 @@ public:
 
         // Apply the path effect.
         if (paint.getPathEffect() || paint.getStyle() != SkPaint::kFill_Style) {
-            bool fill = skpathutils::FillPathWithPaint(path, paint, &path);
+            SkPathBuilder builder;
+            bool fill = skpathutils::FillPathWithPaint(path, paint, &builder);
+            path = builder.detach();
 
             paint.setPathEffect(nullptr);
             if (fill) {

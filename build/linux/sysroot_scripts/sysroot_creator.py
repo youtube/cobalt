@@ -260,6 +260,10 @@ def download_file(url: str, dest: str, retries=5) -> None:
         raise Exception(f"Failed to download file after {retries} attempts")
 
 
+def get_build_dir(arch: str) -> str:
+    return os.path.join(CHROME_DIR, "out", "sysroot-build", RELEASES[arch])
+
+
 def sanity_check(build_dir: str) -> None:
     """
     Performs sanity checks to ensure the environment is correctly set up.
@@ -410,6 +414,12 @@ def hacks_and_patches(install_root: str, script_dir: str, arch: str) -> None:
     # C23 STRTOL requires glibc >= 2.38
     replace_in_file(features_h, r"(#\s?define\s+__GLIBC_USE_C23_STRTOL)",
                     r"\1 0 //")
+
+    # riscv_hwprobe requires glibc >= 2.40
+    if arch == "riscv64":
+        os.remove(
+            os.path.join(install_root, "usr", "include", "riscv64-linux-gnu",
+                         "sys", "hwprobe.h"))
 
     # fcntl64() was introduced in glibc 2.28. Make sure to use fcntl() instead.
     fcntl_h = os.path.join(install_root, "usr", "include", "fcntl.h")
@@ -639,17 +649,8 @@ def removing_unnecessary_files(install_root, arch):
 def strip_sections(install_root: str, arch: str):
     """
     Strips all sections from ELF files except for dynamic linking and
-    essential sections. Skips static libraries (.a), object files (.o), and a
-    few files used by other Chromium-related projects.
+    essential sections. Skips static libraries (.a) and object files (.o).
     """
-    PRESERVED_FILES = (
-        # Old debian(bullseye) has ld-2.31.so,
-        # while in trixie, it is ld-linux-$ARCH.so.2
-        r'(libc\.so\.\d)|(libc-\d.\d\d\.so)',
-        r'(libm\.so\.\d)|(libm-\d.\d\d\.so)',
-        r'(ld-linux.*\.so\.\d)|(ld-\d.\d\d\.so)',
-    )
-
     PRESERVED_SECTIONS = {
         ".dynamic",
         ".dynstr",
@@ -662,19 +663,9 @@ def strip_sections(install_root: str, arch: str):
         ".note.gnu.build-id",
     }
 
-    preserved_files_count = 0
-    lib_dir = LIB_DIRS[RELEASES[arch]]
-    lib_arch_path = os.path.join(install_root, lib_dir, TRIPLES[arch])
     for root, _, files in os.walk(install_root):
         for file in files:
             file_path = os.path.join(root, file)
-            if file_path.startswith(lib_arch_path):
-                for preserved in PRESERVED_FILES:
-                    if re.match(preserved,
-                                file) and not os.path.islink(file_path):
-                        preserved_files_count += 1
-                        continue
-
             if (os.access(file, os.X_OK) or file.endswith((".a", ".o"))
                     or os.path.islink(file_path)):
                 continue
@@ -709,10 +700,6 @@ def strip_sections(install_root: str, arch: str):
                     for section in sections_to_remove
                 ] + [file_path])
                 subprocess.run(objcopy_cmd, check=True, stderr=subprocess.PIPE)
-    if preserved_files_count != len(PRESERVED_FILES):
-        raise Exception(
-            f"Expected file(s) to preserve missing, preserved " +
-            f"{preserved_files_count}, expected {len(PRESERVED_FILES)}")
 
 
 def record_metadata(install_root: str) -> dict[str, tuple[float, float]]:
@@ -761,7 +748,8 @@ def restore_metadata(install_root: str,
                 os.utime(file_path, restore_time, follow_symlinks=False)
 
 
-def build_sysroot(arch: str, build_dir: str) -> None:
+def build_sysroot(arch: str) -> None:
+    build_dir = get_build_dir(arch)
     install_root = os.path.join(build_dir, f"{RELEASES[arch]}_{arch}_staging")
     clear_install_dir(install_root)
     packages = generate_package_list(arch, build_dir)
@@ -776,7 +764,8 @@ def build_sysroot(arch: str, build_dir: str) -> None:
     create_tarball(install_root, arch, build_dir)
 
 
-def upload_sysroot(arch: str, build_dir: str) -> str:
+def upload_sysroot(arch: str) -> str:
+    build_dir = get_build_dir(arch)
     tarball_path = os.path.join(
         build_dir, f"{DISTRO}_{RELEASES[arch]}_{arch}_sysroot.tar.xz")
     command = [
@@ -837,15 +826,12 @@ def main():
     parser.add_argument("command", choices=["build", "upload"])
     parser.add_argument("architecture", choices=list(TRIPLES))
     args = parser.parse_args()
-    build_dir = os.path.join(CHROME_DIR, "out", "sysroot-build",
-                             RELEASES[args.architecture])
-
-    sanity_check(build_dir)
+    sanity_check(get_build_dir(args.architecture))
 
     if args.command == "build":
-        build_sysroot(args.architecture, build_dir)
+        build_sysroot(args.architecture)
     elif args.command == "upload":
-        upload_sysroot(args.architecture, build_dir)
+        upload_sysroot(args.architecture)
 
 
 if __name__ == "__main__":

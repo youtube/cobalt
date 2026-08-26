@@ -50,6 +50,7 @@ blink_python_runner("runtime_enabled_features") {
   runtime_enabled_features_json5 = "runtime_enabled_features.json5"
   inputs = scripts_for_json5_files + [
              runtime_enabled_features_json5,
+             "runtime_enabled_features.override.json5",
              "../build/scripts/make_runtime_features_utilities.py",
              "../build/scripts/templates/runtime_enabled_features.cc.tmpl",
              "../build/scripts/templates/runtime_enabled_features.h.tmpl",
@@ -85,6 +86,7 @@ blink_python_runner("runtime_feature_state_override_context") {
              "../build/scripts/make_runtime_features_utilities.py",
              "../build/scripts/make_runtime_features.py",
              "runtime_enabled_features.json5",
+             "runtime_enabled_features.override.json5",
              "../build/scripts/templates/runtime_feature_state_override_context.h.tmpl",
              "../build/scripts/templates/runtime_feature_state_override_context.cc.tmpl",
            ]
@@ -150,6 +152,10 @@ executable("character_data_generator") {
     "//build/win:default_exe_manifest",
     "//third_party/icu",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 # This isn't strictly necessary since we can just add the deps to "platform",
@@ -195,14 +201,14 @@ group("blink_platform_public_deps") {
     "//cc",
     "//cc/animation",
     "//cc/paint",
-    "//gpu/command_buffer/client:client",
+    "//gpu/command_buffer/client",
     "//gpu/command_buffer/client:gles2_interface",
-    "//gpu/command_buffer/common:common",
+    "//gpu/command_buffer/common",
     "//gpu/command_buffer/common:gles2_utils",
     "//net",
     "//services/device/public/mojom:generic_sensor_blink",
     "//services/device/public/mojom:mojom_blink",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//services/network/public/mojom",
     "//services/network/public/mojom:mojom_blink",
     "//services/resource_coordinator/public/mojom:mojom_blink",
@@ -322,10 +328,10 @@ source_set("image_headers") {
   ]
 
   public_deps = [
-    "//base:base",
-    "//cc/paint:paint",
+    "//base",
+    "//cc/paint",
     "//third_party/blink/renderer/platform:platform_export",
-    "//third_party/blink/renderer/platform/wtf:wtf",
+    "//third_party/blink/renderer/platform/wtf",
   ]
 }
 
@@ -455,6 +461,7 @@ component("platform") {
     "bindings/callback_method_retriever.cc",
     "bindings/callback_method_retriever.h",
     "bindings/cross_thread_copier.h",
+    "bindings/cross_thread_source_location.h",
     "bindings/dictionary_base.cc",
     "bindings/dictionary_base.h",
     "bindings/dom_data_store.cc",
@@ -496,6 +503,7 @@ component("platform") {
     "bindings/script_wrappable.h",
     "bindings/source_location.cc",
     "bindings/source_location.h",
+    "bindings/source_location_copier.h",
     "bindings/string_resource.h",
     "bindings/sync_iterator_base.cc",
     "bindings/sync_iterator_base.h",
@@ -585,7 +593,6 @@ component("platform") {
     "exported/web_encrypted_media_client.cc",
     "exported/web_encrypted_media_key_information.cc",
     "exported/web_encrypted_media_request.cc",
-    "exported/web_font.cc",
     "exported/web_font_description.cc",
     "exported/web_http_body.cc",
     "exported/web_icon_sizes_parser.cc",
@@ -729,6 +736,7 @@ component("platform") {
     "fonts/plain_text_node.h",
     "fonts/plain_text_painter.cc",
     "fonts/plain_text_painter.h",
+    "fonts/resolved_font_features.cc",
     "fonts/resolved_font_features.h",
     "fonts/script_run_iterator.cc",
     "fonts/script_run_iterator.h",
@@ -772,6 +780,8 @@ component("platform") {
     "fonts/shaping/shape_result_bloberizer.h",
     "fonts/shaping/shape_result_buffer.cc",
     "fonts/shaping/shape_result_buffer.h",
+    "fonts/shaping/shape_result_cursor.cc",
+    "fonts/shaping/shape_result_cursor.h",
     "fonts/shaping/shape_result_run.h",
     "fonts/shaping/shape_result_spacing.cc",
     "fonts/shaping/shape_result_spacing.h",
@@ -783,8 +793,6 @@ component("platform") {
     "fonts/shaping/shaping_line_breaker.h",
     "fonts/shaping/stretchy_operator_shaper.cc",
     "fonts/shaping/stretchy_operator_shaper.h",
-    "fonts/shaping/text_auto_space.cc",
-    "fonts/shaping/text_auto_space.h",
     "fonts/shaping/text_spacing_trim.h",
     "fonts/shaping/variation_selector_mode.cc",
     "fonts/shaping/variation_selector_mode.h",
@@ -882,8 +890,6 @@ component("platform") {
     "graphics/blend_mode.h",
     "graphics/box_reflection.cc",
     "graphics/box_reflection.h",
-    "graphics/canvas_2d_layer_bridge.cc",
-    "graphics/canvas_2d_layer_bridge.h",
     "graphics/canvas_deferred_paint_record.cc",
     "graphics/canvas_deferred_paint_record.h",
     "graphics/canvas_hibernation_handler.cc",
@@ -892,8 +898,6 @@ component("platform") {
     "graphics/canvas_resource.h",
     "graphics/canvas_resource_dispatcher.cc",
     "graphics/canvas_resource_dispatcher.h",
-    "graphics/canvas_resource_host.cc",
-    "graphics/canvas_resource_host.h",
     "graphics/canvas_resource_provider.cc",
     "graphics/canvas_resource_provider.h",
     "graphics/color.cc",
@@ -1778,8 +1782,8 @@ component("platform") {
     "//third_party/blink/renderer/platform/scheduler",
     "//third_party/dawn/include/dawn:cpp_headers",
     "//third_party/fdlibm",
-    "//third_party/pffft:pffft",
-    "//ui/base:base",
+    "//third_party/pffft",
+    "//ui/base",
     "//ui/base:ui_data_pack",
     "//ui/base/cursor",
     "//ui/base/mojom:ui_base_types_blink",
@@ -1799,21 +1803,20 @@ component("platform") {
     "//components/language_detection/core",
     "//components/paint_preview/common",
     "//components/search_engines:search_engine_utils",
-    "//components/translate/core/language_detection:language_detection",
+    "//components/translate/core/language_detection",
     "//components/viz/client",
     "//components/viz/common",
     "//components/webrtc:net_address_utils",
     "//crypto",
     "//device/vr/public/mojom:vr_service_blink",
     "//gin",
-    "//gpu:gpu",
     "//gpu/command_buffer/client:webgpu_interface",
     "//gpu/webgpu:common",
     "//media",
     "//media/capture:capture_switches",
     "//media/capture/mojom:video_capture",
-    "//media/mojo/clients:clients",
-    "//media/webrtc:webrtc",
+    "//media/mojo/clients",
+    "//media/webrtc",
     "//mojo/public/cpp/bindings:wtf_support",
     "//services/metrics/public/cpp:ukm_builders",
     "//services/network/public/mojom:mojom_shared",
@@ -1821,8 +1824,6 @@ component("platform") {
     "//services/viz/public/cpp/gpu",
     "//skia",
     "//skia:skcms",
-    "//third_party:freetype_buildflags",
-    "//third_party:freetype_harfbuzz",
     "//third_party/abseil-cpp:absl",
     "//third_party/blink/public:image_resources",
     "//third_party/blink/public/common",
@@ -1830,12 +1831,13 @@ component("platform") {
     "//third_party/blink/renderer/platform/wtf",
     "//third_party/ced",
     "//third_party/emoji-segmenter",
+    "//third_party/harfbuzz-ng",
     "//third_party/highway:libhwy",
     "//third_party/icu",
     "//third_party/libgav1:libgav1_parser",
     "//third_party/libyuv",
     "//third_party/one_euro_filter",
-    "//third_party/snappy:snappy",
+    "//third_party/snappy",
     "//third_party/webrtc_overrides:webrtc_component",
     "//third_party/zlib/google:compression_utils",
     "//ui/base/cursor/mojom:cursor_type_blink",
@@ -1992,7 +1994,7 @@ component("platform") {
       "//components/language_detection/content/common:common_blink",
       "//components/language_detection/content/renderer",
       "//components/language_detection/core",
-      "//components/translate/core/language_detection:language_detection",
+      "//components/translate/core/language_detection",
     ]
   }
 }
@@ -2010,7 +2012,6 @@ static_library("test_support") {
     "graphics/gpu/drawing_buffer_test_helpers.cc",
     "graphics/gpu/drawing_buffer_test_helpers.h",
     "graphics/paint/paint_controller_test.h",
-    "graphics/test/fake_canvas_resource_host.h",
     "graphics/test/fake_gles2_interface.h",
     "graphics/test/fake_web_graphics_context_3d_provider.h",
     "graphics/test/gpu_memory_buffer_test_platform.h",
@@ -2112,7 +2113,7 @@ static_library("test_support") {
     "//components/viz/test:test_support",
     "//gpu:raster",
     "//testing/gmock",
-    "//testing/gtest:gtest",
+    "//testing/gtest",
     "//testing/perf",
     "//third_party/blink/public:test_headers",
     "//third_party/blink/public/test/mojom:modules_test_automation_blink",
@@ -2135,8 +2136,8 @@ static_library("test_support") {
     "//skia",
     "//skia:skcms",
     "//testing/libfuzzer/renderer_fuzzing",
-    "//third_party/blink/public/common:common",
-    "//third_party/blink/renderer/modules:modules",
+    "//third_party/blink/public/common",
+    "//third_party/blink/renderer/modules",
     "//third_party/blink/renderer/platform/network:test_support",
   ]
   allow_circular_includes_from =
@@ -2221,7 +2222,6 @@ source_set("blink_platform_unittests_sources") {
     "exported/web_string_test.cc",
     "exported/web_thread_safe_data_test.cc",
     "fonts/bitmap_glyphs_block_list_test.cc",
-    "fonts/cursor_position_test.cc",
     "fonts/fallback_list_composite_key_test.cc",
     "fonts/font_cache_test.cc",
     "fonts/font_description_test.cc",
@@ -2262,7 +2262,6 @@ source_set("blink_platform_unittests_sources") {
     "fonts/shaping/shape_result_view_test.cc",
     "fonts/shaping/shaping_line_breaker_test.cc",
     "fonts/shaping/stretchy_operator_shaper_test.cc",
-    "fonts/shaping/text_auto_space_test.cc",
     "fonts/small_caps_iterator_test.cc",
     "fonts/symbols_iterator_test.cc",
     "fonts/typesetting_features_test.cc",
@@ -2303,7 +2302,6 @@ source_set("blink_platform_unittests_sources") {
     "graphics/gpu/webgpu_native_test_support.cc",
     "graphics/gpu/webgpu_native_test_support.h",
     "graphics/gpu/webgpu_resource_provider_cache_test.cc",
-    "graphics/gpu/webgpu_swap_buffer_provider_test.cc",
     "graphics/graphics_context_test.cc",
     "graphics/paint/cull_rect_test.cc",
     "graphics/paint/display_item_raster_invalidator_test.cc",
@@ -2437,6 +2435,10 @@ source_set("blink_platform_unittests_sources") {
     "widget/input/widget_input_handler_manager_unittest.cc",
   ]
 
+  if (use_dawn) {
+    sources += [ "graphics/gpu/webgpu_swap_buffer_provider_test.cc" ]
+  }
+
   if (rtc_use_h265) {
     sources += [ "peerconnection/h265_parameter_sets_tracker_unittest.cc" ]
   }
@@ -2479,11 +2481,11 @@ source_set("blink_platform_unittests_sources") {
     "//cc",
     "//cc:test_support",
     "//components/viz/common:shared_image_format",
-    "//gin:gin",
+    "//gin",
     "//media:test_support",
     "//media/capture/mojom:video_capture",
     "//media/mojo:test_support",
-    "//media/webrtc:webrtc",
+    "//media/webrtc",
     "//mojo/core/embedder",
     "//mojo/public/cpp/bindings/tests:for_blink_tests",
     "//mojo/public/cpp/test_support:test_utils",
@@ -2496,9 +2498,8 @@ source_set("blink_platform_unittests_sources") {
     "//skia:test_fonts",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party:freetype_harfbuzz",
     "//third_party/blink/public:test_headers",
-    "//third_party/blink/public/strings:strings",
+    "//third_party/blink/public/strings",
     "//third_party/blink/renderer/platform/blob:unit_tests",
     "//third_party/blink/renderer/platform/image-decoders:unit_tests",
     "//third_party/blink/renderer/platform/instrumentation:unit_tests",
@@ -2509,6 +2510,7 @@ source_set("blink_platform_unittests_sources") {
     "//third_party/blink/renderer/platform/wtf",
     "//third_party/dawn/src/dawn/native",
     "//third_party/dawn/src/dawn/wire",
+    "//third_party/harfbuzz-ng",
     "//third_party/libyuv",
     "//third_party/webrtc/api/task_queue:task_queue_test",
     "//third_party/webrtc_overrides:metronome_like_task_queue_test",
@@ -2534,6 +2536,10 @@ source_set("blink_platform_unittests_sources") {
     defines += [ "USE_MINIKIN_HYPHENATION" ]
   }
 
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
   if (is_cobalt) {
     sources -= [ "text/text_encoding_detector_test.cc" ]
   }
@@ -2558,6 +2564,10 @@ source_set("bridge_ice_controller_tests") {
     "//third_party/webrtc_overrides:ice_controller_test_utils",
     "//third_party/webrtc_overrides:webrtc_component",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_ios) {
@@ -2613,7 +2623,6 @@ test("blink_platform_perftests") {
     "testing/blink_perf_test_suite.cc",
     "testing/blink_perf_test_suite.h",
     "testing/run_all_perf_tests.cc",
-    "testing/shape_result_perf_test.cc",
     "testing/shaping_line_breaker_perf_test.cc",
   ]
 
@@ -2631,14 +2640,14 @@ test("blink_platform_perftests") {
     ":test_support",
     "//base",
     "//base/test:test_support",
-    "//gin:gin",
+    "//gin",
     "//mojo/public/cpp/bindings/tests:for_blink_tests",
     "//mojo/public/cpp/test_support:test_utils",
     "//mojo/public/interfaces/bindings/tests:test_interfaces_blink",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//testing/gtest",
     "//testing/perf",
-    "//third_party:freetype_harfbuzz",
+    "//third_party/harfbuzz-ng",
   ]
 }
 
@@ -2686,8 +2695,8 @@ test("blink_fuzzer_unittests") {
   deps = [
     ":test_support",
     "//base/test:test_support",
-    "//gin:gin",
-    "//mojo/core/embedder:embedder",
+    "//gin",
+    "//mojo/core/embedder",
     "//skia:test_fonts",
     "//third_party/blink/public:test_support",
   ]
@@ -3009,7 +3018,7 @@ fuzzer_test("blink_storage_key_fuzzer") {
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }
 
-# Fuzzer template for WTF::TextCodec.
+# Fuzzer template for blink::TextCodec.
 template("blink_text_codec_fuzzer") {
   forward_variables_from(invoker, "*")
   config(target_name + "_config") {

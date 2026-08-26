@@ -9,6 +9,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/callback_list.h"
@@ -31,10 +32,12 @@
 #include "ui/display/display.h"
 #include "ui/display/types/display_constants.h"
 #include "ui/events/event_source.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/focus/focus_manager.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/native_widget_delegate.h"
 #include "ui/views/window/client_view.h"
 #include "ui/views/window/non_client_view.h"
@@ -77,6 +80,7 @@ class NonClientFrameView;
 class SublevelManager;
 class TooltipManager;
 class View;
+class WidgetAXManager;
 class WidgetDelegate;
 class WidgetObserver;
 class WidgetRemovalsObserver;
@@ -387,8 +391,9 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
     // be ignored on some platforms. No value indicates no preference.
     std::optional<int> shadow_elevation;
 
-    // Specifies the desired corner radius for the window, in pixels. This is
-    // handled by the OS windowing system, and the support varies:
+    // Specifies the desired rounded corners for the window, in dips (device
+    // independent pixels). This is handled by the OS windowing system, and the
+    // support varies:
     // - ChromeOS Ash & macOS: Fully effective; the specified radius is used.
     // - Windows 11: Partially effective; if a value is set positive, it enables
     //   system-managed rounded corners via the DWMWCP_ROUND window style. The
@@ -396,7 +401,7 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
     // - Windows 10 & other platforms: Has no effect.
     // Alternatively, you can set WindowOpacity to kTranslucent and use
     // views::RoundedRectBackground. This has limitations (see `opacity`).
-    std::optional<int> corner_radius;
+    std::optional<gfx::RoundedCornersF> rounded_corners;
 
     // Specifies that the system default caption and icon should not be
     // rendered, and that the client area should be equivalent to the window
@@ -546,6 +551,9 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
     // If set to true, enable system default show and hide animations.
     bool animation_enabled = false;
 #endif
+
+    // Initial native widget background color, if supported.
+    std::optional<SkColor> background_color;
   };
 
   // Represents a lock held on the widget's ShouldPaintAsActive() state. As
@@ -731,12 +739,46 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
 
   // NOTE: This may not be the same view as WidgetDelegate::GetContentsView().
   // See RootView::GetContentsView().
-  View* GetContentsView();
+  View* GetContentsView() const;
+
+  // Sets the specified view as the client content view that corresponds to the
+  // view returned from WidgetDelegate::GetContentsView(). This will take into
+  // account of whether there is a non_client_view_ present or not. IOW, It will
+  // not overwrite the root_view_ contents view. This will *replace* the
+  // existing client content view if one exists, possibly destroying that view.
+  // Use RemoveClientContentsView if you wish to remove it and retain ownership
+  // before calling this function.
+  template <typename T>
+  T* SetClientContentsView(std::unique_ptr<T> view) {
+    DCHECK(!view->owned_by_client())
+        << "This should only be called if the client is passing over the "
+           "ownership of |view|.";
+    T* raw_pointer = view.get();
+    SetClientContentsViewInternal(std::move(view));
+    return raw_pointer;
+  }
 
   // This returns the client content view that corresponds to the view returned
   // from WidgetDelegate::GetContentsView(). Alternatively, if
   // Widget::SetContentView() was explicitly called, this will return that view.
-  View* GetClientContentsView();
+  template <typename T>
+  T* GetClientContentsView() const {
+    View* client_contents = GetClientContentsView();
+    T* typed_client_contents = AsViewClass<T>(client_contents);
+    CHECK(typed_client_contents)
+        << "Expected class of type: " << T::MetaData()->type_name()
+        << ", but found class of type: "
+        << client_contents->GetClassMetaData()->type_name();
+    return typed_client_contents;
+  }
+  View* GetClientContentsView() const;
+
+  template <typename T>
+  std::unique_ptr<T> RemoveClientContentsView() {
+    T* client_contents = GetClientContentsView<T>();
+    return client_contents->parent()->template RemoveChildViewT<T>(
+        client_contents);
+  }
 
   // Returns the bounds of the Widget in screen coordinates.
   gfx::Rect GetWindowBoundsInScreen() const;
@@ -1272,6 +1314,11 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // closes.
   virtual void OnOwnerClosing();
 
+  // Returns true if the NativeWidget is a desktop widget. A desktop widget owns
+  // a platform window (NSWindow, HWND, etc.) and is not clipped to a parent
+  // window.
+  bool GetIsDesktopWidget() const;
+
   // Returns the internal name for this Widget and NativeWidget.
   std::string GetName() const;
 
@@ -1370,7 +1417,8 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // Sets an override for `color_mode` when `GetColorProvider()` is requested.
   // e.g. if set to kDark, colors will always be for the dark theme.
   void SetColorModeOverride(
-      std::optional<ui::ColorProviderKey::ColorMode> color_mode);
+      std::optional<ui::ColorProviderKey::ColorMode> color_mode,
+      std::optional<SkColor> background_color);
 
   // ui::ColorProviderSource:
   const ui::ColorProvider* GetColorProvider() const override;
@@ -1405,6 +1453,8 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
 
   void UpdateAccessibleNameForRootView();
   void UpdateAccessibleURLForRootView(const GURL& url);
+
+  WidgetAXManager* ax_manager() { return ax_manager_.get(); }
 
  protected:
   // Creates the RootView to be used within this Widget. Subclasses may override
@@ -1523,6 +1573,11 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // This is called by a task posted by OnRootViewLayoutInvalidated().
   // Resize the widget to delegate's desired bounds.
   void ResizeToDelegateDesiredBounds();
+
+  // Sets the actual client contents view, taking into account whether there is
+  // a non_client_view_ present or not. This will *replace* the current client
+  // contents view, possibly removing and destroying that view.
+  void SetClientContentsViewInternal(std::unique_ptr<View> view);
 
   static DisableActivationChangeHandlingType
       g_disable_activation_change_handling_;
@@ -1700,8 +1755,13 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // Replaces the implementation of Close() and CloseWithReason().
   base::OnceCallback<void(ClosedReason)> override_close_;
 
+  // Color used to fill the native widget if supported, overriding theme colors.
+  std::optional<SkColor> background_color_;
+
   base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
       native_theme_observation_{this};
+
+  std::unique_ptr<WidgetAXManager> ax_manager_;
 
   base::ScopedObservation<ui::AXPlatform, ui::AXModeObserver>
       ax_mode_observation_{this};

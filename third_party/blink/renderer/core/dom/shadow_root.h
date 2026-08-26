@@ -120,10 +120,14 @@ class CORE_EXPORT ShadowRoot final : public DocumentFragment,
 
   void DistributeIfNeeded();
 
-  String innerHTML() const;
-  void setInnerHTML(const String&, ExceptionState& = ASSERT_NO_EXCEPTION);
-  void setHTMLUnsafe(const String& html, ExceptionState&);
-  void setHTMLUnsafe(const String& html,
+  String GetInnerHTMLString() const;
+  void SetInnerHTMLWithoutTrustedTypes(const String&,
+                                       ExceptionState& = ASSERT_NO_EXCEPTION);
+  V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* innerHTML() const;
+  void setInnerHTML(const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML*,
+                    ExceptionState&);
+  void setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html, ExceptionState&);
+  void setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                      SetHTMLUnsafeOptions*,
                      ExceptionState&);
   void setHTML(const String& html, SetHTMLOptions*, ExceptionState&);
@@ -176,16 +180,6 @@ class CORE_EXPORT ShadowRoot final : public DocumentFragment,
     return has_focusgroup_attribute_on_descendant_;
   }
 
-  void SetRegistry(CustomElementRegistry*);
-  CustomElementRegistry* registry() const { return registry_.Get(); }
-
-  // Revamped scoped custom element registry renames
-  // `.registry` to `.customElementRegistry`, and it is read only.
-  CustomElementRegistry* customElementRegistry() const override {
-    DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
-    return registry_.Get();
-  }
-
   bool ContainsShadowRoots() const { return child_shadow_root_count_; }
 
   void Trace(Visitor*) const override;
@@ -206,7 +200,6 @@ class CORE_EXPORT ShadowRoot final : public DocumentFragment,
   void ReferenceTargetChanged();
 
   Member<SlotAssignment> slot_assignment_;
-  Member<CustomElementRegistry> registry_;
   Member<ReferenceTargetIdObserver> reference_target_id_observer_;
   unsigned child_shadow_root_count_ : 16;
   unsigned mode_ : 2;

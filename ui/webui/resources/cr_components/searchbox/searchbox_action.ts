@@ -5,10 +5,10 @@
 import '//resources/cr_elements/cr_shared_style.css.js';
 
 import {sanitizeInnerHtml} from '//resources/js/parse_html_subset.js';
+import type {Action} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './searchbox_action.html.js';
-import type {Action} from './searchbox.mojom-webui.js';
 import {decodeString16} from './utils.js';
 
 // Displays an action associated with AutocompleteMatch (i.e. Clear
@@ -126,10 +126,10 @@ class SearchboxActionElement extends PolymerElement {
   private computeActionIconStyle_(): string {
     // If this is a custom icon, shouldn't follow the standard theming given to
     // all other action icons.
-    if (this.action.iconUrl.startsWith('data:image/')) {
-      return `background-image: url(${this.action.iconUrl})`;
+    if (this.action.iconPath.startsWith('data:image/')) {
+      return `background-image: url(${this.action.iconPath})`;
     } else {
-      return `-webkit-mask-image: url(${this.action.iconUrl})`;
+      return `-webkit-mask-image: url(${this.action.iconPath})`;
     }
   }
 

@@ -63,6 +63,8 @@ component("ax_base") {
     "ax_action_handler_registry.cc",
     "ax_action_handler_registry.h",
     "ax_action_target.h",
+    "ax_attributes.cc",
+    "ax_attributes.h",
     "ax_base_export.h",
     "ax_bitset.h",
     "ax_enum_util.cc",
@@ -85,6 +87,8 @@ component("ax_base") {
     "ax_relative_bounds.h",
     "ax_role_properties.cc",
     "ax_role_properties.h",
+    "ax_states.cc",
+    "ax_states.h",
     "ax_text_attributes.cc",
     "ax_text_attributes.h",
     "ax_tree_checks.h",
@@ -306,11 +310,16 @@ static_library("test_support") {
     "//base/test:test_support",
     "//third_party/abseil-cpp:absl",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 test("accessibility_unittests") {
   testonly = true
   sources = [
+    "ax_attributes_unittest.cc",
     "ax_bitset_unittest.cc",
     "ax_computed_node_data_unittest.cc",
     "ax_enum_util_unittest.cc",
@@ -461,6 +470,10 @@ test("accessibility_unittests") {
       configs += [ "//build/config/linux/atk" ]
     }
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 fuzzer_test("ax_tree_fuzzer") {
@@ -512,7 +525,7 @@ if (is_android) {
     # External code should depend on ":accessibility_features_java" instead.
     visibility = [ ":*" ]
     sources = [ "//ui/accessibility/accessibility_features.cc" ]
-    template = "//ui/accessibility/android/java_templates/AccessibilityFeatures.java.tmpl"
+    class_name = "org.chromium.ui.accessibility.AccessibilityFeatures"
   }
 
   # A minimal library used to expose accessibility features to webview.
@@ -531,15 +544,17 @@ if (is_android) {
     ]
   }
 
-  source_set("ax_base_android") {
+  component("ax_base_android") {
     sources = [
       "android/accessibility_state.cc",
       "android/accessibility_state.h",
     ]
-    deps = [
-      ":ax_jni_headers",
-      "//base",
-    ]
+
+    defines = [ "IS_AX_BASE_ANDROID_IMPL" ]
+
+    deps = [ ":ax_jni_headers" ]
+
+    public_deps = [ "//base" ]
   }
 
   android_library("accessibility_features_native_map_java") {
@@ -574,7 +589,7 @@ if (is_android) {
       "//base:base_java_test_support",
       "//base:base_junit_test_support",
       "//third_party/androidx:androidx_test_runner_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
     ]
   }
 

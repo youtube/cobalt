@@ -60,10 +60,9 @@ RTC_NORETURN void rtc_FatalMessage(const char* file, int line, const char* msg);
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "api/scoped_refptr.h"
-#include "rtc_base/numerics/safe_compare.h"
+#include "rtc_base/numerics/safe_compare.h"  // IWYU pragma: keep
 #include "rtc_base/system/inline.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/type_traits.h"
 
 // The macros here print a message to stderr and abort under various
 // conditions. All will accept additional stream messages. For example:
@@ -490,13 +489,6 @@ inline T CheckedDivExact(T a, T b) {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::CheckedDivExact;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #else  // __cplusplus not defined
 // C version. Lacks many features compared to the C++ version, but usage

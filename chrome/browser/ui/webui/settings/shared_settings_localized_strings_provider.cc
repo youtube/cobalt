@@ -104,8 +104,6 @@ void AddCaptionSubpageStrings(content::WebUIDataSource* html_source) {
       {"captionsLanguage", IDS_SETTINGS_CAPTIONS_LANGUAGE},
       {"captionsManageLanguagesTitle",
        IDS_SETTINGS_CAPTIONS_MANAGE_LANGUAGES_TITLE},
-      {"captionsManageLanguagesSubtitle",
-       IDS_SETTINGS_CAPTIONS_MANAGE_LANGUAGES_SUBTITLE},
       {"captionsLiveTranslateTargetLanguage",
        IDS_SETTINGS_CAPTIONS_LIVE_TRANSLATE_TARGET_LANGUAGE},
       {"captionsLiveTranslateTargetLanguageSubtitle",
@@ -113,9 +111,23 @@ void AddCaptionSubpageStrings(content::WebUIDataSource* html_source) {
       {"removeLanguageLabel", IDS_SETTINGS_CAPTIONS_REMOVE_LANGUAGE_LABEL},
       {"makeDefaultLanguageLabel",
        IDS_SETTINGS_CAPTIONS_MAKE_DEFAULT_LANGUAGE_LABEL},
+      {"moreActionsFor", IDS_SETTINGS_MORE_ACTIONS_BUTTON_ARIA_LABEL},
       {"defaultLanguageLabel", IDS_SETTINGS_CAPTIONS_DEFAULT_LANGUAGE_LABEL},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
+  // Add the caption subtitle string conditionally so that non-cbx chromebooks
+  // do not show live translate information.
+#if BUILDFLAG(IS_CHROMEOS)
+  html_source->AddLocalizedString(
+      "captionsManageLanguagesSubtitle",
+      base::FeatureList::IsEnabled(media::kFeatureManagementLiveTranslateCrOS)
+          ? IDS_SETTINGS_CAPTIONS_MANAGE_LANGUAGES_SUBTITLE
+          : IDS_SETTINGS_CAPTIONS_MANAGE_LANGUAGES_SUBTITLE_LIVE_CAPTION_ONLY);
+#else
+  html_source->AddLocalizedString(
+      "captionsManageLanguagesSubtitle",
+      IDS_SETTINGS_CAPTIONS_MANAGE_LANGUAGES_SUBTITLE);
+#endif
 
   AddLiveCaptionSectionStrings(html_source);
 }

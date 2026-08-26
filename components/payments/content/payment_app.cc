@@ -29,6 +29,19 @@ int GetSortingGroup(const PaymentApp& app) {
 }
 }  // namespace
 
+PaymentApp::PaymentEntityLogo::PaymentEntityLogo(std::u16string label,
+                                                 std::unique_ptr<SkBitmap> icon,
+                                                 GURL url)
+    : label(std::move(label)), icon(std::move(icon)), url(std::move(url)) {}
+
+PaymentApp::PaymentEntityLogo::PaymentEntityLogo(
+    PaymentApp::PaymentEntityLogo&&) = default;
+
+PaymentApp::PaymentEntityLogo& PaymentApp::PaymentEntityLogo::operator=(
+    PaymentApp::PaymentEntityLogo&&) = default;
+
+PaymentApp::PaymentEntityLogo::~PaymentEntityLogo() = default;
+
 PaymentApp::PaymentApp(int icon_resource_id, Type type)
     : icon_resource_id_(icon_resource_id), type_(type) {}
 
@@ -38,12 +51,9 @@ const SkBitmap* PaymentApp::icon_bitmap() const {
   return nullptr;
 }
 
-const SkBitmap* PaymentApp::issuer_bitmap() const {
-  return nullptr;
-}
-
-const SkBitmap* PaymentApp::network_bitmap() const {
-  return nullptr;
+std::vector<PaymentApp::PaymentEntityLogo*>
+PaymentApp::GetPaymentEntitiesLogos() {
+  return {};
 }
 
 std::string PaymentApp::GetApplicationIdentifierToHide() const {

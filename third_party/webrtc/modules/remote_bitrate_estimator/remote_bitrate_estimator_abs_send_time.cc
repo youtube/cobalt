@@ -10,8 +10,6 @@
 
 #include "modules/remote_bitrate_estimator/remote_bitrate_estimator_abs_send_time.h"
 
-#include <math.h>
-
 #include <algorithm>
 #include <cstdint>
 #include <list>

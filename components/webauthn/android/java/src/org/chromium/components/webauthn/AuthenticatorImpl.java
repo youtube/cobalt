@@ -6,13 +6,14 @@ package org.chromium.components.webauthn;
 
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.components.webauthn.WebauthnLogger.log;
+import static org.chromium.components.webauthn.WebauthnLogger.updateLogState;
 import static org.chromium.components.webauthn.WebauthnModeProvider.isChrome;
 
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.util.Pair;
 
@@ -36,6 +37,8 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.device.DeviceFeatureList;
+import org.chromium.device.DeviceFeatureMap;
 import org.chromium.mojo.system.MojoException;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.Origin;
@@ -47,6 +50,8 @@ import java.util.Set;
 /** Android implementation of the authenticator.mojom interface. */
 @NullMarked
 public final class AuthenticatorImpl implements Authenticator, AuthenticationContextProvider {
+    private static final String TAG = "AuthenticatorImpl";
+
     private final @Nullable Context mContext;
     private final @Nullable WebContents mWebContents;
     private final @Nullable FidoIntentSender mIntentSender;
@@ -77,6 +82,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
     // Information about the request cached here for metric reporting purposes.
     private boolean mIsConditionalRequest;
     private boolean mIsPaymentRequest;
+    private boolean mIsImmediateRequest;
 
     // StaticFieldLeak complains that this is a memory leak because
     // `Fido2CredentialRequest` contains a `Context`. But this field is only
@@ -106,6 +112,8 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
             @Nullable RenderFrameHost renderFrameHost,
             @Nullable Origin topOrigin) {
         assert WebauthnModeProvider.getInstance().getWebauthnMode(webContents) != WebauthnMode.NONE;
+        updateLogState();
+        log(TAG, "AuthenticatorImpl created");
 
         mContext = context;
         mWebContents = webContents;
@@ -156,6 +164,8 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
             return;
         }
 
+        log(TAG, "makeCredential");
+
         mIsPaymentRequest = options.isPaymentCredentialCreation;
         mMakeCredentialCallback = callback;
         mIsOperationPending = true;
@@ -166,7 +176,11 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
             return;
         }
 
-        if (mCreateConfirmationUiDelegate != null) {
+        boolean isConditionalCreate =
+                options.isConditional
+                        && DeviceFeatureMap.isEnabled(DeviceFeatureList.WEBAUTHN_PASSKEY_UPGRADE);
+
+        if (mCreateConfirmationUiDelegate != null && !isConditionalCreate) {
             if (!mCreateConfirmationUiDelegate.show(
                     () -> continueMakeCredential(options),
                     () -> {
@@ -181,6 +195,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
     }
 
     private void continueMakeCredential(PublicKeyCredentialCreationOptions options) {
+        log(TAG, "continueMakeCredential");
         mPendingFido2CredentialRequest = getFido2CredentialRequest();
         mPendingFido2CredentialRequest.handleMakeCredentialRequest(
                 options,
@@ -213,10 +228,13 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
             return;
         }
 
+        log(TAG, "getCredential");
+
         mGetCredentialCallback = callback;
         mIsOperationPending = true;
         mIsPaymentRequest = mPayment != null;
         mIsConditionalRequest = options.mediation == Mediation.CONDITIONAL;
+        mIsImmediateRequest = options.mediation == Mediation.IMMEDIATE;
 
         if (!GmsCoreUtils.isWebauthnSupported()
                 || (!isChrome(mWebContents) && !GmsCoreUtils.isResultReceiverSupported())) {
@@ -226,12 +244,12 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
         }
 
         mPendingFido2CredentialRequest = getFido2CredentialRequest();
-        mPendingFido2CredentialRequest.handleGetAssertionRequest(
+        mPendingFido2CredentialRequest.handleGetCredentialRequest(
                 options,
                 assertNonNull(mOrigin),
                 mTopOrigin,
                 mPayment,
-                this::onSignResponse,
+                this::onCredentialResponse,
                 this::onError,
                 this::recordOutcomeEvent);
     }
@@ -242,9 +260,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
     }
 
     private boolean couldSupportConditionalMediation() {
-        return GmsCoreUtils.isWebauthnSupported()
-                && isChrome(mWebContents)
-                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P;
+        return GmsCoreUtils.isWebauthnSupported() && isChrome(mWebContents);
     }
 
     private boolean couldSupportUvpaa() {
@@ -255,6 +271,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
     @Override
     public void isUserVerifyingPlatformAuthenticatorAvailable(
             final IsUserVerifyingPlatformAuthenticatorAvailable_Response callback) {
+        log(TAG, "isUserVerifyingPlatformAuthenticatorAvailable");
         IsUserVerifyingPlatformAuthenticatorAvailable_Response decoratedCallback =
                 (isUvpaa) -> {
                     RecordHistogram.recordBooleanHistogram(
@@ -274,6 +291,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
 
     @Override
     public void getClientCapabilities(final GetClientCapabilities_Response callback) {
+        log(TAG, "getClientCapabilities");
         ArrayList<WebAuthnClientCapability> capabilities = new ArrayList<>();
         capabilities.add(
                 createWebAuthnClientCapability(
@@ -289,10 +307,13 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
         capabilities.add(
                 createWebAuthnClientCapability(AuthenticatorConstants.CAPABILITY_PPAA, true));
 
-        if (!couldSupportConditionalMediation() && !couldSupportUvpaa()) {
+        if (!couldSupportUvpaa()) {
             capabilities.add(
                     createWebAuthnClientCapability(
                             AuthenticatorConstants.CAPABILITY_CONDITIONAL_GET, false));
+            capabilities.add(
+                    createWebAuthnClientCapability(
+                            AuthenticatorConstants.CAPABILITY_CONDITIONAL_CREATE, false));
             capabilities.add(
                     createWebAuthnClientCapability(AuthenticatorConstants.CAPABILITY_UVPAA, false));
             callback.call(capabilities.toArray(new WebAuthnClientCapability[0]));
@@ -310,6 +331,14 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
                                     createWebAuthnClientCapability(
                                             AuthenticatorConstants.CAPABILITY_UVPAA,
                                             couldSupportUvpaa() && isUvpaa));
+                            boolean conditionalCreateEnabled =
+                                    couldSupportConditionalMediation()
+                                            && DeviceFeatureMap.isEnabled(
+                                                    DeviceFeatureList.WEBAUTHN_PASSKEY_UPGRADE);
+                            capabilities.add(
+                                    createWebAuthnClientCapability(
+                                            AuthenticatorConstants.CAPABILITY_CONDITIONAL_CREATE,
+                                            isUvpaa && conditionalCreateEnabled));
                             callback.call(capabilities.toArray(new WebAuthnClientCapability[0]));
                         });
     }
@@ -337,6 +366,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
             byte[][] credentialIds,
             boolean requireThirdPartyPayment,
             GetMatchingCredentialIdsResponseCallback callback) {
+        log(TAG, "getMatchingCredentialIds");
         if (!GmsCoreUtils.isGetMatchingCredentialIdsSupported()) {
             callback.onResponse(new ArrayList<byte[]>());
             return;
@@ -354,6 +384,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
     @Override
     public void isConditionalMediationAvailable(
             final IsConditionalMediationAvailable_Response callback) {
+        log(TAG, "isConditionalMediationAvailable");
         if (!couldSupportConditionalMediation()) {
             callback.call(false);
             return;
@@ -369,6 +400,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
 
     @Override
     public void cancel() {
+        log(TAG, "cancel");
         // This is not implemented for anything other than getAssertion requests, since there is
         // no way to cancel a request that has already triggered gmscore UI. Get requests can be
         // cancelled if they are pending conditional UI requests, or if they are discoverable
@@ -383,6 +415,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
 
     /** Callbacks for receiving responses from the internal handlers. */
     public void onRegisterResponse(int status, MakeCredentialAuthenticatorResponse response) {
+        log(TAG, "makeCredential completed with status: " + status);
         // In case mojo pipe is closed due to the page begin destroyed while waiting for response.
         if (!mIsOperationPending) return;
 
@@ -392,9 +425,10 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
         cleanupRequest();
     }
 
-    public void onSignResponse(
+    public void onCredentialResponse(
             @Nullable GetAssertionAuthenticatorResponse assertionResponse,
             @Nullable CredentialInfo passwordCredential) {
+        log(TAG, "getCredential completed.");
         assert assertionResponse == null ^ passwordCredential == null;
 
         // In case mojo pipe is closed due to the page begin destroyed while waiting for response.
@@ -413,6 +447,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
     }
 
     public void onError(Integer status) {
+        log(TAG, "Request completed with error: " + status);
         // In case mojo pipe is closed due to the page begin destroyed while waiting for response.
         if (!mIsOperationPending) return;
 
@@ -451,6 +486,8 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
             mode = AuthenticationRequestMode.CONDITIONAL;
         } else if (mIsPaymentRequest) {
             mode = AuthenticationRequestMode.PAYMENT;
+        } else if (mIsImmediateRequest) {
+            mode = AuthenticationRequestMode.IMMEDIATE;
         }
         new UkmRecorder(mWebContents, event)
                 .addMetric(resultMetricName, resultMetricValue)
@@ -467,6 +504,7 @@ public final class AuthenticatorImpl implements Authenticator, AuthenticationCon
 
     @Override
     public void close() {
+        log(TAG, "close");
         mUnclosedFido2CredentialRequests.forEach(Fido2CredentialRequest::destroyBridge);
         mUnclosedFido2CredentialRequests.clear();
         cleanupRequest();

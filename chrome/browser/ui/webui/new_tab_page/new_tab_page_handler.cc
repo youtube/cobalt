@@ -27,11 +27,14 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service_factory.h"
@@ -51,12 +54,16 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/chrome_select_file_policy.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
+#include "chrome/browser/ui/views/new_tab_footer/footer_controller.h"
 #include "chrome/browser/ui/views/side_panel/customize_chrome/customize_chrome_utils.h"
+#include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_helper.h"
 #include "chrome/browser/ui/webui/new_tab_page/ntp_pref_names.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/ui/webui/webui_util_desktop.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
@@ -192,7 +199,8 @@ new_tab_page::mojom::ThemePtr MakeTheme(
       color_utils::IsDark(most_visited->background_color);
   most_visited->is_dark = !color_utils::IsDark(text_color);
   theme->text_color = text_color;
-  theme->is_dark = !color_utils::IsDark(text_color);
+  theme->is_dark =
+      !color_utils::IsDark(color_provider.GetColor(kColorNewTabPageText));
   auto background_image = new_tab_page::mojom::BackgroundImage::New();
   if (theme_has_custom_image) {
     if (theme_service->UsingExtensionTheme()) {
@@ -477,6 +485,12 @@ NewTabPageHandler::NewTabPageHandler(
       promo_service_(PromoServiceFactory::GetForProfile(profile)),
       interaction_module_id_trigger_dict_(
           MakeModuleInteractionTriggerIdDictionary()),
+      browser_window_changed_subscription_(
+          webui::RegisterBrowserWindowInterfaceChanged(
+              web_contents_,
+              base::BindRepeating(
+                  &NewTabPageHandler::OnBrowserWindowInterfaceChanged,
+                  base::Unretained(this)))),
       page_{std::move(pending_page)},
       receiver_{this, std::move(pending_page_handler)} {
   CHECK(ntp_background_service_);
@@ -505,6 +519,8 @@ NewTabPageHandler::NewTabPageHandler(
   if (microsoft_auth_service_) {
     microsoft_auth_service_->AddObserver(this);
   }
+
+  OnBrowserWindowInterfaceChanged();
 
   if (base::FeatureList::IsEnabled(
           ntp_features::kNtpBackgroundImageErrorDetection)) {
@@ -560,6 +576,7 @@ void NewTabPageHandler::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(prefs::kNtpWallpaperSearchButtonShownCount, 0);
   registry->RegisterBooleanPref(prefs::kNtpOutlookModuleVisible, false);
   registry->RegisterBooleanPref(prefs::kNtpSharepointModuleVisible, false);
+  registry->RegisterIntegerPref(prefs::kNtpComposeButtonShownCountPrefName, 0);
 }
 
 void NewTabPageHandler::SetMostVisitedSettings(bool custom_links_enabled,
@@ -874,6 +891,24 @@ void NewTabPageHandler::UpdateModulesLoadable() {
   }
 }
 
+void NewTabPageHandler::UpdateFooterVisibility() {
+  if (!base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
+    return;
+  }
+
+  auto* browser = webui::GetBrowserWindowInterface(web_contents_);
+  if (!browser) {
+    // TODO(crbug.com/378475391): NTP should always load into a WebContents
+    // owned by a TabModel. Remove this once NTP loading has been restricted to
+    // browser tabs only.
+    return;
+  }
+
+  auto* footer_controller = browser->GetFeatures().new_tab_footer_controller();
+  CHECK(footer_controller);
+  OnFooterVisibilityUpdated(footer_controller->GetFooterVisible(web_contents_));
+}
+
 void NewTabPageHandler::MaybeShowFeaturePromo(
     new_tab_page::mojom::IphFeature iph_feature) {
   CHECK(profile_);
@@ -1057,6 +1092,13 @@ void NewTabPageHandler::OnPromoLinkClicked() {
   LogEvent(NTP_MIDDLE_SLOT_PROMO_LINK_CLICKED);
 }
 
+void NewTabPageHandler::IncrementComposeButtonShownCount() {
+  const int shown_count = profile_->GetPrefs()->GetInteger(
+      prefs::kNtpComposeButtonShownCountPrefName);
+  profile_->GetPrefs()->SetInteger(prefs::kNtpComposeButtonShownCountPrefName,
+                                   shown_count + 1);
+}
+
 void NewTabPageHandler::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
   OnThemeChanged();
 }
@@ -1228,6 +1270,10 @@ void NewTabPageHandler::FileSelectionCanceled() {
   }
 }
 
+void NewTabPageHandler::OnFooterVisibilityUpdated(bool visible) {
+  page_->FooterVisibilityUpdated(visible);
+}
+
 void NewTabPageHandler::OnLogoAvailable(
     GetDoodleCallback callback,
     search_provider_logos::LogoCallbackReason type,
@@ -1275,6 +1321,25 @@ void NewTabPageHandler::OnLogoAvailable(
   }
   doodle->description = logo->metadata.alt_text;
   std::move(callback).Run(std::move(doodle));
+}
+
+void NewTabPageHandler::OnBrowserWindowInterfaceChanged() {
+  if (!base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
+    return;
+  }
+
+  footer_controller_observation_.Reset();
+  auto* browser = webui::GetBrowserWindowInterface(web_contents_);
+  if (!browser) {
+    // TODO(crbug.com/378475391): NTP should always load into a WebContents
+    // owned by a TabModel. Remove this once NTP loading has been restricted to
+    // browser tabs only.
+    return;
+  }
+
+  auto* footer_controller = browser->GetFeatures().new_tab_footer_controller();
+  CHECK(footer_controller);
+  footer_controller_observation_.Observe(footer_controller);
 }
 
 void NewTabPageHandler::LogEvent(NTPLoggingEventType event) {
@@ -1389,7 +1454,7 @@ void NewTabPageHandler::MaybeLaunchInteractionSurvey(
   CHECK(hats_service);
   hats_service->LaunchDelayedSurveyForWebContents(
       kHatsSurveyTriggerNtpModules, web_contents_, delay_time_ms, {}, {},
-      HatsService::NavigationBehaviour::ALLOW_ANY, base::DoNothing(),
+      HatsService::NavigationBehavior::ALLOW_ANY, base::DoNothing(),
       base::DoNothing(), module_trigger_id);
 }
 

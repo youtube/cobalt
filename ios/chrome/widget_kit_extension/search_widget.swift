@@ -25,41 +25,45 @@ struct SearchWidget: Widget {
   }
 }
 
-@available(iOS 17, *)
-struct SearchWidgetConfigurable: Widget {
-  // Changing 'kind' or deleting this widget will cause all installed instances of this widget to
-  // stop updating and show the placeholder state.
-  let kind: String = "SearchWidget"
-  var body: some WidgetConfiguration {
-    AppIntentConfiguration(
-      kind: kind, intent: SelectAccountIntent.self, provider: ConfigurableProvider()
-    ) { entry in
-      SearchWidgetEntryView(entry: entry)
+#if IOS_ENABLE_WIDGETS_FOR_MIM
+  @available(iOS 17, *)
+  struct SearchWidgetConfigurable: Widget {
+    // Changing 'kind' or deleting this widget will cause all installed instances of this widget to
+    // stop updating and show the placeholder state.
+    let kind: String = "SearchWidget"
+    var body: some WidgetConfiguration {
+      AppIntentConfiguration(
+        kind: kind, intent: SelectAccountIntent.self, provider: ConfigurableProvider()
+      ) { entry in
+        SearchWidgetEntryView(entry: entry)
+      }
+      .configurationDisplayName(
+        Text("IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_DISPLAY_NAME")
+      )
+      .description(Text("IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_DESCRIPTION"))
+      .supportedFamilies([.systemSmall])
+      .crDisfavoredLocations()
+      .crContentMarginsDisabled()
+      .crContainerBackgroundRemovable(false)
     }
-    .configurationDisplayName(
-      Text("IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_DISPLAY_NAME")
-    )
-    .description(Text("IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_DESCRIPTION"))
-    .supportedFamilies([.systemSmall])
-    .crDisfavoredLocations()
-    .crContentMarginsDisabled()
-    .crContainerBackgroundRemovable(false)
   }
-}
+#endif
 
 struct SearchWidgetEntryView: View {
   var entry: ConfigureWidgetEntry
 
   var body: some View {
     // The account to display was deleted (entry.deleted can only be true if
-    // WidgetForMIMAvailable is true).
+    // IOS_ENABLE_WIDGETS_FOR_MIM is true).
     if entry.deleted && !entry.isPreview {
       SmallWidgetDeletedAccountView()
     } else {
       SearchWidgetEntryViewTemplate(
         destinationURL: destinationURL(url: WidgetConstants.SearchWidget.url, gaia: entry.gaiaID),
         imageName: "widget_chrome_logo",
-        title: "IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_TITLE",
+        title: entry.avatar != nil
+          ? "IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_AVATAR_TITLE"
+          : "IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_TITLE",
         accessibilityLabel: "IDS_IOS_WIDGET_KIT_EXTENSION_SEARCH_A11Y_LABEL", entry: entry)
     }
   }
@@ -102,9 +106,9 @@ struct SearchWidgetEntryViewTemplate: View {
               .font(.subheadline)
               .padding([.leading, .bottom], 16)
             Spacer()
-            if ChromeWidgetsMain.WidgetForMIMAvailable {
+            #if IOS_ENABLE_WIDGETS_FOR_MIM
               AvatarForSearch(entry: entry)
-            }
+            #endif
           }
         }
       }
@@ -119,23 +123,25 @@ struct SearchWidgetEntryViewTemplate: View {
   }
 }
 
-struct AvatarForSearch: View {
-  var entry: ConfigureWidgetEntry
-  var body: some View {
-    if entry.isPreview {
-      Circle()
-        .foregroundColor(Color("widget_text_color"))
-        .opacity(0.2)
-        .frame(width: 25, height: 25)
-        .padding([.bottom, .trailing], 16)
-    } else if let avatar = entry.avatar {
-      avatar
-        .resizable()
-        .clipShape(Circle())
-        .unredacted()
-        .scaledToFill()
-        .frame(width: 25, height: 25)
-        .padding([.bottom, .trailing], 16)
+#if IOS_ENABLE_WIDGETS_FOR_MIM
+  struct AvatarForSearch: View {
+    var entry: ConfigureWidgetEntry
+    var body: some View {
+      if entry.isPreview {
+        Circle()
+          .foregroundColor(Color("widget_text_color"))
+          .opacity(0.2)
+          .frame(width: 25, height: 25)
+          .padding([.bottom, .trailing], 16)
+      } else if let avatar = entry.avatar {
+        avatar
+          .resizable()
+          .clipShape(Circle())
+          .unredacted()
+          .scaledToFill()
+          .frame(width: 25, height: 25)
+          .padding([.bottom, .trailing], 16)
+      }
     }
   }
-}
+#endif

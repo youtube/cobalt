@@ -10,10 +10,9 @@
 
 #include "modules/rtp_rtcp/source/active_decode_targets_helper.h"
 
-#include <stdint.h>
-
 #include <bitset>
 #include <cstddef>
+#include <cstdint>
 
 #include "api/array_view.h"
 #include "rtc_base/checks.h"

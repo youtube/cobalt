@@ -11,11 +11,11 @@
 #ifndef MODULES_AUDIO_DEVICE_AUDIO_DEVICE_BUFFER_H_
 #define MODULES_AUDIO_DEVICE_AUDIO_DEVICE_BUFFER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 
 #include "api/audio/audio_device_defines.h"
 #include "api/sequence_checker.h"

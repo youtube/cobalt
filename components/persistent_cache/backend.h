@@ -52,6 +52,17 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) Backend {
                       base::span<const uint8_t> content,
                       EntryMetadata metadata) = 0;
 
+  // Used to get type of instance. Intended for things like metrics recording.
+  // Externally behavior of all backend types should be equivalent and control
+  // flow should not be tailored to the type.
+  virtual BackendType GetType() const = 0;
+
+  // Used to understand if the instance has read only access. Intended for
+  // things like metrics recording. Externally behavior of all backend types
+  // should be equivalent for reads. Writes should probably not be attempted if
+  // not permitted.
+  virtual bool IsReadOnly() const = 0;
+
  protected:
   Backend();
 };

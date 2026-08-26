@@ -4,6 +4,7 @@
 
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -16,6 +17,8 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/pref_names.h"
+#include "components/permissions/features.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
@@ -32,48 +35,58 @@ DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(
 const WebContentsInteractionTestUtil::DeepQuery kAskButton{
     "settings-ui",
     "settings-main",
+    "settings-privacy-page-index",
     "settings-basic-page",
     "settings-privacy-page",
     "settings-notifications-page",
-    "#notification-ask-radio-button"};
+    "settings-category-default-radio-group",
+    "#enabledRadioOption"};
 
 const WebContentsInteractionTestUtil::DeepQuery kQuietButton{
     "settings-ui",
     "settings-main",
+    "settings-privacy-page-index",
     "settings-basic-page",
     "settings-privacy-page",
     "settings-notifications-page",
-    "#notification-ask-quiet"};
+    "#notificationAskQuiet"};
 
 const WebContentsInteractionTestUtil::DeepQuery kCpssButton{
     "settings-ui",
     "settings-main",
+    "settings-privacy-page-index",
     "settings-basic-page",
     "settings-privacy-page",
     "settings-notifications-page",
-    "#notification-ask-cpss"};
+    "#notificationAskCpss"};
 
 const WebContentsInteractionTestUtil::DeepQuery kLoudButton{
     "settings-ui",
     "settings-main",
+    "settings-privacy-page-index",
     "settings-basic-page",
     "settings-privacy-page",
     "settings-notifications-page",
-    "#notification-ask-loud"};
+    "#notificationAskLoud"};
 
 const WebContentsInteractionTestUtil::DeepQuery kBlockButton{
     "settings-ui",
     "settings-main",
+    "settings-privacy-page-index",
     "settings-basic-page",
     "settings-privacy-page",
     "settings-notifications-page",
-    "#notification-block"};
+    "settings-category-default-radio-group",
+    "#disabledRadioOption"};
 
 }  // namespace
 
 class PredictionSettingsPageBrowserTest : public InteractiveBrowserTest {
  public:
-  PredictionSettingsPageBrowserTest() = default;
+  PredictionSettingsPageBrowserTest() {
+    feature_list_.InitWithFeatures(
+        {permissions::features::kPermissionSiteSettingsRadioButton}, {});
+  }
 
   ~PredictionSettingsPageBrowserTest() override = default;
 
@@ -209,10 +222,11 @@ class PredictionSettingsPageBrowserTest : public InteractiveBrowserTest {
               const WebContentsInteractionTestUtil::DeepQuery kAskQuiet{
                   "settings-ui",
                   "settings-main",
+                  "settings-privacy-page-index",
                   "settings-basic-page",
                   "settings-privacy-page",
                   "settings-notifications-page",
-                  "#notification-ask-quiet"};
+                  "#notificationAskQuiet"};
               util->EvaluateAt(kAskQuiet, "kAskQuiet => kAskQuiet.click()");
               EXPECT_EQ(CONTENT_SETTING_ASK,
                         settings_map->GetDefaultContentSetting(
@@ -234,10 +248,11 @@ class PredictionSettingsPageBrowserTest : public InteractiveBrowserTest {
               const WebContentsInteractionTestUtil::DeepQuery kAskCpss{
                   "settings-ui",
                   "settings-main",
+                  "settings-privacy-page-index",
                   "settings-basic-page",
                   "settings-privacy-page",
                   "settings-notifications-page",
-                  "#notification-ask-cpss"};
+                  "#notificationAskCpss"};
               util->EvaluateAt(kAskCpss, "kAskCpss => kAskCpss.click()");
               EXPECT_EQ(CONTENT_SETTING_ASK,
                         settings_map->GetDefaultContentSetting(
@@ -309,10 +324,11 @@ class PredictionSettingsPageBrowserTest : public InteractiveBrowserTest {
               const WebContentsInteractionTestUtil::DeepQuery kAskQuiet{
                   "settings-ui",
                   "settings-main",
+                  "settings-privacy-page-index",
                   "settings-basic-page",
                   "settings-privacy-page",
                   "settings-notifications-page",
-                  "#notification-ask-quiet"};
+                  "#notificationAskQuiet"};
               util->EvaluateAt(kAskQuiet, "kAskQuiet => kAskQuiet.click()");
               EXPECT_EQ(CONTENT_SETTING_ASK,
                         settings_map->GetDefaultContentSetting(
@@ -350,10 +366,11 @@ class PredictionSettingsPageBrowserTest : public InteractiveBrowserTest {
               const WebContentsInteractionTestUtil::DeepQuery kAskCpss{
                   "settings-ui",
                   "settings-main",
+                  "settings-privacy-page-index",
                   "settings-basic-page",
                   "settings-privacy-page",
                   "settings-notifications-page",
-                  "#notification-ask-cpss"};
+                  "#notificationAskCpss"};
               util->EvaluateAt(kAskCpss, "kAskCpss => kAskCpss.click()");
               EXPECT_EQ(CONTENT_SETTING_ASK,
                         settings_map->GetDefaultContentSetting(
@@ -433,6 +450,9 @@ class PredictionSettingsPageBrowserTest : public InteractiveBrowserTest {
             }))
         .Build();
   }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(PredictionSettingsPageBrowserTest,

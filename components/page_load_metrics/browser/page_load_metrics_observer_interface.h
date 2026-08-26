@@ -14,14 +14,15 @@
 #include "components/page_load_metrics/browser/page_load_metrics_observer_delegate.h"
 #include "components/page_load_metrics/common/page_load_metrics.mojom.h"
 #include "content/public/browser/auction_result.h"
+#include "content/public/browser/error_navigation_trigger.h"
 #include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/navigation_discard_reason.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/cookies/canonical_cookie.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/use_counter/use_counter_feature.h"
-#include "third_party/blink/public/mojom/loader/resource_load_info.mojom.h"
 #include "url/gurl.h"
 
 namespace blink {
@@ -106,15 +107,18 @@ struct ExtraRequestCompleteInfo {
 
 // Information related to failed provisional loads.
 struct FailedProvisionalLoadInfo {
-  FailedProvisionalLoadInfo(base::TimeDelta interval,
-                            net::Error error,
-                            int net_extended_error_code,
-                            content::NavigationDiscardReason discard_reason);
+  FailedProvisionalLoadInfo(
+      base::TimeDelta interval,
+      net::Error error,
+      int net_extended_error_code,
+      std::optional<content::ErrorNavigationTrigger> error_navigation_trigger,
+      content::NavigationDiscardReason discard_reason);
   ~FailedProvisionalLoadInfo();
 
   base::TimeDelta time_to_failed_provisional_load;
   net::Error error;
   int net_extended_error_code;
+  std::optional<content::ErrorNavigationTrigger> error_navigation_trigger;
   content::NavigationDiscardReason discard_reason;
 };
 
@@ -438,6 +442,21 @@ class PageLoadMetricsObserverInterface {
 
   virtual void OnFirstInputInPage(const mojom::PageLoadTiming& timing) = 0;
 
+  // Called when the standard UserTiming mark
+  // `performance.mark("mark_fully_loaded")` occurs in the main frame.
+  virtual void OnUserTimingMarkFullyLoaded(
+      const mojom::PageLoadTiming& timing) = 0;
+
+  // Called when the standard UserTiming mark
+  // `performance.mark("mark_fully_visible")` occurs in the main frame.
+  virtual void OnUserTimingMarkFullyVisible(
+      const mojom::PageLoadTiming& timing) = 0;
+
+  // Called when the standard UserTiming mark
+  // `performance.mark("mark_interactive")` occurs in the main frame.
+  virtual void OnUserTimingMarkInteractive(
+      const mojom::PageLoadTiming& timing) = 0;
+
   // Invoked when there is an update to the loading behavior_flags in the given
   // frame.
   virtual void OnLoadingBehaviorObserved(content::RenderFrameHost* rfh,
@@ -452,12 +471,10 @@ class PageLoadMetricsObserverInterface {
       content::RenderFrameHost* rfh,
       const std::vector<blink::UseCounterFeature>& features) = 0;
 
-  // The smoothness and dropped frame count metrics are shared over
-  // shared-memory. The observer should create a mapping (by calling
-  // |shared_memory.Map()|) so that they are able to read from the shared
-  // memory.
-  virtual void SetUpSharedMemoryForUkms(
-      const base::ReadOnlySharedMemoryRegion& smoothness_memory,
+  // The dropped frame count metrics are shared over shared-memory. The observer
+  // should create a mapping (by calling |shared_memory.Map()|) so that they are
+  // able to read from the shared memory.
+  virtual void SetUpSharedMemoryForDroppedFrames(
       const base::ReadOnlySharedMemoryRegion& dropped_frames_memory) = 0;
 
   // Invoked when there is data use for loading a resource on the page

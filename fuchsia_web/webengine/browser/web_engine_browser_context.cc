@@ -14,6 +14,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/fuchsia/fuchsia_logging.h"
+#include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "base/strings/string_split.h"
 #include "base/threading/thread_restrictions.h"
@@ -176,8 +177,7 @@ WebEngineBrowserContext::CreateVideoDecodePerfHistory() {
   // Return in-memory VideoDecodePerfHistory.
   return std::make_unique<media::VideoDecodePerfHistory>(
       std::make_unique<media::InMemoryVideoDecodeStatsDBImpl>(
-          nullptr /* seed_db_provider */),
-      media::learning::FeatureProviderFactoryCB());
+          nullptr /* seed_db_provider */));
 }
 
 base::RepeatingCallback<bool(const GURL&)> IsJavaScriptAllowedCallback() {

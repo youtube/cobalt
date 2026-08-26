@@ -7,7 +7,7 @@
 #include <windows.h>
 
 #include "base/check.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/platform/ax_platform_node_win.h"
 #include "ui/display/win/screen_win.h"
@@ -24,11 +24,11 @@ AXSystemCaretWin::AXSystemCaretWin(gfx::AcceleratedWidget event_target)
   data_.id = -1;
   data_.role = ax::mojom::Role::kCaret;
   // |get_accState| should return 0 which means that the caret is visible.
-  data_.state = 0;
+  data_.state = AXStates(0U);
   data_.AddState(ax::mojom::State::kInvisible);
   // According to MSDN, "Edit" should be the name of the caret object.
   data_.SetName(u"Edit");
-  data_.relative_bounds.offset_container_id = -1;
+  data_.relative_bounds.offset_container_id = kInvalidAXNodeID;
 
   if (event_target_) {
     ::NotifyWinEvent(EVENT_OBJECT_CREATE, event_target_, OBJID_CARET,

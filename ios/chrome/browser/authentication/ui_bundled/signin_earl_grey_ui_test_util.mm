@@ -64,7 +64,7 @@ void CloseManagedAccountSignOutAndDeleteDataDialog() {
   // Verify whether there is a confirmation dialog and interact with it to
   // complete the sign-in flow if present.
   id<GREYMatcher> acceptButton = [ChromeMatchersAppInterface
-      buttonWithAccessibilityLabelID:
+      actionSheetItemWithAccessibilityLabelID:
           IDS_IOS_SIGNOUT_AND_DELETE_DIALOG_SIGN_OUT_BUTTON];
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:acceptButton];
   [[EarlGrey selectElementWithMatcher:acceptButton] performAction:grey_tap()];
@@ -274,52 +274,25 @@ id<GREYMatcher> SignOutSnackbarLabelMatcher() {
                                               fakeIdentity.userEmail),
                                           grey_sufficientlyVisible(), nil)]
       performAction:grey_tap()];
-  [[EarlGrey
-      selectElementWithMatcher:ButtonWithAccessibilityLabel(
-                                   l10n_util::GetNSString(
-                                       IDS_IOS_REMOVE_GOOGLE_ACCOUNT_TITLE))]
+
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_REMOVE_GOOGLE_ACCOUNT_TITLE)]
       performAction:grey_tap()];
 }
 
 + (void)tapRemoveAccountFromDeviceWithFakeIdentity:
     (FakeSystemIdentity*)fakeIdentity {
   [self openRemoveAccountConfirmationDialogWithFakeIdentity:fakeIdentity];
-  [[EarlGrey
-      selectElementWithMatcher:grey_allOf(
-                                   ButtonWithAccessibilityLabel(
-                                       l10n_util::GetNSString(
-                                           IDS_IOS_REMOVE_ACCOUNT_LABEL)),
-                                   grey_sufficientlyVisible(), nil)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_REMOVE_ACCOUNT_LABEL)] performAction:grey_tap()];
   // Wait until the account is removed.
   [ChromeEarlGreyUI waitForAppToIdle];
 }
 
 + (void)tapPrimarySignInButtonInRecentTabs {
   [SigninEarlGreyUI openRecentTabsAndTapButton:PrimarySignInButton()];
-}
-
-+ (void)tapPrimarySignInButtonInTabSwitcher {
-  GREYAssert(![ChromeEarlGrey isTabGroupSyncEnabled],
-             @"Recent Tabs is not available in Tab Grid when Tab Group Sync is "
-             @"enabled, so there is no way to sign-in from Tab Switcher.");
-
-  [ChromeEarlGreyUI openTabGrid];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::
-                                          TabGridOtherDevicesPanelButton()]
-      performAction:grey_tap()];
-  // The start point needs to avoid the "Done" bar on iPhone, in order to catch
-  // the table view and scroll.
-  [[[EarlGrey
-      selectElementWithMatcher:grey_allOf(PrimarySignInButton(),
-                                          grey_sufficientlyVisible(), nil)]
-         usingSearchAction:grey_scrollToContentEdgeWithStartPoint(
-                               kGREYContentEdgeBottom, 0.5, 0.5)
-      onElementWithMatcher:
-          grey_allOf(grey_accessibilityID(
-                         kRecentTabsTableViewControllerAccessibilityIdentifier),
-                     grey_sufficientlyVisible(), nil)]
-      performAction:grey_tap()];
 }
 
 + (void)verifyWebSigninIsVisible:(BOOL)isVisible {

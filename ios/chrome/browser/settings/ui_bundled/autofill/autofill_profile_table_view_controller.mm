@@ -12,8 +12,10 @@
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #import "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#import "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #import "components/autofill/core/browser/data_quality/addresses/profile_requirement_utils.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/core/common/autofill_prefs.h"
@@ -39,6 +41,7 @@
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -285,19 +288,18 @@ typedef NS_ENUM(NSInteger, ItemType) {
 - (TableViewItem*)itemForProfile:
     (const autofill::AutofillProfile&)autofillProfile {
   std::string guid(autofillProfile.guid());
-  NSString* title = base::SysUTF16ToNSString(
-      autofillProfile.GetInfo(autofill::AutofillType(autofill::NAME_FULL),
-                              GetApplicationContext()->GetApplicationLocale()));
+  NSString* title = base::SysUTF16ToNSString(autofillProfile.GetInfo(
+      autofill::AutofillType(autofill::NAME_FULL),
+      GetApplicationContext()->GetApplicationLocaleStorage()->Get()));
   NSString* subTitle = base::SysUTF16ToNSString(autofillProfile.GetInfo(
       autofill::AutofillType(autofill::ADDRESS_HOME_LINE1),
-      GetApplicationContext()->GetApplicationLocale()));
+      GetApplicationContext()->GetApplicationLocaleStorage()->Get()));
 
   AutofillProfileItem* item =
       [[AutofillProfileItem alloc] initWithType:ItemTypeAddress];
   item.title = title;
   item.detailText = subTitle;
 
-  item.deletable = YES;
   if (base::FeatureList::IsEnabled(
           autofill::features::kAutofillEnableSupportForHomeAndWork)) {
     autofill::AutofillProfile::RecordType recordType =
@@ -305,12 +307,14 @@ typedef NS_ENUM(NSInteger, ItemType) {
     if (recordType == autofill::AutofillProfile::RecordType::kAccountHome) {
       item.trailingDetailText =
           l10n_util::GetNSString(IDS_IOS_PROFILE_RECORD_TYPE_HOME);
-      item.deletable = NO;
+      item.autofillProfileRecordType =
+          AutofillAddressProfileRecordType::AutofillAccountHomeProfile;
     } else if (recordType ==
                autofill::AutofillProfile::RecordType::kAccountWork) {
       item.trailingDetailText =
           l10n_util::GetNSString(IDS_IOS_PROFILE_RECORD_TYPE_WORK);
-      item.deletable = NO;
+      item.autofillProfileRecordType =
+          AutofillAddressProfileRecordType::AutofillAccountWorkProfile;
     }
   }
 
@@ -319,16 +323,18 @@ typedef NS_ENUM(NSInteger, ItemType) {
   item.GUID = guid;
   item.showMigrateToAccountButton = NO;
   item.localProfileIconShown = NO;
-  if (autofillProfile.IsAccountProfile()) {
-    item.autofillProfileRecordType =
-        AutofillAddressProfileRecordType::AutofillAccountProfile;
-  } else {
-    item.autofillProfileRecordType = AutofillLocalProfile;
-    if ([self shouldShowCloudOffIconForProfile:autofillProfile]) {
-      item.showMigrateToAccountButton = YES;
-      item.image = CustomSymbolTemplateWithPointSize(
-          kCloudSlashSymbol, kCloudSlashSymbolPointSize);
-      item.localProfileIconShown = YES;
+  if (!autofillProfile.IsHomeAndWorkProfile()) {
+    if (autofillProfile.IsAccountProfile()) {
+      item.autofillProfileRecordType =
+          AutofillAddressProfileRecordType::AutofillAccountProfile;
+    } else {
+      item.autofillProfileRecordType = AutofillLocalProfile;
+      if ([self shouldShowCloudOffIconForProfile:autofillProfile]) {
+        item.showMigrateToAccountButton = YES;
+        item.image = CustomSymbolTemplateWithPointSize(
+            kCloudSlashSymbol, kCloudSlashSymbolPointSize);
+        item.localProfileIconShown = YES;
+      }
     }
   }
   return item;
@@ -542,14 +548,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
     return NO;
   }
 
-  if (![self isItemTypeForIndexPathAddress:indexPath]) {
-    return NO;
-  }
-
-  AutofillProfileItem* item = base::apple::ObjCCastStrict<AutofillProfileItem>(
-      [self.tableViewModel itemAtIndexPath:indexPath]);
-
-  return [item isDeletable];
+  TableViewItem* item = [self.tableViewModel itemAtIndexPath:indexPath];
+  return [item isKindOfClass:[AutofillProfileItem class]];
 }
 
 - (void)tableView:(UITableView*)tableView
@@ -568,7 +568,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
                      cellForRowAtIndexPath:indexPath];
   UIView* selectedBackgroundView = [[UIView alloc] init];
   selectedBackgroundView.backgroundColor =
-      [UIColor colorNamed:kUpdatedTertiaryBackgroundColor];
+      [UIColor colorNamed:kTertiaryBackgroundColor];
   cell.selectedBackgroundView = selectedBackgroundView;
   if (_settingsAreDismissed) {
     return cell;
@@ -805,8 +805,10 @@ typedef NS_ENUM(NSInteger, ItemType) {
 // Shows the action sheet asking for the confirmation on delete from the user.
 - (void)showDeletionConfirmationForIndexPaths:
     (NSArray<NSIndexPath*>*)indexPaths {
-  BOOL accountProfiles = NO;
-
+  BOOL hasLocalProfile = NO;
+  BOOL hasAccountProfile = NO;
+  BOOL hasHomeProfile = NO;
+  BOOL hasWorkProfile = NO;
   int profileCount = 0;
 
   for (NSIndexPath* indexPath in indexPaths) {
@@ -817,23 +819,35 @@ typedef NS_ENUM(NSInteger, ItemType) {
     AutofillProfileItem* item =
         base::apple::ObjCCastStrict<AutofillProfileItem>(
             [self.tableViewModel itemAtIndexPath:indexPath]);
+
     switch (item.autofillProfileRecordType) {
-      case AutofillAccountProfile:
-        accountProfiles = YES;
-        break;
       case AutofillLocalProfile:
+        hasLocalProfile = YES;
+        break;
+      case AutofillAccountProfile:
+        hasAccountProfile = YES;
+        break;
+      case AutofillAccountHomeProfile:
+        hasHomeProfile = YES;
+        break;
+      case AutofillAccountWorkProfile:
+        hasWorkProfile = YES;
         break;
     }
   }
 
-  // Can happen if user presses delete in quick succesion.
+  // Can happen if user presses delete in quick succession.
   if (!profileCount) {
     return;
   }
 
   NSString* deletionConfirmationString =
-      [self getDeletionConfirmationStringUsingProfileCount:profileCount
-                                           accountProfiles:accountProfiles];
+      [self getDeletionConfirmationStringForProfileCount:profileCount
+                                         hasLocalProfile:hasLocalProfile
+                                       hasAccountProfile:hasAccountProfile
+                                      hasHomeWorkProfile:(hasHomeProfile ||
+                                                          hasWorkProfile)];
+
   _deletionSheetCoordinator = [[ActionSheetCoordinator alloc]
       initWithBaseViewController:self
                          browser:_browser
@@ -848,11 +862,36 @@ typedef NS_ENUM(NSInteger, ItemType) {
 
   _deletionSheetCoordinator.popoverArrowDirection = UIPopoverArrowDirectionAny;
   __weak AutofillProfileTableViewController* weakSelf = self;
+  NSString* confirmationButtonText =
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableSupportForHomeAndWork)
+          ? l10n_util::GetNSString(
+                IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESSES_CONFIRMATION_BUTTON)
+          : l10n_util::GetPluralNSStringF(
+                IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESS_CONFIRMATION_BUTTON,
+                profileCount);
+  if ((hasHomeProfile || hasWorkProfile) && !hasLocalProfile &&
+      !hasAccountProfile) {
+    confirmationButtonText = l10n_util::GetNSString(
+        IDS_IOS_SETTINGS_AUTOFILL_REMOVE_ADDRESS_CONFIRMATION_BUTTON);
+    [_deletionSheetCoordinator
+        addItemWithTitle:
+            l10n_util::GetNSString(
+                IDS_IOS_SETTINGS_AUTOFILL_EDIT_HOME_WORK_ADDRESS_CONFIRMATION_BUTTON)
+                  action:^{
+                    [weakSelf dismissDeletionSheet];
+                    OpenNewTabCommand* command = [OpenNewTabCommand
+                        commandWithURLFromChrome:
+                            GURL(hasHomeProfile
+                                     ? kGoogleMyAccountHomeAddressURL
+                                     : kGoogleMyAccountWorkAddressURL)];
+                    [weakSelf.applicationHandler
+                        closePresentedViewsAndOpenURL:command];
+                  }
+                   style:UIAlertActionStyleDefault];
+  }
   [_deletionSheetCoordinator
-      addItemWithTitle:
-          l10n_util::GetPluralNSStringF(
-              IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESS_CONFIRMATION_BUTTON,
-              profileCount)
+      addItemWithTitle:confirmationButtonText
                 action:^{
                   [weakSelf willDeleteItemsAtIndexPaths:indexPaths];
                   // TODO(crbug.com/41277594) Generalize removing empty sections
@@ -871,22 +910,63 @@ typedef NS_ENUM(NSInteger, ItemType) {
 }
 
 // Returns the deletion confirmation message string based on
-// `profileCount` and if it the source has any `accountProfiles`.
-- (NSString*)getDeletionConfirmationStringUsingProfileCount:(int)profileCount
-                                            accountProfiles:
-                                                (BOOL)accountProfiles {
-  if (accountProfiles) {
-    std::u16string pattern = l10n_util::GetStringUTF16(
-        IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_ADDRESS_CONFIRMATION_TITLE);
-    std::u16string confirmationString =
-        base::i18n::MessageFormatter::FormatWithNamedArgs(
-            pattern, "email", base::SysNSStringToUTF16(_userEmail), "count",
-            profileCount);
-    return base::SysUTF16ToNSString(confirmationString);
+// `profileCount` and if it the source has any local, account or home/work
+// profiles.
+- (NSString*)
+    getDeletionConfirmationStringForProfileCount:(int)profileCount
+                                 hasLocalProfile:(BOOL)hasLocalProfile
+                               hasAccountProfile:(BOOL)hasAccountProfile
+                              hasHomeWorkProfile:(BOOL)hasHomeWorkProfile {
+  if (!base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableSupportForHomeAndWork)) {
+    if (hasAccountProfile) {
+      std::u16string pattern = l10n_util::GetStringUTF16(
+          IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_ADDRESS_CONFIRMATION_TITLE);
+      std::u16string confirmationString =
+          base::i18n::MessageFormatter::FormatWithNamedArgs(
+              pattern, "email", base::SysNSStringToUTF16(_userEmail), "count",
+              profileCount);
+      return base::SysUTF16ToNSString(confirmationString);
+    }
+    return l10n_util::GetPluralNSStringF(
+        IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ADDRESS_CONFIRMATION_TITLE,
+        profileCount);
   }
-  return l10n_util::GetPluralNSStringF(
-      IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ADDRESS_CONFIRMATION_TITLE,
-      profileCount);
+
+  if (hasLocalProfile && hasAccountProfile && hasHomeWorkProfile) {
+    return l10n_util::GetNSString(
+        IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ACCOUNT_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
+  }
+
+  if (hasLocalProfile && hasHomeWorkProfile) {
+    return l10n_util::GetNSString(
+        IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
+  }
+
+  if (hasLocalProfile && hasAccountProfile) {
+    return l10n_util::GetNSStringF(
+        IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ACCOUNT_ADDRESS_CONFIRMATION_TITLE,
+        base::SysNSStringToUTF16(_userEmail));
+  }
+
+  if (hasAccountProfile && hasHomeWorkProfile) {
+    return l10n_util::GetNSString(
+        IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
+  }
+
+  if (hasAccountProfile) {
+    return l10n_util::GetNSStringF(
+        IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_ADDRESSES_CONFIRMATION_TITLE,
+        base::SysNSStringToUTF16(_userEmail));
+  }
+
+  if (hasHomeWorkProfile) {
+    return l10n_util::GetNSString(
+        IDS_IOS_SETTINGS_AUTOFILL_DELETE_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
+  }
+
+  return l10n_util::GetNSString(
+      IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ADDRESSES_CONFIRMATION_TITLE);
 }
 
 // Returns true when the item type for `indexPath` is Address.

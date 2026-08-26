@@ -2,7 +2,7 @@
 # annotation auditor. Please refer to README.md for more details.
 
 # Low-level networking code is deliberately excluded from the analysis.
-all,tools/*,*test*,*fuzzer*,*mock*,*fake*,weblayer/*
+all,tools/*,*test*,*fuzzer*,*mock*,*fake*
 all,net/android/java/src/org/chromium/net/NetworkTrafficAnnotationTag.java
 missing,remoting/host/token_validator_factory_impl.cc
 missing,components/cronet/cronet_url_request.cc
@@ -79,7 +79,6 @@ missing_new_fields,ash/webui/projector_app/projector_xhr_sender.cc
 missing_new_fields,chrome/browser/apps/app_preload_service/app_preload_server_connector.cc
 missing_new_fields,chrome/browser/ash/ambient/ambient_client_impl.cc
 missing_new_fields,chrome/browser/ash/app_list/search/files/item_suggest_cache.cc
-missing_new_fields,chrome/browser/ash/app_mode/web_app/web_kiosk_app_data.cc
 missing_new_fields,chrome/browser/ash/bruschetta/bruschetta_installer.cc
 missing_new_fields,chrome/browser/ash/customization/customization_document.cc
 missing_new_fields,chrome/browser/ash/customization/customization_wallpaper_downloader.cc
@@ -139,7 +138,6 @@ missing_new_fields,chrome/browser/profiles/profile_avatar_downloader.cc
 missing_new_fields,chrome/browser/renderer_context_menu/render_view_context_menu.cc
 missing_new_fields,chrome/browser/safe_browsing/download_protection/check_client_download_request_base.cc
 missing_new_fields,chrome/browser/safe_browsing/download_protection/download_feedback.cc
-missing_new_fields,chrome/browser/safe_browsing/download_protection/ppapi_download_request.cc
 missing_new_fields,chrome/browser/safe_browsing/extension_telemetry/extension_telemetry_uploader.cc
 missing_new_fields,chrome/browser/safe_browsing/incident_reporting/incident_report_uploader_impl.cc
 missing_new_fields,chrome/browser/sharing/shared_clipboard/remote_copy_message_handler.cc
@@ -202,9 +200,9 @@ missing_new_fields,components/omnibox/browser/remote_suggestions_service.cc
 missing_new_fields,components/omnibox/browser/search_provider.cc
 missing_new_fields,components/openscreen_platform/tls_connection_factory.cc
 missing_new_fields,components/openscreen_platform/udp_socket.cc
-missing_new_fields,components/optimization_guide/core/hints_fetcher.cc
-missing_new_fields,components/optimization_guide/core/prediction_model_download_manager.cc
-missing_new_fields,components/optimization_guide/core/prediction_model_fetcher_impl.cc
+missing_new_fields,components/optimization_guide/core/hints/hints_fetcher.cc
+missing_new_fields,components/optimization_guide/core/delivery/prediction_model_download_manager.cc
+missing_new_fields,components/optimization_guide/core/delivery/prediction_model_fetcher_impl.cc
 missing_new_fields,components/password_manager/core/browser/generation/password_requirements_spec_fetcher_impl.cc
 missing_new_fields,components/password_manager/core/browser/well_known_change_password_state.cc
 missing_new_fields,components/payments/core/payment_manifest_downloader.cc

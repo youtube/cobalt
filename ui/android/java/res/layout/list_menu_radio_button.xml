@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2025 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/selectableItemBackground"
+    android:orientation="horizontal"
+    android:minHeight="?android:attr/listPreferredItemHeightSmall"
+    style="@style/ListMenuItemStyle">
+
+    <RadioButton
+        android:id="@+id/radio_button"
+        android:clickable="false"
+        style="@style/ListMenuItemIconStyle.Start" />
+
+    <TextView
+        android:id="@+id/radio_button_title"
+        android:labelFor="@+id/radio_button"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:maxLines="1"
+        android:ellipsize="end"
+        style="@style/TextAppearance.ListMenuItem"
+        tools:ignore="LabelFor" /> <!-- Text will be set by ViewBinder -->
+
+</LinearLayout>

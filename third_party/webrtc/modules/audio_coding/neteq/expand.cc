@@ -10,11 +10,10 @@
 
 #include "modules/audio_coding/neteq/expand.h"
 
-#include <string.h>  // memset
-
 #include <algorithm>  // min, max
 #include <cstdint>
-#include <limits>     // numeric_limits<T>
+#include <cstring>  // memset
+#include <limits>   // numeric_limits<T>
 #include <memory>
 
 #include "common_audio/signal_processing/dot_product_with_scale.h"

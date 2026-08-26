@@ -13,12 +13,14 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/values_test_util.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/extensions/api/runtime/chrome_runtime_api_delegate.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/extensions/extension_action_test_helper.h"
 #include "chrome/common/url_constants.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -191,7 +193,12 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, ChromeRuntimeGetPlatformInfo) {
           new RuntimeGetPlatformInfoFunction(), "[]", profile()));
   EXPECT_TRUE(dict.contains("os"));
   EXPECT_TRUE(dict.contains("arch"));
+#if defined(ARCH_CPU_RISCV64)
+  // NaCl had never supported RISC-V, so nacl_arch is meaningless there.
+  EXPECT_FALSE(dict.contains("nacl_arch"));
+#else
   EXPECT_TRUE(dict.contains("nacl_arch"));
+#endif
 }
 
 // Tests chrome.runtime.getPackageDirectory with an app.
@@ -656,7 +663,7 @@ IN_PROC_BROWSER_TEST_P(BackgroundPageOnlyRuntimeApiTest,
   const Extension* extension = LoadExtension(dir.UnpackedPath());
   ASSERT_TRUE(extension);
 
-  GURL new_tab_url = extension->GetResourceURL("/index.htm");
+  GURL new_tab_url = extension->GetResourceURL("index.htm");
   {
     content::TestNavigationObserver nav_observer(new_tab_url);
     nav_observer.StartWatchingNewWebContents();
@@ -701,18 +708,24 @@ class RuntimeGetContextsApiTest : public ExtensionApiTest {
 
   void SetUpOnMainThread() override {
     ExtensionApiTest::SetUpOnMainThread();
+    SetUpExtension();
+  }
 
+  void TearDownOnMainThread() override {
+    extension_ = nullptr;
+    ExtensionApiTest::TearDownOnMainThread();
+  }
+
+  // Don't create a side panel context because desktop Android doesn't support
+  // that. It's tested separately below.
+  virtual void SetUpExtension() {
     static constexpr char kManifest[] =
         R"({
              "name": "Get Contexts",
              "version": "0.1",
              "manifest_version": 3,
-             "permissions": ["offscreen", "sidePanel"],
-             "side_panel": {
-               "default_path": "side_panel.html"
-             },
+             "permissions": ["offscreen"],
              "devtools_page": "devtools.html",
-             "action": {},
              "background": {
                "service_worker": "background.js"
              }
@@ -724,13 +737,6 @@ class RuntimeGetContextsApiTest : public ExtensionApiTest {
                         "<html>Hello, world!</html>");
     test_dir_.WriteFile(FILE_PATH_LITERAL("offscreen.html"),
                         "<html>Hello, offscreen world!</html>");
-    test_dir_.WriteFile(FILE_PATH_LITERAL("side_panel.html"),
-                        R"(<html>
-                             Hello, side panel!
-                             <script src="side_panel.js"></script>
-                           </html>)");
-    test_dir_.WriteFile(FILE_PATH_LITERAL("side_panel.js"),
-                        "chrome.test.sendMessage('panel opened');");
     test_dir_.WriteFile(FILE_PATH_LITERAL("devtools.html"),
                         R"(<html>
                              Hello, developer tools!
@@ -820,8 +826,8 @@ class RuntimeGetContextsApiTest : public ExtensionApiTest {
 
   const Extension& extension() const { return *extension_; }
 
- private:
-  raw_ptr<const Extension, DanglingUntriaged> extension_ = nullptr;
+ protected:
+  raw_ptr<const Extension> extension_ = nullptr;
   TestExtensionDir test_dir_;
 };
 
@@ -1062,8 +1068,40 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest, GetOffscreenDocumentContext) {
 }
 
 #if !BUILDFLAG(IS_ANDROID)
+class RuntimeGetContextsSidePanelTest : public RuntimeGetContextsApiTest {
+ public:
+  void SetUpExtension() override {
+    static constexpr char kManifest[] =
+        R"({
+             "name": "Get Contexts",
+             "version": "0.1",
+             "manifest_version": 3,
+             "permissions": ["sidePanel"],
+             "side_panel": {
+               "default_path": "side_panel.html"
+             },
+             "action": {},
+             "background": {
+               "service_worker": "background.js"
+             }
+           })";
+    test_dir_.WriteManifest(kManifest);
+    test_dir_.WriteFile(FILE_PATH_LITERAL("background.js"),
+                        "// Intentionally blank");
+    test_dir_.WriteFile(FILE_PATH_LITERAL("side_panel.html"),
+                        R"(<html>
+                             Hello, side panel!
+                             <script src="side_panel.js"></script>
+                           </html>)");
+    test_dir_.WriteFile(FILE_PATH_LITERAL("side_panel.js"),
+                        "chrome.test.sendMessage('panel opened');");
+    extension_ = LoadExtension(test_dir_.UnpackedPath());
+    ASSERT_TRUE(extension_);
+  }
+};
+
 // Tests retrieving a side panel context from the `runtime.getContexts()` API.
-IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest, GetSidePanelContext) {
+IN_PROC_BROWSER_TEST_F(RuntimeGetContextsSidePanelTest, GetSidePanelContext) {
   // Set the side panel to open on toolbar action click. This makes it easier
   // to trigger.
   static constexpr char kSetUpSidePanelScript[] =

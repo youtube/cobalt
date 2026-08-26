@@ -13,7 +13,7 @@
 
 #include <atomic>
 #include <memory>
-#include <string>
+#include <optional>
 
 #include "api/audio/audio_processing.h"
 #include "api/environment/environment.h"

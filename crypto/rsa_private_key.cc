@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "crypto/rsa_private_key.h"
 
 #include <stdint.h>
@@ -15,6 +10,7 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "crypto/openssl_util.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
@@ -24,26 +20,6 @@
 #include "third_party/boringssl/src/include/openssl/rsa.h"
 
 namespace crypto {
-
-// static
-std::unique_ptr<RSAPrivateKey> RSAPrivateKey::Create(uint16_t num_bits) {
-  OpenSSLErrStackTracer err_tracer(FROM_HERE);
-
-  bssl::UniquePtr<RSA> rsa_key(RSA_new());
-  bssl::UniquePtr<BIGNUM> bn(BN_new());
-  if (!rsa_key.get() || !bn.get() || !BN_set_word(bn.get(), 65537L))
-    return nullptr;
-
-  if (!RSA_generate_key_ex(rsa_key.get(), num_bits, bn.get(), nullptr))
-    return nullptr;
-
-  std::unique_ptr<RSAPrivateKey> result(new RSAPrivateKey);
-  result->key_.reset(EVP_PKEY_new());
-  if (!result->key_ || !EVP_PKEY_set1_RSA(result->key_.get(), rsa_key.get()))
-    return nullptr;
-
-  return result;
-}
 
 // static
 std::unique_ptr<RSAPrivateKey> RSAPrivateKey::CreateFromPrivateKeyInfo(
@@ -59,16 +35,6 @@ std::unique_ptr<RSAPrivateKey> RSAPrivateKey::CreateFromPrivateKeyInfo(
   std::unique_ptr<RSAPrivateKey> result(new RSAPrivateKey);
   result->key_ = std::move(pkey);
   return result;
-}
-
-// static
-std::unique_ptr<RSAPrivateKey> RSAPrivateKey::CreateFromKey(EVP_PKEY* key) {
-  DCHECK(key);
-  if (EVP_PKEY_id(key) != EVP_PKEY_RSA)
-    return nullptr;
-  std::unique_ptr<RSAPrivateKey> copy(new RSAPrivateKey);
-  copy->key_ = bssl::UpRef(key);
-  return copy;
 }
 
 RSAPrivateKey::RSAPrivateKey() = default;
@@ -96,7 +62,7 @@ bool RSAPrivateKey::ExportPrivateKey(std::vector<uint8_t>* output) const {
       !CBB_finish(cbb.get(), &der, &der_len)) {
     return false;
   }
-  output->assign(der, der + der_len);
+  output->assign(der, UNSAFE_TODO(der + der_len));
   OPENSSL_free(der);
   return true;
 }
@@ -111,7 +77,7 @@ bool RSAPrivateKey::ExportPublicKey(std::vector<uint8_t>* output) const {
       !CBB_finish(cbb.get(), &der, &der_len)) {
     return false;
   }
-  output->assign(der, der + der_len);
+  output->assign(der, UNSAFE_TODO(der + der_len));
   OPENSSL_free(der);
   return true;
 }

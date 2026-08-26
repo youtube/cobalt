@@ -18,6 +18,8 @@
 #import "ios/chrome/browser/collaboration/model/ios_collaboration_controller_delegate.h"
 #import "ios/chrome/browser/data_sharing/model/data_sharing_service_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/saved_tab_groups/coordinator/face_pile_configuration.h"
+#import "ios/chrome/browser/saved_tab_groups/coordinator/face_pile_coordinator.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
@@ -30,7 +32,6 @@
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/create_or_edit_tab_group_coordinator_delegate.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/create_tab_group_coordinator.h"
@@ -49,6 +50,11 @@ using ResultCallback =
 using collaboration::CollaborationControllerDelegate;
 using collaboration::FlowType;
 using collaboration::IOSCollaborationControllerDelegate;
+
+namespace {
+// The preferred size in points for the avatar icons.
+constexpr CGFloat kFacePileAvatarSize = 20;
+}  // namespace
 
 @interface TabGroupIndicatorCoordinator () <
     CreateOrEditTabGroupCoordinatorDelegate,
@@ -72,7 +78,6 @@ using collaboration::IOSCollaborationControllerDelegate;
 #pragma mark - ChromeCoordinator
 
 - (void)start {
-  CHECK(IsTabGroupInGridEnabled());
   Browser* browser = self.browser;
   BOOL incognito = browser->GetProfile()->IsOffTheRecord();
   _view = [[TabGroupIndicatorView alloc] init];
@@ -113,6 +118,12 @@ using collaboration::IOSCollaborationControllerDelegate;
   [self stopTabGroupConfirmationCoordinator];
   [_mediator disconnect];
   _mediator = nil;
+}
+
+#pragma mark - Getters/setters
+
+- (BOOL)viewVisible {
+  return !_view.hidden;
 }
 
 #pragma mark - TabGroupIndicatorMediatorDelegate
@@ -166,6 +177,7 @@ using collaboration::IOSCollaborationControllerDelegate;
         break;
       case TabGroupActionType::kLeaveOrKeepSharedTabGroup:
       case TabGroupActionType::kDeleteOrKeepSharedTabGroup:
+      case TabGroupActionType::kCloseLastTabUnknownRole:
         NOTREACHED();
     }
   };
@@ -178,7 +190,8 @@ using collaboration::IOSCollaborationControllerDelegate;
 }
 
 - (void)startLeaveOrDeleteSharedGroup:(base::WeakPtr<const TabGroup>)tabGroup
-                            forAction:(TabGroupActionType)actionType {
+                            forAction:(TabGroupActionType)actionType
+                     withConfirmation:(BOOL)confirmation {
   [self stopTabGroupConfirmationCoordinator];
 
   __weak __typeof(self) weakSelf = self;
@@ -188,6 +201,11 @@ using collaboration::IOSCollaborationControllerDelegate;
         if (!strongSelf) {
           std::move(resultCallback)
               .Run(CollaborationControllerDelegate::Outcome::kCancel);
+          return;
+        }
+        if (!confirmation) {
+          std::move(resultCallback)
+              .Run(CollaborationControllerDelegate::Outcome::kSuccess);
           return;
         }
         auto completionBlock = base::CallbackToBlock(std::move(resultCallback));
@@ -311,6 +329,21 @@ using collaboration::IOSCollaborationControllerDelegate;
               self.profile, self.baseViewController, FlowType::kShareOrManage));
   collaborationService->StartShareOrManageFlow(
       std::move(delegate), tabGroup->tab_group_id(), entryPoint);
+}
+
+- (id<FacePileProviding>)facePileProviderForGroupID:
+    (const std::string&)groupID {
+  // Configure the face pile.
+  FacePileConfiguration* config = [[FacePileConfiguration alloc] init];
+  config.groupID = data_sharing::GroupId(groupID);
+  config.avatarSize = kFacePileAvatarSize;
+
+  FacePileCoordinator* facePileCoordinator =
+      [[FacePileCoordinator alloc] initWithFacePileConfiguration:config
+                                                         browser:self.browser];
+  [facePileCoordinator start];
+
+  return facePileCoordinator;
 }
 
 #pragma mark - CreateOrEditTabGroupCoordinatorDelegate

@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Acum poți folosi numai Class Tools</translation>
 <translation id="1762483337755424125">Transcriere</translation>
 <translation id="1765169783255151332">Schimbă rapid tastele</translation>
 <translation id="1768959921651994223">Tip de autentificare</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Schimbarea aspectului</translation>
 <translation id="224421911978987610">expunere lungă</translation>
 <translation id="2244834438220057800">verde</translation>
+<translation id="2248689665683494517">natură statică minimalistă cu câteva flori de Papaver rhea într-o vază de sticlă pe fundal negru</translation>
 <translation id="225692081236532131">Stare de activare</translation>
 <translation id="2267285889943769271">Adaugă o captură de ecran</translation>
 <translation id="2268044343513325586">Rafinează</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Nereușită – Oprită</translation>
 <translation id="3102119246920354026">Memoria cache</translation>
 <translation id="3103783611481501187">suprarealist</translation>
+<translation id="3119672627216736407">Traducere disponibilă</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">iazuri</translation>
 <translation id="3122883569442693641">Mai multe detalii</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">șifon</translation>
 <translation id="4310735698903592804">Imagini de fundal recente bazate pe Google AI</translation>
 <translation id="4320904097188876154">roz neon</translation>
+<translation id="432961742358282111">Dă clic dreapta sau apasă lung pentru a obține definiții, traduceri sau conversii ale unităților. Folosește tastele săgeată la stânga sau la dreapta ca să gestionezi această funcție.</translation>
 <translation id="4333390807948134856">A fost apăsată tasta <ph name="KEY_NAME" /></translation>
 <translation id="4334293042716981313">În plus, poți să <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />scrii propria solicitare<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">tastă</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">Pentru a finaliza, introdu parola veche și pe cea nouă</translation>
 <translation id="6061772781719867950">Solicitări HTTPS nereușite</translation>
 <translation id="6073292342939316679">redu luminozitatea tastaturii</translation>
+<translation id="6074608334942655098">Oprește traducerea</translation>
 <translation id="6074752328838739425">Ascunde rezumatul</translation>
 <translation id="6075872808778243331">(Android) Latența solicitărilor HTTP</translation>
 <translation id="6078323886959318429">Adaugă o comandă rapidă</translation>
@@ -1403,7 +1408,7 @@
 <translation id="7177485034254901881">Acest <ph name="DEVICE_TYPE" /> este gestionat de <ph name="MANAGER" />. Administratorii pot să configureze dispozitivul de la distanță.</translation>
 <translation id="7180611975245234373">Actualizați</translation>
 <translation id="7180865173735832675">Personalizează</translation>
-<translation id="7182063559013288142">Hotspot instant</translation>
+<translation id="7182063559013288142">Hotspot instantaneu</translation>
 <translation id="7184043045742675738">Dă clic pe orice tastă pentru a personaliza butonul. Repoziționează tasta folosind mouse-ul sau tastele săgeată.</translation>
 <translation id="7187669805838282391">miercuri</translation>
 <translation id="7205318498545665455">Alege microfonul</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Întreabă experții din forumul de ajutor pentru Chromebook</translation>
-<translation id="7309823890857024809">natură statică minimalistă cu câteva tulpini de Papaver rhea într-un vas de sticlă pe fundal negru</translation>
 <translation id="7311368985037279727">culoarea tastaturii</translation>
 <translation id="7317831949569936035">Înscriere la școală</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@ Descarcă modelul de transcriere (până la 100 MB) pentru a obține aceste tran
 <translation id="8088963492174775412">Apasă pentru a înregistra</translation>
 <translation id="8094062939584182041">Permite ca Google să-ți trimită e-mail despre această problemă</translation>
 <translation id="8104083085214006426">Folosești o rețea deschisă și nesigură</translation>
+<translation id="8108879170356113798">Vei putea folosi numai Class Tools peste <ph name="NUM_SECONDS" /> secunde</translation>
 <translation id="811820734797650957">(Android) Gateway-ul acceptă testul de ping</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Confirmați</translation>

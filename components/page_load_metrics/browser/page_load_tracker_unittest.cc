@@ -155,11 +155,6 @@ TEST_F(PageLoadTrackerTest, PrimaryPageType) {
   EXPECT_FALSE(GetEvents().was_prerender_started);
   EXPECT_TRUE(GetEvents().was_committed);
 
-  // Check metrics.
-  tester()->histogram_tester().ExpectUniqueSample(
-      internal::kPageLoadTrackerPageType,
-      internal::PageLoadTrackerPageType::kPrimaryPage, 1);
-
   // Navigate out.
   tester()->NavigateToUntrackedUrl();
 
@@ -283,12 +278,11 @@ TEST_F(PageLoadTrackerTest, EventForwarding) {
   }
 
 #if BUILDFLAG(IS_ANDROID)
-  if (content::WillSameSiteNavigationChangeRenderFrameHosts(
-          /*is_main_frame=*/true)) {
-    EXPECT_EQ(1u, GetEvents().render_frame_deleted_count);
-  } else if (base::FeatureList::IsEnabled(
-                 features::kDefaultSiteInstanceGroups)) {
+  if (base::FeatureList::IsEnabled(features::kDefaultSiteInstanceGroups)) {
     EXPECT_EQ(2u, GetEvents().render_frame_deleted_count);
+  } else if (content::WillSameSiteNavigationChangeRenderFrameHosts(
+                 /*is_main_frame=*/true)) {
+    EXPECT_EQ(1u, GetEvents().render_frame_deleted_count);
   } else {
     EXPECT_EQ(0u, GetEvents().render_frame_deleted_count);
   }
@@ -302,12 +296,11 @@ TEST_F(PageLoadTrackerTest, EventForwarding) {
   content::RenderFrameHostTester::For(rfh_c)->Detach();
 
 #if BUILDFLAG(IS_ANDROID)
-  if (content::WillSameSiteNavigationChangeRenderFrameHosts(
-          /*is_main_frame=*/true)) {
-    EXPECT_EQ(2u, GetEvents().render_frame_deleted_count);
-  } else if (base::FeatureList::IsEnabled(
-                 features::kDefaultSiteInstanceGroups)) {
+  if (base::FeatureList::IsEnabled(features::kDefaultSiteInstanceGroups)) {
     EXPECT_EQ(3u, GetEvents().render_frame_deleted_count);
+  } else if (content::WillSameSiteNavigationChangeRenderFrameHosts(
+                 /*is_main_frame=*/true)) {
+    EXPECT_EQ(2u, GetEvents().render_frame_deleted_count);
   } else {
     EXPECT_EQ(1u, GetEvents().render_frame_deleted_count);
   }
@@ -319,12 +312,11 @@ TEST_F(PageLoadTrackerTest, EventForwarding) {
   content::RenderFrameHostTester::For(rfh_b)->Detach();
 
 #if BUILDFLAG(IS_ANDROID)
-  if (content::WillSameSiteNavigationChangeRenderFrameHosts(
-          /*is_main_frame=*/true)) {
-    EXPECT_EQ(3u, GetEvents().render_frame_deleted_count);
-  } else if (base::FeatureList::IsEnabled(
-                 features::kDefaultSiteInstanceGroups)) {
+  if (base::FeatureList::IsEnabled(features::kDefaultSiteInstanceGroups)) {
     EXPECT_EQ(4u, GetEvents().render_frame_deleted_count);
+  } else if (content::WillSameSiteNavigationChangeRenderFrameHosts(
+                 /*is_main_frame=*/true)) {
+    EXPECT_EQ(3u, GetEvents().render_frame_deleted_count);
   } else {
     EXPECT_EQ(2u, GetEvents().render_frame_deleted_count);
   }
@@ -368,14 +360,6 @@ TEST_F(PageLoadTrackerTest, PrerenderPageType) {
   EXPECT_TRUE(GetEvents().was_prerender_started);
   EXPECT_TRUE(GetEvents().was_committed);
 
-  // Check metrics.
-  tester()->histogram_tester().ExpectBucketCount(
-      internal::kPageLoadTrackerPageType,
-      internal::PageLoadTrackerPageType::kPrimaryPage, 1);
-  tester()->histogram_tester().ExpectBucketCount(
-      internal::kPageLoadTrackerPageType,
-      internal::PageLoadTrackerPageType::kPrerenderPage, 1);
-
   // Check ukm::SourceId.
   EXPECT_NE(ukm::kInvalidSourceId, GetObservedUkmSourceIdFor(kTestUrl));
   EXPECT_EQ(ukm::kInvalidSourceId, GetObservedUkmSourceIdFor(kPrerenderingUrl));
@@ -407,14 +391,6 @@ TEST_F(PageLoadTrackerTest, FencedFramesPageType) {
   EXPECT_TRUE(GetEvents().was_fenced_frames_started);
   EXPECT_FALSE(GetEvents().was_prerender_started);
   EXPECT_TRUE(GetEvents().was_committed);
-
-  // Check metrics.
-  tester()->histogram_tester().ExpectBucketCount(
-      internal::kPageLoadTrackerPageType,
-      internal::PageLoadTrackerPageType::kPrimaryPage, 1);
-  tester()->histogram_tester().ExpectBucketCount(
-      internal::kPageLoadTrackerPageType,
-      internal::PageLoadTrackerPageType::kFencedFramesPage, 1);
 
   // Check ukm::SourceId.
   EXPECT_NE(ukm::kInvalidSourceId, GetObservedUkmSourceIdFor(kTestUrl));

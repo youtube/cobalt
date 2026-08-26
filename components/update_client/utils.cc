@@ -29,6 +29,7 @@
 #include "base/files/memory_mapped_file.h"
 #include "base/functional/callback.h"
 #include "base/json/json_file_value_serializer.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"

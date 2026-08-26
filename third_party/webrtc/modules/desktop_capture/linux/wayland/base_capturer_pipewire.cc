@@ -10,11 +10,22 @@
 
 #include "modules/desktop_capture/linux/wayland/base_capturer_pipewire.h"
 
+#include <sys/types.h>
+
+#include <cstdint>
+#include <memory>
+#include <utility>
+
+#include "modules/desktop_capture/delegated_source_list_controller.h"
 #include "modules/desktop_capture/desktop_capture_options.h"
+#include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/linux/wayland/restore_token_manager.h"
+#include "modules/desktop_capture/linux/wayland/screen_capture_portal_interface.h"
+#include "modules/desktop_capture/linux/wayland/screencast_portal.h"
 #include "modules/portal/pipewire_utils.h"
-#include "modules/portal/xdg_desktop_portal_utils.h"
+#include "modules/portal/portal_request_response.h"
+#include "modules/portal/xdg_session_details.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/time_utils.h"
@@ -159,7 +170,7 @@ void BaseCapturerPipeWire::CaptureFrame() {
     return;
   }
 
-  int64_t capture_start_time_nanos = webrtc::TimeNanos();
+  int64_t capture_start_time_nanos = TimeNanos();
   std::unique_ptr<DesktopFrame> frame =
       options_.screencast_stream()->CaptureFrame();
 
@@ -172,8 +183,8 @@ void BaseCapturerPipeWire::CaptureFrame() {
   // the frame, see ScreenCapturerX11::CaptureFrame.
 
   frame->set_capturer_id(DesktopCapturerId::kWaylandCapturerLinux);
-  frame->set_capture_time_ms((webrtc::TimeNanos() - capture_start_time_nanos) /
-                             webrtc::kNumNanosecsPerMillisec);
+  frame->set_capture_time_ms((TimeNanos() - capture_start_time_nanos) /
+                             kNumNanosecsPerMillisec);
   callback_->OnCaptureResult(Result::SUCCESS, std::move(frame));
 }
 

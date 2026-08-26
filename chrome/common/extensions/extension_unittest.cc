@@ -176,15 +176,31 @@ TEST(ExtensionTest, GetResourceURLAndPath) {
   EXPECT_TRUE(extension.get());
 
   EXPECT_EQ(extension->url().spec() + "bar/baz.js",
-            extension->GetResourceURL("bar/baz.js").spec());
+            extension->ResolveExtensionURL("bar/baz.js").spec());
   EXPECT_EQ(extension->url().spec() + "baz.js",
-            extension->GetResourceURL("bar/../baz.js").spec());
+            extension->ResolveExtensionURL("bar/../baz.js").spec());
   EXPECT_EQ(extension->url().spec() + "baz.js",
-            extension->GetResourceURL("../baz.js").spec());
+            extension->ResolveExtensionURL("../baz.js").spec());
 
   // Test that absolute-looking paths ("/"-prefixed) are pasted correctly.
   EXPECT_EQ(extension->url().spec() + "test.html",
-            extension->GetResourceURL("/test.html").spec());
+            extension->ResolveExtensionURL("/test.html").spec());
+
+  // Test that absolute URLs are not allowed.
+  EXPECT_EQ(GURL(),
+            extension->ResolveExtensionURL("http://example.test/test.html"));
+  EXPECT_EQ(GURL(),
+            extension->ResolveExtensionURL("https://example.test/test.html"));
+  EXPECT_EQ(GURL(), extension->ResolveExtensionURL("file:///test.html"));
+
+  // Test that invalid relative URLs are not allowed for `GetResourceURL`
+  // (paths that GetResource would reject).
+  EXPECT_EQ(GURL(), extension->GetResourceURL(""));
+  EXPECT_EQ(GURL(), extension->GetResourceURL("/"));
+  EXPECT_EQ(GURL(), extension->GetResourceURL("src/"));
+  EXPECT_EQ(GURL(), extension->GetResourceURL("C:/manifest.json"));
+  EXPECT_EQ(GURL(), extension->GetResourceURL("mani%3Efest.json"));
+  EXPECT_EQ(GURL(), extension->GetResourceURL("com1/manifest.json"));
 }
 
 TEST(ExtensionTest, GetResource) {

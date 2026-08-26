@@ -10,12 +10,17 @@
 
 #include "modules/audio_processing/ns/speech_probability_estimator.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 
+#include "api/array_view.h"
 #include "modules/audio_processing/ns/fast_math.h"
-#include "rtc_base/checks.h"
+#include "modules/audio_processing/ns/ns_common.h"
+#include "modules/audio_processing/ns/prior_signal_model.h"
+#include "modules/audio_processing/ns/signal_model.h"
 
 namespace webrtc {
 

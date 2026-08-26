@@ -16,12 +16,14 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/arguments-inl.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/keys.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/slots.h"
 #include "src/utils/utils.h"
@@ -527,8 +529,7 @@ Maybe<bool> IncludesValueSlowPath(Isolate* isolate,
       continue;
     }
     DirectHandle<Object> element_k;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
-                                     Object::GetProperty(&it), Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k, Object::GetProperty(&it));
 
     if (Object::SameValueZero(*value, *element_k)) return Just(true);
   }
@@ -546,8 +547,7 @@ Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate,
       continue;
     }
     DirectHandle<Object> element_k;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, element_k, Object::GetProperty(&it), Nothing<int64_t>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k, Object::GetProperty(&it));
 
     if (Object::StrictEquals(*value, *element_k)) return Just<int64_t>(k);
   }
@@ -612,7 +612,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         length = Smi::ToInt(length_obj);
       }
     } else if (IsJSTypedArray(holder)) {
-      length = Cast<JSTypedArray>(holder)->length();
+      length = Cast<JSTypedArray>(holder)->GetLength();
     } else {
       length = fixed_array_base->length();
     }
@@ -792,23 +792,21 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     UNREACHABLE();
   }
 
-  MaybeDirectHandle<Object> Pop(Isolate* isolate,
-                                DirectHandle<JSArray> receiver) final {
+  Tagged<Object> Pop(Isolate* isolate, DirectHandle<JSArray> receiver) final {
     return Subclass::PopImpl(isolate, receiver);
   }
 
-  static MaybeDirectHandle<Object> PopImpl(Isolate* isolate,
-                                           DirectHandle<JSArray> receiver) {
+  static Tagged<Object> PopImpl(Isolate* isolate,
+                                DirectHandle<JSArray> receiver) {
     UNREACHABLE();
   }
 
-  MaybeDirectHandle<Object> Shift(Isolate* isolate,
-                                  DirectHandle<JSArray> receiver) final {
+  Tagged<Object> Shift(Isolate* isolate, DirectHandle<JSArray> receiver) final {
     return Subclass::ShiftImpl(isolate, receiver);
   }
 
-  static MaybeDirectHandle<Object> ShiftImpl(Isolate* isolate,
-                                             DirectHandle<JSArray> receiver) {
+  static Tagged<Object> ShiftImpl(Isolate* isolate,
+                                  DirectHandle<JSArray> receiver) {
     UNREACHABLE();
   }
 
@@ -816,6 +814,26 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                         uint32_t length) final {
     return Subclass::SetLengthImpl(isolate, array, length,
                                    direct_handle(array->elements(), isolate));
+  }
+
+  static void DecreaseLength(Isolate* isolate,
+                             Tagged<BackingStore> backing_store,
+                             uint32_t old_length, uint32_t length) {
+    uint32_t capacity = backing_store->capacity();
+    // It's possible we got here through left-trimming, which would have reduced
+    // the capacity.
+    if (V8_UNLIKELY(2 * length + JSObject::kMinAddedElementsCapacity <=
+                    capacity)) {
+      // If more than half the elements won't be used, trim the array.
+      // Do not trim from short arrays to prevent frequent trimming on
+      // repeated pop operations.
+      // Leave some space to allow for subsequent push operations.
+      uint32_t new_capacity =
+          length + 1 == old_length ? (capacity + length) / 2 : length;
+      DCHECK_LT(new_capacity, capacity);
+      isolate->heap()->RightTrimArray(backing_store, new_capacity, capacity);
+      capacity = new_capacity;
+    }
   }
 
   static Maybe<bool> SetLengthImpl(Isolate* isolate,
@@ -846,23 +864,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
           backing_store = direct_handle(array->elements(), isolate);
         }
       }
-      if (2 * length + JSObject::kMinAddedElementsCapacity <= capacity) {
-        // If more than half the elements won't be used, trim the array.
-        // Do not trim from short arrays to prevent frequent trimming on
-        // repeated pop operations.
-        // Leave some space to allow for subsequent push operations.
-        uint32_t new_capacity =
-            length + 1 == old_length ? (capacity + length) / 2 : length;
-        DCHECK_LT(new_capacity, capacity);
-        isolate->heap()->RightTrimArray(Cast<BackingStore>(*backing_store),
-                                        new_capacity, capacity);
-        // Fill the non-trimmed elements with holes.
-        Cast<BackingStore>(*backing_store)
-            ->FillWithHoles(length, std::min(old_length, new_capacity));
-      } else {
-        // Otherwise, fill the unused tail with holes.
-        Cast<BackingStore>(*backing_store)->FillWithHoles(length, old_length);
-      }
+      DecreaseLength(isolate, Cast<BackingStore>(*backing_store), old_length,
+                     length);
+      // Fill the non-trimmed elements with holes.
+      // Also use min if we don't RightTrim. It's possible we got here through
+      // left-trimming.
+      capacity = backing_store->length();
+      Cast<BackingStore>(*backing_store)
+          ->FillWithHoles(length, std::min(old_length, capacity));
     } else {
       // Calculate a new capacity for the array.
       uint32_t new_capacity;
@@ -1033,11 +1042,10 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       DirectHandle<FixedArrayBase> old_elements, ElementsKind from_kind,
       ElementsKind to_kind, uint32_t capacity) {
     DirectHandle<FixedArrayBase> elements;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, elements,
         ConvertElementsWithCapacity(isolate, object, old_elements, from_kind,
-                                    capacity),
-        Nothing<bool>());
+                                    capacity));
 
     if (IsHoleyElementsKind(from_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
@@ -1085,11 +1093,10 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       return Just(false);
     }
     DirectHandle<FixedArrayBase> elements;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, elements,
         ConvertElementsWithCapacity(isolate, object, old_elements, kind(),
-                                    new_capacity),
-        Nothing<bool>());
+                                    new_capacity));
 
     DCHECK_EQ(object->GetElementsKind(), kind());
     // Transition through the allocation site as well if present.
@@ -1227,8 +1234,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       } else {
         // This might modify the elements and/or change the elements kind.
         LookupIterator it(isolate, object, index, LookupIterator::OWN);
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, value, Object::GetProperty(&it), Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::GetProperty(&it));
       }
       if (get_entries) value = MakeEntryPair(isolate, index, value);
       values_or_entries->set(count++, *value);
@@ -1254,8 +1260,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
       DirectHandle<Object> value;
       LookupIterator it(isolate, object, index, LookupIterator::OWN);
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value, Object::GetProperty(&it),
-                                       Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::GetProperty(&it));
 
       if (get_entries) value = MakeEntryPair(isolate, index, value);
       values_or_entries->set(count++, *value);
@@ -1945,9 +1950,8 @@ class DictionaryElementsAccessor
           DCHECK_EQ(it.state(), LookupIterator::ACCESSOR);
           DirectHandle<Object> element_k;
 
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
-                                           Object::GetPropertyWithAccessor(&it),
-                                           Nothing<bool>());
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k,
+                                     Object::GetPropertyWithAccessor(&it));
 
           if (Object::SameValueZero(*value, *element_k)) return Just(true);
 
@@ -2019,9 +2023,8 @@ class DictionaryElementsAccessor
           DCHECK_EQ(it.state(), LookupIterator::ACCESSOR);
           DirectHandle<Object> element_k;
 
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
-                                           Object::GetPropertyWithAccessor(&it),
-                                           Nothing<int64_t>());
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k,
+                                     Object::GetPropertyWithAccessor(&it));
 
           if (Object::StrictEquals(*value, *element_k)) return Just<int64_t>(k);
 
@@ -2359,13 +2362,13 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 #endif
   }
 
-  static MaybeDirectHandle<Object> PopImpl(Isolate* isolate,
-                                           DirectHandle<JSArray> receiver) {
+  static Tagged<Object> PopImpl(Isolate* isolate,
+                                DirectHandle<JSArray> receiver) {
     return Subclass::RemoveElement(isolate, receiver, AT_END);
   }
 
-  static MaybeDirectHandle<Object> ShiftImpl(Isolate* isolate,
-                                             DirectHandle<JSArray> receiver) {
+  static Tagged<Object> ShiftImpl(Isolate* isolate,
+                                  DirectHandle<JSArray> receiver) {
     return Subclass::RemoveElement(isolate, receiver, AT_START);
   }
 
@@ -2384,34 +2387,6 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     DirectHandle<FixedArrayBase> backing_store(receiver->elements(), isolate);
     return Subclass::AddArguments(isolate, receiver, backing_store, args,
                                   unshift_size, AT_START);
-  }
-
-  static DirectHandle<FixedArrayBase> MoveElements(
-      Isolate* isolate, DirectHandle<JSArray> receiver,
-      DirectHandle<FixedArrayBase> backing_store, int dst_index, int src_index,
-      int len, int hole_start, int hole_end) {
-    DisallowGarbageCollection no_gc;
-    Tagged<BackingStore> dst_elms = Cast<BackingStore>(*backing_store);
-    if (len > JSArray::kMaxCopyElements && dst_index == 0 &&
-        isolate->heap()->CanMoveObjectStart(dst_elms)) {
-      dst_elms = Cast<BackingStore>(
-          isolate->heap()->LeftTrimFixedArray(dst_elms, src_index));
-      // Updates this backing_store handle.
-      backing_store.SetValue(dst_elms);
-      receiver->set_elements(dst_elms);
-      // Adjust the hole offset as the array has been shrunk.
-      hole_end -= src_index;
-      DCHECK_LE(hole_start, backing_store->length());
-      DCHECK_LE(hole_end, backing_store->length());
-    } else if (len != 0) {
-      WriteBarrierMode mode =
-          GetWriteBarrierMode(dst_elms, KindTraits::Kind, no_gc);
-      dst_elms->MoveElements(isolate, dst_index, src_index, len, mode);
-    }
-    if (hole_start != hole_end) {
-      dst_elms->FillWithHoles(hole_start, hole_end);
-    }
-    return backing_store;
   }
 
   static MaybeDirectHandle<Object> FillImpl(Isolate* isolate,
@@ -2493,6 +2468,9 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             if (elements->is_the_hole(static_cast<int>(k))) return Just(true);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            if (elements->is_undefined(static_cast<int>(k))) return Just(true);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
           }
           return Just(false);
         }
@@ -2530,6 +2508,11 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
           for (size_t k = start_from; k < length; ++k) {
             if (elements->is_the_hole(static_cast<int>(k))) continue;
             if (elements->get_scalar(static_cast<int>(k)) == search_number) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+              // This can never be undefined, otherwise search_number would be a
+              // NaN.
+              DCHECK(!elements->is_undefined(static_cast<int>(k)));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
               return Just(true);
             }
           }
@@ -2563,6 +2546,10 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             if (elements->is_the_hole(static_cast<int>(k))) continue;
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            // We do not treat the undefined NaN as a NaN.
+            if (elements->is_undefined(static_cast<int>(k))) continue;
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
             if (std::isnan(elements->get_scalar(static_cast<int>(k)))) {
               return Just(true);
             }
@@ -2601,32 +2588,62 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return result;
   }
 
-  static MaybeDirectHandle<Object> RemoveElement(Isolate* isolate,
-                                                 DirectHandle<JSArray> receiver,
-                                                 Where remove_position) {
-    ElementsKind kind = KindTraits::Kind;
-    if (IsSmiOrObjectElementsKind(kind)) {
-      HandleScope scope(isolate);
+  static V8_INLINE Tagged<Object> RemoveElement(Isolate* isolate,
+                                                DirectHandle<JSArray> receiver,
+                                                Where remove_position) {
+    constexpr ElementsKind kind = KindTraits::Kind;
+    static_assert(IsFastElementsKind(kind));
+    uint32_t length = static_cast<uint32_t>(Smi::ToInt(receiver->length()));
+    if (length == 0) return ReadOnlyRoots(isolate).undefined_value();
+
+    if constexpr (IsSmiOrObjectElementsKind(kind)) {
       JSObject::EnsureWritableFastElements(isolate, receiver);
     }
-    DirectHandle<FixedArrayBase> backing_store(receiver->elements(), isolate);
-    uint32_t length = static_cast<uint32_t>(Smi::ToInt(receiver->length()));
+
     DCHECK_GT(length, 0);
     int new_length = length - 1;
     int remove_index = remove_position == AT_START ? 0 : new_length;
-    DirectHandle<Object> result =
-        Subclass::GetImpl(isolate, *backing_store, InternalIndex(remove_index));
-    if (remove_position == AT_START) {
-      backing_store = Subclass::MoveElements(isolate, receiver, backing_store,
-                                             0, 1, new_length, 0, 0);
+    Tagged<Object> result;
+    Tagged<JSArray> raw_receiver = *receiver;
+    if constexpr (IsDoubleElementsKind(kind)) {
+      result = *Subclass::GetImpl(isolate, raw_receiver->elements(),
+                                  InternalIndex(remove_index));
+      raw_receiver = *receiver;
+    } else {
+      result = Cast<BackingStore>(raw_receiver->elements())->get(remove_index);
     }
-    MAYBE_RETURN_NULL(
-        Subclass::SetLengthImpl(isolate, receiver, new_length, backing_store));
+    // The result is now unhandlified, so we can't allocate anymore.
+    DisallowGarbageCollection no_gc;
+    if (V8_UNLIKELY(new_length == 0)) {
+      raw_receiver->initialize_elements();
+    } else {
+      Tagged<BackingStore> dst_elms =
+          Cast<BackingStore>(raw_receiver->elements());
+      if (remove_position == AT_START) {
+        if (V8_UNLIKELY(new_length > JSArray::kMaxCopyElements &&
+                        isolate->heap()->CanMoveObjectStart(dst_elms))) {
+          dst_elms = Cast<BackingStore>(
+              isolate->heap()->LeftTrimFixedArray(dst_elms, 1));
+          raw_receiver->set_elements(dst_elms);
+        } else {
+          WriteBarrierMode mode = IsFastNumberElementsKind(KindTraits::Kind)
+                                      ? SKIP_WRITE_BARRIER
+                                      : UPDATE_WRITE_BARRIER;
+          dst_elms->MoveElements(isolate, 0, 1, new_length, mode);
+          dst_elms->FillWithHoles(new_length, new_length + 1);
+          Subclass::DecreaseLength(isolate, dst_elms, length, new_length);
+        }
+      } else {
+        dst_elms->FillWithHoles(new_length, new_length + 1);
+        Subclass::DecreaseLength(isolate, dst_elms, length, new_length);
+      }
+    }
+    raw_receiver->set_length(Smi::FromInt(new_length));
 
-    if (IsHoleyElementsKind(kind) && IsTheHole(*result, isolate)) {
-      return isolate->factory()->undefined_value();
+    if (IsHoleyElementsKind(kind) && IsTheHole(result, isolate)) {
+      return ReadOnlyRoots(isolate).undefined_value();
     }
-    return MaybeDirectHandle<Object>(result);
+    return result;
   }
 
   static Maybe<uint32_t> AddArguments(
@@ -2646,18 +2663,20 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       // If we add arguments to the start we have to shift the existing objects.
       int copy_dst_index = add_position == AT_START ? add_size : 0;
       // Copy over all objects to a new backing_store.
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, backing_store,
           Subclass::ConvertElementsWithCapacity(isolate, receiver,
                                                 backing_store, KindTraits::Kind,
-                                                capacity, 0, copy_dst_index),
-          Nothing<uint32_t>());
+                                                capacity, 0, copy_dst_index));
       receiver->set_elements(*backing_store);
     } else if (add_position == AT_START) {
       // If the backing store has enough capacity and we add elements to the
       // start we have to shift the existing objects.
-      backing_store = Subclass::MoveElements(isolate, receiver, backing_store,
-                                             add_size, 0, length, 0, 0);
+      WriteBarrierMode mode = IsFastNumberElementsKind(KindTraits::Kind)
+                                  ? SKIP_WRITE_BARRIER
+                                  : UPDATE_WRITE_BARRIER;
+      Cast<BackingStore>(backing_store)
+          ->MoveElements(isolate, add_size, 0, length, mode);
     }
 
     int insertion_index = add_position == AT_START ? 0 : length;
@@ -2864,6 +2883,16 @@ class FastNonextensibleObjectElementsAccessor
     UNREACHABLE();
   }
 
+  static Tagged<Object> PopImpl(Isolate* isolate,
+                                DirectHandle<JSArray> receiver) {
+    UNREACHABLE();
+  }
+
+  static Tagged<Object> ShiftImpl(Isolate* isolate,
+                                  DirectHandle<JSArray> receiver) {
+    UNREACHABLE();
+  }
+
   static Maybe<bool> AddImpl(Isolate* isolate, DirectHandle<JSObject> object,
                              uint32_t index, DirectHandle<Object> value,
                              PropertyAttributes attributes,
@@ -2937,9 +2966,9 @@ class FastSealedObjectElementsAccessor
  public:
   using BackingStore = typename KindTraits::BackingStore;
 
-  static DirectHandle<Object> RemoveElement(Isolate* isolate,
-                                            DirectHandle<JSArray> receiver,
-                                            Where remove_position) {
+  static Tagged<Object> RemoveElement(Isolate* isolate,
+                                      DirectHandle<JSArray> receiver,
+                                      Where remove_position) {
     UNREACHABLE();
   }
 
@@ -2959,8 +2988,8 @@ class FastSealedObjectElementsAccessor
     UNREACHABLE();
   }
 
-  static MaybeDirectHandle<Object> PopImpl(Isolate* isolate,
-                                           DirectHandle<JSArray> receiver) {
+  static Tagged<Object> PopImpl(Isolate* isolate,
+                                DirectHandle<JSArray> receiver) {
     UNREACHABLE();
   }
 
@@ -3093,9 +3122,9 @@ class FastFrozenObjectElementsAccessor
     UNREACHABLE();
   }
 
-  static DirectHandle<Object> RemoveElement(Isolate* isolate,
-                                            DirectHandle<JSArray> receiver,
-                                            Where remove_position) {
+  static Tagged<Object> RemoveElement(Isolate* isolate,
+                                      DirectHandle<JSArray> receiver,
+                                      Where remove_position) {
     UNREACHABLE();
   }
 
@@ -3115,8 +3144,8 @@ class FastFrozenObjectElementsAccessor
     UNREACHABLE();
   }
 
-  static MaybeDirectHandle<Object> PopImpl(Isolate* isolate,
-                                           DirectHandle<JSArray> receiver) {
+  static Tagged<Object> PopImpl(Isolate* isolate,
+                                DirectHandle<JSArray> receiver) {
     UNREACHABLE();
   }
 
@@ -4310,24 +4339,42 @@ struct CopyBetweenBackingStoresImpl {
   }
 };
 
+namespace {
+template <ElementsKind DestKind, typename DestElementType,
+          ElementsKind SourceKind>
+void CopyFromFloat16BackingStore(uint16_t* source_data_ptr,
+                                 DestElementType* dest_data_ptr, size_t length,
+                                 IsSharedBuffer is_shared) {
+  for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
+    // We use scalar accessors to avoid boxing/unboxing, so there are no
+    // allocations.
+    uint16_t source_elem = TypedElementsAccessor<SourceKind, uint16_t>::GetImpl(
+        source_data_ptr, is_shared);
+    DestElementType dest_elem;
+    if constexpr (IsFloat16TypedArrayElementsKind(DestKind)) {
+      // There is the reasonable expectations that copying to the same kind of
+      // TypedArray does not change the bit pattern of the data. For float16,
+      // round tripping fp16->fp32->fp16 with the software emulation can change
+      // NaN patterns.
+      dest_elem = source_elem;
+    } else {
+      dest_elem = TypedElementsAccessor<DestKind, DestElementType>::FromScalar(
+          fp16_ieee_to_fp32_value(source_elem));
+    }
+
+    TypedElementsAccessor<DestKind, DestElementType>::SetImpl(
+        dest_data_ptr, dest_elem, is_shared);
+  }
+}
+}  // namespace
+
 template <ElementsKind Kind, typename ElementType>
 struct CopyBetweenBackingStoresImpl<Kind, ElementType, FLOAT16_ELEMENTS,
                                     uint16_t> {
   static void Copy(uint16_t* source_data_ptr, ElementType* dest_data_ptr,
                    size_t length, IsSharedBuffer is_shared) {
-    for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
-      // We use scalar accessors to avoid boxing/unboxing, so there are no
-      // allocations.
-      uint16_t source_elem =
-          TypedElementsAccessor<FLOAT16_ELEMENTS, uint16_t>::GetImpl(
-              source_data_ptr, is_shared);
-      ElementType dest_elem =
-          TypedElementsAccessor<Kind, ElementType>::FromScalar(
-              fp16_ieee_to_fp32_value(source_elem));
-
-      TypedElementsAccessor<Kind, ElementType>::SetImpl(dest_data_ptr,
-                                                        dest_elem, is_shared);
-    }
+    CopyFromFloat16BackingStore<Kind, ElementType, FLOAT16_ELEMENTS>(
+        source_data_ptr, dest_data_ptr, length, is_shared);
   }
 };
 
@@ -4336,19 +4383,8 @@ struct CopyBetweenBackingStoresImpl<Kind, ElementType,
                                     RAB_GSAB_FLOAT16_ELEMENTS, uint16_t> {
   static void Copy(uint16_t* source_data_ptr, ElementType* dest_data_ptr,
                    size_t length, IsSharedBuffer is_shared) {
-    for (; length > 0; --length, ++source_data_ptr, ++dest_data_ptr) {
-      // We use scalar accessors to avoid boxing/unboxing, so there are no
-      // allocations.
-      uint16_t source_elem =
-          TypedElementsAccessor<RAB_GSAB_FLOAT16_ELEMENTS, uint16_t>::GetImpl(
-              source_data_ptr, is_shared);
-      ElementType dest_elem =
-          TypedElementsAccessor<Kind, ElementType>::FromScalar(
-              fp16_ieee_to_fp32_value(source_elem));
-
-      TypedElementsAccessor<Kind, ElementType>::SetImpl(dest_data_ptr,
-                                                        dest_elem, is_shared);
-    }
+    CopyFromFloat16BackingStore<Kind, ElementType, RAB_GSAB_FLOAT16_ELEMENTS>(
+        source_data_ptr, dest_data_ptr, length, is_shared);
   }
 };
 
@@ -5134,9 +5170,8 @@ class SloppyArgumentsElementsAccessor
         LookupIterator it(isolate, object, k, LookupIterator::OWN);
         DCHECK(it.IsFound());
         DCHECK_EQ(it.state(), LookupIterator::ACCESSOR);
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
-                                         Object::GetPropertyWithAccessor(&it),
-                                         Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k,
+                                   Object::GetPropertyWithAccessor(&it));
 
         if (Object::SameValueZero(*value, *element_k)) return Just(true);
 
@@ -5175,9 +5210,8 @@ class SloppyArgumentsElementsAccessor
         LookupIterator it(isolate, object, k, LookupIterator::OWN);
         DCHECK(it.IsFound());
         DCHECK_EQ(it.state(), LookupIterator::ACCESSOR);
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
-                                         Object::GetPropertyWithAccessor(&it),
-                                         Nothing<int64_t>());
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, element_k,
+                                   Object::GetPropertyWithAccessor(&it));
 
         if (Object::StrictEquals(*value, *element_k)) {
           return Just<int64_t>(k);
@@ -5409,11 +5443,10 @@ class FastSloppyArgumentsElementsAccessor
     DCHECK(from_kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS ||
            static_cast<uint32_t>(old_arguments->length()) < capacity);
     DirectHandle<FixedArrayBase> arguments;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, arguments,
         ConvertElementsWithCapacity(isolate, object, old_arguments, from_kind,
-                                    capacity),
-        Nothing<bool>());
+                                    capacity));
     DirectHandle<Map> new_map = JSObject::GetElementsTransitionMap(
         isolate, object, FAST_SLOPPY_ARGUMENTS_ELEMENTS);
     JSObject::MigrateToMap(isolate, object, new_map);

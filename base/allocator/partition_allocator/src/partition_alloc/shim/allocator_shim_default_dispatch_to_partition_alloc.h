@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_SHIM_ALLOCATOR_SHIM_DEFAULT_DISPATCH_TO_PARTITION_ALLOC_H_
 #define PARTITION_ALLOC_SHIM_ALLOCATOR_SHIM_DEFAULT_DISPATCH_TO_PARTITION_ALLOC_H_
 
@@ -189,14 +194,12 @@ PA_ALWAYS_INLINE void ConfigurePartitionsForTesting() {
 
   auto eventually_zero_freed_memory = EventuallyZeroFreedMemory(false);
   auto fewer_memory_regions = FewerMemoryRegions(false);
-  auto use_small_single_slot_spans = UseSmallSingleSlotSpans(true);
 
   ConfigurePartitions(enable_brp, brp_extra_extras_size, enable_memory_tagging,
                       memory_tagging_reporting_mode, distribution,
                       scheduler_loop_quarantine_global_config,
                       scheduler_loop_quarantine_thread_local_config,
-                      eventually_zero_freed_memory, fewer_memory_regions,
-                      use_small_single_slot_spans);
+                      eventually_zero_freed_memory, fewer_memory_regions);
 }
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 

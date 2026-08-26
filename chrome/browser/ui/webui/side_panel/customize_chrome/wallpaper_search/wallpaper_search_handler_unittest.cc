@@ -13,6 +13,7 @@
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback_forward.h"
+#include "base/strings/string_view_util.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_move_support.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -134,7 +135,6 @@ class MockWallpaperSearchStringMap : public WallpaperSearchStringMap {
 
 std::unique_ptr<TestingProfile> MakeTestingProfile(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
-  MockOptimizationGuideKeyedService::InitializeWithExistingTestLocalState();
   TestingProfile::Builder profile_builder;
   profile_builder.AddTestingFactory(
       OptimizationGuideKeyedServiceFactory::GetInstance(),
@@ -188,7 +188,6 @@ class WallpaperSearchHandlerTest : public testing::Test {
   }
 
   void TearDown() override {
-    MockOptimizationGuideKeyedService::ResetForTesting();
     test_url_loader_factory_.ClearResponses();
   }
 

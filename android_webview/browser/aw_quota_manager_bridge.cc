@@ -221,11 +221,6 @@ AwQuotaManagerBridge::AwQuotaManagerBridge(AwBrowserContext* browser_context)
 
 AwQuotaManagerBridge::~AwQuotaManagerBridge() = default;
 
-void AwQuotaManagerBridge::Init(JNIEnv* env,
-                                const JavaParamRef<jobject>& object) {
-  java_ref_ = JavaObjectWeakGlobalRef(env, object);
-}
-
 StoragePartition* AwQuotaManagerBridge::GetStoragePartition() const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
@@ -291,8 +286,7 @@ void AwQuotaManagerBridge::DeleteAllDataFramework(JNIEnv* env) {
   // (Legacy) Clear all web storage data except cookies.
   uint32_t remove_mask = StoragePartition::REMOVE_DATA_MASK_FILE_SYSTEMS |
                          StoragePartition::REMOVE_DATA_MASK_INDEXEDDB |
-                         StoragePartition::REMOVE_DATA_MASK_LOCAL_STORAGE |
-                         StoragePartition::REMOVE_DATA_MASK_WEBSQL;
+                         StoragePartition::REMOVE_DATA_MASK_LOCAL_STORAGE;
   GetStoragePartition()->ClearData(
       remove_mask, StoragePartition::QUOTA_MANAGED_STORAGE_MASK_TEMPORARY,
       blink::StorageKey(), base::Time(), base::Time::Max(), base::DoNothing());
@@ -307,8 +301,7 @@ void AwQuotaManagerBridge::DeleteOriginFramework(
   StoragePartition* storage_partition = GetStoragePartition();
   // All (temporary) QuotaClient types.
   uint32_t remove_mask = StoragePartition::REMOVE_DATA_MASK_FILE_SYSTEMS |
-                         StoragePartition::REMOVE_DATA_MASK_INDEXEDDB |
-                         StoragePartition::REMOVE_DATA_MASK_WEBSQL;
+                         StoragePartition::REMOVE_DATA_MASK_INDEXEDDB;
   storage_partition->ClearDataForOrigin(
       remove_mask, StoragePartition::QUOTA_MANAGED_STORAGE_MASK_TEMPORARY,
       GURL(origin_string), base::DoNothing());
@@ -356,7 +349,6 @@ void OnUsageAndQuotaObtained(
 
 void AwQuotaManagerBridge::GetUsageAndQuotaForOrigin(
     JNIEnv* env,
-    const JavaParamRef<jobject>& object,
     const JavaParamRef<jstring>& origin,
     const JavaParamRef<jobject>& callback,
     bool is_quota) {

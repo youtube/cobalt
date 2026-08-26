@@ -191,6 +191,7 @@ rtc_library("deprecated_unittests") {
     ":deprecated_receiver",
     ":deprecated_session_info",
     ":deprecated_stream_generator",
+    "../../../api:field_trials",
     "../../../api:rtp_headers",
     "../../../api/units:time_delta",
     "../../../api/video:video_frame",
@@ -202,7 +203,7 @@ rtc_library("deprecated_unittests") {
     "../../../modules/video_coding/timing:timing_module",
     "../../../rtc_base:checks",
     "../../../system_wrappers",
-    "../../../test:scoped_key_value_config",
+    "../../../test:create_test_field_trials",
     "../../../test:test_support",
     "//third_party/abseil-cpp/absl/memory",
   ]

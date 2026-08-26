@@ -7,7 +7,6 @@
 #include <algorithm>
 
 #include "base/command_line.h"
-#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "cc/paint/paint_canvas.h"
@@ -21,11 +20,10 @@ namespace {
 
 // UX Requirements:
 constexpr int kWatermarkBlockSpacing = 80;
-constexpr int kWatermarkBlockWidth = 350;
 constexpr double kRotationAngle = 45;
-constexpr float kTextSize = 24.0f;
+constexpr double kWatermarkBlockWidthToFontSizeRatio = 350.0 / 24.0;
 
-gfx::Font WatermarkFont() {
+gfx::Font WatermarkFont(int font_size) {
   return gfx::Font(
 #if BUILDFLAG(IS_WIN)
       "Segoe UI",
@@ -38,12 +36,7 @@ gfx::Font WatermarkFont() {
 #else
       "sans-serif",
 #endif
-      kTextSize);
-}
-
-const gfx::FontList& WatermarkFontList() {
-  static base::NoDestructor<gfx::FontList> font_list(WatermarkFont());
-  return *font_list;
+      font_size);
 }
 
 gfx::Font::Weight WatermarkFontWeight() {
@@ -56,18 +49,25 @@ gfx::Font::Weight WatermarkFontWeight() {
 
 std::unique_ptr<gfx::RenderText> CreateRenderText(const gfx::Rect& display_rect,
                                                   const std::u16string& text,
-                                                  const SkColor color) {
+                                                  const SkColor color,
+                                                  const int font_size) {
   auto render_text = gfx::RenderText::CreateRenderText();
   render_text->set_clip_to_display_rect(false);
-  render_text->SetFontList(WatermarkFontList());
+  render_text->SetFontList(gfx::FontList(WatermarkFont(font_size)));
   render_text->SetWeight(WatermarkFontWeight());
   render_text->SetDisplayOffset(gfx::Vector2d(0, 0));
+  render_text->SetVerticalAlignment(gfx::VerticalAlignment::ALIGN_TOP);
   render_text->SetDisplayRect(display_rect);
   render_text->SetText(text);
   render_text->SetMultiline(true);
   render_text->SetWordWrapBehavior(gfx::WRAP_LONG_WORDS);
   render_text->SetColor(color);
   return render_text;
+}
+
+int GetWatermarkBlockWidth(int font_size) {
+  double ideal_width = font_size * kWatermarkBlockWidthToFontSizeRatio;
+  return base::ClampRound<int>(ideal_width);
 }
 
 int block_width_offset(int block_width) {
@@ -130,12 +130,6 @@ int max_x(double angle, const SkSize& bounds, int block_width) {
   // An extra `block_width_offset()` length is added so that the last column for
   // staggered rows doesn't appear on resizes.
   return cos(angle) * bounds.width() + block_width_offset(block_width);
-}
-
-int min_y(double angle, const SkSize& bounds) {
-  // Instead of starting at Y=0, starting at `kTextSize` lets the first line of
-  // text be in frame as text is drawn with (0,0) as the bottom-left corner.
-  return kTextSize;
 }
 
 int max_y(double angle, const SkSize& bounds) {
@@ -246,8 +240,11 @@ void DrawWatermark(WatermarkBlockRenderer* watermark_block_renderer,
   for (int x = min_x(kRotationAngle, contents_bounds, block_width);
        x <= upper_x; x += block_width_offset(block_width)) {
     bool apply_stagger = false;
-    for (int y = min_y(kRotationAngle, contents_bounds); y < upper_y;
-         y += block_height_offset(block_height)) {
+
+    // The vertical alignment of the watermark's RenderText is set to
+    // ALIGN_TOP. Starting at Y=0 with this setting aligns the top edge of the
+    // text with the top edge of the contents area.
+    for (int y = 0; y < upper_y; y += block_height_offset(block_height)) {
       // Every other row, stagger the text horizontally to give a
       // "brick tiling" effect.
       int stagger = apply_stagger ? block_width_offset(block_width) / 2 : 0;
@@ -266,18 +263,21 @@ namespace enterprise_watermark {
 int GetWatermarkBlockHeight(const std::u16string& utf16_text,
                             int line_count,
                             int block_width,
-                            int text_size) {
+                            int font_size) {
   int line_height = 0;
-  gfx::Canvas::SizeStringInt(utf16_text, WatermarkFontList(), &block_width,
-                             &line_height, text_size, gfx::Canvas::NO_ELLIPSIS);
+  gfx::FontList font_list(WatermarkFont(font_size));
+  int calculated_width = block_width;
+  gfx::Canvas::SizeStringInt(utf16_text, font_list, &calculated_width,
+                             &line_height, font_size, gfx::Canvas::NO_ELLIPSIS);
   return line_height * line_count;
 }
 
 std::unique_ptr<gfx::RenderText> CreateFillRenderText(
     const gfx::Rect& display_rect,
     const std::u16string& text,
-    const SkColor color) {
-  auto render_text = CreateRenderText(display_rect, text, color);
+    SkColor color,
+    int font_size) {
+  auto render_text = CreateRenderText(display_rect, text, color, font_size);
   render_text->SetFillStyle(cc::PaintFlags::kFill_Style);
   return render_text;
 }
@@ -285,8 +285,9 @@ std::unique_ptr<gfx::RenderText> CreateFillRenderText(
 std::unique_ptr<gfx::RenderText> CreateOutlineRenderText(
     const gfx::Rect& display_rect,
     const std::u16string& text,
-    const SkColor color) {
-  auto render_text = CreateRenderText(display_rect, text, color);
+    SkColor color,
+    int font_size) {
+  auto render_text = CreateRenderText(display_rect, text, color, font_size);
   render_text->SetFillStyle(cc::PaintFlags::kStroke_Style);
   return render_text;
 }
@@ -311,11 +312,12 @@ void DrawWatermark(SkCanvas* canvas,
 
 WatermarkBlock DrawWatermarkToPaintRecord(const std::string& watermark_text,
                                           SkColor fill_color,
-                                          SkColor outline_color) {
+                                          SkColor outline_color,
+                                          int font_size) {
   std::u16string utf16_text = base::UTF8ToUTF16(watermark_text);
 
   WatermarkBlock watermark_block;
-  watermark_block.width = kWatermarkBlockWidth;
+  watermark_block.width = GetWatermarkBlockWidth(font_size);
 
   // The coordinates here do not matter as the display rect will change for
   // each drawn block.
@@ -323,14 +325,15 @@ WatermarkBlock DrawWatermarkToPaintRecord(const std::string& watermark_text,
   cc::PaintCanvas* paint_canvas = recorder.beginRecording();
   if (!watermark_text.empty()) {
     gfx::Rect display_rect(0, 0, watermark_block.width, 0);
-    auto text_fill = CreateFillRenderText(display_rect, utf16_text, fill_color);
-    auto text_outline =
-        CreateOutlineRenderText(display_rect, utf16_text, outline_color);
+    auto text_fill =
+        CreateFillRenderText(display_rect, utf16_text, fill_color, font_size);
+    auto text_outline = CreateOutlineRenderText(display_rect, utf16_text,
+                                                outline_color, font_size);
     gfx::Canvas gfx_canvas(paint_canvas, 1.0f);
     text_fill->Draw(&gfx_canvas);
     text_outline->Draw(&gfx_canvas);
     watermark_block.height = GetWatermarkBlockHeight(
-        utf16_text, text_fill->GetNumLines(), watermark_block.width, kTextSize);
+        utf16_text, text_fill->GetNumLines(), watermark_block.width, font_size);
   } else {
     watermark_block.height = 0;
   }
@@ -343,10 +346,10 @@ void DrawWatermark(SkCanvas* canvas,
                    SkSize size,
                    const std::string& text,
                    int block_width,
-                   int text_size) {
-  WatermarkBlock block =
-      DrawWatermarkToPaintRecord(text, SkColorSetARGB(0xb, 0x00, 0x00, 0x00),
-                                 SkColorSetARGB(0x11, 0xff, 0xff, 0xff));
+                   int font_size) {
+  WatermarkBlock block = DrawWatermarkToPaintRecord(
+      text, SkColorSetARGB(0xb, 0x00, 0x00, 0x00),
+      SkColorSetARGB(0x11, 0xff, 0xff, 0xff), font_size);
   cc::SkiaPaintCanvas skp_canvas(canvas);
   DrawWatermark(&skp_canvas, &block.record, block.width, block.height, size);
 }

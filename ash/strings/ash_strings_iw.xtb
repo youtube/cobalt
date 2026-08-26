@@ -21,7 +21,6 @@
 <translation id="1056898198331236512">אזהרה</translation>
 <translation id="1058009965971887428">שליחת דוח משוב</translation>
 <translation id="1059120031266247284">קובץ ששותף איתך</translation>
-<translation id="1059194134494239015"><ph name="DISPLAY_NAME" />: <ph name="RESOLUTION" /></translation>
 <translation id="1060847216467038176">‫<ph name="ITEM_LABEL" /> עם כפתור הסרה</translation>
 <translation id="1062407476771304334">החלפה</translation>
 <translation id="1073899992769346247">צריך להחליף את הסוללה או לטעון אותה</translation>
@@ -540,7 +539,6 @@
 <translation id="2814448776515246190">צילום חלקי</translation>
 <translation id="2819276065543622893">המערכת תוציא אותך עכשיו מהחשבון.</translation>
 <translation id="2822551631199737692">המצלמה נמצאת בשימוש</translation>
-<translation id="2825224105325558319">התצוגה של <ph name="DISPLAY_NAME" /> לא תומכת ברזולוציה <ph name="SPECIFIED_RESOLUTION" />. הרזולוציה שונתה ל-<ph name="FALLBACK_RESOLUTION" />.</translation>
 <translation id="2825619548187458965">מדף</translation>
 <translation id="2831035692318564937">התכונה פעילה עד הזריחה</translation>
 <translation id="2834813915651407382">נפתח לאחרונה</translation>
@@ -605,8 +603,6 @@
 <translation id="3026897869154397692">האירוע נוסף ליומן</translation>
 <translation id="3033545621352269033">מופעל</translation>
 <translation id="3033912566804961911">שילוב עם <ph name="DESK_NAME" /></translation>
-<translation id="3036649622769666520">פתיחת קבצים</translation>
-<translation id="3038571455154067151">‏כדי להיכנס יש להזין את קוד הגישה להורים (הקוד מ-Family Link)</translation>
 <translation id="3039939407102840004">רמת הטעינה של סוללת הסטיילוס: <ph name="PERCENTAGE" />.</translation>
 <translation id="304097922505898963">פתיחת האפליקציה 'מקשי הקיצור'</translation>
 <translation id="304417730895741346">האפליקציות המוצמדות והפתוחות נמצאות על המדף. כדי להצמיד אפליקציה למדף, לוחצים לחיצה ימנית על אפליקציה או לוחצים על לוח המגע בשתי אצבעות.</translation>
@@ -761,6 +757,7 @@
 <translation id="3552189655002856821">‏Wi-Fi כבוי</translation>
 <translation id="3554215588514239132">הצגה או הסתרה של חלונית הכלים למפתחים</translation>
 <translation id="3554637740840164787">הפריט <ph name="ITEM_TITLE" /> הוצמד</translation>
+<translation id="3554928024630051016">‏כדי להוסיף עוד התקני USB, אפשר לנסות להסיר התקן אחד ואז לחבר את ההתקן החדש</translation>
 <translation id="3558768885091059911">להפעיל את הגישה למצלמה ולמיקרופון?</translation>
 <translation id="3560174576767922131">צילום סרטון</translation>
 <translation id="3563775809269155755">הפעלת נקודה לשיתוף אינטרנט</translation>
@@ -868,6 +865,7 @@
 <translation id="3861651314799684201">‏כדי להקליט את המסך המלא, מקישים על Enter</translation>
 <translation id="3870197372373144624">כדאי לנסות לכבות את המכשיר.</translation>
 <translation id="3879748587602334249">מנהל ההורדות</translation>
+<translation id="3884007280698606545">‏חיברת את המספר המקסימלי של התקני USB</translation>
 <translation id="3886872229787704059">נפתח היום</translation>
 <translation id="3891340733213178823">‏יש להקיש פעמיים על Ctrl+Shift+Q כדי לצאת.</translation>
 <translation id="3892148308691398805">העתקת הטקסט</translation>
@@ -1012,6 +1010,7 @@
 <translation id="4305817255990598646">מעבר</translation>
 <translation id="4307713728991152670">הגדרת ההצגה של התמונות, המדיה והאפליקציות שבטלפון מהזמן האחרון</translation>
 <translation id="4312840429157639164">המצלמה מוצמדת לפינה השמאלית העליונה. התנגשות עם תצוגת המערכת.</translation>
+<translation id="4312935606722154789">קיבוץ או ביטול הקיבוץ של שני חלונות אחד ליד השני</translation>
 <translation id="4316910396681052118">כל האפליקציות</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">‏הסתרת כל ההצעות בדפדפן Chrome</translation>
@@ -1451,7 +1450,6 @@
 <translation id="5691772641933328258">טביעת האצבע לא זוהתה</translation>
 <translation id="5693255400847650006">המיקרופון נמצא בשימוש</translation>
 <translation id="5699366815052349604">הקצאת חלון פעיל לכל שולחנות העבודה הווירטואליים</translation>
-<translation id="5701785125601597013">‏בעזרת Phone Hub, אפשר לשלוח הודעות בטלפון או להשיב להן במהירות</translation>
 <translation id="570390244361237317">כל האפליקציות, מנווטים בעזרת מקשי החיצים כדי לגשת לכל האפליקציות</translation>
 <translation id="5705197514573687092">הצגת ההגדרות של מצב הריכוז. הוגדר טיימר ל-<ph name="FOCUS_DURATION" />.</translation>
 <translation id="5707775774148071965">קצב התקשורת של הכבל נמוך מזה של המכשיר. יכול להיות שביצועי המכשיר יוגבלו.</translation>
@@ -1581,7 +1579,6 @@
 <translation id="6095425951508823973">הוספת חיבור באמצעות <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">נערך בחודש האחרון</translation>
 <translation id="6103838137565245112">מערכת</translation>
-<translation id="610395411842312282">קיבוץ שני חלונות אחד ליד השני</translation>
 <translation id="6108952804512516814">‏יצירה באמצעות AI</translation>
 <translation id="6114505516289286752">הורדת קובצי הדיבור של <ph name="LANGUAGE" /> הסתיימה</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>
@@ -1605,7 +1602,6 @@
 <translation id="6166852626429024716">חיפוש במכשיר, באפליקציות, בהגדרות, באינטרנט...</translation>
 <translation id="6168318496333165060">פתיחת האפליקציה 'אבחון'</translation>
 <translation id="6168622430237609329">האפליקציות המותקנות</translation>
-<translation id="6179832488876878285">כאן אפשר להצמיד את הקבצים החשובים. יש לפתוח את אפליקציית 'קבצים' כדי להתחיל.</translation>
 <translation id="6180193585172850042">כפתור 'הקודם'</translation>
 <translation id="6180651297859206670">כפתור 'הבא'</translation>
 <translation id="6182592640011875895">פתיחת שולחן העבודה</translation>
@@ -1638,7 +1634,6 @@
 <translation id="6267036997247669271"><ph name="NAME" />: בהפעלה...</translation>
 <translation id="6274202259872570803">הקלטת מסך</translation>
 <translation id="6276708887952587684">הצגת מקור הדף</translation>
-<translation id="6284232397434400372">הרזולוציה השתנתה</translation>
 <translation id="6285871695023807425">הוספה ליומן</translation>
 <translation id="6288235558961782912">ניתן יהיה להוסיף את <ph name="USER_EMAIL_ADDRESS" /> מחדש מאוחר יותר לאחר שיתקבל אישור של הורה.</translation>
 <translation id="6291221004442998378">לא בטעינה</translation>
@@ -1686,7 +1681,6 @@
 <translation id="6452181791372256707">דחייה</translation>
 <translation id="6453179446719226835">שינוי השפה הסתיים</translation>
 <translation id="6456096448804832585">אפשר להציג רק לאורך</translation>
-<translation id="6459472438155181876">הרחבת המסך אל <ph name="DISPLAY_NAME" /> מתבצעת</translation>
 <translation id="6464094930452079790">תמונות</translation>
 <translation id="6467290994038932560">מופעלים למשחק <ph name="GAME_APP_NAME" /></translation>
 <translation id="6468406072297048412">{0,plural, =1{עליך לעדכן את המכשיר לגרסה הקודמת בתוך דקה}one{עליך לעדכן את המכשיר לגרסה הקודמת בתוך # דקות}two{עליך לעדכן את המכשיר לגרסה הקודמת בתוך # דקות}other{עליך לעדכן את המכשיר לגרסה הקודמת בתוך # דקות}}</translation>
@@ -1919,6 +1913,7 @@
 <translation id="7240636904654154599">‏נוצר גיליון אלקטרוני ב-Google Sheets</translation>
 <translation id="7244725679040769470">רמת הטעינה שנותרה בסוללה: %<ph name="PERCENTAGE" />. צריך לחבר את המכשיר למקור חשמל.</translation>
 <translation id="7246071203293827765">‏<ph name="UPDATE_TEXT" />. יש להפעיל את ה-Chromebook מחדש כדי להחיל עדכון. התהליך עשוי להימשך עד דקה אחת.</translation>
+<translation id="7248100343060254997">חיפוש במסך שלי</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">מיקרופון אחורי</translation>
 <translation id="7258828758145722155">נערך אתמול</translation>
@@ -2420,7 +2415,6 @@
 <translation id="8876148469852588625">אירוע <ph name="EVENT_POSITION" /> מתוך <ph name="EVENT_TOTAL_COUNT" /></translation>
 <translation id="8876661425082386199">מומלץ לבדוק את החיבור</translation>
 <translation id="8877788021141246043">הגדרת תזכורת</translation>
-<translation id="8878886163241303700">מסך מתרחב</translation>
 <translation id="8885424115080869847">‏לא ניתן להתחבר ל-YouTube Music</translation>
 <translation id="888982883502837004">יש עדכוני קושחה למכשיר שלך. צריך ללחוץ כדי לבדוק ולעדכן.</translation>
 <translation id="8896630965521842259">התבנית <ph name="DESK_TEMPLATE_NAME" /> תימחק באופן סופי</translation>

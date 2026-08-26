@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
+import org.chromium.base.Callback;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ThreadUtils;
 import org.chromium.chrome.browser.app.tabmodel.AsyncTabParamsManagerSingleton;
@@ -76,8 +77,8 @@ public class TabModelSelectorObserverTestRule extends ChromeBrowserTestRule {
                     public void requestToShowTab(Tab tab, int type) {}
 
                     @Override
-                    public boolean isSessionRestoreInProgress() {
-                        return false;
+                    public boolean isTabModelRestored() {
+                        return true;
                     }
 
                     @Override
@@ -113,8 +114,8 @@ public class TabModelSelectorObserverTestRule extends ChromeBrowserTestRule {
                     public void requestToShowTab(Tab tab, @TabSelectionType int type) {}
 
                     @Override
-                    public boolean isSessionRestoreInProgress() {
-                        return false;
+                    public boolean isTabModelRestored() {
+                        return true;
                     }
 
                     @Override
@@ -174,10 +175,9 @@ public class TabModelSelectorObserverTestRule extends ChromeBrowserTestRule {
                         delegate,
                         incognitoTabRemover);
 
-        TabUngrouperFactory factory =
-                (isIncognitoBranded, tabGroupModelFilterSupplier) ->
-                        new PassthroughTabUngrouper(tabGroupModelFilterSupplier);
-        mSelector.initialize(mNormalTabModel, mIncognitoTabModel, factory);
+        mSelector.initialize(
+                TabModelHolderFactory.createTabModelHolderForTesting(mNormalTabModel),
+                TabModelHolderFactory.createIncognitoTabModelHolderForTesting(mIncognitoTabModel));
     }
 
     /** Test TabModel that exposes the needed capabilities for testing. */
@@ -206,7 +206,15 @@ public class TabModelSelectorObserverTestRule extends ChromeBrowserTestRule {
                     modelDelegate,
                     tabRemover,
                     /* supportUndo= */ false,
-                    /* isArchivedTabModel= */ true);
+                    /* isArchivedTabModel= */ false);
+        }
+
+        @Override
+        public void initializeNative(int activityType, boolean isArchivedTabModel) {
+            // Skip setting up the TabModelObserverJniBridge by using isArchivedTabModel = true.
+            // Initializing this leads to unexpected observers being added and crashes due to
+            // mObserverSet not being initialized. This test should be refactored.
+            super.initializeNative(activityType, /* isArchivedTabModel= */ true);
         }
 
         @Override
@@ -220,6 +228,9 @@ public class TabModelSelectorObserverTestRule extends ChromeBrowserTestRule {
             super.removeObserver(observer);
             mObserverSet.remove(observer);
         }
+
+        @Override
+        public void addDelegateModelObserver(Callback<TabModelInternal> callback) {}
 
         @Override
         public void addIncognitoObserver(IncognitoTabModelObserver observer) {}

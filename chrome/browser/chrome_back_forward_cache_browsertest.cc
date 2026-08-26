@@ -16,10 +16,12 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/content_settings/mixed_content_settings_tab_helper.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/task_manager/task_manager_tester.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/content_settings/content_setting_bubble_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/grit/generated_resources.h"
@@ -138,6 +140,11 @@ class ChromeBackForwardCacheBrowserTest : public InProcessBrowserTest {
   std::unique_ptr<base::HistogramTester> histogram_tester_;
 
  private:
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList scoped_prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
+
   base::test::ScopedFeatureList scoped_feature_list_;
   logging::ScopedVmoduleSwitches vmodule_switches_;
 };
@@ -219,7 +226,7 @@ IN_PROC_BROWSER_TEST_F(ChromeBackForwardCacheBrowserTest, BasicIframe) {
 }
 
 IN_PROC_BROWSER_TEST_F(ChromeBackForwardCacheBrowserTest,
-                       PermissionContextBase) {
+                       ContentSettingPermissionContextBase) {
   // HTTPS needed for GEOLOCATION permission
   net::EmbeddedTestServer https_server(net::EmbeddedTestServer::TYPE_HTTPS);
   https_server.AddDefaultHandlers(GetChromeTestDataDir());
@@ -380,7 +387,7 @@ IN_PROC_BROWSER_TEST_F(ChromeBackForwardCacheBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents());
   std::unique_ptr<ContentSettingBubbleModel> model(
       ContentSettingBubbleModel::CreateContentSettingBubbleModel(
-          browser()->content_setting_bubble_model_delegate(),
+          browser()->GetFeatures().content_setting_bubble_model_delegate(),
           browser()->tab_strip_model()->GetActiveWebContents(),
           ContentSettingsType::MIXEDSCRIPT));
   model->OnCustomLinkClicked();
@@ -918,7 +925,8 @@ IN_PROC_BROWSER_TEST_P(
 }
 
 // Flaky: crbug.com/40935990
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_WIN)
 #define MAYBE_DoesNotCachePageWithEmbeddedPdfAppendedOnPageLoaded \
   DISABLED_DoesNotCachePageWithEmbeddedPdfAppendedOnPageLoaded
 #else

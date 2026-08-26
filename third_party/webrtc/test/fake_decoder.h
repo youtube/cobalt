@@ -11,15 +11,13 @@
 #ifndef TEST_FAKE_DECODER_H_
 #define TEST_FAKE_DECODER_H_
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <memory>
 
 #include "api/task_queue/task_queue_base.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/video/encoded_image.h"
 #include "api/video_codecs/video_decoder.h"
-#include "modules/video_coding/include/video_codec_interface.h"
 
 namespace webrtc {
 namespace test {

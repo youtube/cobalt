@@ -18,6 +18,7 @@
 #include "base/moving_window.h"
 #include "base/types/expected.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "third_party/microsoft_dxheaders/src/include/composition/dcomp-preview.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/overlay_layer_id.h"
 #include "ui/gl/dc_layer_overlay_params.h"
@@ -170,6 +171,7 @@ class GL_EXPORT DCLayerTree {
               bool disable_vp_auto_hdr,
               bool disable_vp_scaling,
               bool disable_vp_super_resolution,
+              bool disable_dc_letterbox_video_optimization,
               bool force_dcomp_triple_buffer_video_swap_chain,
               bool no_downscaled_overlay_promotion);
 
@@ -206,6 +208,10 @@ class GL_EXPORT DCLayerTree {
 
   bool disable_vp_super_resolution() const {
     return disable_vp_super_resolution_;
+  }
+
+  bool disable_dc_letterbox_video_optimization() const {
+    return disable_dc_letterbox_video_optimization_;
   }
 
   bool force_dcomp_triple_buffer_video_swap_chain() const {
@@ -520,8 +526,11 @@ class GL_EXPORT DCLayerTree {
   const bool disable_vp_auto_hdr_;
   const bool disable_vp_scaling_;
   const bool disable_vp_super_resolution_;
+  const bool disable_dc_letterbox_video_optimization_;
   const bool force_dcomp_triple_buffer_video_swap_chain_;
   const bool no_downscaled_overlay_promotion_;
+
+  const bool tint_video_layer_;
 
   HWND window_;
   Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device_;
@@ -544,6 +553,18 @@ class GL_EXPORT DCLayerTree {
 
   // Root direct composition visual for window dcomp target.
   Microsoft::WRL::ComPtr<IDCompositionVisual2> dcomp_root_visual_;
+
+  // If supported, a surface that is updated with the contents of the primary
+  // plane. If not supported, null.
+  Microsoft::WRL::ComPtr<PREVIEW_IDCompositionDynamicTexture>
+      primary_plane_surface_;
+
+  // This is a number that increments once every time `primary_plane_surface_`
+  // is updated, and is used to determine when the contents have changed so
+  // `Commit()` needs to be called on the device.
+  //
+  // Similar to: `DCLayerOverlayImage::dcomp_surface_serial_`
+  uint64_t primary_plane_surface_serial_ = 0;
 
   // Map of layer ID to swap chain presenters for previous frame.
   base::flat_map<gfx::OverlayLayerId, std::unique_ptr<SwapChainPresenter>>

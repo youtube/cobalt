@@ -7,11 +7,13 @@
 #include <optional>
 
 #include "base/strings/string_number_conversions.h"
+#include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/webid/federated_auth_request_impl.h"
 #include "content/browser/webid/federated_auth_request_page_data.h"
-#include "content/public/browser/federated_identity_api_permission_context_delegate.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/webid/federated_identity_api_permission_context_delegate.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 
 namespace content {
 namespace {
@@ -104,7 +106,8 @@ void FedCmHandler::DidShowDialog() {
       FedCm::LoginState login_state;
       std::optional<std::string> tos_url;
       std::optional<std::string> pp_url;
-      switch (*account->login_state) {
+      switch (account->idp_claimed_login_state.value_or(
+          account->browser_trusted_login_state)) {
         case IdentityRequestAccount::LoginState::kSignUp:
           login_state = FedCm::LoginStateEnum::SignUp;
           // Because TOS and PP URLs are only used when the login state is
@@ -219,8 +222,7 @@ DispatchResponse FedCmHandler::OpenUrl(
   } else {
     return DispatchResponse::InvalidParams("Invalid account URL type");
   }
-  if (!url.is_valid() ||
-      account->login_state != IdentityRequestAccount::LoginState::kSignUp) {
+  if (!url.is_valid() || account->fields.empty()) {
     return DispatchResponse::InvalidParams(
         "Account does not have requested URL");
   }

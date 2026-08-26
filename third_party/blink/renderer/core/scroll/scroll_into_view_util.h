@@ -22,6 +22,7 @@ namespace blink {
 
 class LayoutObject;
 class LayoutView;
+class LayoutBox;
 struct PhysicalRect;
 class ScrollableArea;
 class ComputedStyle;
@@ -39,7 +40,8 @@ void CORE_EXPORT ScrollRectToVisible(const LayoutObject& target,
                                      const PhysicalRect&,
                                      mojom::blink::ScrollIntoViewParamsPtr,
                                      const LayoutObject* container = nullptr,
-                                     bool from_remote_frame = false);
+                                     bool from_remote_frame = false,
+                                     bool include_self = true);
 
 // ScrollFocusedEditableIntoView uses the caret rect for ScrollIntoView but
 // stores enough information in `params` so that the editable element's bounds
@@ -66,6 +68,10 @@ ScrollOffset GetScrollOffsetToExpose(
     const PhysicalBoxStrut& expose_scroll_margin,
     const mojom::blink::ScrollAlignment& align_x,
     const mojom::blink::ScrollAlignment& align_y);
+
+ScrollableArea* GetScrollableAreaForLayoutBox(
+    const LayoutBox& box,
+    bool make_visible_in_visual_viewport);
 
 mojom::blink::ScrollAlignment ResolveToPhysicalAlignment(
     V8ScrollLogicalPosition::Enum inline_alignment,

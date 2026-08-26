@@ -30,7 +30,6 @@
 #include "rtc_base/experiments/encoder_info_settings.h"
 #include "test/call_test.h"
 #include "test/fake_encoder.h"
-#include "test/field_trial.h"
 #include "test/frame_generator_capturer.h"
 #include "test/gtest.h"
 #include "test/video_encoder_proxy_factory.h"
@@ -228,12 +227,11 @@ class InitEncodeTest : public test::EndToEndTest,
 };
 
 TEST_P(ResolutionBitrateLimitsTest, LimitsApplied) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:921600,"
-      "min_start_bitrate_bps:0,"
-      "min_bitrate_bps:32000,"
-      "max_bitrate_bps:3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:921600,"
+                     "min_start_bitrate_bps:0,"
+                     "min_bitrate_bps:32000,"
+                     "max_bitrate_bps:3333000");
 
   InitEncodeTest test(env(), payload_name_, {{.active = true}},
                       // Expectations:
@@ -272,12 +270,11 @@ TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
 }
 TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
        OneStreamLimitsAppliedForOneSpatialLayer) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:921600,"
-      "min_start_bitrate_bps:0,"
-      "min_bitrate_bps:32000,"
-      "max_bitrate_bps:3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:921600,"
+                     "min_start_bitrate_bps:0,"
+                     "min_bitrate_bps:32000,"
+                     "max_bitrate_bps:3333000");
 
   InitEncodeTest test(
       env(), "VP9",
@@ -291,12 +288,11 @@ TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
 
 TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
        OneStreamLimitsNotAppliedForMultipleSpatialLayers) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:21000|32000,"
-      "max_bitrate_bps:2222000|3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:21000|32000,"
+                     "max_bitrate_bps:2222000|3333000");
 
   InitEncodeTest test(
       env(), "VP9",
@@ -324,12 +320,11 @@ TEST_P(ResolutionBitrateLimitsTest, EncodingsApplied) {
 }
 
 TEST_P(ResolutionBitrateLimitsTest, IntersectionApplied) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:921600,"
-      "min_start_bitrate_bps:0,"
-      "min_bitrate_bps:32000,"
-      "max_bitrate_bps:3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:921600,"
+                     "min_start_bitrate_bps:0,"
+                     "min_bitrate_bps:32000,"
+                     "max_bitrate_bps:3333000");
 
   InitEncodeTest test(env(), payload_name_,
                       {{.active = true,
@@ -343,12 +338,11 @@ TEST_P(ResolutionBitrateLimitsTest, IntersectionApplied) {
 }
 
 TEST_P(ResolutionBitrateLimitsTest, LimitsAppliedMiddleActive) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:21000|32000,"
-      "max_bitrate_bps:2222000|3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:21000|32000,"
+                     "max_bitrate_bps:2222000|3333000");
 
   InitEncodeTest test(env(), payload_name_,
                       {{.active = false}, {.active = true}, {.active = false}},
@@ -360,12 +354,11 @@ TEST_P(ResolutionBitrateLimitsTest, LimitsAppliedMiddleActive) {
 }
 
 TEST_P(ResolutionBitrateLimitsTest, EncodingMinMaxBitrateAppliedMiddleActive) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:31000|32000,"
-      "max_bitrate_bps:1111000|3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:31000|32000,"
+                     "max_bitrate_bps:1111000|3333000");
 
   InitEncodeTest test(env(), payload_name_,
                       {{.active = false,
@@ -383,12 +376,11 @@ TEST_P(ResolutionBitrateLimitsTest, EncodingMinMaxBitrateAppliedMiddleActive) {
 }
 
 TEST_P(ResolutionBitrateLimitsTest, MinBitrateNotAboveEncodingMax) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:31000|32000,"
-      "max_bitrate_bps:1111000|3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:31000|32000,"
+                     "max_bitrate_bps:1111000|3333000");
 
   InitEncodeTest test(
       env(), payload_name_,
@@ -404,12 +396,11 @@ TEST_P(ResolutionBitrateLimitsTest, MinBitrateNotAboveEncodingMax) {
 }
 
 TEST_P(ResolutionBitrateLimitsTest, MaxBitrateNotBelowEncodingMin) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:21000|22000,"
-      "max_bitrate_bps:31000|32000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:21000|22000,"
+                     "max_bitrate_bps:31000|32000");
 
   InitEncodeTest test(
       env(), payload_name_,
@@ -464,12 +455,11 @@ TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
 }
 
 TEST_P(ResolutionBitrateLimitsTest, LimitsAppliedHighestActive) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:31000|32000,"
-      "max_bitrate_bps:2222000|3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:31000|32000,"
+                     "max_bitrate_bps:2222000|3333000");
 
   InitEncodeTest test(env(), payload_name_,
                       {{.active = false}, {.active = false}, {.active = true}},
@@ -481,12 +471,11 @@ TEST_P(ResolutionBitrateLimitsTest, LimitsAppliedHighestActive) {
 }
 
 TEST_P(ResolutionBitrateLimitsTest, EncodingMinMaxBitrateAppliedHighestActive) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:31000|32000,"
-      "max_bitrate_bps:555000|1111000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:31000|32000,"
+                     "max_bitrate_bps:555000|1111000");
 
   InitEncodeTest test(env(), payload_name_,
                       {{.active = false,
@@ -506,12 +495,11 @@ TEST_P(ResolutionBitrateLimitsTest, EncodingMinMaxBitrateAppliedHighestActive) {
 }
 
 TEST_P(ResolutionBitrateLimitsTest, LimitsNotAppliedLowestActive) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:31000|32000,"
-      "max_bitrate_bps:2222000|3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:31000|32000,"
+                     "max_bitrate_bps:2222000|3333000");
 
   InitEncodeTest test(env(), payload_name_,
                       {{.active = true}, {.active = false}},
@@ -527,12 +515,11 @@ TEST_P(ResolutionBitrateLimitsTest, LimitsNotAppliedLowestActive) {
 
 TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
        LimitsAppliedForVp9OneSpatialLayer) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:31000|32000,"
-      "max_bitrate_bps:2222000|3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:31000|32000,"
+                     "max_bitrate_bps:2222000|3333000");
 
   InitEncodeTest test(
       env(), "VP9",
@@ -547,12 +534,11 @@ TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
 
 TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
        LimitsNotAppliedForVp9MultipleSpatialLayers) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:31000|32000,"
-      "max_bitrate_bps:2222000|3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:31000|32000,"
+                     "max_bitrate_bps:2222000|3333000");
 
   InitEncodeTest test(
       env(), "VP9",
@@ -570,12 +556,11 @@ TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
 
 TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
        OneStreamLimitsAppliedForAv1OneSpatialLayer) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:921600,"
-      "min_start_bitrate_bps:0,"
-      "min_bitrate_bps:32000,"
-      "max_bitrate_bps:133000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:921600,"
+                     "min_start_bitrate_bps:0,"
+                     "min_bitrate_bps:32000,"
+                     "max_bitrate_bps:133000");
 
   InitEncodeTest test(
       env(), "AV1",
@@ -589,12 +574,11 @@ TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
 
 TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
        LimitsAppliedForAv1SingleSpatialLayer) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:25000|80000,"
-      "max_bitrate_bps:400000|1200000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:25000|80000,"
+                     "max_bitrate_bps:400000|1200000");
 
   InitEncodeTest test(
       env(), "AV1",
@@ -609,12 +593,11 @@ TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
 
 TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
        EncodingMinMaxBitrateAppliedForAv1SingleSpatialLayer) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:921600,"
-      "min_start_bitrate_bps:0,"
-      "min_bitrate_bps:32000,"
-      "max_bitrate_bps:99000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:921600,"
+                     "min_start_bitrate_bps:0,"
+                     "min_bitrate_bps:32000,"
+                     "max_bitrate_bps:99000");
 
   InitEncodeTest test(env(), "AV1",
                       {{.active = true,
@@ -631,12 +614,11 @@ TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
 
 TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
        LimitsNotAppliedForAv1MultipleSpatialLayers) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:20000|25000,"
-      "max_bitrate_bps:900000|1333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:20000|25000,"
+                     "max_bitrate_bps:900000|1333000");
 
   InitEncodeTest test(
       env(), "AV1",
@@ -653,12 +635,11 @@ TEST_F(ResolutionBitrateLimitsWithScalabilityModeTest,
 }
 
 TEST_P(ResolutionBitrateLimitsTest, LimitsNotAppliedSimulcast) {
-  test::ScopedFieldTrials field_trials(
-      "WebRTC-GetEncoderInfoOverride/"
-      "frame_size_pixels:230400|921600,"
-      "min_start_bitrate_bps:0|0,"
-      "min_bitrate_bps:31000|32000,"
-      "max_bitrate_bps:2222000|3333000/");
+  field_trials().Set("WebRTC-GetEncoderInfoOverride",
+                     "frame_size_pixels:230400|921600,"
+                     "min_start_bitrate_bps:0|0,"
+                     "min_bitrate_bps:31000|32000,"
+                     "max_bitrate_bps:2222000|3333000");
 
   InitEncodeTest test(env(), payload_name_,
                       {{.active = true}, {.active = true}},

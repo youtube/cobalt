@@ -9,6 +9,8 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.LinearLayout;
 
+import androidx.annotation.Px;
+
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.tile.TileView;
@@ -25,7 +27,7 @@ import java.util.List;
  */
 @NullMarked
 public class TilesLinearLayout extends LinearLayout {
-    private final List<TileView> mTileList = new ArrayList<TileView>();
+    private final List<TileView> mTileList = new ArrayList<>();
 
     protected float mNonTileViewsTotalWidthDp;
 
@@ -45,10 +47,11 @@ public class TilesLinearLayout extends LinearLayout {
      *
      * @param margin The margin to set.
      */
-    void setIntervalMargins(int margin) {
+    void setIntervalMargins(@Px int margin) {
         int childCount = getChildCount();
         for (int i = 1; i < childCount; i++) {
             updateViewStartMargin(getChildAt(i), margin);
+            updateViewEndMargin(getChildAt(i - 1), 0);
         }
     }
 
@@ -57,7 +60,7 @@ public class TilesLinearLayout extends LinearLayout {
      *
      * @param margin The margin to set.
      */
-    void setEdgeMargins(int margin) {
+    void setEdgeMargins(@Px int margin) {
         int childCount = getChildCount();
         if (childCount > 0) {
             updateViewStartMargin(getChildAt(0), margin);
@@ -109,18 +112,18 @@ public class TilesLinearLayout extends LinearLayout {
         return ViewUtils.dpToPx(getContext(), mNonTileViewsTotalWidthDp);
     }
 
-    private void updateViewStartMargin(View view, int newStartMarginPx) {
+    protected void updateViewStartMargin(View view, @Px int newStartMargin) {
         MarginLayoutParams layoutParams = (MarginLayoutParams) view.getLayoutParams();
-        if (newStartMarginPx != layoutParams.getMarginStart()) {
-            layoutParams.setMarginStart(newStartMarginPx);
+        if (newStartMargin != layoutParams.getMarginStart()) {
+            layoutParams.setMarginStart(newStartMargin);
             view.setLayoutParams(layoutParams);
         }
     }
 
-    private void updateViewEndMargin(View view, int newEndMarginPx) {
+    protected void updateViewEndMargin(View view, @Px int newEndMargin) {
         MarginLayoutParams layoutParams = (MarginLayoutParams) view.getLayoutParams();
-        if (newEndMarginPx != layoutParams.getMarginEnd()) {
-            layoutParams.setMarginEnd(newEndMarginPx);
+        if (newEndMargin != layoutParams.getMarginEnd()) {
+            layoutParams.setMarginEnd(newEndMargin);
             view.setLayoutParams(layoutParams);
         }
     }

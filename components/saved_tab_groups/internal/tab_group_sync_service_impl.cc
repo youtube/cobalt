@@ -31,6 +31,7 @@
 #include "components/saved_tab_groups/internal/sync_data_type_configuration.h"
 #include "components/saved_tab_groups/internal/tab_group_sync_bridge_mediator.h"
 #include "components/saved_tab_groups/internal/tab_group_sync_coordinator_impl.h"
+#include "components/saved_tab_groups/internal/versioning_message_controller_impl.h"
 #include "components/saved_tab_groups/public/collaboration_finder.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/pref_names.h"
@@ -191,7 +192,10 @@ TabGroupSyncServiceImpl::TabGroupSyncServiceImpl(
       collaboration_finder_(std::move(collaboration_finder)),
       logger_(logger),
       pref_service_(pref_service),
-      opt_guide_(optimization_guide_decider) {
+      opt_guide_(optimization_guide_decider),
+      versioning_message_controller_(
+          std::make_unique<VersioningMessageControllerImpl>(pref_service_,
+                                                            this)) {
   if (shared_tab_group_account_configuration) {
     shared_tab_group_account_data_bridge_ =
         std::make_unique<SharedTabGroupAccountDataSyncBridge>(
@@ -201,9 +205,9 @@ TabGroupSyncServiceImpl::TabGroupSyncServiceImpl(
   model_->AddObserver(this);
   if (opt_guide_) {
     opt_guide_->RegisterOptimizationTypes(
-        {optimization_guide::proto::PAGE_ENTITIES,
-         optimization_guide::proto::SAVED_TAB_GROUP});
+        {optimization_guide::proto::SAVED_TAB_GROUP});
   }
+
   if (identity_manager) {
     identity_manager_observation_.Observe(identity_manager);
   }
@@ -251,6 +255,18 @@ std::unique_ptr<std::vector<SavedTabGroup>>
 TabGroupSyncServiceImpl::TakeSharedTabGroupsAvailableAtStartupForMessaging() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return std::move(shared_tab_groups_available_at_startup_for_messaging_);
+}
+
+bool TabGroupSyncServiceImpl::HadSharedTabGroupsLastSession(
+    bool open_shared_tab_groups) {
+  return open_shared_tab_groups ? had_open_shared_tab_groups_on_startup_
+                                : had_shared_tab_groups_on_startup_;
+}
+
+VersioningMessageController*
+TabGroupSyncServiceImpl::GetVersioningMessageController() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  return versioning_message_controller_.get();
 }
 
 void TabGroupSyncServiceImpl::AddObserver(
@@ -645,8 +661,8 @@ void TabGroupSyncServiceImpl::OnTabSelected(
   UpdateAttributions(*group_id);
   model_->UpdateLastUserInteractionTimeLocally(*group_id);
   if (group->is_shared_tab_group()) {
-    model_->UpdateTabLastSeenTime(group->saved_guid(), tab->saved_tab_guid(),
-                                  base::Time::Now(), TriggerSource::LOCAL);
+    model_->UpdateTabLastSeenTimeFromLocal(group->saved_guid(),
+                                           tab->saved_tab_guid());
   }
   LogEvent(TabGroupEvent::kTabSelected, *group_id, tab_id);
 }
@@ -687,13 +703,15 @@ void TabGroupSyncServiceImpl::UnsaveGroup(const LocalTabGroupID& local_id) {
 
 void TabGroupSyncServiceImpl::MakeTabGroupShared(
     const LocalTabGroupID& local_group_id,
-    std::string_view collaboration_id,
+    const syncer::CollaborationId& collaboration_id,
     TabGroupSharingCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const SavedTabGroup* saved_group = model_->Get(local_group_id);
   if (!saved_group || saved_group->is_shared_tab_group()) {
     return;
   }
+
+  RegisterPageEntityOptimizationTypeIfNeeded();
 
   LogTabGroupEvent(logger_, "MakeTabGroupShared", saved_group);
 
@@ -712,8 +730,8 @@ void TabGroupSyncServiceImpl::MakeTabGroupShared(
 
   // Make a deep copy of the group without fields which are not used in shared
   // tab groups, and without migration of local IDs.
-  SavedTabGroup shared_group = saved_group->CloneAsSharedTabGroup(
-      CollaborationId(std::string(collaboration_id)));
+  SavedTabGroup shared_group =
+      saved_group->CloneAsSharedTabGroup(collaboration_id);
   shared_group.SetUpdatedByAttribution(gaia_id.value());
 
   // The shared group must never be empty.
@@ -839,10 +857,9 @@ void TabGroupSyncServiceImpl::OnCollaborationRemoved(
 
 void TabGroupSyncServiceImpl::MakeTabGroupSharedForTesting(
     const LocalTabGroupID& local_group_id,
-    std::string_view collaboration_id) {
+    const syncer::CollaborationId& collaboration_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  model_->MakeTabGroupSharedForTesting(
-      local_group_id, CollaborationId(std::string(collaboration_id)));
+  model_->MakeTabGroupSharedForTesting(local_group_id, collaboration_id);
 }
 
 bool TabGroupSyncServiceImpl::ShouldExposeSavedTabGroupInList(
@@ -1135,7 +1152,7 @@ void TabGroupSyncServiceImpl::UpdateTabLastSeenTime(const base::Uuid& group_id,
     return;
   }
 
-  model_->UpdateTabLastSeenTime(group_id, tab_id, base::Time::Now(), source);
+  model_->UpdateTabLastSeenTimeFromLocal(group_id, tab_id);
 }
 
 TabGroupSyncMetricsLogger*
@@ -1224,6 +1241,10 @@ void TabGroupSyncServiceImpl::HandleTabGroupAdded(const base::Uuid& guid,
   if (saved_tab_group->is_hidden()) {
     // Ignore any updates to the groups which were hidden.
     return;
+  }
+
+  if (saved_tab_group->is_shared_tab_group()) {
+    RegisterPageEntityOptimizationTypeIfNeeded();
   }
 
   if (saved_tab_group->saved_tabs().empty()) {
@@ -1344,8 +1365,8 @@ void TabGroupSyncServiceImpl::
   for (const LocalTabID& local_tab_id : GetSelectedTabs()) {
     const SavedTabGroupTab* tab = group->GetTab(local_tab_id);
     if (tab) {
-      model_->UpdateTabLastSeenTime(group->saved_guid(), tab->saved_tab_guid(),
-                                    base::Time::Now(), TriggerSource::LOCAL);
+      model_->UpdateTabLastSeenTimeFromLocal(group->saved_guid(),
+                                             tab->saved_tab_guid());
     }
   }
 }
@@ -1633,6 +1654,10 @@ void TabGroupSyncServiceImpl::NotifyServiceInitialized() {
 
   ForceRemoveClosedTabGroupsOnStartup();
 
+  if (!model_->GetSharedTabGroupsOnly().empty()) {
+    RegisterPageEntityOptimizationTypeIfNeeded();
+  }
+
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(
@@ -1650,7 +1675,8 @@ void TabGroupSyncServiceImpl::NotifyServiceInitialized() {
 void TabGroupSyncServiceImpl::OnSyncBridgeUpdateTypeChanged(
     SyncBridgeUpdateType sync_bridge_update_type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (sync_bridge_update_type == SyncBridgeUpdateType::kDefaultState &&
+  if (sync_bridge_update_type ==
+          SyncBridgeUpdateType::kCompletedInitialMergeThisSession &&
       sync_bridge_mediator_->GetTrackingGaiaIdForSharedBridge().has_value()) {
     while (!pending_actions_waiting_sign_in_.empty()) {
       // User just signed-in. Run any pending actions.
@@ -1754,6 +1780,11 @@ void TabGroupSyncServiceImpl::
 
     // Dereference to create a safe copy.
     shared_tab_groups_available_at_startup_for_messaging_->push_back(*group);
+
+    had_shared_tab_groups_on_startup_ = true;
+    if (group->local_group_id().has_value()) {
+      had_open_shared_tab_groups_on_startup_ = true;
+    }
   }
 }
 
@@ -2099,6 +2130,14 @@ void TabGroupSyncServiceImpl::FinishTransitionToSharedIfNotCompleted() {
     if (TransitionSavedToSharedTabGroupIfNeeded(*shared_group)) {
       NotifyTabGroupMigrated(shared_group_id, TriggerSource::REMOTE);
     }
+  }
+}
+
+void TabGroupSyncServiceImpl::RegisterPageEntityOptimizationTypeIfNeeded() {
+  if (opt_guide_ && !page_entity_optimization_type_registered_) {
+    opt_guide_->RegisterOptimizationTypes(
+        {optimization_guide::proto::PAGE_ENTITIES});
+    page_entity_optimization_type_registered_ = true;
   }
 }
 

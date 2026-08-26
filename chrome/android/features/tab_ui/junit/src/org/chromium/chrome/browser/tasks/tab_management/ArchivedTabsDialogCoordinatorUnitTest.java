@@ -224,11 +224,11 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
         verify(mRootView).addView(any());
         verify(mTabListEditorController).show(any(), eq(Collections.emptyList()), eq(null));
         verify(mTabListEditorController).setNavigationProvider(any());
-        verify(mTabListEditorController, times(2)).setToolbarTitle("1 inactive tab");
+        verify(mTabListEditorController, times(2)).setToolbarTitle("1 inactive item");
         verify(mBackPressManager).addHandler(any(), eq(BackPressHandler.Type.ARCHIVED_TABS_DIALOG));
 
         mTabCountSupplier.set(2);
-        verify(mTabListEditorController).setToolbarTitle("2 inactive tabs");
+        verify(mTabListEditorController).setToolbarTitle("2 inactive items");
     }
 
     @Test
@@ -251,15 +251,15 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
         mCoordinator.show(mOnTabSelectingListener);
 
         // First verify a tab exists as the base condition for showing.
-        verify(mTabListEditorController, times(2)).setToolbarTitle("1 inactive tab");
+        verify(mTabListEditorController, times(2)).setToolbarTitle("1 inactive item");
 
         // Then add a second tab.
         mTabCountSupplier.set(2);
-        verify(mTabListEditorController).setToolbarTitle("2 inactive tabs");
+        verify(mTabListEditorController).setToolbarTitle("2 inactive items");
 
         // Then close both tabs.
         mTabCountSupplier.set(1);
-        verify(mTabListEditorController, times(3)).setToolbarTitle("1 inactive tab");
+        verify(mTabListEditorController, times(3)).setToolbarTitle("1 inactive item");
 
         mTabCountSupplier.set(0);
 
@@ -297,10 +297,7 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE,
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN
-    })
+    @EnableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testEdgeToEdgePadAdjuster() {
         EdgeToEdgePadAdjuster padAdjuster = mCoordinator.getEdgeToEdgePadAdjusterForTesting();
         assertNotNull("Pad adjuster should be created when feature enabled.", padAdjuster);
@@ -321,10 +318,7 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
     }
 
     @Test
-    @DisableFeatures({
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE,
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN
-    })
+    @DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testEdgeToEdgePadAdjuster_FeatureDisabled() {
         mEdgeToEdgeSupplier.set(mEdgeToEdgeController);
         var padAdjuster = mCoordinator.getEdgeToEdgePadAdjusterForTesting();
@@ -345,7 +339,8 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
                 .thenReturn(savedTabGroupBefore)
                 .thenReturn(savedTabGroupBefore)
                 .thenReturn(savedTabGroupAfter);
-        when(mCurrentTabGroupModelFilter.getRootIdFromTabGroupId(TAB_GROUP_ID)).thenReturn(TAB1_ID);
+        when(mCurrentTabGroupModelFilter.tabGroupExists(TAB_GROUP_ID)).thenReturn(true);
+        when(mCurrentTabGroupModelFilter.getGroupLastShownTabId(TAB_GROUP_ID)).thenReturn(TAB1_ID);
         when(mTabListEditorController.isVisible()).thenReturn(true);
 
         // Show the dialog.

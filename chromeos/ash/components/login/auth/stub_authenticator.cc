@@ -128,19 +128,25 @@ void StubAuthenticator::LoginAsPublicSession(const UserContext& user_context) {
 void StubAuthenticator::LoginAsKioskAccount(
     const AccountId& /* app_account_id */,
     bool /* ephemeral */) {
-  LoginAsKioskAccountStub(user_manager::UserType::kKioskApp);
+  LoginAsKioskAccountStub(user_manager::UserType::kKioskChromeApp);
 }
 
 void StubAuthenticator::LoginAsWebKioskAccount(
     const AccountId& /* app_account_id */,
     bool /* ephemeral */) {
-  LoginAsKioskAccountStub(user_manager::UserType::kWebKioskApp);
+  LoginAsKioskAccountStub(user_manager::UserType::kKioskWebApp);
 }
 
 void StubAuthenticator::LoginAsIwaKioskAccount(
     const AccountId& /* app_account_id */,
     bool /* ephemeral */) {
   LoginAsKioskAccountStub(user_manager::UserType::kKioskIWA);
+}
+
+void StubAuthenticator::LoginAsArcvmKioskAccount(
+    const AccountId& /* app_account_id */,
+    bool /* ephemeral */) {
+  LoginAsKioskAccountStub(user_manager::UserType::kKioskArcvmApp);
 }
 
 void StubAuthenticator::OnAuthSuccess() {

@@ -27,7 +27,8 @@ namespace {
 const base::Feature* const kFeaturesExposedToJava[] = {
     &kExternalNavigationDebugLogs,       &kBlockIntentsToSelf,
     &kNavigationCaptureRefactorAndroid,  &kAuxiliaryNavigationStaysInBrowser,
-    &kReparentTopLevelNavigationFromPWA, &kReparentAuxiliaryNavigationFromPWA};
+    &kReparentTopLevelNavigationFromPWA, &kReparentAuxiliaryNavigationFromPWA,
+    &kAuxiliaryNavigationStaysInPWA};
 
 }  // namespace
 
@@ -47,14 +48,18 @@ BASE_FEATURE(kNavigationCaptureRefactorAndroid,
 
 BASE_FEATURE(kAuxiliaryNavigationStaysInBrowser,
              "AuxiliaryNavigationStaysInBrowser",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kReparentTopLevelNavigationFromPWA,
              "ReparentTopLevelNavigationFromPWA",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kReparentAuxiliaryNavigationFromPWA,
              "ReparentAuxiliaryNavigationFromPWA",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAuxiliaryNavigationStaysInPWA,
+             "AuxiliaryNavigationStaysInPWA",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 static jlong JNI_ExternalIntentsFeatures_GetFeature(JNIEnv* env, jint ordinal) {

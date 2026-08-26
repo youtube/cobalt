@@ -254,15 +254,15 @@ void ManifestManager::ParseManifestFromPage(const KURL& document_url,
   parser.TakeErrors(&result.debug_info().errors);
 
   for (const auto& error : result.debug_info().errors) {
-    auto location = std::make_unique<SourceLocation>(ManifestURL().GetString(),
-                                                     String(), error->line,
-                                                     error->column, nullptr, 0);
+    auto* location = MakeGarbageCollected<SourceLocation>(
+        ManifestURL().GetString(), String(), error->line, error->column,
+        nullptr, 0);
 
     GetSupplementable()->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
         mojom::blink::ConsoleMessageSource::kOther,
         error->critical ? mojom::blink::ConsoleMessageLevel::kError
                         : mojom::blink::ConsoleMessageLevel::kWarning,
-        "Manifest: " + error->message, std::move(location)));
+        StrCat({"Manifest: ", error->message}), std::move(location)));
   }
 
   // Having errors while parsing the manifest doesn't mean the manifest parsing

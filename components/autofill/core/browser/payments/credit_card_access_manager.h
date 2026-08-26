@@ -168,7 +168,13 @@ class CreditCardAccessManager
 
   AutofillClient& autofill_client() { return manager_->client(); }
 
+  const AutofillClient& autofill_client() const { return manager_->client(); }
+
   payments::PaymentsAutofillClient& payments_autofill_client() {
+    return *autofill_client().GetPaymentsAutofillClient();
+  }
+
+  const payments::PaymentsAutofillClient& payments_autofill_client() const {
     return *autofill_client().GetPaymentsAutofillClient();
   }
 
@@ -364,6 +370,10 @@ class CreditCardAccessManager
   // completed.
   void OnVcn3dsAuthenticationComplete(
       payments::PaymentsWindowManager::Vcn3dsAuthenticationResponse response);
+
+  // Invoked when the card is successfully fetched.
+  void OnCreditCardFetched(const CreditCard& card,
+                           bool card_was_fetched_from_cache);
 
   // The current form of authentication in progress.
   UnmaskAuthFlowType unmask_auth_flow_type_ = UnmaskAuthFlowType::kNone;

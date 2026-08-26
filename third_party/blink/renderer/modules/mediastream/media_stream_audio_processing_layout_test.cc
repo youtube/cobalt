@@ -12,7 +12,6 @@
 
 namespace blink {
 
-using EchoCancellationType = AudioProcessingProperties::EchoCancellationType;
 using VoiceIsolationType = AudioProcessingProperties::VoiceIsolationType;
 using PlatformEffectsMask = media::AudioParameters::PlatformEffectsMask;
 
@@ -39,8 +38,7 @@ TEST(AudioProcessingPropertiesToAudioProcessingSettingsTest,
 
 TEST(AudioProcessingPropertiesToAudioProcessingSettingsTest,
      DisableDefaultProperties) {
-  AudioProcessingProperties properties;
-  properties.DisableDefaultProperties();
+  AudioProcessingProperties properties(AudioProcessingProperties::Disabled());
   const media::AudioProcessingSettings settings =
       MediaStreamAudioProcessingLayout::ComputeWebrtcProcessingSettingsForTests(
           properties,
@@ -57,7 +55,7 @@ TEST(AudioProcessingPropertiesToAudioProcessingSettingsTest,
 TEST(AudioProcessingPropertiesToAudioProcessingSettingsTest,
      AllBrowserPropertiesEnabled) {
   const AudioProcessingProperties properties{
-      .echo_cancellation_type = EchoCancellationType::kEchoCancellationAec3,
+      .echo_cancellation_mode = EchoCancellationMode::kBrowserDecides,
       .auto_gain_control = true,
       .noise_suppression = true};
   const media::AudioProcessingSettings settings =
@@ -72,8 +70,8 @@ TEST(AudioProcessingPropertiesToAudioProcessingSettingsTest,
 
 TEST(AudioProcessingPropertiesToAudioProcessingSettingsTest,
      SystemAecDisablesBrowserAec) {
-  AudioProcessingProperties properties{
-      .echo_cancellation_type = EchoCancellationType::kEchoCancellationSystem};
+  AudioProcessingProperties properties{.echo_cancellation_mode =
+                                           EchoCancellationMode::kAll};
   media::AudioProcessingSettings settings =
       MediaStreamAudioProcessingLayout::ComputeWebrtcProcessingSettingsForTests(
           properties,
@@ -110,11 +108,11 @@ TEST(AudioProcessingPropertiesToAudioProcessingSettingsTest,
       media::kEnforceSystemEchoCancellation, {{"allow_ns_in_tandem", "true"}});
 
   constexpr AudioProcessingProperties properties{
-      .echo_cancellation_type = EchoCancellationType::kEchoCancellationSystem};
+      .echo_cancellation_mode = EchoCancellationMode::kAll};
   media::AudioProcessingSettings settings_without_system_ns =
       MediaStreamAudioProcessingLayout::ComputeWebrtcProcessingSettingsForTests(
           properties,
-          /*enabled_platform_effects=*/0,
+          /*enabled_platform_effects=*/PlatformEffectsMask::ECHO_CANCELLER,
           /*multichannel_processing=*/true);
 
   EXPECT_TRUE(settings_without_system_ns.noise_suppression);
@@ -122,13 +120,17 @@ TEST(AudioProcessingPropertiesToAudioProcessingSettingsTest,
   media::AudioProcessingSettings settings_with_system_ns =
       MediaStreamAudioProcessingLayout::ComputeWebrtcProcessingSettingsForTests(
           properties,
-          /*enabled_platform_effects=*/PlatformEffectsMask::NOISE_SUPPRESSION,
+          /*enabled_platform_effects=*/PlatformEffectsMask::NOISE_SUPPRESSION |
+              PlatformEffectsMask::ECHO_CANCELLER,
           /*multichannel_processing=*/true);
 
   EXPECT_TRUE(settings_with_system_ns.noise_suppression);
 
   MediaStreamAudioProcessingLayout processing_layout(
-      properties, PlatformEffectsMask::NOISE_SUPPRESSION, /*channels=*/1);
+      properties,
+      PlatformEffectsMask::NOISE_SUPPRESSION |
+          PlatformEffectsMask::ECHO_CANCELLER,
+      /*channels=*/1);
   EXPECT_TRUE(processing_layout.NoiseSuppressionInTandem());
 }
 #endif
@@ -162,11 +164,11 @@ TEST(AudioProcessingPropertiesToAudioProcessingSettingsTest,
       media::kEnforceSystemEchoCancellation, {{"allow_agc_in_tandem", "true"}});
 
   constexpr AudioProcessingProperties properties{
-      .echo_cancellation_type = EchoCancellationType::kEchoCancellationSystem};
+      .echo_cancellation_mode = EchoCancellationMode::kAll};
   media::AudioProcessingSettings settings_without_system_agc =
       MediaStreamAudioProcessingLayout::ComputeWebrtcProcessingSettingsForTests(
           properties,
-          /*enabled_platform_effects=*/0,
+          /*enabled_platform_effects=*/PlatformEffectsMask::ECHO_CANCELLER,
           /*multichannel_processing=*/true);
 
   EXPECT_TRUE(settings_without_system_agc.automatic_gain_control);
@@ -175,21 +177,25 @@ TEST(AudioProcessingPropertiesToAudioProcessingSettingsTest,
       MediaStreamAudioProcessingLayout::ComputeWebrtcProcessingSettingsForTests(
           properties,
           /*enabled_platform_effects=*/
-          PlatformEffectsMask::AUTOMATIC_GAIN_CONTROL,
+          PlatformEffectsMask::AUTOMATIC_GAIN_CONTROL |
+              PlatformEffectsMask::ECHO_CANCELLER,
           /*multichannel_processing=*/true);
 
   EXPECT_TRUE(settings_with_system_agc.automatic_gain_control);
 
   MediaStreamAudioProcessingLayout processing_layout(
-      properties, PlatformEffectsMask::AUTOMATIC_GAIN_CONTROL, /*channels=*/1);
+      properties,
+      PlatformEffectsMask::AUTOMATIC_GAIN_CONTROL |
+          PlatformEffectsMask::ECHO_CANCELLER,
+      /*channels=*/1);
   EXPECT_TRUE(processing_layout.AutomaticGainControlInTandem());
 }
 #endif
 
 TEST(AudioProcessingPropertiesTest, VerifyDefaultProcessingState) {
   constexpr AudioProcessingProperties kDefaultProperties;
-  EXPECT_EQ(kDefaultProperties.echo_cancellation_type,
-            EchoCancellationType::kEchoCancellationAec3);
+  EXPECT_EQ(kDefaultProperties.echo_cancellation_mode,
+            EchoCancellationMode::kBrowserDecides);
   EXPECT_TRUE(kDefaultProperties.auto_gain_control);
   EXPECT_TRUE(kDefaultProperties.noise_suppression);
   EXPECT_EQ(kDefaultProperties.voice_isolation,
@@ -198,14 +204,12 @@ TEST(AudioProcessingPropertiesTest, VerifyDefaultProcessingState) {
 
 class MediaStreamAudioProcessingLayoutTest
     : public testing::TestWithParam<
-          testing::tuple<AudioProcessingProperties::EchoCancellationType,
-                         bool,
-                         bool>> {};
+          testing::tuple<EchoCancellationMode, bool, bool>> {};
 
 TEST_P(MediaStreamAudioProcessingLayoutTest,
        PlatformAecNsAgcCorrectIfAvailale) {
   AudioProcessingProperties properties;
-  properties.echo_cancellation_type = std::get<0>(GetParam());
+  properties.echo_cancellation_mode = std::get<0>(GetParam());
   properties.noise_suppression = std::get<1>(GetParam());
   properties.auto_gain_control = std::get<2>(GetParam());
 
@@ -219,18 +223,10 @@ TEST_P(MediaStreamAudioProcessingLayoutTest,
 
   int expected_effects = available_platform_effects;
 
-  if (properties.echo_cancellation_type !=
-      AudioProcessingProperties::EchoCancellationType::
-          kEchoCancellationSystem) {
-    // No platform processing if platform AEC is not requested.
-    expected_effects &= ~media::AudioParameters::ECHO_CANCELLER;
-    expected_effects &= ~media::AudioParameters::AUTOMATIC_GAIN_CONTROL;
-    if (!MediaStreamAudioProcessingLayout::
-            IsIndependentSystemNsAllowedForTests()) {
-      // Special case for NS.
-      expected_effects &= ~media::AudioParameters::NOISE_SUPPRESSION;
-    }
-  } else {  // kEchoCancellationSystem
+  EchoCanceller echo_canceller =
+      EchoCanceller::From(properties, available_platform_effects);
+
+  if (echo_canceller.IsPlatformProvided()) {
 #if (!BUILDFLAG(IS_WIN))
     // Disable AGC and NS if not requested.
     if (!properties.auto_gain_control) {
@@ -245,6 +241,15 @@ TEST_P(MediaStreamAudioProcessingLayoutTest,
       expected_effects &= ~media::AudioParameters::NOISE_SUPPRESSION;
     }
 #endif
+  } else {
+    // No platform processing if platform AEC is not requested.
+    expected_effects &= ~media::AudioParameters::ECHO_CANCELLER;
+    expected_effects &= ~media::AudioParameters::AUTOMATIC_GAIN_CONTROL;
+    if (!MediaStreamAudioProcessingLayout::
+            IsIndependentSystemNsAllowedForTests()) {
+      // Special case for NS.
+      expected_effects &= ~media::AudioParameters::NOISE_SUPPRESSION;
+    }
   }
 
   EXPECT_EQ(expected_effects,
@@ -252,7 +257,8 @@ TEST_P(MediaStreamAudioProcessingLayoutTest,
                 (media::AudioParameters::ECHO_CANCELLER |
                  media::AudioParameters::NOISE_SUPPRESSION |
                  media::AudioParameters::AUTOMATIC_GAIN_CONTROL))
-      << "\nexpected: "
+      << "\nproperties: " << properties.ToString()
+      << "\necho_canceller: " << echo_canceller.ToString() << "\nexpected: "
       << media::AudioParameters::EffectsMaskToString(expected_effects)
       << "\n  result: "
       << media::AudioParameters::EffectsMaskToString(
@@ -263,14 +269,204 @@ INSTANTIATE_TEST_SUITE_P(
     All,
     MediaStreamAudioProcessingLayoutTest,
     ::testing::Combine(
-        ::testing::ValuesIn({AudioProcessingProperties::EchoCancellationType::
-                                 kEchoCancellationDisabled,
-                             AudioProcessingProperties::EchoCancellationType::
-                                 kEchoCancellationSystem,
-                             AudioProcessingProperties::EchoCancellationType::
-                                 kEchoCancellationAec3}),
+        ::testing::ValuesIn({EchoCancellationMode::kDisabled,
+                             EchoCancellationMode::kRemoteOnly,
+                             EchoCancellationMode::kAll,
+                             EchoCancellationMode::kBrowserDecides}),
         // ACG and NS on/off.
         ::testing::Bool(),
         ::testing::Bool()));
+
+#if BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
+class MediaStreamAudioProcessingLayoutLoopbackTest
+    : public testing::TestWithParam<testing::tuple<bool, bool>> {};
+
+TEST_P(MediaStreamAudioProcessingLayoutLoopbackTest, LoopbackAec) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  bool loopback_aec_enforced = std::get<0>(GetParam());
+  bool aec_enabled = std::get<1>(GetParam());
+  if (loopback_aec_enforced) {
+    scoped_feature_list.InitAndEnableFeatureWithParameters(
+        media::kSystemLoopbackAsAecReference, {{"forced_on", "true"}});
+  } else {
+    scoped_feature_list.InitAndDisableFeature(
+        media::kSystemLoopbackAsAecReference);
+  }
+
+  AudioProcessingProperties properties;
+  properties.echo_cancellation_mode =
+      aec_enabled ? EchoCancellationMode::kBrowserDecides
+                  : EchoCancellationMode::kDisabled;
+
+  MediaStreamAudioProcessingLayout processing_layout(
+      properties, /*available_platform_effects=*/0, /*channels=*/1);
+
+  EXPECT_TRUE(processing_layout.NeedApmInAudioService());
+  EXPECT_EQ(
+      processing_layout.webrtc_processing_settings().use_loopback_aec_reference,
+      aec_enabled && loopback_aec_enforced &&
+          media::IsSystemLoopbackAsAecReferenceEnabled());
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         MediaStreamAudioProcessingLayoutLoopbackTest,
+                         ::testing::Combine(
+                             // AEC on/off.
+                             ::testing::Bool(),
+                             // Lopoback AEC enforced on/off.
+                             ::testing::Bool()));
+
+#endif
+
+TEST(EchoCanceller, Disabled) {
+  EchoCanceller echo_canceller(
+      EchoCanceller::MakeForTesting(EchoCanceller::Type::kNone));
+  EXPECT_FALSE(echo_canceller.IsEnabled());
+  EXPECT_FALSE(echo_canceller.IsPlatformProvided());
+  EXPECT_FALSE(echo_canceller.IsChromeProvided());
+  EXPECT_FALSE(echo_canceller.NeedSystemLoopback());
+  EXPECT_EQ(echo_canceller.GetApmLocation(),
+            media::IsChromeWideEchoCancellationEnabled()
+                ? EchoCanceller::ApmLocation::kAudioService
+                : EchoCanceller::ApmLocation::kRenderer);
+}
+
+TEST(EchoCanceller, PeerConnection) {
+  EchoCanceller echo_canceller(
+      EchoCanceller::MakeForTesting(EchoCanceller::Type::kPeerConnection));
+  EXPECT_TRUE(echo_canceller.IsEnabled());
+  EXPECT_FALSE(echo_canceller.IsPlatformProvided());
+  EXPECT_TRUE(echo_canceller.IsChromeProvided());
+  EXPECT_FALSE(echo_canceller.NeedSystemLoopback());
+  EXPECT_EQ(echo_canceller.GetApmLocation(),
+            EchoCanceller::ApmLocation::kRenderer);
+}
+
+TEST(EchoCanceller, Loopback) {
+  EchoCanceller echo_canceller(
+      EchoCanceller::MakeForTesting(EchoCanceller::Type::kLoopbackBased));
+  EXPECT_TRUE(echo_canceller.IsEnabled());
+  EXPECT_FALSE(echo_canceller.IsPlatformProvided());
+  EXPECT_TRUE(echo_canceller.IsChromeProvided());
+  EXPECT_TRUE(echo_canceller.NeedSystemLoopback());
+  EXPECT_EQ(echo_canceller.GetApmLocation(),
+            EchoCanceller::ApmLocation::kAudioService);
+}
+
+TEST(EchoCanceller, ChromeWide) {
+  EchoCanceller echo_canceller(
+      EchoCanceller::MakeForTesting(EchoCanceller::Type::kChromeWide));
+  EXPECT_TRUE(echo_canceller.IsEnabled());
+  EXPECT_FALSE(echo_canceller.IsPlatformProvided());
+  EXPECT_TRUE(echo_canceller.IsChromeProvided());
+  EXPECT_FALSE(echo_canceller.NeedSystemLoopback());
+  EXPECT_EQ(echo_canceller.GetApmLocation(),
+            EchoCanceller::ApmLocation::kAudioService);
+}
+
+TEST(EchoCanceller, PlatformProvided) {
+  EchoCanceller echo_canceller(
+      EchoCanceller::MakeForTesting(EchoCanceller::Type::kPlatformProvided));
+  EXPECT_TRUE(echo_canceller.IsEnabled());
+  EXPECT_TRUE(echo_canceller.IsPlatformProvided());
+  EXPECT_FALSE(echo_canceller.IsChromeProvided());
+  EXPECT_FALSE(echo_canceller.NeedSystemLoopback());
+  EXPECT_EQ(echo_canceller.GetApmLocation(),
+            EchoCanceller::ApmLocation::kRenderer);
+}
+
+class EchoCancellationModeTest : public testing::TestWithParam<bool> {
+ public:
+  void SetUp() override {
+    effects_ = GetParam() ? media::AudioParameters::ECHO_CANCELLER : 0;
+  }
+
+ protected:
+  int effects_;
+};
+
+TEST_P(EchoCancellationModeTest, Default) {
+  EchoCanceller echo_canceller =
+      EchoCanceller::From(EchoCancellationMode::kBrowserDecides, effects_);
+  if (effects_) {
+    // Platform AEC effect is only exposed on the platforms where platform echo
+    // cancellation is either a default behavior or enforced via a feature flag,
+    // see media::IsSystemEchoCancellationEnforced().
+    EXPECT_EQ(echo_canceller.type(), EchoCanceller::Type::kPlatformProvided)
+        << " echo_canceller: " << echo_canceller.ToString();
+  } else if (media::IsChromeWideEchoCancellationEnabled()) {
+    EXPECT_EQ(echo_canceller.type(), EchoCanceller::Type::kChromeWide)
+        << " echo_canceller: " << echo_canceller.ToString();
+  } else {
+    EXPECT_EQ(echo_canceller.type(), EchoCanceller::Type::kPeerConnection)
+        << " echo_canceller: " << echo_canceller.ToString();
+  }
+}
+
+#if BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
+TEST_P(EchoCancellationModeTest, Default_LoopbackAecEnforced) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      media::kSystemLoopbackAsAecReference, {{"forced_on", "true"}});
+  ASSERT_TRUE(media::IsChromeWideEchoCancellationEnabled());
+  if (!media::IsSystemLoopbackAsAecReferenceEnabled()) {
+    // Loopback AEC is not available.
+    return;
+  }
+  EXPECT_TRUE(EchoCanceller::IsSystemWideAecAvailable(effects_));
+  EchoCanceller echo_canceller =
+      EchoCanceller::From(EchoCancellationMode::kBrowserDecides, effects_);
+  EXPECT_EQ(echo_canceller.type(), EchoCanceller::Type::kLoopbackBased);
+}
+#endif
+
+TEST_P(EchoCancellationModeTest, Disabled) {
+  EchoCanceller echo_canceller =
+      EchoCanceller::From(EchoCancellationMode::kDisabled, effects_);
+  EXPECT_EQ(echo_canceller.type(), EchoCanceller::Type::kNone);
+}
+
+TEST_P(EchoCancellationModeTest, RemoteOnly) {
+  EchoCanceller echo_canceller =
+      EchoCanceller::From(EchoCancellationMode::kRemoteOnly, effects_);
+  EXPECT_EQ(echo_canceller.type(), EchoCanceller::Type::kPeerConnection);
+}
+
+#if BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
+TEST_P(EchoCancellationModeTest, AllLoopbackAec) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      media::kSystemLoopbackAsAecReference, {{"forced_on", "false"}});
+  if (!media::IsSystemLoopbackAsAecReferenceEnabled()) {
+    // Loopback AEC is not available.
+    return;
+  }
+  EXPECT_TRUE(EchoCanceller::IsSystemWideAecAvailable(effects_));
+  EchoCanceller echo_canceller =
+      EchoCanceller::From(EchoCancellationMode::kAll, effects_);
+  EXPECT_EQ(echo_canceller.type(), EchoCanceller::Type::kLoopbackBased);
+}
+#endif
+
+TEST_P(EchoCancellationModeTest, AllPlatformAec) {
+#if BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      media::kSystemLoopbackAsAecReference);
+#endif
+  if (effects_) {
+    EXPECT_TRUE(EchoCanceller::IsSystemWideAecAvailable(effects_));
+    EchoCanceller echo_canceller =
+        EchoCanceller::From(EchoCancellationMode::kAll, effects_);
+    EXPECT_EQ(echo_canceller.type(), EchoCanceller::Type::kPlatformProvided);
+  } else {
+    EXPECT_FALSE(EchoCanceller::IsSystemWideAecAvailable(effects_));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         EchoCancellationModeTest,
+                         // Platform AEC effect on/off.
+                         ::testing::Bool());
 
 }  // namespace blink

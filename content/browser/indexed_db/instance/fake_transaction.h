@@ -26,7 +26,6 @@ class FakeTransaction : public BackingStore::Transaction {
   Status CommitPhaseTwo() override;
   void Rollback() override;
   void Begin(std::vector<PartitionedLock> locks) override;
-  void Reset() override;
   Status SetDatabaseVersion(int64_t version) override;
   Status CreateObjectStore(int64_t object_store_id,
                            const std::u16string& name,
@@ -42,9 +41,8 @@ class FakeTransaction : public BackingStore::Transaction {
   Status RenameIndex(int64_t object_store_id,
                      int64_t index_id,
                      const std::u16string& new_name) override;
-  Status GetRecord(int64_t object_store_id,
-                   const blink::IndexedDBKey& key,
-                   IndexedDBValue* record) override;
+  StatusOr<IndexedDBValue> GetRecord(int64_t object_store_id,
+                                     const blink::IndexedDBKey& key) override;
   StatusOr<BackingStore::RecordIdentifier> PutRecord(
       int64_t object_store_id,
       const blink::IndexedDBKey& key,
@@ -54,8 +52,8 @@ class FakeTransaction : public BackingStore::Transaction {
   StatusOr<int64_t> GetKeyGeneratorCurrentNumber(
       int64_t object_store_id) override;
   Status MaybeUpdateKeyGeneratorCurrentNumber(int64_t object_store_id,
-                                              int64_t new_state,
-                                              bool check_current) override;
+                                              int64_t new_number,
+                                              bool was_generated) override;
   StatusOr<std::optional<BackingStore::RecordIdentifier>>
   KeyExistsInObjectStore(int64_t object_store_id,
                          const blink::IndexedDBKey& key) override;
@@ -64,17 +62,17 @@ class FakeTransaction : public BackingStore::Transaction {
       int64_t index_id,
       const blink::IndexedDBKey& key,
       const BackingStore::RecordIdentifier& record) override;
-  Status GetPrimaryKeyViaIndex(
+  StatusOr<blink::IndexedDBKey> GetFirstPrimaryKeyForIndexKey(
       int64_t object_store_id,
       int64_t index_id,
-      const blink::IndexedDBKey& key,
-      std::unique_ptr<blink::IndexedDBKey>* primary_key) override;
-  Status KeyExistsInIndex(
+      const blink::IndexedDBKey& key) override;
+  StatusOr<uint32_t> GetObjectStoreKeyCount(
+      int64_t object_store_id,
+      blink::IndexedDBKeyRange key_range) override;
+  StatusOr<uint32_t> GetIndexKeyCount(
       int64_t object_store_id,
       int64_t index_id,
-      const blink::IndexedDBKey& key,
-      std::unique_ptr<blink::IndexedDBKey>* found_primary_key,
-      bool* exists) override;
+      blink::IndexedDBKeyRange key_range) override;
   StatusOr<std::unique_ptr<indexed_db::BackingStore::Cursor>>
   OpenObjectStoreKeyCursor(int64_t object_store_id,
                            const blink::IndexedDBKeyRange& key_range,
@@ -93,6 +91,7 @@ class FakeTransaction : public BackingStore::Transaction {
       int64_t index_id,
       const blink::IndexedDBKeyRange& key_range,
       blink::mojom::IDBCursorDirection) override;
+  blink::mojom::IDBValuePtr BuildMojoValue(IndexedDBValue value) override;
 
  private:
   Status result_;

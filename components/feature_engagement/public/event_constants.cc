@@ -54,7 +54,7 @@ const char kChromeOpened[] = "chrome_opened";
 const char kIncognitoTabOpened[] = "incognito_tab_opened";
 const char kClearedBrowsingData[] = "cleared_browsing_data";
 const char kViewedReadingList[] = "viewed_reading_list";
-const char kViewedWhatsNew[] = "viewed_whats_new_m134";
+const char kViewedWhatsNew[] = "viewed_whats_new_m139";
 const char kTriggeredTranslateInfobar[] = "triggered_translate_infobar";
 const char kBottomToolbarOpened[] = "bottom_toolbar_opened";
 const char kDiscoverFeedLoaded[] = "discover_feed_loaded";
@@ -154,6 +154,7 @@ const char kIOSContextualPanelPriceInsightsEntrypointExplicitlyDismissed[] =
     "ios_contextual_panel_price_insights_entrypoint_explicitly_dismissed";
 const char kHomeCustomizationMenuUsed[] = "home_customization_menu_used";
 const char kLensOverlayEntrypointUsed[] = "lens_overlay_entrypoint_used";
+const char kIOSLensButtonUsed[] = "ios_lens_button_used";
 const char kIOSTabReminderScheduled[] = "tab_reminder_scheduled";
 const char kIOSReminderNotificationsOverflowMenuBubbleIPHTrigger[] =
     "ios_reminder_notifications_overflow_menu_bubble_iph_trigger";
@@ -167,8 +168,15 @@ const char kIOSScrolledOnFeed[] = "ios_scrolled_on_feed";
 const char kIOSActionOnFeed[] = "ios_action_on_feed";
 const char kIOSWelcomeBackPromoTrigger[] = "welcome_back_promo_trigger";
 const char kIOSWelcomeBackPromoUsed[] = "welcome_back_promo_used";
-const char kIOSGLICPromoTrigger[] = "glic_half_screen_promo_trigger";
-const char kIOSGLICPromoUsed[] = "glic_half_screen_promo_used";
+const char kIOSBWGPromoTrigger[] = "bwg_half_screen_promo_trigger";
+const char kIOSBWGPromoUsed[] = "bwg_half_screen_promo_used";
+const char kIOSSafariImportRemindMeLater[] =
+    "ios_safari_import_entry_point_remind_me_later";
+const char kIOSPageActionMenuIPHTrigger[] = "page_action_menu_iph_trigger";
+const char kIOSPageActionMenuIPHUsed[] = "page_action_menu_iph_used";
+const char kIOSFirstRunComplete[] = "ios_first_run_complete";
+const char kIOSFREBadgeHoldbackPeriodElapsed[] =
+    "ios_fre_badge_holdback_period_elapsed";
 #endif  // BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_ANDROID)

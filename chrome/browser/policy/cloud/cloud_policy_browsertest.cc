@@ -12,7 +12,6 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/overloaded.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
@@ -29,13 +28,8 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/platform_browser_test.h"
-#include "components/invalidation/impl/fake_invalidation_service.h"
 #include "components/invalidation/impl/profile_identity_provider.h"
-#include "components/invalidation/invalidation_factory.h"
 #include "components/invalidation/profile_invalidation_provider.h"
-#include "components/invalidation/public/invalidation.h"
-#include "components/invalidation/public/invalidation_service.h"
-#include "components/invalidation/public/invalidation_util.h"
 #include "components/invalidation/test_support/fake_invalidation_listener.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
@@ -59,11 +53,13 @@
 #include "components/policy/test_support/policy_storage.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -100,7 +96,6 @@ namespace policy {
 
 namespace {
 
-constexpr char kPolicyInvalidationTopic[] = "test_policy_topic";
 constexpr char kPolicyInvalidationType[] = "USER_POLICY_FETCH";
 
 struct FeaturesTestParam {
@@ -108,24 +103,23 @@ struct FeaturesTestParam {
   std::vector<base::test::FeatureRef> disabled_features;
 };
 
-std::variant<std::unique_ptr<invalidation::InvalidationService>,
-             std::unique_ptr<invalidation::InvalidationListener>>
-CreateInvalidationServiceForSenderId(int64_t project_number,
-                                     std::string /*log_prefix*/) {
-  if (invalidation::IsInvalidationListenerSupported(project_number)) {
-    return std::make_unique<invalidation::FakeInvalidationListener>(
-        std::move(project_number));
-  }
-  return std::make_unique<invalidation::FakeInvalidationService>();
+std::unique_ptr<invalidation::InvalidationListener>
+CreateInvalidationListenerForProjectNumber(int64_t project_number,
+                                           std::string /*log_prefix*/) {
+  return std::make_unique<invalidation::FakeInvalidationListener>(
+      std::move(project_number));
 }
 
 std::unique_ptr<KeyedService> BuildFakeProfileInvalidationProvider(
     content::BrowserContext* context) {
   Profile* profile = static_cast<Profile*>(context);
   return std::make_unique<invalidation::ProfileInvalidationProvider>(
+      profile->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess(),
       std::make_unique<invalidation::ProfileIdentityProvider>(
           IdentityManagerFactory::GetForProfile(profile)),
-      base::BindRepeating(&CreateInvalidationServiceForSenderId));
+      profile->GetPrefs(),
+      base::BindRepeating(&CreateInvalidationListenerForProjectNumber));
 }
 
 const char* GetTestUser() {
@@ -213,8 +207,7 @@ class CloudPolicyTest : public PlatformBrowserTest,
     test_server_ = std::make_unique<EmbeddedPolicyTestServer>();
     ASSERT_TRUE(test_server_->Start());
 
-    ASSERT_NO_FATAL_FAILURE(
-        SetServerPolicy(em::CloudPolicySettings(), 1, std::string()));
+    ASSERT_NO_FATAL_FAILURE(SetServerPolicy(em::CloudPolicySettings(), 1));
 
     std::string url = test_server_->GetServiceURL().spec();
 
@@ -338,43 +331,29 @@ class CloudPolicyTest : public PlatformBrowserTest,
     const base::TimeDelta now =
         base::Time::NowFromSystemTime() - base::Time::UnixEpoch();
 
-    std::visit(
-        base::Overloaded{
-            [now](invalidation::InvalidationService* service) {
-              static_cast<invalidation::FakeInvalidationService*>(service)
-                  ->EmitInvalidationForTest(invalidation::Invalidation(
-                      kPolicyInvalidationTopic, now.InMicroseconds(),
-                      "payload"));
-            },
-            [now](invalidation::InvalidationListener* listener) {
-              static_cast<invalidation::FakeInvalidationListener*>(listener)
-                  ->FireInvalidation(invalidation::DirectInvalidation(
-                      kPolicyInvalidationType, now.InMicroseconds(),
-                      "payload"));
-            }},
-        // Provider caches invalidation service and listener for sender id and
-        // project id. To send an invalidation to the policy invalidator, it
-        // must be sent to the correct project id.
-        invalidation::ProfileInvalidationProviderFactory::GetInstance()
-            ->GetForProfile(profile())
-            ->GetInvalidationServiceOrListener(
-                GetPolicyInvalidationProjectNumber(
-                    PolicyInvalidationScope::kUser)));
+    // Provider caches invalidation service and listener for sender id and
+    // project id. To send an invalidation to the policy invalidator, it
+    // must be sent to the correct project id.
+    auto* invalidation_listener =
+        static_cast<invalidation::FakeInvalidationListener*>(
+            invalidation::ProfileInvalidationProviderFactory::GetInstance()
+                ->GetForProfile(profile())
+                ->GetInvalidationListener(
+                    policy::kPolicyInvalidationProjectNumber));
+    invalidation_listener->FireInvalidation(invalidation::DirectInvalidation(
+        kPolicyInvalidationType, now.InMicroseconds(), "payload"));
   }
 
   void SetServerPolicy(const em::CloudPolicySettings& settings,
-                       int key_version,
-                       const std::string& policy_invalidation_topic) {
+                       int key_version) {
     test_server_->policy_storage()->SetPolicyPayload(
-        dm_protocol::kChromeUserPolicyType, settings.SerializeAsString());
+        dm_protocol::GetChromeUserPolicyType(), settings.SerializeAsString());
 
     test_server_->policy_storage()->add_managed_user("*");
     test_server_->policy_storage()->set_policy_user(GetTestUser());
     test_server_->policy_storage()
         ->signature_provider()
         ->set_current_key_version(key_version);
-    test_server_->policy_storage()->set_policy_invalidation_topic(
-        policy_invalidation_topic);
   }
 
   void OnPolicyUpdated(const PolicyNamespace& ns,
@@ -424,8 +403,7 @@ IN_PROC_BROWSER_TEST_P(CloudPolicyTest, FetchPolicy) {
   EXPECT_TRUE(default_policy.Equals(policy_service->GetPolicies(
       PolicyNamespace(POLICY_DOMAIN_CHROME, std::string()))));
 
-  ASSERT_NO_FATAL_FAILURE(SetServerPolicy(GetTestPolicy("google.com"), 1,
-                                          kPolicyInvalidationTopic));
+  ASSERT_NO_FATAL_FAILURE(SetServerPolicy(GetTestPolicy("google.com"), 1));
   PolicyMap expected;
   GetExpectedTestPolicy(&expected, "google.com");
   {
@@ -469,8 +447,7 @@ IN_PROC_BROWSER_TEST_P(CloudPolicyTest, InvalidatePolicy) {
   policy_service->AddObserver(POLICY_DOMAIN_CHROME, this);
 
   // Perform the initial fetch.
-  ASSERT_NO_FATAL_FAILURE(SetServerPolicy(GetTestPolicy("google.com"), 1,
-                                          kPolicyInvalidationTopic));
+  ASSERT_NO_FATAL_FAILURE(SetServerPolicy(GetTestPolicy("google.com"), 1));
   {
     base::RunLoop run_loop;
     policy_service->RefreshPolicies(run_loop.QuitClosure(),
@@ -479,8 +456,7 @@ IN_PROC_BROWSER_TEST_P(CloudPolicyTest, InvalidatePolicy) {
   }
 
   // Update the homepage in the policy and trigger an invalidation.
-  ASSERT_NO_FATAL_FAILURE(SetServerPolicy(GetTestPolicy("youtube.com"), 1,
-                                          kPolicyInvalidationTopic));
+  ASSERT_NO_FATAL_FAILURE(SetServerPolicy(GetTestPolicy("youtube.com"), 1));
 
   FirePolicyInvalidation();
 
@@ -527,8 +503,7 @@ IN_PROC_BROWSER_TEST_P(CloudPolicyTest, FetchPolicyWithRotatedKey) {
       PolicyNamespace(POLICY_DOMAIN_CHROME, std::string()))));
 
   // Set the new policies and a new key at the server.
-  ASSERT_NO_FATAL_FAILURE(SetServerPolicy(GetTestPolicy("google.com"), 2,
-                                          kPolicyInvalidationTopic));
+  ASSERT_NO_FATAL_FAILURE(SetServerPolicy(GetTestPolicy("google.com"), 2));
   PolicyMap expected;
   GetExpectedTestPolicy(&expected, "google.com");
   {
@@ -573,9 +548,6 @@ INSTANTIATE_TEST_SUITE_P(
     /* no prefix */,
     CloudPolicyTest,
     testing::Values(FeaturesTestParam{},
-                    FeaturesTestParam{
-                        .enabled_features =
-                            {kUserPolicyInvalidationWithDirectMessagesEnabled}},
                     FeaturesTestParam{
                         .enabled_features = {policy::kPolicyFetchWithSha256}},
                     FeaturesTestParam{.disabled_features = {

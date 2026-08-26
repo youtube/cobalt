@@ -284,7 +284,6 @@
     <messages fallback_to_english="true">
       <part file="arc_strings.grdp" />
       <part file="autofill_payments_strings.grdp" />
-      <part file="autofill_prediction_improvements_strings.grdp" />
       <part file="autofill_strings.grdp" />
       <part file="blocked_content_strings.grdp" />
       <part file="bookmark_bar_strings.grdp" />
@@ -338,6 +337,7 @@
       <part file="tab_resume_strings.grdp" />
       <part file="translate_strings.grdp" />
       <part file="undo_strings.grdp" />
+      <part file="user_data_importer_strings.grdp" />
       <part file="user_education_strings.grdp" />
       <part file="version_ui_strings.grdp" />
       <part file="webapps_strings.grdp" />
@@ -354,6 +354,9 @@
       <!-- Generic terms -->
       <message name="IDS_CANCEL" desc="Used for Cancel on buttons">
         Cancel
+      </message>
+      <message name="IDS_CONTINUE" desc="Used for Continue on buttons">
+        Continue
       </message>
       <message name="IDS_CLOSE" desc="A generic term for Close on buttons and menus.">
         Close
@@ -376,8 +379,17 @@
       <message name="IDS_ADD" desc="Used for Add on buttons">
         Add
       </message>
+      <message name="IDS_MOVE" desc="Used for Move on buttons" formatter_data="android_java">
+        Move
+      </message>
       <message name="IDS_REMOVE" desc="Used for Remove on buttons">
         Remove
+      </message>
+      <message name="IDS_OPEN" desc="Used for Open on buttons" formatter_data="android_java">
+        Open
+      </message>
+      <message name="IDS_RESTORE" desc="Used for Restore on buttons" formatter_data="android_java">
+        Restore
       </message>
       <message name="IDS_SAVE" desc="Used on a button to save information you are editing.">
         Save
@@ -388,7 +400,7 @@
       <message name="IDS_INSTALL" desc="Text to be displayed when an action will trigger an installation (of a component, app from the Play Store, etc.).">
         Install
       </message>
-      <message name="IDS_UPDATE" desc="Text to be displayed when an action will trigger an update of an existing item (e.g. a component, app from the Play Store, etc.).">
+      <message name="IDS_UPDATE" desc="Text to be displayed when an action will trigger an update of an existing item (e.g. a component, app from the Play Store, etc.)." formatter_data="android_java">
         Update
       </message>
       <if expr="is_android">
@@ -533,6 +545,9 @@
         Safety check
       </message>
 
+      <message name="IDS_CONTENT_BOOKMARK_PARSER_SERVICE_DISPLAY_NAME" desc="The display name (in the system task manager, etc) of the service process used for parsing a bookmarks file.">
+        Content Bookmark Parser Service
+      </message>
       <message name="IDS_PATCH_SERVICE_DISPLAY_NAME" desc="The display name (in the system task manager, etc) of the service process used for patching file operations.">
         Patch Service
       </message>

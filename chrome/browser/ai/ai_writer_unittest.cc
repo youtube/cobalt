@@ -54,7 +54,8 @@ class MockCreateWriterClient
               (override));
   MOCK_METHOD(void,
               OnError,
-              (blink::mojom::AIManagerCreateClientError error),
+              (blink::mojom::AIManagerCreateClientError error,
+               blink::mojom::QuotaErrorInfoPtr quota_error_info),
               (override));
 
  private:
@@ -237,13 +238,30 @@ TEST_F(AIWriterTest, CanCreateUnIsLanguagesSupported) {
   GetAIManagerInterface()->CanCreateWriter(std::move(options), callback.Get());
 }
 
+TEST_F(AIWriterTest, ToProtoOptionsLanguagesSupported) {
+  // Writer proto expects base language display names in English.
+  std::vector<std::pair<std::string, std::string>> languages = {
+      {"en", "English"},  {"en-us", "English"},  {"en-uk", "English"},
+      {"es", "Spanish"},  {"es-sp", "Spanish"},  {"es-mx", "Spanish"},
+      {"ja", "Japanese"}, {"ja-jp", "Japanese"}, {"ja-foo", "Japanese"},
+  };
+  blink::mojom::AIWriterCreateOptionsPtr options = GetDefaultOptions();
+  for (const auto& language : languages) {
+    options->output_language = AILanguageCode::New(language.first);
+    const auto proto_options = AIWriter::ToProtoOptions(options);
+    EXPECT_EQ(proto_options->output_language(), language.second);
+  }
+}
+
 TEST_F(AIWriterTest, CreateWriterNoService) {
   SetupNullOptimizationGuideKeyedService();
   MockCreateWriterClient mock_create_writer_client;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_create_writer_client, OnError(_))
+  EXPECT_CALL(mock_create_writer_client, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::AIManagerCreateClientError
-                                        error) {
+                                        error,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         ASSERT_EQ(
             error,
             blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
@@ -273,9 +291,11 @@ TEST_F(AIWriterTest, CreateWriterModelNotEligible) {
 
   MockCreateWriterClient mock_create_writer_client;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_create_writer_client, OnError(_))
+  EXPECT_CALL(mock_create_writer_client, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::AIManagerCreateClientError
-                                        error) {
+                                        error,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         ASSERT_EQ(
             error,
             blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
@@ -441,12 +461,19 @@ TEST_F(AIWriterTest, CreateWriterContextLimitExceededError) {
 
   MockCreateWriterClient mock_create_writer_client;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_create_writer_client, OnError(_))
+  EXPECT_CALL(mock_create_writer_client, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::AIManagerCreateClientError
-                                        error) {
+                                        error,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         ASSERT_EQ(
             error,
             blink::mojom::AIManagerCreateClientError::kInitialInputTooLarge);
+        ASSERT_TRUE(quota_error_info);
+        ASSERT_EQ(quota_error_info->requested,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize + 1);
+        ASSERT_EQ(quota_error_info->quota,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize);
         run_loop.Quit();
       }));
 
@@ -507,12 +534,19 @@ TEST_F(AIWriterTest, InputLimitExceededError) {
           }));
   AITestUtils::MockModelStreamingResponder mock_responder;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_responder, OnError(_))
+  EXPECT_CALL(mock_responder, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::ModelStreamingResponseStatus
-                                        status) {
+                                        status,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         EXPECT_EQ(
             status,
             blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge);
+        ASSERT_TRUE(quota_error_info);
+        ASSERT_EQ(quota_error_info->requested,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize + 1);
+        ASSERT_EQ(quota_error_info->quota,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize);
         run_loop.Quit();
       }));
 
@@ -542,9 +576,11 @@ TEST_F(AIWriterTest, ModelExecutionError) {
   auto writer_remote = GetAIWriterRemote();
   AITestUtils::MockModelStreamingResponder mock_responder;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_responder, OnError(_))
+  EXPECT_CALL(mock_responder, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::ModelStreamingResponseStatus
-                                        status) {
+                                        status,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         EXPECT_EQ(
             status,
             blink::mojom::ModelStreamingResponseStatus::kErrorPermissionDenied);
@@ -709,9 +745,11 @@ TEST_F(AIWriterTest, WriterDisconnected) {
   auto writer_remote = GetAIWriterRemote();
   AITestUtils::MockModelStreamingResponder mock_responder;
   base::RunLoop run_loop_for_response;
-  EXPECT_CALL(mock_responder, OnError(_))
+  EXPECT_CALL(mock_responder, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::ModelStreamingResponseStatus
-                                        status) {
+                                        status,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         EXPECT_EQ(
             status,
             blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);

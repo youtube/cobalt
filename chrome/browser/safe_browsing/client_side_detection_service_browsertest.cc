@@ -24,6 +24,7 @@
 #include "components/safe_browsing/core/common/proto/client_model.pb.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "ipc/ipc_channel_proxy.h"
@@ -170,17 +171,18 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionServiceBrowserTest,
     mojom::PhishingDetectorResult result;
     std::optional<mojo_base::ProtoWrapper> verdict;
     phishing_detector->StartPhishingDetection(
-        url, base::BindOnce(
-                 [](base::RepeatingClosure quit_closure,
-                    mojom::PhishingDetectorResult* out_result,
-                    std::optional<mojo_base::ProtoWrapper>* out_verdict,
-                    mojom::PhishingDetectorResult result,
-                    std::optional<mojo_base::ProtoWrapper> verdict) {
-                   *out_result = result;
-                   *out_verdict = std::move(verdict);
-                   quit_closure.Run();
-                 },
-                 run_loop.QuitClosure(), &result, &verdict));
+        url, safe_browsing::mojom::ClientSideDetectionType::kTriggerModels,
+        base::BindOnce(
+            [](base::RepeatingClosure quit_closure,
+               mojom::PhishingDetectorResult* out_result,
+               std::optional<mojo_base::ProtoWrapper>* out_verdict,
+               mojom::PhishingDetectorResult result,
+               std::optional<mojo_base::ProtoWrapper> verdict) {
+              *out_result = result;
+              *out_verdict = std::move(verdict);
+              quit_closure.Run();
+            },
+            run_loop.QuitClosure(), &result, &verdict));
 
     run_loop.Run();
 
@@ -263,17 +265,18 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionServiceBrowserTest,
     mojom::PhishingDetectorResult result;
     std::optional<mojo_base::ProtoWrapper> verdict;
     phishing_detector->StartPhishingDetection(
-        url, base::BindOnce(
-                 [](base::RepeatingClosure quit_closure,
-                    mojom::PhishingDetectorResult* out_result,
-                    std::optional<mojo_base::ProtoWrapper>* out_verdict,
-                    mojom::PhishingDetectorResult result,
-                    std::optional<mojo_base::ProtoWrapper> verdict) {
-                   *out_result = result;
-                   *out_verdict = std::move(verdict);
-                   quit_closure.Run();
-                 },
-                 run_loop.QuitClosure(), &result, &verdict));
+        url, safe_browsing::mojom::ClientSideDetectionType::kTriggerModels,
+        base::BindOnce(
+            [](base::RepeatingClosure quit_closure,
+               mojom::PhishingDetectorResult* out_result,
+               std::optional<mojo_base::ProtoWrapper>* out_verdict,
+               mojom::PhishingDetectorResult result,
+               std::optional<mojo_base::ProtoWrapper> verdict) {
+              *out_result = result;
+              *out_verdict = std::move(verdict);
+              quit_closure.Run();
+            },
+            run_loop.QuitClosure(), &result, &verdict));
 
     run_loop.Run();
 
@@ -404,17 +407,18 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionServiceBrowserTest,
     mojom::PhishingDetectorResult result;
     std::optional<mojo_base::ProtoWrapper> verdict;
     phishing_detector->StartPhishingDetection(
-        url, base::BindOnce(
-                 [](base::RepeatingClosure quit_closure,
-                    mojom::PhishingDetectorResult* out_result,
-                    std::optional<mojo_base::ProtoWrapper>* out_verdict,
-                    mojom::PhishingDetectorResult result,
-                    std::optional<mojo_base::ProtoWrapper> verdict) {
-                   *out_result = result;
-                   *out_verdict = std::move(verdict);
-                   quit_closure.Run();
-                 },
-                 run_loop.QuitClosure(), &result, &verdict));
+        url, safe_browsing::mojom::ClientSideDetectionType::kTriggerModels,
+        base::BindOnce(
+            [](base::RepeatingClosure quit_closure,
+               mojom::PhishingDetectorResult* out_result,
+               std::optional<mojo_base::ProtoWrapper>* out_verdict,
+               mojom::PhishingDetectorResult result,
+               std::optional<mojo_base::ProtoWrapper> verdict) {
+              *out_result = result;
+              *out_verdict = std::move(verdict);
+              quit_closure.Run();
+            },
+            run_loop.QuitClosure(), &result, &verdict));
 
     run_loop.Run();
 

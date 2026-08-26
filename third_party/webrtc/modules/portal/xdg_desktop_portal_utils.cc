@@ -9,10 +9,13 @@
  */
 #include "modules/portal/xdg_desktop_portal_utils.h"
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
+#include "modules/portal/portal_request_response.h"
 #include "modules/portal/scoped_glib.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/str_join.h"

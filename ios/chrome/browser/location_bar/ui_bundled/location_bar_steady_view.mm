@@ -456,6 +456,14 @@ const CGFloat kSmallerLocationLabelFontMultiplier = 0.75;
   [self updateAccessibility];
 }
 
+- (void)setIncognitoBadgeView:(UIView*)incognitoBadgeView {
+  BOOL hadBadgeView = _badgesContainerView.incognitoBadgeView != nil;
+  if (!hadBadgeView && incognitoBadgeView) {
+    _badgesContainerView.incognitoBadgeView = incognitoBadgeView;
+  }
+  [self updateAccessibility];
+}
+
 - (void)setBadgeView:(UIView*)badgeView {
   BOOL hadBadgeView = _badgesContainerView.badgeView != nil;
   if (!hadBadgeView && badgeView) {
@@ -471,6 +479,13 @@ const CGFloat kSmallerLocationLabelFontMultiplier = 0.75;
   if (!hadEntrypointView && contextualPanelEntrypointView) {
     _badgesContainerView.contextualPanelEntrypointView =
         contextualPanelEntrypointView;
+  }
+  [self updateAccessibility];
+}
+
+- (void)setReaderModeChipView:(UIView*)readerModeChipView {
+  if (!_badgesContainerView.readerModeChipView && readerModeChipView) {
+    _badgesContainerView.readerModeChipView = readerModeChipView;
   }
   [self updateAccessibility];
 }
@@ -558,7 +573,16 @@ const CGFloat kSmallerLocationLabelFontMultiplier = 0.75;
   return self.badgesContainerView;
 }
 
+- (id<ReaderModeChipVisibilityDelegate>)readerModeChipVisibilityDelegate {
+  return self.badgesContainerView;
+}
+
 - (id<BadgeViewVisibilityDelegate>)badgeViewVisibilityDelegate {
+  return self.badgesContainerView;
+}
+
+- (id<IncognitoBadgeViewVisibilityDelegate>)
+    incognitoBadgeViewVisibilityDelegate {
   return self.badgesContainerView;
 }
 

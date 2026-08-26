@@ -13,11 +13,6 @@
 #endif
 
 namespace device::features {
-// Enables access to articulated hand tracking sensor input.
-BASE_FEATURE(kWebXrHandInput,
-             "WebXRHandInput",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables rendering to WebXR sessions with the WebGPU API.
 BASE_FEATURE(kWebXrWebGpuBinding,
              "WebXRWebGPUBinding",
@@ -47,6 +42,11 @@ BASE_FEATURE(kWebXrOrientationSensorDevice,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+// Feature flag to enforce a XR device setting for testing only.
+BASE_FEATURE(kForceIsXrDeviceForTesting,
+             "ForceIsXrDeviceForTesting",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // Controls whether or not SharedBuffer support is enabled. This is enabled by
@@ -121,6 +121,9 @@ bool IsOpenXrArEnabled() {
 #endif  // ENABLE_OPENXR
 
 bool IsXrDevice() {
+  if (base::FeatureList::IsEnabled(kForceIsXrDeviceForTesting)) {
+    return true;
+  }
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_OPENXR)
   return device::Java_XrFeatureStatus_isXrDevice(
       base::android::AttachCurrentThread());
@@ -131,7 +134,7 @@ bool IsXrDevice() {
 
 bool IsHandTrackingEnabled() {
 #if BUILDFLAG(ENABLE_OPENXR)
-  return IsOpenXrEnabled() && base::FeatureList::IsEnabled(kWebXrHandInput);
+  return IsOpenXrEnabled();
 #else
   return false;
 #endif

@@ -354,13 +354,8 @@ void FileSystemAccessUsageBubbleView::ShowBubble(
       button_provider->GetAnchorView(std::nullopt), web_contents, origin,
       std::move(usage));
 
-  if (IsPageActionMigrated(PageActionIconType::kFileSystemAccess)) {
-    bubble_->SetHighlightedButton(
-        button_provider->GetPageActionView(kActionShowFileSystemAccess));
-  } else {
-    bubble_->SetHighlightedButton(button_provider->GetPageActionIconView(
-        PageActionIconType::kFileSystemAccess));
-  }
+  bubble_->SetHighlightedButton(
+      button_provider->GetPageActionView(kActionShowFileSystemAccess));
   views::BubbleDialogDelegateView::CreateBubble(bubble_);
 
   bubble_->ShowForReason(DisplayReason::USER_GESTURE,
@@ -426,17 +421,10 @@ std::u16string FileSystemAccessUsageBubbleView::GetAccessibleWindowTitle()
     return {};
   }
 
-  if (IsPageActionMigrated(PageActionIconType::kFileSystemAccess)) {
-    return BrowserView::GetBrowserViewForBrowser(browser)
-        ->toolbar_button_provider()
-        ->GetPageActionView(kActionShowFileSystemAccess)
-        ->GetTooltipText();
-  }
-
   return BrowserView::GetBrowserViewForBrowser(browser)
       ->toolbar_button_provider()
-      ->GetPageActionIconView(PageActionIconType::kFileSystemAccess)
-      ->GetTextForTooltipAndAccessibleName();
+      ->GetPageActionView(kActionShowFileSystemAccess)
+      ->GetTooltipText();
 }
 
 bool FileSystemAccessUsageBubbleView::ShouldShowCloseButton() const {
@@ -535,6 +523,7 @@ void FileSystemAccessUsageBubbleView::WindowClosing() {
 void FileSystemAccessUsageBubbleView::CloseBubble() {
   // Widget's Close() is async, but we don't want to use bubble_ after
   // this. Additionally web_contents() may have been destroyed.
+  UpdateBubbleVisibilityState(/*is_bubble_visible=*/false);
   bubble_ = nullptr;
   LocationBarBubbleDelegateView::CloseBubble();
 }

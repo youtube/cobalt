@@ -5,8 +5,10 @@
 #ifndef COMPONENTS_REGIONAL_CAPABILITIES_REGIONAL_CAPABILITIES_SWITCHES_H_
 #define COMPONENTS_REGIONAL_CAPABILITIES_REGIONAL_CAPABILITIES_SWITCHES_H_
 
+#include "base/component_export.h"
 #include "base/feature_list.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 
 namespace switches {
 
@@ -25,12 +27,27 @@ inline constexpr char kSearchEngineChoiceCountry[] =
 inline constexpr char kDefaultListCountryOverride[] = "DEFAULT_EEA";
 inline constexpr char kEeaListCountryOverride[] = "EEA_ALL";
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
-// When an invalid `country_codes::CountryId` is stored in prefs and this
-// feature is enabled the pref will be cleared allowing a valid country to be
-// set again.
-BASE_DECLARE_FEATURE(kClearPrefForUnknownCountry);
+#if BUILDFLAG(IS_ANDROID)
+// Mitigate overlap cases between the legacy search engine promo and the
+// device-based program eligibility determinations.
+BASE_DECLARE_FEATURE(kMitigateLegacySearchEnginePromoOverlap);
 #endif
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+// Use finch permanent country instead of finch latest country for fetching
+// country ID.
+BASE_DECLARE_FEATURE(kUseFinchPermanentCountryForFetchCountryId);
+#endif
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+COMPONENT_EXPORT(REGIONAL_CAPABILITIES_SWITCHES)
+BASE_DECLARE_FEATURE(kTaiyaki);
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
+// Updates profile country preference stored in preferences
+// dynamically when the current country does not match the stored value.
+BASE_DECLARE_FEATURE(kDynamicProfileCountry);
+
 }  // namespace switches
 
 #endif  // COMPONENTS_REGIONAL_CAPABILITIES_REGIONAL_CAPABILITIES_SWITCHES_H_

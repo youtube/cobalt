@@ -370,7 +370,7 @@ bool Sweeper::LocalSweeper::ParallelSweepSpace(AllocationSpace identity,
   PageMetadata* page = nullptr;
   while ((page = sweeper_->GetSweepingPageSafe(identity)) != nullptr) {
     ParallelSweepPage(page, identity, sweeping_mode);
-    if (!page->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE)) {
+    if (!page->never_allocate_on_chunk()) {
       found_usable_pages = true;
 #if DEBUG
     } else {
@@ -379,11 +379,9 @@ bool Sweeper::LocalSweeper::ParallelSweepSpace(AllocationSpace identity,
       int space_index = GetSweepSpaceIndex(identity);
       Sweeper::SweepingList& sweeping_list =
           sweeper_->sweeping_list_[space_index];
-      DCHECK(std::all_of(sweeping_list.begin(), sweeping_list.end(),
-                         [](const PageMetadata* p) {
-                           return p->Chunk()->IsFlagSet(
-                               MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
-                         }));
+      DCHECK(std::all_of(
+          sweeping_list.begin(), sweeping_list.end(),
+          [](const PageMetadata* p) { return p->never_allocate_on_chunk(); }));
 #endif  // DEBUG
     }
     if (++pages_swept >= max_pages) break;
@@ -650,7 +648,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
     page->set_concurrent_sweeping_state(
         PageMetadata::ConcurrentSweepingState::kInProgress);
     PromotedPageRecordMigratedSlotVisitor record_visitor(page);
-    const bool is_large_page = page->Chunk()->IsLargePage();
+    const bool is_large_page = page->is_large();
     if (is_large_page) {
       DCHECK_EQ(LO_SPACE, page->owner_identity());
       record_visitor.Process(LargePageMetadata::cast(page)->GetObject());
@@ -667,7 +665,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
           Address dead_end = object.address();
           ZapDeadObjectsInRange(sweeper_->heap_, dead_start, dead_end,
                                 zapping_mode);
-          dead_start = dead_end + size;
+          dead_start = dead_end + size.value();
         }
       }
       if (zapping_mode != ZappingMode::kNone) {
@@ -705,9 +703,9 @@ namespace {
 V8_INLINE bool ComparePagesForSweepingOrder(const PageMetadata* a,
                                             const PageMetadata* b) {
   // Prioritize pages that can be allocated on.
-  if (a->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE) !=
-      b->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE))
-    return a->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+  if (a->never_allocate_on_chunk() != b->never_allocate_on_chunk()) {
+    return a->never_allocate_on_chunk();
+  }
   // We sort in descending order of live bytes, i.e., ascending order of
   // free bytes, because GetSweepingPageSafe returns pages in reverse order.
   // This works automatically for black allocated pages, since we set live bytes
@@ -787,7 +785,7 @@ void ZapDeadObjectsOnPage(Heap* heap, PageMetadata* p) {
   for (auto [object, size] : LiveObjectRange(p)) {
     Address dead_end = object.address();
     ZapDeadObjectsInRange(heap, dead_start, dead_end, zapping_mode);
-    dead_start = dead_end + size;
+    dead_start = dead_end + size.value();
   }
   ZapDeadObjectsInRange(heap, dead_start, p->area_end(), zapping_mode);
 }
@@ -798,7 +796,7 @@ void ClearPromotedPages(Heap* heap, std::vector<MutablePageMetadata*> pages) {
     DCHECK(!page->SweepingDone());
     DCHECK_EQ(PageMetadata::ConcurrentSweepingState::kPendingIteration,
               page->concurrent_sweeping_state());
-    if (!page->Chunk()->IsLargePage()) {
+    if (!page->is_large()) {
       ZapDeadObjectsOnPage(heap, static_cast<PageMetadata*>(page));
     }
     page->ClearLiveness();
@@ -1026,17 +1024,17 @@ std::optional<base::AddressRegion> Sweeper::ComputeDiscardMemoryArea(
 
 void Sweeper::ZeroOrDiscardUnusedMemory(PageMetadata* page, Address addr,
                                         size_t size) {
-  if (size < FreeSpace::kSize) {
+  if (size < sizeof(FreeSpace)) {
     return;
   }
 
-  const Address unused_start = addr + FreeSpace::kSize;
+  const Address unused_start = addr + sizeof(FreeSpace);
   DCHECK(page->ContainsLimit(unused_start));
   const Address unused_end = addr + size;
   DCHECK(page->ContainsLimit(unused_end));
 
   std::optional<RwxMemoryWriteScope> scope;
-  if (page->Chunk()->executable()) {
+  if (page->is_executable()) {
     scope.emplace("For zeroing unused memory.");
   }
   const std::optional<base::AddressRegion> discard_area =
@@ -1216,8 +1214,8 @@ void Sweeper::RawSweep(PageMetadata* p,
           free_start, free_end, p, record_free_ranges, &free_ranges_map,
           sweeping_mode);
     }
-    live_bytes += size;
-    free_start = free_end + size;
+    live_bytes += size.value();
+    free_start = free_end + size.value();
 
     if (active_system_pages_after_sweeping) {
       MemoryChunk* chunk = p->Chunk();
@@ -1426,7 +1424,7 @@ void Sweeper::AddPromotedPage(MutablePageMetadata* chunk) {
   heap_->IncrementYoungSurvivorsCounter(live_bytes);
   DCHECK_EQ(PageMetadata::ConcurrentSweepingState::kDone,
             chunk->concurrent_sweeping_state());
-  if (!chunk->Chunk()->IsLargePage()) {
+  if (!chunk->is_large()) {
     PrepareToBeIteratedPromotedPage(static_cast<PageMetadata*>(chunk));
   } else {
     chunk->set_concurrent_sweeping_state(
@@ -1580,7 +1578,7 @@ void Sweeper::SweepEmptyNewSpacePage(PageMetadata* page) {
   page->ResetAllocationStatistics();
   page->ResetAgeInNewSpace();
   page->ReleaseSlotSet(SURVIVOR_TO_EXTERNAL_POINTER);
-  page->Chunk()->ClearFlagNonExecutable(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+  page->set_never_allocate_on_chunk(false);
   paged_space->FreeDuringSweep(start, size);
   paged_space->IncreaseAllocatedBytes(0, page);
   paged_space->RelinkFreeListCategories(page);

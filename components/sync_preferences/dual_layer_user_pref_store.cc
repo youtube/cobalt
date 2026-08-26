@@ -38,32 +38,6 @@ constexpr syncer::UserSelectableTypeSet kInterestingUserSelectableTypes = {
 constexpr std::string_view kUserSelectedTypesPrefName =
     "dual_layer_user_pref_store.user_selected_sync_types";
 
-base::Value::List UserSelectableTypeSetToValueList(
-    syncer::UserSelectableTypeSet user_selected_types) {
-  base::Value::List value_list;
-  for (syncer::UserSelectableType type : user_selected_types) {
-    if (const char* name = syncer::GetUserSelectableTypeName(type)) {
-      value_list.Append(name);
-    }
-  }
-  return value_list;
-}
-
-syncer::UserSelectableTypeSet ValueListToUserSelectableTypeSet(
-    const base::Value::List& value_list) {
-  syncer::UserSelectableTypeSet user_selected_types;
-  for (const base::Value& value : value_list) {
-    if (!value.is_string()) {
-      continue;
-    }
-    if (std::optional<syncer::UserSelectableType> type =
-            syncer::GetUserSelectableTypeFromString(value.GetString())) {
-      user_selected_types.Put(type.value());
-    }
-  }
-  return user_selected_types;
-}
-
 }  // namespace
 
 DualLayerUserPrefStore::UnderlyingPrefStoreObserver::
@@ -175,8 +149,7 @@ bool DualLayerUserPrefStore::IsInitializationComplete() const {
 
 bool DualLayerUserPrefStore::GetValue(std::string_view key,
                                       const base::Value** result) const {
-  const std::string pref_name(key);
-  if (!ShouldGetValueFromAccountStore(pref_name)) {
+  if (!ShouldGetValueFromAccountStore(key)) {
     return local_pref_store_->GetValue(key, result);
   }
 
@@ -194,7 +167,7 @@ bool DualLayerUserPrefStore::GetValue(std::string_view key,
   if (result) {
     // Merge pref if `key` exists in both the stores.
     if (account_value && local_value) {
-      *result = MaybeMerge(pref_name, *local_value, *account_value);
+      *result = MaybeMerge(key, *local_value, *account_value);
       CHECK(*result);
     } else if (account_value) {
       *result = account_value;
@@ -796,7 +769,7 @@ void DualLayerUserPrefStore::SetInterestingUserSelectedTypes(
   CHECK(kInterestingUserSelectableTypes.HasAll(user_selected_types));
   local_pref_store_->SetValueSilently(
       kUserSelectedTypesPrefName,
-      base::Value(UserSelectableTypeSetToValueList(user_selected_types)),
+      base::Value(syncer::UserSelectableTypeSetToValueList(user_selected_types)),
       WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
 }
 
@@ -809,7 +782,7 @@ DualLayerUserPrefStore::GetInterestingUserSelectedTypes() const {
       !value->is_list()) {
     return syncer::UserSelectableTypeSet();
   }
-  return base::Intersection(ValueListToUserSelectableTypeSet(value->GetList()),
+  return base::Intersection(syncer::ValueListToUserSelectableTypeSet(value->GetList()),
                             kInterestingUserSelectableTypes);
 }
 

@@ -12,6 +12,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/supervised_user/classify_url_navigation_throttle.h"
 #include "chrome/common/supervised_user_commands.mojom.h"
 #include "components/sessions/core/serialized_navigation_entry.h"
@@ -78,6 +79,7 @@ class SupervisedUserNavigationObserver
 
   // SupervisedUserServiceObserver:
   void OnURLFilterChanged() override;
+  void OnSearchContentFiltersChanged() override;
 
   // Called when interstitial error page is no longer being shown in the main
   // frame.
@@ -125,6 +127,9 @@ class SupervisedUserNavigationObserver
   void GoBack() override;
   void RequestUrlAccessRemote(RequestUrlAccessRemoteCallback callback) override;
   void RequestUrlAccessLocal(RequestUrlAccessLocalCallback callback) override;
+#if BUILDFLAG(IS_ANDROID)
+  void LearnMore(LearnMoreCallback callback) override;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // When a remote URL approval request is successfully created, this method is
   // called asynchronously.
@@ -136,11 +141,13 @@ class SupervisedUserNavigationObserver
   // clear up  entries in |requested_hosts_| which have been allowed.
   void MaybeUpdateRequestedHosts();
 
-  // Owned by SupervisedUserService.
-  raw_ptr<supervised_user::SupervisedUserURLFilter> url_filter_;
+  content::FrameTreeNodeId frame_tree_node_id();
 
-  // Owned by SupervisedUserServiceFactory (lifetime of Profile).
-  raw_ptr<supervised_user::SupervisedUserService> supervised_user_service_;
+  supervised_user::SupervisedUserService* supervised_user_service() const;
+
+  base::ScopedObservation<supervised_user::SupervisedUserService,
+                          SupervisedUserServiceObserver>
+      supervised_user_service_observation_{this};
 
   // Keeps track of the blocked frames. It maps the frame's globally unique
   // id to its corresponding |SupervisedUserInterstitial| instance.

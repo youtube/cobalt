@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -49,8 +50,15 @@ public class CustomTileEditMediatorUnitTest {
         verify(mViewDelegate).setDialogMode(DialogMode.ADD_SHORTCUT);
         verify(mViewDelegate).setName("");
         verify(mViewDelegate).setUrlText(CustomTileEditMediator.DEFAULT_URL_TEXT);
-        verify(mViewDelegate).focusOnUrl(true);
         verify(mBrowserDelegate).showEditDialog();
+
+        // Verify that the focus action is scheduled, then run it and verify the result.
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(mViewDelegate).addOnWindowFocusGainedTask(taskCaptor.capture());
+        verify(mViewDelegate, never()).focusOnUrl(anyBoolean());
+
+        taskCaptor.getValue().run();
+        verify(mViewDelegate).focusOnUrl(true);
     }
 
     @Test
@@ -63,8 +71,15 @@ public class CustomTileEditMediatorUnitTest {
         verify(mViewDelegate).setDialogMode(DialogMode.EDIT_SHORTCUT);
         verify(mViewDelegate).setName("Test Name");
         verify(mViewDelegate).setUrlText("http://test.com/");
-        verify(mViewDelegate).focusOnName();
         verify(mBrowserDelegate).showEditDialog();
+
+        // Verify that the focus action is scheduled, then run it and verify the result.
+        ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+        verify(mViewDelegate).addOnWindowFocusGainedTask(taskCaptor.capture());
+        verify(mViewDelegate, never()).focusOnName();
+
+        taskCaptor.getValue().run();
+        verify(mViewDelegate).focusOnName();
     }
 
     @Test
@@ -77,9 +92,18 @@ public class CustomTileEditMediatorUnitTest {
     }
 
     @Test
+    public void testOnUrlTextChangedOmittedScheme() {
+        CustomTileEditMediator mediator = createAndSetupMediator(/* originalTile= */ null);
+        mediator.onUrlTextChanged("omitted_scheme");
+
+        verify(mViewDelegate, never()).setUrlErrorByCode(anyInt());
+        verify(mViewDelegate).toggleSaveButton(true);
+    }
+
+    @Test
     public void testOnUrlTextChangedInvalidUrl() {
         CustomTileEditMediator mediator = createAndSetupMediator(/* originalTile= */ null);
-        mediator.onUrlTextChanged("invalid url");
+        mediator.onUrlTextChanged("bad://invalid_url");
 
         verify(mViewDelegate).setUrlErrorByCode(UrlErrorCode.INVALID_URL);
         verify(mViewDelegate).toggleSaveButton(false);
@@ -117,9 +141,19 @@ public class CustomTileEditMediatorUnitTest {
     }
 
     @Test
+    public void testOnSaveOmittedScheme() {
+        when(mBrowserDelegate.submitChange(any(), any())).thenReturn(true);
+        CustomTileEditMediator mediator = createAndSetupMediator(/* originalTile= */ null);
+        mediator.onSave("Test", "omitted_scheme");
+
+        verify(mBrowserDelegate).closeEditDialog(true);
+        verify(mViewDelegate, never()).setUrlErrorByCode(anyInt());
+    }
+
+    @Test
     public void testOnSaveInvalidUrl() {
         CustomTileEditMediator mediator = createAndSetupMediator(/* originalTile= */ null);
-        mediator.onSave("Test", "invalid url");
+        mediator.onSave("Test", "bad://invalid_url");
 
         verify(mBrowserDelegate, never()).closeEditDialog(anyBoolean());
         verify(mViewDelegate).setUrlErrorByCode(UrlErrorCode.INVALID_URL);

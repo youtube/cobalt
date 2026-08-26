@@ -48,7 +48,6 @@
 #include "extensions/browser/extension_registry.h"
 #include "net/http/http_status_code.h"
 #include "pdf/buildflags.h"
-#include "read_anything_untrusted_page_handler.h"
 #include "services/network/public/cpp/header_util.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/accessibility/accessibility_features.h"
@@ -64,8 +63,6 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_PDF)
-#include "chrome/browser/accessibility/pdf_ocr_controller.h"
-#include "chrome/browser/accessibility/pdf_ocr_controller_factory.h"
 #include "chrome/browser/pdf/pdf_viewer_stream_manager.h"
 #include "components/pdf/common/pdf_util.h"
 #include "pdf/pdf_features.h"
@@ -99,6 +96,12 @@ namespace {
 // HTML attributes into the accessibility tree. It should be removed ASAP.
 constexpr ui::AXMode kReadAnythingAXMode =
     ui::kAXModeWebContentsOnly | ui::AXMode::kHTML;
+
+// The amount of time reading mode should wait after getting the DidStopLoading
+// callback before checking if the current page is a pdf. It's possible to
+// receive the callback for the page before the pdf has finished loading, which
+// results in the last committed origin being invalid.
+constexpr int PDF_LOAD_DELAY_MS = 1000;
 
 #if BUILDFLAG(IS_CHROMEOS)
 
@@ -299,6 +302,10 @@ void ReadAnythingWebContentsObserver::DidStopLoading() {
   page_handler_->DidStopLoading();
 }
 
+void ReadAnythingWebContentsObserver::DidUpdateAudioMutingState(bool muted) {
+  page_handler_->DidUpdateAudioMutingState(muted);
+}
+
 void ReadAnythingWebContentsObserver::WebContentsDestroyed() {
   page_handler_->WebContentsDestroyed();
 }
@@ -376,16 +383,6 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
             base::BindOnce(
                 &ReadAnythingUntrustedPageHandler::OnScreenAIServiceInitialized,
                 weak_factory_.GetWeakPtr()));
-#if BUILDFLAG(ENABLE_PDF)
-    // PDF searchify feature adds OCR text to images while loading the PDF, so
-    // warming up the OCR service is not needed.
-    if (!base::FeatureList::IsEnabled(chrome_pdf::features::kPdfSearchify)) {
-      screen_ai::ScreenAIServiceRouterFactory::GetForBrowserContext(profile_)
-          ->GetServiceStateAsync(
-              screen_ai::ScreenAIServiceRouter::Service::kOCR,
-              base::DoNothing());
-    }
-#endif  // BUILDFLAG(ENABLE_PDF)
   }
 
   // Enable accessibility for the top level render frame and all descendants.
@@ -406,6 +403,7 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
 }
 
 ReadAnythingUntrustedPageHandler::~ReadAnythingUntrustedPageHandler() {
+  OnReadAloudAudioStateChange(false);
 #if !BUILDFLAG(IS_CHROMEOS)
   content::TtsController::GetInstance()->RemoveUpdateLanguageStatusDelegate(
       this);
@@ -439,6 +437,25 @@ void ReadAnythingUntrustedPageHandler::PrimaryPageChanged() {
 }
 
 void ReadAnythingUntrustedPageHandler::DidStopLoading() {
+  // It's possible for the value of GetLastCommittedOrigin to be invalid when
+  // DidStopLoading is first received, but because of how rapidly the last
+  // committed origin changes, reading mode would never receive the correct
+  // callback from WebContentsObserver, even if it listened for
+  // LastCommittedOrigin change events. Therefore, if the main page is not
+  // recognized as a pdf after the page finishes loading, check again after
+  // a small delay. This will allow PDFs to be more reliably distilled when
+  // they're opened while reading mode is already opened.
+  if (!CheckForPdfContentAfterLoad()) {
+    timer_.Start(
+        FROM_HERE, base::Milliseconds(PDF_LOAD_DELAY_MS),
+        base::BindOnce(
+            base::IgnoreResult(
+                &ReadAnythingUntrustedPageHandler::CheckForPdfContentAfterLoad),
+            base::Unretained(this)));
+  }
+}
+
+bool ReadAnythingUntrustedPageHandler::CheckForPdfContentAfterLoad() {
 #if BUILDFLAG(ENABLE_PDF)
   content::WebContents* main_contents = main_observer_->web_contents();
   if (!chrome_pdf::features::IsOopifPdfEnabled()) {
@@ -450,17 +467,27 @@ void ReadAnythingUntrustedPageHandler::DidStopLoading() {
     // page has finished loaded, call PrimaryPageChanged() again to redistill.
     if (!is_pdf_ && AreInnerContentsPdfContent(inner_contents)) {
       PrimaryPageChanged();
+      return true;
     }
   }
 #endif
+  return false;
+}
+
+void ReadAnythingUntrustedPageHandler::DidUpdateAudioMutingState(bool muted) {
+  page_->OnTabMuteStateChange(muted);
 }
 
 bool ReadAnythingUntrustedPageHandler::AreInnerContentsPdfContent(
     std::vector<content::WebContents*> inner_contents) {
+#if BUILDFLAG(ENABLE_PDF)
   return inner_contents.size() == 1 &&
          IsPdfExtensionOrigin(inner_contents[0]
                                   ->GetPrimaryMainFrame()
                                   ->GetLastCommittedOrigin());
+#else
+  return false;
+#endif
 }
 
 void ReadAnythingUntrustedPageHandler::WebContentsDestroyed() {
@@ -522,9 +549,23 @@ void ReadAnythingUntrustedPageHandler::GetDependencyParserModel(
 
 #if !BUILDFLAG(IS_CHROMEOS)
 void ReadAnythingUntrustedPageHandler::OnUpdateLanguageStatus(
+    content::BrowserContext* browser_context,
     const std::string& language,
     content::LanguageInstallStatus install_status,
     const std::string& error) {
+  // Language status is profile-dependent so only send the update if the status
+  // is for this profile. Incognito profiles download the language to the main
+  // profile, so we need to always send the language updates for incognito.
+  // Guest profiles don't have matching IDs, so if this profile is a guest and
+  // the profile sending the language status is a guest, then we do send the
+  // status update.
+  Profile* statusProfile = Profile::FromBrowserContext(browser_context);
+  const bool shouldSendGuestStatus =
+      statusProfile->IsGuestSession() && profile_->IsGuestSession();
+  if (!shouldSendGuestStatus && !profile_->IsIncognitoProfile() &&
+      statusProfile->UniqueId() != profile_->UniqueId()) {
+    return;
+  }
   auto voicePackInfo = read_anything::mojom::VoicePackInfo::New();
   voicePackInfo->language = language;
   voicePackInfo->pack_state = VoicePackInstallationState::NewInstallationState(
@@ -536,9 +577,7 @@ void ReadAnythingUntrustedPageHandler::OnExtensionReady(
     content::BrowserContext* browser_context,
     const extensions::Extension* extension) {
   const auto& extensionId =
-      features::IsWasmTtsComponentUpdaterEnabled()
-          ? extension_misc::kComponentUpdaterTTSEngineExtensionId
-          : extension_misc::kTTSEngineExtensionId;
+      extension_misc::kComponentUpdaterTTSEngineExtensionId;
   if (extension->id() != extensionId || extension_installed_) {
     return;
   }
@@ -674,6 +713,22 @@ void ReadAnythingUntrustedPageHandler::OnHighlightGranularityChanged(
   profile_->GetPrefs()->SetInteger(
       prefs::kAccessibilityReadAnythingHighlightGranularity,
       static_cast<size_t>(granularity));
+}
+
+void ReadAnythingUntrustedPageHandler::OnReadAloudAudioStateChange(
+    bool playing) {
+  // Show the tab audio icon when read aloud is playing, and hide it when it
+  // stops playing.
+  content::WebContents* contents = !!pdf_observer_
+                                       ? pdf_observer_->web_contents()
+                                       : main_observer_->web_contents();
+  if (contents) {
+    if (playing) {
+      audible_closure_ = contents->MarkAudible();
+    } else {
+      audible_closure_.RunAndReset();
+    }
+  }
 }
 
 void ReadAnythingUntrustedPageHandler::OnLinkClicked(
@@ -820,6 +875,8 @@ void ReadAnythingUntrustedPageHandler::OnTabWillDetach() {
     return;
   }
 
+  OnReadAloudAudioStateChange(false);
+
   // When multiple tabs are open, we receive this call multiple times, so only
   // inform once.
   if (!tab_will_detach_) {
@@ -856,18 +913,13 @@ void ReadAnythingUntrustedPageHandler::SetUpPdfObserver() {
           weak_factory_.GetSafeRef(), inner_contents[0], kReadAnythingAXMode);
     }
   }
-  // PDF searchify feature adds OCR text to images while loading the PDF, so
-  // activating PDF OCR is not needed.
-  if (use_screen_ai_service_ &&
-      !base::FeatureList::IsEnabled(chrome_pdf::features::kPdfSearchify)) {
-    screen_ai::PdfOcrControllerFactory::GetForProfile(profile_)->Activate();
-  }
 #endif  // BUILDFLAG(ENABLE_PDF)
 }
 
 void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
   is_pdf_ = false;
   if (!active_) {
+    VLOG(1) << "Sending unknown tree because not active";
     page_->OnActiveAXTreeIDChanged(ui::AXTreeIDUnknown(), ukm::kInvalidSourceId,
                                    /*is_pdf=*/false);
     return;
@@ -877,6 +929,8 @@ void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
                                        ? pdf_observer_->web_contents()
                                        : main_observer_->web_contents();
   if (!contents) {
+    VLOG(1) << "Sending unknown tree because no contents. Used pdf: "
+            << !!pdf_observer_;
     page_->OnActiveAXTreeIDChanged(ui::AXTreeIDUnknown(), ukm::kInvalidSourceId,
                                    /*is_pdf=*/false);
     return;
@@ -916,6 +970,7 @@ void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
     contents->ForEachRenderFrameHost([this](content::RenderFrameHost* rfh) {
       if (rfh->GetProcess()->IsPdf()) {
         is_pdf_ = true;
+        VLOG(1) << "Sending pdf tree with id " << rfh->GetAXTreeID();
         page_->OnActiveAXTreeIDChanged(rfh->GetAXTreeID(),
                                        rfh->GetPageUkmSourceId(),
                                        /*is_pdf=*/true);
@@ -926,6 +981,7 @@ void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
 #endif  // BUILDFLAG(ENABLE_PDF)
 
   content::RenderFrameHost* rfh = contents->GetPrimaryMainFrame();
+  VLOG(1) << "Sending non-pdf tree with id " << rfh->GetAXTreeID();
   page_->OnActiveAXTreeIDChanged(rfh->GetAXTreeID(), rfh->GetPageUkmSourceId(),
                                  /*is_pdf=*/false);
 }

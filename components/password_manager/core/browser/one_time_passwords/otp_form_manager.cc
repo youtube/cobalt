@@ -16,6 +16,8 @@ namespace password_manager {
 
 namespace {
 
+using autofill::FieldGlobalId;
+
 // TODO(crbug.com/415274388): Evaluate if FieldInfoManager needs to be improved
 // to track more user inputs.
 OtpSource DetermineWhereOtpWasLikelySent(FieldInfoManager* field_info_manager,
@@ -58,10 +60,9 @@ OtpFormManager::OtpFormManager(
     sms_otp_backend_ = client_->GetSmsOtpBackend();
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+  // We observe a new OTP form, we need to fetch the OTP value.
+  RetrieveOtpValue();
 }
-
-OtpFormManager::OtpFormManager(OtpFormManager&&) = default;
-OtpFormManager& OtpFormManager::operator=(OtpFormManager&&) = default;
 
 OtpFormManager::~OtpFormManager() = default;
 
@@ -78,6 +79,74 @@ void OtpFormManager::ProcessUpdatedPredictions(
     return;
   }
   otp_source_ = new_otp_source;
+  // The form and the assumed OTP source have changed, we need to refetch the
+  // OTP value.
+  RetrieveOtpValue();
+}
+
+void OtpFormManager::ProcessServerOverrides(
+    const std::vector<FieldGlobalId>& otp_overrides,
+    const std::vector<FieldGlobalId>& other_overrides) {
+  // Add missing OTP fields to `otp_field_ids_`.
+  for (const FieldGlobalId& otp_field : otp_overrides) {
+    if (std::find(otp_field_ids_.begin(), otp_field_ids_.end(), otp_field) ==
+        otp_field_ids_.end()) {
+      otp_field_ids_.push_back(otp_field);
+    }
+  }
+
+  // Remove incorrectly classified fields from `otp_field_ids_`.
+  for (const FieldGlobalId& non_otp_field : other_overrides) {
+    otp_field_ids_.erase(std::remove(otp_field_ids_.begin(),
+                                     otp_field_ids_.end(), non_otp_field),
+                         otp_field_ids_.end());
+  }
+  // Run the pending callback immediately with no suggestions if no OTP
+  // suggestions should be offered.
+  if (otp_field_ids_.empty() && pending_suggestion_callback_) {
+    std::move(pending_suggestion_callback_).Run({});
+  }
+}
+
+bool OtpFormManager::IsFieldEligibleForOtpFilling(
+    const FieldGlobalId& field_id) const {
+  return (std::ranges::find(otp_field_ids_, field_id) !=
+          otp_field_ids_.end()) &&
+         (sms_otp_retrieval_in_progress_ || !otp_suggestions_.empty());
+}
+
+void OtpFormManager::GetOtpSuggestions(
+    const FieldGlobalId& field_id,
+    base::OnceCallback<void(std::vector<std::string>)> callback) {
+  CHECK(IsFieldEligibleForOtpFilling(field_id));
+  if (!sms_otp_retrieval_in_progress_) {
+    std::move(callback).Run(otp_suggestions_);
+  } else {
+    pending_suggestion_callback_ = std::move(callback);
+  }
+}
+
+void OtpFormManager::RetrieveOtpValue() {
+  if (sms_otp_backend_) {
+    sms_otp_retrieval_in_progress_ = true;
+    sms_otp_backend_->RetrieveSmsOtp(
+        base::BindOnce(&OtpFormManager::OnOtpRetrievalComplete,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
+}
+
+void OtpFormManager::OnOtpRetrievalComplete(const OtpFetchReply& reply) {
+  sms_otp_retrieval_in_progress_ = false;
+  if (reply.otp_value.has_value()) {
+    otp_suggestions_.push_back(reply.otp_value.value());
+  }
+
+  if (pending_suggestion_callback_) {
+    std::move(pending_suggestion_callback_).Run(otp_suggestions_);
+  }
+
+  // TODO(crbug.com/415272524): Record metrics on how often the retrieval
+  // succeeds or fails, in combination with the OTP source.
 }
 
 }  // namespace password_manager

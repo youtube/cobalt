@@ -19,6 +19,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
+#include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/supports_user_data.h"
 #include "base/synchronization/lock.h"
@@ -628,10 +629,11 @@ bool DownloadManagerImpl::InterceptDownload(
     }
   }
 
-  if (delegate_ && delegate_->InterceptDownloadIfApplicable(
-                       info.url(), user_agent, info.content_disposition,
-                       info.mime_type, info.request_origin, info.total_bytes,
-                       info.transient, web_contents)) {
+  if (delegate_ &&
+      delegate_->InterceptDownloadIfApplicable(
+          info.url(), user_agent, info.content_disposition, info.mime_type,
+          info.request_origin, info.total_bytes, info.transient,
+          info.is_content_initiated, web_contents)) {
     DropDownload();
     return true;
   }

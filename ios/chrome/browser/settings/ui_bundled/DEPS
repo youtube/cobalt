@@ -19,6 +19,7 @@ include_rules = [
   "+ios/chrome/browser/feature_engagement/model/tracker_factory.h",
   "+ios/chrome/browser/history/model/web_history_service_factory.h",
   "+ios/chrome/browser/incognito_reauth/ui_bundled",
+  "+ios/chrome/browser/intelligence/features/features.h",
   "+ios/chrome/browser/intents/model/intents_donation_helper.h",
   "+ios/chrome/browser/keyboard/ui_bundled",
   "+ios/chrome/browser/language/model/language_model_manager_factory.h",
@@ -72,5 +73,8 @@ specific_include_rules = {
   ],
   "search_engine_settings_test_case_base\.mm": [
     "+ios/chrome/browser/search_engine_choice/ui_bundled/search_engine_choice_earl_grey_ui_test_util.h",
+  ],
+  "supervised_user_settings_app_interface\.mm": [
+    "+ios/chrome/browser/tabs/model/features.h",
   ],
 }

@@ -8,10 +8,12 @@
 #include "base/containers/to_vector.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/string_util.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/navigation_predictor/search_engine_preconnector.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_selections.h"
 #include "chrome/browser/ui/browser.h"
@@ -212,6 +214,10 @@ class ProfileKeyedServiceBrowserTest : public InProcessBrowserTest {
   }
 
  private:
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
   base::test::ScopedFeatureList feature_list_;
 };
 
@@ -401,6 +407,9 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
 #endif
     "HidDeviceManager",
     "HostContentSettingsMap",
+#if BUILDFLAG(IS_CHROMEOS)
+    "IsolatedWebAppURLLoaderShutdownNotifierFactory",
+#endif
     "LiveCaptionController",
 #if !BUILDFLAG(IS_CHROMEOS)
     // TODO(crbug.com/374351946): Investigate if this is necessary on CrOS.
@@ -636,6 +645,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "ExtensionInstallEventRouter",
 #endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
     "ExtensionManagement",
+    "ExtensionNavigationRegistry",
     "ExtensionPrefValueMap",
     "ExtensionPrefs",
     "ExtensionRegistrar",
@@ -668,7 +678,6 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "HeavyAdService",
 #if BUILDFLAG(ENABLE_EXTENSIONS)
     "HidConnectionResourceManager",
-    "ExtensionNavigationRegistry",
 #endif
     "HidDeviceManager",
     "HistoryAPI",
@@ -692,6 +701,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "LazyBackgroundTaskQueue",
     "ListFamilyMembersService",
     "LocalOrSyncableBookmarkSyncServiceFactory",
+    "LoginDetectionKeyedService",
     "LoginUIServiceFactory",
     "MDnsAPI",
     "ManagedBookmarkService",
@@ -869,8 +879,6 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "DeviceSyncClient",
     "DriveIntegrationService",
     "EasyUnlockService",
-    "ExternalLogoutDoneEventHandler",
-    "ExternalLogoutRequestEventHandler",
     "InputImeAPI",
     "InputMethodAPI",
     "KcerFactoryAsh",

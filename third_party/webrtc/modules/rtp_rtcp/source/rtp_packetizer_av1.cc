@@ -9,10 +9,9 @@
  */
 #include "modules/rtp_rtcp/source/rtp_packetizer_av1.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <vector>
 

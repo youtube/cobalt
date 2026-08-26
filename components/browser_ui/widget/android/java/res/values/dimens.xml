@@ -18,6 +18,7 @@ found in the LICENSE file.
     <dimen name="large_icon_background_size">40dp</dimen>
     <dimen name="small_icon_background_size">32dp</dimen>
     <dimen name="focused_icon_background_stroke_width">2dp</dimen>
+    <dimen name="focused_list_item_background_radius">16dp</dimen>
     <dimen name="cpa_button_background_radius_is_checked">12dp</dimen>
     <dimen name="toolbar_progress_bar_height">2dp</dimen>
     <dimen name="toolbar_progress_bar_increased_height">4dp</dimen>
@@ -178,18 +179,19 @@ found in the LICENSE file.
     <dimen name="chip_border_width">1dp</dimen>
     <dimen name="chip_corner_radius">8dp</dimen>
     <dimen name="chip_default_height">32dp</dimen>
-    <dimen name="chip_end_padding">16dp</dimen>
-    <dimen name="chip_reduced_end_padding">12dp</dimen>
-    <dimen name="chip_element_leading_padding">8dp</dimen>
-    <dimen name="chip_element_extended_leading_padding">16dp</dimen>
+    <dimen name="chip_view_start_padding">8dp</dimen>
+    <dimen name="chip_view_extended_start_padding">16dp</dimen>
+    <dimen name="chip_view_end_padding">16dp</dimen>
+    <dimen name="chip_view_reduced_end_padding">12dp</dimen>
     <dimen name="chip_bg_vertical_inset">8dp</dimen>
     <dimen name="chip_loading_view_size">12dp</dimen>
     <dimen name="chip_end_icon_margin_start">8dp</dimen>
     <dimen name="chip_end_icon_extended_margin_start">16dp</dimen>
-    <dimen name="chip_end_padding_with_end_icon">6dp</dimen>
-    <dimen name="chip_extended_end_padding_with_end_icon">16dp</dimen>
+    <dimen name="chip_end_icon_margin_end">6dp</dimen>
+    <dimen name="chip_end_icon_extended_margin_end">16dp</dimen>
     <dimen name="chip_text_multiline_vertical_padding">12dp</dimen>
-    <dimen name="chip_text_reduced_leading_padding">4dp</dimen>
+    <dimen name="chip_primary_text_start_padding">8dp</dimen>
+    <dimen name="chip_primary_text_reduced_start_padding">4dp</dimen>
     <!-- ( listPreferredItemHeightSmall(40dp) - text size(12sp) - top and bottom padding(8dp) ) / 2 -->
     <dimen name="menu_chip_vertical_inset">10dp</dimen>
 
@@ -234,4 +236,26 @@ found in the LICENSE file.
 
     <!-- Anchored popup menu dimens -->
     <dimen name="popup_menu_shadow_length">6dp</dimen>
+
+    <!-- Rich Radio Button dimens -->
+    <dimen name="rich_radio_button_default_padding">6dp</dimen>
+    <dimen name="rich_radio_button_without_icon_vertical_padding">16dp</dimen>
+
+    <dimen name="rich_radio_button_title_margin">16dp</dimen>
+
+    <dimen name="rich_radio_button_horizontal_icon_container_size">80dp</dimen>
+    <dimen name="rich_radio_button_vertical_icon_container_size">120dp</dimen>
+    <dimen name="rich_radio_button_vertical_icon_container_margin_top">14dp</dimen>
+
+    <dimen name="rich_radio_button_vertical_margin_bottom">16dp</dimen>
+
+    <dimen name="rich_radio_button_icon_margin_end">8dp</dimen>
+    <dimen name="rich_radio_button_radio_button_margin_end">10dp</dimen>
+    <dimen name="rich_radio_button_radio_button_margin_start">16dp</dimen>
+
+    <dimen name="rich_radio_button_description_margin_top">4dp</dimen>
+
+    <dimen name="rich_radio_button_list_horizontal_spacing">12dp</dimen>
+    <dimen name="rich_radio_button_list_vertical_spacing">8dp</dimen>
+
 </resources>

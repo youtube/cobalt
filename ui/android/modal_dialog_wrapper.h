@@ -12,6 +12,8 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "ui/android/ui_android_export.h"
+#include "ui/base/interaction/element_identifier.h"
+#include "ui/base/models/dialog_model_field.h"
 #include "ui/base/models/dialog_model_host.h"
 
 namespace ui {
@@ -30,7 +32,8 @@ namespace ui {
 // if labels are not specified.
 // Replacements (if any) are performed in paragraph text, but any emphasis is
 // not included since it is not supported in android dialogs.
-class UI_ANDROID_EXPORT ModalDialogWrapper : public DialogModelHost {
+class UI_ANDROID_EXPORT ModalDialogWrapper : public DialogModelHost,
+                                             public DialogModelFieldHost {
  public:
   // Mirrors Java's `ModalDialogProperties#ButtonStyles`.
   // TODO(crbug.com/392977703): IntDef that enum in C++.
@@ -53,6 +56,7 @@ class UI_ANDROID_EXPORT ModalDialogWrapper : public DialogModelHost {
   // JNI methods.
   void PositiveButtonClicked(JNIEnv* env);
   void NegativeButtonClicked(JNIEnv* env);
+  void CheckboxToggled(JNIEnv* env, jboolean is_checked);
   void Dismissed(JNIEnv* env);
   void Destroy(JNIEnv* env);
 
@@ -66,10 +70,15 @@ class UI_ANDROID_EXPORT ModalDialogWrapper : public DialogModelHost {
   void Close() override;
   void OnDialogButtonChanged() override;
 
+  // Helper function for BuildPropertyModel.
+  ModalDialogButtonStyles GetButtonStyles() const;
+
   // Build java PropertyModel from ui::DialogModel.
   void BuildPropertyModel();
 
   const std::unique_ptr<ui::DialogModel> dialog_model_;
+
+  ElementIdentifier checkbox_id_;
 
   const raw_ptr<WindowAndroid> window_android_;
 

@@ -7,8 +7,8 @@
 <translation id="1086486568852410168">Buscar con Google Lens</translation>
 <translation id="1091252999271033193">En consecuencia, Chromium sempre solicitará abrir o sitio para móbiles.</translation>
 <translation id="1115463765356382667">Completa as accións suxeridas máis abaixo para sacarlle o máximo partido a Chromium.</translation>
-<translation id="1140315115515116765">Usa Chromium de forma predeterminada para obter facilmente estatísticas de prezos</translation>
 <translation id="1185134272377778587">Acerca de Chromium</translation>
+<translation id="1229234641991056119">Utiliza os contrasinais, o historial, os marcadores e as tarxetas de crédito de Safari en Chromium</translation>
 <translation id="1257458525759135959">Se queres gardar imaxes, para que Chromium poida engadir as túas fotos, toca Configuración</translation>
 <translation id="1260702988262336471">Abre o menú de Chromium</translation>
 <translation id="12739128458173458">Para enviar esta pestana a outro dispositivo, inicia sesión en Chromium nos dous dispositivos.</translation>
@@ -53,6 +53,7 @@
 <translation id="2195025571279539885">Queres que a próxima vez Chromium che ofreza a posibilidade de traducir as páxinas en <ph name="LANGUAGE_NAME" /> deste sitio?</translation>
 <translation id="22313767259766852">Este enderezo está gardado en Chromium. Para usalo nos diferentes produtos de Google, gárdao na túa Conta de Google (<ph name="USER_EMAIL" />).</translation>
 <translation id="2236584955986023187">En consecuencia, Chromium sempre solicitará abrir o sitio para ordenadores.</translation>
+<translation id="2245694534483711162">Gemini pode usar a túa localización precisa, en función do permiso que xa lle concedeses a Chromium</translation>
 <translation id="2270466829363945454">Comprar</translation>
 <translation id="2313870531055795960">Comproba enderezos URL cunha lista de sitios non seguros almacenada en Chromium. Se un sitio tenta roubarche o contrasinal ou se descargas un ficheiro daniño, Chromium tamén pode comprobar os enderezos URL, entre os que se inclúen fragmentos de contido das páxinas, a través da función Navegación segura.</translation>
 <translation id="2314220608288760290">Chromium abre automaticamente as ligazóns de incógnito de YouTube no modo de incógnito.</translation>
@@ -91,7 +92,6 @@ Se queres ver máis opcións de configuración que usen datos para mellorar a t�
 <translation id="3102849287235003384">Para pechar sesión na túa Conta de Google en todos os sitios web, <ph name="BEGIN_LINK" />pecha sesión en Chromium<ph name="END_LINK" />.</translation>
 <translation id="3115956258722352278">Queres que Chromium sexa o teu navegador predeterminado?</translation>
 <translation id="3180939591219927904">Activa Bloquear pestanas do modo de incógnito ao pechar Chromium</translation>
-<translation id="3242612358525156339">Na configuración do teu dispositivo, abre <ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" /> e selecciona Chromium</translation>
 <translation id="328933489847748230">{count,plural, =1{Mostrando 1 ventá de Chromium}other{Mostrando {count} ventás de Chromium}}</translation>
 <translation id="3344973607274501920">Chromium non puido comprobar os teus contrasinais. Verifica a conexión a Internet.</translation>
 <translation id="3366305173356742781">Datos de Chromium na túa conta</translation>
@@ -118,10 +118,10 @@ Espera uns minutiños antes de cambiar de conta. Se a cambias agora, eliminarans
 <translation id="3816686541346279443">Chromium ofrecerache gardar o teu contrasinal.</translation>
 <translation id="3827545470516145620">Contas con protección de seguranza estándar neste dispositivo</translation>
 <translation id="3833326979834193417">Chromium executa automaticamente Comprobación de seguranza todos os días para protexerte das violacións da seguranza dos datos e dos sitios web pouco seguros, entre outras cousas. Podes consultar máis información sobre esta función en Configuración.</translation>
+<translation id="3845223911364528001">Volve a Chromium para cargar o ficheiro</translation>
 <translation id="3855938650519180865">Novidades de Chromium</translation>
 <translation id="3886689467633467988">Inicia sesión neste sitio e en Chromium para acceder aos teus marcadores e a máis contido en todos os teus dispositivos.</translation>
 <translation id="3949514465204582407">Consello de Chromium: usa en calquera aplicación os contrasinais</translation>
-<translation id="3983291422281996849">Define Chromium como o navegador predeterminado para seguir facilmente os prezos e obter estatísticas relacionadas con eles dos produtos que queiras comprar.</translation>
 <translation id="4005283307739974863">Abre e executa Comprobación de seguranza en Chromium.</translation>
 <translation id="4043291146360695975">Os contrasinais gárdanse no xestor de contrasinais só neste dispositivo.</translation>
 <translation id="4066426933127344530">Utiliza Chromium de forma predeterminada</translation>
@@ -165,7 +165,6 @@ Para cambiar esta opción de configuración, <ph name="BEGIN_LINK" />elimina os 
 <translation id="5042011327527167688">Toca Ver con Google Maps en Chromium.</translation>
 <translation id="5044871537677053278">Chromium detecta enderezos e usa Google Maps para darche indicacións e información local.</translation>
 <translation id="5048140766121299007">Na configuración de <ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />, activa Chromium</translation>
-<translation id="5048795749726991615">Usa Chromium para autocompletar facilmente noutras aplicacións os teus contrasinais gardados</translation>
 <translation id="5053429694249468757">Eliminando datos de Chromium…</translation>
 <translation id="5071749685031362629">Chromium para iOS</translation>
 <translation id="5124429847818367226">Agora podes usar Chromium sempre que navegues ou toques ligazóns en mensaxes, documentos e outras aplicacións.</translation>
@@ -174,8 +173,10 @@ Para cambiar esta opción de configuración, <ph name="BEGIN_LINK" />elimina os 
 <translation id="5203244847421322551">Garda e autocompleta contrasinais en Chromium</translation>
 <translation id="5224391634244552924">Non hai contrasinais gardados. Chromium pode comprobar os teus contrasinais cando os gardes.</translation>
 <translation id="5259423875997548710">Busca elementos visuais en Chromium.</translation>
+<translation id="5284913972719948193">Importa os teus datos para usar os teus contrasinais, o historial, os marcadores e as tarxetas de crédito en Chromium</translation>
 <translation id="5308226104666789935">Chromium non puido buscar actualizacións</translation>
 <translation id="5311557153294205270">Engade os URL introducidos aos teus marcadores de Chromium.</translation>
+<translation id="5383251701169024761">Escolle Chromium para autocompletar facilmente noutras aplicacións os teus contrasinais gardados.</translation>
 <translation id="538767207339317086">Permitir inicio de sesión en Chromium</translation>
 <translation id="5389058611415066188">Protéxete con Chromium</translation>
 <translation id="5415273218238091735">Consello de Chromium</translation>
@@ -244,17 +245,16 @@ Cuestións que debes ter en conta:
 <translation id="6852799557929001644">Accede aos teus contrasinais de Chromium e moito máis noutras aplicacións deste dispositivo.</translation>
 <translation id="6887138405044152640">Para enviar esta pestana a outro dispositivo, inicia sesión en Chromium nel.</translation>
 <translation id="6911341667534646387">Sigue usando os datos de Chromium na túa Conta de Google</translation>
-<translation id="7006920032187763988">Podes utilizar os contrasinais que gardaches no xestor de contrasinais noutras aplicacións do teu iPad.</translation>
 <translation id="7018284295775193585">Chromium non se pode actualizar</translation>
 <translation id="7055269218854630176">A túa organización, <ph name="DOMAIN" />, xestiona a conta na que estás iniciando sesión e o xeito no que se usa Chromium. A persoa administradora pode configurar ou restrinxir determinadas funcións.</translation>
 <translation id="7099326575020694068">Chromium non pode usar a cámara no modo Vista dividida</translation>
-<translation id="7129379408282555630">Desfruta de todo o potencial de Chromium Shopping</translation>
 <translation id="7165402419892018581">Escolle Chromium para autocompletar</translation>
 <translation id="7175400662502680481">O teu contrasinal púxose en risco debido a unha violación da seguranza dos datos. O xestor de contrasinais recomenda que o cambies de inmediato.</translation>
 <translation id="7185731475720473450">Os enderezos e os métodos de pago non se encriptarán. Tampouco se sincronizará o historial de navegación de Chromium.
 
 Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase de acceso. Google non recibirá nin almacenará a frase de acceso. Se esqueces a frase de acceso ou queres cambiar esta opción de configuración, <ph name="BEGIN_LINK" />elimina os datos de Chromium da túa conta<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">As notificacións de Chromium están desactivadas actualmente na configuración do dispositivo.</translation>
+<translation id="7195217321165708458">Gemini en Chromium</translation>
 <translation id="7219205286115692265">Accede a Chromium máis rápido desde a barra de aplicacións da pantalla de inicio do teu iPad.</translation>
 <translation id="7222001353246886083">Busca ${searchPhrase} en Chromium</translation>
 <translation id="7228180817326917122">Consello de Chromium: Escolle a posición da barra de enderezos</translation>
@@ -276,7 +276,6 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="7763454117143368771">Usa Chromium como navegador predeterminado para protexer a túa seguranza contra sitios perigosos e manter a salvo os teus contrasinais</translation>
 <translation id="7784950022329154821">Bloquear pestanas do modo de incógnito ao pechar Chromium</translation>
 <translation id="78025249032851484">Estás usando unha versión de Chromium desactualizada.</translation>
-<translation id="7811371919871579588">Escolle Chromium para autocompletar facilmente noutras aplicacións os teus contrasinais gardados</translation>
 <translation id="7859018312476869945">Cando escribes algo na barra de enderezos ou na caixa de busca, Chromium envíallo ao motor de busca predeterminado para obter mellores suxestións. Esta opción está desactivada no modo de incógnito.</translation>
 <translation id="7890287942691234100">Comeza a utilizar o escáner de Chromium</translation>
 <translation id="7905064834449738336">Cando usas un contrasinal, Chromium avísate se se publicou en liña. Ao facelo, os teus contrasinais e os teus nomes de usuario encríptanse, polo que ninguén pode lelos, nin sequera Google.</translation>
@@ -301,12 +300,12 @@ Só poderán ler os teus datos encriptados as persoas que coñezan a túa frase 
 <translation id="8390323835464055390">Usa Chromium para autocompletar os contrasinais e as claves de acceso gardadas e iniciar sesión en calquera aplicación</translation>
 <translation id="8409374867500149834">Contas coa máxima seguranza de Chromium contra sitios web daniños</translation>
 <translation id="8543509361021925846">{THRESHOLD,plural, =1{Isto ocorre cando Chromium non se utiliza durante {THRESHOLD} minuto. Eliminaranse os datos que se garden só neste dispositivo mentres teñas a sesión inciada. Esta información pode incluír contrasinais e datos do historial.}other{Isto ocorre cando Chromium non se utiliza durante {THRESHOLD} minutos. Eliminaranse os datos que se garden só neste dispositivo mentres teñas a sesión inciada. Esta información pode incluír contrasinais e datos do historial.}}</translation>
-<translation id="858114650497379505">Podes utilizar os contrasinais que gardaches no xestor de contrasinais noutras aplicacións do teu iPhone.</translation>
 <translation id="8586442755830160949">Copyright <ph name="YEAR" />, os autores de Chromium. Reservados todos os dereitos.</translation>
 <translation id="8602103377623855616">Páxina de Chromium</translation>
 <translation id="865600487977764604">Protéxete en Chromium e pode utilizarse para mellorar a túa seguranza noutras aplicacións de Google cando teñas a sesión iniciada.</translation>
 <translation id="8663480472502753423">Mantén Chromium actualizado</translation>
 <translation id="8685813584220679697">Inicia sesión neste sitio e en Chromium.</translation>
+<translation id="8698780336333802489">Importar a Chromium</translation>
 <translation id="8730503818204408000">Abre a configuración de Chromium para definir este navegador como predeterminado.</translation>
 <translation id="8754966941001340678">Chromium recomenda protección mellorada</translation>
 <translation id="8759037115129007407">O membro da túa familia non pode recibir contrasinais agora mesmo. Pídelle que actualice Chromium e sincronice os seus contrasinais. <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
@@ -331,6 +330,7 @@ Espera uns minutiños antes de pechar a sesión. Se a pechas agora, estes datos 
 <translation id="9050790730841755540">Utiliza Chromium sempre que toques ligazóns noutras aplicacións.</translation>
 <translation id="9059693977935746710">Non terás que lembrar este contrasinal. Gardarase no xestor de contrasinais para <ph name="EMAIL" /></translation>
 <translation id="9089354809943900324">Chromium está desactualizado</translation>
+<translation id="9105645282262300612">Consello de Chromium: busca o que vexas</translation>
 <translation id="9152995302810511799">Consello de Chromium: Goza da máxima seguranza de Chromium</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Chromium está xestionado.</translation>
 <translation id="921174536258924340">Chromium non puido comprobar todos os contrasinais. Podes tentalo de novo mañá ou ben <ph name="BEGIN_LINK" />comprobar os contrasinais da túa Conta de Google<ph name="END_LINK" />.</translation>

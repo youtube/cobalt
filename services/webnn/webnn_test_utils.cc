@@ -10,6 +10,7 @@
 #include "base/test/test_future.h"
 #include "base/unguessable_token.h"
 #include "services/webnn/public/cpp/context_properties.h"
+#include "services/webnn/public/cpp/ml_number.h"
 #include "services/webnn/public/cpp/supported_tensors.h"
 #include "services/webnn/public/cpp/webnn_types.h"
 #include "services/webnn/webnn_context_impl.h"
@@ -64,8 +65,7 @@ OperandId GraphInfoBuilder::BuildConstant(
 
   graph_builder_remote_->get()->CreatePendingConstant(
       handle, type, mojo_base::BigBuffer(values));
-  graph_info_->constant_operand_ids_to_handles[operand_id.value()] =
-      std::move(handle);
+  graph_info_->constant_operand_ids_to_handles[operand_id] = std::move(handle);
   return operand_id;
 }
 
@@ -146,7 +146,7 @@ void GraphInfoBuilder::BuildPad(OperandId input_operand_id,
   switch (mode) {
     case mojom::PaddingMode::Tag::kConstant: {
       auto constant_padding = mojom::ConstantPadding::New();
-      constant_padding->value = value;
+      constant_padding->value = MLNumber::FromFloat64(value);
       pad->mode = mojom::PaddingMode::NewConstant(std::move(constant_padding));
       break;
     }
@@ -179,11 +179,9 @@ void GraphInfoBuilder::BuildClamp(OperandId input_operand_id,
                                   OperandId output_operand_id,
                                   float min_value,
                                   float max_value) {
-  mojom::ClampPtr clamp = mojom::Clamp::New();
-  clamp->input_operand_id = input_operand_id;
-  clamp->output_operand_id = output_operand_id;
-  clamp->min_value = min_value;
-  clamp->max_value = max_value;
+  mojom::ClampPtr clamp = mojom::Clamp::New(
+      input_operand_id, output_operand_id, MLNumber::FromFloat64(min_value),
+      MLNumber::FromFloat64(max_value), /*label=*/"");
   graph_info_->operations.push_back(
       mojom::Operation::NewClamp(std::move(clamp)));
 }

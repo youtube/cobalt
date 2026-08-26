@@ -84,12 +84,17 @@ class PasswordsPrivateDelegateImpl
   void RemoveCredential(
       int id,
       api::passwords_private::PasswordStoreSet from_stores) override;
+  void RemoveBackupPassword(int id) override;
   void RemovePasswordException(int id) override;
   void UndoRemoveSavedPasswordOrException() override;
   void RequestPlaintextPassword(int id,
                                 api::passwords_private::PlaintextReason reason,
                                 PlaintextPasswordCallback callback,
                                 content::WebContents* web_contents) override;
+  void CopyPlaintextBackupPassword(
+      int id,
+      content::WebContents* web_contents,
+      base::OnceCallback<void(bool)> callback) override;
   void RequestCredentialsDetails(const std::vector<int>& ids,
                                  UiEntriesCallback callback,
                                  content::WebContents* web_contents) override;
@@ -113,6 +118,7 @@ class PasswordsPrivateDelegateImpl
   // TODO(crbug.com/40138722): Mimic the signature in PasswordFeatureManager.
   void SetAccountStorageEnabled(bool enabled,
                                 content::WebContents* web_contents) override;
+  bool ShouldShowAccountStorageSettingToggle() override;
   std::vector<api::passwords_private::PasswordUiEntry> GetInsecureCredentials()
       override;
   std::vector<api::passwords_private::PasswordUiEntryList>
@@ -210,6 +216,10 @@ class PasswordsPrivateDelegateImpl
       api::passwords_private::PlaintextReason reason,
       PlaintextPasswordCallback callback,
       bool authenticated);
+
+  void OnCopyBackupPasswordAuthResult(int id,
+                                      base::OnceCallback<void(bool)> callback,
+                                      bool authenticated);
 
   // Callback for RequestCredentialDetails() after authentication check.
   void OnRequestCredentialDetailsAuthResult(

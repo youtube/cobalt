@@ -12,11 +12,11 @@
 
 #include <android/log.h>
 
+#include <iterator>
 #include <memory>
 
 #include "api/array_view.h"
 #include "modules/audio_device/fine_audio_buffer.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/time_utils.h"
@@ -307,7 +307,7 @@ bool OpenSLESPlayer::CreateAudioPlayer() {
   RETURN_ON_ERROR(
       (*engine_)->CreateAudioPlayer(
           engine_, player_object_.Receive(), &audio_source, &audio_sink,
-          arraysize(interface_ids), interface_ids, interface_required),
+          std::size(interface_ids), interface_ids, interface_required),
       false);
 
   // Use the Android configuration interface to set platform-specific

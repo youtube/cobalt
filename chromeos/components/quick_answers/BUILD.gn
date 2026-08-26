@@ -16,8 +16,6 @@ source_set("quick_answers") {
     "search_result_loader.h",
     "search_result_parsers/definition_result_parser.cc",
     "search_result_parsers/definition_result_parser.h",
-    "search_result_parsers/kp_entity_result_parser.cc",
-    "search_result_parsers/kp_entity_result_parser.h",
     "search_result_parsers/result_parser.cc",
     "search_result_parsers/result_parser.h",
     "search_result_parsers/search_response_parser.cc",
@@ -50,8 +48,8 @@ source_set("quick_answers") {
   deps = [
     "//base",
     "//chrome/common:constants",
+    "//chromeos/components/quick_answers/public/cpp",
     "//chromeos/components/quick_answers/public/cpp:constants",
-    "//chromeos/components/quick_answers/public/cpp:cpp",
     "//chromeos/components/quick_answers/public/cpp:prefs",
     "//chromeos/components/quick_answers/public/mojom",
     "//chromeos/constants",
@@ -61,16 +59,16 @@ source_set("quick_answers") {
     "//chromeos/strings:strings_grit",
     "//components/account_id",
     "//components/language/core/browser",
-    "//components/prefs:prefs",
+    "//components/prefs",
     "//components/signin/public/base",
     "//components/signin/public/identity_manager",
     "//components/spellcheck/common",
     "//components/translate/core/browser",
     "//content/public/browser",
     "//google_apis",
-    "//net:net",
+    "//net",
     "//services/data_decoder/public/cpp",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//ui/base",
     "//ui/color:color_headers",
     "//ui/gfx",
@@ -85,7 +83,6 @@ source_set("unit_tests") {
     "quick_answers_model_unittest.cc",
     "search_result_loader_unittest.cc",
     "search_result_parsers/definition_result_parser_unittest.cc",
-    "search_result_parsers/kp_entity_result_parser_unittest.cc",
     "search_result_parsers/result_parser_unittest.cc",
     "search_result_parsers/search_response_parser_unittest.cc",
     "search_result_parsers/unit_conversion_result_parser_unittest.cc",
@@ -110,10 +107,10 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//chrome/common:constants",
     "//chromeos/components/kiosk:test_support",
-    "//chromeos/components/magic_boost/public/cpp:cpp",
-    "//chromeos/components/quick_answers/public/cpp:cpp",
+    "//chromeos/components/magic_boost/public/cpp",
+    "//chromeos/components/quick_answers/public/cpp",
     "//chromeos/components/quick_answers/public/cpp:prefs",
-    "//chromeos/constants:constants",
+    "//chromeos/constants",
     "//chromeos/services/assistant/public/shared",
     "//chromeos/services/machine_learning/public/cpp:stub",
     "//chromeos/services/machine_learning/public/mojom",
@@ -125,6 +122,10 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//ui/color:color_headers",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("test_support") {
@@ -138,7 +139,7 @@ source_set("test_support") {
   deps = [
     ":quick_answers",
     "//base",
-    "//chromeos/components/quick_answers/public/cpp:cpp",
+    "//chromeos/components/quick_answers/public/cpp",
     "//chromeos/components/quick_answers/public/cpp:prefs",
   ]
 }
@@ -154,11 +155,11 @@ source_set("quick_answers_state_unittest") {
     "//base",
     "//base/test:test_support",
     "//chromeos/components/kiosk:test_support",
-    "//chromeos/components/magic_boost/public/cpp:cpp",
+    "//chromeos/components/magic_boost/public/cpp",
     "//chromeos/components/magic_boost/test:fake_magic_boost_state",
-    "//chromeos/components/quick_answers/public/cpp:cpp",
+    "//chromeos/components/quick_answers/public/cpp",
     "//chromeos/components/quick_answers/public/cpp:prefs",
-    "//chromeos/constants:constants",
+    "//chromeos/constants",
     "//components/prefs:test_support",
     "//components/user_manager:test_support",
     "//testing/gmock",

@@ -8,8 +8,10 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "components/device_signals/core/browser/mock_signals_aggregator.h"
+#include "components/device_signals/core/common/signals_features.h"
 #include "components/enterprise/browser/reporting/fake_browser_report_generator_delegate.h"
 #include "components/enterprise/browser/reporting/report_generation_config.h"
 #include "components/enterprise/browser/reporting/report_util.h"
@@ -31,6 +33,8 @@ const char kFakeSignalOsName[] = "os_name_from_signals";
 const char kFakeSignalOsVersion[] = "100.0.from_signals";
 const char kFakeSignalDisplayName[] = "user_from_signals";
 const char kFakeSignalHostname[] = "host_name_from_signals";
+const char kFakeProfileId[] = "profile_id_from_signals";
+const char kFakeDistoVersion[] = "1.2.3";
 
 const char kFakeSignalMacAddr1[] = "00-11-22-33-44-55-66";
 const char kFakeSignalMacAddr2[] = "AA-BB-CC-DD-EE-FF";
@@ -52,7 +56,9 @@ constexpr char kBrowserExePath[] = "browser-path";
 
 void VerifyReportContent(
     const ReportRequestQueue& requests,
-    em::ChromeProfileReportRequest::ReportType expected_report_type) {
+    em::ChromeProfileReportRequest::ReportType expected_report_type,
+    bool is_profile_id_null = false,
+    bool detected_agent_signal_collection_enabled = false) {
   // True if a status report-exclusive field is expected to be filled correctly,
   // status reports with signals also count.
   bool expect_status_report_only_value =
@@ -90,11 +96,17 @@ void VerifyReportContent(
     EXPECT_EQ(os_report.arch(), policy::GetOSArchitecture());
     EXPECT_EQ(os_report.version(), kFakeSignalOsVersion);
     EXPECT_EQ(os_report.screen_lock_secured(), em::SettingValue::ENABLED);
+    EXPECT_EQ(os_report.distribution_version(), kFakeDistoVersion);
 
     EXPECT_EQ(3, os_report.mac_addresses_size());
     EXPECT_EQ(os_report.mac_addresses(0), kFakeSignalMacAddr1);
     EXPECT_EQ(os_report.mac_addresses(1), kFakeSignalMacAddr2);
     EXPECT_EQ(os_report.mac_addresses(2), kFakeSignalMacAddr3);
+
+    if (detected_agent_signal_collection_enabled) {
+      EXPECT_EQ(os_report.detected_agents(0), em::Agent::CROWDSTRIKE_FALCON);
+    }
+
 #if BUILDFLAG(IS_WIN)
     auto av_info = os_report.antivirus_info(0);
     EXPECT_EQ(av_info.display_name(), kFakeSignalAvName);
@@ -162,16 +174,26 @@ void VerifyReportContent(
     EXPECT_EQ(profile_signals_report.safe_browsing_protection_level(),
               em::ProfileSignalsReport::STANDARD_PROTECTION);
     EXPECT_EQ(profile_signals_report.site_isolation_enabled(), true);
+    EXPECT_EQ(chrome_user_profile_info.profile_id(),
+              is_profile_id_null ? std::string() : kFakeProfileId);
     EXPECT_EQ(profile_signals_report.realtime_url_check_mode(),
               em::ProfileSignalsReport::ENABLED_MAIN_FRAME);
   }
 }
 
-device_signals::SignalsAggregationRequest CreateExpectedRequest() {
+device_signals::SignalsAggregationRequest CreateExpectedRequest(
+    bool detected_agent_signal_collection_enabled) {
   device_signals::SignalsAggregationRequest request;
   request.signal_names.emplace(device_signals::SignalName::kOsSignals);
   request.signal_names.emplace(
       device_signals::SignalName::kBrowserContextSignals);
+
+  if (detected_agent_signal_collection_enabled) {
+    request.signal_names.emplace(device_signals::SignalName::kAgent);
+    request.agent_signal_parameters.emplace(
+        device_signals::AgentSignalCollectionType::kDetectedAgents);
+  }
+
 #if BUILDFLAG(IS_WIN)
   request.signal_names.emplace(device_signals::SignalName::kAntiVirus);
   request.signal_names.emplace(device_signals::SignalName::kHotfixes);
@@ -181,7 +203,8 @@ device_signals::SignalsAggregationRequest CreateExpectedRequest() {
   return request;
 }
 
-device_signals::SignalsAggregationResponse CreateFilledResponse() {
+device_signals::SignalsAggregationResponse CreateFilledResponse(
+    bool nullify_profile_id = false) {
   device_signals::SignalsAggregationResponse response;
 
   device_signals::OsSignalsResponse os_signals;
@@ -190,11 +213,16 @@ device_signals::SignalsAggregationResponse CreateFilledResponse() {
   os_signals.display_name = kFakeSignalDisplayName;
   os_signals.hostname = kFakeSignalHostname;
   os_signals.screen_lock_secured = device_signals::SettingValue::ENABLED;
-  // Test vector field
+  os_signals.distribution_version = kFakeDistoVersion;
+  // Test vector field.
   os_signals.mac_addresses = {kFakeSignalMacAddr1, kFakeSignalMacAddr2,
                               kFakeSignalMacAddr3};
 
   response.os_signals_response = os_signals;
+
+  device_signals::AgentSignalsResponse agent_signals;
+  agent_signals.detected_agents = {device_signals::Agents::kCrowdStrikeFalcon};
+  response.agent_signals_response = agent_signals;
 
 #if BUILDFLAG(IS_WIN)
   device_signals::AvProduct av_product;
@@ -221,6 +249,12 @@ device_signals::SignalsAggregationResponse CreateFilledResponse() {
   profile_signals.safe_browsing_protection_level =
       safe_browsing::SafeBrowsingState::STANDARD_PROTECTION;
   profile_signals.site_isolation_enabled = true;
+
+  profile_signals.profile_id = kFakeProfileId;
+  if (nullify_profile_id) {
+    profile_signals.profile_id = std::nullopt;
+  }
+
   profile_signals.realtime_url_check_mode = enterprise_connectors::
       EnterpriseRealTimeUrlCheckMode::REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED;
 
@@ -231,19 +265,28 @@ device_signals::SignalsAggregationResponse CreateFilledResponse() {
 
 }  // namespace
 
-class ChromeProfileRequestGeneratorTest : public ::testing::Test {
+class ChromeProfileRequestGeneratorTest
+    : public testing::Test,
+      public testing::WithParamInterface<bool> {
  protected:
   ChromeProfileRequestGeneratorTest()
       : generator_(base::FilePath(kProfilePath),
                    &delegate_factory_,
-                   &mock_aggregator_) {}
+                   &mock_aggregator_) {
+    scoped_feature_list_.InitWithFeatureState(
+        enterprise_signals::features::kDetectedAgentSignalCollectionEnabled,
+        is_detected_agent_signal_collection_enabled());
+  }
+
+  bool is_detected_agent_signal_collection_enabled() { return GetParam(); }
 
   test::FakeReportingDelegateFactory delegate_factory_{kBrowserExePath};
   ChromeProfileRequestGenerator generator_;
+  base::test::ScopedFeatureList scoped_feature_list_;
   StrictMock<device_signals::MockSignalsAggregator> mock_aggregator_;
 };
 
-TEST_F(ChromeProfileRequestGeneratorTest, GenerateFullReportNoSecuritySignals) {
+TEST_P(ChromeProfileRequestGeneratorTest, GenerateFullReportNoSecuritySignals) {
   EXPECT_CALL(mock_aggregator_, GetSignals(_, _)).Times(0);
   base::test::TestFuture<ReportRequestQueue> test_future;
   generator_.Generate(ReportGenerationConfig(ReportTrigger::kTriggerTimer,
@@ -253,12 +296,19 @@ TEST_F(ChromeProfileRequestGeneratorTest, GenerateFullReportNoSecuritySignals) {
                       test_future.GetCallback());
 
   VerifyReportContent(test_future.Get(),
-                      em::ChromeProfileReportRequest::PROFILE_REPORT);
+                      em::ChromeProfileReportRequest::PROFILE_REPORT,
+                      /*is_profile_id_null=*/false,
+                      is_detected_agent_signal_collection_enabled());
 }
 
-TEST_F(ChromeProfileRequestGeneratorTest,
+TEST_P(ChromeProfileRequestGeneratorTest,
        GenerateFullReportWithSecuritySignals) {
-  EXPECT_CALL(mock_aggregator_, GetSignals(CreateExpectedRequest(), _))
+  bool detected_agent_signal_collection_enabled =
+      is_detected_agent_signal_collection_enabled();
+  EXPECT_CALL(
+      mock_aggregator_,
+      GetSignals(
+          CreateExpectedRequest(detected_agent_signal_collection_enabled), _))
       .WillOnce(
           Invoke([](const device_signals::SignalsAggregationRequest& request,
                     base::OnceCallback<void(
@@ -276,11 +326,17 @@ TEST_F(ChromeProfileRequestGeneratorTest,
 
   VerifyReportContent(
       test_future.Get(),
-      em::ChromeProfileReportRequest::PROFILE_REPORT_WITH_SECURITY_SIGNALS);
+      em::ChromeProfileReportRequest::PROFILE_REPORT_WITH_SECURITY_SIGNALS,
+      /*is_profile_id_null=*/false, detected_agent_signal_collection_enabled);
 }
 
-TEST_F(ChromeProfileRequestGeneratorTest, GenerateSecuritySignalsOnlyReport) {
-  EXPECT_CALL(mock_aggregator_, GetSignals(CreateExpectedRequest(), _))
+TEST_P(ChromeProfileRequestGeneratorTest, GenerateSecuritySignalsOnlyReport) {
+  bool detected_agent_signal_collection_enabled =
+      is_detected_agent_signal_collection_enabled();
+  EXPECT_CALL(
+      mock_aggregator_,
+      GetSignals(
+          CreateExpectedRequest(detected_agent_signal_collection_enabled), _))
       .WillOnce(
           Invoke([](const device_signals::SignalsAggregationRequest& request,
                     base::OnceCallback<void(
@@ -294,10 +350,40 @@ TEST_F(ChromeProfileRequestGeneratorTest, GenerateSecuritySignalsOnlyReport) {
                                              /*use_cookies=*/false),
                       test_future.GetCallback());
   VerifyReportContent(test_future.Get(),
-                      em::ChromeProfileReportRequest::PROFILE_SECURITY_SIGNALS);
+                      em::ChromeProfileReportRequest::PROFILE_SECURITY_SIGNALS,
+                      /*is_profile_id_null=*/false,
+                      detected_agent_signal_collection_enabled);
 }
 
-TEST_F(ChromeProfileRequestGeneratorTest, IncorrectReportType) {
+// Test that no issue is encountered when a nullopt value is collected, on an
+// optional field
+TEST_P(ChromeProfileRequestGeneratorTest, NoProfileId) {
+  bool detected_agent_signal_collection_enabled =
+      is_detected_agent_signal_collection_enabled();
+  EXPECT_CALL(
+      mock_aggregator_,
+      GetSignals(
+          CreateExpectedRequest(detected_agent_signal_collection_enabled), _))
+      .WillOnce(
+          Invoke([](const device_signals::SignalsAggregationRequest& request,
+                    base::OnceCallback<void(
+                        device_signals::SignalsAggregationResponse)> callback) {
+            std::move(callback).Run(
+                CreateFilledResponse(/*nullify_profile_id=*/true));
+          }));
+  base::test::TestFuture<ReportRequestQueue> test_future;
+  generator_.Generate(ReportGenerationConfig(ReportTrigger::kTriggerNone,
+                                             ReportType::kProfileReport,
+                                             SecuritySignalsMode::kSignalsOnly,
+                                             /*use_cookies=*/false),
+                      test_future.GetCallback());
+  VerifyReportContent(test_future.Get(),
+                      em::ChromeProfileReportRequest::PROFILE_SECURITY_SIGNALS,
+                      /*is_profile_id_null=*/true,
+                      detected_agent_signal_collection_enabled);
+}
+
+TEST_P(ChromeProfileRequestGeneratorTest, IncorrectReportType) {
   EXPECT_CALL(mock_aggregator_, GetSignals(_, _)).Times(0);
   base::test::TestFuture<ReportRequestQueue> test_future;
   generator_.Generate(ReportGenerationConfig(), test_future.GetCallback());
@@ -311,5 +397,7 @@ TEST_F(ChromeProfileRequestGeneratorTest, IncorrectReportType) {
   ASSERT_TRUE(request);
   ASSERT_FALSE(request->GetDeviceReportRequest().has_browser_report());
 }
+
+INSTANTIATE_TEST_SUITE_P(, ChromeProfileRequestGeneratorTest, testing::Bool());
 
 }  // namespace enterprise_reporting

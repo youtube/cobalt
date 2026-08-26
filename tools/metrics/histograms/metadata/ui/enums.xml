@@ -105,6 +105,20 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Open Link in Incognito Window clicked."/>
 </enum>
 
+<!-- LINT.IfChange(PinInfoBarUserInteraction) -->
+
+<enum name="PinInfoBarUserInteraction">
+  <int value="0" label="Accepted">
+    The user clicked the &quot;Pin Chrome&quot; button.
+  </int>
+  <int value="1" label="Dismissed">The user explicitly closed the infobar.</int>
+  <int value="2" label="Ignored">
+    The user did not interact with the infobar; logged at object destruction.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_delegate.h:PinInfoBarUserInteraction) -->
+
 <enum name="RenderViewContextMenuItem">
   <int value="0" label="IDC_CONTENT_CONTEXT_CUSTOM_FIRST"/>
   <int value="1" label="IDC_EXTENSIONS_CONTEXT_CUSTOM_FIRST"/>
@@ -378,6 +392,12 @@ chromium-metrics-reviews@google.com.
   <int value="75" label="UMA_NTP_MOST_VISITED_UNPIN_UNDO"/>
 </enum>
 
+<enum name="WebUIPreloadReason">
+  <int value="0" label="BrowserWarmup"/>
+  <int value="1" label="WebUIDestroyed"/>
+  <int value="2" label="WebUIRequested"/>
+</enum>
+
 <enum name="WebUIPreloadResult">
   <int value="0"
       label="No Preload: no preloaded WebUI is available when a WebUI is
@@ -572,12 +592,14 @@ chromium-metrics-reviews@google.com.
 
 <enum name="WebUIUrlHashes">
   <int value="-2137891043" label="chrome-untrusted://scanner-feedback/"/>
+  <int value="-2117475303" label="chrome://comments-side-panel.top-chrome/"/>
   <int value="-2103246641" label="chrome://signin-internals/"/>
   <int value="-2087891836" label="chrome://debug-webuis-disabled/"/>
   <int value="-2086395469" label="chrome://dlp-internals/"/>
   <int value="-2084645929" label="chrome://infobar-internals/"/>
   <int value="-2069349961" label="chrome://history-clusters-internals/"/>
   <int value="-2061366287" label="chrome://dev-ui-loader/"/>
+  <int value="-2038391710" label="chrome://tab-strip-internals/"/>
   <int value="-2034706497" label="chrome://net-internals/"/>
   <int value="-2031269077" label="chrome://signin-error/"/>
   <int value="-2025866230" label="chrome://usb-internals/"/>
@@ -603,6 +625,7 @@ chromium-metrics-reviews@google.com.
   <int value="-1716340463" label="chrome://safe-browsing/"/>
   <int value="-1704400468" label="chrome://quit/"/>
   <int value="-1700864659" label="chrome://slow/"/>
+  <int value="-1699890661" label="chrome://webui-browser/"/>
   <int value="-1697612520" label="chrome://print-management/"/>
   <int value="-1697077152" label="chrome://device-log/"/>
   <int value="-1690355375" label="chrome://mobilesetup/"/>
@@ -714,6 +737,7 @@ chromium-metrics-reviews@google.com.
   <int value="-566908909" label="chrome://suggestions/"/>
   <int value="-548156607" label="chrome://feedback/"/>
   <int value="-543577801" label="chrome://history-side-panel.top-chrome/"/>
+  <int value="-543094310" label="chrome://watermark/"/>
   <int value="-532669066" label="chrome://traces/"/>
   <int value="-528306235" label="chrome://sync/"/>
   <int value="-525954994" label="chrome-untrusted://lens/"/>
@@ -731,6 +755,7 @@ chromium-metrics-reviews@google.com.
   <int value="-377028639" label="chrome://copresence/"/>
   <int value="-359703631" label="chrome://slow_trace/"/>
   <int value="-336117866" label="chrome://focus-mode-media/"/>
+  <int value="-332876060" label="chrome://autofill-ml-internals/"/>
   <int value="-245337017" label="chrome://user-actions/"/>
   <int value="-233401490" label="chrome://accessory-update/"/>
   <int value="-222190329" label="chrome://dino/"/>
@@ -771,6 +796,7 @@ chromium-metrics-reviews@google.com.
   <int value="187846858" label="chrome://lens-overlay/"/>
   <int value="232821835" label="chrome://optimization-guide-internals/"/>
   <int value="233807382" label="chrome://privacy-sandbox-base-dialog/"/>
+  <int value="248924104" label="chrome://actor-overlay/"/>
   <int value="253258497" label="chrome://components/"/>
   <int value="260253931" label="chrome://devices/"/>
   <int value="275260142" label="chrome://eoc-internals/"/>
@@ -848,6 +874,7 @@ chromium-metrics-reviews@google.com.
   <int value="1076364348" label="chrome://web-app-internals/"/>
   <int value="1084212752" label="chrome://personalization/"/>
   <int value="1109407387" label="chrome://keyboardoverlay/"/>
+  <int value="1131279479" label="chrome://actor-internals/"/>
   <int value="1131405887" label="chrome://taskscheduler-internals/"/>
   <int value="1134924982" label="chrome://app-icon/"/>
   <int value="1145000455" label="chrome://arc-overview-tracing/"/>
@@ -875,6 +902,7 @@ chromium-metrics-reviews@google.com.
   <int value="1356087814" label="chrome://add-supervision/"/>
   <int value="1361577626" label="chrome://connectors-internals/"/>
   <int value="1371905827" label="chrome://flags/"/>
+  <int value="1382926998" label="chrome://color-pipeline-internals/"/>
   <int value="1384721582" label="chrome-untrusted://demo-mode-app/"/>
   <int value="1396129399" label="chrome://flash/"/>
   <int value="1397728473" label="chrome://crostini-installer/"/>

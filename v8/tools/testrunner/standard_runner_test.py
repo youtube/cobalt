@@ -247,6 +247,7 @@ class StandardRunnerTest(TestRunnerTest):
             dcheck_always_on=True,
             has_webassembly=True,
             msan=True,
+            sandbox_hardware_support=True,
             target_cpu='x86',
             tsan=True,
             ubsan=True,
@@ -255,7 +256,8 @@ class StandardRunnerTest(TestRunnerTest):
         ))
     result.stdout_includes('>>> Statusfile variables:')
     result.stdout_includes(
-        "DEBUG_defined=False, arch=ia32, asan=True, byteorder=little, "
+        "DEBUG_defined=False, all_arm64_features=False, "
+        "arch=ia32, asan=True, byteorder=little, "
         "cfi=True, code_comments=False, component_build=False, "
         "dcheck_always_on=True, debug_code=False, debugging_features=False, "
         "deopt_fuzzer=False, device_type=None, "
@@ -266,7 +268,8 @@ class StandardRunnerTest(TestRunnerTest):
         "interrupt_fuzzer=False, is_android=False, is_ios=False, "
         "isolates=False, lite_mode=False, mode=debug, msan=True, "
         "no_harness=False, no_simd_hardware=False, novfp3=False, "
-        "optimize_for_size=False, simulator_run=False, slow_dchecks=False, "
+        "optimize_for_size=False, sandbox_hardware_support=True, "
+        "simulator_run=False, slow_dchecks=False, "
         "system=linux, target_cpu=x86, tsan=True, ubsan=True, "
         "use_sanitizer=True, v8_target_cpu=x86, verify_heap=False, "
         "verify_predictable=False")
@@ -674,8 +677,8 @@ class NumFuzzerTest(TestRunnerTest):
     included if the probability for skipping is 0.
     """
     result = self._run_test_with_random_skip(0.0)
-    result.has_returncode(1)
-    result.stdout_includes('sweet/apples default: FAIL')
+    result.has_returncode(0)
+    result.stdout_includes('sweet/apples default: PASS')
     result.stdout_includes('sweet/bananas default: PASS')
     result.stdout_includes('7 tests ran')
 

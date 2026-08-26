@@ -9,7 +9,6 @@ import dev.cobalt.util.Log;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
-
 /** ClientLogInfo to report Android API support on android devices. */
 public class ClientLogInfo extends CobaltService {
   public static final String TAG = "ClientLogInfo";

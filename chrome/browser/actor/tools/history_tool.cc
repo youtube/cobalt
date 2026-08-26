@@ -5,6 +5,8 @@
 #include "chrome/browser/actor/tools/history_tool.h"
 
 #include "base/time/time.h"
+#include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
@@ -28,12 +30,17 @@ namespace actor {
 
 using ::content::NavigationController;
 using ::content::NavigationHandle;
+using ::tabs::TabHandle;
 using ::tabs::TabInterface;
 
-HistoryTool::HistoryTool(TabInterface& tab, Direction direction)
-    : WebContentsObserver(tab.GetContents()), direction_(direction) {
-  CHECK(tab.GetContents());
-}
+HistoryTool::HistoryTool(TaskId task_id,
+                         ToolDelegate& tool_delegate,
+                         TabInterface& tab,
+                         HistoryToolRequest::Direction direction)
+    : Tool(task_id, tool_delegate),
+      WebContentsObserver(tab.GetContents()),
+      direction_(direction),
+      tab_handle_(tab.GetHandle()) {}
 
 HistoryTool::~HistoryTool() = default;
 
@@ -41,9 +48,12 @@ void HistoryTool::Validate(ValidateCallback callback) {
   NavigationController& controller = web_contents()->GetController();
   mojom::ActionResultPtr result;
 
-  if (direction_ == kBack && !controller.CanGoBack()) {
+  // TODO(crbug.com/411462297): Move these checks to TimeOfUseValidation.
+  if (direction_ == HistoryToolRequest::Direction::kBack &&
+      !controller.CanGoBack()) {
     result = MakeResult(mojom::ActionResultCode::kHistoryNoBackEntries);
-  } else if (direction_ == kForward && !controller.CanGoForward()) {
+  } else if (direction_ == HistoryToolRequest::Direction::kForward &&
+             !controller.CanGoForward()) {
     result = MakeResult(mojom::ActionResultCode::kHistoryNoForwardEntries);
   } else {
     result = MakeOkResult();
@@ -71,10 +81,10 @@ void HistoryTool::Invoke(InvokeCallback callback) {
   // is manually dismissed by the user but we may want to provide automatic
   // resolution here.
 
-  if (direction_ == kBack) {
+  if (direction_ == HistoryToolRequest::Direction::kBack) {
     pending_navigations_ = web_contents()->GetController().GoBack();
   } else {
-    CHECK_EQ(direction_, kForward);
+    CHECK_EQ(direction_, HistoryToolRequest::Direction::kForward);
     pending_navigations_ = web_contents()->GetController().GoForward();
   }
 
@@ -91,8 +101,23 @@ void HistoryTool::Invoke(InvokeCallback callback) {
 }
 
 std::string HistoryTool::DebugString() const {
-  return absl::StrFormat("HistoryTool[%s]",
-                         direction_ == kBack ? "Back" : "Forward");
+  return absl::StrFormat("HistoryTool[%s]", JournalEvent());
+}
+
+std::string HistoryTool::JournalEvent() const {
+  return direction_ == HistoryToolRequest::Direction::kBack ? "Back"
+                                                            : "Forward";
+}
+
+std::unique_ptr<ObservationDelayController> HistoryTool::GetObservationDelayer()
+    const {
+  return std::make_unique<ObservationDelayController>(
+      *web_contents()->GetPrimaryMainFrame());
+}
+
+void HistoryTool::UpdateTaskBeforeInvoke(ActorTask& task,
+                                         InvokeCallback callback) const {
+  task.AddTab(tab_handle_, std::move(callback));
 }
 
 void HistoryTool::DidStartNavigation(NavigationHandle* navigation_handle) {

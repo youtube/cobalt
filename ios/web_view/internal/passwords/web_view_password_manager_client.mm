@@ -8,6 +8,7 @@
 #import <utility>
 
 #import "base/functional/callback.h"
+#import "base/notimplemented.h"
 #import "components/autofill/core/browser/logging/log_manager.h"
 #import "components/autofill/core/browser/logging/log_router.h"
 #import "components/keyed_service/core/service_access_type.h"
@@ -82,7 +83,7 @@ WebViewPasswordManagerClient::WebViewPasswordManagerClient(
       profile_store_(profile_store),
       account_store_(account_store),
       reuse_manager_(reuse_manager),
-      password_feature_manager_(pref_service, sync_service),
+      password_feature_manager_(sync_service),
       credentials_filter_(this),
       requirements_service_(requirements_service),
       helper_(this) {

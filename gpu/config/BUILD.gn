@@ -13,14 +13,6 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
-group("config") {
-  if (is_component_build) {
-    public_deps = [ "//gpu" ]
-  } else {
-    public_deps = [ ":config_sources" ]
-  }
-}
-
 process_json_outputs = [
   "$target_gen_dir/gpu_driver_bug_list_arrays_and_structs_autogen.h",
   "$target_gen_dir/gpu_driver_bug_list_autogen.cc",
@@ -87,31 +79,6 @@ action("workaround_list") {
   }
 }
 
-if (enable_vulkan) {
-  component("vulkan_info") {
-    sources = [
-      "vulkan_info.cc",
-      "vulkan_info.h",
-    ]
-
-    configs += [ "//gpu:gpu_implementation" ]
-
-    deps = [ "//gpu/ipc/common:vulkan_interface" ]
-    public_deps = [
-      "//third_party/vulkan-headers/src:vulkan_headers",
-      "//ui/gfx",
-    ]
-
-    # surpass linke error 4217. It is because vulkan_info depends on
-    # //gpu/ipc/common:vulkan_interface and //gpu/ipc/common:vulkan_interface"
-    # depends on this target.
-    # TODO(penghuang): Fix this link error
-    if (is_win && is_component_build) {
-      ldflags = [ "/IGNORE:4217" ]
-    }
-  }
-}
-
 source_set("webgpu_blocklist_impl") {
   sources = [
     "webgpu_blocklist_impl.cc",
@@ -123,16 +90,13 @@ source_set("webgpu_blocklist_impl") {
   public_deps = [ "//third_party/dawn/include/dawn:cpp_headers" ]
 }
 
-source_set("config_sources") {
-  # External code should depend on this via //gpu/config above rather than
-  # depending on this directly or the component build will break.
-  visibility = [ "//gpu/*" ]
-
+component("config") {
   sources = [
     "device_perf_info.cc",
     "device_perf_info.h",
     "gpu_blocklist.cc",
     "gpu_blocklist.h",
+    "gpu_config_export.h",
     "gpu_control_list.cc",
     "gpu_control_list.h",
     "gpu_crash_keys.cc",
@@ -177,12 +141,14 @@ source_set("config_sources") {
 
   sources += process_json_outputs
 
-  configs += [ "//gpu:gpu_implementation" ]
+  defines = [ "GPU_CONFIG_IMPLEMENTATION" ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   public_deps = [ "//components/crash/core/common:crash_key" ]
 
   if (enable_vulkan) {
-    public_deps += [ ":vulkan_info" ]
+    public_deps += [ "//gpu/vulkan" ]
   }
 
   deps = [
@@ -191,7 +157,7 @@ source_set("config_sources") {
     "//build:branding_buildflags",
     "//build:chromecast_buildflags",
     "//components/miracle_parameter/common",
-    "//gpu/command_buffer/common:common_sources",
+    "//gpu/command_buffer/common",
     "//gpu/ipc/common:gpu_preferences_interface",
     "//gpu/vulkan:buildflags",
     "//services/webnn/public/mojom:features",
@@ -201,8 +167,13 @@ source_set("config_sources") {
     "//ui/gfx",
     "//ui/gl",
     "//ui/gl:buildflags",
+    "//ui/gl:gl_headers",
     "//ui/gl/init",
   ]
+
+  if (enable_vulkan) {
+    deps += [ "//gpu/ipc/common:vulkan_interface" ]
+  }
 
   if (use_dawn || skia_use_dawn) {
     public_deps += [ "//third_party/dawn/include/dawn:headers" ]
@@ -222,9 +193,6 @@ source_set("config_sources") {
   # cycle between this target and gpu_preferences_interface.
   allow_circular_includes_from =
       [ "//gpu/ipc/common:gpu_preferences_interface" ]
-
-  # Prefer mesa GL headers to system headers, which cause problems on Win.
-  include_dirs = [ "//third_party/mesa_headers" ]
 
   if (is_android) {
     sources += [ "gpu_info_collector_android.cc" ]
@@ -257,14 +225,14 @@ if (is_android) {
     # External code should depend on ":config_java" instead.
     visibility = [ ":*" ]
     sources = [ "gpu_switches.cc" ]
-    template = "android/java/src/org/chromium/gpu/config/GpuSwitches.java.tmpl"
+    class_name = "org.chromium.gpu.config.GpuSwitches"
   }
 
   java_cpp_features("java_features_srcjar") {
     # External code should depend on ":config_java" instead.
     visibility = [ ":*" ]
     sources = [ "gpu_finch_features.cc" ]
-    template = "android/java/src/org/chromium/gpu/config/GpuFeatures.java.tmpl"
+    class_name = "org.chromium.gpu.config.GpuFeatures"
   }
 
   android_library("config_java") {

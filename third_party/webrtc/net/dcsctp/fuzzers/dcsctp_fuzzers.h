@@ -10,14 +10,24 @@
 #ifndef NET_DCSCTP_FUZZERS_DCSCTP_FUZZERS_H_
 #define NET_DCSCTP_FUZZERS_DCSCTP_FUZZERS_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <deque>
+#include <iterator>
 #include <memory>
+#include <optional>
 #include <set>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/task_queue/task_queue_base.h"
+#include "api/units/timestamp.h"
+#include "net/dcsctp/public/dcsctp_message.h"
 #include "net/dcsctp/public/dcsctp_socket.h"
+#include "net/dcsctp/public/timeout.h"
+#include "net/dcsctp/public/types.h"
+#include "rtc_base/checks.h"
 
 namespace dcsctp {
 namespace dcsctp_fuzzers {

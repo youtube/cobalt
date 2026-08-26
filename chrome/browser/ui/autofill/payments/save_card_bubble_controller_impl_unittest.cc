@@ -19,6 +19,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
+#include "chrome/browser/metrics/desktop_session_duration/desktop_session_duration_tracker.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/payments/save_card_ui.h"
 #include "chrome/browser/ui/autofill/payments/save_payment_icon_controller.h"
@@ -52,6 +53,7 @@ namespace autofill {
 namespace {
 
 using CardSaveType = payments::PaymentsAutofillClient::CardSaveType;
+using SaveCardPromptOffer = autofill_metrics::SaveCardPromptOffer;
 using SaveCreditCardOptions =
     payments::PaymentsAutofillClient::SaveCreditCardOptions;
 
@@ -208,6 +210,9 @@ class SaveCardBubbleControllerImplTest : public BrowserWithTestWindowTest {
     BrowserWithTestWindowTest::SetUp();
     AddTab(browser(), GURL("about:blank"));
     TestSaveCardBubbleControllerImpl::CreateForTesting(active_web_contents());
+
+    // Initialize a tracker for TrustSafetySentimentService to work properly.
+    metrics::DesktopSessionDurationTracker::Initialize();
     mock_sentiment_service_ = static_cast<MockTrustSafetySentimentService*>(
         TrustSafetySentimentServiceFactory::GetInstance()
             ->SetTestingFactoryAndUse(
@@ -224,6 +229,7 @@ class SaveCardBubbleControllerImplTest : public BrowserWithTestWindowTest {
     did_on_confirmation_closed_callback_run_ = false;
     personal_data_manager()->test_payments_data_manager().ClearCreditCards();
     BrowserWithTestWindowTest::TearDown();
+    metrics::DesktopSessionDurationTracker::CleanupForTesting();
   }
 
   // BrowserWithTestWindowTest:
@@ -593,7 +599,7 @@ TEST_P(SaveCardBubbleSingletonTest, OnlyOneActiveBubble) {
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveCreditCardPromptOffer" + suffix,
-      autofill_metrics::SaveCardPromptOffer::kShown, 1);
+      SaveCardPromptOffer::kShown, 1);
 }
 
 // Note that even though in prod the four options in the SaveCreditCardOptions
@@ -646,6 +652,20 @@ class SaveCardBubbleLoggingTest
   }
 
   ~SaveCardBubbleLoggingTest() override = default;
+
+  void SetUp() override {
+    SaveCardBubbleControllerImplTest::SetUp();
+
+    if (save_destination_ == "Local" &&
+        (GetSaveCreditCardOptions().has_multiple_legal_lines ||
+         GetSaveCreditCardOptions()
+             .has_same_last_four_as_server_card_but_different_expiration_date)) {
+      GTEST_SKIP()
+          << "Not applicable for local save, as legal lines or the "
+             "condition (same last four digits, different "
+             "expiration date) is only possible for server save scenarios.";
+    }
+  }
 
   void TriggerFlow(bool show_prompt = true) {
     if (save_destination_ == "Local") {
@@ -725,7 +745,7 @@ TEST_P(SaveCardBubbleLoggingTest, Metrics_ShowBubble) {
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveCreditCardPromptOffer" + GetHistogramNameSuffix(),
-      autofill_metrics::SaveCardPromptOffer::kShown, 1);
+      SaveCardPromptOffer::kShown, 1);
 }
 
 TEST_P(SaveCardBubbleLoggingTest, Metrics_ShowIconOnly) {
@@ -739,7 +759,7 @@ TEST_P(SaveCardBubbleLoggingTest, Metrics_ShowIconOnly) {
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveCreditCardPromptOffer" + GetHistogramNameSuffix(),
-      autofill_metrics::SaveCardPromptOffer::kNotShownMaxStrikesReached, 1);
+      SaveCardPromptOffer::kNotShownMaxStrikesReached, 1);
 }
 
 TEST_P(SaveCardBubbleLoggingTest, Metrics_SaveButton) {
@@ -823,6 +843,180 @@ TEST_P(SaveCardBubbleLoggingTest, Metrics_LegalMessageLinkedClicked) {
                    "Autofill_CreditCardUpload_LegalMessageLinkClicked"));
 }
 
+// Test class to ensure that correct metric is logged when the save card bubble
+// is shown or not shown.
+class SaveCreditCardPromptOfferMetricTest
+    : public SaveCardBubbleControllerImplTest,
+      public ::testing::WithParamInterface</*is_upload_save*/ bool> {
+ public:
+  void TriggerFlow(bool show_prompt, SaveCreditCardOptions options = {}) {
+    if (IsUploadSave()) {
+      ShowUploadBubble(options.with_show_prompt(show_prompt));
+    } else {
+      ShowLocalBubble(/*card=*/nullptr, options.with_show_prompt(show_prompt));
+    }
+  }
+
+  std::string GetBaseHistogramName() {
+    return base::StrCat({"Autofill.SaveCreditCardPromptOffer.Desktop",
+                         IsUploadSave() ? ".Server" : ".Local"});
+  }
+
+  bool IsUploadSave() { return GetParam(); }
+};
+
+INSTANTIATE_TEST_SUITE_P(,
+                         SaveCreditCardPromptOfferMetricTest,
+                         testing::Bool());
+
+TEST_P(SaveCreditCardPromptOfferMetricTest, LogsBubbleShown) {
+  base::HistogramTester histogram_tester;
+  TriggerFlow(/*show_prompt=*/true, SaveCreditCardOptions().with_card_save_type(
+                                        CardSaveType::kCardSaveOnly));
+
+  histogram_tester.ExpectUniqueSample(GetBaseHistogramName(),
+                                      SaveCardPromptOffer::kShown, 1);
+}
+
+TEST_P(SaveCreditCardPromptOfferMetricTest,
+       LogsBubbleShown_WhenRequestingCardHolderName) {
+  base::HistogramTester histogram_tester;
+  TriggerFlow(
+      /*show_prompt=*/true,
+      SaveCreditCardOptions()
+          .with_should_request_name_from_user(true)
+          .with_card_save_type(CardSaveType::kCardSaveOnly));
+
+  histogram_tester.ExpectUniqueSample(GetBaseHistogramName(),
+                                      SaveCardPromptOffer::kShown, 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({GetBaseHistogramName(), ".RequestingCardholderName"}),
+      SaveCardPromptOffer::kShown, 1);
+}
+
+TEST_P(SaveCreditCardPromptOfferMetricTest,
+       LogsBubbleShown_WhenRequestingExpirationDate) {
+  base::HistogramTester histogram_tester;
+  TriggerFlow(
+      /*show_prompt=*/true,
+      SaveCreditCardOptions()
+          .with_should_request_expiration_date_from_user(true)
+          .with_card_save_type(CardSaveType::kCardSaveOnly));
+
+  histogram_tester.ExpectUniqueSample(GetBaseHistogramName(),
+                                      SaveCardPromptOffer::kShown, 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({GetBaseHistogramName(), ".RequestingExpirationDate"}),
+      SaveCardPromptOffer::kShown, 1);
+}
+
+TEST_P(SaveCreditCardPromptOfferMetricTest, LogsBubbleShown_WhenSavingWithCvc) {
+  base::HistogramTester histogram_tester;
+  TriggerFlow(
+      /*show_prompt=*/true, SaveCreditCardOptions().with_card_save_type(
+                                CardSaveType::kCardSaveWithCvc));
+
+  histogram_tester.ExpectUniqueSample(GetBaseHistogramName(),
+                                      SaveCardPromptOffer::kShown, 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({GetBaseHistogramName(), ".SavingWithCvc"}),
+      SaveCardPromptOffer::kShown, 1);
+}
+
+TEST_P(SaveCreditCardPromptOfferMetricTest,
+       LogsBubbleShown_ForPromptWithMultipleLegalLines) {
+  if (!IsUploadSave()) {
+    GTEST_SKIP() << "Not applicable for local save, as legal lines are "
+                    "present only in server save scenarios";
+  }
+
+  base::HistogramTester histogram_tester;
+  TriggerFlow(
+      /*show_prompt=*/true,
+      SaveCreditCardOptions()
+          .with_has_multiple_legal_lines(true)
+          .with_card_save_type(CardSaveType::kCardSaveOnly));
+
+  histogram_tester.ExpectUniqueSample(GetBaseHistogramName(),
+                                      SaveCardPromptOffer::kShown, 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({GetBaseHistogramName(), ".WithMultipleLegalLines"}),
+      SaveCardPromptOffer::kShown, 1);
+}
+
+TEST_P(SaveCreditCardPromptOfferMetricTest,
+       LogsBubbleShown_ForCardWithSameLastFourButDifferentExpiration) {
+  if (!IsUploadSave()) {
+    GTEST_SKIP() << "Not applicable for local save, as the condition (same "
+                    "last four digits, different expiration date) is only "
+                    "possible for server save scenarios.";
+  }
+
+  base::HistogramTester histogram_tester;
+  TriggerFlow(
+      /*show_prompt=*/true,
+      SaveCreditCardOptions()
+          .with_same_last_four_as_server_card_but_different_expiration_date(
+              true)
+          .with_card_save_type(CardSaveType::kCardSaveOnly));
+
+  histogram_tester.ExpectUniqueSample(GetBaseHistogramName(),
+                                      SaveCardPromptOffer::kShown, 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat(
+          {GetBaseHistogramName(), ".WithSameLastFourButDifferentExpiration"}),
+      SaveCardPromptOffer::kShown, 1);
+}
+
+TEST_P(SaveCreditCardPromptOfferMetricTest,
+       LogsBubbleShown_ForAllRelevantSubHistograms) {
+  if (!IsUploadSave()) {
+    GTEST_SKIP() << "Not applicable for local save, as legal lines are "
+                    "present only in server save scenarios.";
+  }
+
+  base::HistogramTester histogram_tester;
+  TriggerFlow(
+      /*show_prompt=*/true,
+      SaveCreditCardOptions()
+          .with_should_request_name_from_user(true)
+          .with_has_multiple_legal_lines(true)
+          .with_card_save_type(CardSaveType::kCardSaveOnly));
+
+  histogram_tester.ExpectUniqueSample(GetBaseHistogramName(),
+                                      SaveCardPromptOffer::kShown, 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({GetBaseHistogramName(), ".RequestingCardholderName"}),
+      SaveCardPromptOffer::kShown, 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({GetBaseHistogramName(), ".WithMultipleLegalLines"}),
+      SaveCardPromptOffer::kShown, 1);
+}
+
+TEST_P(SaveCreditCardPromptOfferMetricTest, LogsBubbleNotShown) {
+  base::HistogramTester histogram_tester;
+  TriggerFlow(
+      /*show_prompt=*/false,
+      SaveCreditCardOptions().with_card_save_type(CardSaveType::kCardSaveOnly));
+
+  histogram_tester.ExpectUniqueSample(
+      GetBaseHistogramName(), SaveCardPromptOffer::kNotShownMaxStrikesReached,
+      1);
+}
+
+TEST_P(SaveCreditCardPromptOfferMetricTest, DoNotLogBubbleReshown) {
+  base::HistogramTester histogram_tester;
+  TriggerFlow(/*show_prompt=*/true, SaveCreditCardOptions().with_card_save_type(
+                                        CardSaveType::kCardSaveOnly));
+  histogram_tester.ExpectUniqueSample(GetBaseHistogramName(),
+                                      SaveCardPromptOffer::kShown, 1);
+
+  CloseAndReshowBubble();
+  // Verify that `kShown` metrics is not logged again on reshow.
+  histogram_tester.ExpectUniqueSample(GetBaseHistogramName(),
+                                      SaveCardPromptOffer::kShown, 1);
+}
+
 // Param of the SaveCvcBubbleLoggingTest:
 // -- std::string show_type: decides if the view is shown first time or
 // re-shown.
@@ -874,7 +1068,7 @@ TEST_P(SaveCvcBubbleLoggingTest, Metrics_ShowBubble) {
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveCvcPromptOffer." + save_destination_ + "." + show_type_,
-      autofill_metrics::SaveCardPromptOffer::kShown, 1);
+      SaveCardPromptOffer::kShown, 1);
 }
 
 TEST_P(SaveCvcBubbleLoggingTest, Metrics_ShowIconOnly) {
@@ -888,7 +1082,7 @@ TEST_P(SaveCvcBubbleLoggingTest, Metrics_ShowIconOnly) {
 
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveCvcPromptOffer." + save_destination_ + "." + show_type_,
-      autofill_metrics::SaveCardPromptOffer::kNotShownMaxStrikesReached, 1);
+      SaveCardPromptOffer::kNotShownMaxStrikesReached, 1);
 }
 
 TEST_P(SaveCvcBubbleLoggingTest, Metrics_SaveButton) {
@@ -1383,10 +1577,10 @@ TEST_F(SaveCardBubbleControllerImplTest,
   ShowUploadBubble();
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveCreditCardPromptOffer.Upload.FirstShow",
-      autofill_metrics::SaveCardPromptOffer::kShown, 1);
+      SaveCardPromptOffer::kShown, 1);
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveCreditCardPromptOffer.Upload.Reshows",
-      autofill_metrics::SaveCardPromptOffer::kShown, 0);
+      SaveCardPromptOffer::kShown, 0);
 
   controller()->OnLegalMessageLinkClicked(GURL("about:blank"));
   browser()->tab_strip_model()->ActivateTabAt(
@@ -1415,10 +1609,10 @@ TEST_F(SaveCardBubbleControllerImplTest,
   // metric) should be tracking this re-show.
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveCreditCardPromptOffer.Upload.FirstShow",
-      autofill_metrics::SaveCardPromptOffer::kShown, 1);
+      SaveCardPromptOffer::kShown, 1);
   histogram_tester.ExpectUniqueSample(
       "Autofill.SaveCreditCardPromptOffer.Upload.Reshows",
-      autofill_metrics::SaveCardPromptOffer::kShown, 0);
+      SaveCardPromptOffer::kShown, 0);
 
   // Ensure that metrics are recorded on a subsequent bubble close.
   active_web_contents()->UpdateWebContentsVisibility(

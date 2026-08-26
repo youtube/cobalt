@@ -63,7 +63,6 @@
 #include "ash/system/input_device_settings/input_device_settings_metadata_manager.h"
 #include "ash/system/input_device_settings/input_device_settings_notification_controller.h"
 #include "ash/system/input_device_settings/input_device_tracker.h"
-#include "ash/system/input_device_settings/keyboard_modifier_metrics_recorder.h"
 #include "ash/system/keyboard_brightness/keyboard_backlight_color_controller.h"
 #include "ash/system/keyboard_brightness/keyboard_brightness_controller.h"
 #include "ash/system/mahi/mahi_nudge_controller.h"
@@ -102,6 +101,7 @@
 #include "ash/wm/overview/birch/birch_bar_controller.h"
 #include "ash/wm/overview/birch/birch_privacy_nudge_controller.h"
 #include "ash/wm/window_cycle/window_cycle_controller.h"
+#include "ash/wm/window_restore/window_restore_util.h"
 #include "ash/wm/window_util.h"
 #include "chromeos/ash/components/boca/boca_role_util.h"
 #include "chromeos/ash/components/editor_menu/public/cpp/editor_enterprise_policy_enums.h"
@@ -129,7 +129,6 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry,
   AppListControllerImpl::RegisterProfilePrefs(registry);
   AppListNudgeController::RegisterProfilePrefs(registry);
   AshAcceleratorConfiguration::RegisterProfilePrefs(registry);
-  AssistantControllerImpl::RegisterProfilePrefs(registry);
   AutozoomControllerImpl::RegisterProfilePrefs(registry);
   AutozoomNudgeController::RegisterProfilePrefs(registry);
   AmbientController::RegisterProfilePrefs(registry);
@@ -156,6 +155,7 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry,
   DockedMagnifierController::RegisterProfilePrefs(registry);
   FeatureDiscoveryDurationReporterImpl::RegisterProfilePrefs(registry);
   FocusModeController::RegisterProfilePrefs(registry);
+  RegisterProfilePrefsFullRestore(registry);
   FullscreenController::RegisterProfilePrefs(registry);
   GameDashboardController::RegisterProfilePrefs(registry);
   GeolocationController::RegisterProfilePrefs(registry);
@@ -172,7 +172,6 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry,
   LogoutConfirmationController::RegisterProfilePrefs(registry);
   KeyboardBacklightColorController::RegisterPrefs(registry);
   KeyboardControllerImpl::RegisterProfilePrefs(registry, country);
-  KeyboardModifierMetricsRecorder::RegisterProfilePrefs(registry, for_test);
   MahiNudgeController::RegisterProfilePrefs(registry);
   MediaControllerImpl::RegisterProfilePrefs(registry);
   MessageCenterController::RegisterProfilePrefs(registry);
@@ -208,7 +207,6 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry,
 
   // Provide prefs registered in the browser for ash_unittests.
   if (for_test) {
-    assistant::prefs::RegisterProfilePrefs(registry);
     quick_answers::prefs::RegisterProfilePrefs(registry);
     registry->RegisterBooleanPref(prefs::kMouseReverseScroll, false);
     registry->RegisterBooleanPref(prefs::kSendFunctionKeys, false);
@@ -250,10 +248,6 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry,
     registry->RegisterIntegerPref(prefs::kKeyEventRemappedToSixPackHome, 0);
     registry->RegisterIntegerPref(prefs::kKeyEventRemappedToSixPackPageUp, 0);
     registry->RegisterIntegerPref(prefs::kKeyEventRemappedToSixPackPageDown, 0);
-    registry->RegisterBooleanPref(prefs::kShowInformedRestoreOnboarding, false);
-    registry->RegisterIntegerPref(prefs::kInformedRestoreNudgeShownCount, 0);
-    registry->RegisterTimePref(prefs::kInformedRestoreNudgeLastShown,
-                               base::Time());
     registry->RegisterDictionaryPref(prefs::kEmojiPickerHistory);
     registry->RegisterIntegerPref(
         prefs::kGenAISmartGroupingSettings,

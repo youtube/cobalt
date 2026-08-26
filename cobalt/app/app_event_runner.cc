@@ -17,6 +17,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdio>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -100,7 +101,7 @@ class AppEventRunnerImpl : public AppEventRunner,
     exit_manager_ = std::make_unique<base::AtExitManager>();
   }
 
-  void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
+  void CreateMainDelegate(std::optional<int64_t> startup_timestamp,
                           bool is_visible,
                           const char* initial_deep_link) override {
     content_main_delegate_ = std::make_unique<cobalt::CobaltMainDelegate>(
@@ -338,7 +339,7 @@ class AppEventRunnerImpl : public AppEventRunner,
   }
 
  private:
-  int Run(absl::optional<int64_t> startup_timestamp,
+  int Run(std::optional<int64_t> startup_timestamp,
           bool is_visible,
           int argc,
           const char** argv,

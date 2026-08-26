@@ -10,21 +10,23 @@
 
 #include "modules/audio_mixer/audio_mixer_impl.h"
 
-#include <string.h>
-
+#include <algorithm>
 #include <cstdint>
-#include <limits>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/rtp_packet_info.h"
 #include "api/rtp_packet_infos.h"
+#include "api/scoped_refptr.h"
 #include "api/units/timestamp.h"
 #include "modules/audio_mixer/default_output_rate_calculator.h"
+#include "modules/audio_mixer/output_rate_calculator.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/task_queue_for_test.h"
@@ -43,7 +45,7 @@ namespace webrtc {
 namespace {
 
 constexpr int kDefaultSampleRateHz = 48000;
-const char kSourceCountHistogramName[] =
+constexpr char kSourceCountHistogramName[] =
     "WebRTC.Audio.AudioMixer.NewHighestSourceCount";
 
 // Utility function that resets the frame member variables with

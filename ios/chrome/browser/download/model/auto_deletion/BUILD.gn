@@ -1,5 +1,7 @@
 source_set("auto_deletion") {
   sources = [
+    "auto_deletion_histograms.h",
+    "auto_deletion_histograms.mm",
     "auto_deletion_service.h",
     "auto_deletion_service.mm",
     "scheduled_file.h",
@@ -13,6 +15,7 @@ source_set("auto_deletion") {
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/prefs",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/public/features",
     "//ios/web/public/download",
   ]
 }

@@ -13,6 +13,7 @@
 #include "base/no_destructor.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -242,7 +243,9 @@ class ReduceAcceptLanguageBrowserTest : public policy::PolicyTest {
     content::WebContents* web_contents =
         browser()->tab_strip_model()->GetActiveWebContents();
     base::Value::List languages_list =
-        content::EvalJs(web_contents, "navigator.languages").ExtractList();
+        content::EvalJs(web_contents, "navigator.languages")
+            .TakeValue()
+            .TakeList();
     std::vector<std::string> actual_languages;
     for (const auto& result : languages_list) {
       actual_languages.push_back(result.GetString());

@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_ENTERPRISE_CONNECTORS_TEST_FAKE_CLIPBOARD_REQUEST_HANDLER_H_
 #define CHROME_BROWSER_ENTERPRISE_CONNECTORS_TEST_FAKE_CLIPBOARD_REQUEST_HANDLER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/enterprise/connectors/analysis/clipboard_request_handler.h"
 
 namespace enterprise_connectors::test {
@@ -20,8 +21,9 @@ class FakeClipboardRequestHandler : public ClipboardRequestHandler {
       Profile* profile,
       GURL url,
       Type type,
-      safe_browsing::DeepScanAccessPoint access_point,
+      DeepScanAccessPoint access_point,
       ContentMetaData::CopiedTextSource clipboard_source,
+      std::string source_content_area_email,
       std::string content_transfer_method,
       std::string data,
       CompletionCallback callback);

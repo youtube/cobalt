@@ -17,7 +17,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
@@ -383,8 +382,7 @@ TEST_F(RtcpSenderTest, SendNack) {
   auto rtcp_sender = CreateRtcpSender(GetDefaultConfig());
   rtcp_sender->SetRTCPStatus(RtcpMode::kReducedSize);
   const uint16_t kList[] = {0, 1, 16};
-  EXPECT_EQ(0, rtcp_sender->SendRTCP(feedback_state(), kRtcpNack,
-                                     ABSL_ARRAYSIZE(kList), kList));
+  EXPECT_EQ(0, rtcp_sender->SendRTCP(feedback_state(), kRtcpNack, kList));
   EXPECT_EQ(1, parser()->nack()->num_packets());
   EXPECT_EQ(kSenderSsrc, parser()->nack()->sender_ssrc());
   EXPECT_EQ(kRemoteSsrc, parser()->nack()->media_ssrc());
@@ -425,9 +423,7 @@ TEST_F(RtcpSenderTest, SendLossNotificationBufferingAllowed) {
 
   // Sending another messages triggers sending the LNTF messages as well.
   const uint16_t kList[] = {0, 1, 16};
-  EXPECT_EQ(rtcp_sender->SendRTCP(feedback_state(), kRtcpNack,
-                                  ABSL_ARRAYSIZE(kList), kList),
-            0);
+  EXPECT_EQ(rtcp_sender->SendRTCP(feedback_state(), kRtcpNack, kList), 0);
 
   // Exactly one packet was produced, and it contained both the buffered LNTF
   // as well as the message that had triggered the packet.

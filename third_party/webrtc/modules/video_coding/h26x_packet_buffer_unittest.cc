@@ -50,10 +50,10 @@ using H264::NaluType::kStapA;
 
 constexpr int kBufferSize = 2048;
 // Example sprop string from https://tools.ietf.org/html/rfc3984.
-const char kExampleSpropString[] = "Z0IACpZTBYmI,aMljiA==";
-static const std::vector<uint8_t> kExampleSpropRawSps{
-    0x67, 0x42, 0x00, 0x0A, 0x96, 0x53, 0x05, 0x89, 0x88};
-static const std::vector<uint8_t> kExampleSpropRawPps{0x68, 0xC9, 0x63, 0x88};
+constexpr char kExampleSpropString[] = "Z0IACpZTBYmI,aMljiA==";
+const std::vector<uint8_t> kExampleSpropRawSps{0x67, 0x42, 0x00, 0x0A, 0x96,
+                                               0x53, 0x05, 0x89, 0x88};
+const std::vector<uint8_t> kExampleSpropRawPps{0x68, 0xC9, 0x63, 0x88};
 
 std::vector<uint8_t> StartCode() {
   return {0, 0, 0, 1};

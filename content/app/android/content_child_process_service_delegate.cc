@@ -2,24 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <cpu-features.h>
-
 #include "base/android/jni_array.h"
 #include "base/android/library_loader/library_loader_hooks.h"
 #include "base/android/memory_pressure_listener_android.h"
 #include "base/android/unguessable_token_android.h"
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/lazy_instance.h"
+#include "base/no_destructor.h"
 #include "base/unguessable_token.h"
 #include "components/input/android/input_token_forwarder.h"
+#include "content/app/android/content_main_android.h"
 #include "content/child/child_thread_impl.h"
 #include "content/common/android/surface_wrapper.h"
 #include "content/common/shared_file_util.h"
 #include "content/public/common/content_descriptors.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/texture_owner.h"
-#include "gpu/ipc/common/android/scoped_surface_request_conduit.h"
 #include "gpu/ipc/common/gpu_surface_lookup.h"
 #include "ui/gl/android/scoped_java_surface.h"
 #include "ui/gl/android/scoped_java_surface_control.h"
@@ -37,34 +35,21 @@ namespace {
 
 // TODO(sievers): Use two different implementations of this depending on if
 // we're in a renderer or gpu process.
-class ChildProcessSurfaceManager : public gpu::ScopedSurfaceRequestConduit,
-                                   public gpu::GpuSurfaceLookup,
+class ChildProcessSurfaceManager : public gpu::GpuSurfaceLookup,
                                    public input::InputTokenForwarder {
  public:
-  ChildProcessSurfaceManager() {}
+  ChildProcessSurfaceManager() = default;
 
   ChildProcessSurfaceManager(const ChildProcessSurfaceManager&) = delete;
   ChildProcessSurfaceManager& operator=(const ChildProcessSurfaceManager&) =
       delete;
 
-  ~ChildProcessSurfaceManager() override {}
+  ~ChildProcessSurfaceManager() override = default;
 
   // |service_impl| is the instance of
   // org.chromium.content.app.ChildProcessService.
   void SetServiceImpl(const base::android::JavaRef<jobject>& service_impl) {
     service_impl_.Reset(service_impl);
-  }
-
-  // Overriden from ScopedSurfaceRequestConduit:
-  void ForwardSurfaceOwnerForSurfaceRequest(
-      const base::UnguessableToken& request_token,
-      const gpu::TextureOwner* texture_owner) override {
-    JNIEnv* env = base::android::AttachCurrentThread();
-
-    content::
-        Java_ContentChildProcessServiceDelegate_forwardSurfaceForSurfaceRequest(
-            env, service_impl_, request_token,
-            texture_owner->CreateJavaSurface().j_surface());
   }
 
   // Overridden from GpuSurfaceLookup:
@@ -109,13 +94,14 @@ class ChildProcessSurfaceManager : public gpu::ScopedSurfaceRequestConduit,
   }
 
  private:
-  friend struct base::LazyInstanceTraitsBase<ChildProcessSurfaceManager>;
   // The instance of org.chromium.content.app.ChildProcessService.
   base::android::ScopedJavaGlobalRef<jobject> service_impl_;
 };
 
-base::LazyInstance<ChildProcessSurfaceManager>::Leaky
-    g_child_process_surface_manager = LAZY_INSTANCE_INITIALIZER;
+ChildProcessSurfaceManager* GetChildProcessSurfaceManager() {
+  static base::NoDestructor<ChildProcessSurfaceManager> manager;
+  return manager.get();
+}
 
 // Chrome actually uses the renderer code path for all of its child
 // processes such as renderers, plugins, etc.
@@ -124,17 +110,12 @@ void JNI_ContentChildProcessServiceDelegate_InternalInitChildProcess(
     const JavaParamRef<jobject>& service_impl,
     jint cpu_count,
     jlong cpu_features) {
-  // Set the CPU properties.
-  android_setCpu(cpu_count, cpu_features);
+  InitChildProcessCommon(cpu_count, cpu_features);
 
-  g_child_process_surface_manager.Get().SetServiceImpl(service_impl);
+  GetChildProcessSurfaceManager()->SetServiceImpl(service_impl);
 
-  gpu::GpuSurfaceLookup::InitInstance(
-      g_child_process_surface_manager.Pointer());
-  gpu::ScopedSurfaceRequestConduit::SetInstance(
-      g_child_process_surface_manager.Pointer());
-  input::InputTokenForwarder::SetInstance(
-      g_child_process_surface_manager.Pointer());
+  gpu::GpuSurfaceLookup::InitInstance(GetChildProcessSurfaceManager());
+  input::InputTokenForwarder::SetInstance(GetChildProcessSurfaceManager());
 }
 
 }  // namespace

@@ -147,81 +147,17 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   const ExceptionContext& exception_context = exception_state.GetContext();
 
-  if (name == "DecoderBuffer.EnableConfigurableDecommitStrategy") {
-    // The value is a 32-bit integer encoding four parts:
-    // flags (8 bits), block_size (in MB), retain_blocks (count), and
-    // conservative_decommit_blocks (count). For example,
-    // 0x01040402 sets aggressive_decommit_on_suspend to true, 4 MB block size,
-    // 4 retain blocks, and 2 conservative decommit blocks respectively.
-    // Passing multiple parameters encoded within a single integer is not
-    // ideal, but it simplifies experiment setup in the current framework.
-    //
-    // - flags (8 bits):
-    //   - aggressive_decommit_on_suspend (bit 24): When set (LSB is non-zero),
-    //     enables aggressive MADV_DONTNEED decommit on all idle blocks when
-    //     app suspends/hides.
-    //   - allocate_with_page_alignment (bit 25): When set (second bit is
-    //     non-zero), forces new OS block allocations to be page-aligned and
-    //     rounded up to page sizes. Default is true.
-    // - block_size (8 bits): Specifies both the initial pool capacity and the
-    //   fallback allocation increment.
-    // - retain_blocks (8 bits): Specifies the first `retain_blocks` blocks of
-    //   the pool are kept fully committed.
-    // - conservative_decommit_blocks (8 bits): Specifies the next
-    //   `conservative_decommit_blocks` blocks are conservatively decommitted
-    //   (e.g. using MADV_FREE).
-    // Any remaining memory beyond these two windows is aggressively decommitted
-    // (e.g. MADV_DONTNEED).
-    // For example, if 128 MB is allocated for the memory pool, and
-    // retain_blocks is set to 4 with conservative_decommit_blocks set to 2
-    // (with 4 MB block size):
-    //   - The first 16 MB (4 blocks) will be retained during an idle flush.
-    //   - The next 8 MB (2 blocks) will be conservatively decommitted (the OS
-    //     may reclaim it if under memory pressure, but it is not freed
-    //     immediately).
-    //   - The remaining 104 MB (26 blocks) will be aggressively decommitted
-    //   (returned
-    //     to the OS immediately, with virtual memory address range retained).
-    //
-    // Note: A value of 0 or less will not enable this feature (handled as a
-    // placebo).
+  if (name.StartsWith("DecoderBuffer.")) {
     return ProcessSettingAs<int>(
-        script_state, exception_context, name, *value, [](int value) {
-          if (value <= 0) {
-            // Explicitly allow non-positive values as placebo.
-            return base::ok();
+        script_state, exception_context, name, *value,
+        [name](int value) -> Result {
+          auto result =
+              ::media::DecoderBufferAllocator::SetSetting(name.Utf8(), value);
+          if (!result.has_value()) {
+            return base::unexpected(String::FromUTF8(result.error()));
           }
-
-          bool aggressive_decommit_on_suspend = ((value >> 24) & 0x01) != 0;
-          bool allocate_with_page_alignment = ((value >> 24) & 0x02) != 0;
-          int block_size_mb = (value >> 16) & 0xFF;
-          int retain_blocks = (value >> 8) & 0xFF;
-          int conservative_decommit_blocks = value & 0xFF;
-          ::media::DecoderBufferAllocator::EnableConfigurableDecommitStrategy(
-              block_size_mb * 1024 * 1024, retain_blocks,
-              conservative_decommit_blocks, aggressive_decommit_on_suspend,
-              allocate_with_page_alignment);
           return base::ok();
         });
-  }
-  if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
-    return ProcessSettingAsEnableOnly(
-        script_state, exception_context, name, *value, [] {
-          ::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy();
-          return true;
-        });
-  }
-  if (name == "DecoderBuffer.ReleaseMemoryOnBackground") {
-    return ProcessSettingAsEnableOnly(
-        script_state, exception_context, name, *value, [] {
-          ::media::DecoderBufferAllocator::EnableReleaseIdleMemory();
-          return true;
-        });
-  }
-  // "DecoderBuffer." settings must be handled before this catch-all block.
-  if (name.StartsWith("DecoderBuffer.")) {
-    return Reject(script_state, exception_context,
-                  name + " isn't a supported setting.");
   }
 
   if (name == "Media.AppendFirstSegmentSynchronously") {

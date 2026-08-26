@@ -37,6 +37,8 @@ import org.chromium.components.embedder_support.contextmenu.ContextMenuParams;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.favicon.LargeIconBridgeJni;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.listmenu.ListMenuItemProperties;
+import org.chromium.ui.listmenu.MenuModelBridge;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
@@ -53,6 +55,7 @@ public class ContextMenuHeaderMediatorTest {
 
     @Mock LargeIconBridge.Natives mMockLargeIconBridgeJni;
     @Mock ContextMenuNativeDelegate mNativeDelegate;
+    @Mock private MenuModelBridge mMenuModelBridge;
 
     private Activity mActivity;
     private final Profile mProfile = Mockito.mock(Profile.class);
@@ -76,6 +79,7 @@ public class ContextMenuHeaderMediatorTest {
         final ContextMenuParams params =
                 new ContextMenuParams(
                         0,
+                        mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
                         url,
                         GURL.emptyGURL(),
@@ -89,8 +93,8 @@ public class ContextMenuHeaderMediatorTest {
                         0,
                         0,
                         false,
-                        /* openedFromInterestTarget= */ false,
-                        /* interestTargetNodeID= */ 0,
+                        /* openedFromInterestFor= */ false,
+                        /* interestForNodeID= */ 0,
                         /* additionalNavigationParams= */ null);
         final ContextMenuHeaderMediator mediator =
                 new ContextMenuHeaderMediator(mActivity, model, params, mProfile, mNativeDelegate);
@@ -124,6 +128,7 @@ public class ContextMenuHeaderMediatorTest {
         final ContextMenuParams params =
                 new ContextMenuParams(
                         0,
+                        mMenuModelBridge,
                         ContextMenuDataMediaType.VIDEO,
                         GURL.emptyGURL(),
                         GURL.emptyGURL(),
@@ -137,8 +142,8 @@ public class ContextMenuHeaderMediatorTest {
                         0,
                         0,
                         false,
-                        /* openedFromInterestTarget= */ false,
-                        /* interestTargetNodeID= */ 0,
+                        /* openedFromInterestFor= */ false,
+                        /* interestForNodeID= */ 0,
                         /* additionalNavigationParams= */ null);
         final ContextMenuHeaderMediator mediator =
                 new ContextMenuHeaderMediator(mActivity, model, params, mProfile, mNativeDelegate);
@@ -165,6 +170,7 @@ public class ContextMenuHeaderMediatorTest {
         final ContextMenuParams params =
                 new ContextMenuParams(
                         0,
+                        mMenuModelBridge,
                         ContextMenuDataMediaType.FILE,
                         GURL.emptyGURL(),
                         linkUrl,
@@ -178,8 +184,8 @@ public class ContextMenuHeaderMediatorTest {
                         0,
                         0,
                         false,
-                        /* openedFromInterestTarget= */ false,
-                        /* interestTargetNodeID= */ 0,
+                        /* openedFromInterestFor= */ false,
+                        /* interestForNodeID= */ 0,
                         /* additionalNavigationParams= */ null);
         final ContextMenuHeaderMediator mediator =
                 new ContextMenuHeaderMediator(mActivity, model, params, mProfile, mNativeDelegate);
@@ -207,5 +213,225 @@ public class ContextMenuHeaderMediatorTest {
         Assert.assertTrue(
                 "Circle background should be visible for links.",
                 model.get(ContextMenuHeaderProperties.CIRCLE_BG_VISIBLE));
+    }
+
+    @Test
+    public void testOnClick_ExpandNoSecondaryUrl() {
+        PropertyModel model =
+                new PropertyModel.Builder(ContextMenuHeaderProperties.ALL_KEYS)
+                        .with(ContextMenuHeaderProperties.URL, JUnitTestGURLs.URL_1.getSpec())
+                        .with(ListMenuItemProperties.TITLE, "Some Title")
+                        .with(ContextMenuHeaderProperties.URL_MAX_LINES, 1)
+                        .with(ContextMenuHeaderProperties.TITLE_MAX_LINES, 1)
+                        .build();
+
+        final ContextMenuHeaderMediator mediator = createMediatorWithDefaultParams(model);
+
+        mediator.onClick(null);
+
+        Assert.assertEquals(
+                "URL max lines should be expanded to show the full text.",
+                Integer.MAX_VALUE,
+                model.get(ContextMenuHeaderProperties.URL_MAX_LINES));
+        Assert.assertEquals(
+                "Title max lines should be expanded to show the full text.",
+                Integer.MAX_VALUE,
+                model.get(ContextMenuHeaderProperties.TITLE_MAX_LINES));
+    }
+
+    @Test
+    public void testOnClick_CollapseNoSecondaryUrl() {
+        PropertyModel model =
+                new PropertyModel.Builder(ContextMenuHeaderProperties.ALL_KEYS)
+                        .with(ContextMenuHeaderProperties.URL, JUnitTestGURLs.URL_1.getSpec())
+                        .with(ListMenuItemProperties.TITLE, "Some Title")
+                        .with(ContextMenuHeaderProperties.URL_MAX_LINES, Integer.MAX_VALUE)
+                        .with(ContextMenuHeaderProperties.TITLE_MAX_LINES, Integer.MAX_VALUE)
+                        .build();
+
+        final ContextMenuHeaderMediator mediator = createMediatorWithDefaultParams(model);
+
+        mediator.onClick(null);
+
+        Assert.assertEquals(
+                "URL max lines should be collapsed back to a single line.",
+                1,
+                model.get(ContextMenuHeaderProperties.URL_MAX_LINES));
+        Assert.assertEquals(
+                "Title max lines should be collapsed back to a single line.",
+                1,
+                model.get(ContextMenuHeaderProperties.TITLE_MAX_LINES));
+    }
+
+    @Test
+    public void testOnClick_CollapseNoSecondaryUrl_TitleOnly() {
+        PropertyModel model =
+                new PropertyModel.Builder(ContextMenuHeaderProperties.ALL_KEYS)
+                        .with(ContextMenuHeaderProperties.URL, "")
+                        .with(ListMenuItemProperties.TITLE, "Some Title")
+                        .with(ContextMenuHeaderProperties.URL_MAX_LINES, Integer.MAX_VALUE)
+                        .with(ContextMenuHeaderProperties.TITLE_MAX_LINES, Integer.MAX_VALUE)
+                        .build();
+
+        final ContextMenuHeaderMediator mediator = createMediatorWithDefaultParams(model);
+
+        mediator.onClick(null);
+
+        Assert.assertEquals(
+                "URL is empty, so it should still be set to 1 line after collapse.",
+                1,
+                model.get(ContextMenuHeaderProperties.URL_MAX_LINES));
+        Assert.assertEquals(
+                "Title should collapse to 2 lines since the URL is empty.",
+                2,
+                model.get(ContextMenuHeaderProperties.TITLE_MAX_LINES));
+    }
+
+    @Test
+    public void testOnClick_CollapseNoSecondaryUrl_UrlOnly() {
+        PropertyModel model =
+                new PropertyModel.Builder(ContextMenuHeaderProperties.ALL_KEYS)
+                        .with(ContextMenuHeaderProperties.URL, JUnitTestGURLs.URL_1.getSpec())
+                        .with(ListMenuItemProperties.TITLE, "")
+                        .with(ContextMenuHeaderProperties.URL_MAX_LINES, Integer.MAX_VALUE)
+                        .with(ContextMenuHeaderProperties.TITLE_MAX_LINES, Integer.MAX_VALUE)
+                        .build();
+
+        final ContextMenuHeaderMediator mediator = createMediatorWithDefaultParams(model);
+
+        mediator.onClick(null);
+
+        Assert.assertEquals(
+                "URL should collapse to 2 lines since the title is empty.",
+                2,
+                model.get(ContextMenuHeaderProperties.URL_MAX_LINES));
+        Assert.assertEquals(
+                "Title is empty, so it should still be set to 1 line after collapse.",
+                1,
+                model.get(ContextMenuHeaderProperties.TITLE_MAX_LINES));
+    }
+
+    @Test
+    public void testOnClick_ExpandWithSecondaryUrl() {
+        PropertyModel model =
+                new PropertyModel.Builder(ContextMenuHeaderProperties.ALL_KEYS)
+                        .with(ContextMenuHeaderProperties.URL, JUnitTestGURLs.URL_1.getSpec())
+                        .with(ListMenuItemProperties.TITLE, "Some Title")
+                        .with(
+                                ContextMenuHeaderProperties.SECONDARY_URL,
+                                JUnitTestGURLs.URL_2.getSpec())
+                        .with(ContextMenuHeaderProperties.URL_MAX_LINES, 1)
+                        .with(ContextMenuHeaderProperties.TITLE_MAX_LINES, 1)
+                        .with(ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES, 1)
+                        .build();
+
+        final ContextMenuHeaderMediator mediator = createMediatorWithDefaultParams(model);
+
+        mediator.onClick(null);
+
+        Assert.assertEquals(
+                "URL max lines should be expanded.",
+                Integer.MAX_VALUE,
+                model.get(ContextMenuHeaderProperties.URL_MAX_LINES));
+        Assert.assertEquals(
+                "Title max lines should be expanded.",
+                Integer.MAX_VALUE,
+                model.get(ContextMenuHeaderProperties.TITLE_MAX_LINES));
+        Assert.assertEquals(
+                "Secondary URL max lines should be expanded.",
+                Integer.MAX_VALUE,
+                model.get(ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES));
+    }
+
+    @Test
+    public void testOnClick_CollapseWithSecondaryUrl() {
+        PropertyModel model =
+                new PropertyModel.Builder(ContextMenuHeaderProperties.ALL_KEYS)
+                        .with(ContextMenuHeaderProperties.URL, JUnitTestGURLs.URL_1.getSpec())
+                        .with(ListMenuItemProperties.TITLE, "Some Title")
+                        .with(
+                                ContextMenuHeaderProperties.SECONDARY_URL,
+                                JUnitTestGURLs.URL_2.getSpec())
+                        .with(ContextMenuHeaderProperties.URL_MAX_LINES, Integer.MAX_VALUE)
+                        .with(ContextMenuHeaderProperties.TITLE_MAX_LINES, Integer.MAX_VALUE)
+                        .with(
+                                ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES,
+                                Integer.MAX_VALUE)
+                        .build();
+
+        final ContextMenuHeaderMediator mediator = createMediatorWithDefaultParams(model);
+
+        mediator.onClick(null);
+
+        Assert.assertEquals(
+                "URL max lines should be collapsed to 1.",
+                1,
+                model.get(ContextMenuHeaderProperties.URL_MAX_LINES));
+        Assert.assertEquals(
+                "Title max lines should be collapsed to 1.",
+                1,
+                model.get(ContextMenuHeaderProperties.TITLE_MAX_LINES));
+        Assert.assertEquals(
+                "Secondary URL max lines should be collapsed to 1.",
+                1,
+                model.get(ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES));
+    }
+
+    @Test
+    public void testOnClick_CollapseWithSecondaryUrl_SecondaryOnly() {
+        PropertyModel model =
+                new PropertyModel.Builder(ContextMenuHeaderProperties.ALL_KEYS)
+                        .with(ContextMenuHeaderProperties.URL, "")
+                        .with(ListMenuItemProperties.TITLE, "")
+                        .with(
+                                ContextMenuHeaderProperties.SECONDARY_URL,
+                                JUnitTestGURLs.URL_2.getSpec())
+                        .with(ContextMenuHeaderProperties.URL_MAX_LINES, Integer.MAX_VALUE)
+                        .with(ContextMenuHeaderProperties.TITLE_MAX_LINES, Integer.MAX_VALUE)
+                        .with(
+                                ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES,
+                                Integer.MAX_VALUE)
+                        .build();
+
+        final ContextMenuHeaderMediator mediator = createMediatorWithDefaultParams(model);
+
+        mediator.onClick(null);
+
+        Assert.assertEquals(
+                "URL is empty, its line count should be 1.",
+                1,
+                model.get(ContextMenuHeaderProperties.URL_MAX_LINES));
+        Assert.assertEquals(
+                "Title is empty, its line count should be 1.",
+                1,
+                model.get(ContextMenuHeaderProperties.TITLE_MAX_LINES));
+        Assert.assertEquals(
+                "Secondary URL should expand to 3 lines since the others are empty.",
+                3,
+                model.get(ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES));
+    }
+
+    private ContextMenuHeaderMediator createMediatorWithDefaultParams(PropertyModel model) {
+        final ContextMenuParams params =
+                new ContextMenuParams(
+                        0,
+                        mMenuModelBridge,
+                        ContextMenuDataMediaType.IMAGE,
+                        GURL.emptyGURL(),
+                        GURL.emptyGURL(),
+                        "",
+                        GURL.emptyGURL(),
+                        GURL.emptyGURL(),
+                        "",
+                        null,
+                        false,
+                        0,
+                        0,
+                        0,
+                        false,
+                        /* openedFromInterestFor= */ false,
+                        /* interestForNodeID= */ 0,
+                        /* additionalNavigationParams= */ null);
+        return new ContextMenuHeaderMediator(mActivity, model, params, mProfile, mNativeDelegate);
     }
 }

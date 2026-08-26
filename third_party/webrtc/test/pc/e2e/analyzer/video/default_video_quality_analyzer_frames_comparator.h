@@ -11,15 +11,22 @@
 #ifndef TEST_PC_E2E_ANALYZER_VIDEO_DEFAULT_VIDEO_QUALITY_ANALYZER_FRAMES_COMPARATOR_H_
 #define TEST_PC_E2E_ANALYZER_VIDEO_DEFAULT_VIDEO_QUALITY_ANALYZER_FRAMES_COMPARATOR_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <map>
+#include <optional>
 #include <utility>
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/numerics/samples_stats_counter.h"
+#include "api/units/timestamp.h"
+#include "api/video/video_frame.h"
 #include "rtc_base/event.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/clock.h"
 #include "test/pc/e2e/analyzer/video/default_video_quality_analyzer_cpu_measurer.h"
 #include "test/pc/e2e/analyzer/video/default_video_quality_analyzer_internal_shared_objects.h"

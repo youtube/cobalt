@@ -126,7 +126,6 @@ enum class Channel;
 
 class ChromeDirectSocketsDelegate;
 class ChromeHidDelegate;
-class ChromePrivateNetworkDeviceDelegate;
 class ChromeSerialDelegate;
 class ChromeBluetoothDelegate;
 class ChromeUsbDelegate;
@@ -279,6 +278,8 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       const GURL& destination_effective_url) override;
   bool ShouldIsolateErrorPage(bool in_main_frame) override;
   std::vector<url::Origin> GetOriginsRequiringDedicatedProcess() override;
+  void WillComputeSiteForNavigation(content::BrowserContext* browser_context,
+                                    const GURL& url) override;
   bool ShouldEnableStrictSiteIsolation() override;
   bool ShouldDisableSiteIsolation(
       content::SiteIsolationMode site_isolation_mode) override;
@@ -444,6 +445,11 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       net::CookieSettingOverrides overrides) override;
   bool IsPrefetchWithServiceWorkerAllowed(
       content::BrowserContext* browser_context) override;
+  bool IsServiceWorkerAutoPreloadAllowed(
+      content::BrowserContext* browser_context) override;
+  bool IsServiceWorkerSyntheticResponseAllowed(
+      content::BrowserContext* browser_context,
+      const GURL& url) override;
   void GrantCookieAccessDueToHeuristic(content::BrowserContext* browser_context,
                                        const net::SchemefulSite& top_frame_site,
                                        const net::SchemefulSite& accessing_site,
@@ -452,6 +458,11 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   bool AreThirdPartyCookiesGenerallyAllowed(
       content::BrowserContext* browser_context,
       content::WebContents* web_contents) override;
+  void PrewarmServiceWorkerRegistrationForDSE(
+      content::BrowserContext* browser_context,
+      content::ServiceWorkerContext& service_worker_context) override;
+  static std::optional<int>&
+  PrewarmServiceWorkerRegistrationForDSECalledCountForTesting();
   bool CanSendSCTAuditingReport(
       content::BrowserContext* browser_context) override;
   void OnNewSCTAuditingReportSent(
@@ -534,18 +545,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   base::FilePath GetNetLogDefaultDirectory() override;
   base::FilePath GetFirstPartySetsDirectory() override;
   std::optional<base::FilePath> GetLocalTracesDirectory() override;
-  void DidCreatePpapiPlugin(content::BrowserPpapiHost* browser_host) override;
-  content::BrowserPpapiHost* GetExternalBrowserPpapiHost(
-      int plugin_process_id) override;
-  bool AllowPepperSocketAPI(
-      content::BrowserContext* browser_context,
-      const GURL& url,
-      bool private_api,
-      const content::SocketPermissionRequest* params) override;
-  bool IsPepperVpnProviderAPIAllowed(content::BrowserContext* browser_context,
-                                     const GURL& url) override;
-  std::unique_ptr<content::VpnServiceProxy> GetVpnServiceProxy(
-      content::BrowserContext* browser_context) override;
   std::unique_ptr<ui::SelectFilePolicy> CreateSelectFilePolicy(
       content::WebContents* web_contents) override;
   void GetAdditionalAllowedSchemesForFileSystem(
@@ -571,12 +570,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       const GURL& site_url) override;
   std::unique_ptr<content::TracingDelegate> CreateTracingDelegate() override;
   bool IsSystemWideTracingEnabled() override;
-  bool IsPluginAllowedToCallRequestOSFileHandle(
-      content::BrowserContext* browser_context,
-      const GURL& url) override;
-  bool IsPluginAllowedToUseDevChannelAPIs(
-      content::BrowserContext* browser_context,
-      const GURL& url) override;
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
   void GetAdditionalMappedFilesForChildProcess(
       const base::CommandLine& command_line,
@@ -596,6 +589,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   bool IsRendererCodeIntegrityEnabled() override;
   void SessionEnding(std::optional<DWORD> control_type) override;
   bool ShouldEnableAudioProcessHighPriority() override;
+  bool ShouldRestrictCoreSharingOnRenderer() override;
 #endif
   void ExposeInterfacesToRenderer(
       service_manager::BinderRegistry* registry,
@@ -767,8 +761,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   content::BluetoothDelegate* GetBluetoothDelegate() override;
   content::UsbDelegate* GetUsbDelegate() override;
   content::SerialDelegate* GetSerialDelegate() override;
-  content::PrivateNetworkDeviceDelegate* GetPrivateNetworkDeviceDelegate()
-      override;
   bool IsSecurityLevelAcceptableForWebAuthn(
       content::RenderFrameHost* rfh,
       const url::Origin& caller_origin) override;
@@ -1060,15 +1052,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   std::unique_ptr<content::ResponsivenessCalculatorDelegate>
   CreateResponsivenessCalculatorDelegate() override;
 
-  bool CanBackForwardCachedPageReceiveCookieChanges(
-      content::BrowserContext& browser_context,
-      const GURL& url,
-      const net::SiteForCookies& site_for_cookies,
-      const url::Origin& top_frame_origin,
-      const net::CookieSettingOverrides overrides,
-      base::optional_ref<const net::CookiePartitionKey> cookie_partition_key)
-      override;
-
   void GetCloudIdentifiers(
       const storage::FileSystemURL& url,
       content::FileSystemAccessPermissionContext::HandleType handle_type,
@@ -1139,6 +1122,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
   void BindTranslationManager(
+      content::RenderProcessHost* host,
       content::BrowserContext* browser_context,
       base::SupportsUserData* context_user_data,
       const url::Origin& origin,
@@ -1210,6 +1194,9 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       std::optional<ukm::SourceId> ukm_source_id,
       content::KeepAliveRequestTracker::IsContextDetachedCallback
           is_context_detached_callback) override;
+
+  std::optional<std::vector<std::u16string>> GetClipboardTypesIfPolicyApplied(
+      const ui::ClipboardSequenceNumberToken& seqno) override;
 
  protected:
   static bool HandleWebUI(GURL* url, content::BrowserContext* browser_context);
@@ -1368,8 +1355,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   std::unique_ptr<ChromeBluetoothDelegate> bluetooth_delegate_;
   std::unique_ptr<ChromeUsbDelegate> usb_delegate_;
   std::unique_ptr<ChromeSerialDelegate> serial_delegate_;
-  std::unique_ptr<ChromePrivateNetworkDeviceDelegate>
-      private_network_device_delegate_;
 
 #if BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<content::SmartCardDelegate> smart_card_delegate_;

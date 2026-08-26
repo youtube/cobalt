@@ -11,6 +11,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "components/services/quarantine/test_support.h"
 #include "content/browser/file_system_access/file_system_access_manager_impl.h"
@@ -170,12 +171,13 @@ IN_PROC_BROWSER_TEST_F(FileSystemAccessFileWriterBrowserTest,
   const std::string expected_contents = "barks";
   auto [test_file, swap_file] = CreateTestFilesAndEntry(initial_contents);
 
-  EXPECT_EQ(nullptr, EvalJs(shell(),
-                            "(async () => {"
-                            "    const w = await self.entry.createWritable({"
-                            "      keepExistingData: true });"
-                            "    self.writer = w;"
-                            "})()"));
+  EXPECT_EQ(base::Value(),
+            EvalJs(shell(),
+                   "(async () => {"
+                   "    const w = await self.entry.createWritable({"
+                   "      keepExistingData: true });"
+                   "    self.writer = w;"
+                   "})()"));
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     EXPECT_TRUE(base::PathExists(swap_file));
@@ -204,12 +206,13 @@ IN_PROC_BROWSER_TEST_F(FileSystemAccessFileWriterBrowserTest,
   const std::string expected_contents = "bar";
   auto [test_file, swap_file] = CreateTestFilesAndEntry(initial_contents);
 
-  EXPECT_EQ(nullptr, EvalJs(shell(),
-                            "(async () => {"
-                            "  const w = await self.entry.createWritable({"
-                            "    keepExistingData: false });"
-                            "  self.writer = w;"
-                            "})()"));
+  EXPECT_EQ(base::Value(),
+            EvalJs(shell(),
+                   "(async () => {"
+                   "  const w = await self.entry.createWritable({"
+                   "    keepExistingData: false });"
+                   "  self.writer = w;"
+                   "})()"));
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     EXPECT_TRUE(base::PathExists(swap_file));
@@ -238,11 +241,12 @@ IN_PROC_BROWSER_TEST_F(FileSystemAccessFileWriterBrowserTest,
 
   int num_writers = 5;
   for (int index = 0; index < num_writers; index++) {
-    EXPECT_EQ(nullptr, EvalJs(shell(),
-                              "(async () => {"
-                              "  const w = await self.entry.createWritable();"
-                              "  self.writers.push(w);"
-                              "})()"));
+    EXPECT_EQ(base::Value(),
+              EvalJs(shell(),
+                     "(async () => {"
+                     "  const w = await self.entry.createWritable();"
+                     "  self.writers.push(w);"
+                     "})()"));
   }
 
   {
@@ -265,7 +269,7 @@ IN_PROC_BROWSER_TEST_F(FileSystemAccessFileWriterBrowserTest,
   int num_writers = 5;
   for (int index = 0; index < num_writers; index++) {
     EXPECT_EQ(
-        nullptr,
+        base::Value(),
         EvalJs(shell(),
                JsReplace("(async () => {"
                          "  for(let i = 0; i < $1; i++ ) {"
@@ -296,7 +300,7 @@ IN_PROC_BROWSER_TEST_F(FileSystemAccessFileWriterBrowserTest,
   int num_writers = 5;
   for (int index = 0; index < num_writers; index++) {
     EXPECT_EQ(
-        nullptr,
+        base::Value(),
         EvalJs(shell(), JsReplace("(async () => {"
                                   "  for(let i = 0; i < $1; i++ ) {"
                                   "self.writers.push(self.entry.createWritable("
@@ -372,14 +376,15 @@ IN_PROC_BROWSER_TEST_F(FileSystemAccessFileWriterBrowserTest,
       "{create:false});"
       "return (await self.swapFile.createWritable());"
       "})()");
-  EXPECT_TRUE(base::Contains(result.error, "modifications are not allowed."))
-      << result.error;
+  EXPECT_THAT(result, EvalJsResult::ErrorIs(
+                          testing::HasSubstr("modifications are not allowed.")))
+      << result;
 
   auto close_result = EvalJs(shell(),
                              "(async () => {"
                              "await self.writer.close();"
                              "})()");
-  EXPECT_TRUE(close_result.error.empty()) << close_result.error;
+  EXPECT_TRUE(close_result.is_ok()) << close_result;
 }
 
 // TODO(crbug.com/40639570): Files are only quarantined on windows in
@@ -393,14 +398,14 @@ IN_PROC_BROWSER_TEST_F(FileSystemAccessFileWriterBrowserTest,
                        MAYBE_FileAnnotated) {
   auto [test_file, swap_file] = CreateQuarantineTestFilesAndEntry();
 
-  EXPECT_EQ(nullptr, EvalJs(shell(),
-                            "(async () => {"
-                            "  const w = await self.entry.createWritable("
-                            "    {keepExistingData: true},"
-                            "  );"
-                            "  self.writer = w;"
-                            "  await self.writer.close();"
-                            "})()"));
+  EXPECT_EQ(base::Value(), EvalJs(shell(),
+                                  "(async () => {"
+                                  "  const w = await self.entry.createWritable("
+                                  "    {keepExistingData: true},"
+                                  "  );"
+                                  "  self.writer = w;"
+                                  "  await self.writer.close();"
+                                  "})()"));
 
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
@@ -431,8 +436,9 @@ IN_PROC_BROWSER_TEST_F(FileSystemAccessFileWriterBrowserTest,
   auto result = EvalJs(shell(),
                        "(async () => {"
                        "  return (await self.entry.createWritable()); })()");
-  EXPECT_TRUE(base::Contains(result.error, "Cannot write to a read-only file."))
-      << result.error;
+  EXPECT_THAT(result, EvalJsResult::ErrorIs(testing::HasSubstr(
+                          "Cannot write to a read-only file.")))
+      << result;
 }
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_WIN)
 

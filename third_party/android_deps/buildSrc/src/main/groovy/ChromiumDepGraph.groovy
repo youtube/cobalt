@@ -27,6 +27,9 @@ class ChromiumDepGraph {
     // Some libraries don't properly fill their POM with the appropriate licensing information. It is provided here from
     // manual lookups. Note that licenseUrl must provide textual content rather than be an html page.
     static final Map<String, PropertyOverride> PROPERTY_OVERRIDES = [
+            androidx_datastore_datastore_preferences_external_protobuf: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/protocolbuffers/protobuf/refs/heads/main/LICENSE',
+                    licenseName: 'BSD'),
             androidx_multidex_multidex: new PropertyOverride(
                     url: 'https://maven.google.com/androidx/multidex/multidex/2.0.0/multidex-2.0.0.aar'),
             com_google_android_datatransport_transport_api: new PropertyOverride(
@@ -48,6 +51,7 @@ class ChromiumDepGraph {
                     licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
                     licenseName: 'Apache 2.0'),
             com_google_code_gson_gson: new PropertyOverride(
+                    cpePrefix: 'cpe:/a:google:gson',
                     url: 'https://github.com/google/gson',
                     description: 'A Java serialization/deserialization library to convert Java Objects into JSON and back',
                     licenseUrl: 'https://raw.githubusercontent.com/google/gson/master/LICENSE',
@@ -123,9 +127,41 @@ class ChromiumDepGraph {
                     licenseUrl: 'https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE',
                     licenseName: 'BSD'),
             com_google_protobuf_protobuf_javalite: new PropertyOverride(
+                    cpePrefix: 'cpe:/a:google:protobuf-javalite',
                     url: 'https://github.com/protocolbuffers/protobuf/blob/master/java/lite.md',
                     licenseUrl: 'https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE',
                     licenseName: 'BSD'),
+            io_grpc_grpc_android: new PropertyOverride(
+                    cpePrefix: 'cpe:/a:grpc:grpc',
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_binder: new PropertyOverride(
+                    cpePrefix: 'cpe:/a:grpc:grpc',
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_api: new PropertyOverride(
+                    cpePrefix: 'cpe:/a:grpc:grpc',
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_context: new PropertyOverride(
+                    cpePrefix: 'cpe:/a:grpc:grpc',
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_core: new PropertyOverride(
+                    cpePrefix: 'cpe:/a:grpc:grpc',
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_protobuf_lite: new PropertyOverride(
+                    cpePrefix: 'cpe:/a:grpc:grpc',
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_stub: new PropertyOverride(
+                    cpePrefix: 'cpe:/a:grpc:grpc',
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_perfmark_perfmark_api: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/perfmark/perfmark/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
             jakarta_inject_jakarta_inject_api: new PropertyOverride(
                     // Help gradle resolve the same version that our 3pp script does.
                     versionFilter: '\\d+\\.\\d+\\.\\d+$'),
@@ -253,7 +289,8 @@ class ChromiumDepGraph {
             org_jetbrains_kotlinx_kotlinx_coroutines_rx3: new PropertyOverride(
                     exclude: true),  // An unnecessary dep of androidx.xr.runtime.
             org_reactivestreams_reactive_streams: new PropertyOverride(
-                    exclude: true),  // An unnecessary dep of androidx.xr.runtime.
+                    licenseName: 'MIT',
+                    licenseUrl: 'https://raw.githubusercontent.com/reactive-streams/reactive-streams-jvm/refs/tags/v1.0.4/LICENSE'),
 
     ]
 

@@ -19,6 +19,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/sequence_checker.h"
 #include "base/state_transitions.h"
+#include "base/strings/string_view_util.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -596,10 +597,19 @@ bool ResourceScriptStreamer::TryStartStreamingTask() {
   // Skip non-JS modules based on the mime-type.
   // TODO(crbug/1132413),TODO(crbug/1061857): Disable streaming for non-JS
   // based the specific import statements.
+
+  AtomicString mime_type = script_resource_->GetResponse().HttpContentType();
   if (script_type_ == v8::ScriptType::kModule &&
-      !MIMETypeRegistry::IsSupportedJavaScriptMIMEType(
-          script_resource_->GetResponse().HttpContentType())) {
+      !MIMETypeRegistry::IsSupportedJavaScriptMIMEType(mime_type)) {
     SuppressStreaming(NotStreamingReason::kNonJavascriptModule);
+    return false;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          blink::features::kJavaScriptSourcePhaseImports) &&
+      MIMETypeRegistry::IsWasmMIMEType(mime_type)) {
+    // Suppress streaming if the Wasm source was requested as a classic script.
+    SuppressStreaming(NotStreamingReason::kNonModuleWithWasmMimeType);
     return false;
   }
 
@@ -624,7 +634,7 @@ bool ResourceScriptStreamer::TryStartStreamingTask() {
     std::unique_ptr<TextResourceDecoder> decoder(
         std::make_unique<TextResourceDecoder>(TextResourceDecoderOptions(
             TextResourceDecoderOptions::kPlainTextContent,
-            WTF::TextEncoding(script_resource_->Encoding()))));
+            TextEncoding(script_resource_->Encoding()))));
     decoder->CheckForBOM(maybe_bom);
 
     // The encoding may change when we see the BOM. Check for BOM now
@@ -1146,7 +1156,7 @@ class BackgroundResourceScriptStreamer::BackgroundProcessor final
       const String script_url_string,
       uint64_t script_resource_identifier,
       v8::Isolate* isolate,
-      WTF::TextEncoding encoding,
+      TextEncoding encoding,
       std::unique_ptr<v8_compile_hints::CompileHintsForStreaming::Builder>
           compile_hints_builder,
       CrossThreadWeakHandle<BackgroundResourceScriptStreamer> streamer_handle);
@@ -1216,7 +1226,7 @@ class BackgroundResourceScriptStreamer::BackgroundProcessor final
   const uint64_t script_resource_identifier_;
 
   v8::Isolate* isolate_;
-  WTF::TextEncoding encoding_;
+  TextEncoding encoding_;
 
   SourceStream* source_stream_ptr_ = nullptr;
 
@@ -1292,7 +1302,7 @@ class BackgroundResourceScriptStreamer::BackgroundProcessorFactory final
   const String script_url_string_;
   const uint64_t script_resource_identifier_;
   v8::Isolate* isolate_;
-  const WTF::TextEncoding encoding_;
+  const TextEncoding encoding_;
   std::unique_ptr<v8_compile_hints::CompileHintsForStreaming::Builder>
       compile_hints_builder_;
   CrossThreadWeakHandle<BackgroundResourceScriptStreamer> streamer_handle_;
@@ -1303,7 +1313,7 @@ BackgroundResourceScriptStreamer::BackgroundProcessor::BackgroundProcessor(
     const String script_url_string,
     uint64_t script_resource_identifier,
     v8::Isolate* isolate,
-    WTF::TextEncoding encoding,
+    TextEncoding encoding,
     std::unique_ptr<v8_compile_hints::CompileHintsForStreaming::Builder>
         compile_hints_builder,
     CrossThreadWeakHandle<BackgroundResourceScriptStreamer> streamer_handle)
@@ -1398,17 +1408,24 @@ bool BackgroundResourceScriptStreamer::BackgroundProcessor::
   SetState(BackgroundProcessorState::kResponseReceived);
 
   client_ = client;
-
+  std::string mime_type;
+  const bool has_mime_type = head->headers->GetMimeType(&mime_type);
   if (script_type_ == v8::ScriptType::kModule) {
-    std::string mime_type;
-    if (!head->headers->GetMimeType(&mime_type) ||
+    if (!has_mime_type ||
         !MIMETypeRegistry::IsSupportedJavaScriptMIMEType(String(mime_type))) {
       SuppressStreaming(NotStreamingReason::kNonJavascriptModuleBackground);
       return false;
     }
   }
+  if (base::FeatureList::IsEnabled(
+          blink::features::kJavaScriptSourcePhaseImports) &&
+      has_mime_type && MIMETypeRegistry::IsWasmMIMEType(String(mime_type))) {
+    // Suppress streaming if the Wasm source was requested as a classic script.
+    SuppressStreaming(NotStreamingReason::kNonModuleWithWasmMimeType);
+    return false;
+  }
   if (!head->charset.empty()) {
-    WTF::TextEncoding new_encoding = WTF::TextEncoding(String(head->charset));
+    TextEncoding new_encoding = TextEncoding(String(head->charset));
     if (new_encoding.IsValid()) {
       encoding_ = new_encoding;
     }

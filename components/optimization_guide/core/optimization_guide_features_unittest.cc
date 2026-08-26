@@ -14,9 +14,9 @@
 #include "base/system/sys_info.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "components/optimization_guide/core/delivery/model_util.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/feature_registry/mqls_feature_registry.h"
-#include "components/optimization_guide/core/model_util.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/proto/models.pb.h"
 #include "components/prefs/testing_pref_service.h"
@@ -37,33 +37,6 @@ class OptimizationGuideFeaturesTest : public testing::Test {
  private:
   TestingPrefServiceSimple prefs_;
 };
-
-TEST_F(OptimizationGuideFeaturesTest,
-       TestGetOptimizationGuideServiceGetHintsURLHTTPSOnly) {
-  base::test::ScopedFeatureList scoped_feature_list;
-
-  scoped_feature_list.InitAndEnableFeatureWithParameters(
-      features::kRemoteOptimizationGuideFetching,
-      {{"optimization_guide_service_url", "http://NotAnHTTPSServer.com"}});
-
-  EXPECT_EQ(features::GetOptimizationGuideServiceGetHintsURL().spec(),
-            kOptimizationGuideServiceGetHintsDefaultURL);
-  EXPECT_TRUE(features::GetOptimizationGuideServiceGetHintsURL().SchemeIs(
-      url::kHttpsScheme));
-}
-
-TEST_F(OptimizationGuideFeaturesTest,
-       TestGetOptimizationGuideServiceGetHintsURLViaFinch) {
-  base::test::ScopedFeatureList scoped_feature_list;
-
-  std::string optimization_guide_service_url = "https://finchserver.com/";
-  scoped_feature_list.InitAndEnableFeatureWithParameters(
-      features::kRemoteOptimizationGuideFetching,
-      {{"optimization_guide_service_url", optimization_guide_service_url}});
-
-  EXPECT_EQ(features::GetOptimizationGuideServiceGetHintsURL().spec(),
-            optimization_guide_service_url);
-}
 
 TEST_F(OptimizationGuideFeaturesTest, ModelQualityLoggingDefault) {
   base::test::ScopedFeatureList scoped_feature_list;
@@ -189,6 +162,64 @@ TEST_F(OptimizationGuideFeaturesTest,
       allowedContexts.Has(optimization_guide::proto::CONTEXT_PAGE_NAVIGATION));
   EXPECT_FALSE(allowedContexts.Has(
       optimization_guide::proto::CONTEXT_PAGE_INSIGHTS_HUB));
+}
+
+TEST_F(OptimizationGuideFeaturesTest,
+       OptimizationGuideProactivePersonalizedHintsFetchingPopulatedParam) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kOptimizationGuideProactivePersonalizedHintsFetching,
+      {
+          {"allowed_optimization_types", "SHOPPING_DISCOUNTS"},
+      });
+
+  features::OptimizationTypeSet allowedOptimizationTypes =
+      features::GetAllowedOptimizationTypesForProactivePersonalization();
+
+  EXPECT_FALSE(allowedOptimizationTypes.Has(
+      optimization_guide::proto::TYPE_UNSPECIFIED));
+  EXPECT_FALSE(
+      allowedOptimizationTypes.Has(optimization_guide::proto::NOSCRIPT));
+  EXPECT_TRUE(allowedOptimizationTypes.Has(
+      optimization_guide::proto::SHOPPING_DISCOUNTS));
+}
+
+TEST_F(
+    OptimizationGuideFeaturesTest,
+    OptimizationGuideProactivePersonalizedHintsFetchingPopulatedMultipleParams) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kOptimizationGuideProactivePersonalizedHintsFetching,
+      {
+          {"allowed_optimization_types", "SHOPPING_DISCOUNTS,PRICE_TRACKING"},
+      });
+
+  features::OptimizationTypeSet allowedOptimizationTypes =
+      features::GetAllowedOptimizationTypesForProactivePersonalization();
+
+  EXPECT_FALSE(allowedOptimizationTypes.Has(
+      optimization_guide::proto::TYPE_UNSPECIFIED));
+  EXPECT_FALSE(
+      allowedOptimizationTypes.Has(optimization_guide::proto::NOSCRIPT));
+  EXPECT_TRUE(allowedOptimizationTypes.Has(
+      optimization_guide::proto::SHOPPING_DISCOUNTS));
+  EXPECT_TRUE(
+      allowedOptimizationTypes.Has(optimization_guide::proto::PRICE_TRACKING));
+}
+
+TEST_F(OptimizationGuideFeaturesTest,
+       OptimizationGuideProactivePersonalizedHintsFetchingEmptyParam) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kOptimizationGuideProactivePersonalizedHintsFetching,
+      {
+          {"allowed_optimization_types", ""},
+      });
+
+  features::OptimizationTypeSet allowedOptimizationTypes =
+      features::GetAllowedOptimizationTypesForProactivePersonalization();
+
+  EXPECT_TRUE(allowedOptimizationTypes.empty());
 }
 
 TEST_F(OptimizationGuideFeaturesTest, TestOverrideNumThreadsForOptTarget) {

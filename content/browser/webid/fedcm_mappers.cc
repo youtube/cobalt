@@ -10,7 +10,7 @@
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/webid/fedcm_metrics.h"
 #include "content/browser/webid/flags.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-forward.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-forward.h"
 
@@ -328,6 +328,49 @@ std::vector<IdentityRequestDialogDisclosureField> GetDisclosureFields(
     }
   }
   return list;
+}
+
+void ComputeAccountFields(
+    const std::vector<IdentityRequestDialogDisclosureField>& rp_fields,
+    std::vector<IdentityRequestAccountPtr>& accounts) {
+  for (const auto& account : accounts) {
+    account->fields.clear();
+    if (account->idp_claimed_login_state.value_or(
+            account->browser_trusted_login_state) ==
+        IdentityRequestAccount::LoginState::kSignIn) {
+      // We only show fields for signups.
+      continue;
+    }
+    for (auto field : rp_fields) {
+      switch (field) {
+        case IdentityRequestDialogDisclosureField::kName:
+          if (!account->name.empty()) {
+            account->fields.push_back(field);
+          }
+          break;
+        case IdentityRequestDialogDisclosureField::kEmail:
+          if (!account->email.empty()) {
+            account->fields.push_back(field);
+          }
+          break;
+        case IdentityRequestDialogDisclosureField::kPicture:
+          if (account->picture.is_valid()) {
+            account->fields.push_back(field);
+          }
+          break;
+        case IdentityRequestDialogDisclosureField::kPhoneNumber:
+          if (!account->phone.empty()) {
+            account->fields.push_back(field);
+          }
+          break;
+        case IdentityRequestDialogDisclosureField::kUsername:
+          if (!account->username.empty()) {
+            account->fields.push_back(field);
+          }
+          break;
+      };
+    }
+  }
 }
 
 }  // namespace content

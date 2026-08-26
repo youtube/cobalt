@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
@@ -133,7 +134,8 @@ void ProtocolHandlersHandler::OnProtocolHandlerRegistryChanged() {
   UpdateHandlerList();
 }
 
-void ProtocolHandlersHandler::OnWebAppProtocolSettingsChanged() {
+void ProtocolHandlersHandler::OnWebAppProtocolSettingsChanged(
+    const webapps::AppId& app_id) {
   UpdateAllAllowedLaunchProtocols();
   UpdateAllDisallowedLaunchProtocols();
 }
@@ -145,7 +147,7 @@ void ProtocolHandlersHandler::OnAppRegistrarDestroyed() {
 void ProtocolHandlersHandler::OnWebAppUninstalled(
     const webapps::AppId& app_id,
     webapps::WebappUninstallSource uninstall_source) {
-  OnWebAppProtocolSettingsChanged();
+  OnWebAppProtocolSettingsChanged(app_id);
 }
 
 void ProtocolHandlersHandler::OnWebAppInstallManagerDestroyed() {
@@ -244,8 +246,8 @@ custom_handlers::ProtocolHandler ProtocolHandlersHandler::ParseHandlerFromArgs(
   if (!ok) {
     return custom_handlers::ProtocolHandler::EmptyProtocolHandler();
   }
-  std::string protocol = args[0].GetString();
-  std::string url = args[1].GetString();
+  const std::string& protocol = args[0].GetString();
+  const std::string& url = args[1].GetString();
   return custom_handlers::ProtocolHandler::CreateProtocolHandler(protocol,
                                                                  GURL(url));
 }

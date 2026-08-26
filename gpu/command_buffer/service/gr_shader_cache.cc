@@ -8,6 +8,7 @@
 #include <inttypes.h>
 
 #include "base/base64.h"
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_macros.h"
@@ -194,7 +195,7 @@ bool GrShaderCache::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
   base::AutoLock auto_lock(lock_);
   using base::trace_event::MemoryAllocatorDump;
   std::string dump_name =
-      base::StringPrintf("gpu/gr_shader_cache/cache_0x%" PRIXPTR,
+      base::StringPrintf("gpu/shader_cache/gr_shader_cache/cache_0x%" PRIXPTR,
                          reinterpret_cast<uintptr_t>(this));
   MemoryAllocatorDump* dump = pmd->CreateAllocatorDump(dump_name);
   dump->AddScalar(MemoryAllocatorDump::kNameSize,
@@ -223,8 +224,19 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
     return;
 
   // Only cache the shader on disk if this client id is permitted.
+#if BUILDFLAG(IS_COBALT)
+  // In Cobalt, we bypass this restriction and allow caching if the
+  // 'enable-gpu-shader-disk-cache' experiment flag is active, unless
+  // the process explicitly specifies the 'incognito' flag.
+  if (client_ids_to_cache_on_disk_.count(current_client_id()) == 0 &&
+      (!base::CommandLine::ForCurrentProcess()->HasSwitch("enable-gpu-shader-disk-cache") ||
+       base::CommandLine::ForCurrentProcess()->HasSwitch("incognito"))) {
+    return;
+  }
+#else
   if (client_ids_to_cache_on_disk_.count(current_client_id()) == 0)
     return;
+#endif
 
   data->pending_disk_write = false;
 

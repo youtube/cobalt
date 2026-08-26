@@ -63,16 +63,15 @@ bool ShouldDisplaySearchEngineChoiceScreen(
   // Checking whether the user is eligible for the screen.
   auto condition =
       search_engine_choice_service->GetStaticChoiceScreenConditions(
-          policy_service, /*is_regular_profile=*/true,
-          CHECK_DEREF(template_url_service));
+          policy_service, CHECK_DEREF(template_url_service));
   if (condition ==
       search_engines::SearchEngineChoiceScreenConditions::kEligible) {
     condition = search_engine_choice_service->GetDynamicChoiceScreenConditions(
         *template_url_service);
   }
 
-  // If the app has been started via an external intent, and skip the Dialog
-  // promo up to switches::kSearchEngineChoiceMaximumSkipCount() times.
+  // If the app has been started via an external intent, skip the Dialog
+  // promo up to kSearchEngineChoiceMaximumSkipCount times.
   if (app_started_via_external_intent && !is_first_run_entrypoint &&
       condition ==
           search_engines::SearchEngineChoiceScreenConditions::kEligible) {
@@ -80,7 +79,7 @@ bool ShouldDisplaySearchEngineChoiceScreen(
     const int count = pref_service->GetInteger(
         prefs::kDefaultSearchProviderChoiceScreenSkippedCount);
 
-    if (count < switches::kSearchEngineChoiceMaximumSkipCount.Get()) {
+    if (count < kSearchEngineChoiceMaximumSkipCount) {
       pref_service->SetInteger(
           prefs::kDefaultSearchProviderChoiceScreenSkippedCount, count + 1);
 
@@ -89,7 +88,10 @@ bool ShouldDisplaySearchEngineChoiceScreen(
     }
   }
 
-  RecordChoiceScreenProfileInitCondition(condition);
+  // This is today recording a combination of the static & dynamic
+  // eligibilities.
+  // TODO(crbug.com/426533078): Split this.
+  search_engine_choice_service->RecordStaticEligibility(condition);
   return condition ==
          search_engines::SearchEngineChoiceScreenConditions::kEligible;
 }

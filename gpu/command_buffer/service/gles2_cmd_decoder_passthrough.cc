@@ -15,9 +15,11 @@
 #include <string_view>
 #include <utility>
 
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_split.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
@@ -25,7 +27,6 @@
 #include "gpu/command_buffer/service/decoder_client.h"
 #include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/command_buffer/service/gl_utils.h"
-#include "gpu/command_buffer/service/gles2_external_framebuffer.h"
 #include "gpu/command_buffer/service/gpu_fence_manager.h"
 #include "gpu/command_buffer/service/gpu_tracer.h"
 #include "gpu/command_buffer/service/multi_draw_manager.h"
@@ -37,6 +38,7 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "ui/gl/gl_implementation.h"
+#include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/gl_version_info.h"
 #include "ui/gl/gpu_switching_manager.h"
@@ -201,11 +203,15 @@ bool GetClientID(const ClientServiceMap<ClientType, ServiceType>* map,
 
 void RequestExtensions(gl::GLApi* api,
                        const gfx::ExtensionSet& requestable_extensions,
-                       const char* const* extensions_to_request,
-                       size_t count) {
-  for (size_t i = 0; i < count; i++) {
+                       base::span<const char* const> extensions_to_request,
+                       size_t spanification_suspected_redundant_count) {
+  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
+  // redundant in M143.
+  CHECK(spanification_suspected_redundant_count == extensions_to_request.size(),
+        base::NotFatalUntil::M143);
+  for (size_t i = 0; i < spanification_suspected_redundant_count; i++) {
     if (gfx::HasExtension(requestable_extensions, extensions_to_request[i])) {
-      // Request the intersection of the two sets
+      // Request the intersection of the two sets │
       api->glRequestExtensionANGLEFn(extensions_to_request[i]);
     }
   }
@@ -928,12 +934,26 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   // feature_info_->feature_flags().angle_robust_resource_initialization and
   // api()->glIsEnabledFn(GL_ROBUST_RESOURCE_INITIALIZATION_ANGLE)
 
+#if BUILDFLAG(IS_COBALT)
+#define FAIL_INIT_IF_NOT(feature, message)                       \
+  if (!(feature)) {                                              \
+    Destroy(true);                                               \
+    LOG(ERROR) << "ContextResult::kFatalFailure: " << (message); \
+    return gpu::ContextResult::kFatalFailure;                    \
+  } else {                                                       \
+    /* Cobalt: Clear any GL_INVALID_ENUM or other GL errors     */ \
+    /* generated when querying unsupported ANGLE extension      */ \
+    /* enums on native GL contexts.                             */ \
+    while (glGetError() != GL_NO_ERROR) {}                       \
+  }
+#else
 #define FAIL_INIT_IF_NOT(feature, message)                       \
   if (!(feature)) {                                              \
     Destroy(true);                                               \
     LOG(ERROR) << "ContextResult::kFatalFailure: " << (message); \
     return gpu::ContextResult::kFatalFailure;                    \
   }
+#endif
 
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_robust_client_memory,
                    "missing GL_ANGLE_robust_client_memory");
@@ -947,9 +967,26 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
 
   FAIL_INIT_IF_NOT(api()->glIsEnabledFn(GL_CLIENT_ARRAYS_ANGLE) == GL_FALSE,
                    "GL_ANGLE_client_arrays shouldn't be enabled");
+
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt on some platforms (like RDK) runs on native GL without ANGLE compatibility,
+  // but we still want to allow WebGL context creation.
+  const bool webgl_compat_match = true;
+  FAIL_INIT_IF_NOT(webgl_compat_match, "missing GL_ANGLE_webgl_compatibility");
+#else
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_webgl_compatibility ==
                        IsWebGLContextType(attrib_helper.context_type),
                    "missing GL_ANGLE_webgl_compatibility");
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+  if (feature_info_->gl_version_info().is_es3) {
+    CHECK(gl::g_current_gl_driver);
+    FAIL_INIT_IF_NOT(gl::g_current_gl_driver->fn.glGetStringiFn,
+                     "GLES3 context missing glGetStringi");
+  }
+#endif
+
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().angle_request_extension,
                    "missing GL_ANGLE_request_extension");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().khr_debug,
@@ -1179,11 +1216,6 @@ void GLES2DecoderPassthroughImpl::Destroy(bool have_context) {
     emulated_back_buffer_.reset();
   }
 
-  if (external_default_framebuffer_) {
-    external_default_framebuffer_->Destroy(have_context);
-    external_default_framebuffer_.reset();
-  }
-
   if (gpu_fence_manager_.get()) {
     gpu_fence_manager_->Destroy(have_context);
     gpu_fence_manager_.reset();
@@ -1254,61 +1286,6 @@ void GLES2DecoderPassthroughImpl::ReleaseSurface() {
   surface_ = nullptr;
 }
 
-void GLES2DecoderPassthroughImpl::SetDefaultFramebufferSharedImage(
-    const Mailbox& mailbox,
-    int samples,
-    bool preserve,
-    bool needs_depth,
-    bool needs_stencil) {
-  if (!offscreen_)
-    return;
-
-  if (!external_default_framebuffer_) {
-    external_default_framebuffer_ = std::make_unique<GLES2ExternalFramebuffer>(
-        /*passthrough=*/true, *group_->feature_info(),
-        group_->shared_image_representation_factory());
-  }
-
-  if (!external_default_framebuffer_->AttachSharedImage(
-          mailbox, samples, preserve, needs_depth, needs_stencil)) {
-    return;
-  }
-
-  GLuint default_framebuffer_id;
-  if (external_default_framebuffer_->IsSharedImageAttached()) {
-    default_framebuffer_id = external_default_framebuffer_->GetFramebufferId();
-  } else {
-    default_framebuffer_id = emulated_back_buffer_->framebuffer_service_id;
-  }
-
-  framebuffer_id_map_.RemoveClientID(0);
-  framebuffer_id_map_.SetIDMapping(0, default_framebuffer_id);
-
-  // Note, there is member variable `supports_separate_fbo_bindings_` that is
-  // used across this class, but it's never initialized with the real value
-  // (defaults to false) which is likely a bug. To avoid any code changes
-  // outside of the feature flag we don't use it here.
-  const bool supports_separate_fbo_bindings =
-      feature_info_->feature_flags().chromium_framebuffer_multisample ||
-      feature_info_->IsWebGL2OrES3Context();
-
-  if (supports_separate_fbo_bindings) {
-    if (bound_draw_framebuffer_ == 0) {
-      api()->glBindFramebufferEXTFn(GL_DRAW_FRAMEBUFFER,
-                                    default_framebuffer_id);
-    }
-    if (bound_read_framebuffer_ == 0) {
-      api()->glBindFramebufferEXTFn(GL_READ_FRAMEBUFFER,
-                                    default_framebuffer_id);
-    }
-  } else {
-    DCHECK_EQ(bound_draw_framebuffer_, bound_read_framebuffer_);
-    if (bound_draw_framebuffer_ == 0) {
-      api()->glBindFramebufferEXTFn(GL_FRAMEBUFFER, default_framebuffer_id);
-    }
-  }
-}
-
 bool GLES2DecoderPassthroughImpl::MakeCurrent() {
   if (!context_.get())
     return false;
@@ -1377,13 +1354,6 @@ gpu::Capabilities GLES2DecoderPassthroughImpl::GetCapabilities() {
   caps.texture_format_etc1_npot =
       feature_info_->feature_flags().oes_compressed_etc1_rgb8_texture &&
       !feature_info_->workarounds().etc1_power_of_two_only;
-  // Vulkan currently doesn't support single-component cross-thread shared
-  // images.
-  caps.disable_one_component_textures =
-      group_->shared_image_manager() &&
-      group_->shared_image_manager()->display_context_on_another_thread() &&
-      (feature_info_->workarounds().avoid_one_component_egl_images ||
-       features::IsUsingVulkan());
   caps.sync_query = feature_info_->feature_flags().chromium_sync_query;
   caps.texture_rg = feature_info_->feature_flags().ext_texture_rg;
   caps.texture_norm16 = feature_info_->feature_flags().ext_texture_norm16;
@@ -2069,7 +2039,6 @@ bool GLES2DecoderPassthroughImpl::LazySharedContextState::Initialize() {
   }
 
   gl::GLContextAttribs attribs;
-  attribs.bind_generates_resource = false;
   attribs.global_texture_share_group = true;
   attribs.global_semaphore_share_group = true;
   attribs.robust_resource_initialization = true;
@@ -2741,7 +2710,7 @@ void GLES2DecoderPassthroughImpl::VerifyServiceTextureObjectsExist() {
 
 bool GLES2DecoderPassthroughImpl::IsEmulatedFramebufferBound(
     GLenum target) const {
-  if (!emulated_back_buffer_ && !external_default_framebuffer_) {
+  if (!emulated_back_buffer_) {
     return false;
   }
 

@@ -44,10 +44,6 @@ const CGFloat kLineSpacingBetweenErrorAndFooter = 12.0f;
 // autofill::AutofillProfile::RecordType::kAccount.
 @property(nonatomic, assign) BOOL accountProfile;
 
-// YES, if the profile's record type is
-// autofill::AutofillProfile::RecordType::kAccountHome/kAccountWork.
-@property(nonatomic, assign) BOOL isHomeWorkProfile;
-
 // If YES, denotes that the view is laid out for the migration prompt.
 @property(nonatomic, assign) BOOL migrationPrompt;
 
@@ -88,6 +84,10 @@ const CGFloat kLineSpacingBetweenErrorAndFooter = 12.0f;
 
   // Yes if `kAutofillDynamicallyLoadsFieldsForAddressInput` is enabled.
   BOOL _dynamicallyLoadInputFieldsEnabled;
+
+  // YES, if the profile's record type is
+  // autofill::AutofillProfile::RecordType::kAccountHome/kAccountWork.
+  BOOL _isHomeAndWorkProfile;
 }
 
 #pragma mark - Initialization
@@ -111,7 +111,7 @@ const CGFloat kLineSpacingBetweenErrorAndFooter = 12.0f;
     _hasUpdateButton = NO;
     _dynamicallyLoadInputFieldsEnabled = base::FeatureList::IsEnabled(
         kAutofillDynamicallyLoadsFieldsForAddressInput);
-    _isHomeWorkProfile = NO;
+    _isHomeAndWorkProfile = NO;
   }
 
   return self;
@@ -163,7 +163,7 @@ const CGFloat kLineSpacingBetweenErrorAndFooter = 12.0f;
 - (void)loadModel {
   TableViewModel* model = _controller.tableViewModel;
 
-  if (!self.isHomeWorkProfile) {
+  if (!_isHomeAndWorkProfile) {
     AutofillProfileDetailsSectionIdentifier nameSection =
         _dynamicallyLoadInputFieldsEnabled
             ? AutofillProfileDetailsSectionIdentifierName
@@ -196,7 +196,7 @@ const CGFloat kLineSpacingBetweenErrorAndFooter = 12.0f;
   }
   [model addItem:[self countryItem] toSectionWithIdentifier:addressSection];
 
-  if (!self.isHomeWorkProfile) {
+  if (!_isHomeAndWorkProfile) {
     AutofillProfileDetailsSectionIdentifier phoneEmailSection =
         _dynamicallyLoadInputFieldsEnabled
             ? AutofillProfileDetailsSectionIdentifierPhoneEmail
@@ -296,7 +296,7 @@ const CGFloat kLineSpacingBetweenErrorAndFooter = 12.0f;
       [_controller.tableViewModel sectionIdentifierForSectionIndex:section];
 
   if (_dynamicallyLoadInputFieldsEnabled) {
-    if (self.isHomeWorkProfile) {
+    if (_isHomeAndWorkProfile) {
       return sectionIdentifier ==
              AutofillProfileDetailsSectionIdentifierAddress;
     }
@@ -434,6 +434,12 @@ const CGFloat kLineSpacingBetweenErrorAndFooter = 12.0f;
   [_delegate setCurrentValueForType:[self countryFieldKeyValue]
                           withValue:country];
   [self findRequiredFieldsWithEmptyValues];
+}
+
+// Notifies the class that conforms this delegate to set whether the profile is
+// a Home/Work profile.
+- (void)setIsHomeAndWorkProfile:(BOOL)isHomeAndWorkProfile {
+  _isHomeAndWorkProfile = isHomeAndWorkProfile;
 }
 
 - (void)updateErrorStatus:(BOOL)shouldShowError {
@@ -742,6 +748,10 @@ const CGFloat kLineSpacingBetweenErrorAndFooter = 12.0f;
 // Returns the footer message.
 - (NSString*)footerMessage {
   CHECK([_userEmail length] > 0);
+  if (_isHomeAndWorkProfile) {
+    return l10n_util::GetNSStringF(IDS_IOS_AUTOFILL_HOME_WORK_PROFILE_FOOTER,
+                                   base::SysNSStringToUTF16(_userEmail));
+  }
   return _moveToAccountFromSettings
              ? @""
              : l10n_util::GetNSStringF(
@@ -791,6 +801,7 @@ const CGFloat kLineSpacingBetweenErrorAndFooter = 12.0f;
     case AutofillProfileDetailsItemTypeSaveButton:
     case AutofillProfileDetailsItemTypeMigrateToAccountButton:
     case AutofillProfileDetailsItemTypeMigrateToAccountRecommendation:
+    case AutofillProfileDetailsItemTypeEdit:
       break;
   }
   return NO;

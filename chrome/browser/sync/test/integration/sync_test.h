@@ -10,15 +10,18 @@
 #include <string>
 #include <vector>
 
-#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/test/scoped_run_loop_timeout.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager_observer.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "chrome/browser/sync/test/integration/invalidations/fake_server_sync_invalidation_sender.h"
+#include "chrome/browser/sync/test/integration/sync_test_account.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/test/base/platform_browser_test.h"
 #include "components/sync/base/data_type.h"
@@ -56,6 +59,7 @@
 
 class FakeSyncGCMDriver;
 class KeyedService;
+class ProfileManager;
 class SyncServiceImplHarness;
 
 namespace arc {
@@ -75,34 +79,17 @@ namespace syncer {
 class SyncServiceImpl;
 }  // namespace syncer
 
-namespace switches {
-
-inline constexpr char kPasswordFileForTest[] = "password-file-for-test";
-inline constexpr char kSyncUserForTest[] = "sync-user-for-test";
-inline constexpr char kSyncPasswordForTest[] = "sync-password-for-test";
-
-}  // namespace switches
-
 // This is the base class for integration tests for all sync data types. Derived
 // classes must be defined for each sync data type. Individual tests are defined
 // using the IN_PROC_BROWSER_TEST_F macro.
 //
-// The list below shows some command line switches that can customize test
-// behavior. It may become non-exaustive over time.
-// syncer::kSyncServiceURL - By default, tests use a fake_server::FakeServer
-//    to emulate the sync server. This switch causes them to run against an
-//    external server instead, pointed by the provided URL. This translates into
-//    the ServerType of the test being EXTERNAL_LIVE_SERVER.
-// switches::kSyncUserForTest - Overrides the username of the syncing account.
-//    Mostly useful for EXTERNAL_LIVE_SERVER tests to use an allowlisted value.
-// switches::kSyncPasswordForTest - Same as above, but for the password.
-// switches::kPasswordFileForTests - Causes the username and password of the
-//    syncing account to be read from the passed file. The username must be on
-//    the first line and the password on the second. The individual switches for
-//    username and password are ignored if this is set.
-// Other switches may modify the behavior of helper classes frequently used in
-// sync integration tests, see StatusChangeChecker for example.
-class SyncTest : public PlatformBrowserTest, public ProfileObserver {
+// By default, tests use a fake_server::FakeServer to emulate the sync server.
+// To run tests against an external server instead, use command-line flag
+// --sync-url along with other required arguments. In this case the ServerType
+// of the test becomes EXTERNAL_LIVE_SERVER.
+class SyncTest : public PlatformBrowserTest,
+                 public ProfileObserver,
+                 public ProfileManagerObserver {
  public:
   // The different types of live sync tests that can be implemented.
   enum TestType {
@@ -139,9 +126,6 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
     WAIT_FOR_COMMITS_TO_COMPLETE,
   };
 
-  // Used unless specified otherwise by command line switches.
-  static constexpr char kDefaultUserEmail[] = "user@gmail.com";
-
   // A SyncTest must be associated with a particular test type.
   explicit SyncTest(TestType test_type);
 
@@ -151,10 +135,9 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
   ~SyncTest() override;
 
   void SetUp() override;
-
   void TearDown() override;
-
   void PostRunTestOnMainThread() override;
+  void CreatedBrowserMainParts(content::BrowserMainParts* parts) override;
 
   // Sets up command line flags required for sync tests.
   void SetUpCommandLine(base::CommandLine* cl) override;
@@ -222,12 +205,14 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
   // depending on |setup_mode|.
   [[nodiscard]] bool SetupSync(
       SetupSyncMode setup_mode = WAIT_FOR_COMMITS_TO_COMPLETE);
+  [[nodiscard]] bool SetupSync(
+      SyncTestAccount account,
+      SetupSyncMode setup_mode = WAIT_FOR_COMMITS_TO_COMPLETE);
 
   // This is similar to click the reset button on chrome.google.com/sync.
   // Only takes effect when running with external servers.
-  // Please call this before setting anything. This method will clear all
-  // local profiles, browsers, etc.
-  void ResetSyncForPrimaryAccount();
+  // Please call this before setting anything.
+  [[nodiscard]] bool ResetSyncForPrimaryAccount();
 
   // Sets whether or not the sync clients in this test should respond to
   // notifications of their own commits.  Real sync clients do not do this, but
@@ -265,14 +250,15 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
 
  protected:
   // BrowserTestBase implementation:
-  void SetUpOnMainThread() override;
   void TearDownOnMainThread() override;
-  void SetUpInProcessBrowserTestFixture() override;
 
   // ProfileObserver implementation.
   void OnProfileWillBeDestroyed(Profile* profile) override;
 
-  void OnWillCreateBrowserContextServices(content::BrowserContext* context);
+  // ProfileManagerObserver implementation.
+  void OnProfileAdded(Profile* profile) override;
+  void OnProfileManagerDestroying() override;
+  void OnProfileCreationStarted(Profile* profile) override;
 
   // Invoked immediately before creating profile |index| under |profile_path|.
   virtual void BeforeSetupClient(int index, const base::FilePath& profile_path);
@@ -285,11 +271,6 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
   void DisableNotificationsImpl();
   void EnableNotificationsImpl();
 
-  // Sets up fake responses for kClientLoginUrl, kIssueAuthTokenUrl,
-  // kGetUserInfoUrl and kSearchDomainCheckUrl in order to mock out calls to
-  // GAIA servers.
-  void SetupMockGaiaResponsesForProfile(Profile* profile);
-
   // Exclude data types from end of test checks in CheckForDataTypeFailures().
   // Note that this replaces the list of excluded types (if set earlier).
   void ExcludeDataTypesFromCheckForDataTypeFailures(syncer::DataTypeSet types);
@@ -301,6 +282,9 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
   network::TestURLLoaderFactory test_url_loader_factory_;
 
  private:
+  // Invoked during initialization when threads have been initialized.
+  void PostCreateThreads();
+
   // Handles Profile creation for given index. Profile's path and type is
   // determined at runtime based on server type.
   bool CreateProfile(int index);
@@ -321,12 +305,6 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
   // finish loading.
   void WaitForDataModels(Profile* profile);
 
-  // Helper method used to read GAIA credentials from a local password file
-  // specified via the "--password-file-for-test" command line switch.
-  // Note: The password file must be a plain text file with exactly two lines --
-  // the username on the first line and the password on the second line.
-  void ReadPasswordFile();
-
   // Helper method used to set up fake responses for kClientLoginUrl,
   // kIssueAuthTokenUrl, kGetUserInfoUrl and kSearchDomainCheckUrl in order to
   // mock out calls to GAIA servers.
@@ -341,7 +319,8 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
   void InitializeProfile(int index, Profile* profile);
 
   // Internal routine for setting up sync.
-  void SetupSyncInternal(SetupSyncMode setup_mode);
+  [[nodiscard]] bool SetupSyncInternal(SetupSyncMode setup_mode,
+                                       SyncTestAccount account);
 
   // Used to determine whether ARC_PACKAGE data type needs to be enabled. This
   // is applicable on ChromeOS-Ash platform only.
@@ -366,25 +345,16 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
   // how long the setup took.
   const base::Time test_construction_time_;
 
+  // Number of sync clients that will be created by a test.
+  const int num_clients_;
+
   // Used to catch any timeout within RunLoop and cause test error.
   base::test::ScopedRunLoopTimeout sync_run_loop_timeout;
-
-  // GAIA account used by the test case.
-  std::string username_;
-
-  // GAIA password used by the test case.
-  std::string password_;
-
-  // Locally available plain text file in which GAIA credentials are stored.
-  base::FilePath password_file_;
 
   // The default profile, created before our actual testing |profiles_|. This is
   // needed in a workaround for https://crbug.com/801569, see comments in the
   // .cc file.
   raw_ptr<Profile, AcrossTasksDanglingUntriaged> previous_profile_ = nullptr;
-
-  // Number of sync clients that will be created by a test.
-  int num_clients_;
 
   // Collection of sync profiles used by a test. A sync profile maintains sync
   // data contained within its own subdirectory under the chrome user data
@@ -419,17 +389,11 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
            raw_ptr<FakeSyncGCMDriver, AcrossTasksDanglingUntriaged>>
       profile_to_fake_gcm_driver_;
 
-  base::CallbackListSubscription create_services_subscription_;
-
   // Sync profile against which changes to individual profiles are verified.
   // We don't need a corresponding verifier sync client because the contents
   // of the verifier profile are strictly local, and are not meant to be
   // synced.
   raw_ptr<Profile, AcrossTasksDanglingUntriaged> verifier_ = nullptr;
-
-  // Indicates whether to use a new user data dir.
-  // Only used for external server tests with two clients.
-  bool use_new_user_data_dir_ = false;
 
   syncer::DataTypeSet excluded_types_from_check_for_data_type_failures_;
 
@@ -451,6 +415,10 @@ class SyncTest : public PlatformBrowserTest, public ProfileObserver {
 
   std::unique_ptr<fake_server::FakeServerSyncInvalidationSender>
       fake_server_sync_invalidation_sender_;
+
+  base::ScopedObservation<ProfileManager, ProfileManagerObserver>
+      profile_manager_observation_{this};
+  base::WeakPtrFactory<SyncTest> weak_ptr_factory_{this};
 };
 
 syncer::DataTypeSet AllowedTypesInStandaloneTransportMode();

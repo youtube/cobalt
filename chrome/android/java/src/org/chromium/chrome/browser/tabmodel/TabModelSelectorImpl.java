@@ -4,14 +4,19 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.os.Handler;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.EnsuresNonNull;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp.RecentlyClosedBridge;
@@ -38,6 +43,7 @@ import java.util.Collections;
  * instantiated and used in the UI Thread. It acts as a TabModel which delegates all TabModel
  * methods to the active model that it contains.
  */
+@NullMarked
 public class TabModelSelectorImpl extends TabModelSelectorBase implements TabModelDelegate {
     public static final int CUSTOM_TABS_SELECTOR_INDEX = -1;
 
@@ -54,7 +60,7 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
     private final NextTabPolicySupplier mNextTabPolicySupplier;
     private TabContentManager mTabContentManager;
     private RecentlyClosedBridge mRecentlyClosedBridge;
-    private Tab mVisibleTab;
+    private @Nullable Tab mVisibleTab;
     private @Nullable TabModelSelectorTabObserver mTabModelSelectorTabObserver;
 
     /**
@@ -108,10 +114,12 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
     }
 
     /**
-     * Should be called once the native library is loaded so that the actual internals of this
-     * class can be initialized.
+     * Should be called once the native library is loaded so that the actual internals of this class
+     * can be initialized.
+     *
      * @param tabContentProvider A {@link TabContentManager} instance.
      */
+    @Initializer
     @Override
     public void onNativeLibraryReady(TabContentManager tabContentProvider) {
         assert mTabContentManager == null : "onNativeLibraryReady called twice!";
@@ -125,15 +133,23 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
                 new RecentlyClosedBridge(profileProvider.getOriginalProfile(), this);
         Supplier<TabGroupModelFilter> regularTabGroupModelFilterSupplier =
                 () ->
-                        getTabGroupModelFilterProvider()
-                                .getTabGroupModelFilter(/* isIncognito= */ false);
+                        assumeNonNull(
+                                getTabGroupModelFilterProvider()
+                                        .getTabGroupModelFilter(/* isIncognito= */ false));
         TabRemover regularTabRemover =
                 mModalDialogManager != null
                         ? new TabRemoverImpl(
                                 mContext, mModalDialogManager, regularTabGroupModelFilterSupplier)
                         : new PassthroughTabRemover(regularTabGroupModelFilterSupplier);
-        TabModelImpl normalModel =
-                new TabModelImpl(
+        TabUngrouperFactory tabUngrouperFactory =
+                (isIncognitoBranded, tabGroupModelFilterSupplier) -> {
+                    return (isIncognitoBranded || mModalDialogManager == null)
+                            ? new PassthroughTabUngrouper(tabGroupModelFilterSupplier)
+                            : new TabUngrouperImpl(
+                                    mContext, mModalDialogManager, tabGroupModelFilterSupplier);
+                };
+        TabModelHolder normalModelHolder =
+                TabModelHolderFactory.createTabModelHolder(
                         profileProvider.getOriginalProfile(),
                         mActivityType,
                         regularTabCreator,
@@ -145,9 +161,10 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
                         this,
                         regularTabRemover,
                         mIsUndoSupported,
-                        /* isArchivedTabModel= */ false);
+                        /* isArchivedTabModel= */ false,
+                        tabUngrouperFactory);
         if (regularTabCreator instanceof NeedsTabModel needsTabModel) {
-            needsTabModel.setTabModel(normalModel);
+            needsTabModel.setTabModel(normalModelHolder.tabModel);
         }
         if (regularTabCreator
                 instanceof NeedsTabModelOrderController needsTabModelOrderController) {
@@ -157,45 +174,40 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
         TabRemover incognitoTabRemover =
                 new PassthroughTabRemover(
                         () ->
-                                getTabGroupModelFilterProvider()
-                                        .getTabGroupModelFilter(/* isIncognito= */ true));
-        IncognitoTabModelImpl incognitoModel =
-                new IncognitoTabModelImpl(
-                        new IncognitoTabModelImplCreator(
-                                profileProvider,
-                                regularTabCreator,
-                                incognitoTabCreator,
-                                mOrderController,
-                                tabContentProvider,
-                                mNextTabPolicySupplier,
-                                mAsyncTabParamsManager,
-                                mActivityType,
-                                this,
-                                incognitoTabRemover));
+                                assumeNonNull(
+                                        getTabGroupModelFilterProvider()
+                                                .getTabGroupModelFilter(/* isIncognito= */ true)));
+        IncognitoTabModelHolder incognitoModelHolder =
+                TabModelHolderFactory.createIncognitoTabModelHolder(
+                        profileProvider,
+                        regularTabCreator,
+                        incognitoTabCreator,
+                        mOrderController,
+                        tabContentProvider,
+                        mNextTabPolicySupplier,
+                        mAsyncTabParamsManager,
+                        mActivityType,
+                        this,
+                        incognitoTabRemover,
+                        tabUngrouperFactory);
         if (incognitoTabCreator instanceof NeedsTabModel needsTabModel) {
-            needsTabModel.setTabModel(incognitoModel);
+            needsTabModel.setTabModel(incognitoModelHolder.tabModel);
         }
         if (incognitoTabCreator
                 instanceof NeedsTabModelOrderController needsTabModelOrderController) {
             needsTabModelOrderController.setTabModelOrderController(mOrderController);
         }
-        onNativeLibraryReadyInternal(tabContentProvider, normalModel, incognitoModel);
+        onNativeLibraryReadyInternal(tabContentProvider, normalModelHolder, incognitoModelHolder);
     }
 
+    @EnsuresNonNull("mTabContentManager")
     @VisibleForTesting
     void onNativeLibraryReadyInternal(
             TabContentManager tabContentProvider,
-            TabModelInternal normalModel,
-            IncognitoTabModelInternal incognitoModel) {
+            TabModelHolder normalModelHolder,
+            IncognitoTabModelHolder incognitoModelHolder) {
         mTabContentManager = tabContentProvider;
-        TabUngrouperFactory factory =
-                (isIncognitoBranded, tabGroupModelFilterSupplier) -> {
-                    return (isIncognitoBranded || mModalDialogManager == null)
-                            ? new PassthroughTabUngrouper(tabGroupModelFilterSupplier)
-                            : new TabUngrouperImpl(
-                                    mContext, mModalDialogManager, tabGroupModelFilterSupplier);
-                };
-        initialize(normalModel, incognitoModel, factory);
+        initialize(normalModelHolder, incognitoModelHolder);
 
         addObserver(
                 new TabModelSelectorObserver() {
@@ -241,6 +253,7 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
                             TabGroupModelFilter filter =
                                     getTabGroupModelFilterProvider()
                                             .getTabGroupModelFilter(tab.isIncognito());
+                            assumeNonNull(filter);
                             if (filter.isTabInTabGroup(tab)) {
                                 filter.getTabUngrouper()
                                         .ungroupTabs(
@@ -279,15 +292,12 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
     /**
      * Exposed to allow tests to initialize the selector with different tab models.
      *
-     * @param normalModel The normal tab model.
-     * @param incognitoModel The incognito tab model.
-     * @param tabUngrouperFactory The factory for building {@link TabUngrouper};
+     * @param normalModelHolder The normal tab model.
+     * @param incognitoModelHolder The incognito tab model.
      */
     public void initializeForTesting(
-            TabModelInternal normalModel,
-            IncognitoTabModelInternal incognitoModel,
-            TabUngrouperFactory tabUngrouperFactory) {
-        initialize(normalModel, incognitoModel, tabUngrouperFactory);
+            TabModelHolder normalModelHolder, IncognitoTabModelHolder incognitoModelHolder) {
+        initialize(normalModelHolder, incognitoModelHolder);
     }
 
     @Override
@@ -331,7 +341,7 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
     }
 
     @Override
-    public void requestToShowTab(Tab tab, @TabSelectionType int type) {
+    public void requestToShowTab(@Nullable Tab tab, @TabSelectionType int type) {
         boolean isFromExternalApp =
                 tab != null && tab.getLaunchType() == TabLaunchType.FROM_EXTERNAL_APP;
         if (mVisibleTab != null && mVisibleTab != tab && !mVisibleTab.needsReload()) {
@@ -382,7 +392,7 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
     }
 
     @Override
-    public boolean isSessionRestoreInProgress() {
-        return !isTabStateInitialized();
+    public boolean isTabModelRestored() {
+        return isTabStateInitialized();
     }
 }

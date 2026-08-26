@@ -102,7 +102,7 @@ struct CONTENT_EXPORT BtmRedirectInfo {
   // server redirects, the URL that received a redirect status code e.g. 301. In
   // the case of a client redirect, the URL of the page that initiated the
   // navigation e.g. called `window.location.href = "https://foo.example";`
-  const UrlAndSourceId redirecting_url;
+  const UrlAndSourceId redirector;
   const std::string site;  // The cached result of GetSiteForBtm(url).
   const BtmRedirectType redirect_type;
   BtmDataAccessType
@@ -112,6 +112,7 @@ struct CONTENT_EXPORT BtmRedirectInfo {
   // These properties aren't known at the time of creation, and are filled in
   // later:
   std::optional<bool> site_had_user_activation;
+  std::optional<bool> site_had_webauthn_assertion;
   std::optional<size_t> chain_index;
   // See BtmRedirectChainInfo::chain_id.
   std::optional<int32_t> chain_id;
@@ -135,7 +136,7 @@ struct CONTENT_EXPORT BtmRedirectInfo {
   const base::TimeDelta server_bounce_delay;
 
  private:
-  BtmRedirectInfo(const UrlAndSourceId& url,
+  BtmRedirectInfo(const UrlAndSourceId& redirector,
                   BtmRedirectType redirect_type,
                   BtmDataAccessType access_type,
                   base::Time time,

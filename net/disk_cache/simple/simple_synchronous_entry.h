@@ -60,31 +60,33 @@ struct RangeResult;
 class NET_EXPORT_PRIVATE SimpleEntryStat {
  public:
   SimpleEntryStat(base::Time last_used,
-                  const std::array<int32_t, kSimpleEntryStreamCount>& data_size,
-                  const int32_t sparse_data_size);
+                  const std::array<int64_t, kSimpleEntryStreamCount>& data_size,
+                  const uint64_t sparse_data_size);
 
-  int GetOffsetInFile(size_t key_length, int offset, int stream_index) const;
-  int GetEOFOffsetInFile(size_t key_length, int stream_index) const;
-  int GetLastEOFOffsetInFile(size_t key_length, int file_index) const;
+  int64_t GetOffsetInFile(size_t key_length,
+                          int64_t offset,
+                          int stream_index) const;
+  int64_t GetEOFOffsetInFile(size_t key_length, int stream_index) const;
+  int64_t GetLastEOFOffsetInFile(size_t key_length, int file_index) const;
   int64_t GetFileSize(size_t key_length, int file_index) const;
 
   base::Time last_used() const { return last_used_; }
   void set_last_used(base::Time last_used) { last_used_ = last_used; }
 
-  int32_t data_size(int stream_index) const { return data_size_[stream_index]; }
-  void set_data_size(int stream_index, int data_size) {
+  int64_t data_size(int stream_index) const { return data_size_[stream_index]; }
+  void set_data_size(int stream_index, int64_t data_size) {
     data_size_[stream_index] = data_size;
   }
 
-  int32_t sparse_data_size() const { return sparse_data_size_; }
-  void set_sparse_data_size(int32_t sparse_data_size) {
+  uint64_t sparse_data_size() const { return sparse_data_size_; }
+  void set_sparse_data_size(uint64_t sparse_data_size) {
     sparse_data_size_ = sparse_data_size;
   }
 
  private:
   base::Time last_used_;
-  std::array<int32_t, kSimpleEntryStreamCount> data_size_;
-  int32_t sparse_data_size_;
+  std::array<int64_t, kSimpleEntryStreamCount> data_size_;
+  uint64_t sparse_data_size_;
 };
 
 struct SimpleStreamPrefetchData {
@@ -107,7 +109,7 @@ struct SimpleEntryCreationResults {
   std::array<SimpleStreamPrefetchData, 2> stream_prefetch_data;
 
   SimpleEntryStat entry_stat;
-  int32_t computed_trailer_prefetch_size = -1;
+  uint32_t computed_trailer_prefetch_size = 0;
   int result = net::OK;
   bool created = false;
 };
@@ -132,9 +134,9 @@ class SimpleSynchronousEntry {
 
   struct ReadRequest {
     // Also sets request_update_crc to false.
-    ReadRequest(int index_p, int offset_p, int buf_len_p);
+    ReadRequest(int index_p, int64_t offset_p, int buf_len_p);
     int index;
-    int offset;
+    int64_t offset;
     int buf_len;
 
     // Partial CRC of data immediately preceeding this read. Only relevant if
@@ -153,14 +155,14 @@ class SimpleSynchronousEntry {
 
   struct WriteRequest {
     WriteRequest(int index_p,
-                 int offset_p,
+                 int64_t offset_p,
                  int buf_len_p,
                  uint32_t previous_crc32_p,
                  bool truncate_p,
                  bool doomed_p,
                  bool request_update_crc_p);
     int index;
-    int offset;
+    int64_t offset;
     int buf_len;
     uint32_t previous_crc32;
     bool truncate;
@@ -176,10 +178,10 @@ class SimpleSynchronousEntry {
   };
 
   struct SparseRequest {
-    SparseRequest(int64_t sparse_offset_p, int buf_len_p);
+    SparseRequest(uint64_t sparse_offset_p, size_t buf_len_p);
 
-    int64_t sparse_offset;
-    int buf_len;
+    uint64_t sparse_offset;
+    size_t buf_len;
   };
 
   NET_EXPORT_PRIVATE SimpleSynchronousEntry(
@@ -189,7 +191,7 @@ class SimpleSynchronousEntry {
       uint64_t entry_hash,
       SimpleFileTracker* simple_file_tracker,
       std::unique_ptr<UnboundBackendFileOperations> file_operations,
-      int32_t stream_0_size);
+      uint32_t trailer_prefetch_size);
 
   // Like Entry, the SimpleSynchronousEntry self releases when Close() is
   // called, but sometimes temporary ones are kept in unique_ptr.
@@ -204,7 +206,7 @@ class SimpleSynchronousEntry {
       uint64_t entry_hash,
       SimpleFileTracker* file_tracker,
       std::unique_ptr<UnboundBackendFileOperations> file_operations,
-      int32_t trailer_prefetch_size,
+      uint32_t trailer_prefetch_size,
       SimpleEntryCreationResults* out_results);
 
   static void CreateEntry(
@@ -225,7 +227,7 @@ class SimpleSynchronousEntry {
       bool optimistic_create,
       SimpleFileTracker* file_tracker,
       std::unique_ptr<UnboundBackendFileOperations> file_operations,
-      int32_t trailer_prefetch_size,
+      uint32_t trailer_prefetch_size,
       SimpleEntryCreationResults* out_results);
 
   // Renames the entry on the file system, making it no longer possible to open
@@ -307,7 +309,7 @@ class SimpleSynchronousEntry {
   NET_EXPORT_PRIVATE base::FilePath GetFilenameForSubfile(
       SimpleFileTracker::SubFile sub_file) const;
 
-  int32_t computed_trailer_prefetch_size() const {
+  uint32_t computed_trailer_prefetch_size() const {
     return computed_trailer_prefetch_size_;
   }
 
@@ -324,8 +326,8 @@ class SimpleSynchronousEntry {
   };
 
   struct SparseRange {
-    int64_t offset;
-    int64_t length;
+    uint64_t offset;
+    size_t length;
     uint32_t data_crc32;
     int64_t file_offset;
 
@@ -385,7 +387,7 @@ class SimpleSynchronousEntry {
   // crc, but might decide not to.
   int ReadAndValidateStream0AndMaybe1(
       BackendFileOperations* file_operations,
-      int file_size,
+      int64_t file_size,
       SimpleEntryStat* out_entry_stat,
       std::array<SimpleStreamPrefetchData, 2>& stream_prefetch_data);
 
@@ -396,7 +398,7 @@ class SimpleSynchronousEntry {
   int GetEOFRecordData(base::File* file,
                        PrefetchData* prefetch_data,
                        int file_index,
-                       int file_offset,
+                       int64_t file_offset,
                        SimpleFileEOF* eof_record);
 
   // Reads either from |file_0_prefetch| or |file|.
@@ -404,8 +406,8 @@ class SimpleSynchronousEntry {
   bool ReadFromFileOrPrefetched(base::File* file,
                                 PrefetchData* prefetch_data,
                                 int file_index,
-                                int offset,
-                                int size,
+                                int64_t offset,
+                                size_t size,
                                 base::span<uint8_t> dest);
 
   // Extracts out the payload of stream |stream_index|, reading either from
@@ -426,7 +428,7 @@ class SimpleSynchronousEntry {
 
   // Opens the sparse data file and scans it if it exists.
   bool OpenSparseFileIfExists(BackendFileOperations* file_operations,
-                              int32_t* out_sparse_data_size);
+                              uint64_t* out_sparse_data_size);
 
   // Creates and initializes the sparse data file.
   bool CreateSparseFile(BackendFileOperations* file_operations);
@@ -440,16 +442,16 @@ class SimpleSynchronousEntry {
   // Removes all but the header of the sparse file.
   bool TruncateSparseFile(base::File* sparse_file);
 
-  // Scans the existing ranges in the sparse file. Populates |sparse_ranges_|
-  // and sets |*out_sparse_data_size| to the total size of all the ranges (not
+  // Scans the existing ranges in the sparse file. Populates `sparse_ranges_`
+  // and sets `*out_sparse_data_size` to the total size of all the ranges (not
   // including headers).
-  bool ScanSparseFile(base::File* sparse_file, int32_t* out_sparse_data_size);
+  bool ScanSparseFile(base::File* sparse_file, uint64_t* out_sparse_data_size);
 
   // Reads from a single sparse range. If asked to read the entire range, also
   // verifies the CRC32.
   bool ReadSparseRange(base::File* sparse_file,
                        const SparseRange* range,
-                       size_t offset,
+                       size_t offset_in_range,
                        size_t len,
                        base::span<uint8_t> buf);
 
@@ -457,13 +459,13 @@ class SimpleSynchronousEntry {
   // range, also updates the CRC32; otherwise, invalidates it.
   bool WriteSparseRange(base::File* sparse_file,
                         SparseRange* range,
-                        size_t offset,
+                        size_t offset_in_range,
                         size_t len,
                         base::span<const uint8_t> buf);
 
   // Appends a new sparse range to the sparse data file.
   bool AppendSparseRange(base::File* sparse_file,
-                         int64_t offset,
+                         uint64_t offset,
                          size_t len,
                          base::span<const uint8_t> buf);
 
@@ -515,26 +517,26 @@ class SimpleSynchronousEntry {
   // prefetched in order to read the EOF record and stream 0.  This is
   // a hint from the index and may not be exactly right.  -1 if we
   // don't have a hinted value.
-  int32_t trailer_prefetch_size_;
+  uint32_t trailer_prefetch_size_;
 
   // The exact number of trailing bytes that were needed to read the
   // EOF record and stream 0 when the entry was actually opened.  This
   // may be different from the trailer_prefetch_size_ hint and is
   // propagated back to the index in order to optimize the next open.
-  int32_t computed_trailer_prefetch_size_ = -1;
+  uint32_t computed_trailer_prefetch_size_ = 0;
 
   // True if the corresponding stream is empty and therefore no on-disk file
   // was created to store it.
   std::array<bool, kSimpleEntryNormalFileCount> empty_file_omitted_;
 
-  typedef std::map<int64_t, SparseRange> SparseRangeOffsetMap;
+  typedef std::map<uint64_t, SparseRange> SparseRangeOffsetMap;
   typedef SparseRangeOffsetMap::iterator SparseRangeIterator;
   SparseRangeOffsetMap sparse_ranges_;
   bool sparse_file_open_ = false;
 
   // Offset of the end of the sparse file (where the next sparse range will be
   // written).
-  int64_t sparse_tail_offset_;
+  uint64_t sparse_tail_offset_;
 };
 
 }  // namespace disk_cache

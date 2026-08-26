@@ -10,11 +10,13 @@
 #include "chrome/browser/promos/promos_utils.h"
 #include "chrome/browser/segmentation_platform/segmentation_platform_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
+#include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
+#include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/browser/ui/views/promos/ios_promo_bubble.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/segmentation_platform/embedder/default_model/device_switcher_model.h"
@@ -34,18 +36,23 @@ void ShowIOSDesktopPromoBubble(IOSPromoType promo_type,
       IOSPromoBubble::ShowPromoBubble(
           toolbar_button_provider->GetAnchorView(
               kActionShowPasswordsBubbleOrPage),
-          toolbar_button_provider->GetPageActionIconView(
-              PageActionIconType::kManagePasswords),
+          toolbar_button_provider->GetPageActionView(
+              kActionShowPasswordsBubbleOrPage),
           profile, IOSPromoType::kPassword);
       break;
-    case IOSPromoType::kAddress:
-      IOSPromoBubble::ShowPromoBubble(
-          toolbar_button_provider->GetAnchorView(
-              kActionShowAddressesBubbleOrPage),
-          toolbar_button_provider->GetPageActionIconView(
-              PageActionIconType::kAutofillAddress),
-          profile, IOSPromoType::kAddress);
+    case IOSPromoType::kAddress: {
+      views::Button* highlighted_button =
+          IsPageActionMigrated(PageActionIconType::kAutofillAddress)
+              ? nullptr
+              : toolbar_button_provider->GetPageActionIconView(
+                    PageActionIconType::kAutofillAddress);
+
+      IOSPromoBubble::ShowPromoBubble(toolbar_button_provider->GetAnchorView(
+                                          kActionShowAddressesBubbleOrPage),
+                                      highlighted_button, profile,
+                                      IOSPromoType::kAddress);
       break;
+    }
     case IOSPromoType::kPayment:
       IOSPromoBubble::ShowPromoBubble(
           toolbar_button_provider->GetAnchorView(

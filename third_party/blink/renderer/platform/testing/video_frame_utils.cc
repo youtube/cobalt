@@ -32,24 +32,25 @@ scoped_refptr<media::VideoFrame> CreateTestFrame(
     media::VideoFrame::StorageType storage_type,
     media::VideoPixelFormat pixel_format,
     base::TimeDelta timestamp,
-    gpu::TestSharedImageInterface* test_sii) {
+    gpu::TestSharedImageInterface* test_sii,
+    const gfx::ColorSpace& color_space) {
   switch (storage_type) {
     case media::VideoFrame::STORAGE_OWNED_MEMORY:
       return media::VideoFrame::CreateZeroInitializedFrame(
           pixel_format, coded_size, visible_rect, natural_size, timestamp);
     case media::VideoFrame::STORAGE_GPU_MEMORY_BUFFER: {
       CHECK(test_sii);
-      std::optional<gfx::BufferFormat> buffer_format =
-          media::VideoPixelFormatToGfxBufferFormat(pixel_format);
-      CHECK(buffer_format) << "Pixel format "
-                           << media::VideoPixelFormatToString(pixel_format)
-                           << " has no corresponding gfx::BufferFormat";
+      std::optional<viz::SharedImageFormat> si_format =
+          media::VideoPixelFormatToSharedImageFormat(pixel_format);
+      CHECK(si_format) << "Pixel format "
+                       << media::VideoPixelFormatToString(pixel_format)
+                       << " has no corresponding viz::SharedImageFormat";
       const auto si_usage = gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
-                            gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
+                            gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
+                            gpu::SHARED_IMAGE_USAGE_RASTER_READ;
       auto shared_image = test_sii->CreateSharedImage(
-          {viz::GetSharedImageFormat(*buffer_format), coded_size,
-           gfx::ColorSpace(), gpu::SharedImageUsageSet(si_usage),
-           "CreateTestFrame"},
+          {*si_format, coded_size, gfx::ColorSpace(),
+           gpu::SharedImageUsageSet(si_usage), "CreateTestFrame"},
           gpu::kNullSurfaceHandle,
           gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE);
       if (!shared_image) {
@@ -67,17 +68,26 @@ scoped_refptr<media::VideoFrame> CreateTestFrame(
       return frame;
     }
     case media::VideoFrame::STORAGE_OPAQUE: {
-      std::optional<gfx::BufferFormat> buffer_format =
-          media::VideoPixelFormatToGfxBufferFormat(pixel_format);
-      CHECK(buffer_format) << "Pixel format "
-                           << media::VideoPixelFormatToString(pixel_format)
-                           << " has no corresponding gfx::BufferFormat";
-      scoped_refptr<gpu::ClientSharedImage> shared_image =
-          gpu::ClientSharedImage::CreateForTesting();
+      std::optional<viz::SharedImageFormat> si_format =
+          media::VideoPixelFormatToSharedImageFormat(pixel_format);
+      CHECK(si_format) << "Pixel format "
+                       << media::VideoPixelFormatToString(pixel_format)
+                       << " has no corresponding viz::SharedImageFormat";
 
-      return media::VideoFrame::WrapSharedImage(
+      gpu::SharedImageMetadata metadata;
+      metadata.format = *si_format;
+      metadata.size = coded_size;
+      metadata.color_space = color_space;
+      metadata.surface_origin = kTopLeft_GrSurfaceOrigin;
+      metadata.alpha_type = kOpaque_SkAlphaType;
+      metadata.usage = gpu::SharedImageUsageSet();
+      scoped_refptr<gpu::ClientSharedImage> shared_image =
+          gpu::ClientSharedImage::CreateForTesting(metadata);
+      auto frame = media::VideoFrame::WrapSharedImage(
           pixel_format, shared_image, gpu::SyncToken(), base::NullCallback(),
           coded_size, visible_rect, natural_size, timestamp);
+      frame->set_color_space(color_space);
+      return frame;
     }
     default:
       NOTREACHED() << "Unsupported storage type or pixel format";

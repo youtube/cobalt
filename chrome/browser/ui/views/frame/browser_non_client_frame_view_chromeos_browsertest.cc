@@ -7,7 +7,12 @@
 #include <string>
 
 #include "ash/constants/web_app_id_constants.h"
+#include "ash/public/cpp/multi_user_window_manager.h"
+#include "ash/public/cpp/new_window_delegate.h"
 #include "ash/public/cpp/test/shell_test_api.h"
+#include "ash/root_window_controller.h"
+#include "ash/shelf/shelf.h"
+#include "ash/shelf/shelf_layout_manager.h"
 #include "ash/shell.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller_test_api.h"
 #include "ash/wm/tablet_mode/tablet_mode_multitask_menu_controller.h"
@@ -25,6 +30,8 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/browser_app_launcher.h"
+#include "chrome/browser/ash/login/test/device_state_mixin.h"
+#include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_installation.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
@@ -34,7 +41,7 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
-#include "chrome/browser/ui/ash/multi_user/test_multi_user_window_manager.h"
+#include "chrome/browser/ui/ash/session/session_controller_client_impl.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/ash/test_util.h"
 #include "chrome/browser/ui/browser.h"
@@ -80,6 +87,7 @@
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/ui/base/chromeos_ui_constants.h"
 #include "chromeos/ui/base/window_properties.h"
@@ -90,10 +98,15 @@
 #include "chromeos/ui/frame/frame_header.h"
 #include "chromeos/ui/frame/multitask_menu/float_controller_base.h"
 #include "components/account_id/account_id.h"
+#include "components/account_id/account_id_literal.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/services/app_service/public/cpp/app_update.h"
+#include "components/session_manager/core/session.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/signin/public/identity_manager/account_managed_status_finder.h"
+#include "components/user_manager/user_manager_pref_names.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -578,18 +591,19 @@ class WebAppNonClientFrameViewChromeOSTest
     return web_app_frame_toolbar_->paint_as_active_;
   }
 
-  // Returns a PageActionIconView specified by `type` if it hasn't been migrated
-  // yet (or the migration is disabled). Otherwise returns the PageActionView
-  // specified by `action_id`
   IconLabelBubbleView* GetPageActionView(
-      PageActionIconType type,
-      std::optional<actions::ActionId> action_id = std::nullopt) {
-    if (IsPageActionMigrated(type)) {
+      std::variant<actions::ActionId, PageActionIconType> action_type) {
+    if (std::holds_alternative<actions::ActionId>(action_type)) {
       return browser_view_->toolbar_button_provider()->GetPageActionView(
-          action_id.value());
+          std::get<actions::ActionId>(action_type));
+    } else {
+      PageActionIconType type = std::get<PageActionIconType>(action_type);
+      if (!IsPageActionMigrated(type)) {
+        return browser_view_->toolbar_button_provider()->GetPageActionIconView(
+            type);
+      }
+      return nullptr;
     }
-    return browser_view_->toolbar_button_provider()->GetPageActionIconView(
-        type);
   }
 
   ContentSettingImageView* GrantGeolocationPermission() {
@@ -712,7 +726,7 @@ IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest,
   content::WebContents* web_contents =
       app_browser_->tab_strip_model()->GetActiveWebContents();
   IconLabelBubbleView* manage_passwords_icon =
-      GetPageActionView(PageActionIconType::kManagePasswords);
+      GetPageActionView(kActionShowPasswordsBubbleOrPage);
 
   EXPECT_TRUE(manage_passwords_icon);
   EXPECT_FALSE(manage_passwords_icon->GetVisible());
@@ -734,8 +748,7 @@ IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest, ShowZoomIcon) {
       app_browser_->tab_strip_model()->GetActiveWebContents();
   zoom::ZoomController* zoom_controller =
       zoom::ZoomController::FromWebContents(web_contents);
-  IconLabelBubbleView* zoom_icon =
-      GetPageActionView(PageActionIconType::kZoom, kActionZoomNormal);
+  IconLabelBubbleView* zoom_icon = GetPageActionView(kActionZoomNormal);
 
   EXPECT_TRUE(zoom_icon);
   EXPECT_FALSE(zoom_icon->GetVisible());
@@ -748,14 +761,23 @@ IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest, ShowZoomIcon) {
 
 IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest, ShowFindIcon) {
   SetUpWebApp();
+
+  const bool find_page_action_migrated =
+      IsPageActionMigrated(PageActionIconType::kFind);
   IconLabelBubbleView* find_icon = GetPageActionView(PageActionIconType::kFind);
 
-  EXPECT_TRUE(find_icon);
-  EXPECT_FALSE(find_icon->GetVisible());
+  if (find_page_action_migrated) {
+    EXPECT_FALSE(find_icon);
+  } else {
+    EXPECT_TRUE(find_icon);
+    EXPECT_FALSE(find_icon->GetVisible());
+  }
 
   chrome::Find(app_browser_);
 
-  ASSERT_TRUE(WaitForVisible(true, find_icon));
+  if (!find_page_action_migrated) {
+    ASSERT_TRUE(WaitForVisible(true, find_icon));
+  }
 }
 
 // TODO(crbug.com/420040505): Fix failures on the Linux Chromium OS ASan LSan
@@ -769,8 +791,7 @@ IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest, ShowFindIcon) {
 IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest,
                        MAYBE_ShowTranslateIcon) {
   SetUpWebApp();
-  IconLabelBubbleView* translate_icon =
-      GetPageActionView(PageActionIconType::kTranslate, kActionShowTranslate);
+  IconLabelBubbleView* translate_icon = GetPageActionView(kActionShowTranslate);
 
   ASSERT_TRUE(translate_icon);
   EXPECT_FALSE(translate_icon->GetVisible());
@@ -1207,11 +1228,45 @@ IN_PROC_BROWSER_TEST_P(BrowserNonClientFrameViewChromeOSTest,
 
   EnterImmersiveFullscreenMode(browser());
 
-  // Should exit immersive mode + fullscreen when tablet mode is enabled.
+  // Should not exit immersive mode + fullscreen when tablet mode is enabled.
   EnterTabletMode();
-  ImmersiveModeTester(browser()).WaitForFullscreenToExit();
-  EXPECT_FALSE(immersive_mode_controller->IsEnabled());
-  EXPECT_FALSE(browser_view->IsFullscreen());
+  EXPECT_TRUE(immersive_mode_controller->IsEnabled());
+  EXPECT_TRUE(browser_view->IsFullscreen());
+
+  const ash::Shelf* shelf =
+      ash::Shell::GetPrimaryRootWindowController()->shelf();
+  EXPECT_EQ(ash::HotseatState::kHidden,
+            shelf->shelf_layout_manager()->hotseat_state());
+
+  // Swipe up/down gesture should work on immersive fullscreen.
+  ui::test::EventGenerator event_generator(
+      browser_view->GetNativeWindow()->GetRootWindow());
+  event_generator.SetTouchRadius(10, 5);
+  gfx::Rect display_bounds =
+      display::Screen::GetScreen()->GetPrimaryDisplay().bounds();
+  // Swipe down gesture should reveal multitask menu.
+  event_generator.PressTouch(display_bounds.top_center());
+  event_generator.MoveTouchBy(0, 80);
+  event_generator.ReleaseTouch();
+  auto* const multitask_menu_event_handler =
+      ash::TabletModeControllerTestApi()
+          .tablet_mode_window_manager()
+          ->tablet_mode_multitask_menu_controller();
+  EXPECT_TRUE(multitask_menu_event_handler->multitask_menu());
+
+  // Swipe up gesture should reveal shelf/hotseat.
+  event_generator.PressTouch(display_bounds.bottom_center());
+  event_generator.MoveTouchBy(0, -80);
+  event_generator.ReleaseTouch();
+  // The shelf and the hotseat should be visible.
+  EXPECT_EQ(ash::HotseatState::kExtended,
+            shelf->shelf_layout_manager()->hotseat_state());
+  EXPECT_EQ(ash::SHELF_AUTO_HIDE_SHOWN, shelf->GetAutoHideState());
+
+  // Should not exit immersive mode + fullscreen when tablet mode is disabled.
+  ExitTabletMode();
+  EXPECT_TRUE(immersive_mode_controller->IsEnabled());
+  EXPECT_TRUE(browser_view->IsFullscreen());
 }
 
 IN_PROC_BROWSER_TEST_P(BrowserNonClientFrameViewChromeOSTest,
@@ -1336,9 +1391,10 @@ IN_PROC_BROWSER_TEST_P(FloatBrowserNonClientFrameViewChromeOSTest,
   EXPECT_FALSE(frame_view2->caption_button_container()->GetVisible());
   ExitOverviewMode();
   EXPECT_TRUE(frame_view2->caption_button_container()->GetVisible());
-
   auto* immersive_controller = chromeos::ImmersiveFullscreenController::Get(
       views::Widget::GetWidgetForNativeView(widget2->GetNativeWindow()));
+  EXPECT_TRUE(widget2->IsMaximized());
+  // App type will use immersive.
   EXPECT_TRUE(immersive_controller->IsEnabled());
 
   // Snap a window. Immersive mode is enabled so its title bar is not visible.
@@ -1393,6 +1449,29 @@ IN_PROC_BROWSER_TEST_P(FloatBrowserNonClientFrameViewChromeOSTest,
 
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return !size_button->IsMultitaskMenuShown(); }));
+}
+
+IN_PROC_BROWSER_TEST_P(FloatBrowserNonClientFrameViewChromeOSTest,
+                       TabletModeRestoreFromFloat) {
+  EnterTabletMode();
+
+  const BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(browser());
+  auto* native_window = browser_view->GetNativeWindow();
+  ui::test::EventGenerator event_generator(native_window->GetRootWindow());
+  // Switch to float state.
+  event_generator.PressAndReleaseKeyAndModifierKeys(
+      ui::VKEY_F, ui::EF_ALT_DOWN | ui::EF_COMMAND_DOWN);
+  EXPECT_TRUE(ash::WindowState::Get(native_window)->IsFloated());
+
+  // Restore from float state.
+  event_generator.PressAndReleaseKeyAndModifierKeys(
+      ui::VKEY_F, ui::EF_ALT_DOWN | ui::EF_COMMAND_DOWN);
+  EXPECT_TRUE(ash::WindowState::Get(native_window)->IsMaximized());
+
+  const ImmersiveModeController* immersive_mode_controller =
+      browser_view->immersive_mode_controller();
+  EXPECT_FALSE(immersive_mode_controller->IsEnabled());
 }
 
 using HomeLauncherBrowserNonClientFrameViewChromeOSTest =
@@ -1565,8 +1644,57 @@ IN_PROC_BROWSER_TEST_P(LockedFullscreenBrowserNonClientFrameViewChromeOSTest,
   EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
 }
 
-using BrowserNonClientFrameViewAshTestNoWebUiTabStrip =
-    BrowserNonClientFrameViewChromeOSTestNoWebUiTabStrip;
+class BrowserNonClientFrameViewAshTestNoWebUiTabStrip
+    : public BrowserNonClientFrameViewChromeOSTestNoWebUiTabStrip {
+ public:
+  static constexpr inline auto kPrimaryAccountId =
+      AccountId::Literal::FromUserEmailGaiaId("primary@test",
+                                              GaiaId::Literal("12345"));
+
+  static constexpr inline auto kSecondaryAccountId =
+      AccountId::Literal::FromUserEmailGaiaId("secondary@test",
+                                              GaiaId::Literal("67890"));
+
+  void SetUp() override {
+    set_exit_when_last_browser_closes(false);
+    signin::AccountManagedStatusFinder::SetNonEnterpriseDomainForTesting(
+        "test");
+    BrowserNonClientFrameViewChromeOSTestNoWebUiTabStrip::SetUp();
+  }
+
+  void TearDown() override {
+    BrowserNonClientFrameViewChromeOSTestNoWebUiTabStrip::TearDown();
+    signin::AccountManagedStatusFinder::SetNonEnterpriseDomainForTesting(
+        nullptr);
+  }
+
+  void LogIn(const AccountId& account_id) {
+    // If there's already a session, i.e. if this is multi user sign in,
+    // first, launch user selection flow.
+    if (auto* primary_session =
+            session_manager::SessionManager::Get()->GetPrimarySession()) {
+      // Mark the acknowledge for the multi-user sign-in.
+      user_manager::User* primary_user =
+          user_manager::UserManager::Get()->FindUserAndModify(
+              primary_session->account_id());
+      primary_user->GetProfilePrefs()->SetBoolean(
+          user_manager::prefs::kMultiProfileNeverShowIntro, true);
+      SessionControllerClientImpl::Get()->ShowMultiProfileLogin();
+    }
+    login_manager_mixin_.LoginWithDefaultContext(
+        ash::LoginManagerMixin::TestUserInfo(account_id));
+  }
+
+ private:
+  ash::DeviceStateMixin device_state_{
+      &mixin_host_,
+      ash::DeviceStateMixin::State::OOBE_COMPLETED_PERMANENTLY_UNOWNED};
+
+  ash::LoginManagerMixin login_manager_mixin_{
+      &mixin_host_,
+      {ash::LoginManagerMixin::TestUserInfo(kPrimaryAccountId),
+       ash::LoginManagerMixin::TestUserInfo(kSecondaryAccountId)}};
+};
 
 // Tests that Avatar icon should show on the top left corner of the teleported
 // browser window on ChromeOS.
@@ -1574,28 +1702,47 @@ using BrowserNonClientFrameViewAshTestNoWebUiTabStrip =
 // webUI tabstrip.
 IN_PROC_BROWSER_TEST_P(BrowserNonClientFrameViewAshTestNoWebUiTabStrip,
                        AvatarDisplayOnTeleportedWindow) {
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  LogIn(kPrimaryAccountId);
+  Profile* primary_user_profile = Profile::FromBrowserContext(
+      ash::BrowserContextHelper::Get()->GetBrowserContextByAccountId(
+          kPrimaryAccountId));
+
+  ash::NewWindowDelegate::GetInstance()->NewWindow(
+      /*incognito=*/false, /*should_trigger_session_restore=*/false);
+  Browser* browser = chrome::FindBrowserWithProfile(primary_user_profile);
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
   BrowserNonClientFrameViewChromeOS* frame_view =
       GetFrameViewChromeOS(browser_view);
   BrowserNonClientFrameViewChromeOSTestApi test_api(frame_view);
-  aura::Window* window = browser()->window()->GetNativeWindow();
+  aura::Window* window = browser->window()->GetNativeWindow();
 
   EXPECT_FALSE(MultiUserWindowManagerHelper::ShouldShowAvatar(window));
   EXPECT_FALSE(test_api.GetProfileIndicatorIcon());
 
-  const AccountId account_id1 =
-      multi_user_util::GetAccountIdFromProfile(browser()->profile());
-  TestMultiUserWindowManager* window_manager =
-      TestMultiUserWindowManager::Create(browser(), account_id1);
+  // Log in with the secondary user.
+  LogIn(kSecondaryAccountId);
 
-  // Teleport the window to another desktop.
-  const AccountId account_id2(AccountId::FromUserEmail("user2"));
-  window_manager->ShowWindowForUser(window, account_id2);
+  // Move back to the primary user's desktop.
+  SessionControllerClientImpl::Get()->SwitchActiveUser(kPrimaryAccountId);
+  ASSERT_EQ(
+      session_manager::SessionManager::Get()->GetActiveSession()->account_id(),
+      kPrimaryAccountId);
+
+  auto* window_manager = MultiUserWindowManagerHelper::GetWindowManager();
+
+  // Teleport the window to secondary user's desktop.
+  browser_view->Activate();
+  window_manager->ShowWindowForUser(window, kSecondaryAccountId);
+  ASSERT_EQ(
+      session_manager::SessionManager::Get()->GetActiveSession()->account_id(),
+      kSecondaryAccountId);
+
   EXPECT_TRUE(MultiUserWindowManagerHelper::ShouldShowAvatar(window));
   EXPECT_TRUE(test_api.GetProfileIndicatorIcon());
 
   // Teleport the window back to owner desktop.
-  window_manager->ShowWindowForUser(window, account_id1);
+  browser_view->Activate();
+  window_manager->ShowWindowForUser(window, kPrimaryAccountId);
   EXPECT_FALSE(MultiUserWindowManagerHelper::ShouldShowAvatar(window));
   EXPECT_FALSE(test_api.GetProfileIndicatorIcon());
 }

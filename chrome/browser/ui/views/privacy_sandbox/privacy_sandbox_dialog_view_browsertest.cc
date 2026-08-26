@@ -176,7 +176,7 @@ PrivacySandboxNotice GetNoticeName(const std::string& name) {
 class PrivacySandboxPSNoticeDialogViewBrowserTest : public DialogBrowserTest {
  public:
   PrivacySandboxPSNoticeDialogViewBrowserTest() {
-    set_baseline("crrev.com/c/6575203");
+    set_baseline("crrev.com/c/6613162");
     scoped_feature_list_.InitWithFeatures(
         // Enabled Features
         {privacy_sandbox::kPrivacySandboxNoticeFramework},
@@ -615,9 +615,15 @@ class PrivacySandboxDialogViewAdsApiUxEnhancementsLearnMoreBrowserTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+// TODO(crbug.com/429359215): The test is flaky on Linux, deflake and re-enable.
+#if !BUILDFLAG(IS_LINUX)
+#define MAYBE_InvokeUi_ConsentEEA InvokeUi_ConsentEEA
+#else
+#define MAYBE_InvokeUi_ConsentEEA DISABLED_InvokeUi_ConsentEEA
+#endif
 IN_PROC_BROWSER_TEST_F(
     PrivacySandboxDialogViewAdsApiUxEnhancementsLearnMoreBrowserTest,
-    InvokeUi_ConsentEEA) {
+    MAYBE_InvokeUi_ConsentEEA) {
   ShowAndVerifyUi();
 }
 

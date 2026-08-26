@@ -156,6 +156,17 @@ def _gen_extras_bp(import_channel: str):
           GN2BP_MODULE_PREFIX=f'{import_channel}_cronet_'))
 
 
+def _gen_androidtest_xml():
+  """Generate AndroidTest.xml, required to run test in Android."""
+  androidtest_xml_template_path = os.path.join(REPOSITORY_ROOT, 'components',
+                                               'cronet', 'gn2bp', 'templates',
+                                               'AndroidTest.xml.template')
+  androidtest_xml_template_contents = cronet_utils.read_file(
+      androidtest_xml_template_path)
+  androidtest_xml_path = os.path.join(REPOSITORY_ROOT, 'AndroidTest.xml')
+  cronet_utils.write_file(androidtest_xml_path,
+                          androidtest_xml_template_contents)
+
 def _gen_boringssl(import_channel: str):
   """Generate boringssl Android build files."""
   module_prefix = f'{import_channel}_cronet_'
@@ -263,7 +274,10 @@ def _run_copybara_to_aosp(config: str, copybara_binary: str,
       && vpython3 components/cronet/gn2bp/run_gn2bp.py --channel={import_channel}
 
       The state of Chromium, for the commit being imported, can be browsed at:
-      https://chromium.googlesource.com/chromium/src/+/{commit_hash}""")
+      https://chromium.googlesource.com/chromium/src/+/{commit_hash}
+
+      NO_IFTTT=Imported from Chromium.
+      """)
   additional_parameters = [
       '--ignore-noop',
       '--force-message',
@@ -416,6 +430,7 @@ def main():
                channel=args.channel)
     _gen_boringssl(args.channel)
     _gen_extras_bp(args.channel)
+    _gen_androidtest_xml()
 
     if not args.skip_copybara:
       _run_copybara_to_aosp(

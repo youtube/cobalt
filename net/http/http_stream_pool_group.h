@@ -175,8 +175,8 @@ class HttpStreamPool::Group {
   // Cancels all on-going jobs.
   void CancelJobs(int error);
 
-  // Create an AttemptManager if needed.
-  AttemptManager* EnsureAttemptManager();
+  // Returns an active AttemptManager for `job`.
+  AttemptManager* GetAttemptManagerForJob(Job* job);
 
   // Called when the active AttemptManager is shutting down.
   void OnAttemptManagerShuttingDown(AttemptManager* attempt_manager);
@@ -195,8 +195,6 @@ class HttpStreamPool::Group {
   void CleanupTimedoutIdleStreamSocketsForTesting();
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(HttpStreamPoolGroupTest, ComparePausedJobSet);
-
   struct IdleStreamSocket {
     IdleStreamSocket(std::unique_ptr<StreamSocket> stream_socket,
                      base::TimeTicks start_time);
@@ -222,6 +220,9 @@ class HttpStreamPool::Group {
   void CleanupIdleStreamSockets(CleanupMode mode,
                                 std::string_view net_log_close_reason_utf8);
 
+  // Returns an `AttemptManager` for an Alt-Svc QUIC preconnect job.
+  AttemptManager* GetAttemptManagerForAltSvcQuicPreconnect();
+
   void MaybeComplete();
 
   // Posts a task to call MaybeComplete() later.
@@ -239,6 +240,9 @@ class HttpStreamPool::Group {
   std::list<IdleStreamSocket> idle_stream_sockets_;
 
   std::unique_ptr<AttemptManager> attempt_manager_;
+
+  // An `AttemptManager` for Alt-Svc QUIC preconnects.
+  std::unique_ptr<AttemptManager> alt_svc_quic_preconnect_attempt_manager_;
 
   // Keeps AttemptManagers that are shutting down.
   std::set<std::unique_ptr<AttemptManager>, base::UniquePtrComparator>

@@ -48,8 +48,8 @@ String FormatErrorMessage(Error error, int line, int column) {
           "valid Unicode characters.";
       break;
   }
-  return WTF::StrCat({"Line: ", String::Number(line),
-                      ", column: ", String::Number(column), ", ", text});
+  return StrCat({"Line: ", String::Number(line),
+                 ", column: ", String::Number(column), ", ", text});
 }
 
 // Note: all parsing functions take a |cursor| parameter which is
@@ -689,7 +689,7 @@ std::unique_ptr<JSONValue> ParseJSON(const String& json,
     error.line = 0;
     error.column = 0;
   } else {
-    error = WTF::VisitCharacters(json, [&](auto chars) {
+    error = VisitCharacters(json, [&](auto chars) {
       return ParseJSONInternal(chars, max_depth, comment_state, &result);
     });
   }

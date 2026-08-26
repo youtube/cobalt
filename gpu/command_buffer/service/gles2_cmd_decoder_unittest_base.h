@@ -16,6 +16,7 @@
 #include <array>
 #include <memory>
 
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/task_environment.h"
 #include "gpu/command_buffer/client/client_test_helper.h"
@@ -209,11 +210,11 @@ class GLES2DecoderTestBase : public ::testing::TestWithParam<bool>,
   // and set |str_end| as 0.
   void SetBucketAsCStrings(uint32_t bucket_id,
                            GLsizei count,
-                           const char** str,
+                           base::span<const char*> str,
                            GLsizei count_in_header,
                            char str_end);
 
-  void set_memory_tracker(std::unique_ptr<MemoryTracker> memory_tracker) {
+  void set_memory_tracker(scoped_refptr<MemoryTracker> memory_tracker) {
     memory_tracker_ = std::move(memory_tracker);
   }
 
@@ -230,7 +231,6 @@ class GLES2DecoderTestBase : public ::testing::TestWithParam<bool>,
     bool request_alpha = false;
     bool request_depth = false;
     bool request_stencil = false;
-    bool bind_generates_resource = false;
     bool lose_context_when_out_of_memory = false;
     bool lose_context_on_init = false;
     bool use_native_vao = true;
@@ -453,12 +453,12 @@ class GLES2DecoderTestBase : public ::testing::TestWithParam<bool>,
                                        GLenum format,
                                        GLenum type,
                                        size_t tex_sub_image_3d_num_calls,
-                                       GLint* xoffset,
-                                       GLint* yoffset,
-                                       GLint* zoffset,
-                                       GLsizei* width,
-                                       GLsizei* height,
-                                       GLsizei* depth,
+                                       base::span<GLint> xoffset,
+                                       base::span<GLint> yoffset,
+                                       base::span<GLint> zoffset,
+                                       base::span<GLsizei> width,
+                                       base::span<GLsizei> height,
+                                       base::span<GLsizei> depth,
                                        GLuint bound_pixel_unpack_buffer);
 
   void SetupExpectationsForRestoreClearState(GLclampf restore_red,
@@ -703,7 +703,7 @@ class GLES2DecoderTestBase : public ::testing::TestWithParam<bool>,
   TraceOutputter outputter_;
   std::unique_ptr<MockGLES2Decoder> mock_decoder_;
   std::unique_ptr<GLES2Decoder> decoder_;
-  std::unique_ptr<MemoryTracker> memory_tracker_;
+  scoped_refptr<MemoryTracker> memory_tracker_;
   raw_ptr<gl::GLDisplay> display_ = nullptr;
 
   GLuint client_buffer_id_;

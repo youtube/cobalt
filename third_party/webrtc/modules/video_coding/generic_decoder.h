@@ -22,6 +22,7 @@
 #include "api/rtp_packet_infos.h"
 #include "api/sequence_checker.h"
 #include "api/units/timestamp.h"
+#include "api/video/color_space.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_content_type.h"
@@ -64,6 +65,7 @@ struct FrameInfo {
   std::optional<
       std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
       frame_instrumentation_data;
+  std::optional<ColorSpace> color_space;
 };
 
 class VCMDecodedFrameCallback : public DecodedImageCallback {

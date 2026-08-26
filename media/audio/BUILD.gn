@@ -147,11 +147,10 @@ source_set("audio") {
   ]
   deps = [
     "//base",
-    "//build:android_buildflags",
     "//build:chromecast_buildflags",
     "//media/base",
     "//third_party/flac",
-    "//third_party/opus:opus",
+    "//third_party/opus",
     "//url",
   ]
   libs = []
@@ -233,6 +232,8 @@ source_set("audio") {
       "win/audio_low_latency_output_win.h",
       "win/audio_manager_win.cc",
       "win/audio_manager_win.h",
+      "win/audio_session_creation_observer_win.cc",
+      "win/audio_session_creation_observer_win.h",
       "win/audio_session_event_listener_win.cc",
       "win/audio_session_event_listener_win.h",
       "win/avrt_wrapper_win.cc",
@@ -257,6 +258,8 @@ source_set("audio") {
 
   if (is_android) {
     sources += [
+      "android/aaudio_bluetooth_output.cc",
+      "android/aaudio_bluetooth_output.h",
       "android/aaudio_input.cc",
       "android/aaudio_input.h",
       "android/aaudio_output.cc",
@@ -460,6 +463,10 @@ static_library("test_support") {
       "alsa/mock_alsa_wrapper.h",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("unit_tests") {
@@ -494,7 +501,7 @@ source_set("unit_tests") {
     "//media:test_support",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/opus:opus",
+    "//third_party/opus",
     "//url",
   ]
 
@@ -508,9 +515,10 @@ source_set("unit_tests") {
       "android/audio_android_unittest.cc",
       "android/audio_device_id_unittest.cc",
       "android/audio_device_type_unittest.cc",
+      "android/audio_device_unittest.cc",
     ]
     deps += [
-      "//media/gpu:gpu",
+      "//media/gpu",
       "//ui/gl",
     ]
   }
@@ -575,7 +583,7 @@ source_set("unit_tests") {
       "win/test_support/wasapi_test_error_code.h",
     ]
 
-    deps += [ "//media/gpu:gpu" ]
+    deps += [ "//media/gpu" ]
   }
 
   if (is_fuchsia) {
@@ -590,6 +598,10 @@ source_set("unit_tests") {
       "audio_low_latency_input_output_unittest.cc",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 fuzzer_test("wav_audio_handler_fuzzer") {

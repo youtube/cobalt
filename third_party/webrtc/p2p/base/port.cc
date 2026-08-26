@@ -19,12 +19,14 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
-#include "api/rtc_error.h"
+#include "api/local_network_access_permission.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/transport/stun.h"
@@ -114,6 +116,7 @@ Port::Port(const PortParametersRef& args,
     : env_(args.env),
       thread_(args.network_thread),
       factory_(args.socket_factory),
+      lna_permission_factory_(args.lna_permission_factory),
       type_(type),
       send_retransmit_count_attribute_(false),
       network_(args.network),
@@ -937,6 +940,52 @@ const std::string& Port::username_fragment() const {
 void Port::CopyPortInformationToPacketInfo(PacketInfo* info) const {
   info->protocol = ConvertProtocolTypeToPacketInfoProtocolType(GetProtocol());
   info->network_id = Network()->id();
+}
+
+void Port::MaybeRequestLocalNetworkAccessPermission(
+    const SocketAddress& address,
+    absl::AnyInvocable<void(LocalNetworkAccessPermissionStatus)> callback) {
+  if (!lna_permission_factory_) {
+    std::move(callback)(LocalNetworkAccessPermissionStatus::kGranted);
+    return;
+  }
+
+  if (!address.IsPrivateIP() && !address.IsLoopbackIP()) {
+    std::move(callback)(LocalNetworkAccessPermissionStatus::kGranted);
+    return;
+  }
+
+  RTC_LOG(LS_VERBOSE) << "Asynchronously requesting LNA permission."
+                      << address.HostAsSensitiveURIString();
+
+  std::unique_ptr<LocalNetworkAccessPermissionInterface> permission_query =
+      lna_permission_factory_->Create();
+  auto* permission_query_ptr = permission_query.get();
+  permission_queries_.push_back(std::move(permission_query));
+
+  permission_query_ptr->RequestPermission(
+      address, [this, permission_query_ptr, callback = std::move(callback)](
+                   LocalNetworkAccessPermissionStatus status) mutable {
+        OnRequestLocalNetworkAccessPermission(permission_query_ptr,
+                                              std::move(callback), status);
+      });
+}
+
+void Port::OnRequestLocalNetworkAccessPermission(
+    LocalNetworkAccessPermissionInterface* permission_query,
+    absl::AnyInvocable<void(LocalNetworkAccessPermissionStatus)> callback,
+    LocalNetworkAccessPermissionStatus status) {
+  auto it =
+      absl::c_find_if(permission_queries_, [permission_query](const auto& q) {
+        return q.get() == permission_query;
+      });
+  if (it == permission_queries_.end()) {
+    RTC_LOG(LS_ERROR) << "Unexpected LocalNetworkAccessPermission return";
+    RTC_DCHECK_NOTREACHED();
+  }
+
+  permission_queries_.erase(it);
+  std::move(callback)(status);
 }
 
 }  // namespace webrtc

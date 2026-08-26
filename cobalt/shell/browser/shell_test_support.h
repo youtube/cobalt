@@ -72,14 +72,6 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
   MOCK_METHOD(bool, DestroyShell, (Shell * shell), (override));
   MOCK_METHOD(void, CleanUp, (Shell * shell), (override));
   MOCK_METHOD(void,
-              EnableUIControl,
-              (Shell * shell, UIControl control, bool is_enabled),
-              (override));
-  MOCK_METHOD(void,
-              SetAddressBarURL,
-              (Shell * shell, const GURL& url),
-              (override));
-  MOCK_METHOD(void,
               SetTitle,
               (Shell * shell, const std::u16string& title),
               (override));
@@ -93,6 +85,25 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
   MOCK_METHOD(void, OnFreeze, (), (override));
   MOCK_METHOD(void, OnUnfreeze, (), (override));
   MOCK_METHOD(void, OnStop, (), (override));
+  MOCK_METHOD(void, MainFrameCreated, (Shell*), (override));
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  MOCK_METHOD(bool,
+              IsFullscreenForTabOrPending,
+              (Shell*, const WebContents*),
+              (const override));
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
+  MockShellPlatformDelegate() {
+#if BUILDFLAG(IS_IOS)
+    // Initialize() on tvOS creates a display::Screen instance that is required
+    // by calls to Shell::CreateNewWindow().
+    ON_CALL(*this, Initialize)
+        .WillByDefault([this](const gfx::Size& default_window_size,
+                              bool is_visible) {
+          ShellPlatformDelegate::Initialize(default_window_size, is_visible);
+        });
+#endif
+  }
 
   void SetIsVisible(bool is_visible) { is_visible_ = is_visible; }
 };

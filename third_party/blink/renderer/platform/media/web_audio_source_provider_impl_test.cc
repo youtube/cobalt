@@ -2,17 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "third_party/blink/public/platform/web_audio_source_provider_impl.h"
 
 #include <stddef.h>
 
+#include "base/compiler_specific.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "media/base/audio_glitch_info.h"
 #include "media/base/audio_parameters.h"
@@ -36,6 +33,10 @@ MATCHER(IsMuted, std::string(negation ? "isn't" : "is") + " muted") {
 
 const float kTestVolume = 0.25;
 const int kTestSampleRate = 48000;
+
+// TODO(crbug.com/420150619): Re-enable this and make it a global feature.
+constexpr bool kDelayStopForMediaElementSourceNode = false;
+
 }  // namespace
 
 class WebAudioSourceProviderImplTest : public testing::Test,
@@ -79,12 +80,17 @@ class WebAudioSourceProviderImplTest : public testing::Test,
     testing::Mock::VerifyAndClear(mock_sink_.get());
   }
 
-  void SetClient(WebAudioSourceProviderClient* client) {
+  void SetClient(WebAudioSourceProviderClient* client,
+                 bool expect_format = true) {
     testing::InSequence s;
 
     if (client) {
-      EXPECT_CALL(*mock_sink_, Stop()).Times(0);
-      EXPECT_CALL(*this, SetFormat(params_.channels(), params_.sample_rate()));
+      EXPECT_CALL(*mock_sink_, Stop())
+          .Times(kDelayStopForMediaElementSourceNode ? 0 : 1);
+      if (expect_format) {
+        EXPECT_CALL(*this,
+                    SetFormat(params_.channels(), params_.sample_rate()));
+      }
     }
     wasp_impl_->SetClient(client);
     base::RunLoop().RunUntilIdle();
@@ -97,8 +103,9 @@ class WebAudioSourceProviderImplTest : public testing::Test,
     EXPECT_EQ(bus1->channels(), bus2->channels());
     EXPECT_EQ(bus1->frames(), bus2->frames());
     for (int ch = 0; ch < bus1->channels(); ++ch) {
-      if (memcmp(bus1->channel(ch), bus2->channel(ch),
-                 sizeof(*bus1->channel(ch)) * bus1->frames()) != 0) {
+      if (UNSAFE_TODO(memcmp(bus1->channel(ch), bus2->channel(ch),
+                             sizeof(*bus1->channel(ch)) * bus1->frames())) !=
+          0) {
         return false;
       }
     }
@@ -134,12 +141,7 @@ TEST_F(WebAudioSourceProviderImplTest, SetClientBeforeInitialize) {
   // setClient() with a nullptr client should do nothing if no client is set.
   wasp_impl_->SetClient(nullptr);
 
-  // `mock_sink_` should not be stopped during setClient(this).
-  if (mock_sink_)
-    EXPECT_CALL(*mock_sink_.get(), Stop()).Times(0);
-
-  wasp_impl_->SetClient(this);
-  base::RunLoop().RunUntilIdle();
+  SetClient(this, /*expect_format=*/false);
 
   wasp_impl_->SetClient(nullptr);
   base::RunLoop().RunUntilIdle();
@@ -172,7 +174,7 @@ TEST_F(WebAudioSourceProviderImplTest, SinkMethods) {
 
   // Removing the client should cause WASP to revert to the underlying sink.
   SetClient(nullptr);
-  CallAllSinkMethodsAndVerify(true);
+  CallAllSinkMethodsAndVerify(kDelayStopForMediaElementSourceNode);
 }
 
 // Test tainting effects on Render().
@@ -365,9 +367,7 @@ TEST_F(WebAudioSourceProviderImplTest, MultipleInitializeWithSetClient) {
   wasp_impl_->Initialize(params_, &fake_callback_);
   base::RunLoop().RunUntilIdle();
 
-  // `mock_sink_` should not be stopped during setClient(this).
-  if (mock_sink_)
-    EXPECT_CALL(*mock_sink_.get(), Stop()).Times(0);
+  SetClient(this, /*expect_format=*/false);
 
   // setClient() with the same client should do nothing.
   wasp_impl_->SetClient(this);
@@ -458,10 +458,7 @@ TEST_F(WebAudioSourceProviderImplTest, SetClientCallback) {
 
   // SetClient when called with a valid client should trigger the callback once.
   EXPECT_CALL(*this, OnClientSet()).Times(1);
-  EXPECT_CALL(*mock_sink_, Stop()).Times(0);
-  wasp_impl_->SetClient(this);
-  base::RunLoop().RunUntilIdle();
-  ::testing::Mock::VerifyAndClearExpectations(this);
+  SetClient(this, /*expect_format=*/false);
 
   // Future calls to set client should not trigger the callback.
   EXPECT_CALL(*this, OnClientSet()).Times(0);
@@ -485,13 +482,11 @@ TEST_F(WebAudioSourceProviderImplTest, ConnectToDestinationReadyCallStop) {
   wasp_impl_->ConnectToDestinationReady();
 
   EXPECT_CALL(*this, OnClientSet()).Times(1);
-  EXPECT_CALL(*mock_sink_, Stop()).Times(0);
-  wasp_impl_->SetClient(this);
-  base::RunLoop().RunUntilIdle();
-  ::testing::Mock::VerifyAndClearExpectations(this);
+  SetClient(this, /*expect_format=*/false);
 
   // ConnectToDestinationReady after client calls sink stop()
-  EXPECT_CALL(*mock_sink_, Stop()).Times(1);
+  EXPECT_CALL(*mock_sink_, Stop())
+      .Times(kDelayStopForMediaElementSourceNode ? 1 : 0);
   wasp_impl_->ConnectToDestinationReady();
   base::RunLoop().RunUntilIdle();
 

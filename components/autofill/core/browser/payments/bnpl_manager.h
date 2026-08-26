@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_BNPL_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_BNPL_MANAGER_H_
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -44,8 +45,8 @@ class BnplManager {
   BnplManager& operator=(const BnplManager& other) = delete;
   virtual ~BnplManager();
 
-  // Retrieve supported BNPL issuers.
-  static const std::array<std::string_view, 2>& GetSupportedBnplIssuerIds();
+  // Returns if `issuer_id` is a supported BNPL issuer.
+  static bool IsBnplIssuerSupported(std::string_view issuer_id);
 
   // Initializes the BNPL flow, which includes UI shown to the user to select an
   // issuer, a possible ToS dialog, and redirecting to the selected issuer's
@@ -85,6 +86,10 @@ class BnplManager {
   // 2. The client has an `AutofillOptimizationGuide` assigned.
   // 3. The URL being visited is within the BNPL issuer allowlist.
   bool IsEligibleForBnpl() const;
+
+  // Returns true if the issuer for the ongoing flow contains the required
+  // action `PaymentInstrument::ActionRequired::kAcceptTos`.
+  bool AcceptTosActionRequired() const;
 
  private:
   friend class BnplManagerTestApi;
@@ -160,17 +165,24 @@ class BnplManager {
   // or terms of services depending on the issuer.
   void OnIssuerSelected(BnplIssuer selected_issuer);
 
+  // This function makes the appropriate server call to retrieve the ToS legal
+  // message for the issuer.
+  void GetLegalMessageFromServer();
+
   // This function makes the appropriate call to the payments server to get info
   // from the server for creating an instrument for the selected issuer.
   void GetDetailsForCreateBnplPaymentInstrument();
 
-  // The callback after
-  // `PaymentsNetworkInterface::GetDetailsForCreateBnplPaymentInstrument` calls.
-  // The callback contains the result of the call as well as `context_token`
-  // for providing information from this request that is needed by
-  // `CreateBnplPaymentInstrumentRequest` and `legal_message` to be displayed
-  // to users.
-  void OnDidGetDetailsForCreateBnplPaymentInstrument(
+  // This function makes the appropriate call to the payments server to get info
+  // from the server for updating an instrument for the selected issuer.
+  void GetDetailsForUpdateBnplPaymentInstrument();
+
+  // The callback after the legal message for the ToS flow is received from a
+  // server call. The callback contains the result of the call, `legal_message`
+  // to be displayed to users, and `context_token` for providing information
+  // from this request that is needed by future server calls after ToS
+  // flow completion.
+  void OnDidGetLegalMessageFromServer(
       PaymentsAutofillClient::PaymentsRpcResult result,
       std::string context_token,
       LegalMessageLines legal_message);
@@ -237,6 +249,15 @@ class BnplManager {
   void OnBnplPaymentInstrumentCreated(
       PaymentsAutofillClient::PaymentsRpcResult result,
       std::string instrument_id);
+
+  // Sends a request to the Payments servers to update a BNPL payment
+  // instrument.
+  void UpdateBnplPaymentInstrument();
+
+  // Callback after attempting to update a BNPL payment instrument. `result`
+  // indicates success/failure; If successful, fetches the redirect URL.
+  void OnBnplPaymentInstrumentUpdated(
+      PaymentsAutofillClient::PaymentsRpcResult result);
 
   // Return all BNPL Issuer contexts including eligibility in order of:
   // eligible + linked, eligible + unlinked, uneligible + linked,

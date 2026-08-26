@@ -43,22 +43,24 @@
 
 namespace WTF {
 
+using blink::wtf_size_t;
+
 struct SameSizeAsRefCounted {
   uint32_t a;
   // Don't add anything here because this should stay small.
 };
 
-template <typename T, unsigned inlineCapacity = 0>
+template <typename T, wtf_size_t inlineCapacity = 0>
 struct SameSizeAsVectorWithInlineCapacity;
 
 template <typename T>
 struct SameSizeAsVectorWithInlineCapacity<T, 0> {
   void* buffer_pointer;
-  unsigned capacity;
-  unsigned size;
+  wtf_size_t capacity;
+  wtf_size_t size;
 };
 
-template <typename T, unsigned inlineCapacity>
+template <typename T, wtf_size_t inlineCapacity>
 struct SameSizeAsVectorWithInlineCapacity {
   SameSizeAsVectorWithInlineCapacity<T, 0> base_capacity;
 #if !defined(ANNOTATE_CONTIGUOUS_CONTAINER)
@@ -67,11 +69,11 @@ struct SameSizeAsVectorWithInlineCapacity {
 };
 
 #if !DCHECK_IS_ON()
-ASSERT_SIZE(RefCounted<int>, SameSizeAsRefCounted);
+ASSERT_SIZE(blink::RefCounted<int>, SameSizeAsRefCounted);
 #endif
 
 ASSERT_SIZE(std::unique_ptr<int>, int*);
-ASSERT_SIZE(scoped_refptr<RefCounted<int>>, int*);
+ASSERT_SIZE(scoped_refptr<blink::RefCounted<int>>, int*);
 ASSERT_SIZE(Vector<int>, SameSizeAsVectorWithInlineCapacity<int>);
 // This is to avoid problem of comma in macro parameters.
 #define INLINE_CAPACITY_PARAMS(i) int, i

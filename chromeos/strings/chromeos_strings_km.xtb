@@ -327,6 +327,7 @@
 <translation id="2240366984605217732">ប៊ូតុងបិទបើក​ប្លង់</translation>
 <translation id="224421911978987610">ការត្រូវ​ពន្លឺយូរ</translation>
 <translation id="2244834438220057800">បៃតង</translation>
+<translation id="2248689665683494517">រូបនឹងថ្កល់​ដ៏សាមញ្ញ​នៃផ្កាផាផាវឺរៀ​មួយចំនួន​នៅក្នុង​ថូកែវ​ដែលមាន​ផ្ទៃខាងក្រោយ​ពណ៌ខ្មៅ</translation>
 <translation id="225692081236532131">ស្ថានភាពនៃការធ្វើឲ្យសកម្ម</translation>
 <translation id="2267285889943769271">បញ្ចូល​រូបថត​អេក្រង់</translation>
 <translation id="2268044343513325586">សម្រាំង</translation>
@@ -477,6 +478,7 @@
 <translation id="3091839911843451378">មិនបានសម្រេច - ​​​ម៉ាស៊ីន​បោះពុម្ពបានឈប់</translation>
 <translation id="3102119246920354026">ឃ្លាំងបម្រុង</translation>
 <translation id="3103783611481501187">មនោគតិ</translation>
+<translation id="3119672627216736407">មានផ្តល់ជូនការបកប្រែ</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">អាង​ហែលទឹក</translation>
 <translation id="3122883569442693641">ព័ត៌មានលម្អិតបន្ថែម</translation>
@@ -756,6 +758,7 @@
 <translation id="430786093962686457">ឈីហ្វន</translation>
 <translation id="4310735698903592804">ផ្ទាំង​រូបភាពថ្មីៗ​ដែល​ដំណើរការដោយ Google AI</translation>
 <translation id="4320904097188876154">ផ្កាឈូក​ណេអុង</translation>
+<translation id="432961742358282111">ចុចម៉ៅស៍ខាងស្ដាំ ឬ​ចុចឱ្យ​ជាប់ ដើម្បី​ទទួលបាន​និយមន័យ ការបកប្រែ ឬ​ការបំប្លែងខ្នាត។ ប្រើគ្រាប់​ចុចព្រួញទៅ​ស្ដាំ ឬ​ឆ្វេង ដើម្បី​គ្រប់គ្រង​មុខងារនេះ។</translation>
 <translation id="4333390807948134856">បានចុច​គ្រាប់ចុច <ph name="KEY_NAME" /></translation>
 <translation id="4334293042716981313">អ្នកក៏អាច<ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />សរសេរសារតម្រុយរបស់អ្នកផ្ទាល់<ph name="END_LINK_FREEFORM_SUBPAGE" />ផងដែរ</translation>
 <translation id="4354430579665871434">គ្រាប់ចុច</translation>
@@ -1137,6 +1140,7 @@
 <translation id="6058625436358447366">ដើម្បី​បញ្ចប់ សូម​បញ្ចូល​ពាក្យសម្ងាត់​ចាស់ និងថ្មី​របស់អ្នក</translation>
 <translation id="6061772781719867950">សំណើ HTTPS ដែលមិនដំណើរការ</translation>
 <translation id="6073292342939316679">បន្ថយ​ពន្លឺក្ដារចុច</translation>
+<translation id="6074608334942655098">ឈប់​បកប្រែ</translation>
 <translation id="6074752328838739425">លាក់​សេចក្តី​សង្ខេប</translation>
 <translation id="6075872808778243331">(Android) ការពន្យារ HTTP</translation>
 <translation id="6078323886959318429">បន្ថែម​ផ្លូវកាត់</translation>
@@ -1434,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">សួរ​អ្នកជំនាញ​នៅក្នុង​វេទិកា​ជំនួយ Chromebook</translation>
-<translation id="7309823890857024809">រូបនឹងថ្កល់​ដ៏សាមញ្ញ​នៃមែកផ្កាផាផាវឺរៀមួយចំនួន​នៅក្នុង​ថូកែវ​ដែលមានផ្ទៃខាងក្រោយ​ពណ៌ខ្មៅ</translation>
 <translation id="7311368985037279727">ពណ៌ក្ដារចុច</translation>
 <translation id="7317831949569936035">ការ​ចុះឈ្មោះចូលរៀន</translation>
 <translation id="7319430975418800333">A3</translation>

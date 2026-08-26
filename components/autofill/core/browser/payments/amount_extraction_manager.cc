@@ -16,7 +16,6 @@
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
-#include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide.h"
 #include "components/autofill/core/browser/metrics/payments/amount_extraction_metrics.h"
 #include "components/autofill/core/browser/payments/amount_extraction_heuristic_regexes.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
@@ -108,23 +107,11 @@ AmountExtractionManager::GetEligibleFeatures(const SuggestionsContext& context,
     return {};
   }
 
-  if constexpr (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-                BUILDFLAG(IS_CHROMEOS)) {
-    if (base::FeatureList::IsEnabled(
-            ::autofill::features::
-                kAutofillEnableAmountExtractionDesktopLogging)) {
-      // Insert all amount extraction eligible features for logging.
-      return DenseSet<EligibleFeature>::all();
-    }
-  }
-
   const DenseSet<EligibleFeature> eligible_features =
-      CheckEligiblilityForFeaturesRequiringAmountExtraction();
+      CheckEligibilityForFeaturesRequiringAmountExtraction();
 
   // Run after all other feature eligibilities are checked to only check feature
   // flag for eligible users.
-  // TODO(crbug.com/414648193): Rename amount extraction feature flag to
-  // remove the platform restriction.
   if (!eligible_features.empty() &&
       base::FeatureList::IsEnabled(
           ::autofill::features::kAutofillEnableAmountExtractionDesktop)) {
@@ -169,12 +156,15 @@ void AmountExtractionManager::OnCheckoutAmountReceived(
     const std::string& extracted_amount) {
   base::TimeDelta latency =
       base::TimeTicks::Now() - search_request_start_timestamp;
-  autofill_metrics::LogAmountExtractionLatency(latency,
-                                               !extracted_amount.empty());
-  autofill_metrics::LogAmountExtractionResult(
+  autofill_metrics::AmountExtractionResult result =
       extracted_amount.empty()
           ? autofill_metrics::AmountExtractionResult::kAmountNotFound
-          : autofill_metrics::AmountExtractionResult::kSuccessful);
+          : autofill_metrics::AmountExtractionResult::kSuccessful;
+  if (!has_logged_amount_extraction_result_) {
+    autofill_metrics::LogAmountExtractionResult(
+        latency, result, GetMainFrameDriver()->GetPageUkmSourceId());
+    has_logged_amount_extraction_result_ = true;
+  }
   // Set `search_request_pending_` to false once the search is done.
   search_request_pending_ = false;
   // Invalidate the WeakPtr instance to ignore the scheduled delay task when the
@@ -188,10 +178,9 @@ void AmountExtractionManager::OnCheckoutAmountReceived(
     bnpl_manager->OnAmountExtractionReturned(parsed_extracted_amount);
   }
   if constexpr (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-                BUILDFLAG(IS_CHROMEOS)) {
+                BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)) {
     if (base::FeatureList::IsEnabled(
-            ::autofill::features::
-                kAutofillEnableAmountExtractionDesktopLogging)) {
+            ::autofill::features::kAutofillEnableAmountExtractionTesting)) {
       VLOG(3) << "The result of amount extraction on domain "
               << autofill_manager_->client()
                      .GetLastCommittedPrimaryMainFrameOrigin()
@@ -208,14 +197,18 @@ void AmountExtractionManager::OnTimeoutReached() {
   }
   search_request_pending_ = false;
   weak_ptr_factory_.InvalidateWeakPtrs();
-  autofill_metrics::LogAmountExtractionResult(
-      autofill_metrics::AmountExtractionResult::kTimeout);
+  if (!has_logged_amount_extraction_result_) {
+    autofill_metrics::LogAmountExtractionResult(
+        /*latency=*/std::nullopt,
+        autofill_metrics::AmountExtractionResult::kTimeout,
+        GetMainFrameDriver()->GetPageUkmSourceId());
+    has_logged_amount_extraction_result_ = true;
+  }
   // TODO(crbug.com/378517983): Add BNPL flow action logic here.
   if constexpr (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-                BUILDFLAG(IS_CHROMEOS)) {
+                BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)) {
     if (base::FeatureList::IsEnabled(
-            ::autofill::features::
-                kAutofillEnableAmountExtractionDesktopLogging)) {
+            ::autofill::features::kAutofillEnableAmountExtractionTesting)) {
       VLOG(3) << "The amount extraction on domain "
               << autofill_manager_->client()
                      .GetLastCommittedPrimaryMainFrameOrigin()
@@ -225,7 +218,7 @@ void AmountExtractionManager::OnTimeoutReached() {
 }
 
 DenseSet<AmountExtractionManager::EligibleFeature>
-AmountExtractionManager::CheckEligiblilityForFeaturesRequiringAmountExtraction()
+AmountExtractionManager::CheckEligibilityForFeaturesRequiringAmountExtraction()
     const {
   DenseSet<EligibleFeature> eligible_features;
 

@@ -9,7 +9,6 @@ import static org.chromium.android_webview.test.AwActivityTestRule.CHECK_INTERVA
 import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
-import android.os.Build;
 import android.os.ResultReceiver;
 import android.util.Pair;
 import android.view.Window;
@@ -30,7 +29,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
 import org.chromium.android_webview.AwContents;
-import org.chromium.android_webview.gfx.AwGLFunctor;
+import org.chromium.android_webview.gfx.AwDrawFnImpl;
 import org.chromium.android_webview.test.AwActivityTestRule.TestDependencyFactory;
 import org.chromium.base.BaseFeatures;
 import org.chromium.base.ThreadUtils;
@@ -402,9 +401,7 @@ public class AwContentsGarbageCollectionTest extends AwParameterizedTest {
 
             gcAndCheckAllAwContentsDestroyed();
         } finally {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                Reference.reachabilityFence(heldObject);
-            }
+            Reference.reachabilityFence(heldObject);
         }
     }
 
@@ -425,7 +422,7 @@ public class AwContentsGarbageCollectionTest extends AwParameterizedTest {
                                         () -> {
                                             return Pair.create(
                                                     AwContents.getNativeInstanceCount(),
-                                                    AwGLFunctor.getNativeInstanceCount());
+                                                    AwDrawFnImpl.getReferenceInstanceCount());
                                         });
                     } catch (Exception e) {
                         throw new CriteriaNotSatisfiedException(e);
@@ -433,7 +430,7 @@ public class AwContentsGarbageCollectionTest extends AwParameterizedTest {
                     Criteria.checkThat(
                             "AwContents count", (int) nativeCounts.first, Matchers.is(0));
                     Criteria.checkThat(
-                            "AwGLFunctor count", (int) nativeCounts.second, Matchers.is(0));
+                            "DrawFunctor count", (int) nativeCounts.second, Matchers.is(0));
                 };
 
         // Depending on a single gc call can make this test flaky. It's possible

@@ -27,14 +27,11 @@
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/memory_usage_estimator.h"  // no-presubmit-check
+#include "base/trace_event/trace_event.h"
 #include "base/tracing_buildflags.h"
 #include "base/types/pass_key.h"
 #include "base/types/to_address.h"
-
-#if BUILDFLAG(ENABLE_BASE_TRACING)
-#include "base/trace_event/memory_usage_estimator.h"  // no-presubmit-check
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 namespace base {
 
@@ -934,25 +931,19 @@ std::optional<Value> DictValue::ExtractByDottedPath(std::string_view path) {
 }
 
 size_t DictValue::EstimateMemoryUsage() const {
-#if BUILDFLAG(ENABLE_BASE_TRACING)
   return base::trace_event::EstimateMemoryUsage(storage_);
-#else   // BUILDFLAG(ENABLE_BASE_TRACING)
-  return 0;
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 }
 
 std::string DictValue::DebugString() const {
   return DebugStringImpl(*this);
 }
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
 void DictValue::WriteIntoTrace(perfetto::TracedValue context) const {
   perfetto::TracedDictionary dict = std::move(context).WriteDictionary();
   for (auto kv : *this) {
     dict.Add(perfetto::DynamicString(kv.first), kv.second);
   }
 }
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 bool operator==(const DictValue& lhs, const DictValue& rhs) {
   auto deref_2nd = [](const auto& p) { return std::tie(p.first, *p.second); };
@@ -1281,25 +1272,19 @@ size_t ListValue::EraseValue(const Value& value) {
 }
 
 size_t ListValue::EstimateMemoryUsage() const {
-#if BUILDFLAG(ENABLE_BASE_TRACING)
   return base::trace_event::EstimateMemoryUsage(storage_);
-#else   // BUILDFLAG(ENABLE_BASE_TRACING)
-  return 0;
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 }
 
 std::string ListValue::DebugString() const {
   return DebugStringImpl(*this);
 }
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
 void ListValue::WriteIntoTrace(perfetto::TracedValue context) const {
   perfetto::TracedArray array = std::move(context).WriteArray();
   for (const auto& item : *this) {
     array.Append(item);
   }
 }
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 ListValue::ListValue(const std::vector<Value>& storage) {
   storage_.reserve(storage.size());
@@ -1339,7 +1324,6 @@ bool Value::operator==(const ListValue& rhs) const {
 
 size_t Value::EstimateMemoryUsage() const {
   switch (type()) {
-#if BUILDFLAG(ENABLE_BASE_TRACING)
     case Type::STRING:
       return base::trace_event::EstimateMemoryUsage(GetString());
     case Type::BINARY:
@@ -1348,7 +1332,6 @@ size_t Value::EstimateMemoryUsage() const {
       return GetDict().EstimateMemoryUsage();
     case Type::LIST:
       return GetList().EstimateMemoryUsage();
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
     default:
       return 0;
   }
@@ -1358,7 +1341,6 @@ std::string Value::DebugString() const {
   return DebugStringImpl(*this);
 }
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
 void Value::WriteIntoTrace(perfetto::TracedValue context) const {
   Visit([&](const auto& member) {
     using T = std::decay_t<decltype(member)>;
@@ -1381,7 +1363,6 @@ void Value::WriteIntoTrace(perfetto::TracedValue context) const {
     }
   });
 }
-#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 ValueView::ValueView(const Value& value)
     : data_view_(

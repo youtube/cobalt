@@ -21,6 +21,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
@@ -56,6 +57,27 @@ ToastController::ToastController(
       toast_registry_(toast_registry) {}
 
 ToastController::~ToastController() = default;
+
+// static.
+ToastController* ToastController::MaybeGetForWebContents(
+    content::WebContents* web_contents) {
+  if (!web_contents) {
+    return nullptr;
+  }
+
+  auto* tab_interface = tabs::TabInterface::MaybeGetFromContents(web_contents);
+  if (!tab_interface) {
+    return nullptr;
+  }
+
+  BrowserWindowInterface* bwi = tab_interface->GetBrowserWindowInterface();
+
+  if (!bwi) {
+    return nullptr;
+  }
+
+  return bwi->GetFeatures().toast_controller();
+}
 
 void ToastController::Init() {
   CHECK(browser_window_interface_);
@@ -123,6 +145,10 @@ void ToastController::OnWidgetActivationChanged(views::Widget* widget,
 #endif
 
 void ToastController::OnWidgetDestroyed(views::Widget* widget) {
+  // Inform subscribers that Widget was destroyed. Pass in toast_id_ before it
+  // is set to null.
+  on_widget_destroyed_callbacks_.Notify(currently_showing_toast_id_.value());
+
   currently_showing_toast_id_ = std::nullopt;
   toast_view_ = nullptr;
   toast_widget_ = nullptr;
@@ -131,7 +157,7 @@ void ToastController::OnWidgetDestroyed(views::Widget* widget) {
   toast_close_timer_.Stop();
 
   if (browser_window_interface_ &&
-      browser_window_interface_->IsAttemptingToCloseBrowser()) {
+      browser_window_interface_->capabilities()->IsAttemptingToCloseBrowser()) {
     // Clear any queued toasts to prevent them from showing
     // after an existing toast is destroyed while the browser is trying to
     // close.
@@ -143,6 +169,11 @@ void ToastController::OnWidgetDestroyed(views::Widget* widget) {
     ShowToast(std::move(next_toast_params_.value()));
     next_toast_params_ = std::nullopt;
   }
+}
+
+base::CallbackListSubscription ToastController::RegisterOnWidgetDestroyed(
+    WidgetDestroyedCallback callback) {
+  return on_widget_destroyed_callbacks_.Add(std::move(callback));
 }
 
 void ToastController::PrimaryPageChanged(content::Page& page) {

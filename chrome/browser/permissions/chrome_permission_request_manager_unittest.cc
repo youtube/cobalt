@@ -32,9 +32,9 @@
 #include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_request_manager.h"
-#include "components/permissions/permission_ui_selector.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permissions_client.h"
+#include "components/permissions/prediction_service/permission_ui_selector.h"
 #include "components/permissions/pref_names.h"
 #include "components/permissions/request_type.h"
 #include "components/permissions/test/mock_permission_prompt_factory.h"
@@ -48,7 +48,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_manager.h"
+#include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #endif
 
@@ -144,10 +144,10 @@ class ChromePermissionRequestManagerTest
     auto scoped_user_manager =
         std::make_unique<user_manager::ScopedUserManager>(
             std::move(fake_user_manager));
-    user_manager->AddWebKioskAppUser(account_id);
+    user_manager->AddKioskWebAppUser(account_id);
     user_manager->LoginUser(account_id);
 
-    auto kiosk_app_manager = std::make_unique<ash::WebKioskAppManager>();
+    auto kiosk_app_manager = std::make_unique<ash::KioskWebAppManager>();
     kiosk_app_manager->AddAppForTesting(account_id, app_url);
 
     NavigateAndCommit(url);

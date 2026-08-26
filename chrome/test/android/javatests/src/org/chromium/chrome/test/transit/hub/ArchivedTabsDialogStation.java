@@ -14,8 +14,6 @@ import android.view.View;
 
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.chromium.base.test.transit.Station;
-import org.chromium.base.test.transit.Transition.Trigger;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -23,10 +21,12 @@ import org.chromium.chrome.browser.tab.TabArchiveSettings;
 import org.chromium.chrome.browser.tasks.tab_management.ArchivedTabsDialogCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabArchiveSettingsFragment;
 import org.chromium.chrome.test.R;
+import org.chromium.chrome.test.transit.ChromeActivityTabModelBoundStation;
 import org.chromium.chrome.test.transit.settings.SettingsStation;
 
 /** The station for the archived tabs dialog. */
-public class ArchivedTabsDialogStation extends Station<ChromeTabbedActivity> {
+public class ArchivedTabsDialogStation
+        extends ChromeActivityTabModelBoundStation<ChromeTabbedActivity> {
     private final TabArchiveSettings mTabArchiveSettings;
 
     public ViewElement<View> dialogElement;
@@ -35,7 +35,7 @@ public class ArchivedTabsDialogStation extends Station<ChromeTabbedActivity> {
     public ViewElement<View> iphElement;
 
     public ArchivedTabsDialogStation() {
-        super(ChromeTabbedActivity.class);
+        super(ChromeTabbedActivity.class, /* isIncognito= */ false);
         mTabArchiveSettings =
                 runOnUiThreadBlocking(
                         () -> new TabArchiveSettings(ChromeSharedPreferences.getInstance()));
@@ -57,16 +57,16 @@ public class ArchivedTabsDialogStation extends Station<ChromeTabbedActivity> {
         }
     }
 
-    public SettingsStation<TabArchiveSettingsFragment> openSettings(Trigger settingsTrigger) {
+    public SettingsStation<TabArchiveSettingsFragment> openSettings(Runnable settingsTrigger) {
         assert mTabArchiveSettings.shouldShowDialogIph();
-        return travelToSync(
-                new SettingsStation<>(TabArchiveSettingsFragment.class), settingsTrigger);
+        return runTo(settingsTrigger)
+                .arriveAt(new SettingsStation<>(TabArchiveSettingsFragment.class));
     }
 
     public RegularTabSwitcherStation closeDialog() {
-        return travelToSync(
-                RegularTabSwitcherStation.from(getActivity().getTabModelSelector()),
-                closeButtonElement.getClickTrigger());
+        return closeButtonElement
+                .clickTo()
+                .arriveAt(RegularTabSwitcherStation.from(tabModelSelectorElement.get()));
     }
 
     // Private functions.

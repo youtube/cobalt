@@ -16,6 +16,7 @@
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "components/viz/test/buildflags.h"
 #include "components/viz/test/paths.h"
+#include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/client/raster_interface.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -74,7 +75,7 @@ class LayerTreeHostReadbackPixelTest
       DCHECK_NE(renderer_type_, viz::RendererType::kSoftware);
       request = std::make_unique<viz::CopyOutputRequest>(
           viz::CopyOutputRequest::ResultFormat::RGBA,
-          viz::CopyOutputRequest::ResultDestination::kNativeTextures,
+          viz::CopyOutputRequest::ResultDestination::kSharedImage,
           base::BindOnce(
               &LayerTreeHostReadbackPixelTest::ReadbackResultAsTexture,
               base::Unretained(this)));
@@ -107,9 +108,10 @@ class LayerTreeHostReadbackPixelTest
     PostSetNeedsCommitToMainThread();
   }
 
-  void CleanupBeforeDestroy() override {
+  void AfterTest() override {
     // Avoid extending the lifetime of the context.
     context_provider_.reset();
+    LayerTreePixelTest::AfterTest();
   }
 
   void DidCommitAndDrawFrame() override {
@@ -155,14 +157,16 @@ class LayerTreeHostReadbackPixelTest
     ASSERT_FALSE(result->IsEmpty());
     ASSERT_EQ(result->format(), viz::CopyOutputResult::Format::RGBA);
     ASSERT_EQ(result->destination(),
-              viz::CopyOutputResult::Destination::kNativeTextures);
+              viz::CopyOutputResult::Destination::kSharedImage);
 
-    gpu::Mailbox mailbox = result->GetTextureResult()->mailbox;
-    gfx::ColorSpace color_space = result->GetTextureResult()->color_space;
+    scoped_refptr<gpu::ClientSharedImage> shared_image =
+        result->GetSharedImage();
+    gpu::Mailbox mailbox = shared_image->mailbox();
+    gfx::ColorSpace color_space = shared_image->color_space();
     EXPECT_EQ(color_space, output_color_space_);
 
     viz::CopyOutputResult::ReleaseCallbacks release_callbacks =
-        result->TakeTextureOwnership();
+        result->TakeSharedImageOwnership();
     EXPECT_EQ(1u, release_callbacks.size());
 
     SkBitmap bitmap = CopyMailboxToBitmap(result->size(), mailbox, color_space);

@@ -10,6 +10,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -22,6 +23,7 @@
 #include "chrome/browser/ui/views/autofill/payments/dialog_view_ids.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
+#include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
@@ -102,18 +104,21 @@ bool SaveCardOfferBubbleViews::Accept() {
   }
 
   if (controller()) {
-    controller()->OnSaveButton(
-        {cardholder_name_textfield_
-             ? std::u16string(cardholder_name_textfield_->GetText())
-             : std::u16string(),
-         month_input_dropdown_
-             ? month_input_dropdown_->GetModel()->GetItemAt(
-                   month_input_dropdown_->GetSelectedIndex().value())
-             : std::u16string(),
-         year_input_dropdown_
-             ? year_input_dropdown_->GetModel()->GetItemAt(
-                   year_input_dropdown_->GetSelectedIndex().value())
-             : std::u16string()});
+    payments::PaymentsAutofillClient::UserProvidedCardDetails details;
+    if (cardholder_name_textfield_) {
+      details.cardholder_name = cardholder_name_textfield_->GetText();
+    }
+    if (month_input_dropdown_) {
+      details.expiration_date_month =
+          month_input_dropdown_->GetModel()->GetItemAt(
+              month_input_dropdown_->GetSelectedIndex().value());
+    }
+    if (year_input_dropdown_) {
+      details.expiration_date_year =
+          year_input_dropdown_->GetModel()->GetItemAt(
+              year_input_dropdown_->GetSelectedIndex().value());
+    }
+    controller()->OnSaveButton(details);
   }
 
   // If a throbber is shown, don't automatically close the bubble view upon
@@ -164,35 +169,26 @@ bool SaveCardOfferBubbleViews::IsDialogButtonEnabled(
 
 void SaveCardOfferBubbleViews::AddedToWidget() {
   SaveCardBubbleViews::AddedToWidget();
-  // Set the header image.
-  ui::ResourceBundle& bundle = ui::ResourceBundle::GetSharedInstance();
-  int light_mode_banner_id;
-  int dark_mode_banner_id;
-
+  int lottie_resource_id;
   switch (controller()->GetBubbleType()) {
     case BubbleType::UPLOAD_SAVE:
     case BubbleType::UPLOAD_IN_PROGRESS:
     case BubbleType::UPLOAD_COMPLETED:
-      // Updated banner/text pairs are for upload save only.
-      light_mode_banner_id = IDR_SAVE_CARD_SECURITY;
-      dark_mode_banner_id = IDR_SAVE_CARD_SECURITY_DARK;
+      lottie_resource_id = IDR_AUTOFILL_SAVE_CARD_SECURE_LOTTIE;
       break;
     case BubbleType::LOCAL_CVC_SAVE:
     case BubbleType::UPLOAD_CVC_SAVE:
-      // CVC bubbles show their own CVC-based banner image.
-      light_mode_banner_id = IDR_SAVE_CVC;
-      dark_mode_banner_id = IDR_SAVE_CVC_DARK;
+      lottie_resource_id = IDR_AUTOFILL_SAVE_SECURITY_CODE_LOTTIE;
       break;
     default:
-      light_mode_banner_id = IDR_SAVE_CARD;
-      dark_mode_banner_id = IDR_SAVE_CARD_DARK;
+      lottie_resource_id = IDR_AUTOFILL_SAVE_CARD_LOCAL_LOTTIE;
   }
 
-  auto image_view = std::make_unique<ThemeTrackingNonAccessibleImageView>(
-      *bundle.GetImageSkiaNamed(light_mode_banner_id),
-      *bundle.GetImageSkiaNamed(dark_mode_banner_id),
-      base::BindRepeating(&views::BubbleDialogDelegate::background_color,
-                          base::Unretained(this)));
+  // Set the header image.
+  ui::ResourceBundle& bundle = ui::ResourceBundle::GetSharedInstance();
+  auto image_view = std::make_unique<views::ImageView>(
+      bundle.GetThemedLottieImageNamed(lottie_resource_id));
+  image_view->GetViewAccessibility().SetIsInvisible(true);
   GetBubbleFrameView()->SetHeaderView(std::move(image_view));
 }
 

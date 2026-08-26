@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "base/auto_reset.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -36,6 +37,7 @@
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/credit_card_save_metrics.h"
+#include "components/autofill/core/browser/metrics/payments/credit_card_save_metrics_desktop.h"
 #include "components/autofill/core/browser/metrics/payments/manage_cards_prompt_metrics.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
@@ -111,7 +113,7 @@ void SaveCardBubbleControllerImpl::OfferLocalSave(
           : BubbleType::LOCAL_SAVE;
 
   if (options.show_prompt) {
-    ShowBubble();
+    SetupAndShowBubble();
   } else {
     ShowIconOnly();
   }
@@ -157,7 +159,7 @@ void SaveCardBubbleControllerImpl::OfferUploadSave(
   }
 
   if (options_.show_prompt) {
-    ShowBubble();
+    SetupAndShowBubble();
   } else {
     ShowIconOnly();
   }
@@ -168,7 +170,7 @@ void SaveCardBubbleControllerImpl::ShowBubbleForManageCardsForTesting(
     const CreditCard& card) {
   card_ = card;
   current_bubble_type_ = BubbleType::MANAGE_CARDS;
-  ShowBubble();
+  SetupAndShowBubble();
 }
 
 void SaveCardBubbleControllerImpl::ReshowBubble(
@@ -180,7 +182,7 @@ void SaveCardBubbleControllerImpl::ReshowBubble(
 
   is_reshow_ = true;
   is_triggered_by_user_gesture_ = is_triggered_by_user_gesture;
-  ShowBubble();
+  SetupAndShowBubble();
 }
 
 void SaveCardBubbleControllerImpl::ShowConfirmationBubbleView(
@@ -202,7 +204,7 @@ void SaveCardBubbleControllerImpl::ShowConfirmationBubbleView(
   on_confirmation_closed_callback_ = std::move(on_confirmation_closed_callback);
 
   // Show upload confirmation bubble.
-  ShowBubble();
+  SetupAndShowBubble();
 
   // Auto close confirmation bubble when card saved is successful.
   if (card_saved) {
@@ -741,6 +743,11 @@ void SaveCardBubbleControllerImpl::DoShowBubble() {
   switch (current_bubble_type_) {
     case BubbleType::UPLOAD_SAVE:
     case BubbleType::LOCAL_SAVE:
+      if (!is_reshow_) {
+        autofill_metrics::LogSaveCreditCardPromptOfferMetricDesktop(
+            autofill_metrics::SaveCardPromptOffer::kShown, is_upload_save_,
+            /*save_credit_card_options=*/options_);
+      }
       autofill_metrics::LogSaveCardPromptOfferMetric(
           autofill_metrics::SaveCardPromptOffer::kShown, is_upload_save_,
           is_reshow_, options_,
@@ -767,7 +774,7 @@ void SaveCardBubbleControllerImpl::DoShowBubble() {
   }
 }
 
-void SaveCardBubbleControllerImpl::ShowBubble() {
+void SaveCardBubbleControllerImpl::SetupAndShowBubble() {
   CHECK(current_bubble_type_ != BubbleType::INACTIVE);
   // Upload save callback should not be null for UPLOAD_SAVE or
   // UPLOAD_CVC_SAVE state.
@@ -780,7 +787,7 @@ void SaveCardBubbleControllerImpl::ShowBubble() {
         (current_bubble_type_ != BubbleType::LOCAL_SAVE &&
          current_bubble_type_ != BubbleType::LOCAL_CVC_SAVE));
   CHECK(!bubble_view());
-  Show();
+  ShowBubble();
 }
 
 void SaveCardBubbleControllerImpl::ShowIconOnly() {
@@ -804,6 +811,11 @@ void SaveCardBubbleControllerImpl::ShowIconOnly() {
   switch (current_bubble_type_) {
     case BubbleType::UPLOAD_SAVE:
     case BubbleType::LOCAL_SAVE:
+      if (!is_reshow_) {
+        autofill_metrics::LogSaveCreditCardPromptOfferMetricDesktop(
+            autofill_metrics::SaveCardPromptOffer::kNotShownMaxStrikesReached,
+            is_upload_save_, /*save_credit_card_options=*/options_);
+      }
       autofill_metrics::LogSaveCardPromptOfferMetric(
           autofill_metrics::SaveCardPromptOffer::kNotShownMaxStrikesReached,
           is_upload_save_, is_reshow_, options_,

@@ -5,18 +5,27 @@
 #ifndef IOS_CHROME_BROWSER_NTP_UI_BUNDLED_NEW_TAB_PAGE_HEADER_CONSUMER_H_
 #define IOS_CHROME_BROWSER_NTP_UI_BUNDLED_NEW_TAB_PAGE_HEADER_CONSUMER_H_
 
-#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 
-@protocol LogoVendor;
+@class NewTabPageColorPalette;
+enum class SearchEngineLogoState;
+@class SearchEngineLogoMediator;
 
 // Handles updates to the NTP header.
 @protocol NewTabPageHeaderConsumer <NSObject>
 
 // Whether the Google logo or doodle is being shown.
-- (void)setLogoIsShowing:(BOOL)logoIsShowing;
+- (void)setSearchEngineLogoState:(SearchEngineLogoState)logoState;
 
 // Exposes view and methods to drive the doodle.
-- (void)setLogoVendor:(id<LogoVendor>)logoVendor;
+// TODO(crbug.com/423883582): The mediator should not be passed to the
+// consumer.
+- (void)setSearchEngineLogoMediator:
+    (SearchEngineLogoMediator*)searchEngineLogoMediator;
+
+// Sets the color for the monochrome logo. Pass `nil` to display the color
+// version.
+- (void)updateLogoColor:(UIColor*)logoTintColor;
 
 // Sets whether voice search is currently enabled.
 - (void)setVoiceSearchIsEnabled:(BOOL)voiceSearchIsEnabled;
@@ -25,6 +34,15 @@
 - (void)updateADPBadgeWithErrorFound:(BOOL)hasAccountError
                                 name:(NSString*)name
                                email:(NSString*)email;
+
+// Sets the default search engine name for display.
+- (void)setDefaultSearchEngineName:(NSString*)dseName;
+
+// Sets the default search engine icon for display.
+- (void)setDefaultSearchEngineImage:(UIImage*)image;
+
+// Whether AIM is allowed.
+- (void)setAIMAllowed:(BOOL)allowed;
 
 @end
 

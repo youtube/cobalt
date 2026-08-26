@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/profiles/profile_ui_test_utils.h"
 #include "chrome/browser/ui/views/profiles/profile_management_step_controller.h"
+#include "chrome/browser/ui/views/profiles/profile_management_types.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_view.h"
 #include "chrome/browser/ui/webui/signin/managed_user_profile_notice_handler.h"
 #include "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.h"
@@ -49,7 +50,9 @@ class TestProfileManagementFlowController
       Step step,
       ProfileManagementStepTestView::StepControllerFactory factory,
       base::OnceClosure initial_step_load_finished_closure)
-      : ProfileManagementFlowController(host, std::move(clear_host_callback)),
+      : ProfileManagementFlowController(host,
+                                        std::move(clear_host_callback),
+                                        /*flow_type_string==*/"TestFlow"),
         step_(step),
         step_controller_factory_(std::move(factory)),
         initial_step_load_finished_closure_(
@@ -60,9 +63,9 @@ class TestProfileManagementFlowController
     SwitchToStep(
         step_, /*reset_state=*/true,
         /*step_switch_finished_callback=*/
-        base::BindOnce(
+        StepSwitchFinishedCallback(base::BindOnce(
             &TestProfileManagementFlowController::OnInitialStepSwitchFinished,
-            weak_ptr_factory_.GetWeakPtr()));
+            weak_ptr_factory_.GetWeakPtr())));
   }
 
   void OnInitialStepSwitchFinished(bool success) {
@@ -82,8 +85,10 @@ class TestProfileManagementFlowController
 
   void CancelPostSignInFlow() override { NOTREACHED(); }
 
-  void PickProfile(const base::FilePath& profile_path,
-                   ProfilePicker::ProfilePickingArgs args) override {
+  void PickProfile(
+      const base::FilePath& profile_path,
+      ProfilePicker::ProfilePickingArgs args,
+      base::OnceCallback<void(bool)> pick_profile_complete_callback) override {
     NOTREACHED();
   }
 

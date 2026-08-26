@@ -44,8 +44,8 @@
 #include "content/renderer/render_thread_impl.h"
 #include "content/renderer/skia_benchmarking_extension.h"
 #include "gin/arguments.h"
-#include "gin/handle.h"
 #include "gin/object_template_builder.h"
+#include "gin/public/wrappable_pointer_tags.h"
 #include "gpu/config/gpu_driver_bug_workaround_type.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "skia/ext/codec_utils.h"
@@ -72,7 +72,9 @@
 #include "ui/events/base_event_utils.h"
 #include "ui/gfx/ca_layer_result.h"
 #include "ui/gfx/geometry/size_f.h"
+#include "v8/include/cppgc/allocation.h"
 #include "v8/include/v8-context.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8-exception.h"
 #include "v8/include/v8-function.h"
 #include "v8/include/v8-isolate.h"
@@ -591,8 +593,6 @@ static sk_sp<SkDocument> MakeXPSDocument(SkWStream* s) {
 #endif
 }  // namespace
 
-gin::WrapperInfo GpuBenchmarking::kWrapperInfo = {gin::kEmbedderNativeGin};
-
 // static
 void GpuBenchmarking::Install(base::WeakPtr<RenderFrameImpl> frame) {
   v8::Isolate* isolate =
@@ -605,15 +605,13 @@ void GpuBenchmarking::Install(base::WeakPtr<RenderFrameImpl> frame) {
 
   v8::Context::Scope context_scope(context);
 
-  gin::Handle<GpuBenchmarking> controller =
-      gin::CreateHandle(isolate, new GpuBenchmarking(frame));
-  if (controller.IsEmpty())
-    return;
+  auto* controller = cppgc::MakeGarbageCollected<GpuBenchmarking>(
+      isolate->GetCppHeap()->GetAllocationHandle(), frame);
+  v8::Local<v8::Object> wrapper =
+      controller->GetWrapper(isolate).ToLocalChecked();
 
   v8::Local<v8::Object> chrome = GetOrCreateChromeObject(isolate, context);
-  chrome
-      ->Set(context, gin::StringToV8(isolate, "gpuBenchmarking"),
-            controller.ToV8())
+  chrome->Set(context, gin::StringToV8(isolate, "gpuBenchmarking"), wrapper)
       .Check();
 }
 
@@ -720,6 +718,10 @@ void GpuBenchmarking::SetRasterizeOnlyVisibleContent() {
   cc::LayerTreeDebugState current = context.layer_tree_host()->GetDebugState();
   current.rasterize_only_visible_content = true;
   context.layer_tree_host()->SetDebugState(current);
+}
+
+const gin::WrapperInfo* GpuBenchmarking::wrapper_info() const {
+  return &kWrapperInfo;
 }
 
 namespace {

@@ -8,7 +8,7 @@
 #include <iterator>
 #include <optional>
 
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/rand_util.h"
 #include "base/time/time.h"
 #include "components/sync/protocol/webauthn_credential_specifics.pb.h"
@@ -197,6 +197,21 @@ bool TestPasskeyModel::UpdatePasskeyTimestamp(const std::string& credential_id,
       last_used_time.ToDeltaSinceWindowsEpoch().InMicroseconds());
   NotifyPasskeysChanged({PasskeyModelChange(
       PasskeyModelChange::ChangeType::UPDATE, *credential_it)});
+  return true;
+}
+
+bool TestPasskeyModel::UpdatePasskeyEncryptedBlob(
+    const std::string& credential_id,
+    const std::string& new_encrypted_blob) {
+  auto it =
+      std::ranges::find(credentials_, credential_id,
+                        &sync_pb::WebauthnCredentialSpecifics::credential_id);
+  if (it == credentials_.end()) {
+    return false;
+  }
+  it->set_encrypted(new_encrypted_blob);
+  NotifyPasskeysChanged(
+      {PasskeyModelChange(PasskeyModelChange::ChangeType::UPDATE, *it)});
   return true;
 }
 

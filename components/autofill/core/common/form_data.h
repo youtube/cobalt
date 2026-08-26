@@ -208,8 +208,7 @@ class FormData {
   void set_url(GURL url) { url_ = std::move(url); }
 
   // The full URL, including query parameters and fragment.
-  // If `kAutofillIncludeUrlInCrowdsourcing` is disabled, this value should only
-  // be set for password forms. This value should not be sent via mojo.
+  // This value should not be sent via mojo.
   const GURL& full_url() const { return full_url_; }
   void set_full_url(GURL full_url) { full_url_ = std::move(full_url); }
 
@@ -289,7 +288,8 @@ class FormData {
   //
   // Usually, FormFieldData::global_id() (in the browser process) and
   // FormFieldData::renderer_id (in the renderer process) uniquely identify
-  // objects in `fields`. This is reliable enough for practical purposes.
+  // objects in `fields`. This is reliable enough for practical purposes, but
+  // not guaranteed.
   //
   // Collisions are possible in rare cases. Two known scenarios are:
   // - The renderer is compromised and sends duplicates.
@@ -374,8 +374,14 @@ class FormData {
 // Whether any of the fields in |form| is a non-empty password field.
 bool FormHasNonEmptyPasswordField(const FormData& form);
 
-// For testing.
 std::ostream& operator<<(std::ostream& os, const FormData& form);
+
+namespace internal {
+std::ostream& PrintWithIndentation(std::ostream& os,
+                                   const FormData& field,
+                                   int indentation,
+                                   std::string_view title = "FormData");
+}  // namespace internal
 
 #if defined(UNIT_TEST)
 inline bool operator==(const FormData& lhs, const FormData& rhs) {

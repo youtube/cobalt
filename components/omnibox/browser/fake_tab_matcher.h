@@ -6,6 +6,7 @@
 #define COMPONENTS_OMNIBOX_BROWSER_FAKE_TAB_MATCHER_H_
 
 #include <string>
+#include <vector>
 
 #include "components/omnibox/browser/tab_matcher.h"
 
@@ -27,8 +28,7 @@ class FakeTabMatcher : public TabMatcher {
 
   // TabMatcher implementation.
   bool IsTabOpenWithURL(const GURL& url,
-                        const AutocompleteInput* input,
-                        bool exclude_active_tab = true) const override;
+                        const AutocompleteInput* input) const override;
   std::vector<TabMatcher::TabWrapper> GetOpenTabs(
       const AutocompleteInput* input,
       bool exclude_active_tab = true) const override;

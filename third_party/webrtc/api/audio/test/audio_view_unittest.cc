@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "api/array_view.h"
-#include "rtc_base/arraysize.h"
 #include "test/gtest.h"
 
 namespace webrtc {
@@ -210,7 +209,7 @@ TEST(AudioViewTest, DeinterleavedViewPointerArray) {
   // Test that the same thing works with T* const *.
   float* channel_array[] = {&v1[0], &v2[0], &v3[0], &v4[0]};
   di = DeinterleavedView<float>(channel_array, v1.size(),
-                                arraysize(channel_array));
+                                std::size(channel_array));
   EXPECT_EQ(NumChannels(di), channels.size());
   EXPECT_EQ(SamplesPerChannel(di), v1.size());
   EXPECT_EQ(di[0].data(), v1.data());

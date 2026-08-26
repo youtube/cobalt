@@ -28,6 +28,9 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * Coordinator class for UI layers in the bottom browser controls. This class manages the relative
  * y-axis position for every registered bottom control elements, and their background colors.
+ *
+ * <p>Background colors are automatically coordinated based on layer positioning - the bottom-most
+ * visible layer that provides a background color will be used for the entire bottom controls.
  */
 @NullMarked
 public class BottomControlsStacker implements BrowserControlsStateProvider.Observer {
@@ -142,10 +145,10 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
 
     private int mTotalHeight = INVALID_HEIGHT;
     private int mTotalMinHeight = INVALID_HEIGHT;
-    private int mTotalHeightFromSetter = INVALID_HEIGHT;
-    private int mTotalMinHeightFromSetter = INVALID_HEIGHT;
 
     private @Nullable BrowserControlsOffsetTagsInfo mOffsetTagsInfo;
+
+    private @ColorInt int mCurrentBackgroundColor;
 
     // The default state is used before any visibility constraint changes occur (ex. reopening
     // chrome after it has been closed.) It must be set to SHOWN to allow the browser to initialize
@@ -247,11 +250,10 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
      * @param animate Whether animate the browser controls size change.
      */
     public void requestLayerUpdate(boolean animate) {
-        assert isEnabled();
-
         updateLayerVisibilitiesAndSizes();
         updateBrowserControlsHeight(animate);
-        if (mBrowserControlsSizer.offsetOverridden() && isDispatchingYOffset()) {
+        updateBackgroundColorFromLayers();
+        if (mBrowserControlsSizer.offsetOverridden()) {
             repositionLayers(
                     mBrowserControlsSizer.getBottomControlOffset(),
                     mBrowserControlsSizer.getBottomControlsMinHeightOffset(),
@@ -278,42 +280,43 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
     }
 
     /**
-     * Note: New callers should just use #requestLayerUpdate directly.
-     *
-     * <p>Request update the bottom controls height. Internally, the call is routed to the inner
-     * {@link BrowserControlsSizer}.
-     *
-     * @param height The new height for the bottom browser controls
-     * @param minHeight The new min height for the bottom browser controls.
-     * @param animate Whether the height change required to be animated.
-     * @see BrowserControlsSizer#setBottomControlsHeight(int, int)
-     * @see BrowserControlsSizer#setAnimateBrowserControlsHeightChanges(boolean)
-     */
-    public void setBottomControlsHeight(int height, int minHeight, boolean animate) {
-        mTotalHeightFromSetter = height;
-        mTotalMinHeightFromSetter = minHeight;
-
-        if (!isEnabled()) {
-            mBrowserControlsSizer.setBottomControlsHeight(height, minHeight);
-        } else {
-            requestLayerUpdate(animate);
-            // Verify the height and min height match the layer setup.
-            logIfHeightMismatch(
-                    /* expected= */ "HeightFromSetter",
-                    mTotalHeightFromSetter,
-                    mTotalMinHeightFromSetter,
-                    /* actual= */ "LayerHeightCalc",
-                    mTotalHeight,
-                    mTotalMinHeight);
-        }
-    }
-
-    /**
      * @see BrowserControlsSizer#notifyBackgroundColor(int).
      */
     public void notifyBackgroundColor(@ColorInt int color) {
-        // TODO(crbug.com/345488108): Handle #notifyBackgroundColor in this class.
+        mCurrentBackgroundColor = color;
         mBrowserControlsSizer.notifyBackgroundColor(color);
+    }
+
+    /**
+     * Updates the background color based on the currently visible layers. The color is determined
+     * by the bottom-most visible layer that provides a background color.
+     */
+    private void updateBackgroundColorFromLayers() {
+        @ColorInt int newBackgroundColor = 0;
+
+        // Find the bottom-most visible layer that provides a background color
+        // Iterate through layers in reverse stack order (bottom to top).
+        for (int i = STACK_ORDER.length - 1; i >= 0; i--) {
+            int layerType = STACK_ORDER[i];
+            BottomControlsLayer layer = mLayers.get(layerType);
+
+            if (layer == null || !mLayerVisibilities.get(layerType)) {
+                continue;
+            }
+
+            Integer layerColor = layer.getBackgroundColor();
+            if (layerColor != null && layerColor != 0) {
+                newBackgroundColor = layerColor;
+                break;
+            }
+        }
+
+        // Only notify if the color has changed.
+        // TODO(crbug.com/430084697): Properly handle cases when newBackgroundColor == 0.
+        if (newBackgroundColor != mCurrentBackgroundColor && newBackgroundColor != 0) {
+            mCurrentBackgroundColor = newBackgroundColor;
+            mBrowserControlsSizer.notifyBackgroundColor(mCurrentBackgroundColor);
+        }
     }
 
     /**
@@ -332,37 +335,15 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
     @Override
     public void onBottomControlsHeightChanged(
             int bottomControlsHeight, int bottomControlsMinHeight) {
-        // Use warning instead of assert, as there are still use cases that's referenced
-        // from custom tabs.
-        logIfHeightMismatch(
-                /* expected= */ "HeightFromSetter",
-                mTotalHeightFromSetter,
-                mTotalMinHeightFromSetter,
-                /* actual= */ "onBottomControlsHeightChanged",
-                bottomControlsHeight,
-                bottomControlsMinHeight);
-
-        // Verification when we are using layers.
-        if (isEnabled()) {
-            logIfHeightMismatch(
-                    /* expected= */ "LayerHeightCalc",
-                    mTotalHeight,
-                    mTotalMinHeight,
-                    /* actual= */ "onBottomControlsHeightChanged",
-                    bottomControlsHeight,
-                    bottomControlsMinHeight);
-
-            // If animations are enabled, calls to #onControlsOffsetChanged will reposition the
-            // layers. If animations aren't enabled, no such calls will occur, and #repositionLayers
-            // should be triggered here.
-            if (isDispatchingYOffset()
-                    && !mBrowserControlsSizer.shouldAnimateBrowserControlsHeightChanges()) {
-                repositionLayers(
-                        mBrowserControlsSizer.getBottomControlOffset(),
-                        mBrowserControlsSizer.getBottomControlsMinHeightOffset(),
-                        false,
-                        isVisibilityForced());
-            }
+        // If animations are enabled, calls to #onControlsOffsetChanged will reposition the
+        // layers. If animations aren't enabled, no such calls will occur, and #repositionLayers
+        // should be triggered here.
+        if (!mBrowserControlsSizer.shouldAnimateBrowserControlsHeightChanges()) {
+            repositionLayers(
+                    mBrowserControlsSizer.getBottomControlOffset(),
+                    mBrowserControlsSizer.getBottomControlsMinHeightOffset(),
+                    false,
+                    isVisibilityForced());
         }
     }
 
@@ -394,7 +375,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
             offsetTagsInfo.mBottomControlsConstraints =
                     new OffsetTagConstraints(0, 0, 0, totalHeight + additionalHeight);
 
-            if (shouldUpdateOffsets && isDispatchingYOffset()) {
+            if (shouldUpdateOffsets) {
                 repositionLayers(
                         mBrowserControlsSizer.getBottomControlOffset(),
                         mBrowserControlsSizer.getBottomControlsMinHeightOffset(),
@@ -414,7 +395,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
             boolean bottomControlsMinHeightChanged,
             boolean requestNewFrame,
             boolean isVisibilityForced) {
-        if (mLayers.size() == 0 || !isDispatchingYOffset()) return;
+        if (mLayers.size() == 0) return;
         repositionLayers(
                 bottomOffset,
                 bottomControlsMinHeightOffset,
@@ -721,18 +702,6 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
         return (scrollOffBehavior == LayerScrollBehavior.ALWAYS_SCROLL_OFF)
                 || (totalMinHeight == 0
                         && scrollOffBehavior == LayerScrollBehavior.DEFAULT_SCROLL_OFF);
-    }
-
-    /** Returns whether bottom controls stacker is calculating height. */
-    public static boolean isEnabled() {
-        return ChromeFeatureList.sBottomBrowserControlsRefactor.isEnabled();
-    }
-
-    /** Whether Bottom Controls Stacker is dispatching yOffset. */
-    public static boolean isDispatchingYOffset() {
-        // This method is used as a kill switch to fallback to the previous behavior.
-        return isEnabled()
-                && !ChromeFeatureList.sDisableBottomControlsStackerYOffsetDispatching.getValue();
     }
 
     /**

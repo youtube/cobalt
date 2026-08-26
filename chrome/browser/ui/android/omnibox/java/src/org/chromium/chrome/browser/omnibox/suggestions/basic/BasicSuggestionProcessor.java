@@ -191,6 +191,9 @@ public class BasicSuggestionProcessor extends BaseSuggestionViewProcessor {
     }
 
     protected @Nullable SuggestionSpannable getSuggestionDescription(AutocompleteMatch match) {
+        if (match.getDescription() != null) {
+            return new SuggestionSpannable(match.getDescription());
+        }
         return null;
     }
 

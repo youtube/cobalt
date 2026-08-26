@@ -7,7 +7,7 @@
 #include <optional>
 
 #include "src/base/memory.h"
-#include "src/codegen/interface-descriptors.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/reloc-info.h"
 #include "src/debug/debug.h"
@@ -305,10 +305,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   int counter = jsframe_index;
   for (auto it = translated_values.begin(); it != translated_values.end();
        it++) {
-    if (it->kind() == TranslatedFrame::kUnoptimizedFunction ||
-        it->kind() == TranslatedFrame::kJavaScriptBuiltinContinuation ||
-        it->kind() ==
-            TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch) {
+    if (TranslatedFrame::IsJavaScriptFrame(it->kind())) {
       if (counter == 0) {
         frame_it = it;
         break;
@@ -372,8 +369,7 @@ class ActivationsFinder : public ThreadVisitor {
             // For C calls the caller has to pop parameters off the stack. This
             // has to happen before deoptimization. Therefore we add the offset
             // here that is needed for popping the arguments.
-            Address pc =
-                *it.frame()->pc_address() + kMaxSizeOfMoveAfterFastCall;
+            Address pc = *it.frame()->pc_address();
             Deoptimizer::PatchToJump(pc, new_pc);
           } else {
             if (v8_flags.cet_compatible) {
@@ -947,6 +943,9 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
                           wire_bytes.begin() + function->code.offset(),
                           wire_bytes.begin() + function->code.end_offset(),
                           is_shared};
+  wasm::ForDebugging for_debugging = v8_flags.wasm_code_coverage
+                                         ? wasm::ForDebugging::kForDebugging
+                                         : wasm::ForDebugging::kNotForDebugging;
   wasm::WasmCompilationResult result = ExecuteLiftoffCompilation(
       &env, body,
       wasm::LiftoffOptions{}
@@ -954,7 +953,8 @@ CompileWithLiftoffAndGetDeoptInfo(wasm::NativeModule* native_module,
           .set_deopt_info_bytecode_offset(deopt_point.ToInt())
           .set_deopt_location_kind(
               is_topmost ? wasm::LocationKindForDeopt::kEagerDeopt
-                         : wasm::LocationKindForDeopt::kInlinedCall));
+                         : wasm::LocationKindForDeopt::kInlinedCall)
+          .set_for_debugging(for_debugging));
 
   // Replace the optimized code with the unoptimized code in the
   // WasmCodeManager as a deopt was reached.
@@ -1431,8 +1431,14 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   // Reset tiering budget of the function that triggered the deopt.
   int declared_func_index =
       wasm::declared_function_index(native_module->module(), code->index());
-  wasm_trusted_instance->tiering_budget_array()[declared_func_index].store(
-      v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
+  {
+    // We're running under a DisallowSandboxAccess scope, which also removes
+    // write access into the sandbox. As such, we need to temporarily allow
+    // sandbox access for this store.
+    AllowSandboxAccess sandbox_access_for_write;
+    wasm_trusted_instance->tiering_budget_array()[declared_func_index].store(
+        v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
+  }
 
   isolate()->counters()->wasm_deopts_executed()->AddSample(
       wasm::GetWasmEngine()->IncrementDeoptsExecutedCount());
@@ -1473,10 +1479,11 @@ bool DeoptimizedMaglevvedCodeEarly(Isolate* isolate,
                                    Tagged<JSFunction> function,
                                    Tagged<Code> code) {
   if (!code->is_maglevved()) return false;
-  if (function->GetRequestedOptimizationIfAny(isolate) ==
-      CodeKind::TURBOFAN_JS) {
-    // We request turbofan after consuming the invocation_count_for_turbofan
-    // budget which is greater than
+  if (function->tiering_in_progress() ||
+      function->GetRequestedOptimizationIfAny(isolate) ==
+          CodeKind::TURBOFAN_JS) {
+    // We request or start turbofan after consuming the
+    // invocation_count_for_turbofan budget which is greater than
     // invocation_count_for_maglev_with_delay.
     return false;
   }
@@ -1503,9 +1510,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_deopt && function_.is_null()) {
-    trap_handler::ClearThreadInWasm();
     DoComputeOutputFramesWasmImpl();
-    trap_handler::SetThreadInWasm();
     return;
   }
 #endif
@@ -1722,6 +1727,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   if (verbose_tracing_enabled()) {
     TraceDeoptEnd(timer.Elapsed().InMillisecondsF());
   }
+  isolate()->counters()->deopts()->Increment();
 
   // The following invariant is fairly tricky to guarantee, since the size of
   // an optimized frame and its deoptimized counterparts usually differs. We
@@ -2517,9 +2523,7 @@ TranslatedValue Deoptimizer::TranslatedValueForWasmReturnKind(
       case wasm::kF32:
         return TranslatedValue::NewFloat(
             &translated_state_,
-            Float32(*reinterpret_cast<float*>(
-                input_->GetDoubleRegister(wasm::kFpReturnRegisters[0].code())
-                    .get_bits_address())));
+            input_->GetFloatRegister(wasm::kFpReturnRegisters[0].code()));
       case wasm::kF64:
         return TranslatedValue::NewDouble(
             &translated_state_,
@@ -2693,7 +2697,19 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
+  std::vector<TranslatedFrame::iterator> register_values;
+  int total_registers = config->num_general_registers();
+  register_values.resize(total_registers, {value_iterator});
+
   if (mode == BuiltinContinuationMode::STUB) {
+    // Parameters into the stubs are stored with the register parameters first,
+    // and stack parameters second, to match how builtin call descriptors are
+    // defined.
+    for (int i = 0; i < register_parameter_count; ++i, ++value_iterator) {
+      int code = continuation_descriptor.GetRegisterParameter(i).code();
+      register_values[code] = value_iterator;
+    }
+
     DCHECK_EQ(continuation_descriptor.GetStackArgumentOrder(),
               StackArgumentOrder::kDefault);
     for (uint32_t i = 0; i < frame_info.translated_stack_parameter_count();
@@ -2736,19 +2752,21 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     }
     frame_writer.PushStackJSArguments(
         value_iterator, frame_info.translated_stack_parameter_count());
+
+    // Parameters into JS builtins are stored with the stack parameters first,
+    // and the JS trampoline register parameters second, so that the first
+    // parameter is always the receiver (for frame iteration).
+    static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
+    DCHECK_EQ(register_parameter_count,
+              JSTrampolineDescriptor::GetRegisterParameterCount());
+    for (int i = 0; i < register_parameter_count; ++i, ++value_iterator) {
+      int code = continuation_descriptor.GetRegisterParameter(i).code();
+      register_values[code] = value_iterator;
+    }
   }
 
   DCHECK_EQ(output_frame->GetLastArgumentSlotOffset(),
             frame_writer.top_offset());
-
-  std::vector<TranslatedFrame::iterator> register_values;
-  int total_registers = config->num_general_registers();
-  register_values.resize(total_registers, {value_iterator});
-
-  for (int i = 0; i < register_parameter_count; ++i, ++value_iterator) {
-    int code = continuation_descriptor.GetRegisterParameter(i).code();
-    register_values[code] = value_iterator;
-  }
 
   // The context register is always implicit in the CallInterfaceDescriptor but
   // its register must be explicitly set when continuing to the builtin. Make
@@ -2940,7 +2958,12 @@ void Deoptimizer::MaterializeHeapObjects() {
 
   translated_state_.VerifyMaterializedObjects();
 
-  bool feedback_updated = translated_state_.DoUpdateFeedback();
+  isolate_->materialized_object_store()->Remove(
+      static_cast<Address>(stack_fp_));
+}
+
+void Deoptimizer::ProcessDeoptReason(DeoptimizeReason reason) {
+  bool feedback_updated = translated_state_.DoUpdateFeedback(reason);
   if (verbose_tracing_enabled() && feedback_updated) {
     FILE* file = trace_scope()->file();
     Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo();
@@ -2949,9 +2972,6 @@ void Deoptimizer::MaterializeHeapObjects() {
     info.position.Print(outstr, compiled_code_);
     PrintF(file, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));
   }
-
-  isolate_->materialized_object_store()->Remove(
-      static_cast<Address>(stack_fp_));
 }
 
 void Deoptimizer::QueueValueForMaterialization(
@@ -3033,9 +3053,13 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
                result);
     }
   } else {
-    unsigned outgoing_size = 0;
-    CHECK_EQ(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
-                 CommonFrameConstants::kFixedFrameSizeAboveFp + outgoing_size,
+    // TurboFan code can be deopted right after fast API calls, when parameters
+    // may still be on the stack.
+    // TODO(422364570): Find a way to get the exact stack size here, and then
+    // use the `CHECK_EQ` here instead of `CHECK_LE`, similar to what Maglev
+    // does.
+    CHECK_LE(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
+                 CommonFrameConstants::kFixedFrameSizeAboveFp,
              result);
   }
   return result;

@@ -4,10 +4,14 @@
 
 #include "third_party/blink/renderer/core/annotation/annotation_agent_container_impl.h"
 
+#include <algorithm>
+
 #include "base/functional/callback.h"
 #include "base/trace_event/typed_macros.h"
+#include "base/types/pass_key.h"
 #include "components/shared_highlighting/core/common/disabled_sites.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_features.h"
+#include "third_party/blink/public/web/web_plugin.h"
 #include "third_party/blink/renderer/core/annotation/annotation_agent_generator.h"
 #include "third_party/blink/renderer/core/annotation/annotation_agent_impl.h"
 #include "third_party/blink/renderer/core/annotation/annotation_selector.h"
@@ -16,6 +20,7 @@
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/editing/visible_selection.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/exported/web_plugin_container_impl.h"
 #include "third_party/blink/renderer/core/fragment_directive/text_fragment_handler.h"
 #include "third_party/blink/renderer/core/fragment_directive/text_fragment_selector.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -90,6 +95,22 @@ void AnnotationAgentContainerImpl::BindReceiver(
     mojo::PendingReceiver<mojom::blink::AnnotationAgentContainer> receiver) {
   DCHECK(frame);
   DCHECK(frame->GetDocument());
+
+  // If the current frame embeds a plugin, and that plugin supports annotation,
+  // allow the plugin to bind the receiver.
+  // TODO(crbug.com/427455182): Support embedded plugins.
+  if (frame->View()->Plugins().size() == 1u) {
+    WebPluginContainerImpl* web_plugin_container =
+        *frame->View()->Plugins().begin();
+    CHECK(web_plugin_container);
+    WebPlugin* plugin = web_plugin_container->Plugin();
+    CHECK(plugin);
+    if (plugin->SupportsAnnotation()) {
+      plugin->BindAnnotationAgentContainer(std::move(receiver));
+      return;
+    }
+  }
+
   Document& document = *frame->GetDocument();
 
   auto* container = AnnotationAgentContainerImpl::CreateIfNeeded(document);
@@ -167,8 +188,8 @@ AnnotationAgentImpl* AnnotationAgentContainerImpl::CreateUnboundAgent(
   return agent_impl;
 }
 
-void AnnotationAgentContainerImpl::RemoveAgent(AnnotationAgentImpl& agent,
-                                               AnnotationAgentImpl::PassKey) {
+void AnnotationAgentContainerImpl::RemoveAgent(AnnotationAgentImpl& agent) {
+  agent.Reset(PassKey());
   DCHECK(!agent.IsAttached());
   wtf_size_t index = agents_.Find(&agent);
   DCHECK_NE(index, kNotFound);
@@ -238,17 +259,15 @@ void AnnotationAgentContainerImpl::RemoveAgentsOfType(
     mojom::blink::AnnotationType type) {
   TRACE_EVENT("blink", "AnnotationAgentContainerImpl::RemoveAgentsOfType",
               "type", ToString(type));
-  // Note: We need this temporary vector to avoid removal of elements in
-  // `agents_` while iterating through to it. `AnnotationAgentImpl::Remove`
-  // (called below) calls `AnnotationAgentContainerImpl::RemoveAgent`, which
-  // removes itself from `agents_`.
-  HeapVector<Member<AnnotationAgentImpl>> agents_to_remove;
-  std::ranges::copy_if(
-      agents_, std::back_inserter(agents_to_remove),
-      [type](AnnotationAgentImpl* agent) { return agent->GetType() == type; });
-  for (AnnotationAgentImpl* agent : agents_to_remove) {
-    agent->Remove();
-  }
+  auto it = std::remove_if(agents_.begin(), agents_.end(),
+                           [type](AnnotationAgentImpl* agent) {
+                             if (agent->GetType() != type) {
+                               return false;
+                             }
+                             agent->Reset(PassKey());
+                             return true;
+                           });
+  agents_.erase(it, agents_.end());
 }
 
 // TODO(cheickcisse@): Move shared highlighting enums, also used in user note to

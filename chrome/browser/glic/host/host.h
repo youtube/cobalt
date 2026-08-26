@@ -132,6 +132,10 @@ class Host {
     return primary_webui_state_;
   }
 
+  // Informs the host that the Zero State Suggestions have changed.
+  void NotifyZeroStateSuggestion(mojom::ZeroStateSuggestionsV2Ptr suggestions,
+                                 mojom::ZeroStateSuggestionsOptions options);
+
  private:
   GlicKeyedService& glic_service();
 

@@ -29,7 +29,6 @@
 #include "ipc/ipc_listener.h"
 #include "ipc/ipc_message.h"
 #include "ipc/ipc_sender.h"
-#include "ipc/ipc_sync_message_filter.h"
 #include "ipc/ipc_sync_message_unittest.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -869,61 +868,6 @@ TEST_F(IPCSyncChannelTest, QueuedReply) {
 
 //------------------------------------------------------------------------------
 
-class TestSyncMessageFilter : public SyncMessageFilter {
- public:
-  TestSyncMessageFilter(
-      base::WaitableEvent* shutdown_event,
-      Worker* worker,
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner)
-      : SyncMessageFilter(shutdown_event),
-        worker_(worker),
-        task_runner_(task_runner) {}
-
-  void OnFilterAdded(Channel* channel) override {
-    SyncMessageFilter::OnFilterAdded(channel);
-    task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&TestSyncMessageFilter::SendMessageOnHelperThread,
-                       this));
-  }
-
-  void SendMessageOnHelperThread() {
-    int answer = 0;
-    bool result = Send(new SyncChannelTestMsg_AnswerToLife(&answer));
-    DCHECK(result);
-    DCHECK_EQ(answer, 42);
-
-    worker_->Done();
-  }
-
- private:
-  ~TestSyncMessageFilter() override = default;
-
-  raw_ptr<Worker> worker_;
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
-};
-
-class SyncMessageFilterServer : public Worker {
- public:
-  explicit SyncMessageFilterServer(mojo::ScopedMessagePipeHandle channel_handle)
-      : Worker(Channel::MODE_SERVER,
-               "sync_message_filter_server",
-               std::move(channel_handle)),
-        thread_("helper_thread") {
-    base::Thread::Options options;
-    options.message_pump_type = base::MessagePumpType::DEFAULT;
-    thread_.StartWithOptions(std::move(options));
-    filter_ = new TestSyncMessageFilter(shutdown_event(), this,
-                                        thread_.task_runner());
-  }
-
-  void Run() override {
-    channel()->AddFilter(filter_.get());
-  }
-
-  base::Thread thread_;
-  scoped_refptr<TestSyncMessageFilter> filter_;
-};
 
 // This class provides functionality to test the case that a Send on the sync
 // channel does not crash after the channel has been closed.
@@ -961,15 +905,6 @@ class ServerSendAfterClose : public Worker {
 
   bool send_result_;
 };
-
-// Tests basic synchronous call
-TEST_F(IPCSyncChannelTest, SyncMessageFilter) {
-  std::vector<Worker*> workers;
-  mojo::MessagePipe pipe;
-  workers.push_back(new SyncMessageFilterServer(std::move(pipe.handle0)));
-  workers.push_back(new SimpleClient(std::move(pipe.handle1)));
-  RunTest(workers);
-}
 
 // Test the case when the channel is closed and a Send is attempted after that.
 TEST_F(IPCSyncChannelTest, SendAfterClose) {
@@ -1243,9 +1178,11 @@ class RestrictedDispatchDeadlockServer : public Worker {
         peer_(peer) {}
 
   void OnDoServerTask() {
-    events_[3]->Signal();
-    events_[2]->Wait();
-    events_[0]->Signal();
+    UNSAFE_TODO({
+      events_[3]->Signal();
+      events_[2]->Wait();
+      events_[0]->Signal();
+    });
     SendMessageToClient();
   }
 
@@ -1304,9 +1241,11 @@ class RestrictedDispatchDeadlockClient2 : public Worker {
   }
 
   void OnDoClient2Task() {
-    events_[3]->Wait();
-    events_[1]->Signal();
-    events_[2]->Signal();
+    UNSAFE_TODO({
+      events_[3]->Wait();
+      events_[1]->Signal();
+      events_[2]->Signal();
+    });
     DCHECK(received_msg_ == false);
 
     Message* message = new SyncChannelTestMsg_NoArgs;
@@ -1373,8 +1312,10 @@ class RestrictedDispatchDeadlockClient1 : public Worker {
         FROM_HERE,
         base::BindOnce(&RestrictedDispatchDeadlockClient2::OnDoClient2Task,
                        base::Unretained(peer_)));
-    events_[0]->Wait();
-    events_[1]->Wait();
+    UNSAFE_TODO({
+      events_[0]->Wait();
+      events_[1]->Wait();
+    });
     DCHECK(received_msg_ == false);
 
     Message* message = new SyncChannelTestMsg_NoArgs;

@@ -21,7 +21,6 @@ Aquí tienes algunas cosas que puedes probar para empezar.</translation>
 <translation id="1056898198331236512">Advertencia</translation>
 <translation id="1058009965971887428">Enviar comentarios</translation>
 <translation id="1059120031266247284">Compartido contigo</translation>
-<translation id="1059194134494239015"><ph name="DISPLAY_NAME" />: <ph name="RESOLUTION" /></translation>
 <translation id="1060847216467038176"><ph name="ITEM_LABEL" /> con botón de eliminación</translation>
 <translation id="1062407476771304334">Reemplazar</translation>
 <translation id="1073899992769346247">Cambia o recarga la batería</translation>
@@ -46,7 +45,7 @@ Aquí tienes algunas cosas que puedes probar para empezar.</translation>
 <translation id="1153356358378277386">Dispositivos vinculados</translation>
 <translation id="1153918444040990015">No se ha podido conectar con los sonidos de Concentración</translation>
 <translation id="1155734730463845512">Nivel de batería actual: <ph name="BATTERY_PERCENTAGE" /> %</translation>
-<translation id="1157514002898505378">La IA generativa es experimental y el contenido puede ser inexacto, engañoso u ofensivo. Ponte en contacto con tu administrador para informar de un problema. <ph name="LINK_TO_SERVICE_TERMS" /></translation>
+<translation id="1157514002898505378">La IA generativa es experimental y el contenido puede ser incorrecto, engañoso u ofensivo. Ponte en contacto con tu administrador para informar de un problema. <ph name="LINK_TO_SERVICE_TERMS" /></translation>
 <translation id="1160215328209699296">activado y en uso</translation>
 <translation id="1163437384438183174">Quitar Mi teléfono de la estantería</translation>
 <translation id="1170753161936175256"><ph name="EVENT_SUMMARY" />, <ph name="TIME_RANGE" /></translation>
@@ -540,7 +539,6 @@ De lo contrario, el panel táctil integrado se volverá a habilitar en <ph name=
 <translation id="2814448776515246190">Captura parcial</translation>
 <translation id="2819276065543622893">Tu sesión se cerrará ahora.</translation>
 <translation id="2822551631199737692">La cámara se está usando</translation>
-<translation id="2825224105325558319">La pantalla <ph name="DISPLAY_NAME" /> no admite <ph name="SPECIFIED_RESOLUTION" />. Se ha cambiado la resolución a <ph name="FALLBACK_RESOLUTION" />.</translation>
 <translation id="2825619548187458965">Estantería</translation>
 <translation id="2831035692318564937">Activado hasta el amanecer</translation>
 <translation id="2834813915651407382">Abierto recientemente</translation>
@@ -605,8 +603,6 @@ De lo contrario, el panel táctil integrado se volverá a habilitar en <ph name=
 <translation id="3026897869154397692">Añadido al calendario</translation>
 <translation id="3033545621352269033">Activada</translation>
 <translation id="3033912566804961911">Combinar con <ph name="DESK_NAME" /></translation>
-<translation id="3036649622769666520">Abrir archivos</translation>
-<translation id="3038571455154067151">Para iniciar sesión, introduce tu código de acceso parental de Family Link</translation>
 <translation id="3039939407102840004">La batería del lápiz óptico está al <ph name="PERCENTAGE" /> por ciento.</translation>
 <translation id="304097922505898963">Abrir la aplicación Combinaciones de teclas</translation>
 <translation id="304417730895741346">Las aplicaciones fijadas y abiertas están en la estantería. Para fijar una aplicación en la estantería, haz clic con el botón derecho en una aplicación o toca el panel táctil con dos dedos.</translation>
@@ -620,7 +616,7 @@ De lo contrario, el panel táctil integrado se volverá a habilitar en <ph name=
 <translation id="3068711042108640621">La estantería está en la parte izquierda</translation>
 <translation id="3077734595579995578">mayús</translation>
 <translation id="3081696990447829002">Mostrar menú</translation>
-<translation id="3087734570205094154">Inferior</translation>
+<translation id="3087734570205094154">Abajo</translation>
 <translation id="3090214513075567547">Abre el menú contextual</translation>
 <translation id="3090989381251959936">Activar o desactivar <ph name="FEATURE_NAME" />. <ph name="STATE_TEXT" /></translation>
 <translation id="3093423061078042895">Por entregar</translation>
@@ -1015,6 +1011,7 @@ Algunas funciones están limitadas para aumentar la duración de la batería.</t
 <translation id="4305817255990598646">Cambiar</translation>
 <translation id="4307713728991152670">Configurar la visualización de las fotos, el contenido multimedia y las aplicaciones recientes de tu teléfono</translation>
 <translation id="4312840429157639164">Cámara ajustada a la esquina superior derecha. Conflicto con la superficie del sistema.</translation>
+<translation id="4312935606722154789">Agrupar o desagrupar dos ventanas en paralelo</translation>
 <translation id="4316910396681052118">TODAS LAS APLICACIONES</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Ocultar todas las sugerencias del navegador Chrome</translation>
@@ -1454,7 +1451,6 @@ No hay dispositivos conectados.</translation>
 <translation id="5691772641933328258">Huella digital no reconocida</translation>
 <translation id="5693255400847650006">El micrófono se está usando</translation>
 <translation id="5699366815052349604">Asigna la ventana activa a todos los escritorios</translation>
-<translation id="5701785125601597013">Envía o responde rápidamente a mensajes de tu teléfono con Mi teléfono</translation>
 <translation id="570390244361237317">Todas las aplicaciones, desplázate con las teclas de flecha para acceder a todas las aplicaciones</translation>
 <translation id="5705197514573687092">Mostrar configuración del modo Sin distracciones. Se ha añadido un temporizador de <ph name="FOCUS_DURATION" />.</translation>
 <translation id="5707775774148071965">Tu dispositivo admite una tasa de datos mayor que tu cable. El rendimiento del dispositivo puede verse limitado.</translation>
@@ -1584,7 +1580,6 @@ No hay dispositivos conectados.</translation>
 <translation id="6095425951508823973">Añadir conexión con <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">Editado hace menos de un mes</translation>
 <translation id="6103838137565245112">sistema</translation>
-<translation id="610395411842312282">Agrupar dos ventanas en paralelo</translation>
 <translation id="6108952804512516814">Crear con IA</translation>
 <translation id="6114505516289286752">Archivos de voz en <ph name="LANGUAGE" /> descargados</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>
@@ -1608,7 +1603,6 @@ No hay dispositivos conectados.</translation>
 <translation id="6166852626429024716">Busca en el dispositivo, en las aplicaciones, en los ajustes, en la Web…</translation>
 <translation id="6168318496333165060">Abrir aplicación Diagnósticos</translation>
 <translation id="6168622430237609329">Tus aplicaciones instaladas</translation>
-<translation id="6179832488876878285">Puedes fijar tus archivos importantes aquí. Abre la aplicación Archivos para empezar.</translation>
 <translation id="6180193585172850042">Botón para volver</translation>
 <translation id="6180651297859206670">Botón para avanzar</translation>
 <translation id="6182592640011875895">Abrir escritorio</translation>
@@ -1641,7 +1635,6 @@ No hay dispositivos conectados.</translation>
 <translation id="6267036997247669271"><ph name="NAME" />: Activando...</translation>
 <translation id="6274202259872570803">Grabación de pantalla</translation>
 <translation id="6276708887952587684">Ver el código fuente de la página</translation>
-<translation id="6284232397434400372">Se ha cambiado la resolución</translation>
 <translation id="6285871695023807425">Añadir a Calendar</translation>
 <translation id="6288235558961782912">Se puede volver a añadir <ph name="USER_EMAIL_ADDRESS" /> más adelante con un permiso parental.</translation>
 <translation id="6291221004442998378">No se está cargando</translation>
@@ -1689,7 +1682,6 @@ No hay dispositivos conectados.</translation>
 <translation id="6452181791372256707">Rechazar</translation>
 <translation id="6453179446719226835">Se ha cambiado el idioma</translation>
 <translation id="6456096448804832585">Solo disponible en vertical</translation>
-<translation id="6459472438155181876">Extendiendo pantalla a <ph name="DISPLAY_NAME" /></translation>
 <translation id="6464094930452079790">imágenes</translation>
 <translation id="6467290994038932560">Activados para <ph name="GAME_APP_NAME" /></translation>
 <translation id="6468406072297048412">{0,plural, =1{Restaura la versión anterior en el dispositivo en un plazo de 1 minuto}other{Restaura la versión anterior en el dispositivo en un plazo de # minutos}}</translation>
@@ -1922,6 +1914,7 @@ Nueva instalación</translation>
 <translation id="7240636904654154599">Hoja de cálculo de Google creada</translation>
 <translation id="7244725679040769470">Queda un <ph name="PERCENTAGE" /> % de batería. Conecta tu dispositivo a la corriente.</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />. El Chromebook debe reiniciarse para aplicar una actualización. Este proceso puede tardar hasta 1 minuto.</translation>
+<translation id="7248100343060254997">Buscar en mi pantalla</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">Micrófono trasero</translation>
 <translation id="7258828758145722155">Editado ayer</translation>
@@ -2421,7 +2414,6 @@ Para apagarlo, mantén pulsado de nuevo el botón de encendido del dispositivo.<
 <translation id="8876148469852588625">Evento <ph name="EVENT_POSITION" /> de <ph name="EVENT_TOTAL_COUNT" /></translation>
 <translation id="8876661425082386199">Comprobar tu conexión</translation>
 <translation id="8877788021141246043">Añadir un recordatorio</translation>
-<translation id="8878886163241303700">Ampliando pantalla</translation>
 <translation id="8885424115080869847">No se ha podido conectar con YouTube Music</translation>
 <translation id="888982883502837004">Hay actualizaciones de firmware disponibles para tu dispositivo. Haz click para verlas y actualizar.</translation>
 <translation id="8896630965521842259"><ph name="DESK_TEMPLATE_NAME" /> se eliminará permanentemente.</translation>

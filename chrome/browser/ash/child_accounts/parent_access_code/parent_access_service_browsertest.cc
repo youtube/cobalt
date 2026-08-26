@@ -14,14 +14,13 @@
 #include "base/json/json_writer.h"
 #include "chrome/browser/ash/child_accounts/parent_access_code/config_source.h"
 #include "chrome/browser/ash/child_accounts/parent_access_code/parent_access_test_utils.h"
-#include "chrome/browser/ash/login/test/feature_parameter_interface.h"
 #include "chrome/browser/ash/login/test/logged_in_user_mixin.h"
 #include "chrome/browser/ash/policy/core/user_policy_test_helper.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "components/account_id/account_id.h"
+#include "components/account_id/account_id_literal.h"
 #include "components/prefs/pref_service.h"
 #include "components/user_manager/test_helper.h"
 #include "components/user_manager/user_manager.h"
@@ -29,9 +28,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash::parent_access {
-
-const auto kAllFeatureStates = FeatureAsParameterInterface<1>::Generator(
-    {&::features::kSkipParentAccessCodeForReauth});
 
 // Stores information about results of the access code validation.
 struct CodeValidationResults {
@@ -41,6 +37,10 @@ struct CodeValidationResults {
   // Number of attempts when access code validation failed.
   int failure_count = 0;
 };
+
+constexpr auto kRegularUserAccountId =
+    AccountId::Literal::FromUserEmailGaiaId("regular@gmail.com",
+                                            GaiaId::Literal("test-gaia"));
 
 // ParentAccessServiceObserver implementation used for tests.
 class TestParentAccessServiceObserver : public ParentAccessService::Observer {
@@ -70,9 +70,7 @@ class TestParentAccessServiceObserver : public ParentAccessService::Observer {
   const AccountId account_id_;
 };
 
-class ParentAccessServiceTest
-    : public MixinBasedInProcessBrowserTest,
-      public ::testing::WithParamInterface<FeatureStateArray<1>> {
+class ParentAccessServiceTest : public MixinBasedInProcessBrowserTest {
  public:
   ParentAccessServiceTest()
       : test_observer_(std::make_unique<TestParentAccessServiceObserver>(
@@ -82,6 +80,12 @@ class ParentAccessServiceTest
   ParentAccessServiceTest& operator=(const ParentAccessServiceTest&) = delete;
 
   ~ParentAccessServiceTest() override = default;
+
+  void SetUpLocalStatePrefService(PrefService* local_state) override {
+    MixinBasedInProcessBrowserTest::SetUpLocalStatePrefService(local_state);
+    user_manager::TestHelper::RegisterPersistedUser(*local_state,
+                                                    kRegularUserAccountId);
+  }
 
   void SetUpOnMainThread() override {
     ASSERT_NO_FATAL_FAILURE(GetTestAccessCodeValues(&test_values_));
@@ -140,7 +144,7 @@ class ParentAccessServiceTest
   std::unique_ptr<TestParentAccessServiceObserver> test_observer_;
 };
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, NoConfigAvailable) {
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest, NoConfigAvailable) {
   auto test_value = test_values_.begin();
   EXPECT_EQ(ParentCodeValidationResult::kNoConfig,
             ValidateAccessCode(test_value->second, test_value->first));
@@ -148,7 +152,7 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, NoConfigAvailable) {
   ExpectResults(0, 1);
 }
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, NoValidConfigAvailable) {
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest, NoValidConfigAvailable) {
   std::vector<AccessCodeConfig> old_configs;
   old_configs.emplace_back(GetInvalidTestConfig());
   UpdatePolicy(PolicyFromConfigs(GetInvalidTestConfig(), GetInvalidTestConfig(),
@@ -161,7 +165,7 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, NoValidConfigAvailable) {
   ExpectResults(0, 1);
 }
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, ValidationWithFutureConfig) {
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest, ValidationWithFutureConfig) {
   std::vector<AccessCodeConfig> old_configs;
   old_configs.emplace_back(GetInvalidTestConfig());
   UpdatePolicy(PolicyFromConfigs(GetDefaultTestConfig(), GetInvalidTestConfig(),
@@ -174,7 +178,7 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, ValidationWithFutureConfig) {
   ExpectResults(1, 0);
 }
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, ValidationWithCurrentConfig) {
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest, ValidationWithCurrentConfig) {
   std::vector<AccessCodeConfig> old_configs;
   old_configs.emplace_back(GetInvalidTestConfig());
   UpdatePolicy(PolicyFromConfigs(GetInvalidTestConfig(), GetDefaultTestConfig(),
@@ -187,7 +191,7 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, ValidationWithCurrentConfig) {
   ExpectResults(1, 0);
 }
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, ValidationWithOldConfig) {
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest, ValidationWithOldConfig) {
   std::vector<AccessCodeConfig> old_configs;
   old_configs.emplace_back(GetInvalidTestConfig());
   old_configs.emplace_back(GetDefaultTestConfig());
@@ -201,7 +205,7 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, ValidationWithOldConfig) {
   ExpectResults(1, 0);
 }
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, MultipleValidationAttempts) {
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest, MultipleValidationAttempts) {
   AccessCodeValues::iterator test_value = test_values_.begin();
 
   // No config - validation should fail.
@@ -227,7 +231,7 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, MultipleValidationAttempts) {
   ExpectResults(test_values_.size(), 2);
 }
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, NoObserver) {
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest, NoObserver) {
   ParentAccessService::Get().RemoveObserver(test_observer_.get());
 
   UpdatePolicy(
@@ -240,7 +244,7 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, NoObserver) {
   ExpectResults(0, 0);
 }
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, NoAccountId) {
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest, NoAccountId) {
   ParentAccessService::Get().RemoveObserver(test_observer_.get());
 
   UpdatePolicy(
@@ -253,7 +257,7 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, NoAccountId) {
                 EmptyAccountId(), test_value->second, test_value->first));
 }
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, InvalidAccountId) {
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest, InvalidAccountId) {
   ParentAccessService::Get().RemoveObserver(test_observer_.get());
 
   UpdatePolicy(
@@ -267,7 +271,7 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest, InvalidAccountId) {
                 other_child, test_value->second, test_value->first));
 }
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest,
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest,
                        ChildDeviceOwner_IsApprovalRequired) {
   user_manager::UserManager::Get()->SetOwnerId(
       logged_in_user_mixin_.GetAccountId());
@@ -276,8 +280,6 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest,
   // Login screen.
   EXPECT_TRUE(
       ParentAccessService::IsApprovalRequired(SupervisedAction::kAddUser));
-  EXPECT_FALSE(
-      ParentAccessService::IsApprovalRequired(SupervisedAction::kReauth));
   // In session, because child user is logged in the test fixture.
   EXPECT_TRUE(ParentAccessService::IsApprovalRequired(
       SupervisedAction::kUnlockTimeLimits));
@@ -292,8 +294,6 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest,
   // Login screen.
   EXPECT_TRUE(
       ParentAccessService::IsApprovalRequired(SupervisedAction::kAddUser));
-  EXPECT_EQ(::features::IsParentAccessCodeForReauthEnabled(),
-            ParentAccessService::IsApprovalRequired(SupervisedAction::kReauth));
   // In session, because child user is logged in the test fixture.
   EXPECT_TRUE(ParentAccessService::IsApprovalRequired(
       SupervisedAction::kUnlockTimeLimits));
@@ -303,21 +303,14 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest,
       SupervisedAction::kUpdateTimezone));
 }
 
-IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest,
+IN_PROC_BROWSER_TEST_F(ParentAccessServiceTest,
                        RegularDeviceOwner_IsApprovalRequired) {
-  auto* user_manager = user_manager::UserManager::Get();
-  const AccountId regular_user =
-      AccountId::FromUserEmailGaiaId("regular@gmail.com", GaiaId("test-gaia"));
-  ASSERT_TRUE(
-      user_manager::TestHelper(user_manager).AddRegularUser(regular_user));
-  user_manager->SetOwnerId(regular_user);
+  user_manager::UserManager::Get()->SetOwnerId(kRegularUserAccountId);
 
   // No configuration available - reauth does not require PAC.
   // Login screen.
   EXPECT_FALSE(
       ParentAccessService::IsApprovalRequired(SupervisedAction::kAddUser));
-  EXPECT_FALSE(
-      ParentAccessService::IsApprovalRequired(SupervisedAction::kReauth));
   // In session. Child user is logged in the test fixture.
   EXPECT_TRUE(ParentAccessService::IsApprovalRequired(
       SupervisedAction::kUnlockTimeLimits));
@@ -332,8 +325,6 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest,
   // Login screen.
   EXPECT_FALSE(
       ParentAccessService::IsApprovalRequired(SupervisedAction::kAddUser));
-  EXPECT_FALSE(
-      ParentAccessService::IsApprovalRequired(SupervisedAction::kReauth));
   // In session, because child user is logged in the test fixture.
   EXPECT_TRUE(ParentAccessService::IsApprovalRequired(
       SupervisedAction::kUnlockTimeLimits));
@@ -342,10 +333,5 @@ IN_PROC_BROWSER_TEST_P(ParentAccessServiceTest,
   EXPECT_TRUE(ParentAccessService::IsApprovalRequired(
       SupervisedAction::kUpdateTimezone));
 }
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         ParentAccessServiceTest,
-                         testing::ValuesIn(kAllFeatureStates),
-                         FeatureAsParameterInterface<1>::ParamInfoToString);
 
 }  // namespace ash::parent_access

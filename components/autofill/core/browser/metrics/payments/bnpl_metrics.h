@@ -9,6 +9,7 @@
 
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/payments/payments_window_manager.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 
 namespace autofill::autofill_metrics {
 
@@ -97,7 +98,13 @@ enum class BnplFormEvent {
   // A form was submitted with an Afterpay VCN.
   kFormSubmittedWithAfterpay = 8,
 
-  kMaxValue = kFormSubmittedWithAfterpay,
+  // A form was filled with an Klarna VCN.
+  kFormFilledWithKlarna = 9,
+
+  // A form was submitted with an Klarna VCN.
+  kFormSubmittedWithKlarna = 10,
+
+  kMaxValue = kFormSubmittedWithKlarna,
 };
 
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:BnplFormEvent)
@@ -144,6 +151,14 @@ void LogBnplPopupWindowLatency(base::TimeDelta duration,
 // Logs BNPL form events. Please refer to `BnplFormEvent` for the possible
 // enumerations that can be logged.
 void LogBnplFormEvent(BnplFormEvent event);
+
+// Logs that the BNPL suggestion was added to the payments autofill dropdown and
+// shown to the user. Logs to both UMA and UKM.
+void LogBnplSuggestionShown(ukm::SourceId ukm_source_id);
+
+// Logs that a BNPL suggestion was accepted on the current page. Logs to both
+// UMA and UKM.
+void LogBnplSuggestionAccepted(ukm::SourceId ukm_source_id);
 
 // Logs that a form was filled with the BNPL issuer VCN.
 void LogFormFilledWithBnplVcn(autofill::BnplIssuer::IssuerId issuer_id);

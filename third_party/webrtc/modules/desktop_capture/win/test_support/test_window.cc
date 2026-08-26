@@ -10,6 +10,8 @@
 
 #include "modules/desktop_capture/win/test_support/test_window.h"
 
+#include <cstring>
+
 namespace webrtc {
 namespace {
 
@@ -79,6 +81,23 @@ void ResizeTestWindow(const HWND hwnd, const int width, const int height) {
   // SWP_NOMOVE results in the x and y params being ignored.
   ::SetWindowPos(hwnd, HWND_TOP, /*x-coord=*/0, /*y-coord=*/0, width, height,
                  SWP_SHOWWINDOW | SWP_NOMOVE);
+  ::UpdateWindow(hwnd);
+}
+
+void ResizeTestWindowToFullScreen(const HWND hwnd) {
+  ::SetWindowLongPtr(hwnd, GWL_STYLE, WS_VISIBLE);
+
+  MONITORINFO monitor_info = {sizeof(monitor_info)};
+  if (!::GetMonitorInfo(::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST),
+                        &monitor_info)) {
+    return;
+  }
+
+  ::SetWindowPos(
+      hwnd, HWND_TOP, monitor_info.rcMonitor.left, monitor_info.rcMonitor.top,
+      /*width=*/monitor_info.rcMonitor.right - monitor_info.rcMonitor.left,
+      /*height=*/monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top,
+      SWP_SHOWWINDOW);
   ::UpdateWindow(hwnd);
 }
 

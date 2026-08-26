@@ -47,7 +47,7 @@ static jlong JNI_ConnectionInfoView_Init(
 
 ConnectionInfoViewAndroid::ConnectionInfoViewAndroid(
     JNIEnv* env,
-    jobject java_page_info_pop,
+    const base::android::JavaRef<jobject>& java_page_info_pop,
     WebContents* web_contents) {
   page_info_client_ = page_info::GetPageInfoClient();
   DCHECK(page_info_client_);
@@ -68,14 +68,12 @@ ConnectionInfoViewAndroid::ConnectionInfoViewAndroid(
 
 ConnectionInfoViewAndroid::~ConnectionInfoViewAndroid() = default;
 
-void ConnectionInfoViewAndroid::Destroy(JNIEnv* env,
-                                        const JavaParamRef<jobject>& obj) {
+void ConnectionInfoViewAndroid::Destroy(JNIEnv* env) {
   delete this;
 }
 
 void ConnectionInfoViewAndroid::ResetCertDecisions(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& java_web_contents) {
   presenter_->OnRevokeSSLErrorBypassButtonPressed();
 }

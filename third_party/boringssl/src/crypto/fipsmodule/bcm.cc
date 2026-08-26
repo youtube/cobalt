@@ -26,7 +26,7 @@
 
 #include <openssl/digest.h>
 #include <openssl/hmac.h>
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 #include "../bcm_support.h"
 #include "../internal.h"

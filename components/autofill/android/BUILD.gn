@@ -175,7 +175,6 @@ android_resources("autofill_java_resources") {
 # WebView targets.
 android_resources("autofill_browser_resources") {
   sources = [
-    "browser/java/res/drawable/autofill_chevron_right.xml",
     "browser/java/res/drawable/autofill_external_link.xml",
     "browser/java/res/drawable/home_logo.xml",
     "browser/java/res/drawable/location_on_logo.xml",
@@ -190,6 +189,7 @@ java_cpp_enum("autofill_core_browser_java_enums") {
     "../core/browser/data_model/payments/credit_card.h",
     "../core/browser/data_model/payments/iban.h",
     "../core/browser/field_types.h",
+    "../core/browser/filling/filling_product.h",
     "../core/browser/metrics/payments/iban_metrics.h",
     "../core/browser/metrics/payments/mandatory_reauth_metrics.h",
     "../core/browser/metrics/payments/virtual_card_enrollment_metrics.h",
@@ -214,14 +214,13 @@ java_cpp_features("java_features_srcjar") {
     "//components/autofill/core/common/autofill_features.cc",
     "//components/autofill/core/common/autofill_payments_features.cc",
   ]
-  template =
-      "//components/autofill/android/java_templates/AutofillFeatures.java.tmpl"
+  class_name = "org.chromium.components.autofill.AutofillFeatures"
 }
 
 java_cpp_strings("java_switches_srcjar") {
   visibility = [ ":*" ]
   sources = [ "//components/autofill/core/common/autofill_switches.cc" ]
-  template = "java_templates/AutofillSwitches.java.tmpl"
+  class_name = "org.chromium.components.autofill.AutofillSwitches"
 }
 
 # We intentionally do not include :autofill_payments_java_resources not to
@@ -247,9 +246,12 @@ android_library("main_autofill_java") {
     "java/src/org/chromium/components/autofill/AutofillDropdownAdapter.java",
     "java/src/org/chromium/components/autofill/AutofillPopup.java",
     "java/src/org/chromium/components/autofill/AutofillProfile.java",
+    "java/src/org/chromium/components/autofill/AutofillProfilePayload.java",
     "java/src/org/chromium/components/autofill/AutofillSuggestion.java",
     "java/src/org/chromium/components/autofill/DropdownKeyValue.java",
+    "java/src/org/chromium/components/autofill/FillingProductBridge.java",
     "java/src/org/chromium/components/autofill/LoyaltyCard.java",
+    "java/src/org/chromium/components/autofill/PaymentsPayload.java",
     "java/src/org/chromium/components/autofill/SubKeyRequester.java",
   ]
   srcjar_deps = [
@@ -265,8 +267,11 @@ generate_jni("main_autofill_jni_headers") {
     "java/src/org/chromium/components/autofill/AutofillAddressEditorUiInfo.java",
     "java/src/org/chromium/components/autofill/AutofillAddressUiComponent.java",
     "java/src/org/chromium/components/autofill/AutofillProfile.java",
+    "java/src/org/chromium/components/autofill/AutofillProfilePayload.java",
     "java/src/org/chromium/components/autofill/DropdownKeyValue.java",
+    "java/src/org/chromium/components/autofill/FillingProductBridge.java",
     "java/src/org/chromium/components/autofill/LoyaltyCard.java",
+    "java/src/org/chromium/components/autofill/PaymentsPayload.java",
     "java/src/org/chromium/components/autofill/SubKeyRequester.java",
   ]
 }
@@ -332,7 +337,7 @@ robolectric_library("payments_autofill_junit_tests") {
     "//third_party/google-truth:google_truth_java",
     "//third_party/hamcrest:hamcrest_core_java",
     "//third_party/hamcrest:hamcrest_library_java",
-    "//third_party/junit:junit",
+    "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//url:url_java",
   ]

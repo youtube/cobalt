@@ -148,6 +148,12 @@ buildflag_header("cronet_buildflags") {
   flags = [ "CRONET_BUILD=$is_cronet_build" ]
 }
 
+buildflag_header("disk_cache_buildflags") {
+  header = "buildflags.h"
+  header_dir = "net/disk_cache/"
+  flags = [ "ENABLE_DISK_CACHE_SQL_BACKEND=$enable_disk_cache_sql_backend" ]
+}
+
 proto_library("device_bound_sessions_storage_proto") {
   proto_in_dir = "//"
   sources = [ "device_bound_sessions/proto/storage.proto" ]
@@ -300,8 +306,9 @@ component("net") {
     "base/sockaddr_storage.cc",
     "base/sockaddr_storage.h",
     "base/sys_addrinfo.h",
+    "base/task/task_runner.cc",
+    "base/task/task_runner.h",
     "base/trace_event_stub.h",
-    "base/tracing.h",
     "base/transport_info.cc",
     "base/transport_info.h",
     "base/upload_bytes_element_reader.cc",
@@ -458,6 +465,7 @@ component("net") {
     "cookies/static_cookie_policy.h",
     "cookies/unique_cookie_key.cc",
     "cookies/unique_cookie_key.h",
+    "device_bound_sessions/deletion_reason.h",
     "device_bound_sessions/session_access.cc",
     "device_bound_sessions/session_access.h",
     "device_bound_sessions/session_key.cc",
@@ -608,7 +616,6 @@ component("net") {
     "http/http_auth_multi_round_parse.h",
     "http/http_auth_preferences.cc",
     "http/http_auth_preferences.h",
-    "http/http_auth_scheme.cc",
     "http/http_auth_scheme.h",
     "http/http_basic_state.cc",
     "http/http_basic_state.h",
@@ -685,10 +692,6 @@ component("net") {
     "http/http_stream_pool.h",
     "http/http_stream_pool_attempt_manager.cc",
     "http/http_stream_pool_attempt_manager.h",
-    "http/http_stream_pool_attempt_manager_quic_attempt.cc",
-    "http/http_stream_pool_attempt_manager_quic_attempt.h",
-    "http/http_stream_pool_attempt_manager_tcp_based_attempt.cc",
-    "http/http_stream_pool_attempt_manager_tcp_based_attempt.h",
     "http/http_stream_pool_group.cc",
     "http/http_stream_pool_group.h",
     "http/http_stream_pool_handle.cc",
@@ -699,8 +702,12 @@ component("net") {
     "http/http_stream_pool_job.h",
     "http/http_stream_pool_job_controller.cc",
     "http/http_stream_pool_job_controller.h",
+    "http/http_stream_pool_quic_attempt.cc",
+    "http/http_stream_pool_quic_attempt.h",
     "http/http_stream_pool_request_info.cc",
     "http/http_stream_pool_request_info.h",
+    "http/http_stream_pool_tcp_based_attempt.cc",
+    "http/http_stream_pool_tcp_based_attempt.h",
     "http/http_stream_request.cc",
     "http/http_stream_request.h",
     "http/http_transaction.h",
@@ -726,7 +733,6 @@ component("net") {
     "http/transport_security_persister.cc",
     "http/transport_security_persister.h",
     "http/transport_security_state.h",
-    "http/transport_security_state_source.cc",
     "http/transport_security_state_source.h",
     "http/url_security_manager.cc",
     "http/url_security_manager.h",
@@ -874,6 +880,8 @@ component("net") {
     "quic/quic_crypto_client_config_handle.h",
     "quic/quic_crypto_client_stream_factory.cc",
     "quic/quic_crypto_client_stream_factory.h",
+    "quic/quic_endpoint.cc",
+    "quic/quic_endpoint.h",
     "quic/quic_event_logger.cc",
     "quic/quic_event_logger.h",
     "quic/quic_http3_logger.cc",
@@ -892,6 +900,10 @@ component("net") {
     "quic/quic_session_alias_key.h",
     "quic/quic_session_attempt.cc",
     "quic/quic_session_attempt.h",
+    "quic/quic_session_attempt_manager.cc",
+    "quic/quic_session_attempt_manager.h",
+    "quic/quic_session_attempt_request.cc",
+    "quic/quic_session_attempt_request.h",
     "quic/quic_session_key.cc",
     "quic/quic_session_key.h",
     "quic/quic_session_pool.cc",
@@ -1153,10 +1165,11 @@ component("net") {
     "//components/miracle_parameter/common",
     "//components/network_time/time_tracker",
     "//net/http:transport_security_state_generated_files",
-    "//third_party/simdutf:simdutf",
+    "//third_party/simdutf",
   ]
 
   public_deps = [
+    ":disk_cache_buildflags",
     ":net_export_header",
     ":net_public_deps",
     "//base",
@@ -1224,6 +1237,8 @@ component("net") {
     sources += [
       "device_bound_sessions/cookie_craving.cc",
       "device_bound_sessions/cookie_craving.h",
+      "device_bound_sessions/host_patterns.cc",
+      "device_bound_sessions/host_patterns.h",
       "device_bound_sessions/jwk_utils.cc",
       "device_bound_sessions/jwk_utils.h",
       "device_bound_sessions/registration_fetcher.cc",
@@ -1261,8 +1276,8 @@ component("net") {
     deps += [
       ":device_bound_sessions_storage_proto",
       "//components/sqlite_proto",
-      "//components/unexportable_keys:unexportable_keys",
-      "//sql:sql",
+      "//components/unexportable_keys",
+      "//sql",
     ]
   }
 
@@ -1785,6 +1800,24 @@ component("net") {
     deps += [ "//mojo/public/cpp/bindings:default_construct_tag" ]
   }
 
+  if (enable_disk_cache_sql_backend) {
+    sources += [
+      "disk_cache/sql/cache_entry_key.cc",
+      "disk_cache/sql/cache_entry_key.h",
+      "disk_cache/sql/exclusive_operation_coordinator.cc",
+      "disk_cache/sql/exclusive_operation_coordinator.h",
+      "disk_cache/sql/sql_backend_constants.h",
+      "disk_cache/sql/sql_backend_impl.cc",
+      "disk_cache/sql/sql_backend_impl.h",
+      "disk_cache/sql/sql_entry_impl.cc",
+      "disk_cache/sql/sql_entry_impl.h",
+      "disk_cache/sql/sql_persistent_store.cc",
+      "disk_cache/sql/sql_persistent_store.h",
+      "disk_cache/sql/sql_persistent_store_queries.h",
+    ]
+    deps += [ "//sql" ]
+  }
+
   if (is_cobalt && is_linux && !use_nss_certs) {
     sources += [ "cert/test_root_certs_builtin.cc" ]
   }
@@ -1969,7 +2002,7 @@ component("extras") {
     ":net",
     "//base",
     "//crypto",
-    "//sql:sql",
+    "//sql",
   ]
   public_deps = [ ":shared_dictionary_info" ]
 
@@ -2164,6 +2197,8 @@ static_library("test_support") {
     "test/embedded_test_server/http1_connection.h",
     "test/embedded_test_server/http2_connection.cc",
     "test/embedded_test_server/http2_connection.h",
+    "test/embedded_test_server/http_connect_proxy_handler.cc",
+    "test/embedded_test_server/http_connect_proxy_handler.h",
     "test/embedded_test_server/http_connection.cc",
     "test/embedded_test_server/http_connection.h",
     "test/embedded_test_server/http_request.cc",
@@ -2182,6 +2217,8 @@ static_library("test_support") {
     "test/embedded_test_server/websocket_check_origin_handler.h",
     "test/embedded_test_server/websocket_close_handler.cc",
     "test/embedded_test_server/websocket_close_handler.h",
+    "test/embedded_test_server/websocket_close_immediately_handler.cc",
+    "test/embedded_test_server/websocket_close_immediately_handler.h",
     "test/embedded_test_server/websocket_close_observer_handler.cc",
     "test/embedded_test_server/websocket_close_observer_handler.h",
     "test/embedded_test_server/websocket_connection.cc",
@@ -2194,6 +2231,8 @@ static_library("test_support") {
     "test/embedded_test_server/websocket_handler.h",
     "test/embedded_test_server/websocket_message_assembler.cc",
     "test/embedded_test_server/websocket_message_assembler.h",
+    "test/embedded_test_server/websocket_set_hsts_handler.cc",
+    "test/embedded_test_server/websocket_set_hsts_handler.h",
     "test/embedded_test_server/websocket_split_packet_close_handler.cc",
     "test/embedded_test_server/websocket_split_packet_close_handler.h",
     "test/event_waiter.h",
@@ -2219,6 +2258,8 @@ static_library("test_support") {
     "test/test_net_log_manager.h",
     "test/test_with_task_environment.cc",
     "test/test_with_task_environment.h",
+    "test/two_qwac_cert_binding_builder.cc",
+    "test/two_qwac_cert_binding_builder.h",
     "test/url_request/ssl_certificate_error_job.cc",
     "test/url_request/ssl_certificate_error_job.h",
     "test/url_request/url_request_failed_job.cc",
@@ -2283,7 +2324,6 @@ static_library("test_support") {
     "data/parse_certificate_unittest/",
     "data/ssl/",
     "data/url_request_unittest/",
-    "data/websocket/",
   ]
 
   if (is_mac) {
@@ -2298,34 +2338,7 @@ static_library("test_support") {
     configs += [ "//build/config/linux/nss" ]
   }
 
-  if (enable_websockets || (is_cronet_build && !is_ios)) {
-    sources += [
-      "test/spawned_test_server/base_test_server.cc",
-      "test/spawned_test_server/base_test_server.h",
-      "test/spawned_test_server/spawned_test_server.h",
-    ]
-  }
-
   public_configs = [ ":net_test_config" ]
-
-  if (use_remote_test_server) {
-    sources += [
-      "test/spawned_test_server/remote_test_server.cc",
-      "test/spawned_test_server/remote_test_server.h",
-      "test/spawned_test_server/remote_test_server_spawner_request.cc",
-      "test/spawned_test_server/remote_test_server_spawner_request.h",
-    ]
-  } else if (!is_ios && !is_starboard) {
-    sources += [
-      "test/spawned_test_server/local_test_server.cc",
-      "test/spawned_test_server/local_test_server.h",
-    ]
-    if (is_win) {
-      sources += [ "test/spawned_test_server/local_test_server_win.cc" ]
-    } else if (is_posix || is_fuchsia) {
-      sources += [ "test/spawned_test_server/local_test_server_posix.cc" ]
-    }
-  }
 
   if (enable_python_utils) {
     sources += [
@@ -2359,6 +2372,10 @@ static_library("test_support") {
       "reporting/reporting_test_util.h",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (!is_ios && !is_android) {
@@ -2489,6 +2506,7 @@ if (is_linux || is_chromeos || is_mac) {
       ":net",
       ":test_support",
       "//base",
+      "//crypto",
     ]
   }
 
@@ -2534,6 +2552,7 @@ if (is_android || is_linux || is_chromeos) {
     sources = [ "tools/disk_cache_memory_test/disk_cache_memory_test.cc" ]
     deps = [
       ":net",
+      ":test_support",
       "//base",
     ]
   }
@@ -2656,15 +2675,6 @@ if (!is_ios) {
       "//third_party/protobuf:protobuf_lite",
     ]
   }
-  executable("crypto_message_printer") {
-    testonly = true
-    sources = [ "tools/quic/crypto_message_printer_bin.cc" ]
-    deps = [
-      ":net",
-      "//base",
-      "//build/win:default_exe_manifest",
-    ]
-  }
 }
 
 if (is_ios) {
@@ -2712,6 +2722,7 @@ target(_test_target_type, "net_unittests") {
     "base/backoff_entry_unittest.cc",
     "base/base64_unittest.cc",
     "base/chunked_upload_data_stream_unittest.cc",
+    "base/connection_endpoint_metadata_unittest.cc",
     "base/data_url_unittest.cc",
     "base/does_url_match_filter_unittest.cc",
     "base/elements_upload_data_stream_unittest.cc",
@@ -2940,6 +2951,7 @@ target(_test_target_type, "net_unittests") {
     "quic/quic_proxy_client_socket_test_base.h",
     "quic/quic_proxy_client_socket_unittest.cc",
     "quic/quic_proxy_datagram_client_socket_unittest.cc",
+    "quic/quic_session_attempt_manager_unittest.cc",
     "quic/quic_session_key_unittest.cc",
     "quic/quic_session_pool_peer.cc",
     "quic/quic_session_pool_peer.h",
@@ -3128,7 +3140,10 @@ target(_test_target_type, "net_unittests") {
     defines += [ "NET_DISABLE_ZSTD" ]
   }
 
-  fuzztests = [ "PickleTest.FuzzRoundTrip" ]
+  fuzztests = [
+    "PickleTest.FuzzRoundTrip",
+    "QuicVersionsFuzzTest.ParseSerializeParseIdentityProperty",
+  ]
 
   deps = [
     ":cronet_buildflags",
@@ -3160,7 +3175,7 @@ target(_test_target_type, "net_unittests") {
     "//third_party/anonymous_tokens:anonymous_tokens_tests",
     "//third_party/perfetto:perfetto_test_support",
     "//third_party/protobuf:protobuf_lite",
-    "//third_party/simdutf:simdutf",
+    "//third_party/simdutf",
     "//third_party/zlib",
     "//url",
     "//url:buildflags",
@@ -3237,15 +3252,6 @@ target(_test_target_type, "net_unittests") {
   ]
   data_deps = [ "//testing/buildbot/filters:net_unittests_filters" ]
 
-  if (is_linux || is_chromeos || is_mac || is_win || is_fuchsia) {
-    deps += [ "//third_party/pywebsocket3/" ]
-    data_deps += [ "//third_party/pywebsocket3/" ]
-    data += [
-      "tools/testserver/",
-      "//third_party/pywebsocket3/src/mod_pywebsocket/",
-    ]
-  }
-
   if (is_linux || is_chromeos) {
     sources += [ "tools/quic/quic_simple_server_test.cc" ]
   }
@@ -3281,7 +3287,6 @@ target(_test_target_type, "net_unittests") {
   }
 
   if (is_fuchsia) {
-    use_test_server = true
     deps += [
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.net.interfaces:fuchsia.net.interfaces_hlcpp",
       "//third_party/fuchsia-sdk/sdk/pkg/fidl_cpp",
@@ -3335,6 +3340,7 @@ target(_test_target_type, "net_unittests") {
       "websockets/websocket_deflate_predictor_impl_test.cc",
       "websockets/websocket_deflate_stream_test.cc",
       "websockets/websocket_deflater_test.cc",
+      "websockets/websocket_end_to_end_test.cc",
       "websockets/websocket_errors_test.cc",
       "websockets/websocket_extension_parser_test.cc",
       "websockets/websocket_extension_test.cc",
@@ -3350,14 +3356,6 @@ target(_test_target_type, "net_unittests") {
       "websockets/websocket_test_util.cc",
       "websockets/websocket_test_util.h",
     ]
-
-    if (!is_ios && !is_starboard) {
-      # TODO(crbug.com/40812029): iOS does not have support for the spawned test
-      # server, which is used by this test. The long term plan is to add
-      # websocket support to the embedded test server and when that happens,
-      # this test could be enabled.
-      sources += [ "websockets/websocket_end_to_end_test.cc" ]
-    }
   }
 
   if (!disable_file_support) {
@@ -3427,7 +3425,6 @@ target(_test_target_type, "net_unittests") {
   }
 
   if (is_android) {
-    data_deps += [ "//net/tools/testserver:testserver_py" ]
     deps += [
       ":net_jni_headers",
       "//base:base_unittest_support_java",
@@ -3489,6 +3486,7 @@ target(_test_target_type, "net_unittests") {
   if (enable_device_bound_sessions) {
     sources += [
       "device_bound_sessions/cookie_craving_unittest.cc",
+      "device_bound_sessions/host_patterns_unittest.cc",
       "device_bound_sessions/jwk_utils_unittest.cc",
       "device_bound_sessions/mock_session_service.cc",
       "device_bound_sessions/mock_session_service.h",
@@ -3508,10 +3506,29 @@ target(_test_target_type, "net_unittests") {
     ]
     deps += [
       ":device_bound_sessions_storage_proto",
+      "//components/unexportable_keys",
       "//components/unexportable_keys:test_support",
-      "//components/unexportable_keys:unexportable_keys",
     ]
   }
+
+  if (enable_disk_cache_sql_backend) {
+    sources += [
+      "disk_cache/sql/cache_entry_key_unittest.cc",
+      "disk_cache/sql/exclusive_operation_coordinator_unittest.cc",
+      "disk_cache/sql/sql_backend_impl_unittest.cc",
+      "disk_cache/sql/sql_persistent_store_unittest.cc",
+    ]
+
+    # Platforms where sqlite_dev_shell is defined.
+    if (is_win || is_mac || is_linux || is_chromeos) {
+      sources += [ "disk_cache/sql/sql_persistent_store_queries_unittest.cc" ]
+      data_deps += [ "//third_party/sqlite:sqlite_dev_shell" ]
+    }
+  }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 # !is_android && !is_win && !is_mac
@@ -3524,6 +3541,7 @@ if (!is_ios) {
       "cookies/cookie_monster_perftest.cc",
       "disk_cache/disk_cache_perftest.cc",
       "extras/sqlite/sqlite_persistent_cookie_store_perftest.cc",
+      "http/http_request_headers_perftest.cc",
       "socket/udp_socket_perftest.cc",
       "spdy/spdy_http_utils_perftest.cc",
       "url_request/url_request_quic_perftest.cc",
@@ -3540,7 +3558,7 @@ if (!is_ios) {
       "//base/test:test_support_perf",
       "//testing/gtest",
       "//testing/perf",
-      "//third_party/google_benchmark:google_benchmark",
+      "//third_party/google_benchmark",
       "//url",
     ]
     data_deps = [
@@ -3552,7 +3570,7 @@ if (!is_ios) {
       sources += [ "device_bound_sessions/session_store_impl_perftest.cc" ]
       deps += [
         ":device_bound_sessions_storage_proto",
-        "//components/unexportable_keys:unexportable_keys",
+        "//components/unexportable_keys",
         "//crypto:test_support",
       ]
     }
@@ -3987,6 +4005,15 @@ if (use_fuzzing_engine) {
     testonly = true
     visibility = [
       ":net_web_socket_encoder_fuzzer",
+      ":net_web_socket_encoder_fuzzer__apk__compile_java",
+      ":net_web_socket_encoder_fuzzer__apk__compile_resources",
+      ":net_web_socket_encoder_fuzzer__apk__create",
+      ":net_web_socket_encoder_fuzzer__apk__java",
+      ":net_web_socket_encoder_fuzzer__apk__java__dex",
+      ":net_web_socket_encoder_fuzzer__apk__java__header",
+      ":net_web_socket_encoder_fuzzer__apk__java__validate",
+      ":net_web_socket_encoder_fuzzer__library",
+      ":net_web_socket_encoder_fuzzer__library__jni_registration__native_sources",
       ":net_web_socket_encoder_fuzzer_executable",
       ":run_net_web_socket_encoder_fuzzer",
     ]

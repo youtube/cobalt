@@ -6,31 +6,22 @@
 
 #include <algorithm>
 #include <cmath>
-#include <memory>
 #include <optional>
 #include <sstream>
 #include <vector>
 
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api-natives.h"
-#include "src/api/api.h"
-#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/bits.h"
-#include "src/base/debug/stack_trace.h"
 #include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/utils/random-number-generator.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/compiler.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
-#include "src/date/date.h"
 #include "src/debug/debug.h"
-#include "src/diagnostics/code-tracer.h"
-#include "src/execution/arguments.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -42,13 +33,9 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/read-only-heap.h"
-#include "src/ic/ic.h"
-#include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
-#include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/allocation-site-inl.h"
-#include "src/objects/allocation-site-scopes.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
@@ -63,9 +50,7 @@
 #include "src/objects/field-index-inl.h"
 #include "src/objects/field-index.h"
 #include "src/objects/field-type.h"
-#include "src/objects/foreign.h"
 #include "src/objects/free-space-inl.h"
-#include "src/objects/function-kind.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type.h"
@@ -75,13 +60,11 @@
 #include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-regexp-inl.h"
-#include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/keys.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-inl.h"
 #include "src/objects/map-inl.h"
-#include "src/objects/map-updater.h"
 #include "src/objects/map.h"
 #include "src/objects/megadom-handler-inl.h"
 #include "src/objects/microtask-inl.h"
@@ -93,9 +76,7 @@
 #include "src/objects/property-descriptor-object-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"
-#include "src/objects/prototype.h"
 #include "src/objects/slots-atomic-inl.h"
-#include "src/objects/string-comparator.h"
 #include "src/objects/string-set-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/objects/template-objects-inl.h"
@@ -105,17 +86,11 @@
 #include "src/roots/roots.h"
 #include "src/snapshot/deserializer.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/strings/string-search.h"
 #include "src/strings/string-stream.h"
-#include "src/strings/unicode-decoder.h"
 #include "src/strings/unicode-inl.h"
-#include "src/tracing/traced-value.h"
-#include "src/utils/hex-format.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/ostreams.h"
-#include "src/utils/sha-256.h"
 #include "src/utils/utils-inl.h"
-#include "src/zone/zone.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
@@ -319,13 +294,7 @@ typename HandleType<Number>::MaybeType Object::ConvertToNumber(
     Isolate* isolate, HandleType<Object> input) {
   while (true) {
     if (IsNumber(*input)) {
-      auto number = Cast<Number>(input);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      DCHECK_IMPLIES(
-          IsHeapNumber(*number),
-          Cast<HeapNumber>(number)->value_as_bits() != kUndefinedNanInt64);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-      return number;
+      return Cast<Number>(input);
     }
     if (IsString(*input)) {
       return String::ToNumber(isolate, Cast<String>(input));
@@ -593,6 +562,8 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
 
   if (IsString(*input) || IsNumber(*input) || IsOddball(*input)) {
     return Object::ToString(isolate, input).ToHandleChecked();
+  } else if (IsTerminationException(*input)) {
+    return isolate->factory()->NewStringFromStaticChars("TerminationException");
   } else if (IsJSProxy(*input)) {
     DirectHandle<Object> currInput = input;
     do {
@@ -1303,6 +1274,8 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::DATA:
         return it->GetDataValue();
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        return it->GetStringPropertyValue();
       case LookupIterator::NOT_FOUND:
         if (it->IsPrivateName()) {
           auto private_symbol = Cast<Symbol>(it->name());
@@ -1614,9 +1587,8 @@ Maybe<bool> Object::SetPropertyWithAccessor(
     }
 
     if (info->is_sloppy() && !IsJSReceiver(*receiver)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, receiver, Object::ConvertReceiver(isolate, receiver),
-          Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                                 Object::ConvertReceiver(isolate, receiver));
     }
 
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
@@ -1944,6 +1916,10 @@ int HeapObjectLayout::SizeFromMap(Tagged<Map> map) const {
   return Tagged<HeapObject>(this)->SizeFromMap(map);
 }
 
+SafeHeapObjectSize HeapObjectLayout::SafeSizeFromMap(Tagged<Map> map) const {
+  return Tagged<HeapObject>(this)->SafeSizeFromMap(map);
+}
+
 int HeapObject::SizeFromMap(Tagged<Map> map) const {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;
@@ -2095,6 +2071,14 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
         UncheckedCast<EmbedderDataArray>(*this)->length());
   }
   UNREACHABLE();
+}
+
+SafeHeapObjectSize HeapObject::SafeSizeFromMap(Tagged<Map> map) const {
+  const int unsafe_size = SizeFromMap(map);
+  // The uint32_t cast may convert a negative number into any index within 4G.
+  // Subsequently converting this size to other unsigned sizes is safe as
+  // there's just extensions with zeros.
+  return SafeHeapObjectSize(static_cast<uint32_t>(unsafe_size));
 }
 
 bool HeapObject::NeedsRehashing(PtrComprCageBase cage_base) const {
@@ -2390,13 +2374,12 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 
           if (holder->type() == kExternalBigInt64Array ||
               holder->type() == kExternalBigUint64Array) {
-            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            ASSIGN_RETURN_ON_EXCEPTION(
                 it->isolate(), converted_value,
-                BigInt::FromObject(it->isolate(), value), Nothing<bool>());
+                BigInt::FromObject(it->isolate(), value));
           } else {
-            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-                it->isolate(), converted_value,
-                Object::ToNumber(it->isolate(), value), Nothing<bool>());
+            ASSIGN_RETURN_ON_EXCEPTION(it->isolate(), converted_value,
+                                       Object::ToNumber(it->isolate(), value));
           }
           // For RAB/GSABs, the above conversion might grow the buffer so that
           // the index is no longer out of bounds. Redo the bounds check and try
@@ -2433,6 +2416,9 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
       case LookupIterator::TRANSITION:
         *found = false;
         return Nothing<bool>();
+
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        return WriteToReadOnlyProperty(it, value, should_throw);
     }
     UNREACHABLE();
   }
@@ -2523,6 +2509,9 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it,
         return RedefineIncompatibleProperty(isolate, it->GetName(), value,
                                             should_throw);
 
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
+        UNREACHABLE();
+
       case LookupIterator::DATA: {
         if (own_lookup.IsReadOnly()) {
           return WriteToReadOnlyProperty(&own_lookup, value, should_throw);
@@ -2593,7 +2582,9 @@ Maybe<bool> Object::WriteToReadOnlyProperty(
     LookupIterator* it, DirectHandle<Object> value,
     Maybe<ShouldThrow> maybe_should_throw) {
   ShouldThrow should_throw = GetShouldThrow(it->isolate(), maybe_should_throw);
-  if (it->IsFound() && !it->HolderIsReceiver()) {
+  if (it->IsFound() &&
+      it->state() != LookupIterator::STRING_LOOKUP_START_OBJECT &&
+      !it->HolderIsReceiver()) {
     // "Override mistake" attempted, record a use count to track this per
     // v8:8175
     v8::Isolate::UseCounterFeature feature =
@@ -2643,17 +2634,15 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it,
     auto receiver_ta = Cast<JSTypedArray>(receiver);
     ElementsKind elements_kind = Cast<JSObject>(*receiver)->GetElementsKind();
     if (IsBigIntTypedArrayElementsKind(elements_kind)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
-                                       BigInt::FromObject(isolate, value),
-                                       Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, to_assign,
+                                 BigInt::FromObject(isolate, value));
       if (V8_UNLIKELY(receiver_ta->IsDetachedOrOutOfBounds() ||
                       it->index() >= receiver_ta->GetLength())) {
         return Just(true);
       }
     } else if (!IsNumber(*value) && !IsUndefined(*value, isolate)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
-                                       Object::ToNumber(isolate, value),
-                                       Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, to_assign,
+                                 Object::ToNumber(isolate, value));
       if (V8_UNLIKELY(receiver_ta->IsDetachedOrOutOfBounds() ||
                       it->index() >= receiver_ta->GetLength())) {
         return Just(true);
@@ -2665,9 +2654,8 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it,
   if (V8_UNLIKELY(IsJSSharedStruct(*receiver, isolate) ||
                   IsJSSharedArray(*receiver, isolate))) {
     // Shared structs can only point to primitives or shared values.
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError),
-        Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError));
     it->WriteDataValue(to_assign, false);
   } else {
     // Possibly migrate to the most up-to-date map that will be able to store
@@ -2876,6 +2864,9 @@ int AccessorInfo::AppendUnique(Isolate* isolate,
 
 void JSProxy::Revoke(DirectHandle<JSProxy> proxy) {
   Isolate* isolate = Isolate::Current();
+  // If this fails then some Proxy allocation code path that created
+  // revocable Proxies didn't set the bit correctly.
+  CHECK(JSProxy::IsRevocableBit::decode(proxy->flags()));
   // ES#sec-proxy-revocation-functions
   if (!proxy->IsRevoked()) {
     // 5. Set p.[[ProxyTarget]] to null.
@@ -2926,11 +2917,10 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, DirectHandle<JSProxy> proxy,
   DirectHandle<JSReceiver> target(Cast<JSReceiver>(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "has").
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap,
       Object::GetMethod(isolate, Cast<JSReceiver>(handler),
-                        isolate->factory()->has_string()),
-      Nothing<bool>());
+                        isolate->factory()->has_string()));
   // 7. If trap is undefined, then
   if (IsUndefined(*trap, isolate)) {
     // 7a. Return target.[[HasProperty]](P).
@@ -2939,10 +2929,9 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, DirectHandle<JSProxy> proxy,
   // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, P»)).
   DirectHandle<Object> trap_result_obj;
   DirectHandle<Object> args[] = {target, name};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result_obj,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   bool boolean_trap_result = Object::BooleanValue(*trap_result_obj, isolate);
   // 9. If booleanTrapResult is false, then:
   if (!boolean_trap_result) {
@@ -3001,9 +2990,8 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
   DirectHandle<JSReceiver> handler(Cast<JSReceiver>(proxy->handler()), isolate);
 
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
+                             Object::GetMethod(isolate, handler, trap_name));
   if (IsUndefined(*trap, isolate)) {
     PropertyKey key(isolate, name);
     LookupIterator it(isolate, receiver, key, target);
@@ -3014,10 +3002,9 @@ Maybe<bool> JSProxy::SetProperty(DirectHandle<JSProxy> proxy,
 
   DirectHandle<Object> trap_result;
   DirectHandle<Object> args[] = {target, name, value, receiver};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   if (!Object::BooleanValue(*trap_result, isolate)) {
     RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                    NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
@@ -3053,9 +3040,8 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(DirectHandle<JSProxy> proxy,
   DirectHandle<JSReceiver> handler(Cast<JSReceiver>(proxy->handler()), isolate);
 
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
+                             Object::GetMethod(isolate, handler, trap_name));
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::DeletePropertyOrElement(isolate, target, name,
                                                language_mode);
@@ -3063,10 +3049,9 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(DirectHandle<JSProxy> proxy,
 
   DirectHandle<Object> trap_result;
   DirectHandle<Object> args[] = {target, name};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   if (!Object::BooleanValue(*trap_result, isolate)) {
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
@@ -3108,7 +3093,8 @@ Maybe<bool> JSProxy::CheckDeleteTrap(Isolate* isolate, DirectHandle<Name> name,
 // static
 MaybeDirectHandle<JSProxy> JSProxy::New(Isolate* isolate,
                                         DirectHandle<Object> target,
-                                        DirectHandle<Object> handler) {
+                                        DirectHandle<Object> handler,
+                                        bool revocable) {
   if (!IsJSReceiver(*target)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject));
   }
@@ -3116,7 +3102,7 @@ MaybeDirectHandle<JSProxy> JSProxy::New(Isolate* isolate,
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject));
   }
   return isolate->factory()->NewJSProxy(Cast<JSReceiver>(target),
-                                        Cast<JSReceiver>(handler));
+                                        Cast<JSReceiver>(handler), revocable);
 }
 
 Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {
@@ -3367,10 +3353,9 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate,
   DirectHandle<JSReceiver> target(Cast<JSReceiver>(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "defineProperty").
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap,
-      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name),
-      Nothing<bool>());
+      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name));
   // 7. If trap is undefined, then:
   if (IsUndefined(*trap, isolate)) {
     // 7a. Return target.[[DefineOwnProperty]](P, Desc).
@@ -3388,10 +3373,9 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate,
   DCHECK(!property_name->IsPrivate());
   DirectHandle<Object> trap_result_obj;
   DirectHandle<Object> args[] = {target, property_name, desc_obj};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result_obj,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   // 10. If booleanTrapResult is false, return false.
   if (!Object::BooleanValue(*trap_result_obj, isolate)) {
     RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
@@ -3536,10 +3520,9 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   DirectHandle<JSReceiver> target(Cast<JSReceiver>(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "getOwnPropertyDescriptor").
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap,
-      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name),
-      Nothing<bool>());
+      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name));
   // 7. If trap is undefined, then
   if (IsUndefined(*trap, isolate)) {
     // 7a. Return target.[[GetOwnProperty]](P).
@@ -3548,11 +3531,10 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   // 8. Let trapResultObj be ? Call(trap, handler, «target, P»).
   Handle<JSAny> trap_result_obj;
   DirectHandle<Object> args[] = {target, name};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result_obj,
       Cast<JSAny>(
-          Execution::Call(isolate, trap, handler, base::VectorOf(args))),
-      Nothing<bool>());
+          Execution::Call(isolate, trap, handler, base::VectorOf(args))));
   // 9. If Type(trapResultObj) is neither Object nor Undefined, throw a
   //    TypeError exception.
   if (!IsJSReceiver(*trap_result_obj) &&
@@ -3656,19 +3638,17 @@ Maybe<bool> JSProxy::PreventExtensions(DirectHandle<JSProxy> proxy,
   DirectHandle<JSReceiver> handler(Cast<JSReceiver>(proxy->handler()), isolate);
 
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
+                             Object::GetMethod(isolate, handler, trap_name));
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::PreventExtensions(isolate, target, should_throw);
   }
 
   DirectHandle<Object> trap_result;
   DirectHandle<Object> args[] = {target};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   if (!Object::BooleanValue(*trap_result, isolate)) {
     RETURN_FAILURE(
         isolate, should_throw,
@@ -3701,19 +3681,17 @@ Maybe<bool> JSProxy::IsExtensible(DirectHandle<JSProxy> proxy) {
   DirectHandle<JSReceiver> handler(Cast<JSReceiver>(proxy->handler()), isolate);
 
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(isolate, handler, trap_name),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
+                             Object::GetMethod(isolate, handler, trap_name));
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::IsExtensible(isolate, target);
   }
 
   DirectHandle<Object> trap_result;
   DirectHandle<Object> args[] = {target};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
 
   // Enforce the invariant.
   Maybe<bool> target_result = JSReceiver::IsExtensible(isolate, target);
@@ -4320,535 +4298,7 @@ void Oddball::Initialize(Isolate* isolate, DirectHandle<Oddball> oddball,
   oddball->set_kind(kind);
 }
 
-// static
-int Script::GetEvalPosition(Isolate* isolate, DirectHandle<Script> script) {
-  DCHECK(script->compilation_type() == Script::CompilationType::kEval);
-  int position = script->eval_from_position();
-  if (position < 0) {
-    // Due to laziness, the position may not have been translated from code
-    // offset yet, which would be encoded as negative integer. In that case,
-    // translate and set the position.
-    if (!script->has_eval_from_shared()) {
-      position = 0;
-    } else {
-      DirectHandle<SharedFunctionInfo> shared(script->eval_from_shared(),
-                                              isolate);
-      SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
-      position =
-          shared->abstract_code(isolate)->SourcePosition(isolate, -position);
-    }
-    DCHECK_GE(position, 0);
-    script->set_eval_from_position(position);
-  }
-  return position;
-}
 
-String::LineEndsVector Script::GetLineEnds(Isolate* isolate,
-                                           DirectHandle<Script> script) {
-  DCHECK(!script->has_line_ends());
-  Tagged<Object> src_obj = script->source();
-  if (IsString(src_obj)) {
-    DirectHandle<String> src(Cast<String>(src_obj), isolate);
-    return String::CalculateLineEndsVector(isolate, src, true);
-  }
-
-  return String::LineEndsVector();
-}
-
-template <typename IsolateT>
-// static
-void Script::InitLineEndsInternal(IsolateT* isolate,
-                                  DirectHandle<Script> script) {
-  DCHECK(!script->has_line_ends());
-  DCHECK(script->CanHaveLineEnds());
-  Tagged<Object> src_obj = script->source();
-  if (!IsString(src_obj)) {
-    DCHECK(IsUndefined(src_obj, isolate));
-    script->set_line_ends(ReadOnlyRoots(isolate).empty_fixed_array());
-  } else {
-    DCHECK(IsString(src_obj));
-    DirectHandle<String> src(Cast<String>(src_obj), isolate);
-    DirectHandle<FixedArray> array =
-        String::CalculateLineEnds(isolate, src, true);
-    script->set_line_ends(*array);
-  }
-  DCHECK(IsFixedArray(script->line_ends()));
-  DCHECK(script->has_line_ends());
-}
-
-void Script::SetSource(Isolate* isolate, DirectHandle<Script> script,
-                       DirectHandle<String> source) {
-  script->set_source(*source);
-  if (isolate->NeedsSourcePositions()) {
-    InitLineEnds(isolate, script);
-  } else if (script->line_ends() ==
-             ReadOnlyRoots(isolate).empty_fixed_array()) {
-    DCHECK(script->has_line_ends());
-    script->set_line_ends(Smi::zero());
-    DCHECK(!script->has_line_ends());
-  }
-}
-
-template V8_EXPORT_PRIVATE void Script::InitLineEndsInternal(
-    Isolate* isolate, DirectHandle<Script> script);
-template V8_EXPORT_PRIVATE void Script::InitLineEndsInternal(
-    LocalIsolate* isolate, DirectHandle<Script> script);
-
-bool Script::GetPositionInfo(DirectHandle<Script> script, int position,
-                             PositionInfo* info, OffsetFlag offset_flag) {
-#if V8_ENABLE_WEBASSEMBLY
-  // For wasm, we do not create an artificial line_ends array, but do the
-  // translation directly.
-#ifdef DEBUG
-  if (script->type() == Type::kWasm) {
-    DCHECK(script->has_line_ends());
-    DCHECK_EQ(Cast<FixedArray>(script->line_ends())->length(), 0);
-  }
-#endif  // DEBUG
-#endif  // V8_ENABLE_WEBASSEMBLY
-  InitLineEnds(Isolate::Current(), script);
-  return script->GetPositionInfo(position, info, offset_flag);
-}
-
-bool Script::IsSubjectToDebugging() const {
-  switch (type()) {
-    case Type::kNormal:
-#if V8_ENABLE_WEBASSEMBLY
-    case Type::kWasm:
-#endif  // V8_ENABLE_WEBASSEMBLY
-      return true;
-    case Type::kNative:
-    case Type::kInspector:
-    case Type::kExtension:
-      return false;
-  }
-  UNREACHABLE();
-}
-
-bool Script::IsUserJavaScript() const {
-  return type() == Script::Type::kNormal;
-}
-
-#if V8_ENABLE_WEBASSEMBLY
-bool Script::ContainsAsmModule() {
-  DisallowGarbageCollection no_gc;
-  SharedFunctionInfo::ScriptIterator iter(Isolate::Current(), *this);
-  for (Tagged<SharedFunctionInfo> sfi = iter.Next(); !sfi.is_null();
-       sfi = iter.Next()) {
-    if (sfi->HasAsmWasmData()) return true;
-  }
-  return false;
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-void Script::TraceScriptRundown() {
-  DisallowGarbageCollection no_gc;
-  Isolate* isolate = Isolate::Current();
-  Tagged<Object> context_value = isolate->native_context()->debug_context_id();
-  int contextId = (IsSmi(context_value)) ? Smi::ToInt(context_value) : 0;
-  auto value = v8::tracing::TracedValue::Create();
-  value->SetInteger("scriptId", this->id());
-  value->SetInteger("executionContextId", contextId);
-  value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
-  value->SetBoolean("isModule", this->origin_options().IsModule());
-  value->SetBoolean("hasSourceUrl", this->HasSourceURLComment());
-  if (this->HasValidSource()) {
-    if (this->HasSourceURLComment()) {
-      value->SetString("sourceUrl",
-                       Cast<String>(this->source_url())->ToCString().get());
-    }
-    if (this->HasSourceMappingURLComment()) {
-      Tagged<String> sourceMapUrl = Cast<String>(this->source_mapping_url());
-      // Source maps can be huge. Don't ever put a huge data url source map in
-      // the trace. Also omit unusually large regular URLs.
-      constexpr int kMaxSourceMapUrlLength = 2048;
-      if (sourceMapUrl->length() > kMaxSourceMapUrlLength) {
-        // Signal that there is a source map - clients may wish to request it by
-        // other means (such as via CDP) or otherwise warn that a source map was
-        // present but elided.
-        value->SetBoolean("sourceMapUrlElided", true);
-      } else {
-        value->SetString("sourceMapUrl", sourceMapUrl->ToCString().get());
-      }
-    }
-  }
-  if (IsString(this->name())) {
-    value->SetString("url", Cast<String>(this->name())->ToCString().get());
-  }
-  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
-               "ScriptCatchup", "data", std::move(value));
-}
-
-void Script::TraceScriptRundownSources() {
-  DisallowGarbageCollection no_gc;
-  Isolate* isolate = Isolate::Current();
-  if (!IsString(this->source())) return;
-  Tagged<String> source = Cast<String>(this->source());
-  auto script_id = this->id();
-  int32_t source_length = source->length();
-
-  const int32_t kSourceMaxLength = 25000000;  // 25mb
-  const int32_t kSplitMaxLength = 1000000;    // 1mb
-  if (source_length > kSourceMaxLength) {
-    auto value = v8::tracing::TracedValue::Create();
-    value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
-    value->SetInteger("scriptId", script_id);
-    value->SetInteger("length", source_length);
-    value->SetInteger("limit", kSourceMaxLength);
-    TRACE_EVENT1(
-        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-        "TooLargeScriptCatchup", "data", std::move(value));
-  } else if (source_length <= kSplitMaxLength) {
-    auto value = v8::tracing::TracedValue::Create();
-    value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
-    value->SetInteger("scriptId", script_id);
-    value->SetInteger("length", source_length);
-    value->SetString("sourceText", source->ToCString().get());
-    TRACE_EVENT1(
-        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-        "ScriptCatchup", "data", std::move(value));
-  } else {
-    int32_t split_count = source_length / kSplitMaxLength + 1;
-    std::unique_ptr<char[]> source_ptr = source->ToCString();
-    for (int32_t i = 0; i < split_count; i++) {
-      int32_t begin = i * kSplitMaxLength;
-      int32_t end = std::min(begin + kSplitMaxLength, source_length);
-      auto split_trace_value = v8::tracing::TracedValue::Create();
-      split_trace_value->SetInteger("splitIndex", i);
-      split_trace_value->SetInteger("splitCount", split_count);
-      split_trace_value->SetUnsignedInteger("isolate",
-                                            isolate->debug()->IsolateId());
-      split_trace_value->SetInteger("scriptId", script_id);
-      split_trace_value->SetString(
-          "sourceText", std::string(source_ptr.get() + begin, end - begin));
-      TRACE_EVENT1(
-          TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
-          "LargeScriptCatchup", "data", std::move(split_trace_value));
-    }
-  }
-}
-
-namespace {
-
-template <typename Char>
-bool GetPositionInfoSlowImpl(base::Vector<Char> source, int position,
-                             Script::PositionInfo* info) {
-  DCHECK(DisallowPositionInfoSlow::IsAllowed());
-  if (position < 0) {
-    position = 0;
-  }
-  int line = 0;
-  const auto begin = std::cbegin(source);
-  const auto end = std::cend(source);
-  for (auto line_begin = begin; line_begin < end;) {
-    const auto line_end = std::find(line_begin, end, '\n');
-    if (position <= (line_end - begin)) {
-      info->line = line;
-      info->column = static_cast<int>((begin + position) - line_begin);
-      info->line_start = static_cast<int>(line_begin - begin);
-      info->line_end = static_cast<int>(line_end - begin);
-      return true;
-    }
-    ++line;
-    line_begin = line_end + 1;
-  }
-  return false;
-}
-bool GetPositionInfoSlow(const Tagged<Script> script, int position,
-                         const DisallowGarbageCollection& no_gc,
-                         Script::PositionInfo* info) {
-  if (!IsString(script->source())) {
-    return false;
-  }
-  auto source = Cast<String>(script->source());
-  const auto flat = source->GetFlatContent(no_gc);
-  return flat.IsOneByte()
-             ? GetPositionInfoSlowImpl(flat.ToOneByteVector(), position, info)
-             : GetPositionInfoSlowImpl(flat.ToUC16Vector(), position, info);
-}
-
-int GetLineEnd(const String::LineEndsVector& vector, int line) {
-  return vector[line];
-}
-
-int GetLineEnd(const Tagged<FixedArray>& array, int line) {
-  return Smi::ToInt(array->get(line));
-}
-
-int GetLength(const String::LineEndsVector& vector) {
-  return static_cast<int>(vector.size());
-}
-
-int GetLength(const Tagged<FixedArray>& array) { return array->length(); }
-
-template <typename LineEndsContainer>
-bool GetLineEndsContainerPositionInfo(const LineEndsContainer& ends,
-                                      int position, Script::PositionInfo* info,
-                                      const DisallowGarbageCollection& no_gc) {
-  const int ends_len = GetLength(ends);
-  if (ends_len == 0) return false;
-
-  // Return early on invalid positions. Negative positions behave as if 0 was
-  // passed, and positions beyond the end of the script return as failure.
-  if (position < 0) {
-    position = 0;
-  } else if (position > GetLineEnd(ends, ends_len - 1)) {
-    return false;
-  }
-
-  // Determine line number by doing a binary search on the line ends array.
-  if (GetLineEnd(ends, 0) >= position) {
-    info->line = 0;
-    info->line_start = 0;
-    info->column = position;
-  } else {
-    int left = 0;
-    int right = ends_len - 1;
-
-    while (right > 0) {
-      DCHECK_LE(left, right);
-      const int mid = left + (right - left) / 2;
-      if (position > GetLineEnd(ends, mid)) {
-        left = mid + 1;
-      } else if (position <= GetLineEnd(ends, mid - 1)) {
-        right = mid - 1;
-      } else {
-        info->line = mid;
-        break;
-      }
-    }
-    DCHECK(GetLineEnd(ends, info->line) >= position &&
-           GetLineEnd(ends, info->line - 1) < position);
-    info->line_start = GetLineEnd(ends, info->line - 1) + 1;
-    info->column = position - info->line_start;
-  }
-
-  return true;
-}
-
-}  // namespace
-
-void Script::AddPositionInfoOffset(PositionInfo* info,
-                                   OffsetFlag offset_flag) const {
-  // Add offsets if requested.
-  if (offset_flag == OffsetFlag::kWithOffset) {
-    if (info->line == 0) {
-      info->column += column_offset();
-    }
-    info->line += line_offset();
-  } else {
-    DCHECK_EQ(offset_flag, OffsetFlag::kNoOffset);
-  }
-}
-
-template <typename LineEndsContainer>
-bool Script::GetPositionInfoInternal(
-    const LineEndsContainer& ends, int position, Script::PositionInfo* info,
-    const DisallowGarbageCollection& no_gc) const {
-  if (!GetLineEndsContainerPositionInfo(ends, position, info, no_gc))
-    return false;
-
-  // Line end is position of the linebreak character.
-  info->line_end = GetLineEnd(ends, info->line);
-  if (info->line_end > 0) {
-    DCHECK(IsString(source()));
-    Tagged<String> src = Cast<String>(source());
-    if (src->length() >= static_cast<uint32_t>(info->line_end) &&
-        src->Get(info->line_end - 1) == '\r') {
-      info->line_end--;
-    }
-  }
-
-  return true;
-}
-
-template bool Script::GetPositionInfoInternal<String::LineEndsVector>(
-    const String::LineEndsVector& ends, int position,
-    Script::PositionInfo* info, const DisallowGarbageCollection& no_gc) const;
-template bool Script::GetPositionInfoInternal<Tagged<FixedArray>>(
-    const Tagged<FixedArray>& ends, int position, Script::PositionInfo* info,
-    const DisallowGarbageCollection& no_gc) const;
-
-bool Script::GetPositionInfo(int position, PositionInfo* info,
-                             OffsetFlag offset_flag) const {
-  DisallowGarbageCollection no_gc;
-
-#if V8_ENABLE_WEBASSEMBLY
-  // For wasm, we use the byte offset as the column.
-  if (type() == Script::Type::kWasm) {
-    DCHECK_LE(0, position);
-    wasm::NativeModule* native_module = wasm_native_module();
-    const wasm::WasmModule* module = native_module->module();
-    if (module->functions.empty()) return false;
-    info->line = 0;
-    info->column = position;
-    info->line_start = module->functions[0].code.offset();
-    info->line_end = module->functions.back().code.end_offset();
-    return true;
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  if (!has_line_ends()) {
-    // Slow mode: we do not have line_ends. We have to iterate through source.
-    if (!GetPositionInfoSlow(*this, position, no_gc, info)) {
-      return false;
-    }
-  } else {
-    DCHECK(has_line_ends());
-    Tagged<FixedArray> ends = Cast<FixedArray>(line_ends());
-
-    if (!GetPositionInfoInternal(ends, position, info, no_gc)) return false;
-  }
-
-  AddPositionInfoOffset(info, offset_flag);
-
-  return true;
-}
-
-bool Script::GetPositionInfoWithLineEnds(
-    int position, PositionInfo* info, const String::LineEndsVector& line_ends,
-    OffsetFlag offset_flag) const {
-  DisallowGarbageCollection no_gc;
-  if (!GetPositionInfoInternal(line_ends, position, info, no_gc)) return false;
-
-  AddPositionInfoOffset(info, offset_flag);
-
-  return true;
-}
-
-bool Script::GetLineColumnWithLineEnds(
-    int position, int& line, int& column,
-    const String::LineEndsVector& line_ends) {
-  DisallowGarbageCollection no_gc;
-  PositionInfo info;
-  if (!GetLineEndsContainerPositionInfo(line_ends, position, &info, no_gc)) {
-    line = -1;
-    column = -1;
-    return false;
-  }
-
-  line = info.line;
-  column = info.column;
-
-  return true;
-}
-
-int Script::GetColumnNumber(DirectHandle<Script> script, int code_pos) {
-  PositionInfo info;
-  GetPositionInfo(script, code_pos, &info);
-  return info.column;
-}
-
-int Script::GetColumnNumber(int code_pos) const {
-  PositionInfo info;
-  GetPositionInfo(code_pos, &info);
-  return info.column;
-}
-
-int Script::GetLineNumber(DirectHandle<Script> script, int code_pos) {
-  PositionInfo info;
-  GetPositionInfo(script, code_pos, &info);
-  return info.line;
-}
-
-int Script::GetLineNumber(int code_pos) const {
-  PositionInfo info;
-  GetPositionInfo(code_pos, &info);
-  return info.line;
-}
-
-Tagged<Object> Script::GetNameOrSourceURL() {
-  // Keep in sync with ScriptNameOrSourceURL in messages.js.
-  if (!IsUndefined(source_url())) return source_url();
-  return name();
-}
-
-// static
-DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
-                                           DirectHandle<Script> script,
-                                           bool forceForInspector) {
-  if (script->origin_options().IsOpaque() && !forceForInspector) {
-    return isolate->factory()->empty_string();
-  }
-
-  PtrComprCageBase cage_base(isolate);
-  {
-    Tagged<Object> maybe_source_hash = script->source_hash(cage_base);
-    if (IsString(maybe_source_hash, cage_base)) {
-      DirectHandle<String> precomputed(Cast<String>(maybe_source_hash),
-                                       isolate);
-      if (precomputed->length() > 0) {
-        return precomputed;
-      }
-    }
-  }
-
-  DirectHandle<String> src_text;
-  {
-    Tagged<Object> maybe_script_source = script->source(cage_base);
-
-    if (!IsString(maybe_script_source, cage_base)) {
-      return isolate->factory()->empty_string();
-    }
-    src_text = direct_handle(Cast<String>(maybe_script_source), isolate);
-  }
-
-  char formatted_hash[kSizeOfFormattedSha256Digest];
-
-  std::unique_ptr<char[]> string_val = src_text->ToCString();
-  size_t len = strlen(string_val.get());
-  uint8_t hash[kSizeOfSha256Digest];
-  SHA256_hash(string_val.get(), len, hash);
-  FormatBytesToHex(formatted_hash, kSizeOfFormattedSha256Digest, hash,
-                   kSizeOfSha256Digest);
-  formatted_hash[kSizeOfSha256Digest * 2] = '\0';
-
-  DirectHandle<String> result =
-      isolate->factory()->NewStringFromAsciiChecked(formatted_hash);
-  script->set_source_hash(*result);
-  return result;
-}
-
-template <typename IsolateT>
-MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    DirectHandle<Script> script, IsolateT* isolate,
-    FunctionLiteral* function_literal) {
-  DCHECK(function_literal->shared_function_info().is_null());
-  int function_literal_id = function_literal->function_literal_id();
-  CHECK_NE(function_literal_id, kInvalidInfoId);
-  // If this check fails, the problem is most probably the function id
-  // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
-  // AstTraversalVisitor doesn't recurse properly in the construct which
-  // triggers the mismatch.
-  CHECK_LT(function_literal_id, script->infos()->length());
-  Tagged<MaybeObject> shared = script->infos()->get(function_literal_id);
-  Tagged<HeapObject> heap_object;
-  if (!shared.GetHeapObject(&heap_object) ||
-      IsUndefined(heap_object, isolate)) {
-    return MaybeHandle<SharedFunctionInfo>();
-  }
-  Handle<SharedFunctionInfo> result(Cast<SharedFunctionInfo>(heap_object),
-                                    isolate);
-  function_literal->set_shared_function_info(result);
-  return result;
-}
-template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    DirectHandle<Script> script, Isolate* isolate,
-    FunctionLiteral* function_literal);
-template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    DirectHandle<Script> script, LocalIsolate* isolate,
-    FunctionLiteral* function_literal);
-
-Script::Iterator::Iterator(Isolate* isolate)
-    : iterator_(isolate->heap()->script_list()) {}
-
-Tagged<Script> Script::Iterator::Next() {
-  Tagged<Object> o = iterator_.Next();
-  if (o != Tagged<Object>()) {
-    return Cast<Script>(o);
-  }
-  return Script();
-}
 
 // static
 void JSArray::Initialize(Isolate* isolate, DirectHandle<JSArray> array,
@@ -4890,10 +4340,9 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
   DirectHandle<JSReceiver> target(Cast<JSReceiver>(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "getPrototypeOf").
   DirectHandle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap,
-      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name),
-      Nothing<bool>());
+      Object::GetMethod(isolate, Cast<JSReceiver>(handler), trap_name));
   // 7. If trap is undefined, then return target.[[SetPrototypeOf]]().
   if (IsUndefined(*trap, isolate)) {
     return JSReceiver::SetPrototype(isolate, target, value, from_javascript,
@@ -4902,10 +4351,9 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
   // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, V»)).
   DirectHandle<Object> args[] = {target, value};
   DirectHandle<Object> trap_result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, trap_result,
-      Execution::Call(isolate, trap, handler, base::VectorOf(args)),
-      Nothing<bool>());
+      Execution::Call(isolate, trap, handler, base::VectorOf(args)));
   bool bool_trap_result = Object::BooleanValue(*trap_result, isolate);
   // 9. If booleanTrapResult is false, return false.
   if (!bool_trap_result) {
@@ -4925,9 +4373,8 @@ Maybe<bool> JSProxy::SetPrototype(Isolate* isolate, DirectHandle<JSProxy> proxy,
   }
   // 12. Let targetProto be ? target.[[GetPrototypeOf]]().
   DirectHandle<Object> target_proto;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_proto,
-                                   JSReceiver::GetPrototype(isolate, target),
-                                   Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, target_proto,
+                             JSReceiver::GetPrototype(isolate, target));
   // 13. If SameValue(V, targetProto) is false, throw a TypeError exception.
   if (bool_trap_result && !Object::SameValue(*value, *target_proto)) {
     isolate->Throw(*isolate->factory()->NewTypeError(
@@ -4994,34 +4441,6 @@ const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
     default:
       UNREACHABLE();
   }
-}
-
-// static
-bool JSArray::MayHaveReadOnlyLength(Tagged<Map> js_array_map) {
-  DCHECK(IsJSArrayMap(js_array_map));
-  if (js_array_map->is_dictionary_map()) return true;
-
-  // Fast path: "length" is the first fast property of arrays with non
-  // dictionary properties. Since it's not configurable, it's guaranteed to be
-  // the first in the descriptor array.
-  InternalIndex first(0);
-  DCHECK(js_array_map->instance_descriptors()->GetKey(first) ==
-         GetReadOnlyRoots().length_string());
-  return js_array_map->instance_descriptors()->GetDetails(first).IsReadOnly();
-}
-
-bool JSArray::HasReadOnlyLength(DirectHandle<JSArray> array) {
-  Tagged<Map> map = array->map();
-
-  // If map guarantees that there can't be a read-only length, we are done.
-  if (!MayHaveReadOnlyLength(map)) return false;
-
-  // Look at the object.
-  Isolate* isolate = Isolate::Current();
-  LookupIterator it(isolate, array, isolate->factory()->length_string(), array,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  CHECK_EQ(LookupIterator::ACCESSOR, it.state());
-  return it.IsReadOnly();
 }
 
 bool JSArray::WouldChangeReadOnlyLength(DirectHandle<JSArray> array,

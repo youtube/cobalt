@@ -466,7 +466,7 @@ void StyleSheetContents::ParserAddNamespace(const AtomicString& prefix,
 const AtomicString& StyleSheetContents::NamespaceURIFromPrefix(
     const AtomicString& prefix) const {
   auto it = namespaces_.find(prefix);
-  return it != namespaces_.end() ? it->value : WTF::g_null_atom;
+  return it != namespaces_.end() ? it->value : g_null_atom;
 }
 
 void StyleSheetContents::ParseAuthorStyleSheet(
@@ -698,6 +698,7 @@ static bool ChildRulesHaveFailedOrCanceledSubresources(
       case StyleRuleBase::kViewTransition:
       case StyleRuleBase::kFunction:
       case StyleRuleBase::kPositionTry:
+      case StyleRuleBase::kCustomMedia:
         break;
       case StyleRuleBase::kApplyMixin:
         // TODO(sesse): Should we go down into the rules here?

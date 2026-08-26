@@ -6,6 +6,10 @@
 
 #import "components/feature_engagement/public/event_constants.h"
 #import "components/feature_engagement/public/tracker.h"
+#import "components/segmentation_platform/public/constants.h"
+#import "components/segmentation_platform/public/result.h"
+#import "components/segmentation_platform/public/segmentation_platform_service.h"
+#import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/app/profile/profile_init_stage.h"
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/app/profile/profile_state_observer.h"
@@ -14,8 +18,12 @@
 #import "ios/chrome/browser/default_promo/ui_bundled/post_default_abandonment/features.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/promos_manager/model/constants.h"
-#import "ios/chrome/browser/signin/model/authentication_service.h"
-#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/reader_mode/model/features.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_prefs.h"
+#import "ios/chrome/browser/segmentation_platform/model/segmentation_platform_service_factory.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/common/app_group/app_group_constants.h"
 
 @interface DefaultBrowserPromoSceneAgent () <ProfileStateObserver>
@@ -36,6 +44,44 @@
 }
 
 #pragma mark - Private
+
+// Registers the generic default browser promo if the user is eligible.
+// Otherwise, deregisters. Eligibility depends on the latest usage of the
+// Reading Mode feature.
+- (void)updateReaderModeRegistration {
+  if (IsReaderModeAvailable() &&
+      base::FeatureList::IsEnabled(kEnableReaderModeDefaultBrowserPromo)) {
+    if (self.isEligibleForReaderModeDefaultBrowserPromo) {
+      self.promosManager->RegisterPromoForSingleDisplay(
+          promos_manager::Promo::DefaultBrowser);
+      // Only for the duration of the reader mode experiment, deregister other
+      // Default Browser promos.
+      // TODO(crbug.com/435671056): Remove this logic as soon as the experiment
+      // is over, to avoid accidentally preventing Default Browser promos to a
+      // substantial portion of the user base.
+      self.promosManager->DeregisterPromo(
+          promos_manager::Promo::PostRestoreDefaultBrowserAlert);
+      self.promosManager->DeregisterPromo(
+          promos_manager::Promo::DefaultBrowserRemindMeLater);
+      self.promosManager->DeregisterPromo(
+          promos_manager::Promo::PostDefaultAbandonment);
+      self.promosManager->DeregisterPromo(
+          promos_manager::Promo::AllTabsDefaultBrowser);
+      self.promosManager->DeregisterPromo(
+          promos_manager::Promo::MadeForIOSDefaultBrowser);
+      self.promosManager->DeregisterPromo(
+          promos_manager::Promo::StaySafeDefaultBrowser);
+      self.promosManager->DeregisterPromo(
+          promos_manager::Promo::DefaultBrowserOffCycle);
+    } else {
+      // TODO(crbug.com/435671056): Remove this logic as soon as the experiment
+      // is over, to avoid accidentally preventing Default Browser promos to a
+      // substantial portion of the user base.
+      self.promosManager->DeregisterPromo(
+          promos_manager::Promo::DefaultBrowser);
+    }
+  }
+}
 
 // Registers the post restore default browser promo if the user is eligible.
 // Otherwise, deregisters. To be eligible, they must be in the first session
@@ -106,6 +152,20 @@
   }
 }
 
+// Register or deregister Default Browser off-cycle promo.
+- (void)updateOffCyclePromoRegistration {
+  if (IsDefaultBrowserOffCyclePromoEnabled() &&
+      !IsChromeLikelyDefaultBrowser()) {
+    // The off-cycle promo replaces the generic one.
+    self.promosManager->DeregisterPromo(promos_manager::Promo::DefaultBrowser);
+    self.promosManager->RegisterPromoForSingleDisplay(
+        promos_manager::Promo::DefaultBrowserOffCycle);
+  } else {
+    self.promosManager->DeregisterPromo(
+        promos_manager::Promo::DefaultBrowserOffCycle);
+  }
+}
+
 // Signed in users are eligible for generic default browser promo. Notify FET if
 // user is currently signed in.
 - (void)notifyFETSigninStatus {
@@ -135,6 +195,32 @@
               kDefaultBrowserPromoTriggerCriteriaConditionsMet);
     }
   }
+}
+
+- (void)checkSegmentationBeforeUpdatingGenericPromoRegistration {
+  segmentation_platform::SegmentationPlatformService* segmentationService =
+      segmentation_platform::SegmentationPlatformServiceFactory::GetForProfile(
+          self.sceneState.profileState.profile);
+  segmentation_platform::PredictionOptions options;
+  options.on_demand_execution = true;
+  __weak DefaultBrowserPromoSceneAgent* weakSelf = self;
+  segmentationService->GetClassificationResult(
+      segmentation_platform::kIosDefaultBrowserPromoKey, options, nil,
+      base::BindOnce(
+          ^(const segmentation_platform::ClassificationResult& result) {
+            // Register the generic promo if the model returned a show result or
+            // if the model execution failed, since failure should not disable
+            // the promo.
+            if (result.status !=
+                    segmentation_platform::PredictionStatus::kSucceeded ||
+                result.ordered_labels[0] ==
+                    segmentation_platform::kIosDefaultBrowserPromoShowLabel) {
+              [weakSelf updateGenericPromoRegistration];
+            } else {
+              weakSelf.promosManager->DeregisterPromo(
+                  promos_manager::Promo::DefaultBrowser);
+            }
+          }));
 }
 
 #pragma mark - ObservingSceneAgent
@@ -185,6 +271,9 @@
 
   [sharedDefaults setBool:IsChromeLikelyDefaultBrowser()
                    forKey:app_group::kChromeLikelyDefaultBrowser];
+  [sharedDefaults
+      setObject:[NSDate date]
+         forKey:app_group::kChromeLikelyDefaultBrowserUpdateTimestamp];
 }
 
 - (BOOL)isSignedIn {
@@ -193,12 +282,19 @@
     return NO;
   }
 
-  AuthenticationService* authenticationService =
-      AuthenticationServiceFactory::GetForProfile(profile);
-  DCHECK(authenticationService);
-  DCHECK(authenticationService->initialized());
-  return authenticationService->HasPrimaryIdentity(
-      signin::ConsentLevel::kSignin);
+  signin::IdentityManager* identityManager =
+      IdentityManagerFactory::GetForProfile(profile);
+  DCHECK(identityManager);
+  return identityManager->HasPrimaryAccount(signin::ConsentLevel::kSignin);
+}
+
+- (BOOL)isEligibleForReaderModeDefaultBrowserPromo {
+  ProfileIOS* profile = self.sceneState.profileState.profile;
+  if (!profile) {
+    return NO;
+  }
+  return reader_mode_prefs::IsReaderModeRecentlyUsed(*profile->GetPrefs()) &&
+         !IsChromeLikelyDefaultBrowser();
 }
 
 - (feature_engagement::Tracker*)featureEngagementTracker {
@@ -224,12 +320,25 @@
   }
 
   DCHECK(self.promosManager);
+
   [self updatePostRestorePromoRegistration];
   [self updatePostDefaultAbandonmentPromoRegistration];
   [self updateAllTabsPromoRegistration];
   [self updateMadeForIOSPromoRegistration];
   [self updateStaySafePromoRegistration];
-  [self updateGenericPromoRegistration];
+  if (IsDefaultBrowserPromoPropensityModelEnabled()) {
+    [self checkSegmentationBeforeUpdatingGenericPromoRegistration];
+  } else {
+    [self updateGenericPromoRegistration];
+  }
+  // The off-cycle promo registration must be checked after the generic promo
+  // because the off-cycle promo can deregister the generic one.
+  [self updateOffCyclePromoRegistration];
+
+  // The reader-mode promo registration must happen after all other
+  // registrations because it can deregister all the other fullscreen default
+  // browser promo, for experiment purposes.
+  [self updateReaderModeRegistration];
 
   [self notifyFETSigninStatus];
   [self maybeSetTriggerCriteriaExperimentStartTimestamp];

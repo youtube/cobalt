@@ -9,9 +9,12 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.isChecked;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isEnabled;
+import static androidx.test.espresso.matcher.ViewMatchers.isNotChecked;
 import static androidx.test.espresso.matcher.ViewMatchers.withChild;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withParent;
@@ -21,6 +24,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.mockito.Mockito.times;
 
 import android.app.Activity;
 import android.content.res.ColorStateList;
@@ -53,6 +57,10 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.FakeTimeTestRule;
 import org.chromium.base.ThreadUtils;
@@ -72,6 +80,8 @@ import org.chromium.ui.modaldialog.ModalDialogProperties.ModalDialogButtonSpec;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 
+import java.util.ArrayList;
+
 /** Tests for {@link ModalDialogView}. */
 @RunWith(BaseJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
@@ -80,6 +90,7 @@ public class ModalDialogViewTest {
     public static BaseActivityTestRule<BlankUiTestActivity> activityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Rule public FakeTimeTestRule mFakeTime = new FakeTimeTestRule();
 
     private static Activity sActivity;
@@ -91,6 +102,8 @@ public class ModalDialogViewTest {
     private PropertyModel.Builder mModelBuilder;
     private RelativeLayout mCustomButtonBar1;
     private RelativeLayout mCustomButtonBar2;
+
+    @Mock private ModalDialogProperties.Controller mMockController;
 
     @BeforeClass
     public static void setupSuite() {
@@ -152,14 +165,14 @@ public class ModalDialogViewTest {
         onView(withId(R.id.title_container)).check(matches(not(isDisplayed())));
         onView(withId(R.id.scrollable_title_container)).check(matches(not(isDisplayed())));
         onView(withId(R.id.modal_dialog_title_scroll_view)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.message_paragraph_1)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.message_paragraph_2)).check(matches(not(isDisplayed())));
+        onView(withId(R.id.message_paragraphs_container)).check(matches(not(isDisplayed())));
         onView(withId(R.id.custom_view_not_in_scrollable)).check(matches(not(isDisplayed())));
         onView(withId(R.id.button_bar)).check(matches(not(isDisplayed())));
         onView(withId(R.id.positive_button)).check(matches(allOf(not(isDisplayed()), isEnabled())));
         onView(withId(R.id.negative_button)).check(matches(allOf(not(isDisplayed()), isEnabled())));
         onView(withId(R.id.custom_button_bar))
                 .check(matches(allOf(not(isDisplayed()), isEnabled())));
+        onView(withId(R.id.modal_dialog_checkbox)).check(matches(not(isDisplayed())));
     }
 
     @Test
@@ -207,7 +220,7 @@ public class ModalDialogViewTest {
         onView(withId(R.id.title_container)).check(matches(not(isDisplayed())));
         onView(withId(R.id.scrollable_title_container)).check(matches(isDisplayed()));
         onView(withId(R.id.modal_dialog_title_scroll_view)).check(matches(isDisplayed()));
-        onView(withId(R.id.message_paragraph_1)).check(matches(not(isDisplayed())));
+        onView(withId(R.id.message_paragraphs_container)).check(matches(not(isDisplayed())));
 
         // Set title to not scrollable and verify that non-scrollable title is displayed.
         ThreadUtils.runOnUiThreadBlocking(
@@ -217,7 +230,7 @@ public class ModalDialogViewTest {
         onView(withId(R.id.title_container)).check(matches(isDisplayed()));
         onView(withId(R.id.scrollable_title_container)).check(matches(not(isDisplayed())));
         onView(withId(R.id.modal_dialog_title_scroll_view)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.message_paragraph_1)).check(matches(not(isDisplayed())));
+        onView(withId(R.id.message_paragraphs_container)).check(matches(not(isDisplayed())));
     }
 
     @Test
@@ -251,59 +264,128 @@ public class ModalDialogViewTest {
     @Test
     @MediumTest
     @Feature({"ModalDialog"})
-    public void testMessageParagraph1() {
-        // Verify that the message_paragraph_1 set from builder is displayed.
+    public void testMessageParagraph1_Convenience() {
+        // Verify that the message set via MESSAGE_PARAGRAPH_1 is displayed in the paragraphs
+        // container.
         String msg = sResources.getString(R.string.more);
         PropertyModel model =
                 createModel(mModelBuilder.with(ModalDialogProperties.MESSAGE_PARAGRAPH_1, msg));
-        onView(withId(R.id.title_container)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.scrollable_title_container)).check(matches(not(isDisplayed())));
         onView(withId(R.id.modal_dialog_title_scroll_view)).check(matches(isDisplayed()));
-        onView(withId(R.id.message_paragraph_1))
-                .check(matches(allOf(isDisplayed(), withText(R.string.more))));
+        onView(withId(R.id.message_paragraphs_container)).check(matches(isDisplayed()));
 
-        // Set an empty message_paragraph_1 and verify that message_paragraph_1 is not shown.
+        // Check that the text is displayed and is the only paragraph.
+        onView(withText(msg)).check(matches(isDisplayed()));
+        Assert.assertEquals(
+                "The container should have exactly one paragraph.",
+                1,
+                ((ViewGroup) mModalDialogView.getMessageParagraphAtIndexForTesting(0).getParent())
+                        .getChildCount());
+        Assert.assertEquals(
+                "The message text is incorrect.",
+                msg,
+                mModalDialogView.getMessageParagraphAtIndexForTesting(0).getText().toString());
+
+        // Set an empty message and verify that the paragraphs container is not shown.
         ThreadUtils.runOnUiThreadBlocking(
                 () -> model.set(ModalDialogProperties.MESSAGE_PARAGRAPH_1, ""));
-        onView(withId(R.id.title_container)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.scrollable_title_container)).check(matches(not(isDisplayed())));
         onView(withId(R.id.modal_dialog_title_scroll_view)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.message_paragraph_1)).check(matches(not(isDisplayed())));
+        onView(withId(R.id.message_paragraphs_container)).check(matches(not(isDisplayed())));
 
-        // Use CharSequence for the message_paragraph_1.
+        // Use CharSequence for the message.
         SpannableStringBuilder sb = new SpannableStringBuilder(msg);
         sb.setSpan(new ForegroundColorSpan(0xffff0000), 0, 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> model.set(ModalDialogProperties.MESSAGE_PARAGRAPH_1, sb));
-        onView(withId(R.id.title_container)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.scrollable_title_container)).check(matches(not(isDisplayed())));
         onView(withId(R.id.modal_dialog_title_scroll_view)).check(matches(isDisplayed()));
-        onView(withId(R.id.message_paragraph_1))
-                .check(matches(allOf(isDisplayed(), withText(R.string.more))));
+        onView(withId(R.id.message_paragraphs_container)).check(matches(isDisplayed()));
+
+        // Check that the styled text is displayed correctly.
+        onView(withText(msg)).check(matches(isDisplayed()));
+        Assert.assertEquals(
+                "The container should still have exactly one paragraph.",
+                1,
+                ((ViewGroup) mModalDialogView.getMessageParagraphAtIndexForTesting(0).getParent())
+                        .getChildCount());
+        Assert.assertEquals(
+                "The CharSequence text is incorrect.",
+                sb.toString(),
+                mModalDialogView.getMessageParagraphAtIndexForTesting(0).getText().toString());
     }
 
     @Test
     @MediumTest
     @Feature({"ModalDialog"})
-    public void testMessageParagraph2() {
-        // Verify that the message_paragraph_2 set from builder is displayed.
-        String msg = "Incognito warning message";
-        PropertyModel model =
-                createModel(mModelBuilder.with(ModalDialogProperties.MESSAGE_PARAGRAPH_2, msg));
-        onView(withId(R.id.title_container)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.scrollable_title_container)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.modal_dialog_title_scroll_view)).check(matches(isDisplayed()));
-        onView(withId(R.id.message_paragraph_1)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.message_paragraph_2))
-                .check(matches(allOf(isDisplayed(), withText(msg))));
+    public void testMessageParagraphs() {
+        ArrayList<CharSequence> paragraphs = new ArrayList<>();
+        String p1 = "This is the first paragraph.";
+        String p2_original = "This is the original second paragraph.";
+        paragraphs.add(p1);
+        paragraphs.add(p2_original);
 
-        // Set an empty message_paragraph_2 and verify that it's not shown.
+        ThreadUtils.runOnUiThreadBlocking(() -> mModalDialogView.setMessageParagraphs(paragraphs));
+
+        // Replace the second paragraph in the ArrayList
+        String p2_updated = "This is the updated second paragraph.";
+        paragraphs.set(1, p2_updated);
+
+        // Verify the views are correct.
+        onView(withId(R.id.message_paragraphs_container)).check(matches(isDisplayed()));
+        onView(withText(p1)).check(matches(isDisplayed()));
+        onView(withText(p2_original)).check(matches(isDisplayed()));
+        Assert.assertEquals(
+                "Initial paragraph 0 has wrong text.",
+                p1,
+                mModalDialogView.getMessageParagraphAtIndexForTesting(0).getText().toString());
+        Assert.assertEquals(
+                "Initial paragraph 1 has wrong text.",
+                p2_original,
+                mModalDialogView.getMessageParagraphAtIndexForTesting(1).getText().toString());
+
+        // Replace the 2nd paragraph in the view.
+        ThreadUtils.runOnUiThreadBlocking(() -> mModalDialogView.setMessageParagraphs(paragraphs));
+
+        // Verify only the 2nd paragraph changed.
+        onView(withText(p2_original)).check(doesNotExist());
+
+        onView(withId(R.id.message_paragraphs_container)).check(matches(isDisplayed()));
+        onView(withText(p1)).check(matches(isDisplayed()));
+        onView(withText(p2_updated)).check(matches(isDisplayed()));
+        Assert.assertEquals(
+                "Updated paragraph 0 has wrong text.",
+                p1,
+                mModalDialogView.getMessageParagraphAtIndexForTesting(0).getText().toString());
+        Assert.assertEquals(
+                "Updated paragraph 1 has wrong text.",
+                p2_updated,
+                mModalDialogView.getMessageParagraphAtIndexForTesting(1).getText().toString());
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"ModalDialog"})
+    public void testSetMessageParagraphs_clearsPreviousContent() {
+        ArrayList<CharSequence> initialParagraphs = new ArrayList<>();
+        String initialText = "This paragraph should be cleared.";
+        initialParagraphs.add(initialText);
+
+        // Verify that null call empties the view.
         ThreadUtils.runOnUiThreadBlocking(
-                () -> model.set(ModalDialogProperties.MESSAGE_PARAGRAPH_2, ""));
-        onView(withId(R.id.title_container)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.scrollable_title_container)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.modal_dialog_title_scroll_view)).check(matches(not(isDisplayed())));
-        onView(withId(R.id.message_paragraph_2)).check(matches(not(isDisplayed())));
+                () -> mModalDialogView.setMessageParagraphs(initialParagraphs));
+        onView(withText(initialText)).check(matches(isDisplayed()));
+        onView(withId(R.id.message_paragraphs_container)).check(matches(isDisplayed()));
+        ThreadUtils.runOnUiThreadBlocking(() -> mModalDialogView.setMessageParagraphs(null));
+        onView(withText(initialText)).check(doesNotExist());
+        onView(withId(R.id.message_paragraphs_container)).check(matches(not(isDisplayed())));
+
+        // Verify that empty list call empties the view.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> mModalDialogView.setMessageParagraphs(initialParagraphs));
+        onView(withText(initialText)).check(matches(isDisplayed()));
+        onView(withId(R.id.message_paragraphs_container)).check(matches(isDisplayed()));
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> mModalDialogView.setMessageParagraphs(new ArrayList<>()));
+        onView(withText(initialText)).check(doesNotExist());
+        onView(withId(R.id.message_paragraphs_container)).check(matches(not(isDisplayed())));
     }
 
     @Test
@@ -408,6 +490,84 @@ public class ModalDialogViewTest {
         onView(withId(R.id.button_bar)).check(matches(isDisplayed()));
         onView(withId(R.id.positive_button)).check(matches(isDisplayed()));
         onView(withId(R.id.negative_button)).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"ModalDialog"})
+    public void testCheckbox_Visibility() {
+        // Set checkbox to be visible by setting its text.
+        PropertyModel model =
+                createModel(
+                        mModelBuilder.with(ModalDialogProperties.CHECKBOX_TEXT, "Make visible"));
+        onView(withId(R.id.modal_dialog_checkbox)).check(matches(isDisplayed()));
+
+        // Set checkbox to be not visible by clearing its text.
+        ThreadUtils.runOnUiThreadBlocking(() -> model.set(ModalDialogProperties.CHECKBOX_TEXT, ""));
+        onView(withId(R.id.modal_dialog_checkbox)).check(matches(not(isDisplayed())));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"ModalDialog"})
+    public void testCheckbox_TextAndInitialState() {
+        final String checkboxText = "Don't show this again";
+
+        // Verify that the checkbox can be configured with text and an initial checked state.
+        PropertyModel model =
+                createModel(
+                        mModelBuilder
+                                .with(ModalDialogProperties.CHECKBOX_TEXT, checkboxText)
+                                .with(ModalDialogProperties.CHECKBOX_CHECKED, true));
+
+        onView(withId(R.id.modal_dialog_checkbox))
+                .check(matches(allOf(isDisplayed(), withText(checkboxText), isChecked())));
+
+        // Programmatically uncheck the checkbox and verify the view updates.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> model.set(ModalDialogProperties.CHECKBOX_CHECKED, false));
+        onView(withId(R.id.modal_dialog_checkbox)).check(matches(isNotChecked()));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"ModalDialog"})
+    public void testCheckbox_InteractionUpdatesModel() {
+        final String checkboxText = "Opt-in for awesome features";
+
+        PropertyModel model =
+                createModel(
+                        mModelBuilder
+                                .with(ModalDialogProperties.CONTROLLER, mMockController)
+                                .with(ModalDialogProperties.CHECKBOX_TEXT, checkboxText)
+                                .with(ModalDialogProperties.CHECKBOX_CHECKED, false));
+
+        // Verify initial state.
+        onView(withId(R.id.modal_dialog_checkbox))
+                .check(matches(allOf(isDisplayed(), isNotChecked())));
+        Assert.assertFalse(
+                "Model property CHECKBOX_CHECKED should be false initially.",
+                model.get(ModalDialogProperties.CHECKBOX_CHECKED));
+
+        // Perform a click to check the box.
+        onView(withId(R.id.modal_dialog_checkbox)).perform(click());
+
+        // Verify that the view is now checked AND the model property has been updated.
+        onView(withId(R.id.modal_dialog_checkbox)).check(matches(isChecked()));
+        Assert.assertTrue(
+                "Model property CHECKBOX_CHECKED should be true after click.",
+                model.get(ModalDialogProperties.CHECKBOX_CHECKED));
+        Mockito.verify(mMockController, times(1)).onCheckboxChecked(true);
+
+        // Perform another click to uncheck the box.
+        onView(withId(R.id.modal_dialog_checkbox)).perform(click());
+
+        // Verify that the view is now unchecked AND the model property has been updated.
+        onView(withId(R.id.modal_dialog_checkbox)).check(matches(isNotChecked()));
+        Assert.assertFalse(
+                "Model property CHECKBOX_CHECKED should be false after second click.",
+                model.get(ModalDialogProperties.CHECKBOX_CHECKED));
+        Mockito.verify(mMockController, times(1)).onCheckboxChecked(false);
     }
 
     @Test
@@ -940,7 +1100,7 @@ public class ModalDialogViewTest {
     }
 
     private static Matcher<View> touchFilterEnabled() {
-        return new TypeSafeMatcher<View>() {
+        return new TypeSafeMatcher<>() {
             @Override
             public void describeTo(Description description) {
                 description.appendText("Touch filtering enabled");

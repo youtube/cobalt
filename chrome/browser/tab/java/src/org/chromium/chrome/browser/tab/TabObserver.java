@@ -12,6 +12,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
+import org.chromium.chrome.browser.tab.Tab.MediaState;
 import org.chromium.components.find_in_page.FindMatchRectsDetails;
 import org.chromium.components.find_in_page.FindNotificationDetails;
 import org.chromium.content_public.browser.LoadUrlParams;
@@ -25,12 +26,13 @@ import org.chromium.url.GURL;
 @NullMarked
 public interface TabObserver {
     /**
-     * Called when a {@link Tab} finished initialization. The {@link TabState} contains,
-     * if not {@code null}, various states that a Tab should restore itself from.
+     * Called when a {@link Tab} finished initialization. The {@link TabState} contains, if not
+     * {@code null}, various states that a Tab should restore itself from.
+     *
      * @param tab The notifying {@link Tab}.
      * @param appId ID of the external app that opened this tab.
      */
-    void onInitialized(Tab tab, String appId);
+    void onInitialized(Tab tab, @Nullable String appId);
 
     /**
      * Called when a {@link Tab} is shown.
@@ -106,20 +108,31 @@ public interface TabObserver {
 
     /**
      * Called when the favicon of a {@link Tab} has been updated.
+     *
      * @param tab The notifying {@link Tab}.
      * @param icon The favicon that was received.
      * @param iconUrl The URL that the icon was fetched from.
      */
-    void onFaviconUpdated(Tab tab, Bitmap icon, GURL iconUrl);
+    void onFaviconUpdated(Tab tab, @Nullable Bitmap icon, @Nullable GURL iconUrl);
+
+    /**
+     * Called when the media state changes
+     *
+     * @param tab The notifying {@link Tab}.
+     * @param mediaState The {@link MediaState} of the tab.
+     */
+    void onMediaStateChanged(Tab tab, @MediaState int mediaState);
 
     /**
      * Called when the title of a {@link Tab} changes.
+     *
      * @param tab The notifying {@link Tab}.
      */
     void onTitleUpdated(Tab tab);
 
     /**
      * Called when the URL of a {@link Tab} changes.
+     *
      * @param tab The notifying {@link Tab}.
      */
     void onUrlUpdated(Tab tab);

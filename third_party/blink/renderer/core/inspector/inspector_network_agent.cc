@@ -37,8 +37,10 @@
 #include "base/containers/span_or_size.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "net/base/features.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/cert/ct_sct_to_string.h"
@@ -309,8 +311,7 @@ static void ResponseBodyFileReaderLoaderDone(
   }
 }
 
-class InspectorPostBodyParser
-    : public WTF::RefCounted<InspectorPostBodyParser> {
+class InspectorPostBodyParser : public RefCounted<InspectorPostBodyParser> {
  public:
   InspectorPostBodyParser(
       std::unique_ptr<GetRequestPostDataCallback> callback,
@@ -346,7 +347,7 @@ class InspectorPostBodyParser
   }
 
  private:
-  friend class WTF::RefCounted<InspectorPostBodyParser>;
+  friend class RefCounted<InspectorPostBodyParser>;
 
   ~InspectorPostBodyParser() {
     if (error_)
@@ -775,7 +776,7 @@ String IPAddressToString(const net::IPAddress& address) {
     return unbracketed;
   }
 
-  return "[" + unbracketed + "]";
+  return StrCat({"[", unbracketed, "]"});
 }
 
 namespace ContentEncodingEnum = protocol::Network::ContentEncodingEnum;
@@ -1008,7 +1009,7 @@ BuildObjectForResourceRequest(const ResourceRequest& request,
           .setReferrerPolicy(GetReferrerPolicy(request.GetReferrerPolicy()))
           .build();
   if (url.HasFragmentIdentifier()) {
-    result->setUrlFragment("#" + url.FragmentIdentifier().ToString());
+    result->setUrlFragment(StrCat({"#", url.FragmentIdentifier().ToString()}));
   }
   if (!data_string.empty())
     result->setPostData(data_string);
@@ -1117,6 +1118,12 @@ BuildObjectForResourceResponse(const ResourceResponse& response,
           .setEncodedDataLength(encoded_data_length)
           .setSecurityState(security_state)
           .build();
+
+  // TODO(crbug.com/432716000): Remove this guard once IPP is fully launched.
+  if (net::features::kIpPrivacyEnableIppInDevTools.Get()) {
+    response_object->setIsIpProtectionUsed(response.IsIpProtectionUsed() &&
+                                           !response.WasCached());
+  }
 
   response_object->setFromDiskCache(response.WasCached());
   response_object->setFromServiceWorker(response.WasFetchedViaServiceWorker());
@@ -1876,9 +1883,10 @@ InspectorNetworkAgent::BuildInitiatorObject(
     }
   }
 
-  while (document && !document->GetScriptableDocumentParser())
+  while (document && !document->GetScriptableDocumentParser()) {
     document = document->LocalOwner() ? document->LocalOwner()->ownerDocument()
                                       : nullptr;
+  }
   if (document && document->GetScriptableDocumentParser()) {
     std::unique_ptr<protocol::Network::Initiator> initiator_object =
         protocol::Network::Initiator::create()
@@ -1995,7 +2003,7 @@ void InspectorNetworkAgent::DidReceiveWebSocketHandshakeResponse(
     if (!add_result.is_new_entry) {
       // Protocol expects the "\n" separated format.
       add_result.stored_value->value = AtomicString(
-          WTF::StrCat({add_result.stored_value->value, "\n", header->value}));
+          StrCat({add_result.stored_value->value, "\n", header->value}));
     }
   }
 

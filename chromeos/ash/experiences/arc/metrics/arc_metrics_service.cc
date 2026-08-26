@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chromeos/ash/experiences/arc/metrics/arc_metrics_service.h"
 
 #include <sys/sysinfo.h>
@@ -16,6 +11,7 @@
 #include <utility>
 
 #include "ash/public/cpp/app_types_util.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -23,6 +19,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
@@ -563,6 +560,7 @@ void ArcMetricsService::ReportBootProgress(
   if (metrics_anr_) {
     metrics_anr_->set_uma_suffix(BootTypeToString(boot_type));
   }
+  ReportUnreportedGmsAppKill();
 
   if (IsArcVmEnabled()) {
     // For VM builds, do not call into session_manager since we don't use it
@@ -623,12 +621,29 @@ void ArcMetricsService::ReportAppKill(mojom::AppKillPtr app_kill) {
       break;
     case mojom::AppKillType::GMS_UPDATE_KILL:
     case mojom::AppKillType::GMS_START_KILL:
-      for (uint32_t i = 0; i < app_kill->count; i++) {
-        UMA_HISTOGRAM_ENUMERATION(
-            "Arc.App.GmsCoreKill" + BootTypeToString(boot_type_),
-            app_kill->type);
+      if (boot_type_ == mojom::BootType::UNKNOWN) {
+        gms_app_kills_to_report_.push_back({app_kill->type, app_kill->count});
+        break;
       }
+      ReportGmsAppKill(app_kill->type, app_kill->count);
       break;
+  }
+}
+
+void ArcMetricsService::ReportUnreportedGmsAppKill() {
+  for (auto gms_app_kill : gms_app_kills_to_report_) {
+    ReportGmsAppKill(gms_app_kill.first, gms_app_kill.second);
+  }
+  gms_app_kills_to_report_.clear();
+}
+
+void ArcMetricsService::ReportGmsAppKill(mojom::AppKillType gms_app_kill,
+                                         int count) {
+  DCHECK_NE(mojom::BootType::UNKNOWN, boot_type_);
+  const auto histogram_name =
+      "Arc.App.GmsCoreKill" + BootTypeToString(boot_type_);
+  for (int i = 0; i < count; i++) {
+    UMA_HISTOGRAM_ENUMERATION(histogram_name, gms_app_kill);
   }
 }
 
@@ -971,7 +986,7 @@ void ArcMetricsService::OnArcStarted() {
         FROM_HERE,
         base::BindOnce(&ArcMetricsService::MeasureLoadAverage,
                        weak_ptr_factory_.GetWeakPtr(), index),
-        kLoadAverageHistograms[index].duration);
+        UNSAFE_TODO(kLoadAverageHistograms[index]).duration);
   }
 }
 
@@ -1054,13 +1069,14 @@ void ArcMetricsService::MeasureLoadAverage(size_t index) {
   if (sysinfo(&info) < 0) {
     DCHECK_LT(index, std::size(kLoadAverageHistograms));
     PLOG(ERROR) << "sysinfo() failed when trying to record "
-                << kLoadAverageHistograms[index].name;
+                << UNSAFE_TODO(kLoadAverageHistograms[index]).name;
     return;
   }
   DCHECK_LT(index, std::size(info.loads));
   // Load average values returned by sysinfo() are scaled up by
   // 1 << SI_LOAD_SHIFT.
-  const int loadx100 = info.loads[index] * 100 / (1 << SI_LOAD_SHIFT);
+  const int loadx100 =
+      UNSAFE_TODO(info.loads[index]) * 100 / (1 << SI_LOAD_SHIFT);
   // _SC_NPROCESSORS_ONLN instead of base::SysInfo::NumberOfProcessors() which
   // uses _SC_NPROCESSORS_CONF to get the number of online processors in case
   // some cores are disabled.
@@ -1080,7 +1096,8 @@ void ArcMetricsService::MaybeRecordLoadAveragePerProcessor() {
     const int loadx100_per_processor = value.second;
     DCHECK_LT(index, std::size(kLoadAverageHistograms));
     base::UmaHistogramCustomCounts(
-        kLoadAverageHistograms[index].name + BootTypeToString(boot_type_),
+        UNSAFE_TODO(kLoadAverageHistograms[index]).name +
+            BootTypeToString(boot_type_),
         loadx100_per_processor, 0, 5000, 50);
   }
   // Erase the values to avoid recording them again.

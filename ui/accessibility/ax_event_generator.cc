@@ -421,8 +421,9 @@ void AXEventGenerator::OnIgnoredChanged(AXTree* tree,
   const bool was_in_invisible_subtree =
       !base::Contains(nodes_to_suppress_parent_changed_on_, node->id());
   if (was_in_invisible_subtree) {
-    for (auto iter = node->UnignoredChildrenBegin();
-         iter != node->UnignoredChildrenEnd(); ++iter) {
+    for (auto iter = node->UnignoredChildrenBegin(),
+              end = node->UnignoredChildrenEnd();
+         iter != end; ++iter) {
       AddEvent(iter.get(), Event::PARENT_CHANGED);
     }
   }
@@ -915,7 +916,7 @@ void AXEventGenerator::AddEventsForTesting(
 }
 
 bool AXEventGenerator::IsRemovalRelevantInLiveRegion(AXNode* node) {
-  std::string aria_relevant = node->GetStringAttribute(
+  const std::string& aria_relevant = node->GetStringAttribute(
       ax::mojom::StringAttribute::kContainerLiveRelevant);
   if (aria_relevant.empty())
     return false;
@@ -928,7 +929,7 @@ bool AXEventGenerator::IsRemovalRelevantInLiveRegion(AXNode* node) {
 
 void AXEventGenerator::FireLiveRegionEvents(AXNode* node, bool is_removal) {
   AXNode* live_root = node;
-  std::string container_live = node->GetStringAttribute(
+  const std::string& container_live = node->GetStringAttribute(
       ax::mojom::StringAttribute::kContainerLiveStatus);
   // Return early if not in a live region.
   if (container_live.empty() || container_live == "off")

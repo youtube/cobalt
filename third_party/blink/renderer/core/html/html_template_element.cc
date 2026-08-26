@@ -32,10 +32,16 @@
 
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_fragment.h"
+#include "third_party/blink/renderer/core/dom/mutation_observer.h"
 #include "third_party/blink/renderer/core/dom/node_cloning_data.h"
 #include "third_party/blink/renderer/core/dom/template_content_document_fragment.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
+#include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/patching/dom_patch_status.h"
+#include "third_party/blink/renderer/core/patching/patch_supplement.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
 namespace blink {
 
@@ -47,7 +53,7 @@ HTMLTemplateElement::HTMLTemplateElement(Document& document)
 HTMLTemplateElement::~HTMLTemplateElement() = default;
 
 DocumentFragment* HTMLTemplateElement::content() const {
-  CHECK(!declarative_shadow_root_);
+  CHECK(!override_insertion_target_);
   if (!content_ && GetExecutionContext())
     content_ = MakeGarbageCollected<TemplateContentDocumentFragment>(
         GetDocument().EnsureTemplateDocument(),
@@ -77,8 +83,27 @@ void HTMLTemplateElement::DidMoveToNewDocument(Document& old_document) {
 
 void HTMLTemplateElement::Trace(Visitor* visitor) const {
   visitor->Trace(content_);
-  visitor->Trace(declarative_shadow_root_);
+  visitor->Trace(override_insertion_target_);
+  visitor->Trace(patch_status_);
   HTMLElement::Trace(visitor);
+}
+
+void HTMLTemplateElement::BeginPatch(ContainerNode& target, const String& src) {
+  SetOverrideInsertionTarget(target);
+  patch_status_ = DOMPatchStatus::Create(
+      target, this,
+      src.empty() ? KURL() : target.GetDocument().CompleteURL(src));
+  patch_status_->Start();
+}
+
+void HTMLTemplateElement::FinishParsingChildren() {
+  HTMLElement::FinishParsingChildren();
+  if (!patch_status_) {
+    return;
+  }
+  CHECK(RuntimeEnabledFeatures::DocumentPatchingEnabled());
+  patch_status_->Finish();
+  patch_status_.Release();
 }
 
 }  // namespace blink

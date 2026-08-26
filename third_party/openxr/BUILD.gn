@@ -123,6 +123,8 @@ if (enable_openxr) {
       "src/src/loader/loader_logger_recorders.cpp",
       "src/src/loader/loader_logger_recorders.hpp",
       "src/src/loader/loader_platform.hpp",
+      "src/src/loader/loader_properties.cpp",
+      "src/src/loader/loader_properties.hpp",
       "src/src/loader/manifest_file.hpp",
       "src/src/loader/runtime_interface.cpp",
       "src/src/loader/runtime_interface.hpp",
@@ -177,10 +179,6 @@ if (enable_openxr) {
       # OpenXR loader on Android assumes that android-jni-wrappers are in the
       # include path:
       include_dirs += [ "src/src/external/android-jni-wrappers" ]
-
-      # OpenXR loader on Android has a bug where there is unconditional try-catch block
-      # (in android_utilities.cpp) even when built without exceptions support.
-      configs += [ "//build/config/compiler:exceptions" ]
 
       libs = [
         "android",

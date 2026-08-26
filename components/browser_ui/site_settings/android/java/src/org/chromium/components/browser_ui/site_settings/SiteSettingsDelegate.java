@@ -64,6 +64,11 @@ public interface SiteSettingsDelegate {
     boolean isIncognitoModeEnabled();
 
     /**
+     * @return true if the delegate is for an incognito-branded profile.
+     */
+    boolean isIncognito();
+
+    /**
      * @return true if the QuietNotificationPrompts Feature is enabled.
      */
     boolean isQuietNotificationPromptsFeatureEnabled();
@@ -186,6 +191,11 @@ public interface SiteSettingsDelegate {
      * @return true if all third-party cookies are blocked when Tracking Protection is on.
      */
     boolean isBlockAll3pcEnabledInTrackingProtection();
+
+    /**
+     * @return true if wildcards should be shown in content settings patterns.
+     */
+    boolean isDisplayWildcardInContentSettingsEnabled();
 
     /** Enables/disables Related Website Sets data access. */
     void setRelatedWebsiteSetsDataAccessEnabled(boolean enabled);

@@ -73,8 +73,6 @@ class CC_EXPORT PictureLayer : public Layer {
   virtual scoped_refptr<RasterSource> CreateRasterSource() const;
 
  private:
-  friend class TestSerializationPictureLayer;
-
   // Called on impl thread
   void DropRecordingSourceContentIfInvalid(int source_frame_number);
 
@@ -82,7 +80,7 @@ class CC_EXPORT PictureLayer : public Layer {
 
   // These fields are not protected because they are only modified during
   // LayerTreeHost::PaintContent().
-  raw_ptr<ContentLayerClient, DanglingUntriaged> client_ = nullptr;
+  raw_ptr<ContentLayerClient> client_ = nullptr;
   bool is_backdrop_filter_mask_ = false;
 
   ProtectedSequenceWritable<RecordingSource> recording_source_;

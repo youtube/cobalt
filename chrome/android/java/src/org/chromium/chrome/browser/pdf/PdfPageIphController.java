@@ -4,17 +4,20 @@
 
 package org.chromium.chrome.browser.pdf;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ActivityTabProvider.ActivityTabTabObserver;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
@@ -27,6 +30,7 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
 /** Controller to manage PDF page in-product-help messages to users. */
+@NullMarked
 public class PdfPageIphController {
     private final UserEducationHelper mUserEducationHelper;
     private final WindowAndroid mWindowAndroid;
@@ -39,7 +43,7 @@ public class PdfPageIphController {
 
     /**
      * Creates and initializes the controller. Registers an {@link ActivityTabTabObserver} that
-     * attempts to show the pdf download IPH when the download button is not in the omnibox.
+     * attempts to show the pdf download IPH.
      *
      * @param activity The current activity.
      * @param windowAndroid The window associated with the activity.
@@ -49,7 +53,7 @@ public class PdfPageIphController {
      * @param appMenuHandler The app menu handler.
      * @param isBrowserApp Whether the current activity is ChromeTabbedActivity.
      */
-    public static PdfPageIphController create(
+    public static @Nullable PdfPageIphController create(
             Activity activity,
             WindowAndroid windowAndroid,
             ActivityTabProvider activityTabProvider,
@@ -100,7 +104,9 @@ public class PdfPageIphController {
                 new ActivityTabTabObserver(mActivityTabProvider) {
                     @Override
                     public void onPageLoadFinished(Tab tab, GURL url) {
-                        if (tab == null || !tab.isNativePage() || !tab.getNativePage().isPdf()) {
+                        if (tab == null
+                                || !tab.isNativePage()
+                                || !assumeNonNull(tab.getNativePage()).isPdf()) {
                             return;
                         }
                         showDownloadIph(profile);
@@ -114,12 +120,6 @@ public class PdfPageIphController {
 
     private void showDownloadIph(Profile profile) {
         boolean isTablet = DeviceFormFactor.isWindowOnTablet(mWindowAndroid);
-        // Do now show IPH if the download button is shown in the toolbar.
-        if (isTablet
-                && mIsBrowserApp
-                && !ChromeFeatureList.sHideTabletToolbarDownloadButton.isEnabled()) {
-            return;
-        }
         Tracker tracker = TrackerFactory.getTrackerForProfile(profile);
         String featureName = FeatureConstants.IPH_PDF_PAGE_DOWNLOAD;
         if (!tracker.wouldTriggerHelpUi(featureName)) {

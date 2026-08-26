@@ -8,6 +8,7 @@
 
 #include "base/base_switches.h"
 #include "base/debug/crash_logging.h"
+#include "base/logging.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/writable_shared_memory_region.h"
 #include "base/metrics/histogram_macros_local.h"
@@ -68,7 +69,12 @@ namespace base {
 
 BASE_FEATURE(kPassHistogramSharedMemoryOnLaunch,
              "PassHistogramSharedMemoryOnLaunch",
-             FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_DISABLED_BY_DEFAULT
+#else
+             FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 #if BUILDFLAG(IS_APPLE)
 const shared_memory::SharedMemoryMachPortRendezvousKey
@@ -115,24 +121,20 @@ HistogramSharedMemory::Create(int process_id,
 
 // static
 bool HistogramSharedMemory::PassOnCommandLineIsEnabled(int process_type) {
-  // On ChromeOS and for "utility" processes on other platforms there seems to
-  // be one or more mechanisms on startup which walk through all inherited
-  // shared memory regions and take a read-only handle to them. When we later
-  // attempt to deserialize the handle info and take a writable handle we
-  // find that the handle is already owned in read-only mode, triggering
-  // a crash due to "FD ownership violation".
+  // On Android "utility" processes, there seems to be one or more mechanisms on
+  // startup which walk through all inherited shared memory regions and take a
+  // read-only handle to them. When we later attempt to deserialize the handle
+  // info and take a writable handle we find that the handle is already owned in
+  // read-only mode, triggering a crash due to "FD ownership violation".
   //
   // Example: The call to OpenSymbolFiles() in base/debug/stack_trace_posix.cc
   // grabs a read-only handle to the shmem region for some process types.
   //
-  // TODO(crbug.com/40109064): Fix ChromeOS GPU and Android utility processes.
-  // Constants from content::ProcessType;
-  [[maybe_unused]] constexpr int PROCESS_TYPE_GPU = 9;
+  // TODO(crbug.com/40109064): Fix Android utility processes. Constants from
+  // content::ProcessType;
   [[maybe_unused]] constexpr int PROCESS_TYPE_UTILITY = 6;
   return (FeatureList::IsEnabled(kPassHistogramSharedMemoryOnLaunch)
-#if BUILDFLAG(IS_CHROMEOS)
-          && process_type != PROCESS_TYPE_GPU
-#elif BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
           && process_type != PROCESS_TYPE_UTILITY
 #endif
   );

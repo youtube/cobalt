@@ -18,6 +18,7 @@
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -192,18 +193,25 @@ class BookmarkBarDragAndDropInteractiveTest : public InteractiveBrowserTest {
                        press_loop.QuitClosure()));
                    press_loop.Run();
 
+// On Mac, no initial mouse movement is needed. Doing so results in an initial
+// drag event which does not complete prior to the start of the second drag
+// event to `target_location`, which causes issues in the case of nested drag
+// events.
+#if !BUILDFLAG(IS_MAC)
                    gfx::Rect bounds = view->GetBoundsInScreen();
                    gfx::Point start_location(bounds.width() / 2,
                                              bounds.height() / 2);
 
                    // Send an initial mouse movement to start the drag.
-                   gfx::Point target_location =
+                   gfx::Point initial_target_location =
                        start_location + gfx::Vector2d(10, 10);
-                   EXPECT_TRUE(ui_controls::SendMouseMove(target_location.x(),
-                                                          target_location.y()));
+                   EXPECT_TRUE(
+                       ui_controls::SendMouseMove(initial_target_location.x(),
+                                                  initial_target_location.y()));
+#endif  // !BUILDFLAG(IS_MAC)
 
                    // Send another mouse movement to the target desitnation.
-                   target_location = std::move(pos).Run(view);
+                   gfx::Point target_location = std::move(pos).Run(view);
                    EXPECT_TRUE(ui_controls::SendMouseMove(target_location.x(),
                                                           target_location.y()));
 
@@ -236,20 +244,8 @@ class BookmarkBarDragAndDropInteractiveTest : public InteractiveBrowserTest {
 #define MAYBE_DISABLED(test_name) test_name
 #endif
 
-// TODO(crbug.com/391735476) Deflake on Mac11.
-#if BUILDFLAG(IS_MAC)
-#define SKIP_IF_MAC11()                                             \
-  if (base::mac::MacOSMajorVersion() == 11) {                       \
-    GTEST_SKIP() << "Test is flaky on Mac11 (crbug.com/391735476)"; \
-  }
-#else
-#define SKIP_IF_MAC11()
-#endif
-
 IN_PROC_BROWSER_TEST_F(BookmarkBarDragAndDropInteractiveTest,
                        MAYBE_DISABLED(BookmarksDragAndDrop)) {
-  SKIP_IF_MAC11();
-
   // Add two bookmarks nodes to the bookmarks bar.
   bookmarks::BookmarkModel* const model =
       BookmarkModelFactory::GetForBrowserContext(browser()->profile());
@@ -282,8 +278,6 @@ IN_PROC_BROWSER_TEST_F(BookmarkBarDragAndDropInteractiveTest,
 
 IN_PROC_BROWSER_TEST_F(BookmarkBarDragAndDropInteractiveTest,
                        MAYBE_DISABLED(BookmarksDragAndDropToNestedFolder)) {
-  SKIP_IF_MAC11();
-
   // Add two bookmarks nodes to the bookmarks bar.
   bookmarks::BookmarkModel* const model =
       BookmarkModelFactory::GetForBrowserContext(browser()->profile());
@@ -316,8 +310,6 @@ IN_PROC_BROWSER_TEST_F(BookmarkBarDragAndDropInteractiveTest,
 
 IN_PROC_BROWSER_TEST_F(BookmarkBarDragAndDropInteractiveTest,
                        MAYBE_DISABLED(BookmarksDragAndDropFromNestedFolder)) {
-  SKIP_IF_MAC11();
-
   // Add two bookmarks nodes to the bookmarks bar.
   bookmarks::BookmarkModel* const model =
       BookmarkModelFactory::GetForBrowserContext(browser()->profile());

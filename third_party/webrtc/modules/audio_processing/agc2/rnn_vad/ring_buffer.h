@@ -16,6 +16,7 @@
 #include <type_traits>
 
 #include "api/array_view.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 namespace rnn_vad {

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "ios/chrome/browser/infobars/ui_bundled/modals/autofill_address_profile/legacy_infobar_edit_address_profile_table_view_controller.h"
 
 #import <memory>
@@ -10,6 +15,7 @@
 #import "base/feature_list.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
 #import "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #import "components/autofill/core/common/autofill_features.h"
@@ -102,8 +108,9 @@ class LegacyInfobarEditAddressProfileTableViewControllerTest
 
       expected_values.push_back(
           {field.autofillType,
-           profile_->GetInfo(field.autofillType,
-                             GetApplicationContext()->GetApplicationLocale())});
+           profile_->GetInfo(
+               field.autofillType,
+               GetApplicationContext()->GetApplicationLocaleStorage()->Get())});
     }
 
     EXPECT_EQ(1, [model numberOfSections]);

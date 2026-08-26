@@ -16,10 +16,8 @@
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
-#include "base/functional/overloaded.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
@@ -30,7 +28,9 @@
 #include "base/task/thread_pool.h"
 #include "base/time/default_clock.h"
 #include "chrome/browser/ash/cert_provisioning/cert_provisioning_common.h"
+#include "chrome/browser/ash/cert_provisioning/cert_provisioning_scheduler.h"
 #include "chrome/browser/ash/notifications/adb_sideloading_policy_change_notification.h"
+#include "chrome/browser/ash/policy/core/device_cloud_policy_manager_ash.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_store_ash.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/ash/policy/core/device_local_account_policy_service.h"
@@ -56,10 +56,6 @@
 #include "chrome/browser/ash/policy/handlers/minimum_version_policy_handler_delegate_impl.h"
 #include "chrome/browser/ash/policy/handlers/system_proxy_handler.h"
 #include "chrome/browser/ash/policy/handlers/tpm_auto_update_mode_policy_handler.h"
-#include "chrome/browser/ash/policy/invalidation/affiliated_cloud_policy_invalidator.h"
-#include "chrome/browser/ash/policy/invalidation/affiliated_invalidation_service_provider.h"
-#include "chrome/browser/ash/policy/invalidation/affiliated_invalidation_service_provider_impl.h"
-#include "chrome/browser/ash/policy/remote_commands/affiliated_remote_commands_invalidator.h"
 #include "chrome/browser/ash/policy/remote_commands/crd/crd_admin_session_controller.h"
 #include "chrome/browser/ash/policy/scheduled_task_handler/device_scheduled_reboot_handler.h"
 #include "chrome/browser/ash/policy/scheduled_task_handler/device_scheduled_update_checker.h"
@@ -70,6 +66,8 @@
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/ash/system/timezone_util.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/device_identity/device_identity_provider.h"
+#include "chrome/browser/device_identity/device_oauth2_token_service_factory.h"
 #include "chrome/browser/policy/cloud/cloud_policy_invalidator.h"
 #include "chrome/browser/policy/cloud/fm_registration_token_uploader.h"
 #include "chrome/browser/policy/device_management_service_configuration.h"
@@ -91,15 +89,15 @@
 #include "chromeos/ash/components/settings/timezone_settings.h"
 #include "chromeos/ash/components/system/statistics_provider.h"
 #include "components/gcm_driver/instance_id/instance_id_driver.h"
-#include "components/invalidation/invalidation_factory.h"
 #include "components/invalidation/invalidation_listener.h"
+#include "components/invalidation/legacy_topics_cleaner.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/core/common/cloud/cloud_policy_refresh_scheduler.h"
 #include "components/policy/core/common/cloud/resource_cache.h"
 #include "components/policy/core/common/proxy_policy_provider.h"
 #include "components/policy/core/common/remote_commands/remote_commands_constants.h"
-#include "components/policy/core/common/remote_commands/remote_commands_invalidator_impl.h"
+#include "components/policy/core/common/remote_commands/remote_commands_invalidator.h"
 #include "components/policy/policy_constants.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -117,18 +115,13 @@ namespace em = ::enterprise_management;
 // Used by `InvalidationListener` in logs to distinguish instances.
 constexpr char kInvalidationListenerLogPrefix[] = "BrowserPolicyConnectorAsh";
 
-// Returns a set of all project numbers that will be used by Ash.
+// Returns a set of all project numbers that will be used by user.
 std::set<int64_t> GetAllInvalidationProjectNumbers() {
-  // Cannot be a static constant because project number is decided by feature,
-  // which is not available during static initialization.
-  return {policy::GetPolicyInvalidationProjectNumber(
-              PolicyInvalidationScope::kDevice),
-          policy::GetPolicyInvalidationProjectNumber(
-              PolicyInvalidationScope::kDeviceLocalAccount),
-          policy::GetRemoteCommandsInvalidationProjectNumber(
-              PolicyInvalidationScope::kDevice),
-          ash::cert_provisioning::GetCertProvisioningInvalidationProjectNumber(
-              ash::cert_provisioning::CertScope::kDevice)};
+  return {
+      policy::kPolicyInvalidationProjectNumber,
+      policy::kRemoteCommandsInvalidationsProjectNumber,
+      ash::cert_provisioning::kCertProvisioningInvalidationProjectNumber,
+  };
 }
 
 MarketSegment TranslateMarketSegment(
@@ -142,51 +135,6 @@ MarketSegment TranslateMarketSegment(
       return MarketSegment::ENTERPRISE;
   }
   NOTREACHED();
-}
-
-std::variant<std::unique_ptr<AffiliatedInvalidationServiceProvider>,
-             std::unique_ptr<invalidation::InvalidationListener>>
-CreateServiceProviderOrListener(
-    gcm::GCMDriver* gcm_driver,
-    instance_id::InstanceIDDriver* instance_id_driver,
-    int64_t project_number) {
-  if (invalidation::IsInvalidationListenerSupported(project_number)) {
-    auto listener = invalidation::CreateInvalidationServiceOrListener(
-        /*identity_provider=*/nullptr, gcm_driver, instance_id_driver,
-        /*url_loader_factory=*/{}, /*pref_service=*/nullptr, project_number,
-        kInvalidationListenerLogPrefix);
-    CHECK(std::holds_alternative<
-          std::unique_ptr<invalidation::InvalidationListener>>(listener))
-        << "InvalidationListener is not created in InvalidationListener "
-           "setup";
-
-    return std::move(
-        std::get<std::unique_ptr<invalidation::InvalidationListener>>(
-            listener));
-  }
-
-  CHECK_EQ(project_number, kPolicyFCMInvalidationSenderID)
-      << "Legacy kPolicyFCMInvalidationSenderID is required for legacy service "
-         "provider";
-
-  return std::make_unique<AffiliatedInvalidationServiceProviderImpl>(
-      project_number);
-}
-
-auto CreateServiceProviderOrListenersForProjects(
-    gcm::GCMDriver* gcm_driver,
-    instance_id::InstanceIDDriver* instance_id_driver) {
-  std::map<int64_t,
-           std::variant<std::unique_ptr<AffiliatedInvalidationServiceProvider>,
-                        std::unique_ptr<invalidation::InvalidationListener>>>
-      invalidation_service_provider_or_listener_per_project;
-  for (const auto& project_number : GetAllInvalidationProjectNumbers()) {
-    invalidation_service_provider_or_listener_per_project.emplace(
-        project_number, CreateServiceProviderOrListener(
-                            gcm_driver, instance_id_driver, project_number));
-  }
-
-  return invalidation_service_provider_or_listener_per_project;
 }
 
 scoped_refptr<base::SequencedTaskRunner> CreateUserVisibleTaskRunner() {
@@ -255,9 +203,12 @@ void BrowserPolicyConnectorAsh::Init(
   instance_id_driver_ = std::make_unique<instance_id::InstanceIDDriver>(
       g_browser_process->gcm_driver());
 
-  invalidation_service_provider_or_listener_per_project_ =
-      CreateServiceProviderOrListenersForProjects(
-          g_browser_process->gcm_driver(), instance_id_driver_.get());
+  for (const int64_t project_number : GetAllInvalidationProjectNumbers()) {
+    invalidation_listener_per_project_[project_number] =
+        invalidation::InvalidationListener::Create(
+            g_browser_process->gcm_driver(), instance_id_driver_.get(),
+            project_number, kInvalidationListenerLogPrefix);
+  }
 
   if (device_cloud_policy_manager_) {
     // Note: for now the |device_cloud_policy_manager_| is using the global
@@ -271,19 +222,13 @@ void BrowserPolicyConnectorAsh::Init(
     RestartDeviceCloudPolicyInitializer();
   }
 
-  const auto device_local_account_policy_project_number =
-      GetPolicyInvalidationProjectNumber(
-          PolicyInvalidationScope::kDeviceLocalAccount);
-  CHECK(base::Contains(invalidation_service_provider_or_listener_per_project_,
-                       device_local_account_policy_project_number))
-      << "Missing: " << device_local_account_policy_project_number;
   device_local_account_policy_service_ =
       std::make_unique<DeviceLocalAccountPolicyService>(
           ash::SessionManagerClient::Get(), ash::DeviceSettingsService::Get(),
           ash::CrosSettings::Get(),
-          invalidation::UniquePointerVariantToPointer(
-              invalidation_service_provider_or_listener_per_project_
-                  [device_local_account_policy_project_number]),
+          invalidation_listener_per_project_
+              [policy::kPolicyInvalidationProjectNumber]
+                  .get(),
           /*store_background_task_runner=*/CreateBackgroundTaskRunner(),
           /*store_first_load_task_runner=*/CreateUserVisibleTaskRunner(),
           /*extension_cache_task_runner=*/CreateBackgroundTaskRunner(),
@@ -292,76 +237,33 @@ void BrowserPolicyConnectorAsh::Init(
   device_local_account_policy_service_->Connect(device_management_service());
 
   if (device_cloud_policy_manager_) {
-    const auto device_policy_project_number =
-        GetPolicyInvalidationProjectNumber(PolicyInvalidationScope::kDevice);
-    CHECK(base::Contains(invalidation_service_provider_or_listener_per_project_,
-                         device_policy_project_number))
-        << "Missing invalidation for project: " << device_policy_project_number;
-    std::visit(base::Overloaded{
-                   [this](AffiliatedInvalidationServiceProvider* provider) {
-                     device_cloud_policy_invalidator_ =
-                         std::make_unique<AffiliatedCloudPolicyInvalidator>(
-                             PolicyInvalidationScope::kDevice,
-                             device_cloud_policy_manager_->core(), provider);
-                   },
-                   [this](invalidation::InvalidationListener* listener) {
-                     auto policy_invalidator =
-                         std::make_unique<CloudPolicyInvalidator>(
-                             PolicyInvalidationScope::kDevice,
-                             device_cloud_policy_manager_->core(),
-                             base::SingleThreadTaskRunner::GetCurrentDefault(),
-                             base::DefaultClock::GetInstance(),
-                             /*highest_handled_invalidation_version=*/0,
-                             /*device_local_account_id=*/"");
-                     policy_invalidator->Initialize(listener);
-                     device_cloud_policy_invalidator_ =
-                         std::move(policy_invalidator);
-                   }},
-               invalidation::UniquePointerVariantToPointer(
-                   invalidation_service_provider_or_listener_per_project_
-                       [device_policy_project_number]));
+    invalidation::InvalidationListener* policy_invalidation_listener =
+        invalidation_listener_per_project_
+            [policy::kPolicyInvalidationProjectNumber]
+                .get();
+    device_cloud_policy_invalidator_ = std::make_unique<CloudPolicyInvalidator>(
+        PolicyInvalidationScope::kDevice, policy_invalidation_listener,
+        device_cloud_policy_manager_->core(),
+        base::SingleThreadTaskRunner::GetCurrentDefault(),
+        base::DefaultClock::GetInstance(),
+        /*highest_handled_invalidation_version=*/0);
 
-    const auto device_remote_commands_project_number =
-        GetRemoteCommandsInvalidationProjectNumber(
+    invalidation::InvalidationListener* remote_commands_invalidation_listener =
+        invalidation_listener_per_project_
+            [policy::kRemoteCommandsInvalidationsProjectNumber]
+                .get();
+    device_remote_commands_invalidator_ =
+        std::make_unique<RemoteCommandsInvalidator>(
+            remote_commands_invalidation_listener,
+            device_cloud_policy_manager_->core(),
+            base::DefaultClock::GetInstance(),
             PolicyInvalidationScope::kDevice);
-    CHECK(base::Contains(invalidation_service_provider_or_listener_per_project_,
-                         device_remote_commands_project_number))
-        << "Missing: " << device_remote_commands_project_number;
-    std::visit(base::Overloaded{
-                   [this](AffiliatedInvalidationServiceProvider* provider) {
-                     device_remote_commands_invalidator_ =
-                         std::make_unique<AffiliatedRemoteCommandsInvalidator>(
-                             device_cloud_policy_manager_->core(), provider,
-                             PolicyInvalidationScope::kDevice);
-                   },
-                   [this](invalidation::InvalidationListener* listener) {
-                     auto commands_invalidator =
-                         std::make_unique<RemoteCommandsInvalidatorImpl>(
-                             device_cloud_policy_manager_->core(),
-                             base::DefaultClock::GetInstance(),
-                             PolicyInvalidationScope::kDevice);
-                     commands_invalidator->Initialize(listener);
-                     device_remote_commands_invalidator_ =
-                         std::move(commands_invalidator);
-                   }},
-               invalidation::UniquePointerVariantToPointer(
-                   invalidation_service_provider_or_listener_per_project_
-                       [device_remote_commands_project_number]));
 
-    for (const auto& [project_number,
-                      invalidation_service_provider_or_listener] :
-         invalidation_service_provider_or_listener_per_project_) {
-      if (!std::holds_alternative<
-              std::unique_ptr<invalidation::InvalidationListener>>(
-              invalidation_service_provider_or_listener)) {
-        continue;
-      }
+    for (const auto& [project_number, invalidation_listener] :
+         invalidation_listener_per_project_) {
       device_fm_registration_token_uploaders_.emplace_back(
           std::make_unique<FmRegistrationTokenUploader>(
-              PolicyInvalidationScope::kDevice,
-              std::get<std::unique_ptr<invalidation::InvalidationListener>>(
-                  invalidation_service_provider_or_listener)
-                  .get(),
+              PolicyInvalidationScope::kDevice, invalidation_listener.get(),
               device_cloud_policy_manager_->core()));
     }
   }
@@ -435,7 +337,7 @@ void BrowserPolicyConnectorAsh::Init(
       std::make_unique<AdbSideloadingAllowanceModePolicyHandler>(
           ash::CrosSettings::Get(), local_state,
           chromeos::PowerManagerClient::Get(),
-          new ash::AdbSideloadingPolicyChangeNotification());
+          std::make_unique<ash::AdbSideloadingPolicyChangeNotification>(this));
 
   reboot_notifications_scheduler_ =
       std::make_unique<RebootNotificationsScheduler>();
@@ -449,6 +351,12 @@ void BrowserPolicyConnectorAsh::Init(
 
   device_dlc_predownload_list_policy_handler_ =
       DeviceDlcPredownloadListPolicyHandler::Create();
+
+  legacy_topics_cleaner_ = std::make_unique<invalidation::LegacyTopicsCleaner>(
+      url_loader_factory,
+      std::make_unique<DeviceIdentityProvider>(
+          DeviceOAuth2TokenServiceFactory::Get()),
+      g_browser_process->local_state());
 }
 
 void BrowserPolicyConnectorAsh::OnBrowserStarted() {
@@ -462,23 +370,6 @@ void BrowserPolicyConnectorAsh::OnBrowserStarted() {
 }
 
 void BrowserPolicyConnectorAsh::PreShutdown() {
-  // Let the |affiliated_invalidation_service_provider_| unregister itself as an
-  // observer of per-Profile InvalidationServices and the device-global
-  // invalidation::InvalidationService it may have created as an observer of
-  // the DeviceOAuth2TokenService that is destroyed before Shutdown() is called.
-  //
-  // TODO(b/308427142) The comment above is hard to grok, as is the code it
-  // describes. We should clean this up.
-  for (auto& [project_number, invalidation_service_provider_or_listener] :
-       invalidation_service_provider_or_listener_per_project_) {
-    if (auto* provider =
-            std::get_if<std::unique_ptr<AffiliatedInvalidationServiceProvider>>(
-                &invalidation_service_provider_or_listener);
-        provider && *provider) {
-      (*provider)->Shutdown();
-    }
-  }
-
   // This controller depends on the `SecurityCurtainController` which will be
   // destroyed before `BrowserPolicyConnectorAsh::Shutdown` is invoked.
   crd_admin_session_controller_->Shutdown();
@@ -506,24 +397,9 @@ void BrowserPolicyConnectorAsh::Shutdown() {
     device_cloud_policy_manager_->RemoveDeviceCloudPolicyManagerObserver(this);
   }
 
-  std::visit(
-      base::Overloaded{
-          [](std::unique_ptr<AffiliatedCloudPolicyInvalidator>& invalidator) {
-            invalidator.reset();
-          },
-          [](std::unique_ptr<CloudPolicyInvalidator>& invalidator) {
-            invalidator->Shutdown();
-            invalidator.reset();
-          }},
-      device_cloud_policy_invalidator_);
-  std::visit(base::Overloaded{
-                 [](std::unique_ptr<AffiliatedRemoteCommandsInvalidator>&
-                        invalidator) { invalidator.reset(); },
-                 [](std::unique_ptr<RemoteCommandsInvalidator>& invalidator) {
-                   invalidator->Shutdown();
-                   invalidator.reset();
-                 }},
-             device_remote_commands_invalidator_);
+  device_cloud_policy_invalidator_.reset();
+
+  device_remote_commands_invalidator_.reset();
 
   device_fm_registration_token_uploaders_.clear();
 
@@ -533,7 +409,7 @@ void BrowserPolicyConnectorAsh::Shutdown() {
   // `device_remote_commands_invalidator_`, and
   // `device_fm_registration_token_uploaders_`) but before it's dependencies
   // (`GCMDriver`).
-  invalidation_service_provider_or_listener_per_project_.clear();
+  invalidation_listener_per_project_.clear();
 
   device_scheduled_update_checker_.reset();
 
@@ -558,6 +434,8 @@ void BrowserPolicyConnectorAsh::Shutdown() {
   }
 
   adb_sideloading_allowance_mode_policy_handler_.reset();
+
+  legacy_topics_cleaner_.reset();
 
   ChromeBrowserPolicyConnector::Shutdown();
 }
@@ -748,18 +626,13 @@ void BrowserPolicyConnectorAsh::OnDeviceCloudPolicyManagerConnected() {
     CloudPolicyClient* cloud_policy_client =
         device_cloud_policy_manager_->core()->client();
 
-    const auto device_cert_provisioning_project_number =
-        ash::cert_provisioning::GetCertProvisioningInvalidationProjectNumber(
-            ash::cert_provisioning::CertScope::kDevice);
-    CHECK(base::Contains(invalidation_service_provider_or_listener_per_project_,
-                         device_cert_provisioning_project_number))
-        << "Missing: " << device_cert_provisioning_project_number;
     device_cert_provisioning_scheduler_ = ash::cert_provisioning::
         CertProvisioningSchedulerImpl::CreateDeviceCertProvisioningScheduler(
             cloud_policy_client,
-            invalidation::UniquePointerVariantToPointer(
-                invalidation_service_provider_or_listener_per_project_
-                    [device_cert_provisioning_project_number]));
+            invalidation_listener_per_project_
+                [ash::cert_provisioning::
+                     kCertProvisioningInvalidationProjectNumber]
+                    .get());
   }
 }
 

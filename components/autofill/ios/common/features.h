@@ -25,6 +25,10 @@ BASE_DECLARE_FEATURE(kAutofillAllowDefaultPreventedSubmission);
 // instead of using true by default.
 BASE_DECLARE_FEATURE(kAutofillCorrectUserEditedBitInParsedField);
 
+// Record form submissions events that are detected in the renderer before they
+// are processed. Act as a killswitch where the feature is enabled by default.
+BASE_DECLARE_FEATURE(kAutofillCountFormSubmissionInRenderer);
+
 // Dedupes form submission by only allowing one submission per form element.
 // This feature is meant to be used when preventDefault()ed submit events are
 // allowed (i.e. AutofillAllowDefaultPreventedSubmission enabled) which can
@@ -40,6 +44,10 @@ BASE_DECLARE_FEATURE(kAutofillDynamicallyLoadsFieldsForAddressInput);
 // Fix for XHR form submission detection when autofill across iframes is
 // enabled.
 BASE_DECLARE_FEATURE(kAutofillFixXhrForXframe);
+
+// Listen to form submission events in capture mode before the events are
+// propagated.
+BASE_DECLARE_FEATURE(kAutofillFormSubmissionEventsInCaptureMode);
 
 // Controls whether to use the isolated content world instead of the page
 // content world for the Autofill JS feature scripts.
@@ -60,6 +68,9 @@ BASE_DECLARE_FEATURE(kAutofillPaymentsSheetV3Ios);
 // Enables the refill functionality to allow autofilling of dynamically
 // expanding forms.
 BASE_DECLARE_FEATURE(kAutofillRefillForFormsIos);
+
+// Reports JS errors that occur upon handling form submission in the renderer.
+BASE_DECLARE_FEATURE(kAutofillReportFormSubmissionErrors);
 
 // Makes the autofill and password infobars sticky on iOS. The sticky infobar
 // sticks there until navigating from an explicit user gesture (e.g. reload or

@@ -25,8 +25,8 @@ class Element;
 class CORE_EXPORT ContainerSelector {
  public:
   ContainerSelector() = default;
-  explicit ContainerSelector(WTF::HashTableDeletedValueType) {
-    WTF::HashTraits<AtomicString>::ConstructDeletedValue(name_);
+  explicit ContainerSelector(HashTableDeletedValueType) {
+    HashTraits<AtomicString>::ConstructDeletedValue(name_);
   }
   // Used for the purpose of finding the closest container for container units.
   explicit ContainerSelector(PhysicalAxes physical_axes)
@@ -50,7 +50,7 @@ class CORE_EXPORT ContainerSelector {
   ContainerSelector(AtomicString name, const MediaQueryExpNode&);
 
   bool IsHashTableDeletedValue() const {
-    return WTF::HashTraits<AtomicString>::IsDeletedValue(name_);
+    return HashTraits<AtomicString>::IsDeletedValue(name_);
   }
 
   bool operator==(const ContainerSelector& o) const {
@@ -122,7 +122,7 @@ class CORE_EXPORT ScopedContainerSelector
 
   unsigned GetHash() const {
     unsigned hash = selector_.GetHash();
-    WTF::AddIntToHash(hash, WTF::GetHash(tree_scope_.Get()));
+    blink::AddIntToHash(hash, blink::GetHash(tree_scope_.Get()));
     return hash;
   }
 
@@ -138,7 +138,7 @@ class CORE_EXPORT ScopedContainerSelector
 };
 
 struct ScopedContainerSelectorHashTraits
-    : WTF::MemberHashTraits<ScopedContainerSelector> {
+    : MemberHashTraits<ScopedContainerSelector> {
   static unsigned GetHash(
       const Member<ScopedContainerSelector>& scoped_selector) {
     return scoped_selector->GetHash();
@@ -164,10 +164,6 @@ struct ScopedContainerSelectorHashTranslator {
   }
 };
 
-}  // namespace blink
-
-namespace WTF {
-
 template <>
 struct HashTraits<blink::ContainerSelector>
     : SimpleClassHashTraits<blink::ContainerSelector> {
@@ -175,13 +171,9 @@ struct HashTraits<blink::ContainerSelector>
     return selector.GetHash();
   }
   static constexpr bool kSafeToCompareToEmptyOrDeleted =
-      HashTraits<AtomicString>::kSafeToCompareToEmptyOrDeleted;
+      HashTraits<blink::AtomicString>::kSafeToCompareToEmptyOrDeleted;
   static const bool kEmptyValueIsZero = false;
 };
-
-}  // namespace WTF
-
-namespace blink {
 
 using ContainerSelectorCache = HeapHashMap<Member<ScopedContainerSelector>,
                                            Member<Element>,

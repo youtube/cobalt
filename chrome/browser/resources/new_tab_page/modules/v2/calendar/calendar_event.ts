@@ -4,11 +4,13 @@
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_chip/cr_chip.js';
 
+import {assert} from 'chrome://resources/js/assert.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {CalendarEvent} from '../../../calendar_data.mojom-webui.js';
 import {I18nMixinLit} from '../../../i18n_setup.js';
+import {recordSmallCount} from '../../../metrics_utils.js';
 import {WindowProxy} from '../../../window_proxy.js';
 
 import {getCss} from './calendar_event.css.js';
@@ -90,14 +92,18 @@ export class CalendarEventElement extends CalendarEventElementBase {
         (this.expanded && this.showAttachments_())) {
       const attachmentList = this.renderRoot.querySelector('#attachmentList');
       if (attachmentList && attachmentList.children.length > 1) {
+        const attachments = attachmentList.children;
         this.intersectionObserver_ =
             new IntersectionObserver(() => this.updateAttachmentListClass_(), {
               root: attachmentList,
               threshold: 1.0,
             });
-        this.intersectionObserver_.observe(attachmentList.children[0]);
-        this.intersectionObserver_.observe(
-            attachmentList.children[attachmentList.children.length - 1]);
+        const firstAttachment = attachments[0]!;
+        assert(firstAttachment);
+        this.intersectionObserver_.observe(firstAttachment);
+        const lastAttachment = attachments[attachments.length - 1];
+        assert(lastAttachment);
+        this.intersectionObserver_.observe(lastAttachment);
       }
     }
   }
@@ -150,7 +156,9 @@ export class CalendarEventElement extends CalendarEventElementBase {
   }
 
   protected isAttachmentDisabled_(index: number): boolean {
-    return !this.event.attachments[index].resourceUrl?.url;
+    const attachment = this.event.attachments[index];
+    assert(attachment);
+    return !attachment.resourceUrl?.url;
   }
 
   protected openAttachment_(e: Event) {
@@ -158,6 +166,7 @@ export class CalendarEventElement extends CalendarEventElementBase {
     recordCalendarAction(CalendarAction.ATTACHMENT_CLICKED, this.moduleName);
     const currentTarget = e.currentTarget as HTMLElement;
     const index = Number(currentTarget.dataset['index']);
+    assert(this.event.attachments[index]);
     const resourceUrl = this.event.attachments[index].resourceUrl?.url;
     if (resourceUrl) {
       WindowProxy.getInstance().navigate(resourceUrl);
@@ -180,7 +189,7 @@ export class CalendarEventElement extends CalendarEventElementBase {
       action = CalendarAction.DOUBLE_BOOKED_EVENT_HEADER_CLICKED;
     }
     recordCalendarAction(action, this.moduleName);
-    chrome.metricsPrivate.recordSmallCount(
+    recordSmallCount(
         `NewTabPage.${this.moduleName}.EventClickIndex`, this.index);
   }
 

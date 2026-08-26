@@ -10,7 +10,6 @@ import androidx.test.filters.SmallTest;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,8 +28,9 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.content_settings.ContentSettingValues;
 import org.chromium.components.content_settings.ContentSettingsType;
@@ -53,6 +53,7 @@ import java.util.concurrent.TimeoutException;
 // TODO(crbug.com/344669865): Failing when batched, batch this again.
 public class CookieControlsBridgeTest {
     public static final String COOKIE_CONTROLS_BATCH_NAME = "cookie_controls";
+    private WebPageStation mInitialPage;
 
     private class TestCallbackHandler implements CookieControlsObserver {
         private final CallbackHelper mHelper;
@@ -68,7 +69,9 @@ public class CookieControlsBridgeTest {
                 @CookieBlocking3pcdStatus int blockingStatus,
                 long expiration) {
             mCookieControlsVisible = controlsState != CookieControlsState.HIDDEN;
-            mThirdPartyCookiesBlocked = controlsState == CookieControlsState.BLOCKED3PC;
+            mThirdPartyCookiesBlocked =
+                    controlsState == CookieControlsState.BLOCKED3PC
+                            || controlsState == CookieControlsState.ACTIVE_TP;
             mEnforcement = enforcement;
             mExpiration = expiration;
             mHelper.notifyCalled();
@@ -81,13 +84,9 @@ public class CookieControlsBridgeTest {
         }
     }
 
-    @ClassRule
-    public static ChromeTabbedActivityTestRule sActivityTestRule =
-            new ChromeTabbedActivityTestRule();
-
     @Rule
-    public BlankCTATabInitialStateRule mBlankCTATabInitialStateRule =
-            new BlankCTATabInitialStateRule(sActivityTestRule, false);
+    public AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
     private EmbeddedTestServer mTestServer;
     private CallbackHelper mCallbackHelper;
@@ -101,9 +100,11 @@ public class CookieControlsBridgeTest {
 
     @Before
     public void setUp() throws Exception {
+        mInitialPage = mActivityTestRule.startOnBlankPage();
+
         mCallbackHelper = new CallbackHelper();
         mCallbackHandler = new TestCallbackHandler(mCallbackHelper);
-        mTestServer = sActivityTestRule.getTestServer();
+        mTestServer = mActivityTestRule.getTestServer();
         mCookieControlsVisible = false;
         mThirdPartyCookiesBlocked = false;
         mExpiration = -1;
@@ -144,7 +145,7 @@ public class CookieControlsBridgeTest {
 
         // Navigate to a page
         final String url = mTestServer.getURL("/chrome/test/data/android/cookie.html");
-        Tab tab = sActivityTestRule.loadUrlInNewTab(url, false);
+        Tab tab = mActivityTestRule.loadUrlInNewTab(url, false);
 
         // Create cookie bridge and wait for desired callbacks.
         ThreadUtils.runOnUiThreadBlocking(
@@ -177,7 +178,7 @@ public class CookieControlsBridgeTest {
 
         // Navigate to a page
         final String url = mTestServer.getURL("/chrome/test/data/android/cookie.html");
-        Tab tab = sActivityTestRule.loadUrlInNewTab(url, false);
+        Tab tab = mActivityTestRule.loadUrlInNewTab(url, false);
 
         // Create cookie bridge and wait for desired callbacks.
         ThreadUtils.runOnUiThreadBlocking(
@@ -205,7 +206,7 @@ public class CookieControlsBridgeTest {
 
         // Navigate to a page
         final String url = mTestServer.getURL("/chrome/test/data/android/cookie.html");
-        Tab tab = sActivityTestRule.loadUrlInNewTab(url, false);
+        Tab tab = mActivityTestRule.loadUrlInNewTab(url, false);
 
         // Create cookie bridge and wait for desired callbacks.
         ThreadUtils.runOnUiThreadBlocking(
@@ -250,7 +251,7 @@ public class CookieControlsBridgeTest {
 
         // Navigate to a page
         final String url = mTestServer.getURL("/chrome/test/data/android/cookie.html");
-        Tab tab = sActivityTestRule.loadUrlInNewTab(url, false);
+        Tab tab = mActivityTestRule.loadUrlInNewTab(url, false);
 
         // Create cookie bridge and wait for desired callbacks.
         ThreadUtils.runOnUiThreadBlocking(
@@ -291,7 +292,7 @@ public class CookieControlsBridgeTest {
 
         // Navigate to a normal page
         final String url = mTestServer.getURL("/chrome/test/data/android/cookie.html");
-        Tab tab = sActivityTestRule.loadUrlInNewTab(url, false);
+        Tab tab = mActivityTestRule.loadUrlInNewTab(url, false);
 
         // Create cookie bridge and wait for desired callbacks.
         ThreadUtils.runOnUiThreadBlocking(
@@ -310,7 +311,7 @@ public class CookieControlsBridgeTest {
         assertEquals(CookieControlsEnforcement.NO_ENFORCEMENT, mEnforcement);
 
         // Make new incognito page now
-        Tab incognitoTab = sActivityTestRule.loadUrlInNewTab(url, true);
+        Tab incognitoTab = mActivityTestRule.loadUrlInNewTab(url, true);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mCookieControlsBridge =

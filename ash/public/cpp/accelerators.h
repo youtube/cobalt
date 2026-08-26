@@ -263,7 +263,7 @@ ASH_PUBLIC_EXPORT inline constexpr auto kAcceleratorData = std::to_array<
     {true, ui::VKEY_BROWSER_BACK, ui::EF_NONE,
      AcceleratorAction::kMinimizeTopWindowOnBack},
     {true, ui::VKEY_G, ui::EF_SHIFT_DOWN | ui::EF_COMMAND_DOWN,
-     AcceleratorAction::kCreateSnapGroup},
+     AcceleratorAction::kToggleSnapGroup},
     {true, ui::VKEY_D, ui::EF_SHIFT_DOWN | ui::EF_COMMAND_DOWN,
      AcceleratorAction::kToggleSnapGroupWindowsMinimizeAndRestore},
     {true, ui::VKEY_Z, ui::EF_COMMAND_DOWN,
@@ -349,8 +349,9 @@ ASH_PUBLIC_EXPORT inline constexpr auto kAcceleratorData = std::to_array<
 
     // Quick Insert.
     {false, ui::VKEY_QUICK_INSERT, ui::EF_NONE,
-     AcceleratorAction::kTogglePicker, true},
-    {true, ui::VKEY_F, ui::EF_COMMAND_DOWN, AcceleratorAction::kTogglePicker},
+     AcceleratorAction::kToggleQuickInsert, true},
+    {true, ui::VKEY_F, ui::EF_COMMAND_DOWN,
+     AcceleratorAction::kToggleQuickInsert},
 
     // Game Dashboard shortcut.
     {true, ui::VKEY_G, ui::EF_COMMAND_DOWN,

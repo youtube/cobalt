@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/no_destructor.h"
@@ -35,8 +36,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
@@ -53,13 +56,17 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/overlay_window.h"
+#include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/presentation_receiver_flags.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/renderer_preferences_util.h"
+#include "content/public/browser/video_picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/content_switches.h"
 #include "media/media_buildflags.h"
 #include "net/base/url_util.h"
@@ -217,8 +224,8 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
       splash_topic_(topic),
       skip_for_testing_(skip_for_testing),
-      is_video_splash_screen_(base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kForceVideoSplashScreen)) {
+      is_video_splash_screen_(base::FeatureList::IsEnabled(
+          cobalt::features::kForceVideoSplashScreen)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -405,12 +412,6 @@ void Shell::SetShellCreatedCallback(
     base::OnceCallback<void(Shell*)> shell_created_callback) {
   DCHECK(!shell_created_callback_);
   shell_created_callback_ = std::move(shell_created_callback);
-}
-
-// static
-bool Shell::ShouldHideToolbar() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kContentShellHideToolbar);
 }
 
 // static
@@ -772,19 +773,6 @@ void Shell::Stop() {
   web_contents_->Stop();
 }
 
-void Shell::UpdateNavigationControls(bool should_show_loading_ui) {
-  int current_index = web_contents_->GetController().GetCurrentEntryIndex();
-  int max_index = web_contents_->GetController().GetEntryCount() - 1;
-
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::BACK_BUTTON,
-                              current_index > 0);
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::FORWARD_BUTTON,
-                              current_index < max_index);
-  g_platform->EnableUIControl(
-      this, ShellPlatformDelegate::STOP_BUTTON,
-      should_show_loading_ui && web_contents_->IsLoading());
-}
-
 void Shell::ShowDevTools() {
   if (!devtools_frontend_) {
     auto* devtools_frontend = ShellDevToolsFrontend::Show(web_contents());
@@ -877,12 +865,6 @@ WebContents* Shell::OpenURLFromTab(
   return target;
 }
 
-void Shell::LoadingStateChanged(WebContents* source,
-                                bool should_show_loading_ui) {
-  UpdateNavigationControls(should_show_loading_ui);
-  g_platform->SetIsLoading(this, source->IsLoading());
-}
-
 void Shell::EnterFullscreenModeForTab(
     RenderFrameHost* requesting_frame,
     const blink::mojom::FullscreenOptions& options) {
@@ -964,13 +946,6 @@ bool Shell::CanOverscrollContent() {
 #endif
 }
 
-void Shell::NavigationStateChanged(WebContents* source,
-                                   InvalidateTypes changed_flags) {
-  if (changed_flags & INVALIDATE_TYPE_URL) {
-    g_platform->SetAddressBarURL(this, source->GetVisibleURL());
-  }
-}
-
 JavaScriptDialogManager* Shell::GetJavaScriptDialogManager(
     WebContents* source) {
   if (!dialog_manager_) {
@@ -1003,8 +978,9 @@ void Shell::ActivateContents(WebContents* contents) {
   }
 }
 
-bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
-  return true;
+bool Shell::IsBackForwardCacheSupported(WebContents& /*web_contents*/) {
+  return !base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kDisableBackForwardCache);
 }
 
 PreloadingEligibility Shell::IsPrerender2Supported(
@@ -1038,7 +1014,20 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
 }
 
 PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
-  return PictureInPictureResult::kNotSupported;
+  if (!base::FeatureList::IsEnabled(
+          cobalt::features::kEnablePictureInPicture)) {
+    return PictureInPictureResult::kNotSupported;
+  }
+  return PictureInPictureWindowManager::GetInstance()
+      .EnterVideoPictureInPicture(web_contents);
+}
+
+void Shell::ExitPictureInPicture() {
+  if (!base::FeatureList::IsEnabled(
+          cobalt::features::kEnablePictureInPicture)) {
+    return;
+  }
+  PictureInPictureWindowManager::GetInstance().ExitPictureInPicture();
 }
 
 bool Shell::ShouldResumeRequestsForCreatedWindow() {
@@ -1141,6 +1130,19 @@ void Shell::OnVisibilityChanged(Visibility visibility) {
   if (visibility == Visibility::VISIBLE && pending_focus_) {
     // Retry the pending focus now that the window is visible in Aura.
     Focus();
+  }
+
+  // When the OS backgrounds the app (resulting in Visibility::HIDDEN state),
+  // tearing down the PiP session from here ensures the
+  // VideoPictureInPictureWindowController pauses the video and destroys the UI
+  // overlay window.
+  // See: b/532272209
+  if (base::FeatureList::IsEnabled(cobalt::features::kEnablePictureInPicture) &&
+      visibility == content::Visibility::HIDDEN && web_contents() &&
+      web_contents()->HasPictureInPictureVideo()) {
+    content::PictureInPictureWindowController::
+        GetOrCreateVideoPictureInPictureController(web_contents())
+            ->Close(/*should_pause_video=*/true);
   }
 }
 

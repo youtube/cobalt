@@ -24,6 +24,8 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
+import static org.chromium.components.privacy_sandbox.FingerprintingProtectionSettingsFragment.FP_PROTECTION_ENABLED_USER_ACTION;
+import static org.chromium.components.privacy_sandbox.IpProtectionSettingsFragment.IP_PROTECTION_ENABLED_USER_ACTION;
 import static org.chromium.ui.test.util.ViewUtils.clickOnClickableSpan;
 
 import android.text.TextUtils;
@@ -98,7 +100,10 @@ import java.util.concurrent.TimeUnit;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @DoNotBatch(reason = "Child account can leak to other tests in the suite.")
-@EnableFeatures({ChromeFeatureList.ALWAYS_BLOCK_3PCS_INCOGNITO})
+@EnableFeatures({
+    ChromeFeatureList.ALWAYS_BLOCK_3PCS_INCOGNITO,
+    ChromeFeatureList.FINGERPRINTING_PROTECTION_UX
+})
 // Disable TrackingProtection3pcd as we use prefs instead of the feature in these tests.
 @DisableFeatures({ChromeFeatureList.TRACKING_PROTECTION_3PCD})
 public class PrivacySettingsFragmentTest {
@@ -107,14 +112,11 @@ public class PrivacySettingsFragmentTest {
     // Name of the histogram to record the entry on Privacy Guide via the S&P link-row.
     public static final String ENTRY_EXIT_HISTOGRAM = "Settings.PrivacyGuide.EntryExit";
 
-    private static final int IPP_TOGGLE_LABEL =
-            R.string.incognito_tracking_protections_ip_protection_toggle_label;
-    private static final int IPP_TOGGLE_SUBLABEL =
-            R.string.incognito_tracking_protections_ip_protection_toggle_sublabel;
-    private static final int FPP_TOGGLE_LABEL =
-            R.string.incognito_tracking_protections_fingerprinting_protection_toggle_label;
+    private static final int IPP_TOGGLE_LABEL = R.string.ip_protection_toggle_label;
+    private static final int IPP_TOGGLE_SUBLABEL = R.string.ip_protection_toggle_sublabel;
+    private static final int FPP_TOGGLE_LABEL = R.string.fingerprinting_protection_toggle_label;
     private static final int FPP_TOGGLE_SUBLABEL =
-            R.string.incognito_tracking_protections_fingerprinting_protection_toggle_sublabel;
+            R.string.fingerprinting_protection_toggle_sublabel;
 
     public final SettingsActivityTestRule<PrivacySettings> mSettingsActivityTestRule =
             new SettingsActivityTestRule<>(PrivacySettings.class);
@@ -396,9 +398,13 @@ public class PrivacySettingsFragmentTest {
         setShowTrackingProtection(false);
         mSettingsActivityTestRule.startSettingsActivity();
         // Scroll down and open the Incognito tracking protections page.
-        scrollToSetting(withText(R.string.incognito_tracking_protections_page_title));
-        onView(withText(R.string.incognito_tracking_protections_page_title)).perform(click());
-        onView(withText(R.string.incognito_tracking_protections_ip_protection_toggle_sublabel_off))
+        scrollToSetting(withText(R.string.incognito_tracking_protections_link_row_label));
+        onView(withText(R.string.incognito_tracking_protections_link_row_label)).perform(click());
+        assertTrue(
+                mActionTester
+                        .getActions()
+                        .contains(PrivacySettings.TRACKING_PROTECTIONS_OPENED_USER_ACTION));
+        onView(withText(R.string.ip_protection_link_row_sublabel_disabled))
                 .check(matches(isDisplayed()));
         // Scroll to the IP protections preference and go to the IP protections page.
         scrollToSetting(withText(IPP_TOGGLE_LABEL));
@@ -410,22 +416,24 @@ public class PrivacySettingsFragmentTest {
                                 isDisplayed()))
                 .perform(click());
         assertTrue(isIpProtectionEnabled());
+        assertTrue(mActionTester.getActions().contains(IP_PROTECTION_ENABLED_USER_ACTION));
     }
 
     @Test
     @LargeTest
-    @Features.EnableFeatures(ChromeFeatureList.FINGERPRINTING_PROTECTION_UX)
     public void clickingFingerprintingProtectionToggleEnablesPref() throws ExecutionException {
         setFpProtection(false);
         setShowTrackingProtection(false);
         mSettingsActivityTestRule.startSettingsActivity();
         // Scroll down and open the Incognito tracking protections page.
-        scrollToSetting(withText(R.string.incognito_tracking_protections_page_title));
-        onView(withText(R.string.incognito_tracking_protections_page_title)).perform(click());
-        onView(
-                        withText(
-                                R.string
-                                        .incognito_tracking_protections_fingerprinting_protection_toggle_sublabel_off))
+        scrollToSetting(withText(R.string.incognito_tracking_protections_link_row_label));
+        onView(withText(R.string.incognito_tracking_protections_link_row_label)).perform(click());
+        // Verify that the user action is emitted when privacy guide is clicked
+        assertTrue(
+                mActionTester
+                        .getActions()
+                        .contains(PrivacySettings.TRACKING_PROTECTIONS_OPENED_USER_ACTION));
+        onView(withText(R.string.fingerprinting_protection_link_row_sublabel_disabled))
                 .check(matches(isDisplayed()));
         // Scroll to the FPP preference and go to the FPP page.
         scrollToSetting(withText(FPP_TOGGLE_LABEL));
@@ -437,6 +445,7 @@ public class PrivacySettingsFragmentTest {
                                 isDisplayed()))
                 .perform(click());
         assertTrue(isFpProtectionEnabled());
+        assertTrue(mActionTester.getActions().contains(FP_PROTECTION_ENABLED_USER_ACTION));
     }
 
     @Test

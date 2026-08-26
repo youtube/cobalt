@@ -2,8 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/chrome_build.gni")
 import("//build/config/cronet/config.gni")
 import("//build/config/features.gni")
+import("//extensions/buildflags/buildflags.gni")
 
 declare_args() {
   # Disables support for file URLs.  File URL support requires use of icu.
@@ -27,8 +29,9 @@ declare_args() {
   # TODO: https://crbug.com/40282397 - Consider dropping once Cronet default enables zstd.
   disable_zstd_filter = false
 
-  # Multicast DNS.
-  enable_mdns = is_win || is_linux || is_chromeos || is_fuchsia || is_apple
+  # Multicast DNS. Enabled on desktop Android for the chrome.mdns extension API.
+  enable_mdns = is_win || is_linux || is_chromeos || is_fuchsia || is_apple ||
+                enable_desktop_android_extensions
 
   # Reporting not used on iOS.
   enable_reporting = !is_ios
@@ -65,6 +68,14 @@ declare_args() {
   # TODO(crbug.com/367400641): If flag is changed or removed, ensure all
   # TODOs for this bug are correctly modified.
   enable_quic_proxy_support = is_debug
+
+  # The SQL disk cache backend is an experimental feature (crbug.com/422065015).
+  # It is enabled only in specific build configurations to avoid increasing the
+  # build size.
+  enable_disk_cache_sql_backend =
+      (is_linux && !is_castos) ||
+      (is_android && !is_cast_android && !is_cronet_build) || is_win ||
+      is_mac || is_chromeos
 }
 
 assert(!chrome_root_store_optional || !chrome_root_store_only,

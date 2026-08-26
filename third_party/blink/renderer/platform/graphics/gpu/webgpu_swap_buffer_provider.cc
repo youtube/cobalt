@@ -41,7 +41,8 @@ WebGPUSwapBufferProvider::WebGPUSwapBufferProvider(
     wgpu::TextureUsage internal_usage,
     wgpu::TextureFormat format,
     PredefinedColorSpace color_space,
-    const gfx::HDRMetadata& hdr_metadata)
+    const gfx::HDRMetadata& hdr_metadata,
+    GrSurfaceOrigin surface_origin)
     : dawn_control_client_(dawn_control_client),
       client_(client),
       device_(device),
@@ -50,7 +51,8 @@ WebGPUSwapBufferProvider::WebGPUSwapBufferProvider(
       usage_(usage),
       internal_usage_(internal_usage),
       color_space_(color_space),
-      hdr_metadata_(hdr_metadata) {
+      hdr_metadata_(hdr_metadata),
+      surface_origin_(surface_origin) {
   wgpu::Limits limits = {};
   auto get_limits_succeeded = device_.GetLimits(&limits);
   CHECK(get_limits_succeeded);
@@ -155,12 +157,13 @@ scoped_refptr<WebGPUMailboxTexture> WebGPUSwapBufferProvider::GetNewTexture(
   }
 
   // These SharedImages are read and written by WebGPU clients and can then be
-  // sent off to the display compositor.
+  // sent off to the display compositor. They can also be read over raster
+  // interface as part of video frame.
   gpu::SharedImageUsageSet usage =
       gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
       gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE |
       gpu::SHARED_IMAGE_USAGE_WEBGPU_SWAP_CHAIN_TEXTURE |
-      GetSharedImageUsagesForDisplay();
+      gpu::SHARED_IMAGE_USAGE_RASTER_READ | GetSharedImageUsagesForDisplay();
   if (usage_ & wgpu::TextureUsage::StorageBinding) {
     usage |= gpu::SHARED_IMAGE_USAGE_WEBGPU_STORAGE_TEXTURE;
   }
@@ -168,17 +171,16 @@ scoped_refptr<WebGPUMailboxTexture> WebGPUSwapBufferProvider::GetNewTexture(
   wgpu::AdapterInfo adapter_info;
   device_.GetAdapter().GetInfo(&adapter_info);
   if (adapter_info.adapterType == wgpu::AdapterType::CPU) {
-    // When using the fallback adapter, service-side reads and writes of the
+    // When using the fallback adapter, service-side writes of the
     // SharedImage occur via Skia with copies from/to Dawn textures.
-    usage |= gpu::SHARED_IMAGE_USAGE_RASTER_READ |
-             gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
+    usage |= gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
   }
 
   gpu::ImageInfo info = {size,
                          Format(),
                          usage,
                          PredefinedColorSpaceToGfxColorSpace(color_space_),
-                         kTopLeft_GrSurfaceOrigin,
+                         surface_origin_,
                          alpha_mode};
 
   // Note that if the pool already exists but have different ImageInfo than what
@@ -189,7 +191,7 @@ scoped_refptr<WebGPUMailboxTexture> WebGPUSwapBufferProvider::GetNewTexture(
   if (!swap_buffer_pool_) {
     swap_buffer_pool_ = gpu::SharedImagePool<SwapBuffer>::Create(
         info, context_provider->ContextProvider().SharedImageInterface(),
-        /*max_pool_size=*/4);
+        "WebGPUSwapBufferProvider", /*max_pool_size=*/4);
   } else if (swap_buffer_pool_->GetImageInfo() != info) {
     swap_buffer_pool_->Reconfigure(info);
   }

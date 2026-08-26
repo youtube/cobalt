@@ -29,7 +29,7 @@
 #include <openssl/mem.h>
 #include <openssl/nid.h>
 #include <openssl/rand.h>
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 #include "../crypto/internal.h"
 #include "internal.h"

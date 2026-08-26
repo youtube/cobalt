@@ -6,6 +6,11 @@ package org.chromium.components.permissions;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.cached_flags.BooleanCachedFeatureParam;
+import org.chromium.components.cached_flags.CachedFeatureParam;
+import org.chromium.components.cached_flags.IntCachedFeatureParam;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Lists base::Features that can be accessed through {@link PermissionsAndroidFeatureMap}.
@@ -15,6 +20,17 @@ import org.chromium.components.cached_flags.BooleanCachedFeatureParam;
  */
 @NullMarked
 public abstract class PermissionsAndroidFeatureList {
+
+    public static final List<CachedFeatureParam<?>> sCachedParams = new ArrayList<>();
+
+    public static List<CachedFeatureParam<?>> getFeatureParamsToCache() {
+        return sCachedParams;
+    }
+
+    static void addCachedFeatureParam(CachedFeatureParam<?> param) {
+        sCachedParams.add(param);
+    }
+
     public static final String BLOCK_MIDI_BY_DEFAULT = "BlockMidiByDefault";
 
     public static final String ANDROID_CANCEL_PERMISSION_PROMPT_ON_TOUCH_OUTSIDE =
@@ -32,4 +48,10 @@ public abstract class PermissionsAndroidFeatureList {
     public static final BooleanCachedFeatureParam APPROXIMATE_GEOLOCATION_SAMPLE_DATA =
             PermissionsAndroidFeatureMap.newBooleanCachedFeatureParam(
                     APPROXIMATE_GEOLOCATION_PERMISSION, "sample_data", false);
+
+    public static final IntCachedFeatureParam APPROXIMATE_GEOLOCATION_PROMPT_ARM =
+            PermissionsAndroidFeatureMap.newIntCachedFeatureParam(
+                    APPROXIMATE_GEOLOCATION_PERMISSION,
+                    "prompt_arm",
+                    ApproximateGeolocationPromptArm.NO_ARM_SELECTED);
 }

@@ -10,10 +10,9 @@
 
 #include "api/audio_codecs/audio_decoder.h"
 
-#include <stdlib.h>
-
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <tuple>
@@ -37,15 +36,13 @@
 #include "modules/audio_coding/neteq/tools/resample_input_audio_file.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 
 namespace {
-
-using test::ExplicitKeyValueConfig;
 
 constexpr int kOverheadBytesPerPacket = 50;
 
@@ -361,7 +358,7 @@ class AudioDecoderOpusTest
     frame_size_ = CheckedDivExact(opus_sample_rate_hz_, 100);
     data_length_ = 10 * frame_size_;
     decoder_ = new AudioDecoderOpusImpl(
-        ExplicitKeyValueConfig(""), opus_num_channels_, opus_sample_rate_hz_);
+        CreateTestFieldTrials(), opus_num_channels_, opus_sample_rate_hz_);
     AudioEncoderOpusConfig config;
     config.frame_size_ms = 10;
     config.sample_rate_hz = opus_sample_rate_hz_;

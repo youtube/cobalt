@@ -605,11 +605,19 @@ class LayerTreeHostTestHiddenSurfaceNotAllocatedForSubtreeCopyRequest
     did_swap_ = true;
   }
 
-  void AfterTest() override { EXPECT_TRUE(did_swap_); }
+  void AfterTest() override {
+    EXPECT_TRUE(did_swap_);
+
+    // Clear frame_sink_ to prevent dangling pointer access during destruction.
+    // LayerTreeHost owns the TestLayerTreeFrameSink and releases it immediately
+    // after this method is called.
+    frame_sink_ = nullptr;
+    LayerTreeHostCopyRequestTest::AfterTest();
+  }
 
   viz::AggregatedRenderPassId parent_render_pass_id;
   viz::AggregatedRenderPassId copy_layer_render_pass_id;
-  raw_ptr<TestLayerTreeFrameSink, DanglingUntriaged> frame_sink_ = nullptr;
+  raw_ptr<TestLayerTreeFrameSink> frame_sink_ = nullptr;
   bool did_swap_ = false;
   FakeContentLayerClient client_;
   scoped_refptr<FakePictureLayer> root_;
@@ -892,8 +900,8 @@ class LayerTreeHostCopyRequestTestDeleteSharedImage
     EXPECT_EQ(gfx::Size(10, 10).ToString(), result->size().ToString());
     EXPECT_EQ(result->format(), viz::CopyOutputResult::Format::RGBA);
     EXPECT_EQ(result->destination(),
-              viz::CopyOutputResult::Destination::kNativeTextures);
-    EXPECT_NE(result->GetTextureResult(), nullptr);
+              viz::CopyOutputResult::Destination::kSharedImage);
+    EXPECT_NE(result->GetSharedImage().get(), nullptr);
 
     // Save the result for later.
     EXPECT_FALSE(result_);
@@ -906,7 +914,7 @@ class LayerTreeHostCopyRequestTestDeleteSharedImage
   void InsertCopyRequest() {
     copy_layer_->RequestCopyOfOutput(std::make_unique<viz::CopyOutputRequest>(
         viz::CopyOutputRequest::ResultFormat::RGBA,
-        viz::CopyOutputResult::Destination::kNativeTextures,
+        viz::CopyOutputResult::Destination::kSharedImage,
         base::BindOnce(&LayerTreeHostCopyRequestTestDeleteSharedImage::
                            ReceiveCopyRequestOutputAndCommit,
                        base::Unretained(this))));
@@ -1114,7 +1122,7 @@ class LayerTreeHostCopyRequestTestCreatesSharedImage
     // Request a normal texture copy. This should create a new shared image.
     copy_layer_->RequestCopyOfOutput(std::make_unique<viz::CopyOutputRequest>(
         viz::CopyOutputRequest::ResultFormat::RGBA,
-        viz::CopyOutputResult::Destination::kNativeTextures,
+        viz::CopyOutputResult::Destination::kSharedImage,
         base::BindOnce(
             &LayerTreeHostCopyRequestTestCreatesSharedImage::CopyOutputCallback,
             base::Unretained(this))));
@@ -1124,9 +1132,9 @@ class LayerTreeHostCopyRequestTestCreatesSharedImage
     EXPECT_FALSE(result->IsEmpty());
     EXPECT_EQ(result->format(), viz::CopyOutputResult::Format::RGBA);
     EXPECT_EQ(result->destination(),
-              viz::CopyOutputResult::Destination::kNativeTextures);
-    ASSERT_NE(nullptr, result->GetTextureResult());
-    release_ = result->TakeTextureOwnership();
+              viz::CopyOutputResult::Destination::kSharedImage);
+    ASSERT_NE(result->GetSharedImage().get(), nullptr);
+    release_ = result->TakeSharedImageOwnership();
     EXPECT_EQ(1u, release_.size());
   }
 
@@ -1199,7 +1207,7 @@ class LayerTreeHostCopyRequestTestDestroyBeforeCopy
         std::unique_ptr<viz::CopyOutputRequest> request =
             std::make_unique<viz::CopyOutputRequest>(
                 viz::CopyOutputRequest::ResultFormat::RGBA,
-                viz::CopyOutputResult::Destination::kNativeTextures,
+                viz::CopyOutputResult::Destination::kSharedImage,
                 base::BindOnce(&LayerTreeHostCopyRequestTestDestroyBeforeCopy::
                                    CopyOutputCallback,
                                base::Unretained(this)));
@@ -1291,7 +1299,7 @@ class LayerTreeHostCopyRequestTestShutdownBeforeCopy
         std::unique_ptr<viz::CopyOutputRequest> request =
             std::make_unique<viz::CopyOutputRequest>(
                 viz::CopyOutputRequest::ResultFormat::RGBA,
-                viz::CopyOutputResult::Destination::kNativeTextures,
+                viz::CopyOutputResult::Destination::kSharedImage,
                 base::BindOnce(&LayerTreeHostCopyRequestTestShutdownBeforeCopy::
                                    CopyOutputCallback,
                                base::Unretained(this)));
@@ -1407,7 +1415,8 @@ class LayerTreeHostCopyRequestTestMultipleDrawsHiddenCopyRequest
         EXPECT_TRUE(saw_child);
         // Make another draw happen after doing the copy request.
         host_impl->SetViewportDamage(gfx::Rect(1, 1));
-        host_impl->SetNeedsRedraw();
+        host_impl->SetNeedsRedraw(/*animation_only=*/false,
+                                  /*skip_if_inside_draw=*/false);
         break;
       case 3:
         // If LayerTreeHostImpl does the wrong thing, it will try to draw the

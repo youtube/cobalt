@@ -12,18 +12,16 @@ import static org.chromium.base.test.transit.ViewSpec.viewSpec;
 
 import android.view.View;
 
-import androidx.test.espresso.Espresso;
-
 import org.chromium.base.test.transit.Facility;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.transit.ViewSpec;
 import org.chromium.chrome.browser.omnibox.UrlBar;
 import org.chromium.chrome.test.R;
-import org.chromium.chrome.test.transit.page.PageStation;
+import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.components.browser_ui.widget.scrim.ScrimView;
 
 /** Represents the Omnibox focused state showing the URL bar and accepting keyboard input. */
-public class OmniboxFacility extends Facility<PageStation> {
+public class OmniboxFacility extends Facility<CtaPageStation> {
     public static final ViewSpec<View> STATUS_ICON =
             viewSpec(withId(R.id.location_bar_status_icon));
     public static final ViewSpec<UrlBar> URL_FIELD = viewSpec(UrlBar.class, withId(R.id.url_bar));
@@ -90,13 +88,8 @@ public class OmniboxFacility extends Facility<PageStation> {
 
     /** Enter text into the omnibox. */
     public OmniboxEnteredTextFacility typeText(String textToTypeAndExpect) {
-        return mHostStation.enterFacilitySync(
-                new OmniboxEnteredTextFacility(this, textToTypeAndExpect),
-                urlBarElement.getTypeTextTrigger(textToTypeAndExpect));
-    }
-
-    /** Press back expecting the Omnibox to be closed. */
-    public void pressBackToClose() {
-        mHostStation.exitFacilitySync(this, Espresso::pressBack);
+        return urlBarElement
+                .typeTextTo(textToTypeAndExpect)
+                .enterFacility(new OmniboxEnteredTextFacility(this, textToTypeAndExpect));
     }
 }

@@ -42,7 +42,6 @@
 #include "gpu/command_buffer/service/context_group.h"
 #include "gpu/command_buffer/service/gl_context_virtual.h"
 #include "gpu/command_buffer/service/gles2_cmd_decoder.h"
-#include "gpu/command_buffer/service/gpu_command_buffer_memory_tracker.h"
 #include "gpu/command_buffer/service/gpu_fence_manager.h"
 #include "gpu/command_buffer/service/gpu_tracer.h"
 #include "gpu/command_buffer/service/gr_shader_cache.h"
@@ -213,13 +212,12 @@ gpu::ContextResult InProcessCommandBuffer::Initialize(
   if (result == gpu::ContextResult::kSuccess) {
     capabilities_ = capabilities;
     gl_capabilities_ = gl_capabilities;
-    shared_image_interface_ =
-        base::MakeRefCounted<SharedImageInterfaceInProcess>(
-            task_sequence_, task_executor_->gpu_preferences(),
-            context_group_->feature_info()->workarounds(),
-            task_executor_->gpu_feature_info(), context_state_.get(),
-            task_executor_->shared_image_manager(),
-            /*is_for_display_compositor=*/false);
+    shared_image_interface_ = SharedImageInterfaceInProcess::Create(
+        task_sequence_, task_executor_->gpu_preferences(),
+        context_group_->feature_info()->workarounds(),
+        task_executor_->gpu_feature_info(), context_state_.get(),
+        task_executor_->shared_image_manager(),
+        /*is_for_display_compositor=*/false, task_executor_->GetTaskRunner());
   }
 
   return result;
@@ -234,16 +232,16 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
   GpuDriverBugWorkarounds workarounds(
       task_executor_->gpu_feature_info().enabled_gpu_driver_bug_workarounds);
 
-  std::unique_ptr<MemoryTracker> memory_tracker;
+  scoped_refptr<MemoryTracker> memory_tracker;
   // Android WebView won't have a memory tracker.
   if (task_executor_->ShouldCreateMemoryTracker()) {
     const uint64_t client_tracing_id =
         base::trace_event::MemoryDumpManager::GetInstance()
             ->GetTracingProcessId();
-    memory_tracker = std::make_unique<GpuCommandBufferMemoryTracker>(
+    memory_tracker = base::MakeRefCounted<MemoryTracker>(
         GetCommandBufferID(), client_tracing_id,
-        base::SingleThreadTaskRunner::GetCurrentDefault(),
-        /* obserer=*/nullptr);
+        /*peak_memory_monitor=*/nullptr,
+        GpuPeakMemoryAllocationSource::COMMAND_BUFFER);
   }
 
   auto feature_info = base::MakeRefCounted<gles2::FeatureInfo>(
@@ -252,7 +250,7 @@ gpu::ContextResult InProcessCommandBuffer::InitializeOnGpuThread(
       task_executor_->gpu_preferences(), std::move(memory_tracker),
       task_executor_->shader_translator_cache(),
       task_executor_->framebuffer_completeness_cache(), feature_info,
-      params.attribs->bind_generates_resource, nullptr /* progress_reporter */,
+      /*bind_generates_resource=*/false, nullptr /* progress_reporter */,
       task_executor_->gpu_feature_info(), task_executor_->discardable_manager(),
       task_executor_->passthrough_discardable_manager(),
       task_executor_->shared_image_manager());

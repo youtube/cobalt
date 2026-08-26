@@ -50,17 +50,10 @@ const char* AblationGroupToString(AblationGroup ablation_group) {
 
 bool DetermineHeuristicOnlyEmailFormStatus(const FormStructure& form) {
   // First, check the prerequisites. The forms for which this classification is
-  // applicable must be inside a form tag (unless
-  // `kAutofillEnableEmailHeuristicOutsideForms` is enabled), must not run
-  // heuristics normally (i.e., their field count is below
-  // `kMinRequiredFieldsForHeuristics`), but must be eligible for single field
-  // form heuristics. Note that `kAutofillEnableEmailHeuristicOutsideForms`
-  // rolls out support for fields outside of form tags.
-  const bool form_tag_requirement_passed =
-      form.is_form_element() ||
-      base::FeatureList::IsEnabled(
-          features::kAutofillEnableEmailHeuristicOutsideForms);
-  if (!form_tag_requirement_passed || form.ShouldRunHeuristics() ||
+  // applicable  must not run heuristics normally (i.e., their field count is
+  // below `kMinRequiredFieldsForHeuristics`), but must be eligible for single
+  // field form heuristics.
+  if (form.ShouldRunHeuristics() ||
       !form.ShouldRunHeuristicsForSingleFields()) {
     return false;
   }
@@ -114,18 +107,34 @@ void FormEventLoggerBase::OnDidPollSuggestions(FieldGlobalId field_id) {
   }
 }
 
-void FormEventLoggerBase::OnDidParseForm(const FormStructure& form) {
-  parsed_form_types_.insert_all(GetFormTypesForLogging(form));
-  Log(FORM_EVENT_DID_PARSE_FORM, form);
-  RecordParseForm();
-  has_parsed_form_ = true;
+void FormEventLoggerBase::OnDidIdentifyForm(
+    const FormStructure& form,
+    FormIdentificationTime identification_time) {
+  DenseSet<FormTypeNameForLogging> form_types = GetFormTypesForLogging(form);
+  CHECK(!form_types.empty());
+  switch (identification_time) {
+    case FormIdentificationTime::kAfterLocalHeuristics:
+      identified_form_types_.insert_all(form_types);
+      Log(FORM_EVENT_DID_PARSE_FORM, form);
+      RecordParseForm();
+      break;
+    case FormIdentificationTime::kAfterServerPredictions:
+      if (!base::FeatureList::IsEnabled(
+              features::kAutofillConsiderServerOnlyFormsInKeyMetrics)) {
+        return;
+      }
+      identified_form_types_.insert_all(form_types);
+      break;
+  }
 }
 
 void FormEventLoggerBase::OnDidShowSuggestions(
     const FormStructure& form,
     const AutofillField& field,
+    FieldType field_type,
     base::TimeTicks form_parsed_timestamp,
-    bool off_the_record) {
+    bool off_the_record,
+    base::span<const Suggestion> suggestions) {
   client().GetFormInteractionsUkmLogger().LogSuggestionsShown(
       driver().GetPageUkmSourceId(), form, field, form_parsed_timestamp,
       off_the_record);
@@ -139,7 +148,6 @@ void FormEventLoggerBase::OnDidShowSuggestions(
 
   has_logged_autocomplete_off_ |= field.autocomplete_attribute() == "off";
 
-  FieldType field_type = field.Type().GetStorableType();
   // Do not mark the field as shown if it was already accepted.
   if (!field_types_with_accepted_suggestions_.contains(field_type)) {
     field_types_with_shown_suggestions_.insert(field_type);
@@ -258,7 +266,7 @@ void FormEventLoggerBase::Log(FormEvent event, const FormStructure& form) {
   for (FormTypeNameForLogging form_type :
        base::FeatureList::IsEnabled(
            features::kAutofillEnableLogFormEventsToAllParsedFormTypes)
-           ? parsed_form_types_
+           ? identified_form_types_
            : GetFormTypesForLogging(form)) {
     std::string name(
         base::StrCat({"Autofill.FormEvents.",
@@ -300,9 +308,10 @@ void FormEventLoggerBase::RecordFunnelMetrics() {
     base::UmaHistogramBoolean(
         base::StrCat({"Autofill.Funnel.ParsedAsType.",
                       FormTypeNameForLoggingToStringView(form_type)}),
-        has_parsed_form_ && parsed_form_types_.contains(form_type));
+        !identified_form_types_.empty() &&
+            identified_form_types_.contains(form_type));
   }
-  if (!has_parsed_form_) {
+  if (identified_form_types_.empty()) {
     return;
   }
   LogBuffer logs(IsLoggingActive(client().GetCurrentLogManager()));
@@ -371,7 +380,7 @@ void FormEventLoggerBase::RecordSubmissionAfterFill(LogBuffer& logs) const {
 }
 
 void FormEventLoggerBase::RecordKeyMetrics() {
-  if (!has_parsed_form_) {
+  if (identified_form_types_.empty()) {
     return;
   }
 
@@ -569,7 +578,7 @@ FormInteractionsUkmLogger::FormEventSet FormEventLoggerBase::GetFormEvents(
 std::vector<std::string_view>
 FormEventLoggerBase::GetParsedFormTypesAsStringViews() const {
   std::vector<std::string_view> result;
-  for (FormTypeNameForLogging form_type : parsed_form_types_) {
+  for (FormTypeNameForLogging form_type : identified_form_types_) {
     result.push_back(FormTypeNameForLoggingToStringView(form_type));
   }
   return result;
@@ -577,7 +586,7 @@ FormEventLoggerBase::GetParsedFormTypesAsStringViews() const {
 
 DenseSet<FormTypeNameForLogging>
 FormEventLoggerBase::GetParsedAndFieldByFieldFormTypes() const {
-  DenseSet<FormTypeNameForLogging> all_form_types = parsed_form_types_;
+  DenseSet<FormTypeNameForLogging> all_form_types = identified_form_types_;
   all_form_types.insert_all(field_by_field_filled_form_types_);
   return all_form_types;
 }

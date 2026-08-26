@@ -5,6 +5,7 @@
 import("//chrome/browser/buildflags.gni")
 import("//chrome/common/features.gni")
 import("//components/compose/features.gni")
+import("//components/enterprise/buildflags/buildflags.gni")
 import("//pdf/features.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//third_party/closure_compiler/compile_js.gni")
@@ -17,6 +18,7 @@ assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
 group("resources") {
   public_deps = [
+    "connectors_internals:resources",
     "saved_tab_groups_unsupported:resources",
     "segmentation_internals:resources",
   ]
@@ -31,8 +33,11 @@ group("resources") {
       ":dev_ui_paks",
       "about_sys:resources",
       "access_code_cast:resources",
+      "actor_overlay:resources",
       "app_service_internals:resources",
+      "autofill_ml_internals:resources",
       "bookmarks:resources",
+      "certificate_manager:resources",
       "commerce/product_specifications:resources",
       "data_sharing:resources",
       "downloads:resources",
@@ -59,6 +64,7 @@ group("resources") {
       "settings:resources",
       "settings_shared:resources",
       "side_panel/bookmarks:resources",
+      "side_panel/comments:resources",
       "side_panel/commerce:resources",
       "side_panel/customize_chrome:resources",
       "side_panel/history:resources",
@@ -69,9 +75,10 @@ group("resources") {
       "signin:resources",
       "suggest_internals:resources",
       "support_tool:resources",
+      "tab_group_home:resources",
       "tab_search:resources",
-      "tabs/tab_group_home:resources",
       "web_app_internals:resources",
+      "webui_browser:resources",
       "webui_gallery:resources",
       "whats_new:resources",
     ]
@@ -104,10 +111,6 @@ group("resources") {
     ]
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos) {
-    public_deps += [ "connectors_internals:resources" ]
-  }
-
   if (is_win || is_mac || is_linux || is_chromeos || is_desktop_android) {
     public_deps += [ "discards:resources" ]
   }
@@ -119,7 +122,6 @@ group("resources") {
       "browser_switch:resources",
       "on_device_translation_internals:resources",
       "signin/history_sync_optin:resources",
-      "tts_engine:resources",
     ]
   }
 
@@ -171,6 +173,10 @@ group("resources") {
       "glic:resources",
       "glic/fre:resources",
     ]
+  }
+
+  if (enterprise_watermark) {
+    public_deps += [ "watermark:resources" ]
   }
 }
 
@@ -289,7 +295,7 @@ group("dev_ui_resources") {
     "//components/download/resources/download_internals:resources",
     "//components/history_clusters/history_clusters_internals/resources",
     "//components/metrics/debug:resources",
-    "//components/ntp_tiles/webui/resources:resources",
+    "//components/ntp_tiles/webui/resources",
     "//components/optimization_guide/optimization_guide_internals/resources",
     "//components/policy/resources/webui:resources",
     "//components/resources:dev_ui_components_resources",
@@ -304,10 +310,6 @@ group("dev_ui_resources") {
     "//content/browser/webrtc/resources",
   ]
 
-  if (is_chromeos) {
-    public_deps += [ "//chromeos/ash/components/kiosk/vision/webui:resources" ]
-  }
-
   if (enable_vr) {
     public_deps += [ "//content/browser/resources/webxr_internals:resources" ]
   }
@@ -319,6 +321,8 @@ group("dev_ui_resources") {
     ]
   } else {
     public_deps += [
+      "actor_internals:resources",
+      "color_pipeline_internals:resources",
       "infobar_internals:resources",
       "media_router/internals:resources",
       "on_device_internals:resources",
@@ -333,6 +337,10 @@ group("dev_ui_resources") {
 
   if (is_android || is_linux || is_chromeos || is_win) {
     public_deps += [ "//chrome/browser/resources/sandbox_internals:resources" ]
+  }
+
+  if (enable_session_service) {
+    public_deps += [ "tab_strip_internals:resources" ]
   }
 }
 
@@ -386,6 +394,8 @@ repack("dev_ui_paks") {
     ]
   } else {
     sources += [
+      "$root_gen_dir/chrome/actor_internals_resources.pak",
+      "$root_gen_dir/chrome/color_pipeline_internals_resources.pak",
       "$root_gen_dir/chrome/infobar_internals_resources.pak",
       "$root_gen_dir/chrome/media_router_internals_resources.pak",
       "$root_gen_dir/chrome/on_device_internals_resources.pak",
@@ -400,6 +410,10 @@ repack("dev_ui_paks") {
 
   if (is_android || is_linux || is_chromeos || is_win) {
     sources += [ "$root_gen_dir/chrome/sandbox_internals_resources.pak" ]
+  }
+
+  if (enable_session_service) {
+    sources += [ "$root_gen_dir/chrome/tab_strip_internals_resources.pak" ]
   }
 
   deps = [ ":dev_ui_resources" ]

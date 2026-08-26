@@ -25,11 +25,11 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "build/build_config.h"
 #include "gpu/config/gpu_info.h"  // nogncheck
-#include "gpu/config/vulkan_info.h"
 #include "gpu/vulkan/vulkan_command_pool.h"
 #include "gpu/vulkan/vulkan_crash_keys.h"
 #include "gpu/vulkan/vulkan_fence_helper.h"
 #include "gpu/vulkan/vulkan_function_pointers.h"
+#include "gpu/vulkan/vulkan_info.h"
 #include "gpu/vulkan/vulkan_util.h"
 #include "ui/gl/gl_angle_util_vulkan.h"
 
@@ -324,6 +324,23 @@ bool VulkanDeviceQueue::Initialize(
     enabled_device_features_2_.pNext = &protected_memory_features_;
   }
 
+  // Add Skia features to query
+  instance_->skia_features().addFeaturesToQuery(
+      physical_device_info.extensions.data(),
+      physical_device_info.extensions.size(), enabled_device_features_2_);
+
+  // Query the physical device features.
+  vkGetPhysicalDeviceFeatures2(vk_physical_device_,
+                               &enabled_device_features_2_);
+
+  // TODO(syoussefi): feature_sampler_ycbcr_conversion and
+  // feature_protected_memory can be removed from physical_device_info and
+  // checked after the vkGetPhysicalDeviceFeatures2 query here.
+
+  // Enable Skia extensions and features
+  instance_->skia_features().addFeaturesToEnable(enabled_extensions,
+                                                 enabled_device_features_2_);
+
   VkDeviceCreateInfo device_create_info = {
       VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
   device_create_info.pNext = enabled_device_features_2_.pNext;
@@ -371,6 +388,9 @@ bool VulkanDeviceQueue::Initialize(
                        heap_size_limit.data(), is_thread_safe,
                        &owned_vma_allocator_);
   vma_allocator_ = owned_vma_allocator_;
+
+  skia_vk_memory_allocator_ =
+      sk_make_sp<gpu::SkiaVulkanMemoryAllocator>(vma_allocator_);
 
   cleanup_helper_ = std::make_unique<VulkanFenceHelper>(this);
 
@@ -420,6 +440,9 @@ bool VulkanDeviceQueue::InitCommon(VkPhysicalDevice vk_physical_device,
     }
 #endif  // BUILDFLAG(IS_ANDROID)
   }
+
+  skia_vk_memory_allocator_ =
+      sk_make_sp<gpu::SkiaVulkanMemoryAllocator>(vma_allocator_);
 
   cleanup_helper_ = std::make_unique<VulkanFenceHelper>(this);
 
@@ -578,12 +601,19 @@ bool VulkanDeviceQueue::OnMemoryDump(
 
   auto* dump = pmd->CreateAllocatorDump(path);
   auto allocated_used = vma::GetTotalAllocatedAndUsedMemory(vma_allocator());
+  uint32_t lazy_allocated_size =
+      skia_vk_memory_allocator_->totalLazyAllocatedMemory();
   // `allocated_size` is memory allocated from the device, used is what is
-  // actually used.
-  dump->AddScalar("allocated_size", "bytes", allocated_used.first);
-  dump->AddScalar("used_size", "bytes", allocated_used.second);
+  // actually used. `lazy_allocated_size` is transient memory that is lazily
+  // allocated by the driver.
+  dump->AddScalar("allocated_size", "bytes",
+                  allocated_used.first - lazy_allocated_size);
+  dump->AddScalar("used_size", "bytes",
+                  allocated_used.second - lazy_allocated_size);
   dump->AddScalar("fragmentation_size", "bytes",
                   allocated_used.first - allocated_used.second);
+  dump->AddScalar("lazy_allocated_size", "bytes", lazy_allocated_size);
+  dump->AddScalar("lazy_used_size", "bytes", lazy_allocated_size);
   return true;
 }
 

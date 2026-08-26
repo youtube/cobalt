@@ -15,7 +15,6 @@
 
 #include "absl/strings/string_view.h"
 #include "api/video_codecs/video_codec.h"
-#include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 

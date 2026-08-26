@@ -13,6 +13,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/test/trace_event_analyzer.h"
+#include "base/trace_event/trace_config.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/extension_apitest.h"
@@ -577,13 +578,8 @@ IN_PROC_BROWSER_TEST_P(AutomationApiTestWithContextType,
       << message_;
 }
 
-// Flaky on Win: crbug.com/335553730
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_ForceLayout DISABLED_ForceLayout
-#else
-#define MAYBE_ForceLayout ForceLayout
-#endif
-IN_PROC_BROWSER_TEST_P(AutomationApiTestWithContextType, MAYBE_ForceLayout) {
+// Flaky: crbug.com/335553730
+IN_PROC_BROWSER_TEST_P(AutomationApiTestWithContextType, DISABLED_ForceLayout) {
   StartEmbeddedTestServer();
   ASSERT_TRUE(CreateExtensionAndRunTest("tabs/force_layout.js")) << message_;
 }
@@ -757,7 +753,9 @@ IN_PROC_BROWSER_TEST_P(AutomationApiTestWithContextType,
       << message_;
 }
 
-IN_PROC_BROWSER_TEST_P(AutomationApiTestWithContextType, DesktopLoadTabs) {
+// TODO(crbug.com/408022331): enable this flaky test.
+IN_PROC_BROWSER_TEST_P(AutomationApiTestWithContextType,
+                       DISABLED_DesktopLoadTabs) {
   ASSERT_TRUE(
       CreateExtensionAndRunTest("desktop/load_tabs.js", kPermissionsWindows))
       << message_;

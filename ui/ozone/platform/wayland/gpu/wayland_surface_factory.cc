@@ -84,6 +84,7 @@ class GLOzoneEGLWayland : public GLOzoneEGL {
   const raw_ptr<WaylandConnection, AcrossTasksDanglingUntriaged> connection_;
   const raw_ptr<WaylandBufferManagerGpu, AcrossTasksDanglingUntriaged>
       buffer_manager_;
+  gl::EGLDisplayPlatform native_display_;
 };
 
 bool GLOzoneEGLWayland::CanImportNativePixmap(gfx::BufferFormat format) {
@@ -175,7 +176,23 @@ gl::EGLDisplayPlatform GLOzoneEGLWayland::GetNativeDisplay() {
   if (connection_) {
     return connection_->GetNativeDisplay();
   }
-  return gl::EGLDisplayPlatform(EGL_DEFAULT_DISPLAY);
+  if (native_display_.Valid()) {
+    return native_display_;
+  }
+
+  auto gbm_display = buffer_manager_->GetNativeDisplay();
+  if (gbm_display.Valid() &&
+      gl::g_driver_egl.client_ext.b_EGL_EXT_platform_base &&
+      gl::g_driver_egl.client_ext.b_EGL_KHR_platform_gbm) {
+    native_display_ = gbm_display;
+  } else if (gl::g_driver_egl.client_ext.b_EGL_MESA_platform_surfaceless) {
+    native_display_ = gl::EGLDisplayPlatform(EGL_DEFAULT_DISPLAY,
+                                             EGL_PLATFORM_SURFACELESS_MESA);
+  } else {
+    native_display_ = gl::EGLDisplayPlatform(EGL_DEFAULT_DISPLAY);
+  }
+
+  return native_display_;
 }
 
 bool GLOzoneEGLWayland::LoadGLES2Bindings(
@@ -263,19 +280,6 @@ scoped_refptr<gfx::NativePixmap> WaylandSurfaceFactory::CreateNativePixmap(
   }
 #endif
   return nullptr;
-}
-
-void WaylandSurfaceFactory::CreateNativePixmapAsync(
-    gfx::AcceleratedWidget widget,
-    gpu::VulkanDeviceQueue* device_queue,
-    gfx::Size size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    NativePixmapCallback callback) {
-  // CreateNativePixmap is non-blocking operation. Thus, it is safe to call it
-  // and return the result with the provided callback.
-  std::move(callback).Run(
-      CreateNativePixmap(widget, device_queue, size, format, usage));
 }
 
 scoped_refptr<gfx::NativePixmap>

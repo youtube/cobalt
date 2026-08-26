@@ -5,6 +5,17 @@
 import("//build/config/chrome_build.gni")
 import("//build/config/chromeos/ui_mode.gni")
 
+# Removed as a configurable arg upstream in //base/trace_event/tracing.gni;
+# copied_base still references it unconditionally, so keep it as a fixed
+# value rather than reintroducing it as an overridable build arg.
+#
+# Even though //base works as if this argument is always true, keep the
+# copied_base value set to false so it matches the previous behavior with the
+# partner toolchains.
+#
+# See also b/543232095 to look for more information.
+enable_base_tracing = false
+
 declare_args() {
   # Enable more trace events. Disabled by default due to binary size impact,
   # but highly recommended for local development.

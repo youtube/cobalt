@@ -28,8 +28,20 @@ std::u16string ConsumeU16String(FuzzedDataProvider& provider) {
   // to support evolution of the fuzzed input. Let's follow whatever it does.
   const std::string s8 = provider.ConsumeRandomLengthString();
   return std::u16string(
-      reinterpret_cast<const std::u16string::value_type*>(s8.data()),
+      // TODO(crbug.com/428945428): Fix unsafe uses of std::string::data().
+      UNSAFE_TODO(
+          reinterpret_cast<const std::u16string::value_type*>(s8.data())),
       s8.size() / 2);
+}
+
+// A wrapper to ConsumeEnum<FormControlType> because FormControlType has gaps
+// in the used integers.
+FormControlType ConsumeFormControlType(FuzzedDataProvider& provider) {
+  FormControlType result;
+  do {
+    result = provider.ConsumeEnum<FormControlType>();
+  } while (!IsKnownEnumValue(result));
+  return result;
 }
 
 }  // namespace
@@ -76,7 +88,7 @@ FormData GenerateFormData(FuzzedDataProvider& provider) {
     const bool force_empty_value = bools[1];
     fields[i].set_is_focusable(bools[2]);
 
-    fields[i].set_form_control_type(provider.ConsumeEnum<FormControlType>());
+    fields[i].set_form_control_type(ConsumeFormControlType(provider));
     fields[i].set_autocomplete_attribute(provider.ConsumeRandomLengthString());
     fields[i].set_label(ConsumeU16String(provider));
     fields[i].set_name(ConsumeU16String(provider));

@@ -282,7 +282,7 @@ std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
   if (code->marked_for_deoptimization()) {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
-    Set(slot, ClearedValue(isolate));
+    Set(slot, ClearedValue());
     if (!bytecode.is_null()) {
       RecomputeOptimizedOsrCodeFlags(isolate, bytecode);
     }
@@ -446,6 +446,11 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
     return CompareOperationHint::kInternalizedString;
   } else if (Is<CompareOperationFeedback::kString>(type_feedback)) {
     return CompareOperationHint::kString;
+  } else if (Is<CompareOperationFeedback::kStringOrOddball>(type_feedback) &&
+             !Is<CompareOperationFeedback::kOddball>(type_feedback)) {
+    // Don't return the StringOrOddball feedback for pure oddball comparisons,
+    // that would be too confusing.
+    return CompareOperationHint::kStringOrOddball;
   }
 
   if (Is<CompareOperationFeedback::kReceiver>(type_feedback)) {
@@ -551,7 +556,7 @@ Tagged<MaybeObject> FeedbackNexus::MegaDOMSentinel() const {
 
 Tagged<MaybeObject> FeedbackNexus::FromHandle(
     MaybeObjectDirectHandle slot) const {
-  return slot.is_null() ? ClearedValue(config()->isolate()) : *slot;
+  return slot.is_null() ? ClearedValue() : *slot;
 }
 
 MaybeObjectHandle FeedbackNexus::ToHandle(Tagged<MaybeObject> value) const {

@@ -5,8 +5,6 @@
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
 
 #include "base/time/time.h"
-#include "chrome/browser/content_extraction/inner_html.h"
-#include "chrome/browser/content_extraction/inner_text.h"
 #include "chrome/browser/ui/lens/lens_overlay_query_controller.h"
 #include "chrome/browser/ui/lens/page_content_type_conversions.h"
 #include "components/lens/lens_overlay_dismissal_source.h"
@@ -14,6 +12,7 @@
 #include "components/lens/lens_overlay_metrics.h"
 #include "components/lens/lens_overlay_mime_type.h"
 #include "content/public/browser/render_frame_host.h"
+#include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 
@@ -137,9 +136,11 @@ void LensSessionMetricsLogger::RecordEndOfSessionMetrics(
 
   // UMA and UKM end of session metrics for the CSB. Only recorded if CSB is
   // shown in session.
+  if(lens::IsLensOverlayContextualSearchboxEnabled()) {
   lens::RecordContextualSearchboxSessionEndMetrics(
       ukm_source_id_, csb_session_end_metrics_, initial_page_content_type_,
       initial_document_type_);
+  }
 }
 
 void LensSessionMetricsLogger::RecordTimeToFirstInteraction(

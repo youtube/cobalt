@@ -31,6 +31,7 @@
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/ui/webui/ash/login/fjord_oobe_util.h"
 #include "chrome/grit/generated_resources.h"
 #include "content/public/browser/browser_thread.h"
 #include "ui/base/ime/ash/component_extension_ime_manager.h"
@@ -149,7 +150,7 @@ base::Value::List GetLanguageList(
        it != language_index.end(); ++it) {
     const std::string& language_id = it->first;
 
-    const std::string lang = l10n_util::GetLanguage(language_id);
+    const std::string_view lang = l10n_util::GetLanguage(language_id);
 
     // Ignore non-specific codes.
     if (lang.empty() || lang == language_id) {
@@ -160,12 +161,13 @@ base::Value::List GetLanguageList(
       // Language is supported. No need to replace
       continue;
     }
-    std::string resolved_locale;
-    if (!l10n_util::CheckAndResolveLocale(language_id, &resolved_locale)) {
+    const std::optional<std::string> resolved_locale =
+        l10n_util::CheckAndResolveLocale(language_id);
+    if (!resolved_locale) {
       continue;
     }
 
-    if (!base::Contains(base_language_codes, resolved_locale)) {
+    if (!base::Contains(base_language_codes, *resolved_locale)) {
       // Resolved locale is not supported.
       continue;
     }
@@ -336,8 +338,9 @@ void GetKeyboardLayoutsForResolvedLocale(
 // "selected" only if loaded_locale is a backup for "requested_locale".
 std::string CalculateSelectedLanguage(const std::string& requested_locale,
                                       const std::string& loaded_locale) {
-  std::string resolved_locale;
-  if (!l10n_util::CheckAndResolveLocale(requested_locale, &resolved_locale)) {
+  const std::optional<std::string> resolved_locale =
+      l10n_util::CheckAndResolveLocale(requested_locale);
+  if (!resolved_locale) {
     return loaded_locale;
   }
 
@@ -473,6 +476,19 @@ base::Value::List GetUILanguageList(
           : StartupCustomizationDocument::GetInstance()->configured_locales(),
       true));
   AdjustUILanguageList(selected, languages_list);
+
+  // Filter the list for the allowlisted languages in Fjord OOBE.
+  if (fjord_util::ShouldShowFjordOobe()) {
+    base::Value::List filtered_language_list;
+    for (const auto& language : languages_list) {
+      if (fjord_util::IsAllowlistedLanguage(
+              language.GetDict().Find("code")->GetString())) {
+        filtered_language_list.Append(language.Clone());
+      }
+    }
+    languages_list = std::move(filtered_language_list);
+  }
+
   return languages_list;
 }
 
@@ -572,13 +588,11 @@ void GetKeyboardLayoutsForLocale(
     input_method::InputMethodManager* input_method_manager) {
   // Resolve `locale` on a background thread, then continue on the current
   // thread.
-  std::string (*get_application_locale)(const std::string&, bool) =
-      &l10n_util::GetApplicationLocale;
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE,
       {base::MayBlock(), base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-      base::BindOnce(get_application_locale, locale,
-                     false /* set_icu_locale */),
+      base::BindOnce(&l10n_util::GetApplicationLocale, locale,
+                     /*set_icu_locale=*/false),
       base::BindOnce(&GetKeyboardLayoutsForResolvedLocale, locale,
                      input_method_manager, std::move(callback)));
 }

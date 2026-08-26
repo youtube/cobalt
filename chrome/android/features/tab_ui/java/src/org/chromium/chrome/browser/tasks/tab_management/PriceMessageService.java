@@ -143,16 +143,17 @@ public class PriceMessageService extends MessageService {
     private static final int MAX_PRICE_MESSAGE_SHOW_COUNT = 10;
 
     private final Profile mProfile;
-    private final Supplier<PriceWelcomeMessageProvider> mPriceWelcomeMessageProviderSupplier;
-    private final Supplier<PriceWelcomeMessageReviewActionProvider>
+    private final Supplier<@Nullable PriceWelcomeMessageProvider>
+            mPriceWelcomeMessageProviderSupplier;
+    private final Supplier<@Nullable PriceWelcomeMessageReviewActionProvider>
             mPriceWelcomeMessageReviewActionProviderSupplier;
 
     private @Nullable PriceTabData mPriceTabData;
 
     PriceMessageService(
             Profile profile,
-            Supplier<PriceWelcomeMessageProvider> priceWelcomeMessageProviderSupplier,
-            Supplier<PriceWelcomeMessageReviewActionProvider>
+            Supplier<@Nullable PriceWelcomeMessageProvider> priceWelcomeMessageProviderSupplier,
+            Supplier<@Nullable PriceWelcomeMessageReviewActionProvider>
                     priceWelcomeMessageReviewActionProviderSupplier) {
         super(MessageType.PRICE_MESSAGE);
         mProfile = profile;

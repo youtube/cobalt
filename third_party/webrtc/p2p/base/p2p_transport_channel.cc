@@ -10,12 +10,11 @@
 
 #include "p2p/base/p2p_transport_channel.h"
 
-#include <errno.h>
-#include <stdlib.h>
-
 #include <algorithm>
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -35,6 +34,7 @@
 #include "api/candidate.h"
 #include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
+#include "api/local_network_access_permission.h"
 #include "api/rtc_error.h"
 #include "api/sequence_checker.h"
 #include "api/transport/enums.h"
@@ -74,6 +74,7 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
+#include "system_wrappers/include/metrics.h"
 
 namespace webrtc {
 namespace {
@@ -138,7 +139,8 @@ std::unique_ptr<P2PTransportChannel> P2PTransportChannel::Create(
     IceTransportInit init) {
   return absl::WrapUnique(new P2PTransportChannel(
       transport_name, component, init.port_allocator(),
-      init.async_dns_resolver_factory(), nullptr, init.event_log(),
+      init.async_dns_resolver_factory(), /*owned_dns_resolver_factory=*/nullptr,
+      init.lna_permission_factory(), init.event_log(),
       init.ice_controller_factory(), init.active_ice_controller_factory(),
       init.field_trials()));
 }
@@ -152,6 +154,7 @@ P2PTransportChannel::P2PTransportChannel(absl::string_view transport_name,
                           allocator,
                           /* async_dns_resolver_factory= */ nullptr,
                           /* owned_dns_resolver_factory= */ nullptr,
+                          /* lna_permission_factory= */ nullptr,
                           /* event_log= */ nullptr,
                           /* ice_controller_factory= */ nullptr,
                           /* active_ice_controller_factory= */ nullptr,
@@ -165,6 +168,7 @@ P2PTransportChannel::P2PTransportChannel(
     AsyncDnsResolverFactoryInterface* async_dns_resolver_factory,
     std::unique_ptr<AsyncDnsResolverFactoryInterface>
         owned_dns_resolver_factory,
+    LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory,
     RtcEventLog* event_log,
     IceControllerFactoryInterface* ice_controller_factory,
     ActiveIceControllerFactoryInterface* active_ice_controller_factory,
@@ -178,6 +182,7 @@ P2PTransportChannel::P2PTransportChannel(
                                       ? owned_dns_resolver_factory.get()
                                       : async_dns_resolver_factory),
       owned_dns_resolver_factory_(std::move(owned_dns_resolver_factory)),
+      lna_permission_factory_(lna_permission_factory),
       network_thread_(Thread::Current()),
       incoming_only_(false),
       error_(0),
@@ -196,6 +201,7 @@ P2PTransportChannel::P2PTransportChannel(
       field_trials_(field_trials) {
   TRACE_EVENT0("webrtc", "P2PTransportChannel::P2PTransportChannel");
   RTC_DCHECK(allocator_ != nullptr);
+  RTC_DCHECK(!transport_name_.empty());
   // Validate IceConfig even for mostly built-in constant default values in case
   // we change them.
   RTC_DCHECK(config_.IsValid().ok());
@@ -1235,13 +1241,13 @@ void P2PTransportChannel::AddRemoteCandidate(const Candidate& candidate) {
     return;
   }
 
-  FinishAddingRemoteCandidate(new_remote_candidate);
+  CheckLocalNetworkAccessPermission(new_remote_candidate);
 }
 
 P2PTransportChannel::CandidateAndResolver::CandidateAndResolver(
     const Candidate& candidate,
     std::unique_ptr<AsyncDnsResolverInterface>&& resolver)
-    : candidate_(candidate), resolver_(std::move(resolver)) {}
+    : candidate(candidate), resolver(std::move(resolver)) {}
 
 P2PTransportChannel::CandidateAndResolver::~CandidateAndResolver() {}
 
@@ -1250,20 +1256,19 @@ void P2PTransportChannel::OnCandidateResolved(
   RTC_DCHECK_RUN_ON(network_thread_);
   auto p =
       absl::c_find_if(resolvers_, [resolver](const CandidateAndResolver& cr) {
-        return cr.resolver_.get() == resolver;
+        return cr.resolver.get() == resolver;
       });
   if (p == resolvers_.end()) {
     RTC_LOG(LS_ERROR) << "Unexpected AsyncDnsResolver return";
     RTC_DCHECK_NOTREACHED();
     return;
   }
-  Candidate candidate = p->candidate_;
+  Candidate candidate = p->candidate;
   AddRemoteCandidateWithResult(candidate, resolver->result());
   // Now we can delete the resolver.
   // TODO(bugs.webrtc.org/12651): Replace the stuff below with
   // resolvers_.erase(p);
-  std::unique_ptr<AsyncDnsResolverInterface> to_delete =
-      std::move(p->resolver_);
+  std::unique_ptr<AsyncDnsResolverInterface> to_delete = std::move(p->resolver);
   // Delay the actual deletion of the resolver until the lambda executes.
   network_thread_->PostTask([to_delete = std::move(to_delete)] {});
   resolvers_.erase(p);
@@ -1297,12 +1302,79 @@ void P2PTransportChannel::AddRemoteCandidateWithResult(
                    << candidate.address().HostAsSensitiveURIString() << " to "
                    << resolved_address.ipaddr().ToSensitiveString();
   candidate.set_address(resolved_address);
-  FinishAddingRemoteCandidate(candidate);
+
+  CheckLocalNetworkAccessPermission(candidate);
+}
+
+void P2PTransportChannel::CheckLocalNetworkAccessPermission(
+    const Candidate& candidate) {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  if (!lna_permission_factory_) {
+    RTC_LOG(LS_VERBOSE) << "No LocalNetworkAccessPermissionFactory";
+    FinishAddingRemoteCandidate(candidate);
+    return;
+  }
+
+  if (!candidate.address().IsPrivateIP() &&
+      !candidate.address().IsLoopbackIP()) {
+    RTC_LOG(LS_VERBOSE) << "Skipping LNA permission check for public IP "
+                        << candidate.address().ipaddr().ToSensitiveString()
+                        << ".";
+    FinishAddingRemoteCandidate(candidate);
+    return;
+  }
+
+  std::unique_ptr<LocalNetworkAccessPermissionInterface> permission_query =
+      lna_permission_factory_->Create();
+  auto permission_query_ptr = permission_query.get();
+  permission_queries_.emplace_back(candidate, std::move(permission_query));
+
+  RTC_LOG(LS_VERBOSE) << "Asynchronously requesting LNA permission."
+                      << candidate.address().HostAsSensitiveURIString();
+  permission_query_ptr->RequestPermission(
+      candidate.address(),
+      [this, permission_query_ptr](LocalNetworkAccessPermissionStatus status) {
+        OnLocalNetworkAccessResult(permission_query_ptr, status);
+      });
+}
+
+void P2PTransportChannel::OnLocalNetworkAccessResult(
+    LocalNetworkAccessPermissionInterface* permission_query,
+    LocalNetworkAccessPermissionStatus status) {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  auto p =
+      absl::c_find_if(permission_queries_,
+                      [permission_query](const CandidateAndPermission& cr) {
+                        return cr.permission_query.get() == permission_query;
+                      });
+
+  if (p == permission_queries_.end()) {
+    RTC_LOG(LS_ERROR) << "Unexpected LocalNetworkAccessPermission return";
+    RTC_DCHECK_NOTREACHED();
+    return;
+  }
+
+  Candidate candidate = std::move(p->candidate);
+  permission_queries_.erase(p);
+
+  if (status != LocalNetworkAccessPermissionStatus::kGranted) {
+    RTC_LOG(LS_INFO) << "LNA Permission denied for "
+                     << candidate.address().HostAsSensitiveURIString() << ".";
+    return;
+  }
+
+  FinishAddingRemoteCandidate(std::move(candidate));
 }
 
 void P2PTransportChannel::FinishAddingRemoteCandidate(
     const Candidate& new_remote_candidate) {
   RTC_DCHECK_RUN_ON(network_thread_);
+
+  RTC_HISTOGRAM_ENUMERATION(
+      "WebRTC.PeerConnection.CandidateAddressType",
+      static_cast<int>(new_remote_candidate.address().GetIPAddressType()),
+      static_cast<int>(IPAddressType::kMaxValue));
+
   // If this candidate matches what was thought to be a peer reflexive
   // candidate, we need to update the candidate priority/etc.
   for (Connection* conn : connections_) {
@@ -1907,12 +1979,13 @@ void P2PTransportChannel::UpdateTransportState() {
         RTC_DCHECK_NOTREACHED();
         break;
     }
-    state_ = state;
-    SignalStateChanged(this);
   }
 
-  if (standardized_state_ != current_standardized_state) {
+  if (standardized_state_ != current_standardized_state || state_ != state) {
     standardized_state_ = current_standardized_state;
+    state_ = state;
+    // Unconditionally signal change, no matter what changed.
+    // TODO: issues.webrtc.org/42234495 - rmeove nonstandard state_
     SignalIceTransportStateChanged(this);
   }
 }
@@ -2147,14 +2220,8 @@ void P2PTransportChannel::OnCandidatesRemoved(
   if (!config_.gather_continually() || session != allocator_session()) {
     return;
   }
-
-  std::vector<Candidate> candidates_to_remove;
-  for (Candidate candidate : candidates) {
-    candidate.set_transport_name(transport_name());
-    candidates_to_remove.push_back(candidate);
-  }
   if (candidates_removed_callback_) {
-    candidates_removed_callback_(this, candidates_to_remove);
+    candidates_removed_callback_(this, candidates);
   }
 }
 
@@ -2322,6 +2389,11 @@ void P2PTransportChannel::ResetDtlsStunPiggybackCallbacks() {
   for (auto& connection : connections_) {
     connection->DeregisterDtlsPiggyback();
   }
+}
+
+size_t P2PTransportChannel::PermissionQueriesOutstandingForTesting() const {
+  RTC_DCHECK_RUN_ON(network_thread_);
+  return permission_queries_.size();
 }
 
 }  // namespace webrtc

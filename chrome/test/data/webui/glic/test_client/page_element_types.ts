@@ -10,10 +10,8 @@ export interface PageElementTypes {
   focusedUrl: HTMLInputElement;
   contextAccessIndicator: HTMLInputElement;
   panelActiveCheckbox: HTMLInputElement;
-  focusedTabLogs: HTMLSpanElement;
   focusedFaviconV2: HTMLImageElement;
   focusedUrlV2: HTMLInputElement;
-  contextAccessIndicatorV2: HTMLInputElement;
   focusedTabLogsV2: HTMLSpanElement;
   syncCookiesBn: HTMLButtonElement;
   testLogsBn: HTMLButtonElement;
@@ -71,6 +69,7 @@ export interface PageElementTypes {
   createTabInBackground: HTMLInputElement;
   canAttachCheckbox: HTMLInputElement;
   scrollToDocumentId: HTMLSpanElement;
+  scrollToURL: HTMLSpanElement;
   scrollToExactText: HTMLInputElement;
   scrollToExactTextSearchStart: HTMLSelectElement;
   scrollToFetchAPCBn: HTMLButtonElement;
@@ -99,7 +98,6 @@ export interface PageElementTypes {
   growHeight: HTMLButtonElement;
   resetHeight: HTMLButtonElement;
   dump: HTMLElement;
-  fitWindow: HTMLInputElement;
   naturalSizing: HTMLInputElement;
   startMic: HTMLButtonElement;
   successUI: HTMLDivElement;
@@ -111,6 +109,9 @@ export interface PageElementTypes {
   getOsMicrophonePermissionButton: HTMLButtonElement;
   osMicrophonePermissionResult: HTMLSpanElement;
   osGlicHotkey: HTMLInputElement;
+  createActorTask: HTMLButtonElement;
+  stopActorTask: HTMLButtonElement;
+  actorTaskId: HTMLInputElement;
   executeAction: HTMLButtonElement;
   actionProtoEncodedText: HTMLInputElement;
   actionStatus: HTMLSpanElement;
@@ -122,6 +123,21 @@ export interface PageElementTypes {
   setClosedCaptioningTrue: HTMLButtonElement;
   setClosedCaptioningFalse: HTMLButtonElement;
   dropScrollToHighlightBtn: HTMLButtonElement;
+  copyAPCToClipboardBtn: HTMLButtonElement;
+  APCResult: HTMLSpanElement;
+  maybeRefreshUserStatusBn: HTMLButtonElement;
+  multiTabSection: HTMLElement;
+  pinnedTabs: HTMLElement;
+  pinFocusedTab: HTMLButtonElement;
+  fetchPinned: HTMLButtonElement;
+  shareCandidateQuery: HTMLInputElement;
+  shareCandidates: HTMLElement;
+  unpin: HTMLButtonElement;
+  viewChangedBtn: HTMLButtonElement;
+  viewChangedCurrentView: HTMLSelectElement;
+  viewChangedAutomaticallyAccept: HTMLInputElement;
+  mqlsClientIdBtn: HTMLButtonElement;
+  multiTabFetchScreenshot: HTMLInputElement;
 }
 
 export const $: PageElementTypes = new Proxy({}, {

@@ -4,28 +4,26 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-
 #ifndef skgpu_graphite_DrawPass_DEFINED
 #define skgpu_graphite_DrawPass_DEFINED
 
-#include "include/core/SkColor.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkRefCnt.h"
+#include "include/private/base/SkSpan_impl.h"
 #include "include/private/base/SkTArray.h"
-#include "src/base/SkEnumBitMask.h"
 #include "src/gpu/graphite/DrawCommands.h"
-#include "src/gpu/graphite/DrawTypes.h"
 #include "src/gpu/graphite/GraphicsPipelineDesc.h"
-#include "src/gpu/graphite/ResourceTypes.h"
-#include "src/gpu/graphite/TextureProxy.h"
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <utility>
 
 struct SkImageInfo;
 
 namespace skgpu::graphite {
 
-class BoundsManager;
 class CommandBuffer;
 class DrawList;
 class GraphicsPipeline;
@@ -33,10 +31,11 @@ class Recorder;
 struct RenderPassDesc;
 class ResourceProvider;
 class RuntimeEffectDictionary;
-class Sampler;
-class TextureDataBlock;
-class Texture;
-enum class UniformSlot;
+class TextureProxy;
+
+enum class DstReadStrategy : uint8_t;
+enum class LoadOp : uint8_t;
+enum class StoreOp : uint8_t;
 
 /**
  * DrawPass is analogous to a subpass, storing the drawing operations in the order they are stored
@@ -88,10 +87,11 @@ public:
     const GraphicsPipeline* getPipeline(size_t index) const {
         return fFullPipelines[index].get();
     }
-    const Texture* getTexture(size_t index) const;
-    const Sampler* getSampler(size_t index) const;
 
-    skia_private::TArray<sk_sp<TextureProxy>> sampledTextures() const { return fSampledTextures; }
+    // Proxies are always valid but may not be instantiated until after prepareResources() is called
+    SkSpan<const sk_sp<TextureProxy>> sampledTextures() const { return fSampledTextures; }
+    // Not valid until after prepareResources() is called
+    SkSpan<const sk_sp<GraphicsPipeline>> pipelines() const { return fFullPipelines; }
 
     void addResourceRefs(CommandBuffer*) const;
 
@@ -113,12 +113,14 @@ private:
     // The pipelines are referenced by index in BindGraphicsPipeline, but that will index into a
     // an array of actual GraphicsPipelines.
     skia_private::TArray<GraphicsPipelineDesc> fPipelineDescs;
-    skia_private::TArray<SamplerDesc> fSamplerDescs;
 
     // These resources all get instantiated during prepareResources.
     skia_private::TArray<sk_sp<GraphicsPipeline>> fFullPipelines;
     skia_private::TArray<sk_sp<TextureProxy>> fSampledTextures;
-    skia_private::TArray<sk_sp<Sampler>> fSamplers;
+
+#if defined(SK_TRACE_GRAPHITE_PIPELINE_USE)
+    skia_private::TArray<float> fPipelineDrawAreas;
+#endif
 };
 
 } // namespace skgpu::graphite

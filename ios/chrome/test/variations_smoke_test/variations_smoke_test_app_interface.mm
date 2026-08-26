@@ -4,16 +4,17 @@
 
 #import "ios/chrome/test/variations_smoke_test/variations_smoke_test_app_interface.h"
 
+#import <string>
 #import <sys/sysctl.h>
 
+#import "base/base64.h"
 #import "base/process/process.h"
+#import "base/strings/sys_string_conversions.h"
 #import "base/time/time.h"
 #import "components/prefs/pref_service.h"
 #import "components/variations/pref_names.h"
 #import "components/variations/service/variations_service.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
-
-using variations::prefs::kVariationsLastFetchTime;
 
 namespace {
 
@@ -43,15 +44,36 @@ base::Time GetProcessStartTime() {
 }
 
 + (BOOL)variationsSeedFetchedInCurrentLaunch {
-  // If the pref value doesn't exist, the returned time will be 0 microseconds
+  // If there's no fetch time, the returned time will be std::nullopt.
+  base::Time lastFetchTime = GetApplicationContext()
+                                 ->GetVariationsService()
+                                 ->GetSeedStoreForTesting()
+                                 ->GetSeedReaderWriterForTesting()
+                                 ->GetSeedData()
+                                 .client_fetch_time;
+  // If there's no fetch time, the returned time will be 0 microseconds
   // from Windows epoch.
-  base::Time lastFetchTime = GetApplicationContext()->GetLocalState()->GetTime(
-      kVariationsLastFetchTime);
   return GetProcessStartTime() < lastFetchTime;
 }
 
 + (void)localStatePrefsCommitPendingWrite {
   GetApplicationContext()->GetLocalState()->CommitPendingWrite();
+}
+
++ (void)storeSeed:(NSString*)seed_data andSignature:(NSString*)signature {
+  std::string string_seed = base::SysNSStringToUTF8(seed_data);
+  std::string string_signature = base::SysNSStringToUTF8(signature);
+  std::string decoded_seed;
+  base::Base64Decode(string_seed, &decoded_seed);
+  GetApplicationContext()
+      ->GetVariationsService()
+      ->GetSeedStoreForTesting()
+      ->GetSeedReaderWriterForTesting()
+      ->StoreValidatedSeedInfo(variations::ValidatedSeedInfo{
+          .compressed_seed_data = decoded_seed,
+          .base64_seed_data = string_seed,
+          .signature = string_signature,
+      });
 }
 
 @end

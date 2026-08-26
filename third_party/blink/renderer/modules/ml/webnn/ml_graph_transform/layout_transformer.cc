@@ -154,11 +154,13 @@ std::optional<std::array<uint32_t, 4>> GetConvTranspose2DFilterPermutation(
 template <typename MLConv2dOptionsType>
 void UpdateConv2dInputLayout(webnn::ContextProperties context_properties,
                              MLConv2dOptionsType* options) {
-  if (context_properties.input_operand_layout ==
-      webnn::InputOperandLayout::kNchw) {
-    options->setInputLayout(blink::V8MLInputOperandLayout::Enum::kNchw);
-  } else {
-    options->setInputLayout(blink::V8MLInputOperandLayout::Enum::kNhwc);
+  switch (context_properties.input_operand_layout) {
+    case webnn::InputOperandLayout::kNchw:
+      options->setInputLayout(blink::V8MLInputOperandLayout::Enum::kNchw);
+      break;
+    case webnn::InputOperandLayout::kNhwc:
+      options->setInputLayout(blink::V8MLInputOperandLayout::Enum::kNhwc);
+      break;
   }
 }
 
@@ -218,18 +220,20 @@ void UpdateConvTranspose2dFilterLayout(
 
 void UpdatePool2dInputLayout(webnn::ContextProperties context_properties,
                              MLPool2dOptions* options) {
-  if (context_properties.input_operand_layout ==
-      webnn::InputOperandLayout::kNchw) {
-    options->setLayout(blink::V8MLInputOperandLayout::Enum::kNchw);
-  } else {
-    options->setLayout(blink::V8MLInputOperandLayout::Enum::kNhwc);
+  switch (context_properties.input_operand_layout) {
+    case webnn::InputOperandLayout::kNchw:
+      options->setLayout(blink::V8MLInputOperandLayout::Enum::kNchw);
+      break;
+    case webnn::InputOperandLayout::kNhwc:
+      options->setLayout(blink::V8MLInputOperandLayout::Enum::kNhwc);
+      break;
   }
 }
 
 bool IsDepthwiseConv2d(const MLOperator* conv2d) {
   const auto* options = static_cast<const MLConv2dOptions*>(conv2d->Options());
   CHECK(options);
-  const MLOperand* input = conv2d->Inputs()[0];
+  const MLOperand* input = conv2d->PositionalInputs()[0];
   CHECK(input);
   const std::vector<uint32_t>& input_shape = input->Shape();
   CHECK_EQ(input_shape.size(), 4u);
@@ -311,6 +315,11 @@ std::optional<std::vector<uint32_t>> GetBatchNormalizationPermutation(
     const uint32_t from_axis,
     const uint32_t input_rank,
     const webnn::ContextProperties& context_properties) {
+  if (input_rank < 2) {
+    CHECK_EQ(input_rank, 1u);
+    // It's unnecessary to transform the layout for 1D input.
+    return std::nullopt;
+  }
   if (context_properties.batch_normalization_axis ==
       webnn::BatchNormalizationAxis::kAny) {
     return std::nullopt;
@@ -388,17 +397,17 @@ void LayoutTransformer::Transform(MLNamedOperands& named_outputs) {
 
 void LayoutTransformer::InsertInputTranspose(
     MLOperator* op,
-    OperandIndex input_index,
+    OperandIndex positional_input_index,
     base::span<const uint32_t> permutation,
     String label,
     ExceptionState& exception_state) {
-  auto* input_operand = op->Inputs()[input_index].Get();
+  auto* input_operand = op->PositionalInputs()[positional_input_index].Get();
   MLTransposeOptions* transpose_options = MLTransposeOptions::Create();
   transpose_options->setPermutation(Vector<uint32_t>(permutation));
   transpose_options->setLabel(label);
   auto* transpose_operand = graph_builder_->transpose(
       input_operand, transpose_options, exception_state);
-  SwapInput(op, input_index, transpose_operand);
+  SwapInput(op, positional_input_index, transpose_operand);
 }
 
 void LayoutTransformer::PermuteOperandShape(
@@ -436,6 +445,7 @@ MLOperand* LayoutTransformer::InsertOutputTranspose(
 
 template <typename MLConv2dOptionsType>
 MLOperand* LayoutTransformer::HandleConv2d(MLOperator* conv2d) {
+  CHECK_EQ(conv2d->Kind(), webnn::mojom::blink::Operation::Tag::kConv2d);
   auto* options = static_cast<MLConv2dOptionsType*>(conv2d->Options());
   CHECK(options);
   webnn::ContextProperties context_properties =
@@ -462,15 +472,16 @@ MLOperand* LayoutTransformer::HandleConv2d(MLOperator* conv2d) {
   }
 
   if (input_permutation) {
-    InsertInputTranspose(conv2d, /*input_index*/ 0, *input_permutation,
-                         options->label(), exception_state);
+    InsertInputTranspose(conv2d, /*positional_input_index=*/0,
+                         *input_permutation, options->label(), exception_state);
     PermuteOperandShape(conv2d->Outputs()[0], *input_permutation);
     UpdateConv2dInputLayout(context_properties, options);
   }
 
   if (filter_permutation) {
-    InsertInputTranspose(conv2d, /*input_index*/ 1, *filter_permutation,
-                         options->label(), exception_state);
+    InsertInputTranspose(conv2d, /*positional_input_index=*/1,
+                         *filter_permutation, options->label(),
+                         exception_state);
     if constexpr (std::is_same<MLConv2dOptionsType, MLConv2dOptions>::value) {
       UpdateConv2dFilterLayout(context_properties, options, depthwise);
     } else if constexpr (std::is_same<MLConv2dOptionsType,
@@ -486,7 +497,7 @@ MLOperand* LayoutTransformer::HandleConv2d(MLOperator* conv2d) {
   auto* conv2d_output_operand = conv2d->Outputs()[0].Get();
   if (output_permutation) {
     conv2d_output_operand =
-        InsertOutputTranspose(conv2d, /*output_index*/ 0, *output_permutation,
+        InsertOutputTranspose(conv2d, /*output_index=*/0, *output_permutation,
                               options->label(), exception_state);
   }
   return conv2d_output_operand;
@@ -499,6 +510,8 @@ template MLOperand* LayoutTransformer::HandleConv2d<MLConvTranspose2dOptions>(
     MLOperator* conv2d);
 
 MLOperand* LayoutTransformer::HandleResample2d(MLOperator* resample2d) {
+  CHECK_EQ(resample2d->Kind(),
+           webnn::mojom::blink::Operation::Tag::kResample2d);
   auto* options = static_cast<MLResample2dOptions*>(resample2d->Options());
   CHECK(options);
   webnn::ContextProperties context_properties =
@@ -538,13 +551,13 @@ MLOperand* LayoutTransformer::HandleResample2d(MLOperator* resample2d) {
       case webnn::Resample2DAxes::kAny:
         NOTREACHED();
     }
-    InsertInputTranspose(resample2d, /*input_index*/ 0, *input_permutation,
-                         options->label(), exception_state);
+    InsertInputTranspose(resample2d, /*positional_input_index=*/0,
+                         *input_permutation, options->label(), exception_state);
     PermuteOperandShape(resample2d->Outputs()[0], *input_permutation);
     // Insert output transpose.
     std::vector<uint32_t> output_permutation =
         GetInversePermutation(*input_permutation);
-    output_operand = InsertOutputTranspose(resample2d, /*output_index*/ 0,
+    output_operand = InsertOutputTranspose(resample2d, /*output_index=*/0,
                                            output_permutation, options->label(),
                                            exception_state);
   }
@@ -554,13 +567,15 @@ MLOperand* LayoutTransformer::HandleResample2d(MLOperator* resample2d) {
 }
 
 MLOperand* LayoutTransformer::HandleBatchNormalization(MLOperator* batch_norm) {
+  CHECK_EQ(batch_norm->Kind(),
+           webnn::mojom::blink::Operation::Tag::kBatchNormalization);
   auto* options =
       static_cast<MLBatchNormalizationOptions*>(batch_norm->Options());
   CHECK(options);
   webnn::ContextProperties context_properties =
       graph_builder_->GetContext()->GetProperties();
   ExceptionState exception_state = GetExceptionState();
-  const MLOperand* input_operand = batch_norm->Inputs()[0];
+  const MLOperand* input_operand = batch_norm->PositionalInputs()[0];
   uint32_t axis = options->axis();
   const std::optional<std::vector<uint32_t>> input_permutation =
       GetBatchNormalizationPermutation(axis, input_operand->shape().size(),
@@ -577,13 +592,13 @@ MLOperand* LayoutTransformer::HandleBatchNormalization(MLOperator* batch_norm) {
       case webnn::BatchNormalizationAxis::kAny:
         NOTREACHED();
     }
-    InsertInputTranspose(batch_norm, /*input_index*/ 0, *input_permutation,
-                         options->label(), exception_state);
+    InsertInputTranspose(batch_norm, /*positional_input_index=*/0,
+                         *input_permutation, options->label(), exception_state);
     PermuteOperandShape(batch_norm->Outputs()[0], *input_permutation);
     // Insert output transpose.
     std::vector<uint32_t> output_permutation =
         GetInversePermutation(*input_permutation);
-    output_operand = InsertOutputTranspose(batch_norm, /*output_index*/ 0,
+    output_operand = InsertOutputTranspose(batch_norm, /*output_index=*/0,
                                            output_permutation, options->label(),
                                            exception_state);
   }
@@ -592,6 +607,8 @@ MLOperand* LayoutTransformer::HandleBatchNormalization(MLOperator* batch_norm) {
 
 MLOperand* LayoutTransformer::HandleInstanceNormalization(
     MLOperator* instance_norm) {
+  CHECK_EQ(instance_norm->Kind(),
+           webnn::mojom::blink::Operation::Tag::kInstanceNormalization);
   auto* options =
       static_cast<MLInstanceNormalizationOptions*>(instance_norm->Options());
   CHECK(options);
@@ -606,8 +623,8 @@ MLOperand* LayoutTransformer::HandleInstanceNormalization(
   MLOperand* output_operand = instance_norm->Outputs()[0].Get();
   // Insert input transpose if needed.
   if (input_permutation) {
-    InsertInputTranspose(instance_norm, /*input_index*/ 0, *input_permutation,
-                         options->label(), exception_state);
+    InsertInputTranspose(instance_norm, /*positional_input_index=*/0,
+                         *input_permutation, options->label(), exception_state);
     PermuteOperandShape(instance_norm->Outputs()[0], *input_permutation);
 
     UpdateInstanceNormalizationInputLayout(context_properties, options);
@@ -616,7 +633,7 @@ MLOperand* LayoutTransformer::HandleInstanceNormalization(
   const std::optional<base::span<const uint32_t>> output_permutation =
       GetOutputOperandPermutation(original_layout, context_properties);
   if (output_permutation) {
-    output_operand = InsertOutputTranspose(instance_norm, /*output_index*/ 0,
+    output_operand = InsertOutputTranspose(instance_norm, /*output_index=*/0,
                                            *output_permutation,
                                            options->label(), exception_state);
   }
@@ -624,12 +641,12 @@ MLOperand* LayoutTransformer::HandleInstanceNormalization(
 }
 
 MLOperand* LayoutTransformer::HandlePool2d(MLOperator* pool2d) {
+  CHECK_EQ(pool2d->Kind(), webnn::mojom::blink::Operation::Tag::kPool2d);
   auto* options = static_cast<MLPool2dOptions*>(pool2d->Options());
   CHECK(options);
   webnn::ContextProperties context_properties =
       graph_builder_->GetContext()->GetProperties();
   ExceptionState exception_state = GetExceptionState();
-  // const MLOperand* pool2d_input_operand = pool2d->Inputs()[0].Get();
 
   auto original_layout = options->layout().AsEnum();
 
@@ -637,8 +654,8 @@ MLOperand* LayoutTransformer::HandlePool2d(MLOperator* pool2d) {
       GetInputOperandPermutation(original_layout, context_properties);
   MLOperand* output_operand = pool2d->Outputs()[0].Get();
   if (input_permutation) {
-    InsertInputTranspose(pool2d, /*input_index*/ 0, *input_permutation,
-                         options->label(), exception_state);
+    InsertInputTranspose(pool2d, /*positional_input_index=*/0,
+                         *input_permutation, options->label(), exception_state);
     PermuteOperandShape(pool2d->Outputs()[0], *input_permutation);
 
     UpdatePool2dInputLayout(context_properties, options);
@@ -648,7 +665,7 @@ MLOperand* LayoutTransformer::HandlePool2d(MLOperator* pool2d) {
       GetOutputOperandPermutation(original_layout, context_properties);
   if (output_permutation) {
     output_operand =
-        InsertOutputTranspose(pool2d, /*output_index*/ 0, *output_permutation,
+        InsertOutputTranspose(pool2d, /*output_index=*/0, *output_permutation,
                               options->label(), exception_state);
   }
   return output_operand;

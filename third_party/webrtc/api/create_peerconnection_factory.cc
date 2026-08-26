@@ -19,6 +19,7 @@
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"
@@ -52,7 +53,7 @@ scoped_refptr<PeerConnectionFactoryInterface> CreatePeerConnectionFactory(
   dependencies.env = CreateEnvironment(std::move(field_trials));
 
   if (network_thread) {
-    // TODO(bugs.webrtc.org/13145): Add an webrtc::SocketFactory* argument.
+    // TODO(bugs.webrtc.org/13145): Add an SocketFactory* argument.
     dependencies.socket_factory = network_thread->socketserver();
   }
   dependencies.adm = std::move(default_adm);

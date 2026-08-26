@@ -20,15 +20,18 @@
 #include <android/hardware_buffer.h>
 #endif
 
-#include <cstdint>
-#include <string>
 #include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <type_traits>
 
 class SkStream;
 class SkWStream;
 
 namespace SkSL {
 
+struct NativeShader;
 enum class ProgramKind : int8_t;
 struct ProgramInterface;
 struct ProgramSettings;
@@ -43,15 +46,71 @@ struct VulkanInterface;
 struct VulkanBackendContext;
 class VulkanExtensions;
 
+enum VkVendor {
+    kAMD_VkVendor = 0x1002,
+    kARM_VkVendor = 0x13B5,
+    kBroadcom_VkVendor = 0x14E4,
+    kGoogle_VkVendor = 0x1AE0,
+    kImagination_VkVendor = 0x1010,
+    kIntel_VkVendor = 0x8086,
+    kKazan_VkVendor = 0x10003,
+    kMesa_VkVendor = 0x10005,
+    kNvidia_VkVendor = 0x10DE,
+    kQualcomm_VkVendor = 0x5143,
+    kSamsung_VkVendor = 0x144D,
+    kVeriSilicon_VkVendor = 0x10002,
+    kVivante_VkVendor = 0x10001,
+};
+
+// GPU driver version, used for driver bug workarounds.
+struct DriverVersion {
+    constexpr DriverVersion() {}
+
+    constexpr DriverVersion(int major, int minor) : fMajor(major), fMinor(minor) {}
+
+    uint32_t fMajor = 0;
+    uint32_t fMinor = 0;
+};
+
+inline constexpr bool operator==(const DriverVersion& a, const DriverVersion& b) {
+    return a.fMajor == b.fMajor && a.fMinor == b.fMinor;
+}
+inline constexpr bool operator!=(const DriverVersion& a, const DriverVersion& b) {
+    return !(a == b);
+}
+inline constexpr bool operator<(const DriverVersion& a, const DriverVersion& b) {
+    return a.fMajor < b.fMajor || (a.fMajor == b.fMajor && a.fMinor < b.fMinor);
+}
+inline constexpr bool operator>=(const DriverVersion& a, const DriverVersion& b) {
+    return !(a < b);
+}
+
+static_assert(DriverVersion(3, 4) == DriverVersion(3, 4));
+static_assert(DriverVersion(3, 4) != DriverVersion(4, 3));
+static_assert(DriverVersion(2, 3)  < DriverVersion(2, 4));
+static_assert(DriverVersion(2, 3)  < DriverVersion(3, 0));
+static_assert(DriverVersion(2, 3) >= DriverVersion(2, 1));
+static_assert(DriverVersion(2, 3) >= DriverVersion(2, 3));
+static_assert(DriverVersion(2, 3) >= DriverVersion(1, 8));
+
+DriverVersion ParseVulkanDriverVersion(VkDriverId driverId, uint32_t driverVersion);
+
 inline bool SkSLToSPIRV(const SkSL::ShaderCaps* caps,
                         const std::string& sksl,
                         SkSL::ProgramKind programKind,
                         const SkSL::ProgramSettings& settings,
-                        std::string* spirv,
+                        SkSL::NativeShader* spirv,
                         SkSL::ProgramInterface* outInterface,
                         ShaderErrorHandler* errorHandler) {
-    return SkSLToBackend(caps, &SkSL::ToSPIRV, /*backendLabel=*/nullptr,
-                         sksl, programKind, settings, spirv, outInterface, errorHandler);
+    return SkSLToBackend(caps,
+                         &SkSL::ToSPIRV,
+                         "SPIRV",
+                         sksl,
+                         programKind,
+                         settings,
+                         spirv,
+                         outInterface,
+                         errorHandler);
 }
 
 static constexpr uint32_t VkFormatChannels(VkFormat vkFormat) {
@@ -184,6 +243,22 @@ static constexpr bool VkFormatIsCompressed(VkFormat vkFormat) {
 }
 
 /**
+ * Prepend ptr to the pNext chain at chainStart
+ */
+template <typename VulkanStruct1, typename VulkanStruct2>
+void AddToPNextChain(VulkanStruct1* chainStart, VulkanStruct2* ptr) {
+    // Make sure this function is not called with `&pointer` instead of `pointer`.
+    static_assert(!std::is_pointer<VulkanStruct1>::value);
+    static_assert(!std::is_pointer<VulkanStruct2>::value);
+
+    SkASSERT(ptr->pNext == nullptr);
+
+    VkBaseOutStructure* localPtr = reinterpret_cast<VkBaseOutStructure*>(chainStart);
+    ptr->pNext = localPtr->pNext;
+    localPtr->pNext = reinterpret_cast<VkBaseOutStructure*>(ptr);
+}
+
+/**
  * Returns a ptr to the requested extension feature struct or nullptr if it is not present.
 */
 template <typename T>
@@ -205,6 +280,7 @@ const T* GetExtensionFeatureStruct(const VkPhysicalDeviceFeatures2& features,
  * Returns a populated VkSamplerYcbcrConversionCreateInfo object based on VulkanYcbcrConversionInfo
 */
 void SetupSamplerYcbcrConversionInfo(VkSamplerYcbcrConversionCreateInfo* outInfo,
+                                     std::optional<VkFilter>* requiredSamplerFilter,
                                      const VulkanYcbcrConversionInfo& conversionInfo);
 
 static constexpr const char* VkFormatToStr(VkFormat vkFormat) {

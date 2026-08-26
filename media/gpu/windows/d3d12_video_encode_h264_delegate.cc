@@ -74,28 +74,123 @@ D3D12VideoEncodeH264ReferenceFrameManager::
 D3D12VideoEncodeH264ReferenceFrameManager::
     ~D3D12VideoEncodeH264ReferenceFrameManager() = default;
 
-void D3D12VideoEncodeH264ReferenceFrameManager::EndFrame(
-    uint32_t frame_num,
-    uint32_t pic_order_cnt,
-    uint32_t temporal_layer_id) {
-  InsertCurrentFrame(0);
-  if (descriptors_.size() == size()) {
-    descriptors_.pop_back();
+uint32_t
+D3D12VideoEncodeH264ReferenceFrameManager::GetMaxLongTermFrameIndexPlus1()
+    const {
+  return max_long_term_frame_index_plus1_;
+}
+
+std::optional<uint32_t>
+D3D12VideoEncodeH264ReferenceFrameManager::GetLongTermReferenceFrameResourceId(
+    uint32_t long_term_frame_index) const {
+  for (const auto& descriptor : descriptors_) {
+    if (descriptor.IsLongTermReference &&
+        descriptor.LongTermPictureIdx == long_term_frame_index) {
+      return descriptor.ReconstructedPictureResourceIndex;
+    }
   }
-  descriptors_.insert(descriptors_.begin(),
-                      {
-                          .PictureOrderCountNumber = pic_order_cnt,
-                          .FrameDecodingOrderNumber = frame_num,
-                          .TemporalLayerIndex = temporal_layer_id,
-                      });
-  for (size_t i = 0; i < descriptors_.size(); i++) {
-    descriptors_[i].ReconstructedPictureResourceIndex = i;
-  }
+  return std::nullopt;
 }
 
 base::span<D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264>
 D3D12VideoEncodeH264ReferenceFrameManager::ToReferencePictureDescriptors() {
   return descriptors_;
+}
+
+void D3D12VideoEncodeH264ReferenceFrameManager::
+    ProcessMemoryManagementControlOperation(
+        const D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264& pic_params) {
+  CHECK(pic_params.adaptive_ref_pic_marking_mode_flag);
+  if (pic_params.FrameType == D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME) {
+    max_long_term_frame_index_plus1_ = 1;
+    SetCurrentFrameLongTermReference(pic_params.FrameDecodingOrderNumber,
+                                     pic_params.PictureOrderCountNumber, 0);
+  } else {
+    // SAFETY: Callers should guarantee that |pRefPicMarkingOperationsCommands|
+    // contains at least |RefPicMarkingOperationsCommandsCount| elements.
+    for (auto& operation : UNSAFE_BUFFERS(
+             base::span(pic_params.pRefPicMarkingOperationsCommands,
+                        pic_params.RefPicMarkingOperationsCommandsCount))) {
+      // Table 7-9 – Memory management control operation
+      // (memory_management_control_operation) values
+      switch (operation.memory_management_control_operation) {
+        case 0:
+          // 0 End memory_management_control_operation syntax element loop
+          return;
+        case 2: {
+          // 2 Mark a long-term reference picture as "unused for reference"
+          auto resource_id =
+              GetLongTermReferenceFrameResourceId(operation.long_term_pic_num);
+          CHECK_LT(resource_id.value(), size());
+          EraseFrame(resource_id.value());
+          descriptors_.erase(
+              std::next(descriptors_.begin(), resource_id.value()));
+          for (size_t i = resource_id.value(); i < descriptors_.size(); i++) {
+            descriptors_[i].ReconstructedPictureResourceIndex = i;
+          }
+          break;
+        }
+        case 4:
+          // 4 Specify the maximum long-term frame index and mark all long-term
+          // reference pictures having long-term frame indices greater than the
+          // maximum value as "unused for reference"
+          CHECK_LE(operation.max_long_term_frame_idx_plus1, size());
+          max_long_term_frame_index_plus1_ =
+              operation.max_long_term_frame_idx_plus1;
+          break;
+        case 5:
+          // 5 Mark all reference pictures as "unused for reference" and set the
+          // MaxLongTermFrameIdx variable to "no long-term frame indices"
+          descriptors_.clear();
+          max_long_term_frame_index_plus1_ = 0;
+          break;
+        case 6:
+          // 6 Mark the current picture as "used for long-term reference" and
+          // assign a long-term frame index to it
+          CHECK_LT(operation.long_term_frame_idx,
+                   max_long_term_frame_index_plus1_);
+          SetCurrentFrameLongTermReference(pic_params.FrameDecodingOrderNumber,
+                                           pic_params.PictureOrderCountNumber,
+                                           operation.long_term_frame_idx);
+          break;
+        default:
+          // memory_management_control_operation being 1 and 3 is not used.
+          // 1 Mark a short-term reference picture as "unused for reference"
+          // 3 Mark a short-term reference picture as "used for long-term
+          // reference" and assign a long-term frame index to it
+          NOTREACHED();
+      }
+    }
+    NOTREACHED() << "RefPicMarkingOperations must end with "
+                    "memory_management_control_operation = 0";
+  }
+}
+
+void D3D12VideoEncodeH264ReferenceFrameManager::
+    SetCurrentFrameLongTermReference(uint32_t frame_num,
+                                     uint32_t pic_order_cnt,
+                                     uint32_t long_term_frame_index) {
+  CHECK_LT(long_term_frame_index, size());
+  for (auto& descriptor : descriptors_) {
+    if (descriptor.IsLongTermReference &&
+        descriptor.LongTermPictureIdx == long_term_frame_index) {
+      ReplaceWithCurrentFrame(descriptor.ReconstructedPictureResourceIndex);
+      descriptor.FrameDecodingOrderNumber = frame_num;
+      descriptor.PictureOrderCountNumber = pic_order_cnt;
+      return;
+    }
+  }
+
+  CHECK_LT(descriptors_.size(), size());
+  InsertCurrentFrame(descriptors_.size());
+  descriptors_.push_back({
+      .ReconstructedPictureResourceIndex =
+          static_cast<UINT>(descriptors_.size()),
+      .IsLongTermReference = true,
+      .LongTermPictureIdx = long_term_frame_index,
+      .PictureOrderCountNumber = pic_order_cnt,
+      .FrameDecodingOrderNumber = frame_num,
+  });
 }
 
 // static
@@ -148,6 +243,7 @@ D3D12VideoEncodeH264Delegate::D3D12VideoEncodeH264Delegate(
   // start with 0.
   pic_params_.idr_pic_id = -1;
   pic_params_.FrameDecodingOrderNumber = -1;
+  pic_params_.adaptive_ref_pic_marking_mode_flag = 1;
   input_arguments_.SequenceControlDesc.CodecGopSequence = {
       .DataSize = sizeof(gop_structure_),
       .pH264GroupOfPictures = &gop_structure_,
@@ -177,7 +273,8 @@ bool D3D12VideoEncodeH264Delegate::ReportsAverageQp() const {
 bool D3D12VideoEncodeH264Delegate::UpdateRateControl(const Bitrate& bitrate,
                                                      uint32_t framerate) {
   if (software_rate_controller_) {
-    if (bitrate.mode() != Bitrate::Mode::kConstant) {
+    if (bitrate.mode() != Bitrate::Mode::kConstant &&
+        bitrate.mode() != Bitrate::Mode::kVariable) {
       return false;
     }
 
@@ -192,7 +289,9 @@ bool D3D12VideoEncodeH264Delegate::UpdateRateControl(const Bitrate& bitrate,
       layer_settings.avg_bitrate = bitrate.target_bps();
       // Bitrate::Mode::kConstant only has target_bps. Using the target_bps for
       // peak_bitrate.
-      layer_settings.peak_bitrate = bitrate.target_bps();
+      layer_settings.peak_bitrate = bitrate.mode() == Bitrate::Mode::kConstant
+                                        ? bitrate.target_bps()
+                                        : bitrate.peak_bps();
       layer_settings.frame_rate = framerate;
       software_rate_controller_.emplace(rate_controller_settings_);
     } else {
@@ -212,16 +311,57 @@ EncoderStatus::Or<BitstreamBufferMetadata>
 D3D12VideoEncodeH264Delegate::EncodeImpl(
     ID3D12Resource* input_frame,
     UINT input_frame_subresource,
-    const VideoEncoder::EncodeOptions& options) {
+    const VideoEncoder::EncodeOptions& options,
+    const gfx::ColorSpace& input_color_space) {
   // Filling the |input_arguments_| according to
   // https://github.com/microsoft/DirectX-Specs/blob/master/d3d/D3D12VideoEncoding.md#6120-struct-d3d12_video_encoder_input_arguments
 
   // Frame type, idr_pic_id, decoding order number, and reference frames.
-  if (++pic_params_.FrameDecodingOrderNumber == gop_structure_.GOPLength) {
+  if (++pic_params_.FrameDecodingOrderNumber == gop_structure_.GOPLength ||
+      options.key_frame) {
     pic_params_.FrameDecodingOrderNumber = 0;
   }
-  bool is_keyframe =
-      pic_params_.FrameDecodingOrderNumber == 0 || options.key_frame;
+  pic_params_.PictureOrderCountNumber =
+      pic_params_.FrameDecodingOrderNumber * 2;
+  bool is_keyframe = pic_params_.FrameDecodingOrderNumber == 0;
+
+  // TODO(crbug.com/40275246): Support multiple temporal layers.
+  absl::InlinedVector<uint8_t, 4> reference_buffers;
+  std::optional<uint8_t> update_buffer;
+  std::optional<uint8_t> destroy_buffer;
+  if (!is_keyframe) {
+    reference_buffers.push_back(0);
+  }
+  update_buffer = 0;
+  if (destroy_buffer.value_or(0) > 0) {
+    destroy_buffer = destroy_buffer.value() + 1;
+  }
+
+  if (update_buffer.has_value() &&
+      update_buffer.value() >= max_num_ref_frames_) {
+    return {EncoderStatus::Codes::kBadReferenceBuffer,
+            base::StringPrintf("Update buffer index %d is out of range [0, %d)",
+                               update_buffer.value(), max_num_ref_frames_)};
+  }
+  if (destroy_buffer.has_value() &&
+      !reference_frame_manager_.GetLongTermReferenceFrameResourceId(
+          destroy_buffer.value())) {
+    return {EncoderStatus::Codes::kBadReferenceBuffer,
+            base::StringPrintf("Destroy buffer index %d is not found",
+                               destroy_buffer.value())};
+  }
+
+  // at most 5 operations: 4 operations for each reference buffer, 1 operation
+  // for ending op-0.
+  absl::InlinedVector<
+      D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264_REFERENCE_PICTURE_LIST_MODIFICATION_OPERATION,
+      5>
+      reordering_flags;
+  // at most 3 operations: op-4, op-6, op-0
+  absl::InlinedVector<
+      D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264_REFERENCE_PICTURE_MARKING_OPERATION,
+      3>
+      mmco;
   if (is_keyframe) {
     H264SPS sps = ToSPS();
     H264PPS pps = ToPPS(sps);
@@ -232,15 +372,43 @@ D3D12VideoEncodeH264Delegate::EncodeImpl(
     input_arguments_.PictureControlDesc.ReferenceFrames = {};
     pic_params_.FrameType = D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_IDR_FRAME;
     ++pic_params_.idr_pic_id;
-    pic_params_.FrameDecodingOrderNumber = 0;
     pic_params_.ReferenceFramesReconPictureDescriptorsCount = 0;
     pic_params_.pReferenceFramesReconPictureDescriptors = nullptr;
     pic_params_.List0ReferenceFramesCount = 0;
     pic_params_.pList0ReferenceFrames = nullptr;
+    pic_params_.List0RefPicModificationsCount = 0;
+    pic_params_.pList0RefPicModifications = nullptr;
+    // Alternatively, if encoding an IDR frame and setting
+    // adaptive_ref_pic_marking_mode_flag = 1, the driver will assume that the
+    // client is attempting to set the H264 slice header
+    // long_term_reference_flag and will do so in the output bitstream for the
+    // EncodeFrame call.
+    // https://learn.microsoft.com/en-us/windows/win32/api/d3d12video/ns-d3d12video-d3d12_video_encoder_picture_control_codec_data_h264_reference_picture_marking_operation#remarks
   } else {
     pic_params_.FrameType = D3D12_VIDEO_ENCODER_FRAME_TYPE_H264_P_FRAME;
-    list0_reference_frames_[0] = 0;
-    pic_params_.List0ReferenceFramesCount = 1;
+    for (size_t i = 0; i < reference_buffers.size(); i++) {
+      std::optional<uint32_t> descriptor_index =
+          reference_frame_manager_.GetLongTermReferenceFrameResourceId(
+              reference_buffers[i]);
+      if (!descriptor_index.has_value()) {
+        return {EncoderStatus::Codes::kBadReferenceBuffer,
+                base::StringPrintf(
+                    "Long term reference frame index %d is not found",
+                    reference_buffers[i])};
+      }
+      reordering_flags.push_back({.modification_of_pic_nums_idc = 2,
+                                  .long_term_pic_num = reference_buffers[i]});
+      list0_reference_frames_[i] = descriptor_index.value();
+    }
+    if (!reordering_flags.empty()) {
+      reordering_flags.push_back({.modification_of_pic_nums_idc = 3});
+      pic_params_.List0RefPicModificationsCount = reordering_flags.size();
+      pic_params_.pList0RefPicModifications = reordering_flags.data();
+    } else {
+      pic_params_.List0RefPicModificationsCount = 0;
+      pic_params_.pList0RefPicModifications = nullptr;
+    }
+    pic_params_.List0ReferenceFramesCount = reference_buffers.size();
     pic_params_.pList0ReferenceFrames = list0_reference_frames_.data();
     base::span<D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_H264>
         descriptors = reference_frame_manager_.ToReferencePictureDescriptors();
@@ -252,8 +420,24 @@ D3D12VideoEncodeH264Delegate::EncodeImpl(
     input_arguments_.PictureControlDesc.ReferenceFrames.NumTexture2Ds =
         descriptors.size();
   }
-  pic_params_.PictureOrderCountNumber =
-      pic_params_.FrameDecodingOrderNumber * 2;
+  if (destroy_buffer.has_value()) {
+    mmco.push_back({.memory_management_control_operation = 2,
+                    .long_term_pic_num = destroy_buffer.value()});
+  }
+  if (update_buffer.has_value()) {
+    if (update_buffer.value() >=
+        reference_frame_manager_.GetMaxLongTermFrameIndexPlus1()) {
+      mmco.push_back({.memory_management_control_operation = 4,
+                      .max_long_term_frame_idx_plus1 =
+                          static_cast<UINT>(update_buffer.value()) + 1});
+    }
+    mmco.push_back({.memory_management_control_operation = 6,
+                    .long_term_frame_idx = update_buffer.value()});
+  }
+  mmco.push_back({.memory_management_control_operation = 0});
+  // The adaptive_ref_pic_marking_mode_flag has been set in the constructor.
+  pic_params_.pRefPicMarkingOperationsCommands = mmco.data();
+  pic_params_.RefPicMarkingOperationsCommandsCount = mmco.size();
 
   // Rate control.
   int qp = -1;
@@ -268,6 +452,8 @@ D3D12VideoEncodeH264Delegate::EncodeImpl(
           0, rate_controller_timestamp_);
     }
     qp = software_rate_controller_->temporal_layers(0).curr_frame_qp();
+  } else if (options.quantizer.has_value()) {
+    qp = options.quantizer.value();
   }
   if (qp != -1) {
     CHECK_EQ(input_arguments_.SequenceControlDesc.RateControl.Mode,
@@ -290,25 +476,28 @@ D3D12VideoEncodeH264Delegate::EncodeImpl(
   }
 
   // Input and output textures.
-  input_arguments_.PictureControlDesc.Flags =
-      D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_USED_AS_REFERENCE_PICTURE;
   input_arguments_.pInputFrame = input_frame;
   input_arguments_.InputFrameSubresource = input_frame_subresource;
-  D3D12PictureBuffer reconstructed_picture =
-      reference_frame_manager_.GetCurrentFrame();
-  EncoderStatus result = video_encoder_wrapper_->Encode(
-      input_arguments_,
-      {
-          .pReconstructedPicture = reconstructed_picture.resource_,
-          .ReconstructedPictureSubresource = reconstructed_picture.subresource_,
-      });
+  D3D12_VIDEO_ENCODER_RECONSTRUCTED_PICTURE output_arguments{};
+  if (update_buffer) {
+    input_arguments_.PictureControlDesc.Flags =
+        D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_USED_AS_REFERENCE_PICTURE;
+    D3D12PictureBuffer reconstructed_picture =
+        reference_frame_manager_.GetCurrentFrame();
+    output_arguments.pReconstructedPicture = reconstructed_picture.resource_;
+    output_arguments.ReconstructedPictureSubresource =
+        reconstructed_picture.subresource_;
+  } else {
+    input_arguments_.PictureControlDesc.Flags =
+        D3D12_VIDEO_ENCODER_PICTURE_CONTROL_FLAG_NONE;
+  }
+  EncoderStatus result =
+      video_encoder_wrapper_->Encode(input_arguments_, output_arguments);
   if (!result.is_ok()) {
     return result;
   }
 
-  reference_frame_manager_.EndFrame(pic_params_.FrameDecodingOrderNumber,
-                                    pic_params_.PictureOrderCountNumber,
-                                    pic_params_.TemporalLayerIndex);
+  reference_frame_manager_.ProcessMemoryManagementControlOperation(pic_params_);
 
   metadata_.key_frame = is_keyframe;
   metadata_.qp = qp;
@@ -320,7 +509,38 @@ EncoderStatus D3D12VideoEncodeH264Delegate::InitializeVideoEncoder(
   CHECK_EQ(VideoCodecProfileToVideoCodec(config.output_profile),
            VideoCodec::kH264);
 
-  if (config.bitrate.mode() == Bitrate::Mode::kConstant) {
+  D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT_H264
+  picture_control_support_h264{};
+  D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT
+  picture_control_support{
+      .Codec = D3D12_VIDEO_ENCODER_CODEC_H264,
+      .Profile = {.DataSize = sizeof(h264_profile_),
+                  .pH264Profile = &h264_profile_},
+      .PictureSupport = {.DataSize = sizeof(picture_control_support_h264),
+                         .pH264Support = &picture_control_support_h264},
+  };
+  EncoderStatus status = CheckD3D12VideoEncoderCodecPictureControlSupport(
+      video_device_.Get(), &picture_control_support);
+  if (!status.is_ok()) {
+    return status;
+  }
+
+  if (picture_control_support_h264.MaxLongTermReferences < 1) {
+    return {EncoderStatus::Codes::kEncoderUnsupportedConfig,
+            "D3D12VideoEncoder doesn't support long term reference for H264"};
+  }
+
+  max_num_ref_frames_ = 1;
+  if (picture_control_support_h264.MaxDPBCapacity < max_num_ref_frames_) {
+    return {
+        EncoderStatus::Codes::kEncoderUnsupportedConfig,
+        base::StringPrintf(
+            "D3D12VideoEncoder only support DPB capacity %u, got %u",
+            picture_control_support_h264.MaxDPBCapacity, max_num_ref_frames_)};
+  }
+
+  if (config.bitrate.mode() == Bitrate::Mode::kConstant ||
+      config.bitrate.mode() == Bitrate::Mode::kVariable) {
     constexpr uint32_t kDefaultQp = 26;
     rate_control_ = D3D12VideoEncoderRateControl::CreateCqp(
         kDefaultQp, kDefaultQp, kDefaultQp);
@@ -336,7 +556,10 @@ EncoderStatus D3D12VideoEncodeH264Delegate::InitializeVideoEncoder(
     layer_settings.avg_bitrate = config.bitrate.target_bps();
     // Bitrate::Mode::kConstant only has target_bps. Using the target_bps for
     // peak_bitrate.
-    layer_settings.peak_bitrate = config.bitrate.target_bps();
+    layer_settings.peak_bitrate =
+        config.bitrate.mode() == Bitrate::Mode::kConstant
+            ? config.bitrate.target_bps()
+            : config.bitrate.peak_bps();
     constexpr size_t kHRDBufferSize = 40000;
     layer_settings.hrd_buffer_size = kHRDBufferSize;
     layer_settings.min_qp = kH264MinQuantizer;
@@ -348,8 +571,7 @@ EncoderStatus D3D12VideoEncodeH264Delegate::InitializeVideoEncoder(
 
   D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC codec{
       .Codec = D3D12_VIDEO_ENCODER_CODEC_H264};
-  EncoderStatus status =
-      CheckD3D12VideoEncoderCodec(video_device_.Get(), &codec);
+  status = CheckD3D12VideoEncoderCodec(video_device_.Get(), &codec);
   if (!status.is_ok()) {
     return status;
   }
@@ -492,7 +714,8 @@ EncoderStatus D3D12VideoEncodeH264Delegate::InitializeVideoEncoder(
       {.DataSize = sizeof(codec_config_h264_),
        .pH264Config = &codec_config_h264_},
       input_size_);
-  if (!video_encoder_wrapper_->Initialize()) {
+  // We use full frame mode so the number of subregions is always 1.
+  if (!video_encoder_wrapper_->Initialize(/*max_subregions_number=*/1)) {
     return EncoderStatus::Codes::kEncoderInitializationError;
   }
 

@@ -8,8 +8,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "base/base64.h"
 #include "base/feature_list.h"
@@ -28,6 +31,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
+#include "components/history/core/browser/history_types.h"
 #include "components/history/core/browser/in_memory_database.h"
 #include "components/history/core/browser/keyword_search_term.h"
 #include "components/history/core/browser/keyword_search_term_util.h"
@@ -607,7 +611,7 @@ void SearchProvider::Run(bool query_is_private) {
   // Start a new request with the current input.
   time_suggest_request_sent_ = base::TimeTicks::Now();
 
-  if (!query_is_private) {
+  if (!query_is_private && !input_.InKeywordMode()) {
     default_loader_ =
         CreateSuggestLoader(providers_.GetDefaultProviderURL(), input_);
   }
@@ -996,7 +1000,8 @@ void SearchProvider::ConvertResultsToAutocompleteMatches() {
     // so it's not possible to open a verbatim search match. Do not provide one.
     if (keyword_url &&
         (keyword_url->type() != TemplateURL::OMNIBOX_API_EXTENSION) &&
-        (keyword_url->starter_pack_id() != TemplateURLStarterPackData::kTabs)) {
+        (keyword_url->starter_pack_id() !=
+         template_url_starter_pack_data::kTabs)) {
       bool keyword_relevance_from_server;
       const int keyword_verbatim_relevance =
           GetKeywordVerbatimRelevance(&keyword_relevance_from_server);
@@ -1176,11 +1181,12 @@ void SearchProvider::AddTransformedHistoryResultsToMap(
 }
 
 SearchSuggestionParser::SuggestResults
-SearchProvider::ScoreHistoryResultsHelper(const HistoryResults& results,
-                                          bool base_prevent_inline_autocomplete,
-                                          bool input_multiple_words,
-                                          const std::u16string& input_text,
-                                          bool is_keyword) {
+SearchProvider::ScoreHistoryResultsHelper(
+    const history::KeywordSearchTermVisitList& results,
+    bool base_prevent_inline_autocomplete,
+    bool input_multiple_words,
+    const std::u16string& input_text,
+    bool is_keyword) {
   SearchSuggestionParser::SuggestResults scored_results;
   // True if the user has asked this exact query previously.
   bool found_what_you_typed_match = false;
@@ -1279,7 +1285,7 @@ SearchProvider::ScoreHistoryResultsHelper(const HistoryResults& results,
 }
 
 void SearchProvider::ScoreHistoryResults(
-    const HistoryResults& results,
+    const history::KeywordSearchTermVisitList& results,
     bool is_keyword,
     SearchSuggestionParser::SuggestResults* scored_results) {
   DCHECK(scored_results);

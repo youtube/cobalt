@@ -10,15 +10,16 @@
 #ifndef TEST_SCENARIO_VIDEO_FRAME_MATCHER_H_
 #define TEST_SCENARIO_VIDEO_FRAME_MATCHER_H_
 
+#include <cmath>
 #include <deque>
+#include <functional>
 #include <map>
-#include <memory>
-#include <set>
-#include <string>
 #include <vector>
 
+#include "api/scoped_refptr.h"
 #include "api/units/timestamp.h"
 #include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video/video_source_interface.h"
 #include "rtc_base/ref_counted_object.h"

@@ -6,6 +6,7 @@
 
 #include "base/json/json_reader.h"
 #include "base/strings/utf_string_conversions.h"
+#include "components/omnibox/browser/actions/contextual_search_action.h"
 #include "components/omnibox/browser/actions/omnibox_action_in_suggest.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/omnibox_proto/rich_answer_template.pb.h"
@@ -58,7 +59,24 @@ AutocompleteMatch CreateContextualSearchMatch(std::u16string contents) {
   AutocompleteMatch match;
   match.type = AutocompleteMatchType::Type::SEARCH_SUGGEST;
   match.contents = contents;
+  match.relevance = 195;
+  match.contents_class = {{0, 1}};
+  match.keyword = u"contextual";
+  match.suggestion_group_id = omnibox::GroupId::GROUP_CONTEXTUAL_SEARCH;
   match.subtypes.insert(omnibox::SUBTYPE_CONTEXTUAL_SEARCH);
+  return match;
+}
+
+AutocompleteMatch CreateLensActionMatch(std::u16string contents) {
+  AutocompleteMatch match;
+  match.type = AutocompleteMatchType::Type::PEDAL;
+  match.contents = contents;
+  match.contents_class = {{0, 1}};
+  match.keyword = u"lens";
+  match.relevance = omnibox::kContextualActionZeroSuggestRelevance;
+  match.suggestion_group_id = omnibox::GroupId::GROUP_CONTEXTUAL_SEARCH_ACTION;
+  match.takeover_action =
+      base::MakeRefCounted<ContextualSearchOpenLensAction>();
   return match;
 }
 
@@ -94,15 +112,16 @@ AutocompleteMatch CreateFeaturedEnterpriseSearch(std::u16string keyword) {
 
 AutocompleteMatch CreateActionInSuggestMatch(
     std::u16string description,
-    std::vector<omnibox::ActionInfo::ActionType> action_types) {
+    std::vector<omnibox::SuggestTemplateInfo::TemplateAction::ActionType>
+        action_types) {
   AutocompleteMatch match;
   match.type = AutocompleteMatchType::Type::SEARCH_SUGGEST_ENTITY;
   match.description = description;
   for (auto action_type : action_types) {
-    omnibox::ActionInfo action_info;
-    action_info.set_action_type(action_type);
+    omnibox::SuggestTemplateInfo::TemplateAction template_action;
+    template_action.set_action_type(action_type);
     match.actions.push_back(base::MakeRefCounted<OmniboxActionInSuggest>(
-        std::move(action_info), std::nullopt));
+        std::move(template_action), std::nullopt));
   }
   return match;
 }

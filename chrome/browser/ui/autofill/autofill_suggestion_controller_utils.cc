@@ -8,7 +8,6 @@
 #include <variant>
 #include <vector>
 
-#include "base/functional/overloaded.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
@@ -24,6 +23,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 // UserEducationService is not implemented on Android.
@@ -43,7 +43,9 @@ bool IsAcceptableSuggestionType(SuggestionType id) {
 
 bool IsFooterSuggestionType(SuggestionType type) {
   switch (type) {
+    case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
+    case SuggestionType::kFreeformFooter:
     case SuggestionType::kManageAddress:
     case SuggestionType::kManageAutofillAi:
     case SuggestionType::kManageCreditCard:
@@ -77,13 +79,14 @@ bool IsFooterSuggestionType(SuggestionType type) {
     case SuggestionType::kFillExistingPlusAddress:
     case SuggestionType::kFillPassword:
     case SuggestionType::kGeneratePasswordEntry:
-    case SuggestionType::kHomeAndWorkAddressEntry:
     case SuggestionType::kIbanEntry:
     case SuggestionType::kInsecureContextPaymentDisabledMessage:
     case SuggestionType::kLoyaltyCardEntry:
     case SuggestionType::kMerchantPromoCodeEntry:
     case SuggestionType::kMixedFormMessage:
     case SuggestionType::kPasswordEntry:
+    case SuggestionType::kBackupPasswordEntry:
+    case SuggestionType::kTroubleSigningInEntry:
     case SuggestionType::kPasswordFieldByFieldFilling:
     case SuggestionType::kPlusAddressError:
     case SuggestionType::kSaveAndFillCreditCardEntry:
@@ -95,6 +98,7 @@ bool IsFooterSuggestionType(SuggestionType type) {
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kBnplEntry:
+    case SuggestionType::kOneTimePasswordEntry:
       return false;
   }
 }
@@ -121,7 +125,7 @@ bool IsStandaloneSuggestionType(SuggestionType type) {
 content::RenderFrameHost* GetRenderFrameHost(
     AutofillSuggestionDelegate& delegate) {
   return std::visit(
-      base::Overloaded{
+      absl::Overload{
           [](AutofillDriver* driver) {
             return static_cast<ContentAutofillDriver*>(driver)
                 ->render_frame_host();
@@ -228,12 +232,12 @@ std::vector<Suggestion> UpdateSuggestionsFromDataList(
   }
 
   // Prepend the parameters to the suggestions we already have.
-  suggestions.insert(suggestions.begin(), options.size(), Suggestion());
+  suggestions.insert(suggestions.begin(), options.size(),
+                     Suggestion(SuggestionType::kDatalistEntry));
   for (size_t i = 0; i < options.size(); i++) {
     suggestions[i].main_text =
         Suggestion::Text(options[i].value, Suggestion::Text::IsPrimary(true));
     suggestions[i].labels = {{Suggestion::Text(options[i].text)}};
-    suggestions[i].type = SuggestionType::kDatalistEntry;
   }
   return suggestions;
 }

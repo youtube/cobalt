@@ -82,7 +82,6 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   bool allow_file_access_from_file_urls = false;
   bool webgl1_enabled = true;
   bool webgl2_enabled = true;
-  bool pepper_3d_enabled = false;
   bool privileged_webgl_extensions_enabled = false;
   bool webgl_errors_to_console_enabled = true;
   bool hide_scrollbars = false;
@@ -136,8 +135,8 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   bool sync_xhr_in_documents_enabled = true;
   // TODO(https://crbug.com/1163644): Remove once Chrome Apps are deprecated.
   bool target_blank_implies_no_opener_enabled_will_be_removed = true;
-  // TODO(https://crbug.com/1172495): Remove once Chrome Apps are deprecated.
-  bool allow_non_empty_navigator_plugins = false;
+  // TODO(https://crbug.com/404106817): Remove once Chrome Apps are deprecated.
+  bool ignore_permission_for_device_changed_event = false;
   int number_of_cpu_cores = 1;
   blink::mojom::EditingBehavior editing_behavior =
 #if BUILDFLAG(IS_APPLE)
@@ -449,6 +448,13 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   // Whether PaymentRequest is enabled. Controlled by WebView settings on
   // WebView and by `kWebPayments` feature flag everywhere.
   bool payment_request_enabled = false;
+
+  // Whether API-specific interventions aimed at reducing the efficacy of
+  // fingerprinting are enabled.
+  bool api_based_fingerprinting_interventions_enabled = false;
+
+  // Whether fingerprinting protection based on page content is enabled.
+  bool content_based_fingerprinting_protection_enabled = false;
 
   // We try to keep the default values the same as the default values in
   // chrome, except for the cases where it would require lots of extra work for

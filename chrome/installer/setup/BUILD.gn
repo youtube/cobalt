@@ -38,7 +38,7 @@ if (is_win) {
       "//chrome/install_static:install_static_util",
       "//chrome/installer/util:with_rc_strings",
       "//chrome/windows_services/elevated_tracing_service:integration",
-      "//components/crash/core/app:app",
+      "//components/crash/core/app",
       "//components/crash/core/app:crash_export_thunks",
       "//components/crash/core/app:run_as_crashpad_handler",
       "//content/public/common:static_switches",
@@ -186,5 +186,9 @@ if (is_win) {
     if (is_chrome_branded) {
       sources += [ "channel_override_work_item_unittest.cc" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }

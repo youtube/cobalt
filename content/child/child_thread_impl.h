@@ -24,13 +24,9 @@
 #include "content/common/child_process.mojom.h"
 #include "content/public/child/child_thread.h"
 #include "ipc/ipc.mojom.h"
-#include "ipc/ipc_buildflags.h"  // For BUILDFLAG(IPC_MESSAGE_LOG_ENABLED).
+#include "ipc/ipc_listener.h"
 #include "ipc/ipc_platform_file.h"
-#include "ipc/message_router.h"
-#include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
-#include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/shared_remote.h"
@@ -45,12 +41,12 @@
 
 namespace IPC {
 class SyncChannel;
-class SyncMessageFilter;
 class UrgentMessageObserver;
 }  // namespace IPC
 
 namespace mojo {
 class OutgoingInvitation;
+class BinderMap;
 namespace core {
 class ScopedIPCSupport;
 }  // namespace core
@@ -89,11 +85,6 @@ class ChildThreadImpl : public IPC::Listener, virtual public ChildThread {
   // Returns true if the thread should be destroyed.
   virtual bool ShouldBeDestroyed();
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  // IPC::Sender implementation:
-  bool Send(IPC::Message* msg) override;
-#endif
-
   // ChildThread implementation:
 #if BUILDFLAG(IS_WIN)
   void PreCacheFont(const LOGFONT& log_font) override;
@@ -107,14 +98,6 @@ class ChildThreadImpl : public IPC::Listener, virtual public ChildThread {
                           const std::string& group_name) override;
 
   IPC::SyncChannel* channel() { return channel_.get(); }
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  IPC::MessageRouter* GetRouter();
-#endif
-
-  IPC::SyncMessageFilter* sync_message_filter() const {
-    return sync_message_filter_.get();
-  }
 
   scoped_refptr<base::SingleThreadTaskRunner> main_thread_runner() const {
     return main_thread_runner_;
@@ -156,12 +139,7 @@ class ChildThreadImpl : public IPC::Listener, virtual public ChildThread {
   // available to handle incoming interface requests from the browser.
   void ExposeInterfacesToBrowser(mojo::BinderMap binders);
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  virtual bool OnControlMessageReceived(const IPC::Message& msg);
-#endif
-
   // IPC::Listener implementation:
-  bool OnMessageReceived(const IPC::Message& msg) override;
   void OnAssociatedInterfaceRequest(
       const std::string& interface_name,
       mojo::ScopedInterfaceEndpointHandle handle) override;
@@ -179,21 +157,6 @@ class ChildThreadImpl : public IPC::Listener, virtual public ChildThread {
 
  private:
   class IOThreadState;
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  class ChildThreadMessageRouter : public IPC::MessageRouter {
-   public:
-    // |sender| must outlive this object.
-    explicit ChildThreadMessageRouter(IPC::Sender* sender);
-    bool Send(IPC::Message* msg) override;
-
-    // MessageRouter overrides.
-    bool RouteMessage(const IPC::Message& msg) override;
-
-   private:
-    const raw_ptr<IPC::Sender> sender_;
-  };
-#endif
 
   void Init(const Options& options);
 
@@ -214,15 +177,6 @@ class ChildThreadImpl : public IPC::Listener, virtual public ChildThread {
 #endif
 
   std::unique_ptr<IPC::SyncChannel> channel_;
-
-  // Allows threads other than the main thread to send sync messages.
-  scoped_refptr<IPC::SyncMessageFilter> sync_message_filter_;
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  // Implements message routing functionality to the consumers of
-  // ChildThreadImpl.
-  ChildThreadMessageRouter router_;
-#endif
 
   // The OnChannelError() callback was invoked - the channel is dead, don't
   // attempt to communicate.

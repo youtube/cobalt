@@ -25,6 +25,7 @@
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/current_thread.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -625,7 +626,8 @@ base::Value::Dict WebContentsToJson(const Browser& browser,
       web_contents.GetPrimaryMainFrame(),
       "'launchParamsTargetUrls' in window ? launchParamsTargetUrls : []");
   EXPECT_THAT(launchParamsResults, content::EvalJsResult::IsOk());
-  base::Value::List launchParamsTargetUrls = launchParamsResults.ExtractList();
+  const base::Value::List& launchParamsTargetUrls =
+      launchParamsResults.ExtractList();
   if (!launchParamsTargetUrls.empty()) {
     for (const base::Value& url : launchParamsTargetUrls) {
       dict.EnsureList("launchParams")
@@ -633,8 +635,8 @@ base::Value::Dict WebContentsToJson(const Browser& browser,
     }
   }
 
-  WebAppTabHelper* helper = WebAppTabHelper::FromWebContents(&web_contents);
-  if (helper->is_pinned_home_tab()) {
+  if (browser.app_controller() &&
+      browser.app_controller()->GetPinnedHomeTab() == &web_contents) {
     dict.Set("is_pinned_home_tab", true);
   }
 
@@ -1772,8 +1774,9 @@ class NavCaptureParameterizedBrowserTest
     }
 
 #if BUILDFLAG(IS_MAC)
-    //TODO(crbug.com/415092020): remove after Mac12 flakiness is fixed.
-    if (base::mac::MacOSMajorVersion() == 12) {
+    // TODO(crbug.com/432178469): Remove this and associated import after Mac13
+    // flakiness is fixed.
+    if (base::mac::MacOSMajorVersion() == 13) {
       return true;
     }
 #endif

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include "base/callback_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
@@ -10,6 +12,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
+#include "chrome/browser/performance_manager/test_support/page_discarding_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom-shared.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit.h"
@@ -68,6 +71,8 @@
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "url/gurl.h"
+
+using ::performance_manager::testing::ScopedSetAllPagesDiscardableForTesting;
 
 namespace {
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFirstTabContents);
@@ -178,7 +183,7 @@ IN_PROC_BROWSER_TEST_P(MemorySaverDiscardPolicyInteractiveTest,
   base::CallbackListSubscription subscription =
       RecentlyAudibleHelper::FromWebContents(
           browser()->tab_strip_model()->GetWebContentsAt(0))
-          ->RegisterCallbackForTesting(
+          ->RegisterRecentlyAudibleChangedCallback(
               base::BindRepeating(&MemorySaverDiscardPolicyInteractiveTest::
                                       OnRecentlyAudibleCallback,
                                   base::Unretained(this), kFirstTabContents));
@@ -299,7 +304,17 @@ class MemorySaverChipInteractiveTest
 
   void SetUpOnMainThread() override {
     MemorySaverInteractiveTestMixin::SetUpOnMainThread();
+
     SetMemorySaverModeEnabled(true);
+
+    // Discard tabs unconditionally in Chip tests.
+    unconditionally_discard_pages_ =
+        std::make_unique<ScopedSetAllPagesDiscardableForTesting>();
+  }
+
+  void TearDownOnMainThread() override {
+    unconditionally_discard_pages_.reset();
+    MemorySaverInteractiveTestMixin::TearDownOnMainThread();
   }
 
   views::BubbleDialogDelegate* GetMemorySaverBubble() {
@@ -319,11 +334,7 @@ class MemorySaverChipInteractiveTest
 
   auto WaitForPageActionButtonVisible() {
     MultiStep steps;
-    if (IsPageActionMigrationEnabled()) {
-      steps += WaitForPageActionButtonVisible(kActionShowMemorySaverChip);
-    } else {
-      steps += WaitForShow(kMemorySaverChipElementId);
-    }
+    steps += WaitForPageActionButtonVisible(kActionShowMemorySaverChip);
     return steps;
   }
 
@@ -412,6 +423,8 @@ class MemorySaverChipInteractiveTest
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+  std::unique_ptr<ScopedSetAllPagesDiscardableForTesting>
+      unconditionally_discard_pages_;
 };
 
 // Page Action Chip should appear expanded the first three times a tab is
@@ -447,13 +460,8 @@ IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest,
 // Page Action chip should stay collapsed when navigating between two
 // discarded tabs
 // TODO(crbug.com/391482960): Re-enable this test
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_ChipCollapseRemainCollapse DISABLED_ChipCollapseRemainCollapse
-#else
-#define MAYBE_ChipCollapseRemainCollapse ChipCollapseRemainCollapse
-#endif
 IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest,
-                       MAYBE_ChipCollapseRemainCollapse) {
+                       ChipCollapseRemainCollapse) {
   RunTestSequence(
       InstrumentTab(kFirstTabContents, 0),
       NavigateWebContents(kFirstTabContents, GetURL()),
@@ -464,6 +472,30 @@ IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest,
       CheckChipIsExpandedState(true), SelectTab(kTabStripElementId, 0),
       CheckChipIsExpandedState(false), SelectTab(kTabStripElementId, 1),
       CheckChipIsExpandedState(false));
+}
+
+// Page Action chip is hidden when omnibox popup is open and shows after the
+// popup is closed
+IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest,
+                       ChipShowsAfterOmniboxPopupIsClosed) {
+  RunTestSequence(InstrumentTab(kFirstTabContents, 0),
+                  NavigateWebContents(kFirstTabContents, GetURL()),
+                  AddInstrumentedTab(kSecondTabContents, GetURL()),
+                  EnsureNotPresent(kMemorySaverChipElementId),
+                  DiscardAndReloadTab(0, kFirstTabContents),
+                  SelectTab(kTabStripElementId, 1),
+                  EnsureNotPresent(kMemorySaverChipElementId),
+                  SelectTab(kTabStripElementId, 0),
+                  WaitForShow(kMemorySaverChipElementId),
+                  FocusElement(kOmniboxElementId),
+                  // Start typing into the omnibox.
+                  EnterText(kOmniboxElementId, u"query"),
+                  WaitForHide(kMemorySaverChipElementId),
+                  // Clear the input.
+                  SendKeyPress(kOmniboxElementId, ui::VKEY_ESCAPE),
+                  // Exit the editing mode.
+                  SendKeyPress(kOmniboxElementId, ui::VKEY_ESCAPE),
+                  WaitForShow(kMemorySaverChipElementId));
 }
 
 // Page Action chip should only show on discarded non-chrome pages
@@ -478,7 +510,6 @@ IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest,
   RunTestSequence(InstrumentTab(kFirstTabContents, 0),
                   NavigateWebContents(kFirstTabContents, GetURL()),
                   AddInstrumentedTab(kSecondTabContents,
-
                                      GURL(kDiscardableInternalPage)),
 
                   // Discards tab on non-chrome page
@@ -632,15 +663,8 @@ IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest,
 // Memory Saver Dialog bubble's cancel button's state should be preserved
 // for that tab even when navigating to another tab.
 // TODO(crbug.com/415992663): Re-enable this test
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_CancelButtonStatePreservedWhenSwitchingTabs \
-  DISABLED_CancelButtonStatePreservedWhenSwitchingTabs
-#else
-#define MAYBE_CancelButtonStatePreservedWhenSwitchingTabs \
-  CancelButtonStatePreservedWhenSwitchingTabs
-#endif
 IN_PROC_BROWSER_TEST_P(MemorySaverChipInteractiveTest,
-                       MAYBE_CancelButtonStatePreservedWhenSwitchingTabs) {
+                       CancelButtonStatePreservedWhenSwitchingTabs) {
   RunTestSequence(
       InstrumentTab(kFirstTabContents, 0),
       NavigateWebContents(kFirstTabContents, GetURL("a.test", "/title1.html")),
@@ -799,7 +823,7 @@ IN_PROC_BROWSER_TEST_P(MemorySaverImprovedFaviconTreatmentTest,
       discard_ring_treatment_setting = {
           "settings-ui",
           "settings-main",
-          "settings-basic-page",
+          "settings-performance-page-index",
           "settings-performance-page",
           "settings-toggle-button#discardRingTreatmentToggleButton",
           "cr-toggle#control"};

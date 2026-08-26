@@ -14,6 +14,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/numerics/clamped_math.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -105,17 +106,13 @@
 #include "media/video/vpx_video_encoder.h"
 #endif
 
-namespace WTF {
+namespace blink {
 
 template <>
 struct CrossThreadCopier<media::EncoderStatus>
     : public CrossThreadCopierPassThrough<media::EncoderStatus> {
   STATIC_ONLY(CrossThreadCopier);
 };
-
-}  // namespace WTF
-
-namespace blink {
 
 using EncoderType = media::VideoEncodeAccelerator::Config::EncoderType;
 
@@ -286,14 +283,14 @@ VideoEncoderTraits::ParsedConfig* ParseConfigStatic(
   }
   result->options.frame_size.SetSize(config->width(), config->height());
 
-  if (config->alpha() == "keep") {
+  if (config->alpha() == V8AlphaOption::Enum::kKeep) {
     result->not_supported_error_message =
         "Alpha encoding is not currently supported.";
     return result;
   }
 
   result->options.latency_mode =
-      (config->latencyMode() == "quality")
+      (config->latencyMode() == V8LatencyMode::Enum::kQuality)
           ? media::VideoEncoder::LatencyMode::Quality
           : media::VideoEncoder::LatencyMode::Realtime;
 
@@ -377,8 +374,7 @@ VideoEncoderTraits::ParsedConfig* ParseConfigStatic(
   // The IDL defines a default value of "no-preference".
   DCHECK(config->hasHardwareAcceleration());
 
-  result->hw_pref = StringToHardwarePreference(
-      IDLEnumAsString(config->hardwareAcceleration()));
+  result->hw_pref = IdlEnumToHardwarePreference(config->hardwareAcceleration());
 
   result->codec = media::VideoCodec::kUnknown;
   result->profile = media::VIDEO_CODEC_PROFILE_UNKNOWN;
@@ -408,28 +404,26 @@ VideoEncoderTraits::ParsedConfig* ParseConfigStatic(
   switch (result->codec) {
     case media::VideoCodec::kH264: {
       if (config->hasAvc()) {
-        std::string avc_format =
-            IDLEnumAsString(config->avc()->format()).Utf8();
-        if (avc_format == "avc") {
-          result->options.avc.produce_annexb = false;
-        } else if (avc_format == "annexb") {
-          result->options.avc.produce_annexb = true;
-        } else {
-          NOTREACHED();
+        switch (config->avc()->format().AsEnum()) {
+          case V8AvcBitstreamFormat::Enum::kAvc:
+            result->options.avc.produce_annexb = false;
+            break;
+          case V8AvcBitstreamFormat::Enum::kAnnexb:
+            result->options.avc.produce_annexb = true;
+            break;
         }
       }
       break;
     }
     case media::VideoCodec::kHEVC: {
       if (config->hasHevc()) {
-        std::string hevc_format =
-            IDLEnumAsString(config->hevc()->format()).Utf8();
-        if (hevc_format == "hevc") {
-          result->options.hevc.produce_annexb = false;
-        } else if (hevc_format == "annexb") {
-          result->options.hevc.produce_annexb = true;
-        } else {
-          NOTREACHED();
+        switch (config->hevc()->format().AsEnum()) {
+          case V8HevcBitstreamFormat::Enum::kHevc:
+            result->options.hevc.produce_annexb = false;
+            break;
+          case V8HevcBitstreamFormat::Enum::kAnnexb:
+            result->options.hevc.produce_annexb = true;
+            break;
         }
       }
       break;
@@ -615,8 +609,8 @@ String VideoEncoderTraits::ParsedConfig::ToString() {
       "options: {%s}, codec_string: %s, display_size: %s}",
       media::GetCodecName(codec).c_str(),
       media::GetProfileName(profile).c_str(), level,
-      HardwarePreferenceToString(hw_pref).Utf8().c_str(),
-      options.ToString().c_str(), codec_string.Utf8().c_str(),
+      HardwarePreferenceToIdlEnum(hw_pref).AsCStr(), options.ToString().c_str(),
+      codec_string.Utf8().c_str(),
       display_size ? display_size->ToString().c_str() : "");
 }
 
@@ -1384,14 +1378,13 @@ void VideoEncoder::ProcessReconfigure(Request* request) {
 
     self->active_config_ = req->config;
 
-    auto output_cb =
-        ConvertToBaseRepeatingCallback(WTF::CrossThreadBindRepeating(
-            &VideoEncoder::CallOutputCallback,
-            MakeUnwrappingCrossThreadWeakHandle(self),
-            // We can't use |active_config_| from |this| because it can change
-            // by the time the callback is executed.
-            MakeUnwrappingCrossThreadHandle(self->active_config_.Get()),
-            self->reset_count_));
+    auto output_cb = ConvertToBaseRepeatingCallback(CrossThreadBindRepeating(
+        &VideoEncoder::CallOutputCallback,
+        MakeUnwrappingCrossThreadWeakHandle(self),
+        // We can't use |active_config_| from |this| because it can change
+        // by the time the callback is executed.
+        MakeUnwrappingCrossThreadHandle(self->active_config_.Get()),
+        self->reset_count_));
 
     if (!self->encoder_metrics_provider_) {
       self->encoder_metrics_provider_ =

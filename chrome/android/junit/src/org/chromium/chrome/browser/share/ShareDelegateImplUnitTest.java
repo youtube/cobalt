@@ -47,6 +47,7 @@ import org.chromium.chrome.browser.enterprise.util.DataProtectionBridgeJni;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.pdf.PdfUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ChromeShareExtras.DetailedContentType;
 import org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin;
@@ -60,7 +61,7 @@ import org.chromium.chrome.browser.share.android_share_sheet.TabGroupSharingCont
 import org.chromium.chrome.browser.share.share_sheet.ShareSheetCoordinator;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.test.AutomotiveContextWrapperTestRule;
+import org.chromium.chrome.test.OverrideContextWrapperTestRule;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
 import org.chromium.components.browser_ui.share.ShareParams;
@@ -70,6 +71,7 @@ import org.chromium.components.favicon.LargeIconBridgeJni;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.lang.ref.WeakReference;
@@ -88,8 +90,8 @@ public class ShareDelegateImplUnitTest {
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Rule
-    public AutomotiveContextWrapperTestRule mAutomotiveContextWrapperTestRule =
-            new AutomotiveContextWrapperTestRule();
+    public OverrideContextWrapperTestRule mAutomotiveContextWrapperTestRule =
+            new OverrideContextWrapperTestRule();
 
     @Mock private Context mContext;
     @Mock private RenderFrameHost mRenderFrameHost;
@@ -242,7 +244,7 @@ public class ShareDelegateImplUnitTest {
     public void testShareText_allowedByPolicy() {
         doAnswer(sShareIsAllowedByPolicy)
                 .when(mDataProtectionBridgeMock)
-                .verifyCopyTextIsAllowedByPolicy(anyString(), any(), any());
+                .verifyShareTextIsAllowedByPolicy(anyString(), any(), any());
         String shareText = "shareText";
 
         ShareParams shareParams =
@@ -259,7 +261,7 @@ public class ShareDelegateImplUnitTest {
     public void testShareText_notAllowedByPolicy() {
         doAnswer(sShareIsNotAllowedByPolicy)
                 .when(mDataProtectionBridgeMock)
-                .verifyCopyTextIsAllowedByPolicy(anyString(), any(), any());
+                .verifyShareTextIsAllowedByPolicy(anyString(), any(), any());
         String shareText = "shareText";
 
         ShareParams shareParams =
@@ -275,7 +277,7 @@ public class ShareDelegateImplUnitTest {
     public void testShareText_emptyText_bypassesPolicyCheck() {
         doAnswer(sShareIsNotAllowedByPolicy)
                 .when(mDataProtectionBridgeMock)
-                .verifyCopyTextIsAllowedByPolicy(anyString(), any(), any());
+                .verifyShareTextIsAllowedByPolicy(anyString(), any(), any());
 
         ShareParams shareParams =
                 new ShareParams.Builder(mWindowAndroid, "", "").setText("").build();
@@ -290,7 +292,7 @@ public class ShareDelegateImplUnitTest {
     public void testShareLink_allowedByPolicy() {
         doAnswer(sShareIsAllowedByPolicy)
                 .when(mDataProtectionBridgeMock)
-                .verifyCopyUrlIsAllowedByPolicy(anyString(), any(), any());
+                .verifyShareUrlIsAllowedByPolicy(anyString(), any(), any());
         String shareUrl = "share_url.com";
 
         ShareParams shareParams =
@@ -309,7 +311,7 @@ public class ShareDelegateImplUnitTest {
     public void testShareLink_notAllowedByPolicy() {
         doAnswer(sShareIsNotAllowedByPolicy)
                 .when(mDataProtectionBridgeMock)
-                .verifyCopyUrlIsAllowedByPolicy(anyString(), any(), any());
+                .verifyShareUrlIsAllowedByPolicy(anyString(), any(), any());
         String shareUrl = "share_url.com";
 
         ShareParams shareParams =
@@ -327,7 +329,7 @@ public class ShareDelegateImplUnitTest {
     public void testShareLink_emptyUrl_bypassesPolicyCheck() {
         doAnswer(sShareIsNotAllowedByPolicy)
                 .when(mDataProtectionBridgeMock)
-                .verifyCopyUrlIsAllowedByPolicy(anyString(), any(), any());
+                .verifyShareUrlIsAllowedByPolicy(anyString(), any(), any());
 
         ShareParams shareParams = new ShareParams.Builder(mWindowAndroid, "", "").build();
         ChromeShareExtras chromeShareExtras =
@@ -341,11 +343,15 @@ public class ShareDelegateImplUnitTest {
     public void testShareImage_allowedByPolicy() {
         doAnswer(sShareIsAllowedByPolicy)
                 .when(mDataProtectionBridgeMock)
-                .verifyCopyImageIsAllowedByPolicy(anyString(), any(), any());
+                .verifyShareImageIsAllowedByPolicy(anyString(), any(), any());
         Uri imageUri = Mockito.mock(Uri.class);
+        doReturn("imageUriPath").when(imageUri).getPath();
 
         ShareParams shareParams =
-                new ShareParams.Builder(mWindowAndroid, "", "").setSingleImageUri(imageUri).build();
+                new ShareParams.Builder(mWindowAndroid, "", "")
+                        .setSingleImageUri(imageUri)
+                        .setFileContentType("image/png")
+                        .build();
         ChromeShareExtras chromeShareExtras =
                 new ChromeShareExtras.Builder().setRenderFrameHost(mRenderFrameHost).build();
 
@@ -358,7 +364,7 @@ public class ShareDelegateImplUnitTest {
     public void testShareImage_notAllowedByPolicy() {
         doAnswer(sShareIsNotAllowedByPolicy)
                 .when(mDataProtectionBridgeMock)
-                .verifyCopyImageIsAllowedByPolicy(anyString(), any(), any());
+                .verifyShareImageIsAllowedByPolicy(anyString(), any(), any());
         Uri imageUri = Mockito.mock(Uri.class);
         doReturn("imageUriPath").when(imageUri).getPath();
 
@@ -647,6 +653,44 @@ public class ShareDelegateImplUnitTest {
                 "Expected ShareContentType.UNKNOWN.",
                 ShareContentType.UNKNOWN,
                 ShareDelegateImpl.getShareContentType(params, extras));
+    }
+
+    @Test
+    public void testSharePDf() {
+        final String pdfTitle = "menu.pdf";
+        final String contentUri = "content://media/external/downloads/1000000022";
+        final String pdfUrl = PdfUtils.encodePdfPageUrl(contentUri);
+        doReturn(true).when(mTab).isNativePage();
+        doReturn(new GURL(pdfUrl)).when(mTab).getUrl();
+        doReturn(pdfTitle).when(mTab).getTitle();
+
+        createShareDelegate(false, mShareSheetController);
+        mShareDelegate.share(mTab, false, ShareOrigin.OVERFLOW_MENU);
+        verify(mShareSheetController)
+                .share(
+                        mShareParamsCaptor.capture(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        anyInt(),
+                        anyLong(),
+                        anyBoolean());
+
+        ShareParams params = mShareParamsCaptor.getValue();
+        Assert.assertEquals(
+                "Incorrect file URI size on ShareParams.", 1, params.getFileUris().size());
+        Assert.assertEquals(
+                "PDF file content URI should be set on ShareParams.",
+                contentUri,
+                params.getFileUris().get(0).toString());
+        Assert.assertEquals(
+                "Page title should be set on ShareParams.", pdfTitle, params.getTitle());
+        Assert.assertEquals("URL should be empty on ShareParams.", "", params.getUrl());
     }
 
     @Implements(ShareHelper.class)

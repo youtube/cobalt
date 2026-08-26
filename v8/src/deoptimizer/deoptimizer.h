@@ -126,6 +126,7 @@ class Deoptimizer : public Malloced {
   ~Deoptimizer();
 
   void MaterializeHeapObjects();
+  void ProcessDeoptReason(DeoptimizeReason reason);
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
@@ -178,6 +179,13 @@ class Deoptimizer : public Malloced {
   // Patch the generated code to jump to a safepoint entry. This is used only
   // when Shadow Stack is enabled.
   static void PatchToJump(Address pc, Address new_pc);
+
+  // Overwrites the code range from start to end with trapping instructions. The
+  // RelocIterator is needed to avoid overwriting GC-relevant reloc info. If the
+  // GC-relevant code segments get overwritten with zap values, the GC would
+  // interpret the zap value as references and behave incorrectly. Note that the
+  // GC may access the code object concurrently to code zapping.
+  static void ZapCode(Address start, Address end, RelocIterator& it);
 
  private:
   void QueueValueForMaterialization(Address output_address, Tagged<Object> obj,

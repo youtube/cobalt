@@ -8,6 +8,7 @@
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "net/base/apple/url_conversions.h"
+#import "testing/gmock/include/gmock/gmock.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
@@ -18,7 +19,11 @@ class TestReaderModeContentDelegate : public ReaderModeContentDelegate {
  public:
   ~TestReaderModeContentDelegate() override = default;
 
-  // ReaderModeContentDelegate implementation:
+  MOCK_METHOD(void,
+              ReaderModeContentDidLoadData,
+              (ReaderModeContentTabHelper * tab_helper),
+              (override));
+
   void ReaderModeContentDidCancelRequest(
       ReaderModeContentTabHelper* reader_mode_content_tab_helper,
       NSURLRequest* request,
@@ -100,7 +105,8 @@ TEST_F(ReaderModeContentTabHelperTest, AllowsContentURLRequestOnce) {
   std::string content = "<div>Hello world</div>";
   NSData* data = [NSData dataWithBytes:content.data() length:content.length()];
   web::WebStatePolicyDecider::RequestInfo request_info(
-      ui::PAGE_TRANSITION_FIRST, false, false, false, false, false);
+      ui::PAGE_TRANSITION_FIRST, /*target_frame_is_main=*/true, false, false,
+      false, false);
   std::optional<web::WebStatePolicyDecider::PolicyDecision> policy_decision;
 
   // Any requests performed before content is loaded should be canceled.
@@ -118,7 +124,9 @@ TEST_F(ReaderModeContentTabHelperTest, AllowsContentURLRequestOnce) {
   delegate_->Reset();
 
   // Load the content.
+  EXPECT_CALL(*delegate_, ReaderModeContentDidLoadData(tab_helper()));
   tab_helper()->LoadContent(net::GURLWithNSURL(content_url), data);
+  testing::Mock::VerifyAndClearExpectations(&delegate_);
 
   // Request for content URL is allowed only once after `LoadContent` is called.
   policy_decision =
@@ -140,4 +148,22 @@ TEST_F(ReaderModeContentTabHelperTest, AllowsContentURLRequestOnce) {
   EXPECT_TRUE(policy_decision && policy_decision->ShouldCancelNavigation());
   EXPECT_TRUE(delegate_->did_cancel_request_called());
   EXPECT_NSEQ(non_content_request, delegate_->last_canceled_request());
+}
+
+// Tests that non-main frame URL requests are always allowed. This is a
+// regression test for crbug.com/426443192.
+TEST_F(ReaderModeContentTabHelperTest, AllowsContentURLRequestForNonMainFrame) {
+  NSURL* non_content_url = [NSURL URLWithString:@"https://test2.url/"];
+  NSURLRequest* non_content_request =
+      [NSURLRequest requestWithURL:non_content_url];
+  web::WebStatePolicyDecider::RequestInfo non_main_frame_request_info(
+      ui::PAGE_TRANSITION_FIRST, /*target_frame_is_main=*/false, false, false,
+      false, false);
+
+  // Non-main frame URLs should always be allowed.
+  std::optional<web::WebStatePolicyDecider::PolicyDecision> policy_decision =
+      GetContentRequestPolicyDecision(non_content_request,
+                                      non_main_frame_request_info);
+  EXPECT_TRUE(policy_decision);
+  EXPECT_TRUE(policy_decision->ShouldAllowNavigation());
 }

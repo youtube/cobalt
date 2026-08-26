@@ -34,7 +34,7 @@
                                             sdpMLineIndex:0
                                                    sdpMid:@"audio"];
 
-  std::unique_ptr<webrtc::IceCandidateInterface> nativeCandidate =
+  std::unique_ptr<webrtc::IceCandidate> nativeCandidate =
       candidate.nativeCandidate;
   EXPECT_EQ("audio", nativeCandidate->sdp_mid());
   EXPECT_EQ(0, nativeCandidate->sdp_mline_index());
@@ -48,7 +48,7 @@
   std::string sdp("candidate:4025901590 1 udp 2122265343 "
                   "fdff:2642:12a6:fe38:c001:beda:fcf9:51aa "
                   "59052 typ host generation 0");
-  std::unique_ptr<webrtc::IceCandidateInterface> nativeCandidate(
+  std::unique_ptr<webrtc::IceCandidate> nativeCandidate(
       webrtc::CreateIceCandidate("audio", 0, sdp, nullptr));
 
   RTC_OBJC_TYPE(RTCIceCandidate) *iceCandidate =

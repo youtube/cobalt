@@ -4,6 +4,7 @@
 
 #include "chrome/browser/signin/dice_response_handler.h"
 
+#include <optional>
 #include <string_view>
 
 #include "base/feature_list.h"
@@ -19,6 +20,9 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/signin/binding_key_registration_token_helper.h"
+#include "components/embedder_support/user_agent_utils.h"
 #include "components/signin/core/browser/about_signin_internals.h"
 #include "components/signin/core/browser/signin_header_helper.h"
 #include "components/signin/public/base/consent_level.h"
@@ -30,23 +34,14 @@
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_utils.h"
+#include "components/unexportable_keys/unexportable_key_id.h"
+#include "components/unexportable_keys/unexportable_key_service.h"
 #include "google_apis/gaia/gaia_auth_fetcher.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "google_apis/gaia/gaia_id.h"
-#include "google_apis/gaia/google_service_auth_error.h"
-
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-#include <optional>
-
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/signin/bound_session_credentials/registration_token_helper.h"  // nogncheck
-#include "components/embedder_support/user_agent_utils.h"
-#include "components/signin/public/base/signin_switches.h"
-#include "components/unexportable_keys/unexportable_key_id.h"       // nogncheck
-#include "components/unexportable_keys/unexportable_key_service.h"  // nogncheck
 #include "google_apis/gaia/gaia_urls.h"
+#include "google_apis/gaia/google_service_auth_error.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
 const int kDiceTokenFetchTimeoutSeconds = 10;
 // Timeout for locking the account reconcilor when
@@ -90,12 +85,12 @@ enum DiceTokenFetchResult {
   kDiceTokenFetchResultCount
 };
 
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 // If any of existing accounts is already bound, returns its binding key.
 // Otherwise, returns an empty key indicating that a new key needs to be
 // generated.
 std::vector<uint8_t> GetWrappedBindingKeyToReuse(
     const signin::IdentityManager& identity_manager) {
+  CHECK(identity_manager.AreRefreshTokensLoaded());
   std::vector<CoreAccountInfo> accounts =
       identity_manager.GetAccountsWithRefreshTokens();
   for (const auto& account : accounts) {
@@ -111,7 +106,6 @@ std::vector<uint8_t> GetWrappedBindingKeyToReuse(
 
   return {};
 }
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
 void RecordDiceResponseHeader(DiceResponseHeader header) {
   base::UmaHistogramEnumeration(kDiceResponseHeaderHistogram, header,
@@ -136,10 +130,8 @@ DiceResponseHandler::DiceTokenFetcher::DiceTokenFetcher(
     SigninClient* signin_client,
     AccountReconcilor* account_reconcilor,
     std::unique_ptr<ProcessDiceHeaderDelegate> delegate,
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-    base::expected<raw_ref<RegistrationTokenHelper>, TokenBindingOutcome>
+    base::expected<raw_ref<BindingKeyRegistrationTokenHelper>, TokenBindingOutcome>
         registration_token_helper_or_error,
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
     DiceResponseHandler* dice_response_handler)
     : gaia_id_(gaia_id),
       email_(email),
@@ -154,7 +146,6 @@ DiceResponseHandler::DiceTokenFetcher::DiceTokenFetcher(
   DCHECK(dice_response_handler_);
   account_reconcilor_lock_ =
       std::make_unique<AccountReconcilor::Lock>(account_reconcilor);
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   if (registration_token_helper_or_error.has_value()) {
     StartBindingKeyGeneration(registration_token_helper_or_error->get());
     // Wait until the binding key is generated before fetching a token.
@@ -162,7 +153,6 @@ DiceResponseHandler::DiceTokenFetcher::DiceTokenFetcher(
   } else {
     token_binding_outcome_ = registration_token_helper_or_error.error();
   }
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   StartTokenFetch();
 }
 
@@ -182,7 +172,6 @@ void DiceResponseHandler::DiceTokenFetcher::OnClientOAuthSuccess(
   RecordDiceFetchTokenResult(kFetchSuccess);
   gaia_auth_fetcher_.reset();
   timeout_closure_.Cancel();
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   if (!wrapped_binding_key_.empty()) {
     CHECK(switches::IsChromeRefreshTokenBindingEnabled(
         signin_client_->GetPrefs()));
@@ -195,14 +184,9 @@ void DiceResponseHandler::DiceTokenFetcher::OnClientOAuthSuccess(
   }
   base::UmaHistogramEnumeration(kDiceTokenBindingOutcomeHistogram,
                                 token_binding_outcome_);
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   dice_response_handler_->OnTokenExchangeSuccess(
-      this, result.refresh_token, result.is_under_advanced_protection
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-      ,
-      wrapped_binding_key_
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-  );
+      this, result.refresh_token, result.is_under_advanced_protection,
+      wrapped_binding_key_);
   // |this| may be deleted at this point.
 }
 
@@ -219,7 +203,6 @@ void DiceResponseHandler::DiceTokenFetcher::StartTokenFetch() {
   VLOG(1) << "Start fetching token for account: " << email_;
   gaia_auth_fetcher_ =
       signin_client_->CreateGaiaAuthFetcher(this, gaia::GaiaSource::kChrome);
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   // `binding_registration_token_` is empty if the binding key was not
   // generated.
   gaia_auth_fetcher_->StartAuthCodeForOAuth2TokenExchange(
@@ -227,17 +210,13 @@ void DiceResponseHandler::DiceTokenFetcher::StartTokenFetch() {
       embedder_support::GetUserAgentMetadata(g_browser_process->local_state())
           .SerializeBrandFullVersionList(),
       binding_registration_token_);
-#else
-  gaia_auth_fetcher_->StartAuthCodeForOAuth2TokenExchange(authorization_code_);
-#endif
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, timeout_closure_.callback(),
       base::Seconds(kDiceTokenFetchTimeoutSeconds));
 }
 
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 void DiceResponseHandler::DiceTokenFetcher::StartBindingKeyGeneration(
-    RegistrationTokenHelper& registration_token_helper) {
+    BindingKeyRegistrationTokenHelper& registration_token_helper) {
   CHECK(
       switches::IsChromeRefreshTokenBindingEnabled(signin_client_->GetPrefs()));
   // `base::Unretained()` is safe because `DiceResponseHandler` guarantees that
@@ -250,7 +229,7 @@ void DiceResponseHandler::DiceTokenFetcher::StartBindingKeyGeneration(
 }
 
 void DiceResponseHandler::DiceTokenFetcher::OnRegistrationTokenGenerated(
-    std::optional<RegistrationTokenHelper::Result> result) {
+    std::optional<BindingKeyRegistrationTokenHelper::Result> result) {
   CHECK(
       switches::IsChromeRefreshTokenBindingEnabled(signin_client_->GetPrefs()));
   if (result.has_value()) {
@@ -262,7 +241,6 @@ void DiceResponseHandler::DiceTokenFetcher::OnRegistrationTokenGenerated(
   }
   StartTokenFetch();
 }
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
 ////////////////////////////////////////////////////////////////////////////////
 // DiceResponseHandler
@@ -332,14 +310,12 @@ void DiceResponseHandler::SetTaskRunner(
   task_runner_ = std::move(task_runner);
 }
 
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 void DiceResponseHandler::SetRegistrationTokenHelperFactoryForTesting(
     RegistrationTokenHelperFactory factory) {
   CHECK(
       switches::IsChromeRefreshTokenBindingEnabled(signin_client_->GetPrefs()));
   registration_token_helper_factory_ = std::move(factory);
 }
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
 void DiceResponseHandler::ProcessDiceSigninHeader(
     const GaiaId& gaia_id,
@@ -391,20 +367,14 @@ void DiceResponseHandler::ProcessDiceSigninHeader(
   // access token requests (instead of waiting for these to complete).
   identity_manager_->PrepareForAddingNewAccount();
 
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-  base::expected<raw_ref<RegistrationTokenHelper>, TokenBindingOutcome>
+  base::expected<raw_ref<BindingKeyRegistrationTokenHelper>, TokenBindingOutcome>
       registration_token_helper_or_error =
           MaybeGetBindingRegistrationTokenHelper(
               supported_algorithms_for_token_binding);
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
   token_fetchers_.push_back(std::make_unique<DiceTokenFetcher>(
       gaia_id, email, authorization_code, signin_client_, account_reconcilor_,
-      std::move(delegate),
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-      registration_token_helper_or_error,
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-      this));
+      std::move(delegate), registration_token_helper_or_error, this));
 }
 
 void DiceResponseHandler::ProcessEnableSyncHeader(
@@ -479,11 +449,9 @@ void DiceResponseHandler::ProcessDiceSignoutHeader(
     }
   }
 
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   if (token_fetchers_.empty()) {
     registration_token_helper_.reset();
   }
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
   if (!primary_account_signed_out) {
     RecordDiceResponseHeader(kSignoutSecondary);
@@ -497,22 +465,16 @@ void DiceResponseHandler::DeleteTokenFetcher(DiceTokenFetcher* token_fetcher) {
       });
   CHECK_EQ(delete_count, 1U);
 
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
   if (token_fetchers_.empty()) {
     registration_token_helper_.reset();
   }
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 }
 
 void DiceResponseHandler::OnTokenExchangeSuccess(
     DiceTokenFetcher* token_fetcher,
     const std::string& refresh_token,
-    bool is_under_advanced_protection
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-    ,
-    const std::vector<uint8_t>& wrapped_binding_key
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-) {
+    bool is_under_advanced_protection,
+    const std::vector<uint8_t>& wrapped_binding_key) {
   const std::string& email = token_fetcher->email();
   const GaiaId& gaia_id = token_fetcher->gaia_id();
 
@@ -529,12 +491,8 @@ void DiceResponseHandler::OnTokenExchangeSuccess(
       gaia_id, email, refresh_token, is_under_advanced_protection,
       token_fetcher->delegate()->GetAccessPoint(),
       signin_metrics::SourceForRefreshTokenOperation::
-          kDiceResponseHandler_Signin
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-      ,
-      wrapped_binding_key
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-  );
+          kDiceResponseHandler_Signin,
+      wrapped_binding_key);
   about_signin_internals_->OnRefreshTokenReceived(
       base::StringPrintf("Successful (%s)", account_id.ToString().c_str()));
   token_fetcher->delegate()->HandleTokenExchangeSuccess(account_id,
@@ -561,8 +519,7 @@ void DiceResponseHandler::OnTokenExchangeFailure(
   DeleteTokenFetcher(token_fetcher);
 }
 
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-base::expected<raw_ref<RegistrationTokenHelper>,
+base::expected<raw_ref<BindingKeyRegistrationTokenHelper>,
                DiceResponseHandler::TokenBindingOutcome>
 DiceResponseHandler::MaybeGetBindingRegistrationTokenHelper(
     std::string_view supported_algorithms) {
@@ -576,6 +533,16 @@ DiceResponseHandler::MaybeGetBindingRegistrationTokenHelper(
 
   CHECK(
       switches::IsChromeRefreshTokenBindingEnabled(signin_client_->GetPrefs()));
+
+  if (!identity_manager_->AreRefreshTokensLoaded()) {
+    // We cannot determine the right binding key to reuse if tokens haven't been
+    // loaded yet. This is a very unlikely event, so prefer to not bind at all
+    // instead of binding to an incorrect key.
+    // TODO(crbug.com/428138073): properly wait for the tokens to be loaded if
+    // the number of affected users is high.
+    return base::unexpected(
+        TokenBindingOutcome::kNotBoundRefreshTokensNotLoaded);
+  }
 
   // If `registration_token_helper_` doesn't exist, create it.
   if (!registration_token_helper_) {
@@ -596,6 +563,5 @@ DiceResponseHandler::MaybeGetBindingRegistrationTokenHelper(
   // list may mismatch `supported_algorithms`. We ignore this because it's more
   // important to reuse the same key.
   CHECK(registration_token_helper_);
-  return raw_ref<RegistrationTokenHelper>(*registration_token_helper_);
+  return raw_ref<BindingKeyRegistrationTokenHelper>(*registration_token_helper_);
 }
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)

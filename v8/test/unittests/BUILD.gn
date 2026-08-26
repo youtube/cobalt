@@ -261,6 +261,7 @@ v8_source_set("v8_unittests_sources") {
     "api/smi-tagging-unittest.cc",
     "api/v8-array-unittest.cc",
     "api/v8-maybe-unittest.cc",
+    "api/v8-memory-span-unittest.cc",
     "api/v8-object-unittest.cc",
     "api/v8-script-unittest.cc",
     "api/v8-value-unittest.cc",
@@ -461,7 +462,6 @@ v8_source_set("v8_unittests_sources") {
     "strings/unicode-unittest.cc",
     "tasks/background-compile-task-unittest.cc",
     "tasks/cancelable-tasks-unittest.cc",
-    "temporal/temporal-parser-unittest.cc",
     "test-helpers.cc",
     "test-helpers.h",
     "test-utils.cc",
@@ -511,7 +511,6 @@ v8_source_set("v8_unittests_sources") {
       "compiler/compiler-unittest.cc",
       "compiler/constant-folding-reducer-unittest.cc",
       "compiler/control-equivalence-unittest.cc",
-      "compiler/csa-load-elimination-unittest.cc",
       "compiler/dead-code-elimination-unittest.cc",
       "compiler/diamond-unittest.cc",
       "compiler/frame-unittest.cc",
@@ -529,6 +528,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/js-operator-unittest.cc",
       "compiler/js-typed-lowering-unittest.cc",
       "compiler/linkage-tail-call-unittest.cc",
+      "compiler/linkage-unittest.cc",
       "compiler/load-elimination-unittest.cc",
       "compiler/loop-peeling-unittest.cc",
       "compiler/machine-operator-reducer-unittest.cc",
@@ -552,7 +552,10 @@ v8_source_set("v8_unittests_sources") {
       "compiler/run-jsexceptions-unittest.cc",
       "compiler/run-jsobjects-unittest.cc",
       "compiler/run-jsops-unittest.cc",
+      "compiler/run-stackcheck-unittest.cc",
       "compiler/run-tail-calls-unittest.cc",
+      "compiler/run-unwinding-info-unittest.cc",
+      "compiler/run-variables-unittest.cc",
       "compiler/schedule-unittest.cc",
       "compiler/scheduler-rpo-unittest.cc",
       "compiler/scheduler-unittest.cc",
@@ -563,6 +566,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/state-values-utils-unittest.cc",
       "compiler/turboshaft/control-flow-unittest.cc",
       "compiler/turboshaft/late-load-elimination-reducer-unittest.cc",
+      "compiler/turboshaft/load-store-address-hoisting-unittest.cc",
       "compiler/turboshaft/loop-unrolling-analyzer-unittest.cc",
       "compiler/turboshaft/opmask-unittest.cc",
       "compiler/turboshaft/reducer-test.h",
@@ -815,7 +819,14 @@ v8_source_set("v8_unittests_sources") {
     ]
 
     if (v8_enable_webassembly) {
-      sources += [ "wasm/type-canonicalization-fuzztest.cc" ]
+      deps += [ "../../:wasm_fuzzer_common" ]
+      sources += [
+        "wasm/cross-compiler-determinism-fuzztest.cc",
+        "wasm/type-canonicalization-fuzztest.cc",
+      ]
+      if (v8_wasm_random_fuzzers) {
+        sources += [ "wasm/module-generation-fuzztest.cc" ]
+      }
     }
 
     if (!is_win) {

@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "ui/accessibility/ax_action_data.h"
@@ -396,12 +397,6 @@ void TestAXNodeWrapper::ReplaceIntAttribute(int32_t node_id,
     return;
 
   AXNodeData new_data = node->data();
-  std::vector<std::pair<ax::mojom::IntAttribute, int32_t>>& attributes =
-      new_data.int_attributes;
-
-  std::erase_if(attributes,
-                [attribute](auto& pair) { return pair.first == attribute; });
-
   new_data.AddIntAttribute(attribute, value);
   node->SetData(new_data);
 }
@@ -410,12 +405,6 @@ void TestAXNodeWrapper::ReplaceFloatAttribute(
     ax::mojom::FloatAttribute attribute,
     float value) {
   AXNodeData new_data = GetData();
-  std::vector<std::pair<ax::mojom::FloatAttribute, float>>& attributes =
-      new_data.float_attributes;
-
-  std::erase_if(attributes,
-                [attribute](auto& pair) { return pair.first == attribute; });
-
   new_data.AddFloatAttribute(attribute, value);
   node_->SetData(new_data);
 }
@@ -423,12 +412,6 @@ void TestAXNodeWrapper::ReplaceFloatAttribute(
 void TestAXNodeWrapper::ReplaceBoolAttribute(ax::mojom::BoolAttribute attribute,
                                              bool value) {
   AXNodeData new_data = GetData();
-  std::vector<std::pair<ax::mojom::BoolAttribute, bool>>& attributes =
-      new_data.bool_attributes;
-
-  std::erase_if(attributes,
-                [attribute](auto& pair) { return pair.first == attribute; });
-
   new_data.AddBoolAttribute(attribute, value);
   node_->SetData(new_data);
 }
@@ -437,12 +420,6 @@ void TestAXNodeWrapper::ReplaceStringAttribute(
     ax::mojom::StringAttribute attribute,
     std::string value) {
   AXNodeData new_data = GetData();
-  std::vector<std::pair<ax::mojom::StringAttribute, std::string>>& attributes =
-      new_data.string_attributes;
-
-  std::erase_if(attributes,
-                [attribute](auto& pair) { return pair.first == attribute; });
-
   new_data.AddStringAttribute(attribute, value);
   node_->SetData(new_data);
 }

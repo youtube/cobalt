@@ -24,8 +24,7 @@
 #include <openssl/ex_data.h>
 #include <openssl/mem.h>
 #include <openssl/rand.h>
-#include <openssl/sha.h>
-#include <openssl/thread.h>
+#include <openssl/sha2.h>
 
 #include "../fipsmodule/bn/internal.h"
 #include "../fipsmodule/dh/internal.h"
@@ -67,7 +66,7 @@ void DSA_free(DSA *dsa) {
     return;
   }
 
-  CRYPTO_free_ex_data(&g_ex_data_class, dsa, &dsa->ex_data);
+  CRYPTO_free_ex_data(&g_ex_data_class, &dsa->ex_data);
 
   BN_clear_free(dsa->p);
   BN_clear_free(dsa->q);

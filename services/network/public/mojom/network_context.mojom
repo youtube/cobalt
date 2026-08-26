@@ -216,6 +216,12 @@ struct NetworkContextFilePaths {
   // If null and the cache is enabled, an in-memory database is used.
   TransferableDirectory? http_cache_directory;
 
+  // Points to the directory used for persisting the No-Vary-Search cache for
+  // the HTTP cache. Ignored if the cache is disabled or `http_cache_directory`
+  // is null. If left null, will be set to a subdirectory of
+  // `http_cache_directory` automatically by the network service.
+  TransferableDirectory? no_vary_search_directory;
+
   // Points to a path that contains all the network service files and databases
   // as listed below. If this network context is running inside a sandboxed
   // network service, then this path should contain no other sensitive data
@@ -1465,6 +1471,7 @@ interface NetworkContext {
       url.mojom.Origin origin,
       NetworkAnonymizationKey network_anonymization_key,
       array<WebTransportCertificateFingerprint> fingerprints,
+      array<string> application_protocols,
       pending_remote<WebTransportHandshakeClient> handshake_client);
 
   // Create a NetLogExporter, which helps export NetLog to an existing file.
@@ -1561,6 +1568,14 @@ interface NetworkContext {
                               string ocsp_response,
                               string sct_list)
       => (int32 error_code, CertVerifyResult cv_result, bool pkp_bypassed);
+
+  // Performs 2-QWAC verification. Returns the verified 2-QWAC certificate
+  // chain if `binding` is a valid 2-QWAC binding for `hostname` which binds
+  // `tls_certificate`.
+  Verify2QwacCertBinding(string binding,
+                         string hostname,
+                         X509Certificate tls_certificate)
+      => (X509Certificate verified_cert);
 
   // Adds explicitly-specified data as if it was processed from an
   // HSTS header. Used by tests and implementation of chrome://net-internals.
@@ -1662,6 +1677,9 @@ interface NetworkContext {
                               string hostname,
                               string ocsp_response,
                               string sct_list) => (int32 error_code);
+
+  [Sync]
+  GetTrustAnchorIDsForTesting() => (array<array<uint8>> trust_anchor_ids);
 
   // Adds a Domain Reliability Context.
   [Sync]

@@ -18,6 +18,7 @@
 #include "p2p/base/connection.h"
 #include "p2p/base/ice_controller_interface.h"
 #include "p2p/base/ice_transport_internal.h"
+#include "p2p/base/p2p_transport_channel_ice_field_trials.h"
 #include "p2p/base/transport_description.h"
 
 namespace webrtc {
@@ -26,7 +27,7 @@ namespace webrtc {
 struct IceControllerFactoryArgs {
   std::function<IceTransportStateInternal()> ice_transport_state_func;
   std::function<IceRole()> ice_role_func;
-  std::function<bool(const webrtc::Connection*)> is_connection_pruned_func;
+  std::function<bool(const Connection*)> is_connection_pruned_func;
   const IceFieldTrials* ice_field_trials;
   std::string ice_controller_field_trials;
 };
@@ -40,13 +41,5 @@ class IceControllerFactoryInterface {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::IceControllerFactoryArgs;
-using ::webrtc::IceControllerFactoryInterface;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_ICE_CONTROLLER_FACTORY_INTERFACE_H_

@@ -25,6 +25,7 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/pass_key.h"
 #include "dns_reloader.h"
 #include "net/base/address_family.h"
@@ -36,7 +37,6 @@
 #include "net/base/network_interfaces.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/base/trace_constants.h"
-#include "net/base/tracing.h"
 #include "net/dns/address_info.h"
 #include "net/dns/dns_names_util.h"
 #include "net/dns/host_resolver_cache.h"
@@ -45,10 +45,6 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "net/base/winsock_init.h"
-#endif
-
-#if BUILDFLAG(IS_COBALT)
-#include "cobalt/browser/features.h"
 #endif
 
 namespace net {
@@ -497,12 +493,6 @@ int SystemHostResolverCall(const std::string& host,
                            AddressList* addrlist,
                            int* os_error_opt,
                            handles::NetworkHandle network) {
-#if BUILDFLAG(IS_COBALT)
-  if (base::FeatureList::IsEnabled(cobalt::features::kUseIPv4ForDNS)) {
-    address_family = ADDRESS_FAMILY_IPV4;
-  }
-#endif
-
   struct addrinfo hints = {0};
   hints.ai_family = AddressFamilyToAF(address_family);
 

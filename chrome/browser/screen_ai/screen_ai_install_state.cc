@@ -19,8 +19,8 @@
 #include "ui/accessibility/accessibility_features.h"
 
 namespace {
-// From 138.0, the library has the new `GetMaxImageDimension` API function.
-const char kMinExpectedVersion[] = "138.0";
+// From 140.0, the library has the new `SetOCRLightMode` API function.
+const char kMinExpectedVersion[] = "140.0";
 const int kScreenAICleanUpDelayInDays = 30;
 
 bool IsDeviceCompatible() {

@@ -73,6 +73,7 @@ from diff_tests.parser.fs.tests import Fs
 from diff_tests.parser.ftrace.block_io_tests import BlockIo
 from diff_tests.parser.ftrace.ftrace_crop_tests import FtraceCrop
 from diff_tests.parser.ftrace.kprobes_tests import Kprobes
+from diff_tests.parser.ftrace.generic_ftrace_tests import GenericFtrace
 from diff_tests.parser.fuchsia.tests import Fuchsia
 from diff_tests.parser.gecko.tests import GeckoParser
 from diff_tests.parser.generic_kernel.tests import GenericKernelParser
@@ -113,6 +114,7 @@ from diff_tests.parser.translated_args.tests import TranslatedArgs
 from diff_tests.parser.ufs.tests import Ufs
 from diff_tests.parser.zip.tests import Zip
 from diff_tests.stdlib.android.cpu_cluster_tests import CpuClusters
+from diff_tests.stdlib.android.battery_tests import Battery
 from diff_tests.stdlib.android.desktop_mode_tests import DesktopMode
 from diff_tests.stdlib.android.frames_tests import Frames
 from diff_tests.stdlib.android.gpu import AndroidGpu
@@ -121,6 +123,7 @@ from diff_tests.stdlib.android.heap_profile_tests import HeapProfile
 from diff_tests.stdlib.android.memory import AndroidMemory
 from diff_tests.stdlib.android.startups_tests import Startups
 from diff_tests.stdlib.android.sysui_cujs_test import SystemUICujs
+from diff_tests.stdlib.android.bitmaps import AndroidBitmaps
 from diff_tests.stdlib.android.tests import AndroidStdlib
 from diff_tests.stdlib.chrome.chrome_stdlib_testsuites import CHROME_STDLIB_TESTSUITES
 from diff_tests.stdlib.counters.tests import StdlibCounterIntervals
@@ -140,6 +143,7 @@ from diff_tests.stdlib.pixel.tests import PixelStdlib
 from diff_tests.stdlib.pkvm.tests import Pkvm
 from diff_tests.stdlib.prelude.math_functions_tests import PreludeMathFunctions
 from diff_tests.stdlib.prelude.pprof_functions_tests import PreludePprofFunctions
+from diff_tests.stdlib.prelude.regexp_extract import RegexpExtract
 from diff_tests.stdlib.prelude.slices_tests import PreludeSlices
 from diff_tests.stdlib.prelude.window_functions_tests import PreludeWindowFunctions
 from diff_tests.stdlib.sched.tests import StdlibSched
@@ -185,6 +189,7 @@ def fetch_all_diff_tests(index_path: str) -> List['testing.TestCase']:
       Etm,
       Fs,
       Fuchsia,
+      GenericFtrace,
       GenericKernelParser,
       GraphicsDrmRelatedFtraceEvents,
       GraphicsGpuTrace,
@@ -267,7 +272,9 @@ def fetch_all_diff_tests(index_path: str) -> List['testing.TestCase']:
       AndroidMemory,
       AndroidGpu,
       AndroidStdlib,
+      AndroidBitmaps,
       CpuClusters,
+      Battery,
       DesktopMode,
       LinuxCpu,
       LinuxTests,
@@ -285,6 +292,7 @@ def fetch_all_diff_tests(index_path: str) -> List['testing.TestCase']:
       HeapGraph,
       PreludePprofFunctions,
       PreludeWindowFunctions,
+      RegexpExtract,
       Pkvm,
       PreludeSlices,
       StdlibSmoke,

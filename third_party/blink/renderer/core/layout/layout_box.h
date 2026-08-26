@@ -28,6 +28,7 @@
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/stack_allocated.h"
 #include "base/notreached.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -38,7 +39,6 @@
 #include "third_party/blink/renderer/core/layout/min_max_sizes_cache.h"
 #include "third_party/blink/renderer/core/layout/overflow_model.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
-#include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/core/style/style_overflow_clip_margin.h"
 #include "third_party/blink/renderer/platform/graphics/overlay_scrollbar_clip_behavior.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
@@ -212,6 +212,12 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
     NOT_DESTROYED();
     return false;
   }
+
+  // Return true if changes to transforms may require layout.
+  //
+  // This is the case for anchors that are affected by transforms, as that may
+  // affect anything that is anchored to it.
+  bool TransformsChangeMayRequireLayout() const;
 
   // Use this with caution! No type checking is done!
   LayoutBox* FirstChildBox() const;
@@ -450,7 +456,8 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   // Returns element-native intrinsic size. Returns kIndefiniteSize if no such
   // size.
   LayoutUnit DefaultIntrinsicContentInlineSize() const;
-  LayoutUnit DefaultIntrinsicContentBlockSize() const;
+  LayoutUnit DefaultIntrinsicContentBlockSize(
+      bool children_have_geometry) const;
 
   // IE extensions. Used to calculate offsetWidth/Height. Overridden by inlines
   // (LayoutFlow) to return the remaining width on a given line (and the height
@@ -669,6 +676,8 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
 
     // Note: We can't use std::views.  It's banned in Chromium.
     class CORE_EXPORT Iterator {
+      STACK_ALLOCATED();
+
      public:
       using iterator_category = std::forward_iterator_tag;
       using value_type = PhysicalBoxFragment;
@@ -744,7 +753,14 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
     return rare_data_ ? rare_data_->spanner_placeholder_.Get() : nullptr;
   }
 
-  bool IsValidColumnSpanner() const final;
+  bool IsValidColumnSpanner() const final {
+    NOT_DESTROYED();
+    return IsValidColumnSpanner(StyleRef());
+  }
+
+  // Provide a ComputedStyle argument, so that this function may be used
+  // reliably during style changes.
+  bool IsValidColumnSpanner(const ComputedStyle&) const;
 
   bool MapToVisualRectInAncestorSpaceInternal(
       const LayoutBoxModelObject* ancestor,
@@ -837,7 +853,8 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
 
   bool HasUnsplittableScrollingOverflow() const;
 
-  PhysicalRect LocalCaretRect(int caret_offset) const override;
+  PhysicalRect LocalCaretRect(int caret_offset,
+                              CaretShape caret_shape) const override;
 
   // Returns the intersection of all overflow clips which apply.
   virtual PhysicalRect OverflowClipRect(
@@ -936,7 +953,7 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   bool IsReadingFlowContainer() const;
   // Returns the nodes corresponding to this LayoutBox's layout children,
   // sorted in reading flow if IsReadingFlowContainer().
-  const HeapVector<Member<Node>>& ReadingFlowNodes() const;
+  const GCedHeapVector<Member<Node>>& ReadingFlowNodes() const;
 
   // See README.md for an explanation of scroll origin.
   gfx::Vector2d OriginAdjustmentForScrollbars() const;
@@ -1261,13 +1278,6 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   void UpdateFromStyle() override;
 
   void InLayoutNGInlineFormattingContextWillChange(bool) final;
-
-  virtual ItemPosition SelfAlignmentNormalBehavior(
-      const LayoutBox* child = nullptr) const {
-    NOT_DESTROYED();
-    DCHECK(!child);
-    return ItemPosition::kStretch;
-  }
 
   PhysicalRect BackgroundPaintedExtent() const;
   virtual bool ForegroundIsKnownToBeOpaqueInRect(

@@ -55,12 +55,12 @@
 //       virtual void OnBar(MyWidget* w, int x, int y) = 0;
 //     };
 //
-//     void AddObserver(Observer* obs) {
-//       observers_.AddObserver(obs);
+//     void AddObserver(Observer* observer) {
+//       observers_.AddObserver(observer);
 //     }
 //
-//     void RemoveObserver(Observer* obs) {
-//       observers_.RemoveObserver(obs);
+//     void RemoveObserver(Observer* observer) {
+//       observers_.RemoveObserver(observer);
 //     }
 //
 //     void NotifyFoo() {
@@ -70,9 +70,9 @@
 //     void NotifyBar(int x, int y) {
 //       // Use manual iteration when Notify() is not suitable, e.g.
 //       // if passing different args to different observers is needed.
-//       for (Observer& obs : observers_) {
-//         gfx::Point local_point = GetLocalPoint(obs, x, y);
-//         obs.OnBar(this, local_point.x(), local_point.y());
+//       for (Observer& observer : observers_) {
+//         gfx::Point local_point = GetLocalPoint(observer, x, y);
+//         observer.OnBar(this, local_point.x(), local_point.y());
 //       }
 //     }
 //
@@ -96,8 +96,8 @@ enum class ObserverListPolicy {
   EXISTING_ONLY,
 };
 
-// When check_empty is true, assert that the list is empty on destruction.
-// When allow_reentrancy is false, iterating throught the list while already in
+// When `check_empty` is true, assert that the list is empty on destruction.
+// When `allow_reentrancy` is false, iterating through the list while already in
 // the iteration loop will result in DCHECK failure.
 // TODO(oshima): Change the default to non reentrant. https://crbug.com/812109
 template <class ObserverType,
@@ -308,26 +308,26 @@ class ObserverList {
   // Add an observer to this list. An observer should not be added to the same
   // list more than once.
   //
-  // Precondition: obs != nullptr
-  // Precondition: !HasObserver(obs)
-  void AddObserver(ObserverType* obs) {
-    DCHECK(obs);
+  // Precondition: observer != nullptr
+  // Precondition: !HasObserver(observer)
+  void AddObserver(ObserverType* observer) {
+    DCHECK(observer);
     // TODO(crbug.com/40063488): Turn this into a CHECK once very prevalent
     // failures are weeded out.
-    if (HasObserver(obs)) {
+    if (HasObserver(observer)) {
       DUMP_WILL_BE_NOTREACHED() << "Observers can only be added once!";
       return;
     }
     ++observers_count_;
-    observers_.emplace_back(ObserverStorageType(obs));
+    observers_.emplace_back(ObserverStorageType(observer));
   }
 
   // Removes the given observer from this list. Does nothing if this observer is
   // not in this list.
-  void RemoveObserver(const ObserverType* obs) {
-    DCHECK(obs);
+  void RemoveObserver(const ObserverType* observer) {
+    DCHECK(observer);
     const auto it = std::ranges::find_if(
-        observers_, [obs](const auto& o) { return o.IsEqual(obs); });
+        observers_, [observer](const auto& o) { return o.IsEqual(observer); });
     if (it == observers_.end()) {
       return;
     }
@@ -343,15 +343,15 @@ class ObserverList {
   }
 
   // Determine whether a particular observer is in the list.
-  bool HasObserver(const ObserverType* obs) const {
+  bool HasObserver(const ObserverType* observer) const {
     // Client code passing null could be confused by the treatment of observers
     // removed mid-iteration. TODO(crbug.com/40590447): This should
     // probably DCHECK, but some client code currently does pass null.
-    if (obs == nullptr) {
+    if (observer == nullptr) {
       return false;
     }
-    return std::ranges::find_if(observers_, [obs](const auto& o) {
-             return o.IsEqual(obs);
+    return std::ranges::find_if(observers_, [observer](const auto& o) {
+             return o.IsEqual(observer);
            }) != observers_.end();
   }
 

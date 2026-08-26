@@ -4,12 +4,21 @@
 
 #ifndef CHROME_BROWSER_ENTERPRISE_WATERMARK_SETTINGS_H_
 #define CHROME_BROWSER_ENTERPRISE_WATERMARK_SETTINGS_H_
+
 #include "third_party/skia/include/core/SkColor.h"
+
+class PrefService;
 
 namespace enterprise_watermark {
 
-SkColor GetFillColor();
-SkColor GetOutlineColor();
+SkColor GetDefaultFillColor();
+SkColor GetDefaultOutlineColor();
+int GetDefaultFontSize();
+SkColor GetFillColor(const PrefService* prefs);
+SkColor GetOutlineColor(const PrefService* prefs);
+// Returns the font size for the watermark.
+// This function always returns a positive integer (>= 1).
+int GetFontSize(const PrefService* prefs);
 
 }  // namespace enterprise_watermark
 

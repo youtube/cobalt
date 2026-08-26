@@ -61,8 +61,7 @@ CollaborationServiceAndroid::CollaborationServiceAndroid(
   DCHECK(collaboration_service_);
   JNIEnv* env = base::android::AttachCurrentThread();
   java_obj_.Reset(env, Java_CollaborationServiceImpl_create(
-                           env, reinterpret_cast<int64_t>(this))
-                           .obj());
+                           env, reinterpret_cast<int64_t>(this)));
 }
 
 CollaborationServiceAndroid::~CollaborationServiceAndroid() {
@@ -70,9 +69,7 @@ CollaborationServiceAndroid::~CollaborationServiceAndroid() {
   Java_CollaborationServiceImpl_clearNativePtr(env, java_obj_);
 }
 
-bool CollaborationServiceAndroid::IsEmptyService(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& jcaller) {
+bool CollaborationServiceAndroid::IsEmptyService(JNIEnv* env) {
   return collaboration_service_->IsEmptyService();
 }
 

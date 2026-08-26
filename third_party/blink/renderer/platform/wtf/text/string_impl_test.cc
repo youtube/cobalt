@@ -27,11 +27,12 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_impl.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/case_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
-namespace WTF {
+namespace blink {
 
 TEST(StringImplTest, Create8Bit) {
   scoped_refptr<StringImpl> test_string_impl =
@@ -42,7 +43,7 @@ TEST(StringImplTest, Create8Bit) {
 TEST(StringImplTest, Latin1CaseFoldTable) {
   LChar symbol = 0xff;
   while (symbol--) {
-    EXPECT_EQ(unicode::FoldCase(symbol),
+    EXPECT_EQ(blink::unicode::FoldCase(symbol),
               StringImpl::kLatin1CaseFoldTable[symbol]);
   }
 }
@@ -63,7 +64,7 @@ TEST(StringImplTest, LowerASCII) {
       test_string_impl.get(),
       StringImpl::Create(base::span_from_cstring("lInk"))->LowerASCII().get()));
 
-  CaseMap case_map(g_empty_atom);
+  blink::CaseMap case_map(blink::g_empty_atom);
   EXPECT_TRUE(Equal(
       case_map.ToLower(StringImpl::Create(base::span_from_cstring("LINK")))
           .Impl(),
@@ -136,7 +137,7 @@ TEST(StringImplTest, UpperASCII) {
       test_string_impl.get(),
       StringImpl::Create(base::span_from_cstring("lInk"))->UpperASCII().get()));
 
-  CaseMap case_map(g_empty_atom);
+  blink::CaseMap case_map(blink::g_empty_atom);
   EXPECT_TRUE(Equal(
       case_map.ToUpper(StringImpl::Create(base::span_from_cstring("LINK")))
           .Impl(),
@@ -205,4 +206,4 @@ TEST(StringImplTest, WtfReverseFind) {
   EXPECT_EQ(kNotFound, ReverseFind(text, 'd', 2u));
 }
 
-}  // namespace WTF
+}  // namespace blink

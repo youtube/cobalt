@@ -9,8 +9,8 @@
  */
 #ifndef NET_DCSCTP_PACKET_PARAMETER_RECONFIGURATION_RESPONSE_PARAMETER_H_
 #define NET_DCSCTP_PACKET_PARAMETER_RECONFIGURATION_RESPONSE_PARAMETER_H_
-#include <stddef.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>

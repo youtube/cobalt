@@ -10,34 +10,55 @@
 
 #include "audio/audio_send_stream.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+#include "api/array_view.h"
+#include "api/audio/audio_frame.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio_codecs/audio_encoder.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_codecs/audio_format.h"
-#include "api/call/transport.h"
-#include "api/crypto/frame_encryptor_interface.h"
+#include "api/call/bitrate_allocation.h"
+#include "api/environment/environment.h"
+#include "api/field_trials_view.h"
 #include "api/function_view.h"
+#include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log.h"
-#include "api/task_queue/task_queue_base.h"
+#include "api/rtp_parameters.h"
+#include "api/rtp_sender_interface.h"
+#include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
+#include "api/units/data_rate.h"
+#include "api/units/data_size.h"
+#include "api/units/time_delta.h"
 #include "audio/audio_state.h"
 #include "audio/channel_send.h"
-#include "audio/conversion.h"
-#include "call/rtp_config.h"
+#include "call/audio_state.h"
+#include "call/bitrate_allocator.h"
 #include "call/rtp_transport_controller_send_interface.h"
 #include "common_audio/vad/include/vad.h"
 #include "logging/rtc_event_log/events/rtc_event_audio_send_stream_config.h"
 #include "logging/rtc_event_log/rtc_stream_config.h"
 #include "media/base/media_channel.h"
+#include "media/base/media_constants.h"
 #include "modules/audio_coding/codecs/cng/audio_encoder_cng.h"
 #include "modules/audio_coding/codecs/red/audio_encoder_copy_red.h"
+#include "modules/rtp_rtcp/include/report_block_data.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/experiments/struct_parameters_parser.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/race_checker.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/trace_event.h"
 
 namespace webrtc {
@@ -242,6 +263,10 @@ void AudioSendStream::ConfigureStream(
   if (first_time ||
       new_config.rtp.extmap_allow_mixed != old_config.rtp.extmap_allow_mixed) {
     rtp_rtcp_module_->SetExtmapAllowMixed(new_config.rtp.extmap_allow_mixed);
+  }
+
+  if (first_time || new_config.rtp.csrcs != old_config.rtp.csrcs) {
+    channel_send_->SetCsrcs(new_config.rtp.csrcs);
   }
 
   const ExtensionIds old_ids = FindExtensionIds(old_config.rtp.extensions);
@@ -465,9 +490,9 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
   return stats;
 }
 
-void AudioSendStream::DeliverRtcp(const uint8_t* packet, size_t length) {
+void AudioSendStream::DeliverRtcp(ArrayView<const uint8_t> packet) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  channel_send_->ReceivedRTCPPacket(packet, length);
+  channel_send_->ReceivedRTCPPacket(packet.data(), packet.size());
   // Poll if overhead has changed, which it can do if ack triggers us to stop
   // sending mid/rid.
   UpdateOverheadPerPacket();
@@ -482,7 +507,6 @@ uint32_t AudioSendStream::OnBitrateUpdated(BitrateAllocationUpdate update) {
       GetMinMaxBitrateConstraints();
   if (constraints) {
     update.target_bitrate.Clamp(constraints->min, constraints->max);
-    update.stable_target_bitrate.Clamp(constraints->min, constraints->max);
   }
   channel_send_->OnBitrateAllocation(update);
   // The amount of audio protection is not exposed by the encoder, hence

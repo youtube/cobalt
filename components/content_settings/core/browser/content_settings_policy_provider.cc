@@ -24,6 +24,7 @@
 #include "components/content_settings/core/browser/website_settings_info.h"
 #include "components/content_settings/core/browser/website_settings_registry.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
@@ -148,11 +149,20 @@ constexpr PrefsForManagedContentSettingsMapEntry
          ContentSettingsType::SMART_CARD_GUARD, CONTENT_SETTING_ALLOW},
         {prefs::kManagedSmartCardConnectBlockedForUrls,
          ContentSettingsType::SMART_CARD_GUARD, CONTENT_SETTING_BLOCK},
+        {prefs::kManagedDeviceAttributesAllowedForOrigins,
+         ContentSettingsType::DEVICE_ATTRIBUTES, CONTENT_SETTING_ALLOW},
+        {prefs::kManagedDeviceAttributesBlockedForOrigins,
+         ContentSettingsType::DEVICE_ATTRIBUTES, CONTENT_SETTING_BLOCK},
 #endif
         {prefs::kManagedControlledFrameAllowedForUrls,
          ContentSettingsType::CONTROLLED_FRAME, CONTENT_SETTING_ALLOW},
         {prefs::kManagedControlledFrameBlockedForUrls,
          ContentSettingsType::CONTROLLED_FRAME, CONTENT_SETTING_BLOCK},
+        // LocalNetworkAccess: Block takes precedence over Allow
+        {prefs::kManagedLocalNetworkAccessAllowedForUrls,
+         ContentSettingsType::LOCAL_NETWORK_ACCESS, CONTENT_SETTING_ALLOW},
+        {prefs::kManagedLocalNetworkAccessBlockedForUrls,
+         ContentSettingsType::LOCAL_NETWORK_ACCESS, CONTENT_SETTING_BLOCK},
 };
 
 constexpr const char* kManagedPrefs[] = {
@@ -180,6 +190,9 @@ constexpr const char* kManagedPrefs[] = {
     prefs::kManagedJavaScriptOptimizerAllowedForSites,
     prefs::kManagedJavaScriptOptimizerBlockedForSites,
     prefs::kManagedLegacyCookieAccessAllowedForDomains,
+    prefs::kManagedLegacyCookieScopeForDomains,
+    prefs::kManagedLocalNetworkAccessAllowedForUrls,
+    prefs::kManagedLocalNetworkAccessBlockedForUrls,
     prefs::kManagedNotificationsAllowedForUrls,
     prefs::kManagedNotificationsBlockedForUrls,
     prefs::kManagedPopupsAllowedForUrls,
@@ -207,6 +220,8 @@ constexpr const char* kManagedPrefs[] = {
 #if BUILDFLAG(IS_CHROMEOS)
     prefs::kManagedSmartCardConnectAllowedForUrls,
     prefs::kManagedSmartCardConnectBlockedForUrls,
+    prefs::kManagedDeviceAttributesAllowedForOrigins,
+    prefs::kManagedDeviceAttributesBlockedForOrigins,
 #endif
     prefs::kManagedControlledFrameAllowedForUrls,
     prefs::kManagedControlledFrameBlockedForUrls,
@@ -231,6 +246,7 @@ constexpr const char* kManagedDefaultPrefs[] = {
     prefs::kManagedDefaultMediaStreamSetting,
     prefs::kManagedDefaultNotificationsSetting,
     prefs::kManagedDefaultPopupsSetting,
+    prefs::kManagedDefaultLegacyCookieScope,
     prefs::kManagedDefaultSensorsSetting,
     prefs::kManagedDefaultSerialGuardSetting,
     prefs::kManagedDefaultWebBluetoothGuardSetting,
@@ -246,7 +262,8 @@ constexpr const char* kManagedDefaultPrefs[] = {
     prefs::kManagedDefaultDirectSocketsPrivateNetworkAccessSetting,
     prefs::kManagedDefaultControlledFrameSetting,
 #if BUILDFLAG(IS_CHROMEOS)
-    prefs::kManagedDefaultSmartCardConnectSetting
+    prefs::kManagedDefaultSmartCardConnectSetting,
+    prefs::kManagedDefaultDeviceAttributesSetting,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 };
 
@@ -319,6 +336,8 @@ const PolicyProvider::PrefsForManagedDefaultMapEntry
         {ContentSettingsType::IMAGES, prefs::kManagedDefaultImagesSetting},
         {ContentSettingsType::GEOLOCATION,
          prefs::kManagedDefaultGeolocationSetting},
+        {ContentSettingsType::LEGACY_COOKIE_SCOPE,
+         prefs::kManagedDefaultLegacyCookieScope},
         {ContentSettingsType::JAVASCRIPT,
          prefs::kManagedDefaultJavaScriptSetting},
         {ContentSettingsType::MEDIASTREAM_CAMERA,
@@ -364,6 +383,8 @@ const PolicyProvider::PrefsForManagedDefaultMapEntry
 #if BUILDFLAG(IS_CHROMEOS)
         {ContentSettingsType::SMART_CARD_GUARD,
          prefs::kManagedDefaultSmartCardConnectSetting},
+        {ContentSettingsType::DEVICE_ATTRIBUTES,
+         prefs::kManagedDefaultDeviceAttributesSetting},
 #endif  // BUILDFLAG(IS_CHROMEOS)
 };
 

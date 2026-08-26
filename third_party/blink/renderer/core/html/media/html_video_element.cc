@@ -29,6 +29,7 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
+#include "cc/layers/layer.h"
 #include "cc/paint/paint_canvas.h"
 #include "media/base/video_frame.h"
 #include "third_party/blink/public/common/features.h"
@@ -469,7 +470,7 @@ void HTMLVideoElement::OnFirstFrame(base::TimeTicks frame_time,
     video_timing->SetTimingAllowPassed(
         GetWebMediaPlayer()->PassedTimingAllowOriginCheck());
 
-    PaintTimingDetector::NotifyImagePaint(
+    PaintTimingDetector::NotifyFirstVideoFrame(
         *layout_object, videoVisibleSize(), *video_timing,
         layout_object->FirstFragment().LocalBorderBoxProperties(),
         layout_object->AbsoluteBoundingBoxRect());

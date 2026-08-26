@@ -10,7 +10,6 @@
 #include <cstddef>
 #include <cstdio>
 #include <memory>
-#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -18,6 +17,7 @@
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
+#include "base/containers/flat_set.h"
 #include "base/files/scoped_file.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -161,6 +161,15 @@ class MyTestCertVerifier : public net::CertVerifier {
     verify_result->Reset();
     verify_result->verified_cert = params.certificate();
     return net::OK;
+  }
+  void Verify2QwacBinding(
+      const std::string& binding,
+      const std::string& hostname,
+      const scoped_refptr<net::X509Certificate>& tls_cert,
+      base::OnceCallback<void(const scoped_refptr<net::X509Certificate>&)>
+          callback,
+      const net::NetLogWithSource& net_log) override {
+    std::move(callback).Run(nullptr);
   }
   void SetConfig(const Config& config) override {}
   void AddObserver(Observer* observer) override {}
@@ -357,7 +366,7 @@ void MCSProbe::InitializeNetworkState() {
   builder.set_host_resolver(
       net::HostResolver::CreateStandaloneResolver(net_log_));
   http_auth_preferences_.set_allowed_schemes(
-      std::set<std::string>{net::kBasicAuthScheme});
+      base::flat_set<std::string>({net::kBasicAuthScheme}));
   builder.SetHttpAuthHandlerFactory(
       net::HttpAuthHandlerRegistryFactory::Create(&http_auth_preferences_));
   builder.set_proxy_resolution_service(

@@ -12,7 +12,6 @@ import static org.mockito.Mockito.doReturn;
 import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
-import android.os.Build;
 
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.MediumTest;
@@ -32,7 +31,6 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
-import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.ChromeTabbedActivity2;
@@ -47,8 +45,10 @@ import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabTestUtils;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.chrome.test.util.MenuUtils;
 import org.chromium.components.safe_browsing.SafeBrowsingApiBridge;
@@ -72,7 +72,6 @@ import java.util.concurrent.TimeoutException;
     "ignore-certificate-errors",
     MediaSwitches.AUTOPLAY_NO_GESTURE_REQUIRED_POLICY
 })
-@MinAndroidSdkLevel(Build.VERSION_CODES.Q)
 public class TabSuspensionTest {
     private static final String STARTING_FQDN = "example.com";
     private static final String DIFFERENT_FQDN = "www.google.com";
@@ -84,7 +83,8 @@ public class TabSuspensionTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Rule
     public CustomTabActivityTestRule mCustomTabActivityTestRule = new CustomTabActivityTestRule();
@@ -94,6 +94,7 @@ public class TabSuspensionTest {
     @Mock private SuspensionTracker mSuspensionTracker;
 
     private ChromeTabbedActivity mActivity;
+    private WebPageStation mPage;
     private PageViewObserver mPageViewObserver;
     private PageViewObserver mPageViewObserver2;
     private TokenTracker mTokenTracker;
@@ -121,9 +122,9 @@ public class TabSuspensionTest {
         mStartingUrl = mTestServer.getURLWithHostName(STARTING_FQDN, "/defaultresponse");
         mDifferentUrl = mTestServer.getURLWithHostName(DIFFERENT_FQDN, "/defaultresponse");
 
-        mActivityTestRule.startMainActivityOnBlankPage();
-        mActivity = mActivityTestRule.getActivity();
-        mTab = mActivity.getActivityTab();
+        mPage = mActivityTestRule.startOnBlankPage();
+        mActivity = mPage.getActivity();
+        mTab = mPage.getTab();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mPageViewObserver =
@@ -170,7 +171,7 @@ public class TabSuspensionTest {
         // completing, and loadUrlInNewTab expects loading to succeed.
         ChromeTabUtils.newTabFromMenu(
                 InstrumentationRegistry.getInstrumentation(), mActivityTestRule.getActivity());
-        Tab tab2 = mActivity.getActivityTab();
+        Tab tab2 = ThreadUtils.runOnUiThreadBlocking(() -> mActivity.getActivityTab());
 
         startLoadingUrl(tab2, mDifferentUrl);
         waitForSuspendedTabToShow(tab2, DIFFERENT_FQDN);
@@ -181,7 +182,10 @@ public class TabSuspensionTest {
     public void testTabSwitchBackToSuspended() {
         mActivityTestRule.loadUrl(mStartingUrl);
         final int originalTabIndex =
-                mActivity.getTabModelSelector().getCurrentModel().indexOf(mTab);
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return mActivity.getTabModelSelector().getCurrentModel().indexOf(mTab);
+                        });
         mActivityTestRule.loadUrlInNewTab(mDifferentUrl);
 
         doReturn(true).when(mSuspensionTracker).isWebsiteSuspended(STARTING_FQDN);
@@ -215,9 +219,7 @@ public class TabSuspensionTest {
 
     @Test
     @MediumTest
-    @DisableIf.Build(
-            sdk_is_greater_than = Build.VERSION_CODES.P,
-            message = "https://crbug.com/1036556")
+    @DisabledTest(message = "https://crbug.com/1036556")
     public void testMediaSuspension() throws TimeoutException {
         mActivityTestRule.loadUrl(
                 mTestServer.getURLWithHostName(STARTING_FQDN, MEDIA_FILE_TEST_PATH));
@@ -322,7 +324,9 @@ public class TabSuspensionTest {
                 R.id.open_in_browser_id);
 
         MultiWindowTestHelper.waitForTabs("CustomTab", mActivity, 2, Tab.INVALID_TAB_ID);
-        waitForSuspendedTabToShow(mActivity.getActivityTab(), STARTING_FQDN);
+        waitForSuspendedTabToShow(
+                ThreadUtils.runOnUiThreadBlocking(() -> mActivity.getActivityTab()),
+                STARTING_FQDN);
     }
 
     @Test
@@ -351,7 +355,8 @@ public class TabSuspensionTest {
         startLoadingUrl(mTab, mStartingUrl);
         waitForSuspendedTabToShow(mTab, STARTING_FQDN);
         final int originalTabIndex =
-                mActivity.getTabModelSelector().getCurrentModel().indexOf(mTab);
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> mActivity.getTabModelSelector().getCurrentModel().indexOf(mTab));
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -397,7 +402,7 @@ public class TabSuspensionTest {
     @Test
     @MediumTest
     @Restriction(DeviceFormFactor.PHONE)
-    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/339003346
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/339003346
     public void testSuspendNullCurrentTab() {
         mActivityTestRule.loadUrl(mStartingUrl);
         ChromeTabUtils.closeAllTabs(InstrumentationRegistry.getInstrumentation(), mActivity);
@@ -409,7 +414,7 @@ public class TabSuspensionTest {
         // completing, and loadUrlInNewTab expects loading to succeed.
         ChromeTabUtils.newTabFromMenu(
                 InstrumentationRegistry.getInstrumentation(), mActivityTestRule.getActivity());
-        Tab tab2 = mActivity.getActivityTab();
+        Tab tab2 = ThreadUtils.runOnUiThreadBlocking(() -> mActivity.getActivityTab());
 
         startLoadingUrl(tab2, mStartingUrl);
         waitForSuspendedTabToShow(tab2, STARTING_FQDN);

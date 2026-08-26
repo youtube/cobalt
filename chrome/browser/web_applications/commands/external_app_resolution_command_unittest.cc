@@ -14,6 +14,7 @@
 #include "base/containers/to_vector.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
@@ -83,6 +84,8 @@ class MockWebAppUiManager : public web_app::FakeWebAppUiManager {
               (override));
 };
 
+// TODO: Update tests to use the `FakeWebContentsManager` and set manifest/icons
+// directly on it instead of using `SetDataRetrieverForTesting()`.
 class ExternalAppResolutionCommandTest : public WebAppTest {
  public:
   const GURL kWebAppUrl = GURL("https://example.com/path/index.html");
@@ -179,14 +182,15 @@ class ExternalAppResolutionCommandTest : public WebAppTest {
 
     // We can use this to test if icons of a specific size do not exist in the
     // DB. This is to ensure we do not trigger the same condition as a DCHECK
-    // inside WebAppIconManager when calling ReadIcons().
+    // inside WebAppIconManager when calling
+    // ReadTrustedIconsWithFallbackToManifestIcons().
     if (!icon_manager.HasIcons(app_id, IconPurpose::ANY, sizes_px)) {
       app_to_icons_data_[app_id] = icon_bitmaps;
       return;
     }
 
-    icon_manager.ReadIcons(app_id, IconPurpose::ANY, sizes_px,
-                           future.GetCallback());
+    icon_manager.ReadTrustedIconsWithFallbackToManifestIcons(
+        app_id, sizes_px, IconPurpose::ANY, future.GetCallback());
     app_to_icons_data_[app_id] = future.Take();
   }
 
@@ -1140,13 +1144,14 @@ TEST_F(ExternalAppResolutionCommandTest,
           url_and_bitmap.first)] = net::HttpStatusCode::HTTP_OK;
     }
 
-    // Set up data retriever and load everything.
+    // Set up the data retriever, and make it as if no icons have been loaded
+    // from the manifest.
     auto new_data_retriever = std::make_unique<FakeDataRetriever>();
     new_data_retriever->SetIconsDownloadedResult(
         IconsDownloadedResult::kAbortedDueToFailure);
     new_data_retriever->SetDownloadedIconsHttpResults(
         std::move(new_http_results));
-    new_data_retriever->SetIcons(std::move(new_icons_map));
+    new_data_retriever->SetIcons(IconsMap{});
     new_data_retriever->SetManifest(
         std::move(new_manifest),
         webapps::InstallableStatusCode::NO_ERROR_DETECTED);

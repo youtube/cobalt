@@ -35,13 +35,15 @@ import android.graphics.drawable.Drawable;
 import android.util.Size;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.Callback;
@@ -55,6 +57,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
+import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFaviconMetadata;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.browser_ui.widget.displaystyle.DisplayStyleObserver;
@@ -72,6 +75,7 @@ import org.chromium.url.JUnitTestGURLs;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class SingleTabSwitcherOnNtpMediatorUnitTest {
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Mock UrlUtilities.Natives mUrlUtilitiesJniMock;
 
     private final int mTabId = 1;
@@ -99,7 +103,6 @@ public class SingleTabSwitcherOnNtpMediatorUnitTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         UrlUtilitiesJni.setInstanceForTesting(mUrlUtilitiesJniMock);
 
         doReturn(true).when(mTabListFaviconProvider).isInitialized();
@@ -108,6 +111,8 @@ public class SingleTabSwitcherOnNtpMediatorUnitTest {
         doReturn(1).when(mNormalTabModel).getCount();
 
         doReturn(mUrl).when(mTab).getUrl();
+        doReturn(false).when(mTab).isIncognitoBranded();
+        doReturn(null).when(mTab).getTabGroupId();
         doReturn(mTabId).when(mTab).getId();
         doReturn(mTitle).when(mTab).getTitle();
         doReturn(mTitle2).when(mTab2).getTitle();
@@ -159,9 +164,12 @@ public class SingleTabSwitcherOnNtpMediatorUnitTest {
                         .getDimensionPixelSize(R.dimen.single_tab_module_tab_thumbnail_size_big);
         int height = width;
         Size thumbnailSize = new Size(width, height);
+        TabFaviconMetadata metadata =
+                new TabFaviconMetadata(
+                        mTab, mUrl, /* isIncognito= */ false, /* isInTabGroup= */ false);
 
         verify(mTabListFaviconProvider)
-                .getFaviconDrawableForTabAsync(eq(mTab), mFaviconCallbackCaptor.capture());
+                .getFaviconDrawableForTabAsync(eq(metadata), mFaviconCallbackCaptor.capture());
         verify(mTabContentManager)
                 .getTabThumbnailWithCallback(eq(mTabId), eq(thumbnailSize), any());
         assertEquals(mTitle, mPropertyModel.get(TITLE));
@@ -237,9 +245,12 @@ public class SingleTabSwitcherOnNtpMediatorUnitTest {
         assertFalse(mediator.getInitialized());
 
         mediator.setVisibility(true);
+        TabFaviconMetadata metadata =
+                new TabFaviconMetadata(
+                        mTab, mUrl, /* isIncognito= */ false, /* isInTabGroup= */ false);
 
         verify(mTabListFaviconProvider)
-                .getFaviconDrawableForTabAsync(eq(mTab), mFaviconCallbackCaptor.capture());
+                .getFaviconDrawableForTabAsync(eq(metadata), mFaviconCallbackCaptor.capture());
         assertEquals(mTitle, mPropertyModel.get(TITLE));
         assertTrue(mediator.getInitialized());
 
@@ -388,8 +399,7 @@ public class SingleTabSwitcherOnNtpMediatorUnitTest {
                 ContextUtils.getApplicationContext()
                         .getResources()
                         .getDimensionPixelSize(
-                                org.chromium.chrome.R.dimen
-                                        .ntp_search_box_lateral_margin_narrow_window_tablet);
+                                R.dimen.ntp_search_box_lateral_margin_narrow_window_tablet);
         UiConfig.DisplayStyle displayStyleRegular =
                 new DisplayStyle(HorizontalDisplayStyle.REGULAR, VerticalDisplayStyle.REGULAR);
         when(mUiConfig.getCurrentDisplayStyle()).thenReturn(displayStyleRegular);

@@ -43,7 +43,7 @@ TEST(Merge, CreateAndDestroy) {
 
 namespace {
 // This is the same size that is given to the SyncBuffer object in NetEq.
-const size_t kNetEqSyncBufferLengthMs = 720;
+constexpr size_t kNetEqSyncBufferLengthMs = 720;
 }  // namespace
 
 class MergeTest : public testing::TestWithParam<size_t> {

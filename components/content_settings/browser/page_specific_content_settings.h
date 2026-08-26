@@ -12,6 +12,7 @@
 #include <set>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include "base/containers/enum_set.h"
 #include "base/containers/flat_set.h"
@@ -167,6 +168,10 @@ class PageSpecificContentSettings
     // the other web contents to be synced.
     virtual content::WebContents* MaybeGetSyncedWebContentsForPictureInPicture(
         content::WebContents* web_contents) = 0;
+
+    // Returns `true` if `web_contents` represents a PiP window. Returns `false`
+    // otherwise.
+    virtual bool IsPiPWindow(content::WebContents* web_contents) = 0;
 
     // Notifies the delegate a particular content settings type was allowed for
     // the first time on this page.

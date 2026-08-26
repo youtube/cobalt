@@ -52,6 +52,7 @@ source_set("utility") {
     "//content/public/common:common_sources",
     "//content/public/common:content_descriptor_keys",
     "//content/services/auction_worklet",
+    "//content/utility/on_device_model:on_device_model_sandbox_init",
     "//device/vr/buildflags",
     "//media:media_buildflags",
     "//mojo/public/cpp/bindings",
@@ -82,6 +83,7 @@ source_set("utility") {
 
   if (is_cobalt) {
     deps -= [
+      "//content/utility/on_device_model:on_device_model_sandbox_init",
       "//services/on_device_model:on_device_model_service",
       "//services/on_device_model/public/cpp",
       "//services/on_device_model/public/mojom",
@@ -135,7 +137,7 @@ source_set("utility") {
     }
   }
 
-  if (is_chromeos && is_chrome_branded) {
+  if ((is_chromeos || is_linux) && is_chrome_branded) {
     deps += [
       "//services/shape_detection:lib",
       "//services/shape_detection/public/mojom",

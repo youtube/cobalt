@@ -46,10 +46,13 @@ class SyncPrefObserver {
 class SyncPrefs {
  public:
   enum class SyncAccountState {
-    kNotSignedIn = 0,
-    // In transport mode.
-    kSignedInNotSyncing = 1,
-    kSyncing = 2
+    kNotSignedIn,
+    kSignedInWithoutSyncConsent,
+    // Note that kSyncing is also used for local sync (an enterprise feature
+    // known as roaming profiles) as well as in some advanced transport-mode
+    // scenarios such as the advanced sync setup flow interrupted case or, on
+    // ChromeOS, after sync is reset from the sync dashboard.
+    kSyncing,
   };
 
   // `pref_service` must not be null and must outlive this object.
@@ -71,9 +74,9 @@ class SyncPrefs {
   // enable sync-the-feature.
   bool IsInitialSyncFeatureSetupComplete() const;
 
-  // Returns true if the user is considered explicitly signed in to the browser.
-  // Returns false if the user is signed out or implicilty signed in (through
-  // Dice).
+  // Returns true if the user is considered explicitly signed in to the browser,
+  // which includes all sign-ins on mobile. Returns false if the user is signed
+  // out or (on desktop) implicilty signed in (through Dice).
   bool IsExplicitBrowserSignin() const;
 
   // ChromeOS Ash, IsInitialSyncFeatureSetupComplete() always returns true.
@@ -81,12 +84,6 @@ class SyncPrefs {
   void SetInitialSyncFeatureSetupComplete();
   void ClearInitialSyncFeatureSetupComplete();
 #endif  // !BUILDFLAG(IS_CHROMEOS)
-
-  // A boolean representing whether or not configuration has completed at least
-  // once since the legacy sync-the-feature was turned on.
-  bool IsFirstSyncCompletedInFullSyncMode() const;
-  void SetFirstSyncCompletedInFullSyncMode();
-  void ClearFirstSyncCompletedInFullSyncMode();
 
   // Whether the "Sync everything" toggle is enabled. This flag only has an
   // effect if Sync-the-feature is enabled. Note that even if this is true, some
@@ -263,12 +260,6 @@ class SyncPrefs {
   // temporary state from the above migration.
   void MarkPartialSyncToSigninMigrationFullyDone();
 
-  // Setting to false causes GetSelectedTypesForSyncingUser() and
-  // GetSelectedTypesForAccount() to not include passwords, no matter the
-  // underlying user settings.
-  // TODO(crbug.com/328190573): Remove this when local UPM migration is gone.
-  void SetPasswordSyncAllowed(bool allowed);
-
   static void MigrateAutofillWalletImportEnabledPref(PrefService* pref_service);
 
   // Copies the global versions of the selected-types prefs (used for syncing
@@ -289,6 +280,11 @@ class SyncPrefs {
   // it to the account setting for kGoogleServicesLastSyncingGaiaId.
   static void MaybeMigrateAutofillToPerAccountPref(PrefService* pref_service);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+  // Returns whether a UserSelectableType is enabled by default in transport
+  // mode, that is, without an explicit value stored in prefs.
+  bool IsTypeSelectedByDefaultInTransportMode(UserSelectableType type,
+                                              const GaiaId& gaia_id) const;
 
  private:
   static void RegisterTypeSelectedPref(PrefRegistrySimple* prefs,
@@ -317,8 +313,6 @@ class SyncPrefs {
   PrefChangeRegistrar pref_change_registrar_;
 
   bool batch_updating_selected_types_ = false;
-
-  bool password_sync_allowed_ = true;
 
   // Caches the value of the kEnableLocalSyncBackend pref to avoid it flipping
   // during the lifetime of the service.

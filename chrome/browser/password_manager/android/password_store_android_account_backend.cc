@@ -9,7 +9,6 @@
 #include "base/android/build_info.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
-#include "chrome/browser/password_manager/android/password_manager_eviction_util.h"
 #include "chrome/browser/password_manager/android/password_manager_lifecycle_helper_impl.h"
 #include "chrome/browser/password_manager/android/password_sync_controller_delegate_android.h"
 #include "chrome/browser/password_manager/android/password_sync_controller_delegate_bridge_impl.h"
@@ -30,33 +29,11 @@ namespace password_manager {
 
 namespace {
 
-constexpr char kUPMActiveHistogram[] =
-    "PasswordManager.UnifiedPasswordManager.ActiveStatus2";
-
 std::string GetSyncingAccount(const syncer::SyncService* sync_service) {
   CHECK(sync_service);
   return password_manager::sync_util::HasChosenToSyncPasswords(sync_service)
              ? sync_service->GetAccountInfo().email
              : std::string();
-}
-
-void LogUPMActiveStatus(syncer::SyncService* sync_service, PrefService* prefs) {
-  if (!password_manager::sync_util::HasChosenToSyncPasswords(sync_service)) {
-    base::UmaHistogramEnumeration(
-        kUPMActiveHistogram,
-        UnifiedPasswordManagerActiveStatus::kInactiveSyncOff);
-    return;
-  }
-
-  if (password_manager_upm_eviction::IsCurrentUserEvicted(prefs)) {
-    base::UmaHistogramEnumeration(
-        kUPMActiveHistogram,
-        UnifiedPasswordManagerActiveStatus::kInactiveUnenrolledDueToErrors);
-    return;
-  }
-
-  base::UmaHistogramEnumeration(kUPMActiveHistogram,
-                                UnifiedPasswordManagerActiveStatus::kActive);
 }
 
 template <typename Response, typename CallbackType>
@@ -298,9 +275,6 @@ void PasswordStoreAndroidAccountBackend::OnSyncServiceInitialized(
   // without a need for it. If it is don't repeatedly initialize the sync
   // service to make it clear that it's not needed to do so for future readers
   // of the code.
-  if (!sync_service_) {
-    LogUPMActiveStatus(sync_service, prefs());
-  }
   sync_service_ = sync_service;
   sync_controller_delegate_->OnSyncServiceInitialized(sync_service);
 }

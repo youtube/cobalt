@@ -9,8 +9,10 @@
 import("../../webrtc.gni")
 
 rtc_library("leb128") {
-  public = [ "source/leb128.h" ]
-  sources = [ "source/leb128.cc" ]
+  sources = [
+    "source/leb128.cc",
+    "source/leb128.h",
+  ]
 }
 
 rtc_library("rtp_rtcp_format") {
@@ -119,6 +121,7 @@ rtc_library("rtp_rtcp_format") {
     "../../api:rtp_parameters",
     "../../api:scoped_refptr",
     "../../api/audio_codecs:audio_codecs_api",
+    "../../api/transport:ecn_marking",
     "../../api/transport:network_control",
     "../../api/transport/rtp:corruption_detection_message",
     "../../api/transport/rtp:dependency_descriptor",
@@ -136,11 +139,9 @@ rtc_library("rtp_rtcp_format") {
     "../../rtc_base:divide_round",
     "../../rtc_base:event_tracer",
     "../../rtc_base:logging",
-    "../../rtc_base:macromagic",
     "../../rtc_base:safe_compare",
     "../../rtc_base:safe_conversions",
     "../../rtc_base:stringutils",
-    "../../rtc_base/network:ecn_marking",
     "../../system_wrappers",
     "../video_coding:codec_globals_headers",
     "//third_party/abseil-cpp/absl/algorithm:container",
@@ -417,15 +418,13 @@ rtc_library("ntp_time_util") {
 
 rtc_library("rtcp_transceiver") {
   visibility = [ "*" ]
-  public = [
-    "source/rtcp_transceiver.h",
-    "source/rtcp_transceiver_config.h",
-    "source/rtcp_transceiver_impl.h",
-  ]
   sources = [
     "source/rtcp_transceiver.cc",
+    "source/rtcp_transceiver.h",
     "source/rtcp_transceiver_config.cc",
+    "source/rtcp_transceiver_config.h",
     "source/rtcp_transceiver_impl.cc",
+    "source/rtcp_transceiver_impl.h",
   ]
   deps = [
     ":ntp_time_util",
@@ -499,7 +498,6 @@ rtc_library("fec_test_helper") {
   deps = [
     ":rtp_rtcp",
     ":rtp_rtcp_format",
-    "../../api:rtp_headers",
     "../../rtc_base:checks",
     "../../rtc_base:copy_on_write_buffer",
     "../../rtc_base:random",
@@ -508,7 +506,7 @@ rtc_library("fec_test_helper") {
 
 rtc_library("mock_rtp_rtcp") {
   testonly = true
-  public = [
+  sources = [
     "mocks/mock_network_link_rtcp_observer.h",
     "mocks/mock_network_state_estimator_observer.h",
     "mocks/mock_recovered_packet_receiver.h",
@@ -690,6 +688,7 @@ if (rtc_include_tests) {
       "..:module_fec_api",
       "../../api:array_view",
       "../../api:create_time_controller",
+      "../../api:field_trials",
       "../../api:field_trials_registry",
       "../../api:field_trials_view",
       "../../api:frame_transformer_factory",
@@ -706,10 +705,11 @@ if (rtc_include_tests) {
       "../../api:scoped_refptr",
       "../../api:time_controller",
       "../../api:transport_api",
-      "../../api/environment:environment",
+      "../../api/environment",
       "../../api/environment:environment_factory",
       "../../api/rtc_event_log",
       "../../api/task_queue",
+      "../../api/transport:ecn_marking",
       "../../api/transport:network_control",
       "../../api/transport/rtp:corruption_detection_message",
       "../../api/transport/rtp:dependency_descriptor",
@@ -742,7 +742,6 @@ if (rtc_include_tests) {
       "../../rtc_base:checks",
       "../../rtc_base:copy_on_write_buffer",
       "../../rtc_base:logging",
-      "../../rtc_base:macromagic",
       "../../rtc_base:random",
       "../../rtc_base:rate_limiter",
       "../../rtc_base:rtc_base_tests_utils",
@@ -752,15 +751,14 @@ if (rtc_include_tests) {
       "../../rtc_base:task_queue_for_test",
       "../../rtc_base:threading",
       "../../rtc_base:timeutils",
-      "../../rtc_base/network:ecn_marking",
       "../../system_wrappers",
       "../../system_wrappers:metrics",
-      "../../test:explicit_key_value_config",
+      "../../test:create_test_field_trials",
       "../../test:mock_transport",
       "../../test:rtp_test_utils",
       "../../test:run_loop",
       "../../test:test_support",
-      "../../test/time_controller:time_controller",
+      "../../test/time_controller",
       "../audio_coding:audio_coding_module_typedefs",
       "../video_coding:codec_globals_headers",
       "//testing/gtest",

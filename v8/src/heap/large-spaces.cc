@@ -180,17 +180,19 @@ size_t LargeObjectSpace::CommittedPhysicalMemory() const {
 }
 
 void OldLargeObjectSpace::PromoteNewLargeObject(LargePageMetadata* page) {
+#ifdef DEBUG
   MemoryChunk* chunk = page->Chunk();
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
-  DCHECK(chunk->IsLargePage());
+  DCHECK(page->is_large());
   DCHECK(chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
   DCHECK(!chunk->IsFlagSet(MemoryChunk::TO_PAGE));
+#endif  // DEBUG
   PtrComprCageBase cage_base(heap()->isolate());
   static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page);
-  chunk->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
-  chunk->SetOldGenerationPageFlags(
-      heap()->incremental_marking()->marking_mode(), LO_SPACE);
+  page->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
   AddPage(page, static_cast<size_t>(page->GetObject()->Size(cage_base)));
+  page->SetOldGenerationPageFlags(
+      heap()->incremental_marking()->marking_mode());
 }
 
 void LargeObjectSpace::AddPage(LargePageMetadata* page, size_t object_size) {
@@ -228,7 +230,7 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePageMetadata* page,
   PtrComprCageBase cage_base(heap()->isolate());
   DCHECK_EQ(object, page->GetObject());
   DCHECK_EQ(object_size, page->GetObject()->Size(cage_base));
-  DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
+  DCHECK(!page->is_executable());
 #endif  // DEBUG
 
   const size_t used_committed_size =
@@ -398,13 +400,13 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
 
   Tagged<HeapObject> result = page->GetObject();
   MemoryChunk* chunk = page->Chunk();
-  chunk->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
+  page->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
   UpdatePendingObject(result);
   if (v8_flags.minor_ms) {
     page->ClearLiveness();
   }
   chunk->InitializationMemoryFence();
-  DCHECK(chunk->IsLargePage());
+  DCHECK(page->is_large());
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
   AdvanceAndInvokeAllocationObservers(result.address(),
                                       static_cast<size_t>(object_size));
@@ -421,9 +423,8 @@ size_t NewLargeObjectSpace::Available() const {
 void NewLargeObjectSpace::Flip() {
   for (LargePageMetadata* page = first_page(); page != nullptr;
        page = page->next_page()) {
-    MemoryChunk* chunk = page->Chunk();
-    chunk->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
-    chunk->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
+    page->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
+    page->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
   }
 }
 
@@ -432,14 +433,16 @@ void NewLargeObjectSpace::FreeDeadObjects(
   DCHECK(!heap()->incremental_marking()->IsMarking());
   size_t surviving_object_size = 0;
   PtrComprCageBase cage_base(heap()->isolate());
+  const auto free_mode = v8_flags.large_page_pool
+                             ? MemoryAllocator::FreeMode::kDelayThenPool
+                             : MemoryAllocator::FreeMode::kImmediately;
   for (auto it = begin(); it != end();) {
     LargePageMetadata* page = *it;
     it++;
     Tagged<HeapObject> object = page->GetObject();
     if (is_dead(object)) {
       RemovePage(page);
-      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
-                                       page);
+      heap()->memory_allocator()->Free(free_mode, page);
     } else {
       surviving_object_size += static_cast<size_t>(object->Size(cage_base));
     }
@@ -447,6 +450,7 @@ void NewLargeObjectSpace::FreeDeadObjects(
   // Right-trimming does not update the objects_size_ counter. We are lazily
   // updating it after every GC.
   objects_size_ = surviving_object_size;
+  heap()->memory_allocator()->ReleaseDelayedPages();
 }
 
 void NewLargeObjectSpace::SetCapacity(size_t capacity) {

@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/spdy/spdy_test_util_common.h"
 
 #include <cstddef>
@@ -25,6 +20,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
+#include "net/base/hash_value.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/http_user_agent_settings.h"
 #include "net/base/proxy_delegate.h"
@@ -92,17 +88,17 @@ void ParseUrl(std::string_view url,
 // Chop a frame into an array of MockWrites.
 // |frame| is the frame to chop.
 // |num_chunks| is the number of chunks to create.
-std::unique_ptr<MockWrite[]> ChopWriteFrame(
-    const spdy::SpdySerializedFrame& frame,
-    int num_chunks) {
-  auto chunks = std::make_unique<MockWrite[]>(num_chunks);
+std::vector<MockWrite> ChopWriteFrame(const spdy::SpdySerializedFrame& frame,
+                                      int num_chunks) {
+  std::vector<MockWrite> chunks(num_chunks);
   int chunk_size = frame.size() / num_chunks;
+  std::string_view frame_data(frame);
   for (int index = 0; index < num_chunks; index++) {
-    const char* ptr = frame.data() + (index * chunk_size);
+    int start = index * chunk_size;
     if (index == num_chunks - 1)
       chunk_size +=
           frame.size() % chunk_size;  // The last chunk takes the remainder.
-    chunks[index] = MockWrite(ASYNC, ptr, chunk_size);
+    chunks[index] = MockWrite(ASYNC, frame_data.substr(start, chunk_size));
   }
   return chunks;
 }
@@ -112,29 +108,29 @@ std::unique_ptr<MockWrite[]> ChopWriteFrame(
 // where the even entries are the header names, and the odd entries are the
 // header values.
 // |headers| gets filled in from |extra_headers|.
-void AppendToHeaderBlock(const char* const extra_headers[],
-                         int extra_header_count,
+void AppendToHeaderBlock(base::span<const std::string_view> extra_headers,
                          quiche::HttpHeaderBlock* headers) {
-  if (!extra_header_count)
+  if (extra_headers.empty()) {
     return;
+  }
 
-  // Sanity check: Non-NULL header list.
-  DCHECK(extra_headers) << "NULL header value pair list";
+  // Sanity check: Event length list.
+  CHECK_EQ(extra_headers.size() % 2, 0u) << "Odd length header value pair list";
   // Sanity check: Non-NULL header map.
-  DCHECK(headers) << "NULL header map";
+  CHECK(headers) << "NULL header map";
 
   // Copy in the headers.
-  for (int i = 0; i < extra_header_count; i++) {
-    std::string_view key(extra_headers[i * 2]);
-    std::string_view value(extra_headers[i * 2 + 1]);
-    DCHECK(!key.empty()) << "Header key must not be empty.";
+  for (size_t i = 0; i < extra_headers.size(); i += 2) {
+    std::string_view key = extra_headers[i];
+    std::string_view value = extra_headers[i + 1];
+    CHECK(!key.empty()) << "Header key must not be empty.";
     headers->AppendValueOrAddHeader(key, value);
   }
 }
 
 // Create a MockWrite from the given spdy::SpdySerializedFrame.
 MockWrite CreateMockWrite(const spdy::SpdySerializedFrame& req) {
-  return MockWrite(ASYNC, req.data(), req.size());
+  return MockWrite(ASYNC, std::string_view(req));
 }
 
 // Create a MockWrite from the given spdy::SpdySerializedFrame and sequence
@@ -148,12 +144,12 @@ MockWrite CreateMockWrite(const spdy::SpdySerializedFrame& req, int seq) {
 MockWrite CreateMockWrite(const spdy::SpdySerializedFrame& req,
                           int seq,
                           IoMode mode) {
-  return MockWrite(mode, req.data(), req.size(), seq);
+  return MockWrite(mode, std::string_view(req), /*result=*/0, /*seq=*/seq);
 }
 
 // Create a MockRead from the given spdy::SpdySerializedFrame.
 MockRead CreateMockRead(const spdy::SpdySerializedFrame& resp) {
-  return MockRead(ASYNC, resp.data(), resp.size());
+  return MockRead(ASYNC, std::string_view(resp));
 }
 
 // Create a MockRead from the given spdy::SpdySerializedFrame and sequence
@@ -167,7 +163,7 @@ MockRead CreateMockRead(const spdy::SpdySerializedFrame& resp, int seq) {
 MockRead CreateMockRead(const spdy::SpdySerializedFrame& resp,
                         int seq,
                         IoMode mode) {
-  return MockRead(mode, resp.data(), resp.size(), seq);
+  return MockRead(mode, std::string_view(resp), /*result=*/0, /*seq=*/seq);
 }
 
 // Combines the given vector of spdy::SpdySerializedFrame into a single frame.
@@ -178,10 +174,11 @@ spdy::SpdySerializedFrame CombineFrames(
     total_size += frame->size();
   }
   auto data = std::make_unique<char[]>(total_size);
-  char* ptr = data.get();
+  // SAFETY: We just allocated this buffer with size `total_size`.
+  // This is using a unique_ptr<T[]> to interface with Quiche.
+  UNSAFE_BUFFERS(base::span<char> out(data.get(), total_size));
   for (const auto* frame : frames) {
-    memcpy(ptr, frame->data(), frame->size());
-    ptr += frame->size();
+    out.take_first(frame->size()).copy_from(std::string_view(*frame));
   }
   return spdy::SpdySerializedFrame(std::move(data), total_size);
 }
@@ -436,7 +433,7 @@ CreateSpdyTestURLRequestContextBuilder(
 
 bool HasSpdySession(SpdySessionPool* pool, const SpdySessionKey& key) {
   return static_cast<bool>(pool->FindAvailableSession(
-      key, /* enable_ip_based_pooling = */ true,
+      key, /* enable_ip_based_pooling_for_h2 = */ true,
       /* is_websocket = */ false, NetLogWithSource()));
 }
 
@@ -446,9 +443,9 @@ base::WeakPtr<SpdySession> CreateSpdySessionHelper(
     HttpNetworkSession* http_session,
     const SpdySessionKey& key,
     const NetLogWithSource& net_log,
-    bool enable_ip_based_pooling) {
+    bool enable_ip_based_pooling_for_h2) {
   EXPECT_FALSE(http_session->spdy_session_pool()->FindAvailableSession(
-      key, enable_ip_based_pooling,
+      key, enable_ip_based_pooling_for_h2,
       /*is_websocket=*/false, NetLogWithSource()));
 
   auto connection = std::make_unique<ClientSocketHandle>();
@@ -496,7 +493,7 @@ base::WeakPtr<SpdySession> CreateSpdySession(HttpNetworkSession* http_session,
                                              const SpdySessionKey& key,
                                              const NetLogWithSource& net_log) {
   return CreateSpdySessionHelper(http_session, key, net_log,
-                                 /* enable_ip_based_pooling = */ true);
+                                 /* enable_ip_based_pooling_for_h2 = */ true);
 }
 
 base::WeakPtr<SpdySession> CreateSpdySessionWithIpBasedPoolingDisabled(
@@ -504,7 +501,7 @@ base::WeakPtr<SpdySession> CreateSpdySessionWithIpBasedPoolingDisabled(
     const SpdySessionKey& key,
     const NetLogWithSource& net_log) {
   return CreateSpdySessionHelper(http_session, key, net_log,
-                                 /* enable_ip_based_pooling = */ false);
+                                 /* enable_ip_based_pooling_for_h2 = */ false);
 }
 
 namespace {
@@ -767,8 +764,7 @@ spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyGet(
 }
 
 spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyGet(
-    const char* const extra_headers[],
-    int extra_header_count,
+    base::span<const std::string_view> extra_headers,
     int stream_id,
     RequestPriority request_priority,
     bool priority_incremental,
@@ -776,23 +772,22 @@ spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyGet(
   quiche::HttpHeaderBlock block;
   block[spdy::kHttp2MethodHeader] = "GET";
   AddUrlToHeaderBlock(default_url_.spec(), &block);
-  AppendToHeaderBlock(extra_headers, extra_header_count, &block);
+  AppendToHeaderBlock(extra_headers, &block);
   return ConstructSpdyHeaders(stream_id, std::move(block), request_priority,
                               true, priority_incremental,
                               header_request_priority);
 }
 
 spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyConnect(
-    const char* const extra_headers[],
-    int extra_header_count,
+    base::span<const std::string_view> extra_headers,
     int stream_id,
     RequestPriority priority,
     const HostPortPair& host_port_pair) {
   quiche::HttpHeaderBlock block;
   block[spdy::kHttp2MethodHeader] = "CONNECT";
   block[spdy::kHttp2AuthorityHeader] = host_port_pair.ToString();
-  if (extra_headers) {
-    AppendToHeaderBlock(extra_headers, extra_header_count, &block);
+  if (!extra_headers.empty()) {
+    AppendToHeaderBlock(extra_headers, &block);
   } else {
     block["user-agent"] = "test-ua";
   }
@@ -870,30 +865,29 @@ spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyReply(
 
 spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyReplyError(
     const char* const status,
-    const char* const* const extra_headers,
-    int extra_header_count,
+    base::span<const std::string_view> extra_headers,
     int stream_id) {
   quiche::HttpHeaderBlock block;
   block[spdy::kHttp2StatusHeader] = status;
   block["hello"] = "bye";
-  AppendToHeaderBlock(extra_headers, extra_header_count, &block);
+  AppendToHeaderBlock(extra_headers, &block);
 
   spdy::SpdyHeadersIR reply(stream_id, std::move(block));
   return spdy::SpdySerializedFrame(response_spdy_framer_.SerializeFrame(reply));
 }
 
 spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyReplyError(int stream_id) {
-  return ConstructSpdyReplyError("500", nullptr, 0, stream_id);
+  return ConstructSpdyReplyError("500", base::span<const std::string_view>(),
+                                 stream_id);
 }
 
 spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyGetReply(
-    const char* const extra_headers[],
-    int extra_header_count,
+    base::span<const std::string_view> extra_headers,
     int stream_id) {
   quiche::HttpHeaderBlock block;
   block[spdy::kHttp2StatusHeader] = "200";
   block["hello"] = "bye";
-  AppendToHeaderBlock(extra_headers, extra_header_count, &block);
+  AppendToHeaderBlock(extra_headers, &block);
 
   return ConstructSpdyReply(stream_id, std::move(block));
 }
@@ -903,33 +897,30 @@ spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyPost(
     spdy::SpdyStreamId stream_id,
     int64_t content_length,
     RequestPriority request_priority,
-    const char* const extra_headers[],
-    int extra_header_count,
+    base::span<const std::string_view> extra_headers,
     bool priority_incremental) {
   quiche::HttpHeaderBlock block(ConstructPostHeaderBlock(url, content_length));
-  AppendToHeaderBlock(extra_headers, extra_header_count, &block);
+  AppendToHeaderBlock(extra_headers, &block);
   return ConstructSpdyHeaders(stream_id, std::move(block), request_priority,
                               false, priority_incremental);
 }
 
 spdy::SpdySerializedFrame SpdyTestUtil::ConstructChunkedSpdyPost(
-    const char* const extra_headers[],
-    int extra_header_count,
+    base::span<const std::string_view> extra_headers,
     RequestPriority request_priority,
     bool priority_incremental) {
   quiche::HttpHeaderBlock block;
   block[spdy::kHttp2MethodHeader] = "POST";
   AddUrlToHeaderBlock(default_url_.spec(), &block);
-  AppendToHeaderBlock(extra_headers, extra_header_count, &block);
+  AppendToHeaderBlock(extra_headers, &block);
   return ConstructSpdyHeaders(1, std::move(block), request_priority, false,
                               priority_incremental);
 }
 
 spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyPostReply(
-    const char* const extra_headers[],
-    int extra_header_count) {
+    base::span<const std::string_view> extra_headers) {
   // TODO(jgraettinger): Remove this method.
-  return ConstructSpdyGetReply(extra_headers, extra_header_count, 1);
+  return ConstructSpdyGetReply(extra_headers, 1);
 }
 
 spdy::SpdySerializedFrame SpdyTestUtil::ConstructSpdyDataFrame(int stream_id,
@@ -1004,9 +995,9 @@ quiche::HttpHeaderBlock SpdyTestUtil::ConstructHeaderBlock(
 }
 
 namespace test {
-HashValue GetTestHashValue(uint8_t label) {
-  HashValue hash_value(HASH_VALUE_SHA256);
-  std::ranges::fill(hash_value.span(), label);
+SHA256HashValue GetTestHashValue(uint8_t label) {
+  SHA256HashValue hash_value;
+  std::ranges::fill(hash_value, label);
   return hash_value;
 }
 

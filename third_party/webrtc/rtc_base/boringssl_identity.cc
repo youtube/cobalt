@@ -14,9 +14,9 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/pool.h>
-#include <stdint.h>
-#include <string.h>
 
+#include <cstdint>
+#include <cstring>
 #include <ctime>
 #include <memory>
 #include <string>
@@ -175,7 +175,7 @@ const BoringSSLCertificate& BoringSSLIdentity::certificate() const {
 }
 
 const SSLCertChain& BoringSSLIdentity::cert_chain() const {
-  return *cert_chain_.get();
+  return *cert_chain_;
 }
 
 std::unique_ptr<SSLIdentity> BoringSSLIdentity::CloneInternal() const {

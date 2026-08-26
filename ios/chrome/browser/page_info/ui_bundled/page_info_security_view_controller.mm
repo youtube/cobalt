@@ -123,7 +123,6 @@ enum ItemIdentifier {
 
 - (void)tableView:(UITableView*)tableView
     didSelectRowAtIndexPath:(NSIndexPath*)indexPath {
-  CHECK(self.pageInfoPresentationHandler);
   ItemIdentifier itemType = static_cast<ItemIdentifier>(
       [_dataSource itemIdentifierForIndexPath:indexPath].integerValue);
   switch (itemType) {
@@ -148,7 +147,7 @@ enum ItemIdentifier {
 }
 
 - (void)keyCommand_close {
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self.pageInfoCommandsHandler hidePageInfo];
 }
 

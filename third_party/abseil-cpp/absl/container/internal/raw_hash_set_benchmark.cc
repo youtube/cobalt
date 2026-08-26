@@ -64,7 +64,7 @@ struct IntPolicy {
     return std::forward<F>(f)(x, x);
   }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
@@ -127,7 +127,7 @@ class StringPolicy {
                       PairArgs(std::forward<Args>(args)...));
   }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
@@ -518,17 +518,6 @@ void BM_Group_MaskNonFull(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_Group_MaskNonFull);
-
-void BM_Group_CountLeadingEmptyOrDeleted(benchmark::State& state) {
-  std::array<ctrl_t, Group::kWidth> group;
-  Iota(group.begin(), group.end(), -2);
-  Group g{group.data()};
-  for (auto _ : state) {
-    ::benchmark::DoNotOptimize(g);
-    ::benchmark::DoNotOptimize(g.CountLeadingEmptyOrDeleted());
-  }
-}
-BENCHMARK(BM_Group_CountLeadingEmptyOrDeleted);
 
 void BM_Group_MatchFirstEmptyOrDeleted(benchmark::State& state) {
   std::array<ctrl_t, Group::kWidth> group;

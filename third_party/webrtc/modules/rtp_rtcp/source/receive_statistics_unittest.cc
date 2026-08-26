@@ -31,12 +31,12 @@ namespace {
 using ::testing::SizeIs;
 using ::testing::UnorderedElementsAre;
 
-const size_t kPacketSize1 = 100;
-const size_t kPacketSize2 = 300;
-const uint32_t kSsrc1 = 101;
-const uint32_t kSsrc2 = 202;
-const uint32_t kSsrc3 = 203;
-const uint32_t kSsrc4 = 304;
+constexpr size_t kPacketSize1 = 100;
+constexpr size_t kPacketSize2 = 300;
+constexpr uint32_t kSsrc1 = 101;
+constexpr uint32_t kSsrc2 = 202;
+constexpr uint32_t kSsrc3 = 203;
+constexpr uint32_t kSsrc4 = 304;
 
 RtpPacketReceived CreateRtpPacket(uint32_t ssrc,
                                   size_t header_size,

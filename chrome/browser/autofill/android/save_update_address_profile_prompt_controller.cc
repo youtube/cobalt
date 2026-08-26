@@ -101,10 +101,9 @@ std::u16string SaveUpdateAddressProfilePromptController::GetRecordTypeNotice(
   // Notify user that their address is saved only in Chrome and can be migrated
   // to their Google account.
   if (is_migration_to_account_) {
-    // TODO(crbug.com/40066949): Simplify once ConsentLevel::kSync is not used
-    // anymore, and thus IsSyncFeatureEnabledForAutofill() will always be false.
     return l10n_util::GetStringFUTF16(
-        personal_data_->address_data_manager().IsSyncFeatureEnabledForAutofill()
+        personal_data_->address_data_manager()
+                .IsAutofillUserSelectableTypeEnabled()
             ? IDS_AUTOFILL_SYNCABLE_PROFILE_MIGRATION_PROMPT_NOTICE
             : IDS_AUTOFILL_LOCAL_PROFILE_MIGRATION_PROMPT_NOTICE,
         base::UTF8ToUTF16(account->email));
@@ -226,17 +225,13 @@ SaveUpdateAddressProfilePromptController::GetJavaObject() {
   return base::android::ScopedJavaLocalRef<jobject>(java_object_);
 }
 
-void SaveUpdateAddressProfilePromptController::OnUserAccepted(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) {
+void SaveUpdateAddressProfilePromptController::OnUserAccepted(JNIEnv* env) {
   had_user_interaction_ = true;
   RunSaveAddressProfileCallback(
       AutofillClient::AddressPromptUserDecision::kAccepted);
 }
 
-void SaveUpdateAddressProfilePromptController::OnUserDeclined(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) {
+void SaveUpdateAddressProfilePromptController::OnUserDeclined(JNIEnv* env) {
   had_user_interaction_ = true;
   RunSaveAddressProfileCallback(
       is_migration_to_account_
@@ -246,7 +241,6 @@ void SaveUpdateAddressProfilePromptController::OnUserDeclined(
 
 void SaveUpdateAddressProfilePromptController::OnUserEdited(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
     const base::android::JavaParamRef<jobject>& jprofile) {
   had_user_interaction_ = true;
   AutofillProfile* existing_profile =
@@ -258,9 +252,7 @@ void SaveUpdateAddressProfilePromptController::OnUserEdited(
       AutofillClient::AddressPromptUserDecision::kEditAccepted);
 }
 
-void SaveUpdateAddressProfilePromptController::OnPromptDismissed(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) {
+void SaveUpdateAddressProfilePromptController::OnPromptDismissed(JNIEnv* env) {
   std::move(dismissal_callback_).Run();
 }
 

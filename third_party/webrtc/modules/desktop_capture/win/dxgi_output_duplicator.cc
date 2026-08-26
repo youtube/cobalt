@@ -12,12 +12,20 @@
 
 #include <dxgi.h>
 #include <dxgiformat.h>
-#include <string.h>
 #include <unknwn.h>
 #include <windows.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <optional>
 
+#include "modules/desktop_capture/desktop_frame.h"
+#include "modules/desktop_capture/desktop_frame_rotation.h"
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/desktop_region.h"
+#include "modules/desktop_capture/shared_desktop_frame.h"
+#include "modules/desktop_capture/win/d3d_device.h"
 #include "modules/desktop_capture/win/desktop_capture_utils.h"
 #include "modules/desktop_capture/win/dxgi_texture_mapping.h"
 #include "modules/desktop_capture/win/dxgi_texture_staging.h"
@@ -67,7 +75,7 @@ DxgiOutputDuplicator::DxgiOutputDuplicator(const D3dDevice& device,
                                            const DXGI_OUTPUT_DESC& desc)
     : device_(device),
       output_(output),
-      device_name_(webrtc::ToUtf8(desc.DeviceName)),
+      device_name_(ToUtf8(desc.DeviceName)),
       desktop_rect_(RECTToDesktopRect(desc.DesktopCoordinates)),
       monitor_(desc.Monitor) {
   RTC_DCHECK(output_);

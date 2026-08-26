@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/platform/blob/testing/fake_blob_registry.h"
 
+#include "base/notimplemented.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -16,8 +17,8 @@ namespace mojob = ::blink::mojom::blink;
 class DataElementReader {
  public:
   DataElementReader(mojo::PendingReceiver<mojob::Blob> blob,
-                    const String& uuid,
-                    Vector<mojob::DataElementPtr> elements)
+                    const blink::String& uuid,
+                    blink::Vector<mojob::DataElementPtr> elements)
       : blob_(std::move(blob)),
         uuid_(uuid),
         elements_(std::move(elements)),
@@ -71,7 +72,7 @@ class DataElementReader {
   class DataPipeReader : public mojo::DataPipeDrainer::Client {
    public:
     DataPipeReader(mojo::ScopedDataPipeConsumerHandle pipe,
-                   Vector<uint8_t>& blob_body_bytes,
+                   blink::Vector<uint8_t>& blob_body_bytes,
                    base::OnceClosure done_callback)
         : drainer_(this, std::move(pipe)),
           blob_body_bytes_(blob_body_bytes),
@@ -85,16 +86,16 @@ class DataElementReader {
 
    private:
     mojo::DataPipeDrainer drainer_;
-    raw_ref<Vector<uint8_t>> blob_body_bytes_;
+    raw_ref<blink::Vector<uint8_t>> blob_body_bytes_;
     base::OnceClosure done_callback_;
   };
 
   mojo::PendingReceiver<mojob::Blob> blob_;
-  String uuid_;
-  Vector<mojob::DataElementPtr> elements_;
+  blink::String uuid_;
+  blink::Vector<mojob::DataElementPtr> elements_;
 
-  Vector<mojob::DataElementPtr>::iterator elements_index_;
-  Vector<uint8_t> blob_body_bytes_;
+  blink::Vector<mojob::DataElementPtr>::iterator elements_index_;
+  blink::Vector<uint8_t> blob_body_bytes_;
   std::unique_ptr<DataPipeReader> async_reader_;
 };
 

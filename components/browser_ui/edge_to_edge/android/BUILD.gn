@@ -8,6 +8,7 @@ android_library("java") {
   resources_package = "org.chromium.components.browser_ui.edge_to_edge"
   sources = [
     "java/src/org/chromium/components/browser_ui/edge_to_edge/BaseSystemBarColorHelper.java",
+    "java/src/org/chromium/components/browser_ui/edge_to_edge/EdgeToEdgeFieldTrial.java",
     "java/src/org/chromium/components/browser_ui/edge_to_edge/EdgeToEdgeManager.java",
     "java/src/org/chromium/components/browser_ui/edge_to_edge/EdgeToEdgePadAdjuster.java",
     "java/src/org/chromium/components/browser_ui/edge_to_edge/EdgeToEdgeStateProvider.java",
@@ -54,7 +55,7 @@ robolectric_library("junit") {
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_test_core_java",
     "//third_party/androidx:androidx_test_ext_junit_java",
-    "//third_party/junit:junit",
+    "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java_test_support",
     "//ui/android:ui_no_recycler_view_java",
@@ -74,7 +75,7 @@ android_library("unit_device_javatests") {
     "//third_party/androidx:androidx_test_core_java",
     "//third_party/androidx:androidx_test_rules_java",
     "//third_party/androidx:androidx_test_runner_java",
-    "//third_party/junit:junit",
+    "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java_test_support",
     "//ui/android:ui_no_recycler_view_java",

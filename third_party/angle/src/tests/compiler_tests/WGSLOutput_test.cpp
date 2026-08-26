@@ -100,7 +100,11 @@ TEST_F(WGSLOutputTest, BasicTranslation)
             doFoo(returnFoo(foo), returnFloat(3.0));
             takeArgs(vec2(1.0, 2.0), foo.x);
             returnFloat(doFoo(foo, 7.0 + 9.0).x);
-            outColor = vec4(0.0, 0.0, 0.0, 0.0);
+
+            vec3 comp1 = vec3(0.0, 0.0, 0.0);
+            float f3 = float(comp1 == foo.multiArray[0][0]);
+
+            outColor = vec4(f3, 0.0, 0.0, 0.0);
         })";
     const std::string &outputString =
         R"(struct ANGLE_Output_Global {
@@ -124,8 +128,6 @@ struct ANGLEDepthRangeParams
   diff : f32,
 };
 
-;
-
 struct _uFoo
 {
   _ux : f32,
@@ -133,6 +135,8 @@ struct _uFoo
   _umultiArray : array<array<vec3<f32>, 3>, 2>,
   _uaMatrix : mat3x3<f32>,
 };
+
+;
 
 struct ANGLEUniformBlock
 {
@@ -180,7 +184,9 @@ fn _umain()
   _udoFoo(_ureturnFoo(_ufoo), _ureturnFloat(3.0f));
   _utakeArgs(vec2<f32>(1.0f, 2.0f), (_ufoo)._ux);
   _ureturnFloat((_udoFoo(_ufoo, 16.0f)).x);
-  (ANGLE_output_global.outColor) = (vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f));
+  var _ucomp1 : vec3<f32> = (vec3<f32>(0.0f, 0.0f, 0.0f));
+  var _uf3 : f32 = (f32(all((_ucomp1) == ((((_ufoo)._umultiArray)[0i])[0i]))));
+  (ANGLE_output_global.outColor) = (vec4<f32>(_uf3, 0.0f, 0.0f, 0.0f));
 }
 @fragment
 fn wgslMain() -> ANGLE_Output_Annotated
@@ -1161,20 +1167,20 @@ fn _umain()
   (ANGLE_output_global.fragColor) = (vec4<f32>(0.0f, 0.0f, 0.0f, 0.0f));
   (ANGLE_output_global.fragColor) += (vec4<f32>(textureDimensions(ANGLE_texture_samp2DArray, 0i), 0.0f));
   (ANGLE_output_global.fragColor) += (vec4<f32>(textureDimensions(ANGLE_texture_samp2DArrayShadow, 0i), 0.0f));
-  (ANGLE_output_global.fragColor) += (textureSample(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, (vec3<f32>(0.5f, 0.5f, 0.5f)).z));
-  (ANGLE_output_global.fragColor) += (textureSampleBias(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, (vec3<f32>(0.5f, 0.5f, 0.5f)).z, 0.0f));
-  (ANGLE_output_global.fragColor) += (vec4<f32>(textureSampleCompare(ANGLE_texture_samp2DArrayShadow, ANGLE_sampler_samp2DArrayShadow, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).xy, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).z, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).w)));
-  (ANGLE_output_global.fragColor) += (textureSampleLevel(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, (vec3<f32>(0.5f, 0.5f, 0.5f)).z, 0.0f));
-  (ANGLE_output_global.fragColor) += (textureSample(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, (vec3<f32>(0.5f, 0.5f, 0.5f)).z, vec2<i32>(0i, 0i)));
-  (ANGLE_output_global.fragColor) += (textureSampleBias(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, (vec3<f32>(0.5f, 0.5f, 0.5f)).z, 0.0f, vec2<i32>(0i, 0i)));
+  (ANGLE_output_global.fragColor) += (textureSample(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, i32((vec3<f32>(0.5f, 0.5f, 0.5f)).z)));
+  (ANGLE_output_global.fragColor) += (textureSampleBias(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, i32((vec3<f32>(0.5f, 0.5f, 0.5f)).z), 0.0f));
+  (ANGLE_output_global.fragColor) += (vec4<f32>(textureSampleCompare(ANGLE_texture_samp2DArrayShadow, ANGLE_sampler_samp2DArrayShadow, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).xy, i32((vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).z), (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).w)));
+  (ANGLE_output_global.fragColor) += (textureSampleLevel(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, i32((vec3<f32>(0.5f, 0.5f, 0.5f)).z), 0.0f));
+  (ANGLE_output_global.fragColor) += (textureSample(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, i32((vec3<f32>(0.5f, 0.5f, 0.5f)).z), vec2<i32>(0i, 0i)));
+  (ANGLE_output_global.fragColor) += (textureSampleBias(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, i32((vec3<f32>(0.5f, 0.5f, 0.5f)).z), 0.0f, vec2<i32>(0i, 0i)));
   var _usize2DArray : vec3<i32> = (textureDimensions(ANGLE_texture_samp2DArray, 0i));
   (ANGLE_output_global.fragColor) += (textureLoad(ANGLE_texture_samp2DArray, (vec3<i32>((vec3<f32>(0.5f, 0.5f, 0.5f)) * (vec3<f32>(_usize2DArray)))), 0i));
   (ANGLE_output_global.fragColor) += (textureLoad(ANGLE_texture_samp2DArray, (vec3<i32>((vec3<f32>(0.5f, 0.5f, 0.5f)) * (vec3<f32>(_usize2DArray)))), 0i, vec2<i32>(0i, 0i)));
-  (ANGLE_output_global.fragColor) += (textureSampleLevel(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, (vec3<f32>(0.5f, 0.5f, 0.5f)).z, 0.0f, vec2<i32>(0i, 0i)));
-  (ANGLE_output_global.fragColor) += (textureSampleGrad(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, (vec3<f32>(0.5f, 0.5f, 0.5f)).z, vec2<f32>(0.0f, 0.0f), vec2<f32>(0.0f, 0.0f)));
-  (ANGLE_output_global.fragColor) += (vec4<f32>(TODO_CANNOT_USE_EXPLICIT_GRAD_WITH_SHADOW_SAMPLER(ANGLE_texture_samp2DArrayShadow, ANGLE_sampler_samp2DArrayShadow, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).xy, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).z, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).w, vec2<f32>(0.0f, 0.0f), vec2<f32>(0.0f, 0.0f))));
-  (ANGLE_output_global.fragColor) += (textureSampleGrad(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, (vec3<f32>(0.5f, 0.5f, 0.5f)).z, vec2<f32>(0.0f, 0.0f), vec2<f32>(0.0f, 0.0f), vec2<i32>(0i, 0i)));
-  (ANGLE_output_global.fragColor) += (TODO_CANNOT_USE_EXPLICIT_GRAD_WITH_SHADOW_SAMPLER(ANGLE_texture_samp2DArrayShadow, ANGLE_sampler_samp2DArrayShadow, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).xy, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).z, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).w, vec2<f32>(0.0f, 0.0f), vec2<f32>(0.0f, 0.0f), vec2<i32>(0i, 0i)));
+  (ANGLE_output_global.fragColor) += (textureSampleLevel(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, i32((vec3<f32>(0.5f, 0.5f, 0.5f)).z), 0.0f, vec2<i32>(0i, 0i)));
+  (ANGLE_output_global.fragColor) += (textureSampleGrad(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, i32((vec3<f32>(0.5f, 0.5f, 0.5f)).z), vec2<f32>(0.0f, 0.0f), vec2<f32>(0.0f, 0.0f)));
+  (ANGLE_output_global.fragColor) += (vec4<f32>(TODO_CANNOT_USE_EXPLICIT_GRAD_WITH_SHADOW_SAMPLER(ANGLE_texture_samp2DArrayShadow, ANGLE_sampler_samp2DArrayShadow, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).xy, i32((vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).z), (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).w, vec2<f32>(0.0f, 0.0f), vec2<f32>(0.0f, 0.0f))));
+  (ANGLE_output_global.fragColor) += (textureSampleGrad(ANGLE_texture_samp2DArray, ANGLE_sampler_samp2DArray, (vec3<f32>(0.5f, 0.5f, 0.5f)).xy, i32((vec3<f32>(0.5f, 0.5f, 0.5f)).z), vec2<f32>(0.0f, 0.0f), vec2<f32>(0.0f, 0.0f), vec2<i32>(0i, 0i)));
+  (ANGLE_output_global.fragColor) += (TODO_CANNOT_USE_EXPLICIT_GRAD_WITH_SHADOW_SAMPLER(ANGLE_texture_samp2DArrayShadow, ANGLE_sampler_samp2DArrayShadow, (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).xy, i32((vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).z), (vec4<f32>(0.5f, 0.5f, 0.5f, 0.5f)).w, vec2<f32>(0.0f, 0.0f), vec2<f32>(0.0f, 0.0f), vec2<i32>(0i, 0i)));
 }
 @fragment
 fn wgslMain() -> ANGLE_Output_Annotated
@@ -1383,6 +1389,91 @@ fn wgslMain() -> ANGLE_Output_Annotated
   return ANGLE_output_annotated;
 }
 )";
+    compile(shaderString);
+    EXPECT_TRUE(foundInCode(outputString.c_str()));
+}
+
+TEST_F(WGSLVertexOutputTest, MatrixAttributesAndVaryings)
+{
+    const std::string &shaderString =
+        R"(#version 300 es
+        precision highp float;
+
+        in mat3 inMat;
+        out mat3 outMatArr;
+
+        void main()
+        {
+          outMatArr = inMat;
+        })";
+    const std::string &outputString =
+        R"(struct ANGLE_Input_Global {
+  inMat : mat3x3<f32>,
+};
+
+var<private> ANGLE_input_global : ANGLE_Input_Global;
+
+struct ANGLE_Input_Annotated {
+  @location(@@@@@@) inMat_col0 : vec3<f32>,
+  @location(@@@@@@) inMat_col1 : vec3<f32>,
+  @location(@@@@@@) inMat_col2 : vec3<f32>,
+};
+
+struct ANGLE_Output_Global {
+  gl_Position_ : vec4<f32>,
+  outMatArr : mat3x3<f32>,
+};
+
+var<private> ANGLE_output_global : ANGLE_Output_Global;
+
+struct ANGLE_Output_Annotated {
+  @builtin(position) gl_Position_ : vec4<f32>,
+  @location(@@@@@@) outMatArr_col0 : vec3<f32>,
+  @location(@@@@@@) outMatArr_col1 : vec3<f32>,
+  @location(@@@@@@) outMatArr_col2 : vec3<f32>,
+};
+
+@group(2) @binding(0) var<uniform> ANGLEUniforms : ANGLEUniformBlock;
+
+struct ANGLEDepthRangeParams
+{
+  near : f32,
+  far : f32,
+  diff : f32,
+};
+
+;
+;
+
+struct ANGLEUniformBlock
+{
+  acbBufferOffsets : vec2<u32>,
+  depthRange : vec2<f32>,
+  renderArea : u32,
+  flipXY : u32,
+  dither : u32,
+  misc : u32,
+};
+
+;
+
+fn _umain()
+{
+  (ANGLE_output_global.outMatArr) = (ANGLE_input_global.inMat);
+  ((ANGLE_output_global.gl_Position_).y) = (((ANGLE_output_global.gl_Position_).y) * ((unpack4x8snorm((ANGLEUniforms).flipXY)).w));
+}
+@vertex
+fn wgslMain(ANGLE_input_annotated : ANGLE_Input_Annotated) -> ANGLE_Output_Annotated
+{
+  ANGLE_input_global.inMat = mat3x3<f32>(ANGLE_input_annotated.inMat_col0, ANGLE_input_annotated.inMat_col1, ANGLE_input_annotated.inMat_col2);
+  _umain();
+  var ANGLE_output_annotated : ANGLE_Output_Annotated;
+  ANGLE_output_annotated.gl_Position_ = ANGLE_output_global.gl_Position_;
+  ANGLE_output_annotated.outMatArr_col0 = ANGLE_output_global.outMatArr[0];
+  ANGLE_output_annotated.outMatArr_col1 = ANGLE_output_global.outMatArr[1];
+  ANGLE_output_annotated.outMatArr_col2 = ANGLE_output_global.outMatArr[2];
+  return ANGLE_output_annotated;
+})";
     compile(shaderString);
     EXPECT_TRUE(foundInCode(outputString.c_str()));
 }

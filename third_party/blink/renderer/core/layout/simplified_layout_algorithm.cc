@@ -122,8 +122,10 @@ SimplifiedLayoutAlgorithm::SimplifiedLayoutAlgorithm(
         physical_fragment.HasCollapsedBorders());
 
     if (const auto* table_column_geometries =
-            physical_fragment.TableColumnGeometries())
-      container_builder_.SetTableColumnGeometries(*table_column_geometries);
+            physical_fragment.TableColumnGeometries()) {
+      container_builder_.SetTableColumnGeometries(
+          TableColumnGeometries(*table_column_geometries));
+    }
 
     if (const auto* table_collapsed_borders =
             physical_fragment.TableCollapsedBorders())
@@ -156,6 +158,10 @@ SimplifiedLayoutAlgorithm::SimplifiedLayoutAlgorithm(
 
   if (physical_fragment.IsHiddenForPaint())
     container_builder_.SetIsHiddenForPaint(true);
+
+  if (auto* gap_geometry = physical_fragment.GetGapGeometry()) {
+    container_builder_.SetGapGeometry(gap_geometry);
+  }
 
   if (auto first_baseline = physical_fragment.FirstBaseline())
     container_builder_.SetFirstBaseline(*first_baseline);

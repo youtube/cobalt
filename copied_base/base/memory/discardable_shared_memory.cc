@@ -21,7 +21,7 @@
 #include "base/tracing_buildflags.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_POSIX)
 // For madvise() which is available on all POSIX compatible systems.
 #include <sys/mman.h>
 #endif
@@ -397,7 +397,7 @@ bool DiscardableSharedMemory::Purge(Time current_time) {
 // Note: this memory will not be accessed again.  The segment will be
 // freed asynchronously at a later time, so just do the best
 // immediately.
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_POSIX)
 // Linux and Android provide MADV_REMOVE which is preferred as it has a
 // behavior that can be verified in tests. Other POSIX flavors (MacOSX, BSDs),
 // provide MADV_FREE which has the same result but memory is purged lazily.
@@ -451,7 +451,7 @@ bool DiscardableSharedMemory::Purge(Time current_time) {
 
 void DiscardableSharedMemory::ReleaseMemoryIfPossible(size_t offset,
                                                       size_t length) {
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_POSIX)
 // Linux and Android provide MADV_REMOVE which is preferred as it has a
 // behavior that can be verified in tests. Other POSIX flavors (MacOSX, BSDs),
 // provide MADV_FREE which has the same result but memory is purged lazily.
@@ -473,10 +473,10 @@ void DiscardableSharedMemory::ReleaseMemoryIfPossible(size_t offset,
               length, MADV_PURGE_ARGUMENT)) {
     DPLOG(ERROR) << "madvise() failed";
   }
-#else   // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)
+#else   // BUILDFLAG(IS_POSIX)
   partition_alloc::DiscardSystemPages(
       static_cast<char*>(shared_memory_mapping_.memory()) + offset, length);
-#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)
+#endif  // BUILDFLAG(IS_POSIX)
 }
 
 bool DiscardableSharedMemory::IsMemoryResident() const {

@@ -4,13 +4,12 @@
 
 #include "chrome/browser/password_manager/password_change/password_change_submission_verifier.h"
 
-#include "base/functional/concurrent_closures.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
-#include "chrome/browser/password_manager/chrome_password_manager_client.h"
+#include "chrome/browser/password_manager/password_change/annotated_page_content_capturer.h"
 #include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
@@ -20,11 +19,13 @@
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/proto/model_execution.pb.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
+#include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/metrics/public/cpp/ukm_recorder.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
-#include "ui/accessibility/ax_tree_update.h"
 
 namespace {
 
@@ -38,9 +39,6 @@ using FinalModelStatus = optimization_guide::proto::FinalModelStatus;
 using QualityLogEntry =
     std::unique_ptr<optimization_guide::ModelQualityLogEntry>;
 using page_content_annotations::PageContentExtractionService;
-
-// Max numbers of nodes for the AX Tree Update Snapshot.
-constexpr int kMaxNodesInAXTreeSnapshot = 5000;
 
 constexpr char kSubmissionOutcomeHistogramName[] =
     "PasswordManager.PasswordChangeSubmissionOutcome";
@@ -105,7 +103,7 @@ void RecordOutcomeMetrics(
 }
 
 blink::mojom::AIPageContentOptionsPtr GetAIPageContentOptions() {
-  auto options = blink::mojom::AIPageContentOptions::New();
+  auto options = optimization_guide::ActionableAIPageContentOptions();
   // WebContents where password change is happening is hidden, and renderer
   // won't capture a snapshot unless it becomes visible again or
   // on_critical_path is set to true.
@@ -113,16 +111,18 @@ blink::mojom::AIPageContentOptionsPtr GetAIPageContentOptions() {
   return options;
 }
 
+OptimizationGuideKeyedService* GetOptimizationService(
+    content::WebContents* web_contents) {
+  return OptimizationGuideKeyedServiceFactory::GetForProfile(
+      Profile::FromBrowserContext(web_contents->GetBrowserContext()));
+}
+
 }  // namespace
 
 PasswordChangeSubmissionVerifier::PasswordChangeSubmissionVerifier(
     content::WebContents* web_contents,
     ModelQualityLogsUploader* logs_uploader)
-    : web_contents_(web_contents->GetWeakPtr()),
-      capture_annotated_page_content_(
-          base::BindOnce(&optimization_guide::GetAIPageContent,
-                         web_contents,
-                         GetAIPageContentOptions())),
+    : web_contents_(web_contents),
       logs_uploader_(logs_uploader) {}
 
 PasswordChangeSubmissionVerifier::~PasswordChangeSubmissionVerifier() = default;
@@ -132,77 +132,45 @@ void PasswordChangeSubmissionVerifier::CheckSubmissionOutcome(
   CHECK(web_contents_);
   callback_ = std::move(callback);
 
-  base::ConcurrentClosures concurrent_closures;
-  std::move(capture_annotated_page_content_)
-      .Run(
-          base::BindOnce(
-              &PasswordChangeSubmissionVerifier::OnAnnotatedPageContentReceived,
-              weak_ptr_factory_.GetWeakPtr())
-              .Then(concurrent_closures.CreateClosure()));
-  // TODO(crbug.com/409946698): Delete this when removing support for AX tree
-  // prompts.
-  web_contents_->RequestAXTreeSnapshot(
-      base::BindOnce(&PasswordChangeSubmissionVerifier::OnAxTreeReceived,
-                     weak_ptr_factory_.GetWeakPtr())
-          .Then(concurrent_closures.CreateClosure()),
-      ui::AXMode::kWebContents, kMaxNodesInAXTreeSnapshot,
-      /* timeout= */ {}, content::WebContents::AXTreeSnapshotPolicy::kAll);
-  std::move(concurrent_closures)
-      .Done(base::BindOnce(
+  capturer_ = std::make_unique<AnnotatedPageContentCapturer>(
+      web_contents_, GetAIPageContentOptions(),
+      base::BindOnce(
           &PasswordChangeSubmissionVerifier::CheckSubmissionSuccessful,
           weak_ptr_factory_.GetWeakPtr()));
 }
 
-void PasswordChangeSubmissionVerifier::OnAnnotatedPageContentReceived(
+void PasswordChangeSubmissionVerifier::CheckSubmissionSuccessful(
     std::optional<optimization_guide::AIPageContentResult> page_content) {
-  if (page_content.has_value()) {
-    *check_submission_successful_request_.mutable_page_context()
-         ->mutable_annotated_page_content() = std::move(page_content->proto);
-  }
-}
-
-void PasswordChangeSubmissionVerifier::OnAxTreeReceived(
-    ui::AXTreeUpdate& ax_tree_update) {
-  ProtoTreeUpdate ax_tree_proto;
-  optimization_guide::PopulateAXTreeUpdateProto(ax_tree_update, &ax_tree_proto);
-  // Construct request.
-  *check_submission_successful_request_.mutable_page_context()
-       ->mutable_ax_tree_data() = std::move(ax_tree_proto);
-}
-
-void PasswordChangeSubmissionVerifier::CheckSubmissionSuccessful() {
   CHECK(callback_);
-  if (!check_submission_successful_request_.has_page_context() ||
-      !check_submission_successful_request_.page_context()
-           .has_annotated_page_content()) {
-    // TODO (crbug.com/413318086): Add metrics to handle failure of capturing
-    // annotated page content.
+  CHECK(web_contents_);
+
+  if (!page_content) {
+    LogPageContentCaptureFailure(
+        password_manager::metrics_util::PasswordChangeFlowStep::
+            kVerifySubmissionStep);
     std::move(callback_).Run(false);
     return;
   }
-  server_request_start_time_ = base::Time::Now();
+
+  optimization_guide::proto::PasswordChangeRequest request;
+  *request.mutable_page_context()->mutable_annotated_page_content() =
+      std::move(page_content->proto);
   optimization_guide::ModelExecutionCallbackWithLogging<
       optimization_guide::proto::PasswordChangeSubmissionLoggingData>
       wrapper_callback = password_manager::metrics_util::TimeCallback(
           base::BindOnce(
               &PasswordChangeSubmissionVerifier::OnExecutionResponseCallback,
-              weak_ptr_factory_.GetWeakPtr()),
+              weak_ptr_factory_.GetWeakPtr(), base::Time::Now()),
           kPasswordChangeVerificationTimeHistogram);
 
   optimization_guide::ExecuteModelWithLogging(
-      GetOptimizationService(),
+      GetOptimizationService(web_contents_),
       optimization_guide::ModelBasedCapabilityKey::kPasswordChangeSubmission,
-      check_submission_successful_request_,
-      /*execution_timeout=*/std::nullopt, std::move(wrapper_callback));
-}
-
-OptimizationGuideKeyedService*
-PasswordChangeSubmissionVerifier::GetOptimizationService() const {
-  return OptimizationGuideKeyedServiceFactory::GetForProfile(
-      Profile::FromBrowserContext(web_contents_->GetBrowserContext()));
+      request, /*execution_timeout=*/std::nullopt, std::move(wrapper_callback));
 }
 
 void PasswordChangeSubmissionVerifier::OnExecutionResponseCallback(
+    base::Time request_time,
     optimization_guide::OptimizationGuideModelExecutionResult execution_result,
     std::unique_ptr<
         optimization_guide::proto::PasswordChangeSubmissionLoggingData>
@@ -228,11 +196,8 @@ void PasswordChangeSubmissionVerifier::OnExecutionResponseCallback(
     }
   }
 
-  if (logging_data) {
-    logs_uploader_->SetVerifySubmissionQuality(
-        response, std::move(logging_data), server_request_start_time_);
-  }
-
+  logs_uploader_->SetVerifySubmissionQuality(response, std::move(logging_data),
+                                             request_time);
   if (!response) {
     // Password change failed as the response was empty or
     // unable to be parsed.

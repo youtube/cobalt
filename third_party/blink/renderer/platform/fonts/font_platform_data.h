@@ -33,7 +33,6 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
-#include "third_party/blink/public/common/privacy_budget/identifiable_token.h"
 #include "third_party/blink/public/platform/web_font_render_style.h"
 #include "third_party/blink/renderer/platform/fonts/font_description.h"
 #include "third_party/blink/renderer/platform/fonts/font_orientation.h"
@@ -59,6 +58,7 @@ typedef const struct __CTFont* CTFontRef;
 namespace blink {
 
 class HarfBuzzFace;
+class IdentifiableToken;
 
 class PLATFORM_EXPORT FontPlatformData
     : public GarbageCollected<FontPlatformData> {
@@ -68,7 +68,7 @@ class PLATFORM_EXPORT FontPlatformData
   // to this "Deleted" one. It expects the Deleted one to be differentiable
   // from the 0 one (created with the empty constructor), so we can't just
   // set everything to 0.
-  FontPlatformData(WTF::HashTableDeletedValueType);
+  FontPlatformData(HashTableDeletedValueType);
   FontPlatformData();
   FontPlatformData(const FontPlatformData&);
   FontPlatformData(const FontPlatformData& src, float text_size);

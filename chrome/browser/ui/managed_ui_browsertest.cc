@@ -147,6 +147,7 @@ IN_PROC_BROWSER_TEST_F(ManagedUiTest,
           .GetProfileAttributesWithPath(profile_with_hosted_domain->GetPath());
   ASSERT_TRUE(entry);
   entry->SetHostedDomain("hosteddomain.com");
+  entry->SetIsManaged(signin::Tribool::kTrue);
 
   // Simulate a supervised profile.
   TestingProfile::Builder builder_supervised;
@@ -335,7 +336,14 @@ IN_PROC_BROWSER_TEST_F(ManagedUiTest, GetManagedUiMenuLinkUrlSupervised) {
             GetManagedUiUrl(profile.get()));
 }
 
-IN_PROC_BROWSER_TEST_F(ManagedUiTest, GetManagedUiMenuLinkNotManaged) {
+// TODO(crbug.com/410751413): Flaky on Windows.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_GetManagedUiMenuLinkNotManaged \
+  DISABLED_GetManagedUiMenuLinkNotManaged
+#else
+#define MAYBE_GetManagedUiMenuLinkNotManaged GetManagedUiMenuLinkNotManaged
+#endif
+IN_PROC_BROWSER_TEST_F(ManagedUiTest, MAYBE_GetManagedUiMenuLinkNotManaged) {
   // Non-managed profile.
   TestingProfile::Builder builder;
   std::unique_ptr<TestingProfile> profile = builder.Build();
@@ -369,6 +377,7 @@ IN_PROC_BROWSER_TEST_F(ManagedUiTest,
           .GetProfileAttributesWithPath(profile_with_hosted_domain->GetPath());
   ASSERT_TRUE(entry);
   entry->SetHostedDomain("hosteddomain.com");
+  entry->SetIsManaged(signin::Tribool::kTrue);
 
   // Simulate a supervised profile.
   TestingProfile::Builder builder_supervised;
@@ -528,6 +537,7 @@ IN_PROC_BROWSER_TEST_F(ManagedUiTest,
           .GetProfileAttributesWithPath(profile_with_hosted_domain->GetPath());
   ASSERT_TRUE(entry);
   entry->SetHostedDomain("hosteddomain.com");
+  entry->SetIsManaged(signin::Tribool::kTrue);
 
   // Simulate a supervised profile.
   TestingProfile::Builder builder_supervised;
@@ -753,6 +763,7 @@ IN_PROC_BROWSER_TEST_F(ManagedUiTest, MAYBE_GetManagedUiWebUILabelEnterprise) {
           .GetProfileAttributesWithPath(profile_with_hosted_domain->GetPath());
   ASSERT_TRUE(entry);
   entry->SetHostedDomain("hosteddomain.com");
+  entry->SetIsManaged(signin::Tribool::kTrue);
 
   // Simulate a supervised profile.
   TestingProfile::Builder builder_supervised;
@@ -945,6 +956,7 @@ IN_PROC_BROWSER_TEST_F(ManagedUiTest, MAYBE_GetManagementPageSubtitle) {
           .GetProfileAttributesWithPath(profile_with_hosted_domain->GetPath());
   ASSERT_TRUE(entry);
   entry->SetHostedDomain("hosteddomain.com");
+  entry->SetIsManaged(signin::Tribool::kTrue);
 
   // Simulate a supervised profile.
   TestingProfile::Builder builder_supervised;
@@ -1110,6 +1122,7 @@ IN_PROC_BROWSER_TEST_F(ManagedUiTest, MAYBE_GetManagementBubbleTitle) {
           .GetProfileAttributesWithPath(profile_with_hosted_domain->GetPath());
   ASSERT_TRUE(entry);
   entry->SetHostedDomain("hosteddomain.com");
+  entry->SetIsManaged(signin::Tribool::kTrue);
 
   // Simulate a supervised profile.
   TestingProfile::Builder builder_supervised;

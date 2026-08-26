@@ -9,16 +9,17 @@
  */
 #ifndef NET_DCSCTP_PACKET_CHUNK_SACK_CHUNK_H_
 #define NET_DCSCTP_PACKET_CHUNK_SACK_CHUNK_H_
-#include <stddef.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/packet/chunk/chunk.h"
 #include "net/dcsctp/packet/tlv_trait.h"
 

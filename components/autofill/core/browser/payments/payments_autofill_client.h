@@ -44,6 +44,7 @@ class CreditCardRiskBasedAuthenticator;
 class Iban;
 class IbanAccessManager;
 class IbanManager;
+class LoyaltyCard;
 class MerchantPromoCodeManager;
 struct OfferNotificationOptions;
 class OtpUnmaskDelegate;
@@ -208,13 +209,54 @@ class PaymentsAutofillClient : public RiskDataLoader {
     kIgnored,
   };
 
-  // Used for explicitly requesting the user to enter/confirm cardholder name,
-  // expiration date month and year.
+  // Carries card details that were explicitly provided or confirmed by the
+  // user in a save/update UI. This can include data from a fix flow
+  // (e.g., corrected name) or optional data from an initial save (e.g., CVC).
   struct UserProvidedCardDetails {
+    UserProvidedCardDetails();
+    UserProvidedCardDetails(const UserProvidedCardDetails&);
+    UserProvidedCardDetails& operator=(const UserProvidedCardDetails&);
+    UserProvidedCardDetails(UserProvidedCardDetails&&);
+    UserProvidedCardDetails& operator=(UserProvidedCardDetails&&);
+    ~UserProvidedCardDetails();
     std::u16string cardholder_name;
     std::u16string expiration_date_month;
     std::u16string expiration_date_year;
+    std::u16string cvc;
   };
+
+  enum class CardSaveAndFillDialogUserDecision {
+    // The user accepted credit card Save and Fill dialog.
+    kAccepted,
+
+    // The user explicitly declined credit card Save and Fill dialog.
+    kDeclined,
+  };
+
+  // Used to hold the data entered by the user in the Save and Fill dialog,
+  // including card number, expiration date, name on card, and an optional
+  // security code.
+  struct UserProvidedCardSaveAndFillDetails : public UserProvidedCardDetails {
+    UserProvidedCardSaveAndFillDetails();
+    UserProvidedCardSaveAndFillDetails(
+        const UserProvidedCardSaveAndFillDetails&);
+    UserProvidedCardSaveAndFillDetails& operator=(
+        const UserProvidedCardSaveAndFillDetails&);
+    ~UserProvidedCardSaveAndFillDetails();
+
+    std::u16string card_number;
+    std::optional<std::u16string> security_code;
+  };
+
+  // Callback to run after the local/upload card Save and Fill dialog is shown.
+  // The callback runs with `user_decision` indicating whether the dialog was
+  // accepted, declined, or ignored. `user_provided_card_save_and_fill_details`
+  // contains the data entered by the user, such as card number, expiration
+  // date, name on card, and security code.
+  using CardSaveAndFillDialogCallback =
+      base::OnceCallback<void(CardSaveAndFillDialogUserDecision user_decision,
+                              const UserProvidedCardSaveAndFillDetails&
+                                  user_provided_card_save_and_fill_details)>;
 
   // Callback to run after local/upload IBAN save is offered. The callback runs
   // with `user_decision` indicating whether the prompt was accepted, declined,
@@ -485,6 +527,11 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // return a nullptr on iOS WebView.
   virtual CreditCardRiskBasedAuthenticator* GetRiskBasedAuthenticator();
 
+  // Returns true if Hagrid (risk based authentication) is supported on this
+  // platform. Override in subclasses, return true in supported platform,
+  // defaults to false.
+  virtual bool IsRiskBasedAuthEffectivelyAvailable() const;
+
   // Prompt the user to enable mandatory reauthentication for payment method
   // autofill. When enabled, the user will be asked to authenticate using
   // biometrics or device unlock before filling in payment method information.
@@ -555,7 +602,7 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // WebView, and should not be used on those platforms.
   virtual bool ShowTouchToFillLoyaltyCard(
       base::WeakPtr<TouchToFillDelegate> delegate,
-      base::span<const LoyaltyCard> loyalty_cards_to_suggest);
+      std::vector<LoyaltyCard> loyalty_cards_to_suggest);
 
   // Hides the Touch To Fill surface for filling payment information if one is
   // currently shown. Should be called only if the feature is supported by the
@@ -584,8 +631,21 @@ class PaymentsAutofillClient : public RiskDataLoader {
   virtual payments::MandatoryReauthManager*
   GetOrCreatePaymentsMandatoryReauthManager();
 
-  // Shows the `Save and Fill` modal dialog.
-  virtual void ShowCreditCardSaveAndFillDialog();
+  // Shows the local `Save and Fill` modal dialog.
+  virtual void ShowCreditCardLocalSaveAndFillDialog(
+      CardSaveAndFillDialogCallback callback);
+
+  // Shows the upload `Save and Fill` modal dialog.
+  virtual void ShowCreditCardUploadSaveAndFillDialog(
+      const LegalMessageLines& legal_message_lines,
+      CardSaveAndFillDialogCallback callback);
+
+  // Shows a pending state dialog with a throbber while the preflight
+  // response is being fetched. This pending state is a precursor to either the
+  // local or upload Save and Fill dialog. If the preflight call fails, the
+  // dialog transitions to the local version. If it succeeds, the dialog
+  // transitions to the server version.
+  virtual void ShowCreditCardSaveAndFillPendingDialog();
 
   // Gets the payments Save and Fill manager owned by the client. This will be
   // used to handle the Save and Fill dialog.

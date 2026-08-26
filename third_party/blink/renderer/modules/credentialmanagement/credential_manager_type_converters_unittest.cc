@@ -54,6 +54,7 @@
 namespace mojo {
 
 using V8Context = blink::V8IdentityCredentialRequestOptionsContext;
+using blink::Vector;
 using blink::mojom::blink::RpContext;
 
 const uint8_t kSample[] = {1, 2, 3, 4, 5, 6};
@@ -383,7 +384,8 @@ TEST(CredentialManagerTypeConvertersTest,
   ASSERT_EQ(mojo_type->get_cred_blob, true);
 }
 
-blink::RemoteDesktopClientOverride* blinkRemoteDesktopOverride(String origin) {
+blink::RemoteDesktopClientOverride* blinkRemoteDesktopOverride(
+    blink::String origin) {
   blink::RemoteDesktopClientOverride* remote_desktop_client_override =
       blink::RemoteDesktopClientOverride::Create();
   remote_desktop_client_override->setOrigin(origin);
@@ -391,7 +393,7 @@ blink::RemoteDesktopClientOverride* blinkRemoteDesktopOverride(String origin) {
 }
 
 blink::mojom::blink::RemoteDesktopClientOverridePtr mojoRemoteDesktopOverride(
-    String origin_string) {
+    blink::String origin_string) {
   auto remote_desktop_client_override =
       blink::mojom::blink::RemoteDesktopClientOverride::New();
   auto origin = blink::SecurityOrigin::CreateFromString(origin_string);
@@ -429,9 +431,10 @@ TEST(CredentialManagerTypeConvertersTest,
   const char attestation_format[] = "format";
   supplemental_pub_keys->setAttestation("indirect");
   supplemental_pub_keys->setAttestationFormats(
-      Vector({String::FromUTF8(attestation_format)}));
+      Vector({blink::String::FromUTF8(attestation_format)}));
   supplemental_pub_keys->setScopes(
-      Vector({String::FromUTF8("device"), String::FromUTF8("provider")}));
+      Vector({blink::String::FromUTF8("device"),
+              blink::String::FromUTF8("provider")}));
   blink_type->setSupplementalPubKeys(supplemental_pub_keys);
 
   blink::mojom::blink::AuthenticationExtensionsClientInputsPtr mojo_type =
@@ -442,7 +445,7 @@ TEST(CredentialManagerTypeConvertersTest,
       /*device_scope_requested=*/true,
       /*provider_scope_requested=*/true,
       blink::mojom::blink::AttestationConveyancePreference::INDIRECT,
-      Vector<WTF::String>({WTF::String::FromUTF8(attestation_format)}));
+      Vector<blink::String>({blink::String::FromUTF8(attestation_format)}));
   ASSERT_EQ(*(mojo_type->supplemental_pub_keys), *expected);
 }
 

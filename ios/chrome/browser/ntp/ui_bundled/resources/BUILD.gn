@@ -57,3 +57,11 @@ bundle_data_xcassets("resources") {
     "Assets.xcassets/ntp_recently_closed.imageset/ntp_recently_closed@3x.png",
   ]
 }
+
+bundle_data("animation_files") {
+  sources = [
+    "mia_circle_animation_no_glow.json",
+    "mia_glowing_circle_animation.json",
+  ]
+  outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+}

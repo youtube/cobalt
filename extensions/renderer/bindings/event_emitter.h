@@ -10,7 +10,9 @@
 #include "base/memory/raw_ptr.h"
 #include "extensions/common/mojom/event_dispatcher.mojom-forward.h"
 #include "extensions/renderer/bindings/js_runner.h"
+#include "gin/public/wrappable_pointer_tags.h"
 #include "gin/wrappable.h"
+#include "v8/include/cppgc/prefinalizer.h"
 #include "v8/include/v8.h"
 
 namespace gin {
@@ -25,7 +27,13 @@ class ExceptionHandler;
 // context. Note: this object *does not* clear any events, so it must be
 // destroyed with the context to avoid leaking.
 class EventEmitter final : public gin::Wrappable<EventEmitter> {
+  CPPGC_USING_PRE_FINALIZER(EventEmitter, Dispose);
+
  public:
+  static constexpr gin::WrapperInfo kWrapperInfo = {{gin::kEmbedderNativeGin},
+                                                    gin::kEventEmitter};
+
+  // Public for cppgc::MakeGarbageCollected.
   EventEmitter(bool supports_filters,
                std::unique_ptr<APIEventListeners> listeners,
                ExceptionHandler* exception_handler);
@@ -35,12 +43,13 @@ class EventEmitter final : public gin::Wrappable<EventEmitter> {
 
   ~EventEmitter() override;
 
-  static gin::WrapperInfo kWrapperInfo;
-
   // gin::Wrappable:
   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
       v8::Isolate* isolate) final;
-  const char* GetTypeName() final;
+
+  const char* GetHumanReadableName() const final;
+
+  void Dispose();
 
   // Fires the event to any listeners.
   // Warning: This can run arbitrary JS code, so the `context` may be
@@ -48,7 +57,7 @@ class EventEmitter final : public gin::Wrappable<EventEmitter> {
   void Fire(v8::Local<v8::Context> context,
             v8::LocalVector<v8::Value>* args,
             mojom::EventFilteringInfoPtr filter,
-            JSRunner::ResultCallback callback);
+            v8::Local<v8::Function> callback);
 
   // Fires the event to any listeners synchronously, and returns the result.
   // This should only be used if the caller is certain that JS is already
@@ -86,6 +95,8 @@ class EventEmitter final : public gin::Wrappable<EventEmitter> {
   bool HasListeners();
   void Dispatch(gin::Arguments* arguments);
 
+  const gin::WrapperInfo* wrapper_info() const override;
+
   // Dispatches an event synchronously to listeners, returning the result.
   v8::Local<v8::Value> DispatchSync(v8::Local<v8::Context> context,
                                     v8::LocalVector<v8::Value>* args,
@@ -95,7 +106,7 @@ class EventEmitter final : public gin::Wrappable<EventEmitter> {
   void DispatchAsync(v8::Local<v8::Context> context,
                      v8::LocalVector<v8::Value>* args,
                      mojom::EventFilteringInfoPtr filter,
-                     JSRunner::ResultCallback callback);
+                     v8::Local<v8::Function> callback);
   static void DispatchAsyncHelper(
       const v8::FunctionCallbackInfo<v8::Value>& info);
 

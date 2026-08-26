@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "components/permissions/permission_decision.h"
 #include "components/permissions/request_type.h"
 #include "components/permissions/resolvers/permission_resolver.h"
 
@@ -20,15 +21,16 @@ class ContentSettingPermissionResolver : public PermissionResolver {
   explicit ContentSettingPermissionResolver(RequestType request_type);
 
   blink::mojom::PermissionStatus DeterminePermissionStatus(
-      const base::Value& value) const override;
+      const PermissionSetting& setting) const override;
 
-  base::Value ComputePermissionDecisionResult(
-      const base::Value& previous_value,
-      ContentSetting decision,
-      std::optional<base::Value> prompt_options) const override;
+  PermissionSetting ComputePermissionDecisionResult(
+      const PermissionSetting& previous_setting,
+      PermissionDecision decision,
+      PromptOptions prompt_options) const override;
 
   PromptParameters GetPromptParameters(
-      const base::Value& current_setting_state) const override;
+      const PermissionSetting& current_setting_state) const override;
+
   ContentSetting default_value_;
 };
 

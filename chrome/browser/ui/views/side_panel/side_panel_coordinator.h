@@ -69,7 +69,7 @@ class SidePanelCoordinator final : public TabStripModelObserver,
   ~SidePanelCoordinator() override;
 
   void Init(Browser* browser);
-  void TearDownPreBrowserViewDestruction();
+  void TearDownPreBrowserWindowDestruction();
 
   SidePanelRegistry* GetWindowRegistry();
 
@@ -190,10 +190,15 @@ class SidePanelCoordinator final : public TabStripModelObserver,
 
   // views::ViewObserver:
   void OnViewVisibilityChanged(views::View* observed_view,
-                               views::View* starting_from) override;
+                               views::View* starting_from,
+                               bool visible) override;
 
   // PinnedToolbarActionsModel::Observer:
   void OnActionsChanged() override;
+
+  // Called when the action item associated with the side panel entry changes.
+  // The key is the unique key of the action item that has changed.
+  void OnActionItemChanged(UniqueKey key);
 
   SidePanelRegistry* GetActiveContextualRegistry() const;
 
@@ -249,6 +254,10 @@ class SidePanelCoordinator final : public TabStripModelObserver,
 
   // This registry is scoped to the browser window and is owned by this class.
   std::unique_ptr<SidePanelRegistry> window_registry_;
+
+  // This subscription is used to update the side panel title when the action
+  // item associated with the side panel entry changes.
+  base::CallbackListSubscription action_item_controller_subscription_;
 
   // current_key_ uniquely identifies the SidePanelEntry that has its view
   // hosted by the side panel. At the time that it is set and for most code

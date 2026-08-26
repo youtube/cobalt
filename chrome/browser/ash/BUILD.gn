@@ -47,6 +47,7 @@ source_set("unit_tests") {
     "//chrome/browser/extensions/api/enterprise_platform_keys",
     "//chrome/browser/extensions/api/enterprise_platform_keys_private",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/signin",
     "//chrome/browser/ui",
     "//chrome/browser/ui/ash/multi_user",
     "//chrome/test:test_support",
@@ -69,6 +70,7 @@ source_set("unit_tests") {
     "//chromeos/components/onc",
     "//chromeos/dbus/power",
     "//chromeos/dbus/tpm_manager",
+    "//components/account_id:test_support",
     "//components/download/content/public",
     "//components/download/public/common:test_support",
     "//components/onc",
@@ -96,11 +98,11 @@ source_set("unit_tests") {
     "//chrome/browser/ash/app_restore:unit_tests",
     "//chrome/browser/ash/apps:unit_tests",
     "//chrome/browser/ash/arc:unit_tests",
-    "//chrome/browser/ash/assistant:unit_tests",
     "//chrome/browser/ash/attestation:unit_tests",
     "//chrome/browser/ash/audio:unit_tests",
     "//chrome/browser/ash/bluetooth:unit_tests",
     "//chrome/browser/ash/boca:unit_tests",
+    "//chrome/browser/ash/boca/babelorca:unit_tests",
     "//chrome/browser/ash/boca/on_task:unit_tests",
     "//chrome/browser/ash/borealis:unit_tests",
     "//chrome/browser/ash/bruschetta:unit_tests",
@@ -171,7 +173,6 @@ source_set("unit_tests") {
     "//chrome/browser/ash/policy/external_data:unit_tests",
     "//chrome/browser/ash/policy/external_data/handlers:unit_tests",
     "//chrome/browser/ash/policy/handlers:unit_tests",
-    "//chrome/browser/ash/policy/invalidation:unit_tests",
     "//chrome/browser/ash/policy/networking:unit_tests",
     "//chrome/browser/ash/policy/off_hours:unit_tests",
     "//chrome/browser/ash/policy/remote_commands:unit_tests",
@@ -182,9 +183,9 @@ source_set("unit_tests") {
     "//chrome/browser/ash/policy/reporting/metrics_reporting/apps:unit_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/audio:unit_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/device_activity:unit_tests",
+    "//chrome/browser/ash/policy/reporting/metrics_reporting/external_display:unit_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/fatal_crash:unit_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/kiosk_heartbeat:unit_tests",
-    "//chrome/browser/ash/policy/reporting/metrics_reporting/kiosk_vision:unit_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/network:unit_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/usb:unit_tests",
     "//chrome/browser/ash/policy/reporting/os_updates:unit_tests",
@@ -243,6 +244,10 @@ source_set("unit_tests") {
   }
 
   data = [ "//chromeos/test/data/" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 group("browser_tests") {
@@ -323,16 +328,15 @@ group("browser_tests") {
     "//chrome/browser/ash/policy/reporting/metrics_reporting/apps:browser_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/audio:browser_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/device_activity:browser_tests",
+    "//chrome/browser/ash/policy/reporting/metrics_reporting/external_display:browser_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/fatal_crash:browser_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/kiosk_heartbeat:browser_tests",
-    "//chrome/browser/ash/policy/reporting/metrics_reporting/kiosk_vision:browser_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/network:browser_tests",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/usb:browser_tests",
     "//chrome/browser/ash/policy/reporting/os_updates:browser_tests",
     "//chrome/browser/ash/policy/reporting/user_added_removed:browser_tests",
     "//chrome/browser/ash/policy/reporting/user_session_activity:browser_tests",
     "//chrome/browser/ash/policy/skyvault:browser_tests",
-    "//chrome/browser/ash/policy/status_collector:browser_tests",
     "//chrome/browser/ash/preferences:browser_tests",
     "//chrome/browser/ash/printing/print_management:browser_tests",
     "//chrome/browser/ash/privacy_hub:browser_tests",

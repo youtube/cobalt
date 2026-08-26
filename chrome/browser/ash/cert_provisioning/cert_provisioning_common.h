@@ -16,8 +16,9 @@
 #include "base/functional/callback_forward.h"
 #include "base/time/time.h"
 #include "base/values.h"
-#include "chrome/browser/chromeos/platform_keys/platform_keys.h"
 #include "chromeos/ash/components/dbus/constants/attestation_constants.h"
+#include "chromeos/ash/components/platform_keys/platform_keys.h"
+#include "components/invalidation/invalidation_constants.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 #include "net/cert/x509_certificate.h"
 
@@ -45,15 +46,15 @@ namespace cert_provisioning {
 // done.
 BASE_DECLARE_FEATURE(kCertProvisioningUseOnlyInvalidationsForTesting);
 
-BASE_DECLARE_FEATURE(
-    kDeviceCertProvisioningInvalidationWithDirectMessagesEnabled);
-BASE_DECLARE_FEATURE(
-    kUserCertProvisioningInvalidationWithDirectMessagesEnabled);
-
 // Used for both DeleteVaKey and DeleteVaKeysByPrefix
 using DeleteVaKeyCallback = base::OnceCallback<void(bool)>;
 
 inline constexpr char kKeyNamePrefix[] = "cert-provis-";
+
+// GCP number to be used for certificates invalidations. Certificates are
+// considered critical to receive invalidation.
+inline constexpr int64_t kCertProvisioningInvalidationProjectNumber =
+    invalidation::kCriticalInvalidationsProjectNumber;
 
 // The type for variables containing an error from DM Server response.
 using CertProvisioningResponseErrorType =
@@ -308,9 +309,6 @@ std::string MakeInvalidationListenerType(
 // Returns true if workers should only progress when they receive an
 // invalidation (not on timeout).
 bool ShouldOnlyUseInvalidations();
-
-// Returns GCP number for cert provisioning invalidations of given `scope`.
-int64_t GetCertProvisioningInvalidationProjectNumber(CertScope scope);
 
 }  // namespace cert_provisioning
 }  // namespace ash

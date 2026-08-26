@@ -35,8 +35,8 @@
 #include "gpu/command_buffer/common/context_result.h"
 #include "gpu/command_buffer/common/gpu_memory_allocation.h"
 #include "gpu/command_buffer/common/scheduling_priority.h"
-#include "gpu/gpu_export.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
+#include "gpu/ipc/client/gpu_ipc_client_export.h"
 #include "gpu/ipc/common/gpu_channel.mojom.h"
 #include "gpu/ipc/common/surface_handle.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
@@ -56,7 +56,6 @@ struct GpuFenceHandle;
 
 namespace gpu {
 struct ContextCreationAttribs;
-struct Mailbox;
 struct SyncToken;
 }
 
@@ -66,9 +65,10 @@ class GpuMemoryBufferManager;
 
 // Client side proxy that forwards messages synchronously to a
 // CommandBufferStub.
-class GPU_EXPORT CommandBufferProxyImpl : public gpu::CommandBuffer,
-                                          public gpu::GpuControl,
-                                          public mojom::CommandBufferClient {
+class GPU_IPC_CLIENT_EXPORT CommandBufferProxyImpl
+    : public gpu::CommandBuffer,
+      public gpu::GpuControl,
+      public mojom::CommandBufferClient {
  public:
   class DeletionObserver {
    public:
@@ -139,12 +139,6 @@ class GPU_EXPORT CommandBufferProxyImpl : public gpu::CommandBuffer,
                        base::OnceClosure callback) override;
   void WaitSyncToken(const gpu::SyncToken& sync_token) override;
   bool CanWaitUnverifiedSyncToken(const gpu::SyncToken& sync_token) override;
-  void SetDefaultFramebufferSharedImage(const gpu::Mailbox& mailbox,
-                                        const gpu::SyncToken& sync_token,
-                                        int samples_count,
-                                        bool preserve,
-                                        bool needs_depth,
-                                        bool needs_stencil);
   void AddDeletionObserver(DeletionObserver* observer);
   void RemoveDeletionObserver(DeletionObserver* observer);
 

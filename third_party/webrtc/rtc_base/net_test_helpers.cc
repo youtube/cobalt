@@ -18,18 +18,18 @@
 
 #include "rtc_base/win/windows_version.h"
 #endif
-#if defined(WEBRTC_POSIX) && !defined(__native_client__)
+#if defined(WEBRTC_POSIX)
 #if defined(WEBRTC_ANDROID)
 #include "rtc_base/ifaddrs_android.h"
 #else
 #include <ifaddrs.h>
 #endif
-#endif  // defined(WEBRTC_POSIX) && !defined(__native_client__)
+#endif  // defined(WEBRTC_POSIX)
 
 namespace webrtc {
 
 bool HasIPv4Enabled() {
-#if defined(WEBRTC_POSIX) && !defined(__native_client__)
+#if defined(WEBRTC_POSIX)
   bool has_ipv4 = false;
   struct ifaddrs* ifa;
   if (getifaddrs(&ifa) < 0) {
@@ -88,7 +88,7 @@ bool HasIPv6Enabled() {
     }
   }
   return false;
-#elif defined(WEBRTC_POSIX) && !defined(__native_client__)
+#elif defined(WEBRTC_POSIX)
   bool has_ipv6 = false;
   struct ifaddrs* ifa;
   if (getifaddrs(&ifa) < 0) {
@@ -106,4 +106,5 @@ bool HasIPv6Enabled() {
   return true;
 #endif
 }
+
 }  // namespace webrtc

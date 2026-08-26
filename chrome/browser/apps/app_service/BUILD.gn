@@ -70,6 +70,7 @@ source_set("app_service") {
     "//chrome/browser/sync",
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/extensions",
     "//chrome/browser/ui/tabs:tab_enums",
     "//chrome/browser/web_applications",
     "//chrome/browser/web_applications:features",
@@ -108,6 +109,8 @@ source_set("app_service") {
       "app_service_proxy_ash.h",
       "app_shortcut_item.cc",
       "app_shortcut_item.h",
+      "chrome_app_deprecation/chrome_app_deprecation.cc",
+      "chrome_app_deprecation/chrome_app_deprecation.h",
       "file_utils.cc",
       "file_utils.h",
       "instance_registry_updater.cc",
@@ -159,8 +162,6 @@ source_set("app_service") {
       "publishers/borealis_apps.h",
       "publishers/bruschetta_apps.cc",
       "publishers/bruschetta_apps.h",
-      "publishers/chrome_app_deprecation.cc",
-      "publishers/chrome_app_deprecation.h",
       "publishers/crostini_apps.cc",
       "publishers/crostini_apps.h",
       "publishers/extension_apps_chromeos.cc",
@@ -273,7 +274,7 @@ source_set("app_service") {
       "//chromeos/ash/experiences/arc/session",
       "//chromeos/ash/experiences/arc/session:connection_holder",
       "//chromeos/ash/experiences/system_web_apps/types",
-      "//chromeos/components/kiosk:kiosk",
+      "//chromeos/components/kiosk",
       "//chromeos/components/mgs",
       "//chromeos/crosapi/mojom",
       "//components/app_restore",
@@ -289,10 +290,11 @@ source_set("app_service") {
       "//services/metrics/public/cpp:ukm_builders",
       "//third_party/smhasher:murmurhash2",
       "//ui/chromeos/styles:cros_tokens_color_mappings",
+      "//ui/native_window_tracker",
       "//ui/wm/public",
     ]
 
-    public_deps += [ "publishers/proto" ]
+    public_deps += [ "chrome_app_deprecation/proto" ]
 
     # Needed only to allow circular includes.
     deps += [ "//chrome/browser/chromeos/app_mode" ]
@@ -404,6 +406,7 @@ source_set("unit_tests") {
     "//chrome/common:chrome_features",
     "//chrome/common:non_code_constants",
     "//chrome/test:test_support",
+    "//chrome/test:test_support_unit",
     "//components/account_id",
     "//components/app_constants",
     "//components/services/app_service",
@@ -437,6 +440,7 @@ source_set("unit_tests") {
 
   if (is_chromeos) {
     sources += [
+      "chrome_app_deprecation/chrome_app_deprecation_unittest.cc",
       "file_utils_unittest.cc",
       "metrics/app_platform_metrics_service_unittest.cc",
       "promise_apps/promise_app_almanac_connector_unittest.cc",
@@ -448,7 +452,6 @@ source_set("unit_tests") {
       "promise_apps/promise_app_wrapper_unittest.cc",
       "publishers/arc_apps_unittest.cc",
       "publishers/bruschetta_apps_unittest.cc",
-      "publishers/chrome_app_deprecation_unittest.cc",
       "publishers/crostini_apps_unittest.cc",
       "publishers/guest_os_apps_unittest.cc",
       "publishers/plugin_vm_apps_unittest.cc",
@@ -483,6 +486,7 @@ source_set("unit_tests") {
       "//chrome/browser/policy:system_features_disable_list",
       "//chrome/browser/resources:app_icon_resources_grit",
       "//chrome/browser/web_applications/app_service:unit_tests",
+      "//chrome/test:test_support",
       "//chromeos/ash/components/dbus/chunneld",
       "//chromeos/ash/components/dbus/cicerone",
       "//chromeos/ash/components/dbus/seneschal",
@@ -504,6 +508,10 @@ source_set("unit_tests") {
       "//components/webapk:proto",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("test_support") {

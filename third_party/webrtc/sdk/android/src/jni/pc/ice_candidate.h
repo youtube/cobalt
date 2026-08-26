@@ -15,7 +15,6 @@
 
 #include "api/data_channel_interface.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtp_parameters.h"
 #include "rtc_base/ssl_identity.h"
@@ -24,15 +23,16 @@
 namespace webrtc {
 namespace jni {
 
-Candidate JavaToNativeCandidate(JNIEnv* jni,
-                                const JavaRef<jobject>& j_candidate);
+std::unique_ptr<IceCandidate> JavaToNativeCandidate(
+    JNIEnv* jni,
+    const JavaRef<jobject>& j_candidate);
 
 ScopedJavaLocalRef<jobject> NativeToJavaCandidate(JNIEnv* env,
                                                   const Candidate& candidate);
 
 ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
     JNIEnv* env,
-    const IceCandidateInterface& candidate);
+    const IceCandidate& candidate);
 
 ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
     JNIEnv* jni,

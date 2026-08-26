@@ -19,7 +19,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/no_destructor.h"
-#include "base/task/single_thread_task_runner.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time_override.h"
 #include "base/trace_event/builtin_categories.h"
@@ -48,9 +47,6 @@ class BASE_EXPORT TraceLog : public perfetto::TrackEventSessionObserver {
 
   TraceLog(const TraceLog&) = delete;
   TraceLog& operator=(const TraceLog&) = delete;
-
-  // Retrieves a copy (for thread-safety) of the current TraceConfig.
-  TraceConfig GetCurrentTraceConfig() const;
 
   // See TraceConfig comments for details on how to control which categories
   // will be traced.
@@ -162,13 +158,6 @@ class BASE_EXPORT TraceLog : public perfetto::TrackEventSessionObserver {
   // Cancels tracing and discards collected data.
   void CancelTracing(const OutputCallback& cb);
 
-  // Called by TRACE_EVENT* macros, don't call this directly.
-  // The name parameter is a category group for example:
-  // TRACE_EVENT0("renderer,webkit", "WebViewImpl::HandleInputEvent")
-  static const unsigned char* GetCategoryGroupEnabled(const char* name);
-  static const char* GetCategoryGroupName(
-      const unsigned char* category_group_enabled);
-
   ProcessId process_id() const { return process_id_; }
 
   // Exposed for unittesting:
@@ -186,12 +175,6 @@ class BASE_EXPORT TraceLog : public perfetto::TrackEventSessionObserver {
   };
   std::vector<TrackEventSession> GetTrackEventSessions() const;
 
-  // DEPRECATED. In the presence of multiple simultaneous sessions, this method
-  // returns only the first session's config. When no tracing sessions are
-  // active, returns an empty config for compatibility with legacy code.
-  // TODO(khokhlov): Remove this method and migrate all its uses to
-  // GetTrackEventSessions().
-  perfetto::DataSourceConfig GetCurrentTrackEventDataSourceConfig() const;
   void InitializePerfettoIfNeeded();
   bool IsPerfettoInitializedByTraceLog() const;
   void SetEnabledImpl(const TraceConfig& trace_config,
@@ -207,7 +190,7 @@ class BASE_EXPORT TraceLog : public perfetto::TrackEventSessionObserver {
 
   struct RegisteredAsyncObserver;
 
-  explicit TraceLog();
+  TraceLog();
   ~TraceLog() override;
 
   void SetDisabledWhileLocked() EXCLUSIVE_LOCKS_REQUIRED(lock_);

@@ -12,7 +12,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <utility>
 #include <vector>
 
 #include "api/array_view.h"
@@ -27,15 +26,18 @@
 #include "net/dcsctp/packet/parameter/reconfiguration_response_parameter.h"
 #include "net/dcsctp/packet/parameter/ssn_tsn_reset_request_parameter.h"
 #include "net/dcsctp/packet/sctp_packet.h"
-#include "net/dcsctp/packet/tlv_trait.h"
+#include "net/dcsctp/public/dcsctp_handover_state.h"
 #include "net/dcsctp/public/dcsctp_socket.h"
+#include "net/dcsctp/public/types.h"
 #include "net/dcsctp/rx/data_tracker.h"
 #include "net/dcsctp/rx/reassembly_queue.h"
 #include "net/dcsctp/socket/context.h"
 #include "net/dcsctp/timer/timer.h"
 #include "net/dcsctp/tx/retransmission_queue.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/str_join.h"
+#include "rtc_base/strings/string_builder.h"
 
 namespace dcsctp {
 namespace {

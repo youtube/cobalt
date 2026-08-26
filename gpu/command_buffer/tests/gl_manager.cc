@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "gpu/command_buffer/tests/gl_manager.h"
 
@@ -41,10 +37,8 @@
 #include "gpu/command_buffer/service/transfer_buffer_manager.h"
 #include "gpu/ipc/common/gpu_client_ids.h"
 #include "gpu/ipc/in_process_command_buffer.h"
-#include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/buffer_format_util.h"
-#include "ui/gfx/gpu_memory_buffer.h"
 #include "ui/gl/gl_context.h"
 #include "ui/gl/gl_share_group.h"
 #include "ui/gl/gl_surface.h"
@@ -67,107 +61,6 @@ void InitializeGpuPreferencesForTestingFromCommandLine(
   preferences->enable_gpu_service_logging_gpu =
       command_line.HasSwitch(switches::kEnableGPUServiceLoggingGPU);
 }
-
-class GpuMemoryBufferImplTest : public gfx::GpuMemoryBuffer {
- public:
-  GpuMemoryBufferImplTest(base::RefCountedBytes* bytes,
-                          const gfx::Size& size,
-                          gfx::BufferFormat format)
-      : mapped_(false), bytes_(bytes), size_(size), format_(format) {}
-
-  // Overridden from gfx::GpuMemoryBuffer:
-  bool Map() override {
-    DCHECK(!mapped_);
-    mapped_ = true;
-    return true;
-  }
-  void* memory(size_t plane) override {
-    DCHECK(mapped_);
-    DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
-    return bytes_->as_vector().data() +
-           gfx::BufferOffsetForBufferFormat(size_, format_, plane);
-  }
-  void Unmap() override {
-    DCHECK(mapped_);
-    mapped_ = false;
-  }
-  gfx::Size GetSize() const override { return size_; }
-  gfx::BufferFormat GetFormat() const override { return format_; }
-  int stride(size_t plane) const override {
-    DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
-    return gfx::RowSizeForBufferFormat(size_.width(), format_, plane);
-  }
-  gfx::GpuMemoryBufferId GetId() const override { NOTREACHED(); }
-  gfx::GpuMemoryBufferType GetType() const override {
-    return gfx::SHARED_MEMORY_BUFFER;
-  }
-  gfx::GpuMemoryBufferHandle CloneHandle() const override { NOTREACHED(); }
-  void OnMemoryDump(
-      base::trace_event::ProcessMemoryDump* pmd,
-      const base::trace_event::MemoryAllocatorDumpGuid& buffer_dump_guid,
-      uint64_t tracing_process_id,
-      int importance) const override {}
-
-  base::RefCountedBytes* bytes() { return bytes_.get(); }
-
- private:
-  bool mapped_;
-  scoped_refptr<base::RefCountedBytes> bytes_;
-  const gfx::Size size_;
-  gfx::BufferFormat format_;
-};
-
-#if BUILDFLAG(IS_MAC)
-class IOSurfaceGpuMemoryBuffer : public gfx::GpuMemoryBuffer {
- public:
-  IOSurfaceGpuMemoryBuffer(const gfx::Size& size, gfx::BufferFormat format)
-      : mapped_(false), size_(size), format_(format) {
-    iosurface_ = gfx::CreateIOSurface(size, gfx::BufferFormat::BGRA_8888);
-  }
-
-  ~IOSurfaceGpuMemoryBuffer() override = default;
-
-  // Overridden from gfx::GpuMemoryBuffer:
-  bool Map() override {
-    DCHECK(!mapped_);
-    mapped_ = true;
-    return true;
-  }
-  void* memory(size_t plane) override {
-    DCHECK(mapped_);
-    DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
-    return IOSurfaceGetBaseAddressOfPlane(iosurface_.get(), plane);
-  }
-  void Unmap() override {
-    DCHECK(mapped_);
-    mapped_ = false;
-  }
-  gfx::Size GetSize() const override { return size_; }
-  gfx::BufferFormat GetFormat() const override { return format_; }
-  int stride(size_t plane) const override {
-    DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
-    return IOSurfaceGetWidthOfPlane(iosurface_.get(), plane);
-  }
-  gfx::GpuMemoryBufferId GetId() const override { NOTREACHED(); }
-  gfx::GpuMemoryBufferType GetType() const override {
-    return gfx::IO_SURFACE_BUFFER;
-  }
-  gfx::GpuMemoryBufferHandle CloneHandle() const override { NOTREACHED(); }
-  void OnMemoryDump(
-      base::trace_event::ProcessMemoryDump* pmd,
-      const base::trace_event::MemoryAllocatorDumpGuid& buffer_dump_guid,
-      uint64_t tracing_process_id,
-      int importance) const override {}
-
-  IOSurfaceRef iosurface() { return iosurface_.get(); }
-
- private:
-  bool mapped_;
-  base::apple::ScopedCFTypeRef<IOSurfaceRef> iosurface_;
-  const gfx::Size size_;
-  gfx::BufferFormat format_;
-};
-#endif  // BUILDFLAG(IS_MAC)
 
 class CommandBufferCheckLostContext : public CommandBufferDirect {
  public:
@@ -200,9 +93,7 @@ GpuFeatureInfo GLManager::g_gpu_feature_info;
 
 GLManager::Options::Options() = default;
 
-GLManager::GLManager()
-    : gpu_memory_buffer_factory_(
-          gpu::GpuMemoryBufferFactory::CreateNativeType(nullptr)) {
+GLManager::GLManager() {
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
   InitializeGpuPreferencesForTestingFromCommandLine(command_line,
@@ -226,21 +117,6 @@ GLManager::~GLManager() {
       base_context_ = nullptr;
     }
   }
-}
-
-std::unique_ptr<gfx::GpuMemoryBuffer> GLManager::CreateGpuMemoryBuffer(
-    const gfx::Size& size,
-    gfx::BufferFormat format) {
-#if BUILDFLAG(IS_MAC)
-  if (use_iosurface_memory_buffers_) {
-    return base::WrapUnique<gfx::GpuMemoryBuffer>(
-        new IOSurfaceGpuMemoryBuffer(size, format));
-  }
-#endif  // BUILDFLAG(IS_MAC)
-  auto bytes = base::MakeRefCounted<base::RefCountedBytes>(
-      gfx::BufferSizeForBufferFormat(size, format));
-  return base::WrapUnique<gfx::GpuMemoryBuffer>(
-      new GpuMemoryBufferImplTest(bytes.get(), size, format));
 }
 
 void GLManager::Initialize(const GLManager::Options& options) {
@@ -289,9 +165,10 @@ void GLManager::InitializeWithWorkaroundsImpl(
 
   share_group_ = share_group ? share_group : new gl::GLShareGroup;
 
+  const bool bind_generates_resource = false;
+
   ContextCreationAttribs attribs;
   attribs.context_type = options.context_type;
-  attribs.bind_generates_resource = options.bind_generates_resource;
 
   translator_cache_ =
       std::make_unique<gles2::ShaderTranslatorCache>(gpu_preferences_);
@@ -308,7 +185,7 @@ void GLManager::InitializeWithWorkaroundsImpl(
     // not unexpectedly use the wrong command decoder
     context_group = new gles2::ContextGroup(
         gpu_preferences_, /*memory_tracker=*/nullptr, translator_cache_.get(),
-        &completeness_cache_, feature_info, options.bind_generates_resource,
+        &completeness_cache_, feature_info, bind_generates_resource,
         /*progress_reporter=*/nullptr, gpu_feature_info,
         discardable_manager_.get(), passthrough_discardable_manager_.get(),
         &shared_image_manager_);
@@ -382,7 +259,7 @@ void GLManager::InitializeWithWorkaroundsImpl(
   const bool support_client_side_arrays = true;
   gles2_implementation_.reset(new gles2::GLES2Implementation(
       gles2_helper_.get(), std::move(client_share_group),
-      transfer_buffer_.get(), options.bind_generates_resource,
+      transfer_buffer_.get(), bind_generates_resource,
       options.lose_context_when_out_of_memory, support_client_side_arrays,
       this));
 

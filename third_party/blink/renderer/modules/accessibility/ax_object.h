@@ -37,6 +37,7 @@
 #include "base/dcheck_is_on.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/stack_allocated.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/web/web_ax_enums.h"
 #include "third_party/blink/renderer/core/accessibility/axid.h"
@@ -546,6 +547,26 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
     return cached_is_on_screen_ ? cached_is_on_screen_.value() : false;
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  // These methods are used to compute paint order for Android XR.
+  // Paint order zero (0) is a reserved value indicating paint order
+  // could not be determined for an element (unknown).
+  // Notes:
+  // * Paint orders are computed over an entire widget, so for a particular
+  //   Document they may not start at 1.
+  // * Different widgets currently have independent and unrelated paint order
+  //   sequences. There is no global sequence. This includes the case of popup
+  //   windows, which share an AXObjectCacheImpl with their main Document, but
+  //   belong to a different widget.
+  int GetPaintOrder() const {
+    CHECK(blink::features::IsXrDevice());
+    return paint_order_;
+  }
+  void AnnotateXrHitTestOrder(const Document& document,
+                              const HashMap<DOMNodeId, int>& order_map,
+                              int inherited_paint_order);
+#endif
+
   // A node can oly flip from off-screen to on-screen if it was explicitly
   // marked as off-screen at some point. Since we keep track if a node was ever
   // on-screen, it can't also flip from on-screen to off-screen because of this
@@ -558,16 +579,15 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // Accessible name calculation
   //
 
+  typedef HeapVector<NameSource> NameSources;
+
   // Retrieves the accessible name of the object, an enum indicating where the
   // name was derived from, and a list of objects that were used to derive the
-  // name, if any.
+  // name, if any (can be null), and a list of all potential sources for the
+  // name, indicating which were used (can be null).
   virtual String GetName(ax::mojom::blink::NameFrom&,
-                         AXObjectVector* name_objects) const;
-
-  typedef HeapVector<NameSource> NameSources;
-  // Retrieves the accessible name of the object and a list of all potential
-  // sources for the name, indicating which were used.
-  String GetName(NameSources*) const;
+                         AXObjectVector* name_objects,
+                         NameSources* name_sources) const;
 
   typedef HeapVector<DescriptionSource> DescriptionSources;
   // Takes the result of nameFrom from calling |name|, above, and retrieves the
@@ -897,6 +917,10 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // xml-roles object attribute.
   const AtomicString& GetRoleStringForSerialization(ui::AXNodeData* node_data) const;
 
+  // Returns the first object (using pre-order search) that has the given role
+  // in the subtree rooted at this object.
+  AXObject* FirstObjectWithRole(ax::mojom::blink::Role role) const;
+
   // ARIA attributes.
   bool ElementHasAnyAriaAttribute(
       bool does_undo_role_presentation = false) const;
@@ -916,6 +940,12 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // autocomplete suggestion.
   virtual ax::mojom::blink::HasPopup HasPopup() const;
 
+  // Determines whether the `element` has an associated popup menu based on the
+  // aria-haspopup attribute. Returns null if the attribute is not set or set to
+  // an invalid value.
+  static std::optional<ax::mojom::blink::HasPopup> HasPopupFromAttribute(
+      const Element& element);
+
   // Determines whether this object is a popup, and what type.
   virtual ax::mojom::blink::IsPopup IsPopup() const;
 
@@ -926,10 +956,10 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // on an invoking element.
   AXObject* GetCommandForElement() const;
 
-  // Heuristic to get the interest target for an invoking element.
-  // Returns null if the interest target points to plain content and can be
-  // expose as a description instead.
-  AXObject* GetInterestTargetForInvoker() const;
+  // Heuristic to get the target element for an element with the `interestfor`
+  // attribute. Returns null if the `interestfor` can be exposed as a
+  // description instead (even if there is a valid target element).
+  AXObject* GetInterestForTargetPopover() const;
 
   // Elements can be positioned relative to other elements with CSS anchor
   // positioning. This function returns the positioned element that should be
@@ -1060,6 +1090,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   AncestorsIterator UnignoredAncestorsBegin() const;
   AncestorsIterator UnignoredAncestorsEnd() const;
 
+  // ------------ Fast methods for retrieving the cached children_ -------------
   // Returns the number of children, including children that are included in the
   // accessibility tree but are accessibility ignored.
   //
@@ -1081,19 +1112,6 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // accessibility tree.
   const AXObjectVector& ChildrenIncludingIgnored() const;
   const AXObjectVector& ChildrenIncludingIgnored();
-
-  // Returns the node's unignored descendants that are one level deeper than
-  // this node, after removing all accessibility ignored nodes from the tree.
-  //
-  // Flattens accessibility ignored nodes, so each unignored child will have the
-  // same unignored parent, but may have a different parent in tree.
-  //
-  // Can be called on all nodes that are included in the accessibility tree,
-  // including those that are accessibility ignored.
-  // TODO(accessibility) This actually returns ignored children when they are
-  // included in the tree. A better name would be ChildrenIncludedInTree().
-  const AXObjectVector UnignoredChildren() const;
-  const AXObjectVector UnignoredChildren();
 
   // Returns the first child for this object.
   // Works for all nodes that are included in the accessibility tree, and may
@@ -1150,9 +1168,21 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   AXObject* PreviousInPostOrderIncludingIgnored(
       const AXObject* within = nullptr) const;
 
-  // Returns the first object (using pre-order search) that has the given role
-  // in the subtree rooted at this object.
-  AXObject* FirstObjectWithRole(ax::mojom::blink::Role role) const;
+  // --------------------------------------------------------------------------
+
+  // Returns the node's unignored descendants that are one level deeper than
+  // this node, after removing all accessibility ignored nodes from the tree.
+  //
+  // Flattens accessibility ignored nodes, so each unignored child will have the
+  // same unignored parent, but may have a different parent in tree.
+  //
+  // Can be called on all nodes that are included in the accessibility tree,
+  // including those that are accessibility ignored.
+  // This does more work than simply returning the cached children, because the
+  // the cached children are those that are included in the tree, and can
+  // contain ignored nodes (if IsIgnoredButIncludedInTree() is true).
+  const AXObjectVector UnignoredChildrenSlow() const;
+  const AXObjectVector UnignoredChildrenSlow();
 
   // Returns the number of children that are not accessibility ignored.
   //
@@ -1161,7 +1191,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   //
   // Can be called on all nodes that are included in the accessibility tree,
   // including those that are accessibility ignored.
-  int UnignoredChildCount() const;
+  int UnignoredChildCountSlow() const;
 
   // Returns the unignored child with the given index.
   //
@@ -1170,7 +1200,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   //
   // Can be called on all nodes that are included in the accessibility tree,
   // including those that are accessibility ignored.
-  AXObject* UnignoredChildAt(int index) const;
+  AXObject* UnignoredChildAtSlow(int index) const;
 
   // Next sibling for this object that's not accessibility ignored.
   //
@@ -1178,7 +1208,7 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // same unignored parent, but may have a different parent in tree.
   //
   // Doesn't work with nodes that are accessibility ignored.
-  AXObject* UnignoredNextSibling() const;
+  AXObject* UnignoredNextSiblingSlow() const;
 
   // Previous sibling for this object that's not accessibility ignored.
   //
@@ -1186,17 +1216,17 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // same unignored parent, but may have a different parent in tree.
   //
   // Doesn't work with nodes that are accessibility ignored.
-  AXObject* UnignoredPreviousSibling() const;
+  AXObject* UnignoredPreviousSiblingSlow() const;
 
   // Next object in tree using depth-first pre-order traversal that's
   // not accessibility ignored.
   // Doesn't work with nodes that are accessibility ignored.
-  AXObject* UnignoredNextInPreOrder() const;
+  AXObject* UnignoredNextInPreOrderSlow() const;
 
   // Previous object in tree using depth-first pre-order traversal that's
   // not accessibility ignored.
   // Doesn't work with nodes that are accessibility ignored.
-  AXObject* UnignoredPreviousInPreOrder() const;
+  AXObject* UnignoredPreviousInPreOrderSlow() const;
 
   // Get the parent of this object.
   //
@@ -1299,10 +1329,10 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
 
   // There are two types of traversal for obtaining children:
   // 1. LayoutTreeBuilderTraversal. Despite the name, this traverses a flattened
-  // DOM tree that includes pseudo element children such as ::before, and where
+  // DOM tree that includes pseudo-element children such as ::before, and where
   // shadow DOM slotting has been run.
   // 2. LayoutObject traversal. This is necessary if there is no parent node,
-  // or in a pseudo element subtree.
+  // or in a pseudo-element subtree.
   bool ShouldUseLayoutObjectTraversalForChildren() const;
   // Is this a safe time to use FlatTreeTraversal in this document? Also covers
   // use of LayoutTreeBuilderTraversal, which is used often in the accessibility
@@ -1375,6 +1405,9 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // The following HasAriaFooAttribute() methods return true if the attribute
   // is present. `out_value` is filled with the value of the attribute or a
   // default value if the attribute is not present.
+  static bool AriaBooleanAttribute(const Element& element,
+                                   const QualifiedName&,
+                                   bool* out_value);
   bool AriaBooleanAttribute(const QualifiedName& attribute,
                             bool* out_value = nullptr) const;
   bool AriaFloatAttribute(const QualifiedName& attribute,
@@ -1671,6 +1704,10 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   gfx::RectF cached_local_bounding_box_;
 
   Member<AXObjectCacheImpl> ax_object_cache_;
+
+#if BUILDFLAG(IS_ANDROID)
+  int paint_order_ = 0;
+#endif
 
   bool IsCheckable() const;
   static bool IsNativeCheckboxInMixedState(const Node*);

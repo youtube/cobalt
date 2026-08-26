@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/containers/span.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -155,7 +156,7 @@ ServiceWorkerNewScriptLoader::ServiceWorkerNewScriptLoader(
   mojo::Remote<storage::mojom::ServiceWorkerResourceWriter> writer;
   version_->context()
       ->registry()
-      ->GetRemoteStorageControl()
+      .GetRemoteStorageControl()
       ->CreateResourceWriter(cache_resource_id,
                              writer.BindNewPipeAndPassReceiver());
 
@@ -574,9 +575,8 @@ void ServiceWorkerNewScriptLoader::OnNetworkDataAvailable(MojoResult) {
 void ServiceWorkerNewScriptLoader::WriteData(
     scoped_refptr<network::MojoToNetPendingBuffer> pending_buffer,
     uint32_t bytes_available) {
-  auto buffer = base::MakeRefCounted<WrappedIOBuffer>(UNSAFE_TODO(
-      base::span(pending_buffer ? pending_buffer->buffer() : nullptr,
-                 pending_buffer ? pending_buffer->size() : 0)));
+  auto buffer = base::MakeRefCounted<WrappedIOBuffer>(
+      pending_buffer ? base::span(*pending_buffer) : base::span<const char>());
 
   // Cap the buffer size up to |kReadBufferSize|. The remaining will be written
   // next time.

@@ -3,6 +3,7 @@ All changes to this list should go through Blink's feature review process: http:
 
 accelerometer
 ambient-light-sensor
+aria-notify
 attribution-reporting
 autoplay
 browsing-topics
@@ -56,6 +57,7 @@ interest-cohort
 join-ad-interest-group
 keyboard-map
 language-detector
+language-model
 local-fonts
 local-network-access
 magnetometer

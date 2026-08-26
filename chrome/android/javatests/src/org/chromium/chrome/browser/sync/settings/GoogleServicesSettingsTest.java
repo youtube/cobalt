@@ -11,8 +11,6 @@ import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
-import android.os.Build;
-
 import androidx.test.filters.LargeTest;
 
 import org.junit.After;
@@ -32,7 +30,6 @@ import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridge;
@@ -46,8 +43,10 @@ import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.prefs.PrefService;
@@ -63,8 +62,8 @@ public class GoogleServicesSettingsTest {
 
     @Rule public final SigninTestRule mSigninTestRule = new SigninTestRule();
 
-    public final ChromeTabbedActivityTestRule mActivityTestRule =
-            new ChromeTabbedActivityTestRule();
+    public final FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     public final SettingsActivityTestRule<GoogleServicesSettings> mSettingsActivityTestRule =
             new SettingsActivityTestRule<>(GoogleServicesSettings.class);
@@ -76,11 +75,12 @@ public class GoogleServicesSettingsTest {
             RuleChain.outerRule(mActivityTestRule).around(mSettingsActivityTestRule);
 
     @Mock private PasswordManagerUtilBridge.Natives mMockPasswordManagerUtilBridgeJni;
+    private WebPageStation mPage;
 
     @Before
     public void setUp() {
         PasswordManagerUtilBridgeJni.setInstanceForTesting(mMockPasswordManagerUtilBridgeJni);
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
         ThreadUtils.runOnUiThreadBlocking(
                 () ->
                         Assert.assertTrue(
@@ -230,9 +230,6 @@ public class GoogleServicesSettingsTest {
 
     @Test
     @LargeTest
-    @MinAndroidSdkLevel(
-            value = Build.VERSION_CODES.Q,
-            reason = "Digital Wellbeing is only available from Q.")
     public void testUsageStatsReportingShown() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -254,9 +251,6 @@ public class GoogleServicesSettingsTest {
 
     @Test
     @LargeTest
-    @MinAndroidSdkLevel(
-            value = Build.VERSION_CODES.Q,
-            reason = "Digital Wellbeing is only available from Q.")
     public void testUsageStatsReportingNotShown() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

@@ -64,6 +64,7 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/svg/graphics/svg_image.h"
 #include "third_party/blink/renderer/core/svg/graphics/svg_image_for_container.h"
+#include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
@@ -510,7 +511,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
           !SecurityOrigin::Create(url)->IsOpaque();
       resource_request.SetSharedStorageWritableOptedIn(
           shared_storage_writable_opted_in);
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
       if (GetElement()->FastHasAttribute(html_names::kBrowsingtopicsAttr) &&
           RuntimeEnabledFeatures::TopicsAPIEnabled(
               GetElement()->GetExecutionContext()) &&
@@ -519,7 +520,7 @@ void ImageLoader::DoUpdateFromElement(const DOMWrapperWorld* world,
         UseCounter::Count(document, mojom::blink::WebFeature::kTopicsAPIImg);
         UseCounter::Count(document, mojom::blink::WebFeature::kTopicsAPIAll);
       }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     }
 
     bool page_is_being_dismissed =
@@ -667,6 +668,13 @@ void ImageLoader::UpdateFromElement(UpdateFromElementBehavior update_behavior,
     // Here we need to clear delay_until_do_update_from_element to avoid causing
     // a memory leak in case it's already created.
     delay_until_do_update_from_element_ = nullptr;
+  }
+
+  // Soft Navigation tracking needs to know about image changes caused by
+  // attribute changes, e.g. changing an HTMLImageElement's src, so it can
+  // attribute the subsequent paint.
+  if (update_behavior == kUpdateIgnorePreviousError) {
+    SoftNavigationHeuristics::ModifiedNode(element_.Get());
   }
 
   const KURL image_source_kurl = ImageSourceToKURL(image_source_url);

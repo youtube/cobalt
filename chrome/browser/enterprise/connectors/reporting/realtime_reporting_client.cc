@@ -25,6 +25,7 @@
 #include "chrome/browser/profiles/reporting_util.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/enterprise/browser/identifiers/profile_id_service.h"
+#include "components/enterprise/connectors/core/content_area_user_provider.h"
 #include "components/enterprise/connectors/core/reporting_service_settings.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
 #include "components/policy/core/common/cloud/cloud_policy_util.h"
@@ -217,6 +218,11 @@ std::string RealtimeReportingClient::GetProfileIdentifier() {
   return Profile::FromBrowserContext(context_)->GetPath().AsUTF8Unsafe();
 }
 
+std::string RealtimeReportingClient::GetContentAreaAccountEmail(
+    const GURL& url) {
+  return GetActiveContentAreaUser(identity_manager_, url);
+}
+
 std::string RealtimeReportingClient::GetBrowserClientId() {
   std::string client_id;
 #if BUILDFLAG(IS_CHROMEOS)
@@ -256,6 +262,8 @@ void RealtimeReportingClient::MaybeCollectDeviceSignalsAndReportEvent(
   if (signals_aggregator) {
     device_signals::SignalsAggregationRequest request;
     request.signal_names.emplace(device_signals::SignalName::kAgent);
+    request.agent_signal_parameters.emplace(
+        device_signals::AgentSignalCollectionType::kCrowdstrikeIdentifiers);
     signals_aggregator->GetSignals(
         request,
         base::BindOnce(&RealtimeReportingClient::PopulateSignalsAndReportEvent,
@@ -331,7 +339,8 @@ void RealtimeReportingClient::UploadCallbackDeprecated(
     base::Value::Dict event_wrapper,
     bool per_profile,
     policy::CloudPolicyClient* client,
-    EnterpriseReportingEventType eventType,
+    EnterpriseReportingEventType event_type,
+    base::TimeTicks upload_started_at,
     policy::CloudPolicyClient::Result upload_result) {
   // TODO(crbug.com/256553070): Do not crash if the client is unregistered.
   CHECK(!upload_result.IsClientNotRegisteredError());
@@ -353,10 +362,19 @@ void RealtimeReportingClient::UploadCallbackDeprecated(
 
   if (upload_result.IsSuccess()) {
     base::UmaHistogramEnumeration("Enterprise.ReportingEventUploadSuccess",
-                                  eventType);
+                                  event_type);
+    base::UmaHistogramCustomTimes(
+        GetSuccessfulUploadDurationUmaMetricName(event_type),
+        base::TimeTicks::Now() - upload_started_at, base::Milliseconds(1),
+        base::Minutes(5), 50);
+
   } else {
     base::UmaHistogramEnumeration("Enterprise.ReportingEventUploadFailure",
-                                  eventType);
+                                  event_type);
+    base::UmaHistogramCustomTimes(
+        GetFailedUploadDurationUmaMetricName(event_type),
+        base::TimeTicks::Now() - upload_started_at, base::Milliseconds(1),
+        base::Minutes(5), 50);
   }
 }
 
@@ -364,24 +382,34 @@ void RealtimeReportingClient::UploadCallback(
     ::chrome::cros::reporting::proto::UploadEventsRequest request,
     bool per_profile,
     policy::CloudPolicyClient* client,
-    EnterpriseReportingEventType eventType,
+    EnterpriseReportingEventType event_type,
+    base::TimeTicks upload_started_at,
     policy::CloudPolicyClient::Result upload_result) {
   base::Value::Dict event_wrapper = base::Value::Dict();
   base::Value::Dict error_details = ReportErrorDetails(upload_result);
   event_wrapper.Merge(std::move(error_details));
   event_wrapper.Set("upload_request",
                     base::EscapeNonASCII(request.SerializeAsString()));
-  event_wrapper.Set("event_type", static_cast<int>(eventType));
+  event_wrapper.Set("event_type", static_cast<int>(event_type));
 
   safe_browsing::WebUIInfoSingleton::GetInstance()->AddToReportingEvents(
       std::move(event_wrapper));
 
   if (upload_result.IsSuccess()) {
     base::UmaHistogramEnumeration("Enterprise.ReportingEventUploadSuccess",
-                                  eventType);
+                                  event_type);
+    base::UmaHistogramCustomTimes(
+        GetSuccessfulUploadDurationUmaMetricName(event_type),
+        base::TimeTicks::Now() - upload_started_at, base::Milliseconds(1),
+        base::Minutes(5), 50);
+
   } else {
     base::UmaHistogramEnumeration("Enterprise.ReportingEventUploadFailure",
-                                  eventType);
+                                  event_type);
+    base::UmaHistogramCustomTimes(
+        GetFailedUploadDurationUmaMetricName(event_type),
+        base::TimeTicks::Now() - upload_started_at, base::Milliseconds(1),
+        base::Minutes(5), 50);
   }
 }
 

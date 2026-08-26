@@ -14,7 +14,6 @@
 #include "base/base64url.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
-#include "base/functional/overloaded.h"
 #include "base/json/json_reader.h"
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
@@ -51,6 +50,7 @@
 #include "services/network/test/test_url_loader_factory.h"
 #include "services/network/test/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace {
 using RefreshTestFuture =
@@ -145,6 +145,7 @@ class BoundSessionRefreshCookieFetcherImplTest : public ::testing::Test {
         kSessionId, kRefreshUrl, kGaiaUrl,
         base::flat_set<std::string>{k1PSIDTSCookieName, k3PSIDTSCookieName},
         /*is_off_the_record_profile=*/false,
+        BoundSessionRefreshCookieFetcher::Trigger::kOther,
         bound_session_credentials::RotationDebugInfo());
     UpdateCookieList();
   }
@@ -226,6 +227,17 @@ class BoundSessionRefreshCookieFetcherImplTest : public ::testing::Test {
                 ElementsAre(base::Bucket(expected_result, /*count=*/1)));
     histogram_tester_.ExpectTotalCount(
         "Signin.BoundSessionCredentials.CookieRotationTotalDuration", 1);
+
+    // Tests in this file use
+    // `BoundSessionRefreshCookieFetcher::Trigger::kOther` for the histogram
+    // suffix.
+    EXPECT_THAT(
+        histogram_tester_.GetAllSamples(
+            "Signin.BoundSessionCredentials.CookieRotationResult.Other"),
+        ElementsAre(base::Bucket(expected_result, /*count=*/1)));
+    histogram_tester_.ExpectTotalCount(
+        "Signin.BoundSessionCredentials.CookieRotationTotalDuration.Other", 1);
+
     histogram_tester_.ExpectTotalCount(
         "Signin.BoundSessionCredentials."
         "CookieRotationGenerateAssertionDuration",
@@ -236,10 +248,10 @@ class BoundSessionRefreshCookieFetcherImplTest : public ::testing::Test {
       // Response producing a `kConnectionError` is necessarily the last one as
       // it terminates the fetch.
       int net_error = std::visit(
-          base::Overloaded{[](net::Error error) -> int { return error; },
-                           [](net::HttpStatusCode http_code) -> int {
-                             return net::ERR_HTTP_RESPONSE_CODE_FAILURE;
-                           }},
+          absl::Overload{[](net::Error error) -> int { return error; },
+                         [](net::HttpStatusCode http_code) -> int {
+                           return net::ERR_HTTP_RESPONSE_CODE_FAILURE;
+                         }},
           *responses.rbegin());
       expected_net_error_buckets.emplace_back(-net_error, /*count=*/1);
     }
@@ -252,7 +264,7 @@ class BoundSessionRefreshCookieFetcherImplTest : public ::testing::Test {
     bool received_challenge = false;
     for (const auto& response : responses) {
       int value = std::visit(
-          base::Overloaded{
+          absl::Overload{
               [](net::Error error) -> int { return error; },
               [](net::HttpStatusCode http_code) -> int { return http_code; }},
           response);
@@ -651,6 +663,7 @@ TEST_F(BoundSessionRefreshCookieFetcherImplTest, SignChallengeFailed) {
       kSessionId, kRefreshUrl, kGaiaUrl,
       base::flat_set<std::string>{k1PSIDTSCookieName, k3PSIDTSCookieName},
       /*is_off_the_record_profile_=*/false,
+      BoundSessionRefreshCookieFetcher::Trigger::kOther,
       bound_session_credentials::RotationDebugInfo());
   RefreshTestFuture future;
   fetcher_->Start(future.GetCallback(), std::nullopt);
@@ -814,7 +827,8 @@ TEST_F(BoundSessionRefreshCookieFetcherImplTest, DebugHeaderSent) {
       test_url_loader_factory_.GetSafeWeakWrapper(), *session_binding_helper_,
       kSessionId, kRefreshUrl, kGaiaUrl,
       base::flat_set<std::string>{k1PSIDTSCookieName, k3PSIDTSCookieName},
-      /*is_off_the_record_profile_=*/false, info);
+      /*is_off_the_record_profile_=*/false,
+      BoundSessionRefreshCookieFetcher::Trigger::kOther, info);
   RefreshTestFuture future;
   // Skip some time to create a difference between the the fetcher creation time
   // and the request start time.
@@ -887,6 +901,7 @@ class BoundSessionRefreshCookieFetcherImplSignChallengeFailedTest
         kSessionId, kRefreshUrl, kGaiaUrl,
         base::flat_set<std::string>{k1PSIDTSCookieName, k3PSIDTSCookieName},
         /*is_off_the_record_profile_=*/false,
+        BoundSessionRefreshCookieFetcher::Trigger::kOther,
         bound_session_credentials::RotationDebugInfo());
   }
 

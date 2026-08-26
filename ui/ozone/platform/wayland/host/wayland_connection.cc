@@ -11,6 +11,7 @@
 
 #include <cstdint>
 
+#include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -18,6 +19,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
+#include "base/trace_event/trace_event.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/events/devices/device_data_manager.h"
@@ -25,6 +27,7 @@
 #include "ui/events/devices/keyboard_device.h"
 #include "ui/events/devices/touchscreen_device.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/gfx/linux/scoped_gbm_device.h"
 #include "ui/ozone/common/features.h"
 #include "ui/ozone/platform/wayland/common/wayland_util.h"
 #include "ui/ozone/platform/wayland/host/fractional_scale_manager.h"
@@ -51,6 +54,7 @@
 #include "ui/ozone/platform/wayland/host/wayland_pointer.h"
 #include "ui/ozone/platform/wayland/host/wayland_seat.h"
 #include "ui/ozone/platform/wayland/host/wayland_shm.h"
+#include "ui/ozone/platform/wayland/host/wayland_tablet_manager.h"
 #include "ui/ozone/platform/wayland/host/wayland_window.h"
 #include "ui/ozone/platform/wayland/host/wayland_window_drag_controller.h"
 #include "ui/ozone/platform/wayland/host/wayland_zcr_color_management_output.h"
@@ -66,6 +70,7 @@
 #include "ui/ozone/platform/wayland/host/zwp_primary_selection_device_manager.h"
 #include "ui/ozone/platform/wayland/host/zwp_text_input_v1.h"
 #include "ui/ozone/platform/wayland/host/zwp_text_input_v3.h"
+#include "ui/ozone/public/ozone_switches.h"
 #include "ui/platform_window/common/platform_window_defaults.h"
 
 namespace ui {
@@ -82,7 +87,6 @@ constexpr uint32_t kMaxWpPresentationVersion = 1;
 constexpr uint32_t kMaxWpViewporterVersion = 1;
 constexpr uint32_t kMaxTextInputManagerV1Version = 1;
 constexpr uint32_t kMaxTextInputManagerV3Version = 1;
-constexpr uint32_t kMaxExplicitSyncVersion = 2;
 constexpr uint32_t kMaxLinuxDrmSyncobjVersion = 1;
 constexpr uint32_t kMaxAlphaCompositingVersion = 1;
 constexpr uint32_t kMaxXdgDecorationVersion = 1;
@@ -163,6 +167,8 @@ bool WaylandConnection::Initialize(bool use_threaded_polling) {
                               &WaylandSeat::Instantiate);
   RegisterGlobalObjectFactory(WaylandShm::kInterfaceName,
                               &WaylandShm::Instantiate);
+  RegisterGlobalObjectFactory(WaylandTabletManager::kInterfaceName,
+                              &WaylandTabletManager::Instantiate);
   RegisterGlobalObjectFactory(WaylandCursorShape::kInterfaceName,
                               &WaylandCursorShape::Instantiate);
   RegisterGlobalObjectFactory(WaylandZwpLinuxDmabuf::kInterfaceName,
@@ -299,6 +305,11 @@ void WaylandConnection::SetCursorBitmap(const std::vector<SkBitmap>& bitmaps,
   cursor_->UpdateBitmap(bitmaps, hotspot_in_dips, buffer_scale);
 }
 
+void WaylandConnection::ResetCursor() {
+  cursor_.reset();
+  cursor_position_.reset();
+}
+
 bool WaylandConnection::IsDragInProgress() const {
   // An active drag requires a seat exist.
   return seat_ && data_device_manager_ &&
@@ -420,8 +431,7 @@ void WaylandConnection::UpdateCursor() {
       zwp_pointer_gestures_->Init();
     }
   } else {
-    cursor_.reset();
-    cursor_position_.reset();
+    ResetCursor();
   }
 }
 
@@ -635,16 +645,6 @@ void WaylandConnection::HandleGlobal(wl_registry* registry,
       LOG(ERROR) << "Failed to bind zcr_alpha_compositing_v1";
       return;
     }
-  } else if (!linux_explicit_synchronization_ &&
-             (UNSAFE_TODO(strcmp(
-                  interface, "zwp_linux_explicit_synchronization_v1")) == 0)) {
-    linux_explicit_synchronization_ =
-        wl::Bind<zwp_linux_explicit_synchronization_v1>(
-            registry, name, std::min(version, kMaxExplicitSyncVersion));
-    if (!linux_explicit_synchronization_) {
-      LOG(ERROR) << "Failed to bind zwp_linux_explicit_synchronization_v1";
-      return;
-    }
   } else if (!linux_drm_syncobj_manager_ &&
              (UNSAFE_TODO(
                   strcmp(interface, "wp_linux_drm_syncobj_manager_v1")) == 0)) {
@@ -786,6 +786,21 @@ gl::EGLDisplayPlatform WaylandConnection::GetNativeDisplay() {
 
 struct wl_registry* WaylandConnection::GetRegistry() {
   return wl_display_get_registry(display_wrapper());
+}
+
+void WaylandConnection::SetRenderNodePath(base::ScopedFD& drm_fd,
+                                          const char* render_node_path) {
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kRenderNodeOverride)) {
+    TRACE_EVENT("wayland", "scoped attempt of gbm_create_device");
+    if (drm_fd.is_valid()) {
+      ScopedGbmDevice gbm_device(gbm_create_device(drm_fd.get()));
+      if (gbm_device) {
+        base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+            switches::kRenderNodeOverride, render_node_path);
+      }
+    }
+  }
 }
 
 }  // namespace ui

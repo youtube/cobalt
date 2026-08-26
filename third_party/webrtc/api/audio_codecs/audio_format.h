@@ -26,7 +26,7 @@ namespace webrtc {
 
 // SDP specification for a single audio codec.
 struct RTC_EXPORT SdpAudioFormat {
-  using Parameters [[deprecated("Use webrtc::CodecParameterMap")]] =
+  using Parameters [[deprecated("Use CodecParameterMap")]] =
       std::map<std::string, std::string>;
 
   SdpAudioFormat(const SdpAudioFormat&);

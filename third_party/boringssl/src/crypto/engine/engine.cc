@@ -21,7 +21,6 @@
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/rsa.h>
-#include <openssl/thread.h>
 
 #include "../internal.h"
 

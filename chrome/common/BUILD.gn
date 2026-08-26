@@ -8,15 +8,14 @@ import("//build/util/process_version.gni")
 import("//chrome/browser/downgrade/buildflags.gni")
 import("//chrome/common/features.gni")
 import("//components/cdm/common/playready.gni")
-import("//components/nacl/features.gni")
 import("//components/offline_pages/buildflags/features.gni")
 import("//components/signin/features.gni")
+import("//content/public/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//media/media_options.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//pdf/features.gni")
-import("//ppapi/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/widevine/cdm/widevine.gni")
@@ -128,11 +127,9 @@ static_library("common_lib") {
     "//chrome/common/win:eventlog_messages",
   ]
   sources = [
-    "all_messages.h",
     "chrome_content_client.cc",
     "chrome_content_client.h",
     "chrome_content_client_constants.cc",
-    "chrome_descriptors.h",
     "chrome_isolated_world_ids.h",
     "chrome_result_codes.cc",
     "chrome_result_codes.h",
@@ -206,9 +203,6 @@ static_library("common_lib") {
     "//components/language_detection/content/common",
     "//components/metrics",
     "//components/metrics:net",
-    "//components/nacl/common:buildflags",
-    "//components/nacl/common:process_type",
-    "//components/nacl/common:switches",
     "//components/net_log",
     "//components/network_session_configurator/common",
     "//components/ntp_tiles",
@@ -234,6 +228,7 @@ static_library("common_lib") {
     "//components/variations/net",
     "//components/visitedlink/common",
     "//components/webui/flags:switches",
+    "//content/public/common:buildflags",
     "//google_apis",
     "//gpu/command_buffer/service",
     "//gpu/config",
@@ -241,7 +236,6 @@ static_library("common_lib") {
     "//media",
     "//mojo/public/cpp/bindings",
     "//pdf:buildflags",
-    "//ppapi/buildflags",
     "//sandbox/policy",
     "//skia",
     "//third_party/icu",
@@ -255,7 +249,7 @@ static_library("common_lib") {
     "//ui/gl",
     "//ui/message_center/public/cpp",
     "//ui/native_theme",
-    "//ui/resources:resources",
+    "//ui/resources",
     "//url",
   ]
 
@@ -269,17 +263,13 @@ static_library("common_lib") {
     "//components/metrics:call_stack_profile_builder",
     "//components/no_state_prefetch/common",
     "//components/no_state_prefetch/common:mojo_bindings",
-    "//components/page_load_metrics/common:common",
+    "//components/page_load_metrics/common",
     "//components/pdf/common:constants",
     "//components/pdf/common:util",
   ]
 
   if (is_android || enable_library_cdms || enable_playready) {
     public_deps += [ "//components/cdm/common" ]
-  }
-
-  if (enable_ppapi) {
-    public_deps += [ "//ppapi/shared_impl" ]
   }
 
   if (enable_extensions_core) {
@@ -337,10 +327,6 @@ static_library("common_lib") {
     ]
   }
 
-  if (enable_nacl) {
-    public_deps += [ "//components/nacl/common" ]
-  }
-
   # Printing.
   if (enable_printing) {
     public_deps += [
@@ -352,6 +338,7 @@ static_library("common_lib") {
   if (is_android) {
     sources -= [ "media_galleries/metadata_types.h" ]
     sources += [
+      "chrome_descriptors_android.h",
       "media/chrome_media_drm_bridge_client.cc",
       "media/chrome_media_drm_bridge_client.h",
     ]
@@ -361,6 +348,7 @@ static_library("common_lib") {
     sources += [
       "actor/action_result.cc",
       "actor/action_result.h",
+      "actor/actor_constants.h",
       "actor/actor_logging.h",
       "read_anything/read_anything_util.cc",
       "read_anything/read_anything_util.h",
@@ -395,19 +383,6 @@ static_library("common_lib") {
     public_deps += [ "//third_party/google_toolbox_for_mac" ]
 
     frameworks = [ "ServiceManagement.framework" ]
-  }
-
-  if (enable_plugins) {
-    sources += [
-      "ppapi_utils.cc",
-      "ppapi_utils.h",
-    ]
-  }
-  if (enable_plugins && enable_extensions) {
-    sources += [
-      "pepper_permission_util.cc",
-      "pepper_permission_util.h",
-    ]
   }
 
   if (enable_library_cdms) {
@@ -480,11 +455,12 @@ static_library("non_code_constants") {
     ":buildflags",
     ":version_header",
     "//base",
-    "//ppapi/buildflags",
+    "//content/public/common:buildflags",
   ]
 
   public_deps = [
     "//build:branding_buildflags",
+    "//extensions/buildflags",
     "//printing/buildflags",
     "//ui/base:buildflags",
   ]
@@ -508,11 +484,11 @@ component("chrome_features") {
     ":non_code_constants",
     "//base",
     "//components/offline_pages/buildflags",
+    "//content/public/common:buildflags",
     "//device/vr/buildflags",
     "//extensions/buildflags",
     "//media:media_buildflags",
     "//net:buildflags",
-    "//ppapi/buildflags",
     "//printing/buildflags",
     "//rlz/buildflags",
   ]
@@ -534,6 +510,7 @@ static_library("url_constants") {
     "//build:android_buildflags",
     "//build:branding_buildflags",
     "//build/config/chromebox_for_meetings:buildflags",
+    "//components/enterprise/buildflags",
     "//components/signin/public/base:signin_buildflags",
     "//components/supervised_user/core/common:buildflags",
     "//content/public/common",
@@ -545,7 +522,6 @@ static_library("url_constants") {
     "//components/commerce/core:commerce_constants",
     "//components/history_clusters/history_clusters_internals/webui:constants",
     "//components/lens:buildflags",
-    "//components/nacl/common:buildflags",
     "//components/optimization_guide/optimization_guide_internals/webui:url_constants",
     "//components/password_manager/content/common",
     "//components/safe_browsing/core/common",
@@ -584,12 +560,11 @@ static_library("constants") {
     "//build:branding_buildflags",
     "//build:chromeos_buildflags",
     "//components/bookmarks/common",
-    "//components/nacl/common:switches",
     "//components/offline_pages/buildflags",
     "//components/policy/core/common:policy_path_constants",
+    "//content/public/common:buildflags",
     "//extensions/buildflags",
     "//media:media_buildflags",
-    "//ppapi/buildflags",
     "//printing/buildflags",
     "//third_party/widevine/cdm:buildflags",
   ]
@@ -729,10 +704,6 @@ mojom("mojo_bindings") {
       "conflicts/module_event_sink_win.mojom",
       "font_prewarmer.mojom",
     ]
-  }
-
-  if (enable_ppapi) {
-    sources += [ "ppapi_metrics.mojom" ]
   }
 
   enabled_features = []

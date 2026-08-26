@@ -29,9 +29,9 @@ static_library("metrics_reporting") {
     "//chrome/browser/ash/policy/reporting/metrics_reporting/audio",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/cros_healthd_sampler_handlers",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/device_activity",
+    "//chrome/browser/ash/policy/reporting/metrics_reporting/external_display",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/fatal_crash",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/kiosk_heartbeat",
-    "//chrome/browser/ash/policy/reporting/metrics_reporting/kiosk_vision",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/network",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/usb",
     "//chrome/browser/ash/policy/status_collector",
@@ -41,7 +41,6 @@ static_library("metrics_reporting") {
     "//chrome/browser/chromeos/reporting/network",
     "//chrome/browser/chromeos/reporting/websites",
     "//chrome/browser/profiles:profile",
-    "//chromeos/ash/components/kiosk/vision:vision_prefs",
     "//chromeos/ash/components/settings",
     "//chromeos/ash/services/cros_healthd/public/cpp",
     "//chromeos/ash/services/cros_healthd/public/mojom",
@@ -64,6 +63,7 @@ static_library("metrics_reporting") {
     "//chrome/browser/ash/policy/reporting/metrics_reporting/apps",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/audio",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/cros_healthd_sampler_handlers",
+    "//chrome/browser/ash/policy/reporting/metrics_reporting/external_display",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/fatal_crash",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/network",
     "//chrome/browser/ash/policy/reporting/metrics_reporting/usb",
@@ -113,7 +113,6 @@ source_set("unit_tests") {
     "//chrome/browser/profiles:profile",
     "//chrome/test:test_support",
     "//chromeos/ash/components/dbus/session_manager",
-    "//chromeos/ash/components/kiosk/vision:vision_prefs",
     "//chromeos/ash/components/login/session",
     "//chromeos/ash/components/mojo_service_manager:test_support",
     "//chromeos/ash/components/settings",
@@ -134,6 +133,10 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("browser_tests") {
@@ -146,10 +149,12 @@ source_set("browser_tests") {
   deps = [
     ":test_support",
     "//base",
+    "//chrome/browser/ash/login/test:test_support",
     "//chrome/browser/ash/policy/core:test_support",
     "//chrome/browser/ash/settings",
     "//chrome/browser/ash/settings:test_support",
     "//chrome/browser/chromeos/reporting",
+    "//chromeos/ash/components/policy/device_policy:test_support",
     "//chromeos/ash/components/settings",
     "//chromeos/ash/services/cros_healthd/public/cpp:fakes",
     "//chromeos/dbus/missive:test_support",

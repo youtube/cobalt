@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
@@ -15,6 +16,7 @@
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "components/user_education/common/feature_promo/feature_promo_specification.h"
 #include "components/user_education/common/feature_promo/impl/precondition_list_provider.h"
+#include "components/user_education/common/user_education_context.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace user_education::test {
@@ -30,7 +32,8 @@ class TestPreconditionListProvider : public PreconditionListProvider {
   // does not match, or there are multiple calls, an error will be generated.
   //
   // To accept any value, call `ClearExpectedPromoForFutureQueries()`.
-  void SetExpectedPromoForNextQuery(const FeaturePromoSpecification& spec);
+  void SetExpectedPromoForNextQuery(const FeaturePromoSpecification& spec,
+                                    const UserEducationContextPtr& context);
 
   // Sets the expected promo specification to "don't care" for all future calls
   // to `GetPreconditions()` unless `SetExpectedPromoForNextQuery()` is called
@@ -57,7 +60,8 @@ class TestPreconditionListProvider : public PreconditionListProvider {
   // PreconditionListProvider:
   FeaturePromoPreconditionList GetPreconditions(
       const FeaturePromoSpecification& spec,
-      const FeaturePromoParams& params) const override;
+      const FeaturePromoParams& params,
+      const UserEducationContextPtr& context) const override;
 
  private:
   // Cache of preconditions that simulate values.
@@ -68,6 +72,7 @@ class TestPreconditionListProvider : public PreconditionListProvider {
   // Mutable so that it can be cleared out during calls to `GetPreconditions()`.
   mutable std::optional<raw_ptr<const FeaturePromoSpecification>>
       next_query_spec_;
+  mutable UserEducationContextPtr next_query_context_;
 };
 
 class MockPreconditionListProvider : public PreconditionListProvider {
@@ -77,7 +82,9 @@ class MockPreconditionListProvider : public PreconditionListProvider {
 
   MOCK_METHOD(FeaturePromoPreconditionList,
               GetPreconditions,
-              (const FeaturePromoSpecification&, const FeaturePromoParams&),
+              (const FeaturePromoSpecification&,
+               const FeaturePromoParams&,
+               const UserEducationContextPtr&),
               (const, override));
 };
 

@@ -8,7 +8,7 @@
 #import <Foundation/Foundation.h>
 
 #import "base/memory/weak_ptr.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/base_grid_mediator.h"
+#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator/base_grid_mediator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_mutator.h"
 
 namespace collaboration {
@@ -26,6 +26,7 @@ namespace tab_groups {
 class TabGroupSyncService;
 }  // namespace tab_groups
 
+@protocol FacePileProviding;
 class ShareKitService;
 class TabGroup;
 @protocol TabCollectionConsumer;
@@ -34,6 +35,13 @@ class TabGroup;
 @protocol TabGroupConsumer;
 @class TabGroupMediator;
 class WebStateList;
+
+@protocol TabGroupMediatorDelegate <NSObject>
+
+// Returns a FacePile provider for `groupID`.
+- (id<FacePileProviding>)facePileProviderForGroupID:(const std::string&)groupID;
+
+@end
 
 // Tab group mediator in charge to handle model update for one group.
 @interface TabGroupMediator : BaseGridMediator <TabGroupMutator>
@@ -49,8 +57,9 @@ class WebStateList;
                 consumer:(id<TabGroupConsumer>)consumer
             gridConsumer:(id<TabCollectionConsumer>)gridConsumer
               modeHolder:(TabGridModeHolder*)modeHolder
-        messagingService:(collaboration::messaging::MessagingBackendService*)
-                             messagingService;
+        messagingService:
+            (collaboration::messaging::MessagingBackendService*)messagingService
+        tabGroupDelegate:(id<TabGroupMediatorDelegate>)tabGroupDelegate;
 
 @end
 

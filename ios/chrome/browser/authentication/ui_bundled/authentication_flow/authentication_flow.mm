@@ -378,7 +378,7 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
           initWithDelegate:self
       changeProfileHandler:changeProfileHandler];
 
-  // Make sure -[AuthenticationFlow startSignInWithCompletion:] doesn't call
+  // Make sure -[AuthenticationFlow startSignIn] doesn't call
   // the completion block synchronously.
   // Related to http://crbug.com/1246480.
   __weak __typeof(self) weakSelf = self;
@@ -536,7 +536,7 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
       authenticationService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
   // AuthenticationFlow should not switch to the same identity.
   CHECK(![currentIdentity isEqual:_identityToSignIn],
-        base::NotFatalUntil::M140);
+        base::NotFatalUntil::M145);
   if (!currentIdentity) {
     _unsyncedDataTypes = syncer::DataTypeSet();
     [self continueFlow];
@@ -557,8 +557,8 @@ void RecordUnsyncedDataHistogramIfNeeded(UnsyncedDataTypeHistogram histogram,
   PrefService* profilePrefService = profile->GetPrefs();
   SignedInUserState signedInUserState = GetSignedInUserState(
       authenticationService, identityManager, profilePrefService);
-  if (!ForceLeavingPrimaryAccountConfirmationDialog(
-          signedInUserState, profile->GetProfileName()) &&
+  if (!ForceLeavingPrimaryAccountConfirmationDialog(signedInUserState,
+                                                    profile) &&
       _unsyncedDataTypes.value().empty()) {
     [self continueFlow];
     return;

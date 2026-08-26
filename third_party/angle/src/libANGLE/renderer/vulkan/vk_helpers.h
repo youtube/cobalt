@@ -2347,7 +2347,8 @@ class ImageHelper final : public Resource, public angle::Subject
                                               uint32_t levelCount,
                                               uint32_t baseArrayLayer,
                                               uint32_t layerCount,
-                                              VkImageUsageFlags imageUsageFlags) const;
+                                              VkImageUsageFlags imageUsageFlags,
+                                              GLenum astcDecodePrecision) const;
     angle::Result initLayerImageViewWithYuvModeOverride(ErrorContext *context,
                                                         gl::TextureType textureType,
                                                         VkImageAspectFlags aspectMask,
@@ -2358,7 +2359,8 @@ class ImageHelper final : public Resource, public angle::Subject
                                                         uint32_t baseArrayLayer,
                                                         uint32_t layerCount,
                                                         gl::YuvSamplingMode yuvSamplingMode,
-                                                        VkImageUsageFlags imageUsageFlags) const;
+                                                        VkImageUsageFlags imageUsageFlags,
+                                                        GLenum astcDecodePrecision) const;
     angle::Result initReinterpretedLayerImageView(ErrorContext *context,
                                                   gl::TextureType textureType,
                                                   VkImageAspectFlags aspectMask,
@@ -2369,7 +2371,8 @@ class ImageHelper final : public Resource, public angle::Subject
                                                   uint32_t baseArrayLayer,
                                                   uint32_t layerCount,
                                                   VkImageUsageFlags imageUsageFlags,
-                                                  angle::FormatID imageViewFormat) const;
+                                                  angle::FormatID imageViewFormat,
+                                                  GLenum astcDecodePrecision) const;
     // Create a 2D[Array] for staging purposes.  Used by:
     //
     // - TextureVk::copySubImageImplWithDraw
@@ -2408,6 +2411,11 @@ class ImageHelper final : public Resource, public angle::Subject
                                                           const ImageHelper &resolveImage,
                                                           const VkExtent3D &multisampleImageExtents,
                                                           bool isRobustResourceInitEnabled);
+    // Create a 2d image for use as the implicit RGB draw image in YUV rendering.
+    angle::Result initRgbDrawImageForYuvResolve(ErrorContext *context,
+                                                const MemoryProperties &memoryProperties,
+                                                const ImageHelper &resolveImage,
+                                                bool isRobustResourceInitEnabled);
 
     // Helper for initExternal and users to automatically derive the appropriate VkImageCreateInfo
     // pNext chain based on the given parameters, and adjust create flags.  In some cases, these
@@ -2935,7 +2943,7 @@ class ImageHelper final : public Resource, public angle::Subject
                  VkImageAspectFlags aspectFlags);
     bool hasImmutableSampler() const { return mYcbcrConversionDesc.valid(); }
     uint64_t getExternalFormat() const { return mYcbcrConversionDesc.getExternalFormat(); }
-    bool isYuvResolve() const { return mYcbcrConversionDesc.getExternalFormat() != 0; }
+    bool isYuvExternalFormat() const { return mYcbcrConversionDesc.getExternalFormat() != 0; }
     bool updateChromaFilter(Renderer *renderer, VkFilter filter)
     {
         return mYcbcrConversionDesc.updateChromaFilter(renderer, filter);
@@ -3331,7 +3339,8 @@ class ImageHelper final : public Resource, public angle::Subject
                                          uint32_t layerCount,
                                          VkFormat imageFormat,
                                          VkImageUsageFlags usageFlags,
-                                         gl::YuvSamplingMode yuvSamplingMode) const;
+                                         gl::YuvSamplingMode yuvSamplingMode,
+                                         GLenum astcDecodePrecision) const;
 
     angle::Result readPixelsImpl(ContextVk *contextVk,
                                  const gl::Rectangle &area,
@@ -3624,7 +3633,8 @@ class ImageViewHelper final : angle::NonCopyable
                                 uint32_t baseLayer,
                                 uint32_t layerCount,
                                 bool requiresSRGBViews,
-                                VkImageUsageFlags imageUsageFlags);
+                                VkImageUsageFlags imageUsageFlags,
+                                GLenum astcDecodePrecision);
 
     // Creates a storage view with all layers of the level.
     angle::Result getLevelStorageImageView(ErrorContext *context,
@@ -3847,7 +3857,8 @@ class ImageViewHelper final : angle::NonCopyable
                                     uint32_t levelCount,
                                     uint32_t baseLayer,
                                     uint32_t layerCount,
-                                    VkImageUsageFlags imageUsageFlags);
+                                    VkImageUsageFlags imageUsageFlags,
+                                    GLenum astcDecodePrecision);
 
     // Create linear and srgb read views
     angle::Result initLinearAndSrgbReadViewsImpl(ContextVk *contextVk,
@@ -3859,7 +3870,8 @@ class ImageViewHelper final : angle::NonCopyable
                                                  uint32_t levelCount,
                                                  uint32_t baseLayer,
                                                  uint32_t layerCount,
-                                                 VkImageUsageFlags imageUsageFlags);
+                                                 VkImageUsageFlags imageUsageFlags,
+                                                 GLenum astcDecodePrecision);
 
     void updateColorspace(const ImageHelper &image) const;
 

@@ -15,11 +15,15 @@
 #include "chrome/browser/ui/autofill/payments/virtual_card_enroll_bubble_controller_impl_test_api.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
+#include "components/autofill/core/browser/test_utils/valuables_data_test_utils.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/test/web_contents_tester.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/feature_engagement/tracker_factory.h"
+#include "chrome/browser/touch_to_fill/autofill/android/mock_touch_to_fill_payment_method_controller.h"
 #include "chrome/browser/ui/android/autofill/autofill_save_card_bottom_sheet_bridge.h"
 #include "chrome/browser/ui/android/autofill/autofill_save_card_delegate_android.h"
 #include "chrome/browser/ui/android/autofill/autofill_save_iban_bottom_sheet_bridge.h"
@@ -28,16 +32,23 @@
 #include "chrome/browser/ui/autofill/autofill_snackbar_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/autofill_message_controller.h"
 #include "components/autofill/core/browser/payments/autofill_save_card_ui_info.h"
+#include "components/feature_engagement/test/mock_tracker.h"
 #include "ui/android/window_android.h"
 #else  // !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.h"
 #include "chrome/browser/ui/ui_features.h"  // nogncheck
 #endif                                      // BUILDFLAG(IS_ANDROID)
 
+using ::autofill::test::CreateLoyaltyCard;
 using ::testing::_;
 using ::testing::AllOf;
+using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
 using ::testing::Field;
+using ::testing::Ne;
 using ::testing::NotNull;
+using ::testing::Ref;
+using ::testing::Return;
 
 namespace autofill {
 
@@ -215,6 +226,31 @@ class ChromePaymentsAutofillClientTest
         std::move(mock));
     return pointer;
   }
+
+  MockTouchToFillPaymentMethodController*
+  InjectMockTouchToFillPaymentMethodController() {
+    std::unique_ptr<MockTouchToFillPaymentMethodController> mock =
+        std::make_unique<MockTouchToFillPaymentMethodController>();
+    MockTouchToFillPaymentMethodController* pointer = mock.get();
+    chrome_payments_client()->SetTouchToFillPaymentMethodControllerForTesting(
+        std::move(mock));
+    return pointer;
+  }
+
+  void InjectFeatureEngagementMockTracker() {
+    feature_engagement::TrackerFactory::GetInstance()->SetTestingFactory(
+        Profile::FromBrowserContext(web_contents()->GetBrowserContext()),
+        base::BindRepeating([](content::BrowserContext* context)
+                                -> std::unique_ptr<KeyedService> {
+          auto tracker =
+              std::make_unique<feature_engagement::test::MockTracker>();
+
+          ON_CALL(*tracker, IsInitialized()).WillByDefault(Return(true));
+
+          return tracker;
+        }));
+  }
+
 #else  // !BUILDFLAG(IS_ANDROID)
   MockSaveCardBubbleController& save_card_bubble_controller() {
     return static_cast<MockSaveCardBubbleController&>(
@@ -318,7 +354,7 @@ TEST_F(ChromePaymentsAutofillClientTest,
                   AllOf(Field(&AutofillSaveCardUiInfo::is_for_upload, true),
                         Field(&AutofillSaveCardUiInfo::description_text,
                               expected_description)),
-                  testing::NotNull()));
+                  NotNull()));
 
   chrome_payments_client()->ShowSaveCreditCardToCloud(
       CreditCard(), LegalMessageLines(),
@@ -339,8 +375,8 @@ TEST_F(ChromePaymentsAutofillClientTest,
   std::u16string expected_description;
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   expected_description =
-      u"To pay faster next time, save your card, encrypted security code, and "
-      u"billing address in your Google Account";
+      u"Pay faster when your card is saved. Card details are encrypted in "
+      u"your Google Account.";
 #endif
 
   // Verify that `AutofillSaveCardUiInfo` has the correct attributes that
@@ -350,7 +386,7 @@ TEST_F(ChromePaymentsAutofillClientTest,
                   AllOf(Field(&AutofillSaveCardUiInfo::is_for_upload, true),
                         Field(&AutofillSaveCardUiInfo::description_text,
                               expected_description)),
-                  testing::NotNull()));
+                  NotNull()));
 
   chrome_payments_client()->ShowSaveCreditCardToCloud(
       CreditCard(), LegalMessageLines(),
@@ -384,7 +420,7 @@ TEST_F(
       ShowWithDurationAndCallback(AutofillSnackbarType::kSaveCardSuccess,
                                   payments::ChromePaymentsAutofillClient::
                                       kSaveCardConfirmationSnackbarDuration,
-                                  _, testing::Ne(std::nullopt)));
+                                  _, Ne(std::nullopt)));
 
   std::optional<base::OnceClosure> callback = base::OnceClosure();
   chrome_payments_client()->CreditCardUploadCompleted(
@@ -515,6 +551,100 @@ TEST_F(
               Show(AutofillSnackbarType::kSaveServerIbanSuccess, _));
   chrome_payments_client()->IbanUploadCompleted(/*iban_saved=*/true,
                                                 /*max_strikes=*/false);
+}
+
+// Test that calling `ShowLoyaltyCards` passes the correct lists of loyalty
+// cards.
+TEST_F(ChromePaymentsAutofillClientTest, ShowTouchToFillLoyaltyCard) {
+  MockTouchToFillPaymentMethodController* ttf_payment_method_controller =
+      InjectMockTouchToFillPaymentMethodController();
+
+  const LoyaltyCard affiliated_card_1 = LoyaltyCard(
+      /*loyalty_card_id=*/ValuableId("id_2"),
+      /*merchant_name=*/"Walgreens",
+      /*program_name=*/"CustomerCard",
+      /*program_logo=*/GURL(""),
+      /*loyalty_card_number=*/"998766823", {GURL("https://example.com")});
+  const LoyaltyCard affiliated_card_2 =
+      LoyaltyCard(/*loyalty_card_id=*/ValuableId("id_3"),
+                  /*merchant_name=*/"Ticket Maester",
+                  /*program_name=*/"TourLoyal",
+                  /*program_logo=*/GURL(""),
+                  /*loyalty_card_number=*/"37262999281",
+                  {GURL("https://affiliated.example.com")});
+  content::WebContentsTester::For(web_contents())
+      ->NavigateAndCommit(GURL("https://example.com"));
+
+  const std::vector<LoyaltyCard> cards = {CreateLoyaltyCard(),
+                                          affiliated_card_1, affiliated_card_2};
+  EXPECT_CALL(
+      *ttf_payment_method_controller,
+      ShowLoyaltyCards(_, _, ElementsAre(affiliated_card_1, affiliated_card_2),
+                       ElementsAreArray(cards), _));
+
+  chrome_payments_client()->ShowTouchToFillLoyaltyCard(/*delegate=*/nullptr,
+                                                       cards);
+}
+
+// Test that calling ShowLoyaltyCards checks/updates for IPH status correctly if
+// IPH was never shown before.
+TEST_F(ChromePaymentsAutofillClientTest,
+       ShowTouchToFillLoyaltyCardFirstTimeUsage) {
+  MockTouchToFillPaymentMethodController* ttf_payment_method_controller =
+      InjectMockTouchToFillPaymentMethodController();
+  InjectFeatureEngagementMockTracker();
+  feature_engagement::test::MockTracker* tracker =
+      static_cast<feature_engagement::test::MockTracker*>(
+          feature_engagement::TrackerFactory::GetForBrowserContext(
+              Profile::FromBrowserContext(
+                  web_contents()->GetBrowserContext())));
+  ON_CALL(*tracker,
+          WouldTriggerHelpUI(
+              Ref(feature_engagement::kIPHAutofillEnableLoyaltyCardsFeature)))
+      .WillByDefault(Return(true));
+  content::WebContentsTester::For(web_contents())
+      ->NavigateAndCommit(GURL("https://example.com"));
+
+  EXPECT_CALL(*ttf_payment_method_controller,
+              ShowLoyaltyCards(_, _, _, _,
+                               /*first_time_usage=*/true))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*tracker,
+              NotifyEvent("keyboard_accessory_loyalty_cards_autofilled"));
+
+  chrome_payments_client()->ShowTouchToFillLoyaltyCard(/*delegate=*/nullptr,
+                                                       {CreateLoyaltyCard()});
+}
+
+// Test that calling ShowLoyaltyCards does not update IPH status if IPH already
+// shown.
+TEST_F(ChromePaymentsAutofillClientTest,
+       ShowTouchToFillLoyaltyCardNotFirstTimeUsage) {
+  MockTouchToFillPaymentMethodController* ttf_payment_method_controller =
+      InjectMockTouchToFillPaymentMethodController();
+  InjectFeatureEngagementMockTracker();
+  feature_engagement::test::MockTracker* tracker =
+      static_cast<feature_engagement::test::MockTracker*>(
+          feature_engagement::TrackerFactory::GetForBrowserContext(
+              Profile::FromBrowserContext(
+                  web_contents()->GetBrowserContext())));
+  ON_CALL(*tracker,
+          WouldTriggerHelpUI(
+              Ref(feature_engagement::kIPHAutofillEnableLoyaltyCardsFeature)))
+      .WillByDefault(Return(false));
+  content::WebContentsTester::For(web_contents())
+      ->NavigateAndCommit(GURL("https://example.com"));
+
+  EXPECT_CALL(*ttf_payment_method_controller,
+              ShowLoyaltyCards(_, _, _, _,
+                               /*first_time_usage=*/false))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*tracker,
+              NotifyEvent("keyboard_accessory_loyalty_cards_autofilled"))
+      .Times(0);
+
+  chrome_payments_client()->ShowTouchToFillLoyaltyCard(/*delegate=*/nullptr,
+                                                       {CreateLoyaltyCard()});
 }
 
 #else   // !BUILDFLAG(IS_ANDROID)

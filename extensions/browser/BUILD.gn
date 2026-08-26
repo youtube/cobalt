@@ -448,6 +448,7 @@ source_set("browser_sources") {
     "process_manager_delegate.h",
     "process_manager_factory.cc",
     "process_manager_factory.h",
+    "process_manager_observer.cc",
     "process_manager_observer.h",
     "process_map.cc",
     "process_map.h",
@@ -464,6 +465,8 @@ source_set("browser_sources") {
     "rules_registry_ids.h",
     "ruleset_parse_result.cc",
     "ruleset_parse_result.h",
+    "safe_browsing_delegate.cc",
+    "safe_browsing_delegate.h",
     "sandboxed_unpacker.cc",
     "sandboxed_unpacker.h",
     "script_executor.cc",
@@ -473,6 +476,7 @@ source_set("browser_sources") {
     "scripting_constants.h",
     "scripting_utils.cc",
     "scripting_utils.h",
+    "service_worker/sequenced_context_id.h",
     "service_worker/service_worker_host.cc",
     "service_worker/service_worker_host.h",
     "service_worker/service_worker_keepalive.cc",
@@ -495,6 +499,7 @@ source_set("browser_sources") {
     "state_store_test_observer.h",
     "suggest_permission_util.cc",
     "suggest_permission_util.h",
+    "supervised_user_extensions_delegate.cc",
     "supervised_user_extensions_delegate.h",
     "task_queue_util.cc",
     "task_queue_util.h",
@@ -545,7 +550,6 @@ source_set("browser_sources") {
     "//components/input",
     "//components/javascript_dialogs",
     "//components/keyed_service/content",
-    "//components/keyed_service/content:content",
     "//components/keyed_service/core",
     "//components/pdf/common:constants",
     "//components/permissions",
@@ -565,11 +569,10 @@ source_set("browser_sources") {
     "//components/vector_icons",
     "//components/version_info",
     "//components/web_cache/browser",
-    "//components/web_cache/browser:browser",
     "//components/zoom",
     "//content/public/browser",
-    "//content/public/browser:browser",
     "//content/public/common",
+    "//content/public/common:buildflags",
     "//extensions:extensions_browser_resources",
     "//extensions/browser/api:extensions_api_client",
     "//extensions/browser/api/messaging:native_messaging",
@@ -586,8 +589,7 @@ source_set("browser_sources") {
     "//net",
     "//pdf:buildflags",
     "//pdf:features",
-    "//ppapi/buildflags",
-    "//services/data_decoder/public/cpp:cpp",
+    "//services/data_decoder/public/cpp",
     "//services/device/public/mojom",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
@@ -597,7 +599,7 @@ source_set("browser_sources") {
     "//skia",
     "//skia/public/mojom",
     "//third_party/blink/public/common",
-    "//third_party/flatbuffers:flatbuffers",
+    "//third_party/flatbuffers",
     "//third_party/re2",
     "//third_party/zlib/google:zip",
     "//tools/json_schema_compiler:generated_api_util",
@@ -626,7 +628,7 @@ source_set("browser_sources") {
     "//extensions/common:mojom",
     "//ipc",
     "//mojo/public/cpp/bindings",
-    "//services/device/public/cpp/usb:usb",
+    "//services/device/public/cpp/usb",
     "//third_party/re2",
   ]
 
@@ -813,16 +815,16 @@ source_set("test_support") {
     "//content/test:test_support",
     "//extensions/browser",
     "//extensions/browser/api/system_display:display_info_provider",
-    "//extensions/browser/updater:updater",
+    "//extensions/browser/updater",
     "//extensions/common",
     "//extensions/common:test_support",
-    "//extensions/common/api:api",
+    "//extensions/common/api",
     "//net/traffic_annotation:test_support",
     "//services/data_decoder/public/cpp:test_support",
     "//services/network:test_support",
     "//testing/gmock",
     "//testing/gtest",
-    "//ui/base/idle:idle",
+    "//ui/base/idle",
   ]
 
   if (is_chromeos) {
@@ -831,10 +833,14 @@ source_set("test_support") {
       "api/feedback_private/mock_feedback_service.h",
     ]
     deps += [
-      "//components/crash/core/app:app",
+      "//components/crash/core/app",
       "//net:test_support",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 # The set of sources that are needed for both browser and unit tests.
@@ -846,6 +852,9 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "api/alarms/alarms_api_unittest.cc",
+    "api/api_resource_manager_unittest.cc",
+    "api/content_settings/content_settings_store_unittest.cc",
+    "api/content_settings/content_settings_unittest.cc",
     "api/declarative/declarative_rule_unittest.cc",
     "api/declarative/deduping_factory_unittest.cc",
     "api/declarative/rules_registry_unittest.cc",
@@ -856,11 +865,14 @@ source_set("unit_tests") {
     "api/declarative_net_request/indexed_ruleset_format_version_unittest.cc",
     "api/declarative_net_request/prefs_helper_unittest.cc",
     "api/declarative_net_request/ruleset_matcher_unittest.cc",
+    "api/declarative_webrequest/webrequest_condition_attribute_unittest.cc",
+    "api/declarative_webrequest/webrequest_condition_unittest.cc",
     "api/file_handlers/app_file_handler_util_unittest.cc",
     "api/file_handlers/directory_util_unittest.cc",
     "api/file_handlers/mime_util_unittest.cc",
     "api/idle/idle_api_unittest.cc",
     "api/power/power_api_unittest.cc",
+    "api/runtime/restart_after_delay_api_unittest.cc",
     "api/storage/session_storage_manager_unittest.cc",
     "api/storage/settings_quota_unittest.cc",
     "api/storage/storage_api_unittest.cc",
@@ -938,7 +950,7 @@ source_set("unit_tests") {
     "//components/keyed_service/content",
     "//components/onc",
     "//components/permissions:permissions_common",
-    "//components/pref_registry:pref_registry",
+    "//components/pref_registry",
     "//components/prefs:test_support",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/core/common/hashprefix_realtime:hash_realtime_utils",
@@ -955,10 +967,11 @@ source_set("unit_tests") {
     "//extensions:extensions_browser_resources",
     "//extensions:test_support",
     "//extensions/browser/api:extensions_api_client",
+    "//extensions/browser/api/content_settings",
     "//extensions/browser/api/storage:settings_namespace",
     "//extensions/browser/api/system_display:display_info_provider",
     "//extensions/browser/api/virtual_keyboard_private:virtual_keyboard_delegate",
-    "//extensions/browser/updater:updater",
+    "//extensions/browser/updater",
     "//extensions/buildflags",
     "//extensions/common",
     "//extensions/common:mojom",
@@ -982,16 +995,10 @@ source_set("unit_tests") {
   # in the desktop-android build when the related APIs are enabled.
   if (enable_extensions) {
     sources += [
-      "api/api_resource_manager_unittest.cc",
       "api/bluetooth/bluetooth_event_router_unittest.cc",
       "api/bluetooth_socket/bluetooth_socket_api_unittest.cc",
-      "api/content_settings/content_settings_store_unittest.cc",
-      "api/content_settings/content_settings_unittest.cc",
-      "api/declarative_webrequest/webrequest_condition_attribute_unittest.cc",
-      "api/declarative_webrequest/webrequest_condition_unittest.cc",
       "api/feedback_private/feedback_service_unittest.cc",
       "api/mime_handler_private/mime_handler_private_unittest.cc",
-      "api/runtime/restart_after_delay_api_unittest.cc",
       "api/socket/mojo_data_pump_unittest.cc",
       "api/sockets_tcp/sockets_tcp_api_unittest.cc",
       "api/sockets_udp/sockets_udp_api_unittest.cc",
@@ -1000,7 +1007,6 @@ source_set("unit_tests") {
 
     deps += [
       "//components/storage_monitor:test_support",
-      "//extensions/browser/api/content_settings:content_settings",
       "//extensions/browser/api/declarative_net_request/filter_list_converter:unit_tests",
       "//extensions/shell:app_shell_lib",
     ]
@@ -1059,6 +1065,10 @@ source_set("unit_tests") {
     "//tools/metrics/histograms/metadata/extensions/enums.xml",
     "//extensions/browser/api/declarative_net_request/flat/extension_ruleset.fbs",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (enable_desktop_android_extensions) {
@@ -1082,7 +1092,6 @@ if (enable_extensions) {
       # crbug.com/650835.
       "api/bluetooth/bluetooth_appshell_test.cc",
       "api/bluetooth_socket/bluetooth_socket_apitest.cc",
-      "api/dns/dns_apitest.cc",
       "api/feedback_private/feedback_private_apitest.cc",
       "api/hid/hid_apitest.cc",
       "api/socket/socket_apitest.cc",
@@ -1096,7 +1105,6 @@ if (enable_extensions) {
       "api/system_storage/system_storage_eject_apitest.cc",
       "api/usb/usb_apitest.cc",
       "browsertest_util_browsertest.cc",
-      "content_script_matching_browsertest.cc",
       "extension_frame_host_browsertest.cc",
       "guest_view/app_view/app_view_apitest.cc",
       "guest_view/web_view/web_view_apitest.cc",

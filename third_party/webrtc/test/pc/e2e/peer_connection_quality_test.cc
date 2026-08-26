@@ -53,18 +53,13 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/cpu_info.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/task_utils/repeating_task.h"
 #include "rtc_base/thread.h"
-#include "system_wrappers/include/field_trial.h"
-#include "test/field_trial.h"
 #include "test/gtest.h"
 #include "test/pc/e2e/analyzer/audio/default_audio_quality_analyzer.h"
 #include "test/pc/e2e/analyzer/video/default_video_quality_analyzer.h"
-#include "test/pc/e2e/analyzer/video/single_process_encoded_image_data_injector.h"
-#include "test/pc/e2e/analyzer/video/video_frame_tracking_id_injector.h"
 #include "test/pc/e2e/analyzer/video/video_quality_analyzer_injection_helper.h"
 #include "test/pc/e2e/analyzer/video/video_quality_metrics_reporter.h"
 #include "test/pc/e2e/cross_media_metrics_reporter.h"
@@ -79,7 +74,6 @@
 #include "test/pc/e2e/test_peer.h"
 #include "test/pc/e2e/test_peer_factory.h"
 #include "test/test_flags.h"
-#include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {
@@ -102,10 +96,6 @@ constexpr TimeDelta kStatsUpdateInterval = TimeDelta::Seconds(1);
 constexpr TimeDelta kAliveMessageLogInterval = TimeDelta::Seconds(30);
 
 constexpr TimeDelta kQuickTestModeRunDuration = TimeDelta::Millis(100);
-
-// Field trials to enable Flex FEC advertising and receiving.
-constexpr char kFlexFecEnabledFieldTrials[] =
-    "WebRTC-FlexFEC-03-Advertised/Enabled/WebRTC-FlexFEC-03/Enabled/";
 
 class FixturePeerConnectionObserver : public MockPeerConnectionObserver {
  public:
@@ -189,18 +179,10 @@ PeerConnectionE2EQualityTest::PeerConnectionE2EQualityTest(
     video_quality_analyzer = std::make_unique<DefaultVideoQualityAnalyzer>(
         time_controller_.GetClock(), metrics_logger_);
   }
-  if (field_trial::IsEnabled("WebRTC-VideoFrameTrackingIdAdvertised")) {
-    encoded_image_data_propagator_ =
-        std::make_unique<VideoFrameTrackingIdInjector>();
-  } else {
-    encoded_image_data_propagator_ =
-        std::make_unique<SingleProcessEncodedImageDataInjector>();
-  }
   video_quality_analyzer_injection_helper_ =
       std::make_unique<VideoQualityAnalyzerInjectionHelper>(
           time_controller_.GetClock(), std::move(video_quality_analyzer),
-          encoded_image_data_propagator_.get(),
-          encoded_image_data_propagator_.get());
+          &encoded_image_data_propagator_, &encoded_image_data_propagator_);
 
   if (audio_quality_analyzer == nullptr) {
     audio_quality_analyzer =
@@ -258,8 +240,6 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
                    .simulcast_config)
         << "Only simulcast stream from first peer is supported";
   }
-
-  test::ScopedFieldTrials field_trials(GetFieldTrials(run_params));
 
   // Print test summary
   RTC_LOG(LS_INFO)
@@ -466,20 +446,6 @@ void PeerConnectionE2EQualityTest::Run(RunParams run_params) {
   RTC_CHECK(bob_video_sources_.empty());
 }
 
-std::string PeerConnectionE2EQualityTest::GetFieldTrials(
-    const RunParams& run_params) {
-  std::vector<absl::string_view> default_field_trials = {};
-  if (run_params.enable_flex_fec_support) {
-    default_field_trials.push_back(kFlexFecEnabledFieldTrials);
-  }
-  StringBuilder sb;
-  sb << field_trial::GetFieldTrialString();
-  for (const absl::string_view& field_trial : default_field_trials) {
-    sb << field_trial;
-  }
-  return sb.Release();
-}
-
 void PeerConnectionE2EQualityTest::OnTrackCallback(
     absl::string_view peer_name,
     VideoSubscription peer_subscription,
@@ -677,7 +643,7 @@ void PeerConnectionE2EQualityTest::ExchangeOfferAnswer(
     SignalingInterceptor* signaling_interceptor) {
   std::string log_output;
 
-  auto offer = alice_->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = alice_->CreateOffer();
   RTC_CHECK(offer);
   offer->ToString(&log_output);
   RTC_LOG(LS_INFO) << "Original offer: " << log_output;
@@ -694,7 +660,7 @@ void PeerConnectionE2EQualityTest::ExchangeOfferAnswer(
   bool set_remote_offer =
       bob_->SetRemoteDescription(std::move(patch_result.remote_sdp));
   RTC_CHECK(set_remote_offer);
-  auto answer = bob_->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = bob_->CreateAnswer();
   RTC_CHECK(answer);
   answer->ToString(&log_output);
   RTC_LOG(LS_INFO) << "Original answer: " << log_output;
@@ -716,23 +682,21 @@ void PeerConnectionE2EQualityTest::ExchangeOfferAnswer(
 void PeerConnectionE2EQualityTest::ExchangeIceCandidates(
     SignalingInterceptor* signaling_interceptor) {
   // Connect an ICE candidate pairs.
-  std::vector<std::unique_ptr<IceCandidateInterface>> alice_candidates =
+  std::vector<std::unique_ptr<IceCandidate>> alice_candidates =
       signaling_interceptor->PatchOffererIceCandidates(
           alice_->observer()->GetAllCandidates());
   for (auto& candidate : alice_candidates) {
-    std::string candidate_str;
-    RTC_CHECK(candidate->ToString(&candidate_str));
+    std::string candidate_str = candidate->ToString();
     RTC_LOG(LS_INFO) << *alice_->params().name
                      << " ICE candidate(mid= " << candidate->sdp_mid()
                      << "): " << candidate_str;
   }
   ASSERT_TRUE(bob_->AddIceCandidates(std::move(alice_candidates)));
-  std::vector<std::unique_ptr<IceCandidateInterface>> bob_candidates =
+  std::vector<std::unique_ptr<IceCandidate>> bob_candidates =
       signaling_interceptor->PatchAnswererIceCandidates(
           bob_->observer()->GetAllCandidates());
   for (auto& candidate : bob_candidates) {
-    std::string candidate_str;
-    RTC_CHECK(candidate->ToString(&candidate_str));
+    std::string candidate_str = candidate->ToString();
     RTC_LOG(LS_INFO) << *bob_->params().name
                      << " ICE candidate(mid= " << candidate->sdp_mid()
                      << "): " << candidate_str;

@@ -10,11 +10,10 @@
 
 #include "modules/audio_coding/neteq/tools/neteq_stats_plotter.h"
 
-#include <inttypes.h>
-#include <stdio.h>
-
 #include <algorithm>
+#include <cinttypes>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <utility>
 

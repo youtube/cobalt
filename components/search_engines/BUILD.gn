@@ -80,7 +80,7 @@ static_library("search_engines") {
     "//components/crash/core/common:crash_key",
     "//components/database_utils",
     "//components/infobars/core",
-    "//components/lens:lens",
+    "//components/lens",
     "//components/lens/proto/server:proto",
     "//components/metrics",
     "//components/omnibox/common",
@@ -89,6 +89,7 @@ static_library("search_engines") {
     "//components/pref_registry",
     "//components/regional_capabilities",
     "//components/regional_capabilities:country_access_reason",
+    "//components/regional_capabilities:data",
     "//components/search_provider_logos:switches",
     "//components/signin/public/base",
     "//components/strings",
@@ -100,6 +101,7 @@ static_library("search_engines") {
     "//services/network/public/cpp",
     "//services/network/public/mojom",
     "//sql",
+    "//third_party/lens_server_proto:lens_overlay_proto",
     "//third_party/metrics_proto",
     "//third_party/omnibox_proto",
     "//ui/base",
@@ -127,13 +129,15 @@ static_library("search_engines") {
     ]
   }
 
-  if (!is_android) {
+  deps += [
+    "//components/resources:components_scaled_resources_grit",
+    "//ui/resources",
+  ]
+
+  if (enable_builtin_search_provider_assets) {
     sources += [ "search_engine_choice/generated_marketing_snippets.cc" ]
-    deps += [
-      "//components/resources:components_scaled_resources_grit",
-      "//third_party/search_engines_data:search_engines_scaled_resources",
-      "//ui/resources",
-    ]
+    deps +=
+        [ "//third_party/search_engines_data:search_engines_scaled_resources" ]
   }
 
   if (is_linux || is_win || is_mac || is_chromeos) {
@@ -224,21 +228,23 @@ source_set("unit_tests") {
     ":test_support",
     "//base",
     "//base/test:test_support",
+    "//build:branding_buildflags",
     "//components/country_codes",
     "//components/google/core/common",
     "//components/metrics",
     "//components/omnibox/common",
     "//components/policy/core/common",
     "//components/policy/core/common:test_support",
-    "//components/pref_registry:pref_registry",
+    "//components/pref_registry",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/regional_capabilities",
+    "//components/regional_capabilities:data",
     "//components/sync:test_support",
     "//components/sync_preferences:test_support",
     "//components/variations:test_support",
     "//components/webdata/common",
-    "//net:net",
+    "//net",
     "//services/network:test_support",
     "//services/network/public/cpp",
     "//sql",
@@ -272,6 +278,10 @@ source_set("unit_tests") {
     sources += [ "android/template_url_service_android_unittest.cc" ]
     deps += [ "//components/search_engines/android:jni_headers" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_android) {

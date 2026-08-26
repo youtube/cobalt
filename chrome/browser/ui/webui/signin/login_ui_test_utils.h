@@ -52,6 +52,13 @@ bool SignInWithUI(Browser* browser,
     Browser* browser,
     base::TimeDelta timeout = kSyncConfirmationDialogTimeout);
 
+// Waits for the history sync optin dialog to get displayed, then executes
+// javascript to click on confirm button. Returns false if dialog wasn't
+// dismissed before |timeout|.
+[[nodiscard]] bool ConfirmHistorySyncOptinDialog(
+    Browser* browser,
+    base::TimeDelta timeout = kSyncConfirmationDialogTimeout);
+
 // Waits for sync confirmation dialog to get displayed, then executes javascript
 // to click on settings button. Returns false if dialog wasn't dismissed before
 // |timeout|.
@@ -81,6 +88,8 @@ bool CompleteProfileCustomizationDialog(
     Browser* browser,
     base::TimeDelta timeout = kSyncConfirmationDialogTimeout);
 
+// Waits for an element from the sign-in page to appear.
+void WaitForSigninPageToLoad(content::WebContents* web_contents);
 }  // namespace login_ui_test_utils
 
 #endif  // CHROME_BROWSER_UI_WEBUI_SIGNIN_LOGIN_UI_TEST_UTILS_H_

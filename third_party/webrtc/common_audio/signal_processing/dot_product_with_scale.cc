@@ -10,6 +10,9 @@
 
 #include "common_audio/signal_processing/dot_product_with_scale.h"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "rtc_base/numerics/safe_conversions.h"
 
 int32_t WebRtcSpl_DotProductWithScale(const int16_t* vector1,

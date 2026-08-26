@@ -15,6 +15,7 @@
 #include "ash/webui/common/mojom/sea_pen.mojom.h"
 #include "base/files/file_util.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -26,7 +27,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/manta/features.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -52,7 +52,7 @@ class VcBackgroundUISeaPenProviderImplTest : public InProcessBrowserTest {
  public:
   VcBackgroundUISeaPenProviderImplTest() {
     scoped_feature_list_.InitWithFeatures(
-        {manta::features::kMantaService, features::kVcBackgroundReplace,
+        {features::kVcBackgroundReplace,
          features::kFeatureManagementVideoConference},
         {});
   }

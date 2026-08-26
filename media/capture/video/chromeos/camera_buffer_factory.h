@@ -8,12 +8,13 @@
 #include <map>
 #include <memory>
 
-#include "gpu/ipc/common/gpu_memory_buffer_support.h"
+#include "components/viz/common/resources/shared_image_format.h"
 #include "media/capture/video/chromeos/mojom/camera3.mojom.h"
 #include "media/capture/video/chromeos/pixel_format_utils.h"
 #include "media/capture/video_capture_types.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/color_space.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 namespace gpu {
 class ClientSharedImage;
@@ -29,14 +30,14 @@ class CAPTURE_EXPORT CameraBufferFactory {
 
   virtual scoped_refptr<gpu::ClientSharedImage> CreateSharedImage(
       const gfx::Size& size,
-      gfx::BufferFormat format,
+      viz::SharedImageFormat format,
       gfx::BufferUsage usage,
       const gfx::ColorSpace& color_space = gfx::ColorSpace());
 
   virtual scoped_refptr<gpu::ClientSharedImage> CreateSharedImageFromGmbHandle(
       gfx::GpuMemoryBufferHandle buffer_handle,
       const gfx::Size& size,
-      gfx::BufferFormat format,
+      viz::SharedImageFormat format,
       gfx::BufferUsage usage,
       const gfx::ColorSpace& color_space = gfx::ColorSpace());
 

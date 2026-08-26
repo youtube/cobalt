@@ -7,19 +7,26 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
+#include "modules/audio_processing/agc/gain_control.h"
+
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "api/array_view.h"
+#include "api/audio/audio_processing.h"
+#include "modules/audio_coding/neteq/tools/input_audio_file.h"
 #include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/gain_control_impl.h"
 #include "modules/audio_processing/test/audio_buffer_tools.h"
 #include "modules/audio_processing/test/bitexactness_tools.h"
+#include "rtc_base/checks.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
 
-const int kNumFramesToProcess = 100;
+constexpr int kNumFramesToProcess = 100;
 
 void ProcessOneFrame(int sample_rate_hz,
                      AudioBuffer* render_audio_buffer,

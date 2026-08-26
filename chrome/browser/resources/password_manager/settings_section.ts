@@ -26,11 +26,11 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 // <if expr="is_win or is_macosx">
 import {PasskeysBrowserProxyImpl} from './passkeys_browser_proxy.js';
 // </if>
-import type {BlockedSite, BlockedSitesListChangedListener, CredentialsChangedListener} from './password_manager_proxy.js';
+import type {BlockedSite, BlockedSitesListChangedListener, CredentialsChangedListener, ShouldShowAccountStorageToggleChangedListener} from './password_manager_proxy.js';
 import {PasswordManagerImpl} from './password_manager_proxy.js';
 import type {PrefToggleButtonElement} from './prefs/pref_toggle_button.js';
 import type {Route} from './router.js';
-import {RouteObserverMixin, Router, UrlParam} from './router.js';
+import {Page, RouteObserverMixin, Router, UrlParam} from './router.js';
 import {getTemplate} from './settings_section.html.js';
 import {BatchUploadPasswordsEntryPoint, SyncBrowserProxyImpl, TrustedVaultBannerState} from './sync_browser_proxy.js';
 import {UserUtilMixin} from './user_utils_mixin.js';
@@ -88,6 +88,13 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
         type: Boolean,
         value() {
           return loadTimeData.getBoolean('passkeyUpgradeSettingsToggleVisible');
+        },
+      },
+
+      isAutomatedPasswordChangeVisible_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('passwordChangeAvailable');
         },
       },
 
@@ -155,6 +162,11 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
         type: Number,
         value: 0,
       },
+
+      shouldShowAccountStorageSettingToggle_: {
+        type: Boolean,
+        value: false,
+      },
     };
   }
 
@@ -175,6 +187,7 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
   declare private passwordManagerDisabled_: boolean;
   declare private hasPasswordsToExport_: boolean;
   declare private isPasskeyUpgradeSettingsToggleVisible_: boolean;
+  declare private isAutomatedPasswordChangeVisible_: boolean;
   declare private canAddShortcut_: boolean;
   declare private trustedVaultBannerState_: TrustedVaultBannerState;
   declare private movePasswordsLabel_: string;
@@ -186,11 +199,14 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
   // This variable depend on the sync service API, which the Batch Upload Dialog
   // uses.
   declare private localPasswordCount_: number;
+  declare private shouldShowAccountStorageSettingToggle_: boolean;
 
   private setBlockedSitesListListener_: BlockedSitesListChangedListener|null =
       null;
   private setCredentialsChangedListener_: CredentialsChangedListener|null =
       null;
+  private shouldShowAccountStorageSettingToggleListener_:
+      ShouldShowAccountStorageToggleChangedListener|null = null;
 
   override ready() {
     super.ready();
@@ -235,6 +251,16 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
     PasswordManagerImpl.getInstance().addSavedPasswordListChangedListener(
         this.setCredentialsChangedListener_);
 
+    this.shouldShowAccountStorageSettingToggleListener_ = show => {
+      this.shouldShowAccountStorageSettingToggle_ = show;
+    };
+    PasswordManagerImpl.getInstance()
+        .shouldShowAccountStorageSettingToggle()
+        .then(this.shouldShowAccountStorageSettingToggleListener_);
+    PasswordManagerImpl.getInstance()
+        .addShouldShowAccountStorageSettingToggleListener(
+            this.shouldShowAccountStorageSettingToggleListener_);
+
     const trustedVaultStateChanged = (state: TrustedVaultBannerState) => {
       this.trustedVaultBannerState_ = state;
     };
@@ -273,6 +299,13 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
     PasswordManagerImpl.getInstance().removeSavedPasswordListChangedListener(
         this.setCredentialsChangedListener_);
     this.setCredentialsChangedListener_ = null;
+
+    assert(this.shouldShowAccountStorageSettingToggleListener_);
+    PasswordManagerImpl.getInstance()
+        .removeShouldShowAccountStorageSettingToggleListener(
+            this.shouldShowAccountStorageSettingToggleListener_);
+    this.shouldShowAccountStorageSettingToggleListener_ = null;
+
     this.$.toast.hide();
   }
 
@@ -376,7 +409,7 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
   }
 
   private changeAccountStorageEnabled_() {
-    if (this.isAccountStorageEnabled) {
+    if (this.isAccountStoreUser) {
       this.disableAccountStorage();
     } else {
       this.enableAccountStorage();
@@ -491,6 +524,17 @@ export class SettingsSectionElement extends SettingsSectionElementBase {
     }
     this.toastMessage_ = this.i18n('passwordManagerPinChanged');
     this.$.toast.show();
+  }
+
+  private onAutomatedPasswordChangeClick_() {
+    Router.getInstance().navigateTo(Page.PASSWORD_CHANGE);
+  }
+
+  private getAriaLabelForAutomatedPasswordChange_(): string {
+    return [
+      this.i18n('automatedPasswordChangeTitle'),
+      this.i18n('automatedPasswordChangeDescription'),
+    ].join('. ');
   }
 }
 

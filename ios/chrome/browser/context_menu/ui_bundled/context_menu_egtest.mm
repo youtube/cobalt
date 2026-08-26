@@ -16,6 +16,9 @@
 #import "ios/chrome/browser/context_menu/ui_bundled/constants.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/test/fullscreen_app_interface.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
+#import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
+#import "ios/chrome/browser/reader_mode/model/features.h"
+#import "ios/chrome/browser/reader_mode/test/reader_mode_app_interface.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
@@ -82,6 +85,7 @@ const char kInitialPageHtml[] =
     "initial-scale=1.0, maximum-scale=1.0, user-scalable=no' /></head><body><a "
     "style='margin-left:150px' href='/destination' id='link'>"
     "link</a></body></html>";
+
 // The DOM element ID of the link to the destination page.
 const char kInitialPageDestinationLinkId[] = "link";
 // The text of the link to the destination page.
@@ -181,7 +185,7 @@ NSString* const kLongLinkHref =
 
 NSString* const kLongImgTitle =
     @"Chromium logo with a long title, well in excess of one hundred "
-     "characters, so formulated as to thest the very limits of the context "
+     "characters, so formulated as to test the very limits of the context "
      "menu layout system, and to ensure that all users can enjoy the full "
      "majesty of image titles, however sesquipedalian they may be!";
 
@@ -196,6 +200,16 @@ NSString* const kLongLinkTestPageTemplateHtml =
      "/></head><body><p style='margin-bottom:50px'>Short title test.</p>"
      "<p><a style='margin-left:150px' href='%@' id='%s'>LongLink</a></p>"
      "</body></html>";
+
+// Returns an ElementSelector for long pressing the first link in the page.
+ElementSelector* ElementSelectorToLongPressLink() {
+  return [ElementSelector selectorWithCSSSelector:"a"];
+}
+
+// Returns an ElementSelector for long pressing the first image in the page.
+ElementSelector* ElementSelectorToLongPressImage() {
+  return [ElementSelector selectorWithCSSSelector:"img"];
+}
 
 // Matcher for the open image button in the context menu.
 id<GREYMatcher> OpenImageButton() {
@@ -318,6 +332,7 @@ void RelaunchApp() {
   config.features_enabled.push_back(kShareInWebContextMenuIOS);
   config.features_enabled.push_back(
       data_sharing::features::kDataSharingFeature);
+  config.features_enabled.push_back(kEnableReaderMode);
   config.features_disabled.push_back(web::features::kSmoothScrollingDefault);
   return config;
 }
@@ -956,6 +971,78 @@ void RelaunchApp() {
   if (error) {
     GREYFail([error description]);
   }
+}
+
+// Tests that opening the context menu for a link in Reading mode
+// displays all options.
+- (void)testOpenContextMenuFromReadingMode {
+  // TODO(crbug.com/435671883): Support Reading mode interface on iPad.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Reading mode interface fails on iPad");
+  }
+
+  const GURL initialURL = self.testServer->GetURL("/article.html");
+  [ChromeEarlGrey loadURL:initialURL];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  // Open Reader Mode UI.
+  [ChromeEarlGrey showReaderMode];
+  GREYAssertTrue([ChromeEarlGrey waitUntilReaderModeWebStateIsReady],
+                 @"Reader mode content could not be loaded");
+
+  [ChromeEarlGreyUI longPressElementOnWebView:ElementSelectorToLongPressLink()];
+
+  // Make sure the context menu appeared.
+  [[EarlGrey selectElementWithMatcher:OpenLinkInNewTabButton()]
+      assertWithMatcher:grey_notNil()];
+
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    // Tap the tools menu to dismiss the popover.
+    [[EarlGrey selectElementWithMatcher:chrome_test_util::ToolsMenuButton()]
+        performAction:grey_tap()];
+  }
+  // Tap the drop shadow to dismiss the popover.
+  chrome_test_util::TapAtOffsetOf(nil, 0, CGVectorMake(0.5, 0.95));
+
+  // Make sure the context menu disappeared.
+  ConditionBlock condition = ^{
+    NSError* error = nil;
+    [[EarlGrey selectElementWithMatcher:OpenLinkInNewTabButton()]
+        assertWithMatcher:grey_nil()
+                    error:&error];
+    return error == nil;
+  };
+
+  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
+                 base::test::ios::kWaitForUIElementTimeout, condition),
+             @"Waiting for the context menu to disappear");
+}
+
+// Tests that the context menu is displayed for an image url in Reading mode.
+- (void)testContextMenuDisplayedOnImageForReadingMode {
+  // TODO(crbug.com/435671883): Support Reading mode interface on iPad.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Reading mode interface fails on iPad");
+  }
+
+  const GURL pageURL = self.testServer->GetURL("/article.html");
+  [ChromeEarlGrey loadURL:pageURL];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  // Open Reader Mode UI.
+  [ChromeEarlGrey showReaderMode];
+  GREYAssertTrue([ChromeEarlGrey waitUntilReaderModeWebStateIsReady],
+                 @"Reader mode content could not be loaded");
+
+  [ChromeEarlGreyUI
+      longPressElementOnWebView:ElementSelectorToLongPressImage()];
+  TapOnContextMenuButton(OpenImageButton());
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  // Verify url.
+  const GURL imageURL = self.testServer->GetURL(kLogoPageImageSourcePath);
+  [[EarlGrey selectElementWithMatcher:OmniboxText(imageURL.GetContent())]
+      assertWithMatcher:grey_notNil()];
 }
 
 @end

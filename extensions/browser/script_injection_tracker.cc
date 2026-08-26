@@ -8,6 +8,7 @@
 
 #include "base/check_is_test.h"
 #include "base/containers/contains.h"
+#include "base/debug/crash_logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ref.h"
 #include "base/strings/string_number_conversions.h"
@@ -304,11 +305,11 @@ bool DoScriptsMatch(const Extension& extension,
 
 // Returns whether an `extension` can inject JavaScript web view scripts into
 // the `frame` / `url`.
-bool DoWebViewScripstMatch(const Extension& extension,
+bool DoWebViewScriptsMatch(const Extension& extension,
                            content::RenderFrameHost& frame) {
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
   content::RenderProcessHost& process = *frame.GetProcess();
-  TRACE_EVENT("extensions", "ScriptInjectionTracker/DoWebViewScripstMatch",
+  TRACE_EVENT("extensions", "ScriptInjectionTracker/DoWebViewScriptsMatch",
               ChromeTrackEvent::kRenderProcessHost, process,
               ChromeTrackEvent::kChromeExtensionId,
               ExtensionIdForTracing(extension.id()));
@@ -316,6 +317,11 @@ bool DoWebViewScripstMatch(const Extension& extension,
   auto* guest = guest_view::GuestViewBase::FromRenderFrameHost(&frame);
   if (!guest) {
     // Not a guest; no webview scripts.
+    return false;
+  }
+
+  if (!guest->owner_rfh()) {
+    // If the owner RenderFrameHost is no longer around, the URL can't match.
     return false;
   }
 
@@ -421,7 +427,7 @@ std::vector<const Extension*> GetExtensionsInjectingContentScripts(
   std::vector<const Extension*> extensions_injecting_scripts;
   for (const auto& it : extensions) {
     const Extension& extension = *it;
-    if (DoWebViewScripstMatch(extension, frame) ||
+    if (DoWebViewScriptsMatch(extension, frame) ||
         DoStaticContentScriptsMatch(extension, frame, url) ||
         DoDynamicContentScriptsMatch(extension, frame, url)) {
       extensions_injecting_scripts.push_back(&extension);
@@ -443,7 +449,7 @@ void AddMatchingScriptsToProcess(const Extension& extension,
     const GURL& url = frame->GetLastCommittedURL();
     if (!any_frame_matches_content_scripts) {
       any_frame_matches_content_scripts =
-          DoWebViewScripstMatch(extension, *frame) ||
+          DoWebViewScriptsMatch(extension, *frame) ||
           DoStaticContentScriptsMatch(extension, *frame, url) ||
           DoDynamicContentScriptsMatch(extension, *frame, url);
     }
@@ -989,7 +995,7 @@ ScopedScriptInjectionTrackerFailureCrashKeys::
   if (extension) {
     do_web_view_scripts_match_crash_key_.emplace(
         GetDoWebViewScriptsMatchCrashKey(),
-        BoolToCrashKeyValue(DoWebViewScripstMatch(*extension, frame)));
+        BoolToCrashKeyValue(DoWebViewScriptsMatch(*extension, frame)));
     do_static_content_scripts_match_crash_key_.emplace(
         GetDoStaticContentScriptsMatchCrashKey(),
         BoolToCrashKeyValue(

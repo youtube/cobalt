@@ -166,6 +166,7 @@ class CcTest {
 
   static i::Heap* heap();
   static i::ReadOnlyHeap* read_only_heap();
+  static void disable_dispose_in_test();
 
   static v8::Platform* default_platform() { return default_platform_; }
 
@@ -218,6 +219,8 @@ class CcTest {
   TestFunction* callback_;
   bool initialize_;
   TestPlatformFactory* test_platform_factory_;
+
+  static bool should_call_dispose_;
 
   friend int main(int argc, char** argv);
   friend class v8::internal::ManualGCScope;
@@ -680,7 +683,7 @@ class V8_NODISCARD InitializedHandleScope {
 
 class V8_NODISCARD HandleAndZoneScope : public InitializedHandleScope {
  public:
-  explicit HandleAndZoneScope(bool support_zone_compression = false);
+  HandleAndZoneScope();
   ~HandleAndZoneScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
@@ -730,6 +733,8 @@ class TestPlatform : public v8::Platform {
   double CurrentClockTimeMillis() override;
   bool IdleTasksEnabled(v8::Isolate* isolate) override;
   v8::TracingController* GetTracingController() override;
+
+  v8::ThreadIsolatedAllocator* GetThreadIsolatedAllocator() override;
 
  protected:
   TestPlatform() = default;

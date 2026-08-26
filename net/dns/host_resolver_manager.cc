@@ -59,6 +59,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/optional_util.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -76,7 +77,6 @@
 #include "net/base/prioritized_dispatcher.h"
 #include "net/base/request_priority.h"
 #include "net/base/trace_constants.h"
-#include "net/base/tracing.h"
 #include "net/base/url_util.h"
 #include "net/dns/dns_alias_utility.h"
 #include "net/dns/dns_client.h"
@@ -801,7 +801,7 @@ void HostResolverManager::InitializeJobKeyAndIPAddress(
   // `https_svcb_options_.enable` has precedence, so if enabled, ignore any
   // other related features.
   if (https_svcb_options_.enable && out_job_key.host.HasScheme()) {
-    static const char* const kSchemesForHttpsQuery[] = {
+    static constexpr std::string_view kSchemesForHttpsQuery[] = {
         url::kHttpScheme, url::kHttpsScheme, url::kWsScheme, url::kWssScheme};
     if (base::Contains(kSchemesForHttpsQuery, out_job_key.host.GetScheme())) {
       effective_types.Put(DnsQueryType::HTTPS);
@@ -826,6 +826,14 @@ HostCache::Entry HostResolverManager::ResolveLocally(
   *out_stale_info = std::nullopt;
 
   CreateTaskSequence(job_key, cache_usage, secure_dns_policy, out_tasks);
+  source_net_log.AddEvent(
+      NetLogEventType::HOST_RESOLVER_MANAGER_TASK_SEQUENCE_CREATED, [&] {
+        base::Value::List tasks_list;
+        for (TaskType task : *out_tasks) {
+          tasks_list.Append(static_cast<int>(task));
+        }
+        return base::Value::Dict().Set("tasks", std::move(tasks_list));
+      });
 
   if (!ip_address.IsValid()) {
     // Check that the caller supplied a valid hostname to resolve. For

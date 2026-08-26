@@ -69,6 +69,7 @@ _COMPONENT_TYPES = ('activity', 'provider', 'receiver', 'service')
 _DEDUPE_ENTRY_TYPES = _COMPONENT_TYPES + ('activity-alias', 'meta-data')
 
 _ROTATION_METADATA_KEY = 'com.google.play.apps.signing/RotationConfig.textproto'
+_JAVALESS_SERVICE_NAME = 'org.chromium.content.app.NativeServiceSandboxedProcessService'
 
 _ALLOWLISTED_NON_BASE_SERVICES = {
     # Only on API level 33+ which is past the fix for b/169196314.
@@ -378,11 +379,11 @@ def _ConcatTextFiles(in_paths, out_path):
     in_paths: List of input file paths.
     out_path: Path to output file.
   """
-  with open(out_path, 'w') as out_file:
+  with open(out_path, 'w', encoding='utf-8') as out_file:
     for in_path in in_paths:
       if not os.path.exists(in_path):
         continue
-      with open(in_path, 'r') as in_file:
+      with open(in_path, 'r', encoding='utf-8') as in_file:
         out_file.write('-- Contents of {}\n'.format(os.path.basename(in_path)))
         out_file.write(in_file.read())
 
@@ -397,7 +398,7 @@ def _LoadPathmap(pathmap_path):
     return {}
 
   pathmap = {}
-  with open(pathmap_path, 'r') as f:
+  with open(pathmap_path, 'r', encoding='utf-8') as f:
     for line in f:
       line = line.strip()
       if line.startswith('--') or line == '':
@@ -415,7 +416,7 @@ def _WriteBundlePathmap(module_pathmap_paths, module_names,
   to the bundle pathmap. So res/a.xml inside the base module pathmap would be
   base/res/a.xml in the bundle pathmap.
   """
-  with open(bundle_pathmap_path, 'w') as bundle_pathmap_file:
+  with open(bundle_pathmap_path, 'w', encoding='utf-8') as bundle_pathmap_file:
     for module_pathmap_path, module_name in zip(module_pathmap_paths,
                                                 module_names):
       if not os.path.exists(module_pathmap_path):
@@ -454,6 +455,10 @@ def _ClassesFromZip(module_zip):
       java_package += '.' if java_package else ''
       classes.update(java_package + c for c in package_dict['classes'])
   return classes
+
+
+def _IsJavalessService(service_name):
+  return service_name.startswith(_JAVALESS_SERVICE_NAME)
 
 
 def _ValidateSplits(bundle_path, module_zips):
@@ -495,7 +500,7 @@ def _ValidateSplits(bundle_path, module_zips):
   # Ensure components defined in base manifest exist in base dex.
   for (kind, component), module_name in splits_by_component.items():
     if module_name == 'base' and kind in _COMPONENT_TYPES:
-      if component not in base_classes:
+      if component not in base_classes and not _IsJavalessService(component):
         errors.append(f"{component} is defined in the base manfiest, "
                       f"but the class does not exist in the base splits' dex")
 
@@ -524,7 +529,8 @@ def _ValidateSplits(bundle_path, module_zips):
   for module_name, cur_manifest in manifests_by_name.items():
     for service_name in _GetComponentNames(cur_manifest, 'service'):
       if (service_name not in base_classes
-          and service_name not in _ALLOWLISTED_NON_BASE_SERVICES):
+          and service_name not in _ALLOWLISTED_NON_BASE_SERVICES
+          and not _IsJavalessService(service_name)):
         errors.append(f'Service {service_name} should be declared in the base'
                       f' manifest, but is in "{module_name}" module. For'
                       ' details, see b/169196314.')
@@ -566,7 +572,7 @@ def main(args):
     # named with a .pb.json extension.
     tmp_bundle_config = tmp_bundle + '.BundleConfig.pb.json'
 
-    with open(tmp_bundle_config, 'w') as f:
+    with open(tmp_bundle_config, 'w', encoding='utf-8') as f:
       f.write(bundle_config)
 
     logging.info('Running bundletool')

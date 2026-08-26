@@ -126,6 +126,11 @@ ERRORPRONE_WARNINGS_TO_DISABLE = [
     # Assigning to fields marked as @Mock or @Spy. Suggested fix is to delete
     # assignments, which would break tests in many cases.
     'UnnecessaryAssignment',
+    # Serveral instances of using a string right before the String.format(),
+    # which seems better than inlining.
+    'InlineFormatString',
+    # Low priority.
+    'EffectivelyPrivate',
 ]
 
 # Full list of checks: https://errorprone.info/bugpatterns
@@ -153,9 +158,6 @@ ERRORPRONE_WARNINGS_TO_ENABLE = [
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--skip-build-server',
-                      action='store_true',
-                      help='Avoid using the build server.')
   parser.add_argument('--use-build-server',
                       action='store_true',
                       help='Always use the build server.')
@@ -173,11 +175,11 @@ def main():
   compile_java_argv += ['--jar-path', options.stamp]
 
   # Use the build server for errorprone runs.
-  if not options.skip_build_server and (server_utils.MaybeRunCommand(
+  if server_utils.MaybeRunCommand(
       name=options.stamp,
       argv=sys.argv,
       stamp_file=options.stamp,
-      use_build_server=options.use_build_server)):
+      use_build_server=options.use_build_server):
     compile_java.main(compile_java_argv, write_depfile_only=True)
     return
 

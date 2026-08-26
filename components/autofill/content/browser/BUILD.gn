@@ -58,10 +58,10 @@ static_library("browser") {
     "//components/version_info",
     "//components/webauthn/core/browser",
     "//content/public/browser",
+    "//content/public/common:buildflags",
     "//gpu/config",
     "//mojo/public/cpp/system",
     "//net",
-    "//ppapi/buildflags",
     "//services/device/public/cpp/geolocation",
     "//services/device/public/mojom",
     "//services/service_manager/public/cpp",
@@ -142,6 +142,10 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 source_set("browser_tests") {
   testonly = true

@@ -44,7 +44,15 @@ enum class SBPhishingClassifierEvent {
   kDestructedBeforeClassificationDone = 4,
   // Scorer is updated and classifier is ready within timeout.
   kScorerUpdatedWithinRetryTimeout = 5,
-  kMaxValue = kScorerUpdatedWithinRetryTimeout,
+  // Phishing classifier begins.
+  kClassificationBegin = 6,
+  // Phishing classifier completes.
+  kClassificationComplete = 7,
+  // Phishing classifier callback is empty on classification completion.
+  kPhishingClasifierCallbackEmptyOnCompletion = 8,
+  // Phishing classification request responded.
+  kPhishingClassifierRequestResponded = 9,
+  kMaxValue = kPhishingClassifierRequestResponded,
 };
 
 class PhishingClassifierDelegate : public content::RenderFrameObserver,
@@ -89,11 +97,26 @@ class PhishingClassifierDelegate : public content::RenderFrameObserver,
   PhishingClassifierDelegate(content::RenderFrame* render_frame,
                              PhishingClassifier* classifier);
 
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(CancelClassificationReason)
+  enum class CancelClassificationReason {
+    kNavigateAway = 0,
+    kNavigateWithinPage = 1,
+    kPageRecaptured = 2,
+    kShutdown = 3,
+    kNewPhishingScorerUpdate = 4,
+    kScorerCleared = 5,
+    kMaxValue = kScorerCleared,  // Always add new values before this one.
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/sb_client/enums.xml:SBClientPhishingCancelClassificationReason)
+
   void PhishingDetectorReceiver(
       mojo::PendingAssociatedReceiver<mojom::PhishingDetector> receiver);
 
   // Cancels any pending classification and frees the page text.
-  void CancelPendingClassification();
+  void CancelPendingClassification(CancelClassificationReason reason);
 
   // Records in UMA of a specific event that happens in the phishing classifier.
   void RecordEvent(SBPhishingClassifierEvent event);
@@ -106,8 +129,10 @@ class PhishingClassifierDelegate : public content::RenderFrameObserver,
   // for the given toplevel URL.  If the URL has been fully loaded into the
   // RenderFrame and a Scorer has been set, this will begin classification,
   // otherwise classification will be deferred until these conditions are met.
-  void StartPhishingDetection(const GURL& url,
-                              StartPhishingDetectionCallback callback) override;
+  void StartPhishingDetection(
+      const GURL& url,
+      safe_browsing::mojom::ClientSideDetectionType request_type,
+      StartPhishingDetectionCallback callback) override;
 
   // Called when classification for the current page finishes.
   void ClassificationDone(
@@ -163,6 +188,9 @@ class PhishingClassifierDelegate : public content::RenderFrameObserver,
   // ready. It is set to false whenever |is_phishing_detection_running_| is set
   // to true, classification is happening, completed, or cancelled.
   bool awaiting_retry_ = false;
+
+  // Trigger request type given by the client side detection host class.
+  std::optional<safe_browsing::mojom::ClientSideDetectionType> request_type_;
 
   // The callback from the most recent call to StartPhishingDetection.
   StartPhishingDetectionCallback callback_;

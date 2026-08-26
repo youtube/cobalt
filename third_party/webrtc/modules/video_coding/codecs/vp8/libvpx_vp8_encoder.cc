@@ -10,11 +10,10 @@
 
 #include "modules/video_coding/codecs/vp8/libvpx_vp8_encoder.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -60,10 +59,10 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/trace_event.h"
-#include "vpx/vp8cx.h"
-#include "vpx/vpx_codec.h"
-#include "vpx/vpx_encoder.h"
-#include "vpx/vpx_image.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8cx.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_codec.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_encoder.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_image.h"
 
 #if (defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)) && \
     (defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS))
@@ -79,8 +78,8 @@ constexpr char kVP8IosMaxNumberOfThreadFieldTrialParameter[] = "max_thread";
 #endif
 
 namespace variable_framerate_screenshare {
-static constexpr double kMinFps = 5.0;
-static constexpr int kUndershootPct = 30;
+constexpr double kMinFps = 5.0;
+constexpr int kUndershootPct = 30;
 }  // namespace variable_framerate_screenshare
 
 constexpr char kVp8ForcePartitionResilience[] =

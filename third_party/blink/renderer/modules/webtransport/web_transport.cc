@@ -58,6 +58,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/unique_identifier.h"
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -971,6 +972,7 @@ void WebTransport::OnConnectionEstablished(
     mojo::PendingReceiver<network::mojom::blink::WebTransportClient>
         client_receiver,
     network::mojom::blink::HttpResponseHeadersPtr response_headers,
+    const String& /*selected_application_protocol*/,
     network::mojom::blink::WebTransportStatsPtr initial_stats) {
   DVLOG(1) << "WebTransport::OnConnectionEstablished() this=" << this;
   connector_.reset();
@@ -1013,6 +1015,11 @@ void WebTransport::OnConnectionEstablished(
 }
 
 WebTransport::~WebTransport() = default;
+
+void WebTransport::OnBeforeConnect(const net::IPEndPoint& server_address) {
+  // |server_address| should be invalid from security/privacy reasons.
+  DCHECK_EQ(server_address, net::IPEndPoint());
+}
 
 void WebTransport::OnHandshakeFailed(
     network::mojom::blink::WebTransportErrorPtr error) {
@@ -1226,24 +1233,25 @@ void WebTransport::Init(const String& url_for_diagnostics,
     // original URL and not the canonicalized version stored in `url_`.
     exception_state.ThrowDOMException(
         DOMExceptionCode::kSyntaxError,
-        "The URL '" + url_for_diagnostics + "' is invalid.");
+        StrCat({"The URL '", url_for_diagnostics, "' is invalid."}));
     return;
   }
 
   if (!url_.ProtocolIs("https")) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kSyntaxError,
-                                      "The URL's scheme must be 'https'. '" +
-                                          url_.Protocol() +
-                                          "' is not allowed.");
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kSyntaxError,
+        StrCat({"The URL's scheme must be 'https'. '", url_.Protocol(),
+                "' is not allowed."}));
     return;
   }
 
   if (url_.HasFragmentIdentifier()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kSyntaxError,
-        "The URL contains a fragment identifier ('#" +
-            url_.FragmentIdentifier() +
-            "'). Fragment identifiers are not allowed in WebTransport URLs.");
+        StrCat({"The URL contains a fragment identifier ('#",
+                url_.FragmentIdentifier(),
+                "'). Fragment identifiers are not allowed in WebTransport "
+                "URLs."}));
     return;
   }
 
@@ -1257,8 +1265,9 @@ void WebTransport::Init(const String& url_for_diagnostics,
         WebTransportError::Create(
             script_state_->GetIsolate(),
             /*stream_error_code=*/std::nullopt,
-            "Refused to connect to '" + url_.ElidedString() +
-                "' because it violates the document's Content Security Policy",
+            StrCat({"Refused to connect to '", url_.ElidedString(),
+                    "' because it violates the document's Content Security "
+                    "Policy"}),
             V8WebTransportErrorSource::Enum::kSession));
 
     connection_pending_ = false;
@@ -1330,7 +1339,7 @@ void WebTransport::Init(const String& url_for_diagnostics,
             execution_context->GetTaskRunner(TaskType::kNetworking)));
 
     connector_->Connect(
-        url_, std::move(fingerprints),
+        url_, std::move(fingerprints), /*application_protocols=*/{},
         handshake_client_receiver_.BindNewPipeAndPassRemote(
             execution_context->GetTaskRunner(TaskType::kNetworking)));
 

@@ -12,7 +12,8 @@
 
 #include <SLES/OpenSLES.h>
 
-#include "rtc_base/arraysize.h"
+#include <iterator>
+
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -42,7 +43,7 @@ const char* GetSLErrorString(size_t code) {
       "SL_RESULT_CONTROL_LOST",            // 16
   };
 
-  if (code >= arraysize(sl_error_strings)) {
+  if (code >= std::size(sl_error_strings)) {
     return "SL_RESULT_UNKNOWN_ERROR";
   }
   return sl_error_strings[code];

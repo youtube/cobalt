@@ -10,12 +10,17 @@
 
 #include "rtc_tools/frame_analyzer/video_geometry_aligner.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
 
 #include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/video_frame_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_tools/frame_analyzer/video_quality_analysis.h"
+#include "rtc_tools/video_file_reader.h"
 #include "third_party/libyuv/include/libyuv/scale.h"
 
 namespace webrtc {

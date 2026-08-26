@@ -20,7 +20,6 @@
 #include <openssl/crypto.h>
 #include <openssl/ex_data.h>
 #include <openssl/stack.h>
-#include <openssl/thread.h>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -52,6 +51,10 @@
 
 #if defined(OPENSSL_WINDOWS_THREADS)
 #include <windows.h>
+#endif
+
+#if defined(_M_X64) || defined(_M_IX86)
+#include "intrin.h"
 #endif
 
 #if defined(__cplusplus)
@@ -583,6 +586,8 @@ static_assert(alignof(CRYPTO_atomic_u32) == alignof(uint32_t),
 // CRYPTO_REFCOUNT_MAX is the value at which the reference count saturates.
 #define CRYPTO_REFCOUNT_MAX 0xffffffff
 
+using CRYPTO_refcount_t = CRYPTO_atomic_u32;
+
 // CRYPTO_refcount_inc atomically increments the value at |*count| unless the
 // value would overflow. It's safe for multiple threads to concurrently call
 // this or |CRYPTO_refcount_dec_and_test_zero| on the same
@@ -717,6 +722,10 @@ OPENSSL_EXPORT int CRYPTO_set_thread_local(
 
 // ex_data
 
+struct crypto_ex_data_st {
+  STACK_OF(void) *sk;
+} /* CRYPTO_EX_DATA */;
+
 typedef struct crypto_ex_data_func_st CRYPTO_EX_DATA_FUNCS;
 
 // CRYPTO_EX_DATA_CLASS tracks the ex_indices registered for a type which
@@ -758,10 +767,9 @@ OPENSSL_EXPORT void *CRYPTO_get_ex_data(const CRYPTO_EX_DATA *ad, int index);
 // CRYPTO_new_ex_data initialises a newly allocated |CRYPTO_EX_DATA|.
 OPENSSL_EXPORT void CRYPTO_new_ex_data(CRYPTO_EX_DATA *ad);
 
-// CRYPTO_free_ex_data frees |ad|, which is embedded inside |obj|, which is an
-// object of the given class.
+// CRYPTO_free_ex_data frees |ad|, which is an object of the given class.
 OPENSSL_EXPORT void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
-                                        void *obj, CRYPTO_EX_DATA *ad);
+                                        CRYPTO_EX_DATA *ad);
 
 
 // Endianness conversions.
@@ -884,6 +892,16 @@ static inline void *OPENSSL_memset(void *dst, int c, size_t n) {
 // The following functions load and store sized integers with the specified
 // endianness. They use |memcpy|, and so avoid alignment or strict aliasing
 // requirements on the input and output pointers.
+
+static inline uint16_t CRYPTO_load_u16_le(const void *in) {
+  uint16_t v;
+  OPENSSL_memcpy(&v, in, sizeof(v));
+  return v;
+}
+
+static inline void CRYPTO_store_u16_le(void *out, uint16_t v) {
+  OPENSSL_memcpy(out, &v, sizeof(v));
+}
 
 static inline uint16_t CRYPTO_load_u16_be(const void *in) {
   uint16_t v;
@@ -1443,6 +1461,9 @@ inline int CRYPTO_fuzzer_mode_enabled(void) { return 0; }
 
 // CRYPTO_addc_* returns |x + y + carry|, and sets |*out_carry| to the carry
 // bit. |carry| must be zero or one.
+
+// NOTE: Unoptimized GCC builds may compile these builtins to non-constant-time
+// code. For correct constant-time behavior, ensure builds are optimized.
 #if OPENSSL_HAS_BUILTIN(__builtin_addc)
 
 inline unsigned int CRYPTO_addc_impl(unsigned int x, unsigned int y,
@@ -1479,16 +1500,26 @@ inline uint64_t CRYPTO_addc_u64(uint64_t x, uint64_t y, uint64_t carry,
 static inline uint32_t CRYPTO_addc_u32(uint32_t x, uint32_t y, uint32_t carry,
                                        uint32_t *out_carry) {
   declassify_assert(carry <= 1);
+#if defined(_M_IX86)
+  uint32_t sum = 0;
+  *out_carry = _addcarry_u32(carry, x, y, &sum);
+  return sum;
+#else
   uint64_t ret = carry;
   ret += (uint64_t)x + y;
   *out_carry = (uint32_t)(ret >> 32);
   return (uint32_t)ret;
+#endif
 }
 
 static inline uint64_t CRYPTO_addc_u64(uint64_t x, uint64_t y, uint64_t carry,
                                        uint64_t *out_carry) {
   declassify_assert(carry <= 1);
-#if defined(BORINGSSL_HAS_UINT128)
+#if defined(_M_X64)
+  uint64_t sum = 0;
+  *out_carry = _addcarry_u64(carry, x, y, &sum);
+  return sum;
+#elif defined(BORINGSSL_HAS_UINT128)
   uint128_t ret = carry;
   ret += (uint128_t)x + y;
   *out_carry = (uint64_t)(ret >> 64);
@@ -1543,17 +1574,29 @@ inline uint64_t CRYPTO_subc_u64(uint64_t x, uint64_t y, uint64_t borrow,
 static inline uint32_t CRYPTO_subc_u32(uint32_t x, uint32_t y, uint32_t borrow,
                                        uint32_t *out_borrow) {
   declassify_assert(borrow <= 1);
+#if defined(_M_IX86)
+  uint32_t diff = 0;
+  *out_borrow = _subborrow_u32(borrow, x, y, &diff);
+  return diff;
+#else
   uint32_t ret = x - y - borrow;
   *out_borrow = (x < y) | ((x == y) & borrow);
   return ret;
+#endif
 }
 
 static inline uint64_t CRYPTO_subc_u64(uint64_t x, uint64_t y, uint64_t borrow,
                                        uint64_t *out_borrow) {
   declassify_assert(borrow <= 1);
+#if defined(_M_X64)
+  uint64_t diff = 0;
+  *out_borrow = _subborrow_u64(borrow, x, y, &diff);
+  return diff;
+#else
   uint64_t ret = x - y - borrow;
   *out_borrow = (x < y) | ((x == y) & borrow);
   return ret;
+#endif
 }
 #endif
 

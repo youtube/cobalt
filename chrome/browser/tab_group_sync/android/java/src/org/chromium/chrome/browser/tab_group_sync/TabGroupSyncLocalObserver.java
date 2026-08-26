@@ -12,6 +12,8 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabCreationState;
+import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
@@ -22,6 +24,7 @@ import org.chromium.components.tab_group_sync.LocalTabGroupId;
 import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.SavedTabGroupTab;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
+import org.chromium.components.tab_groups.TabGroupColorId;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -102,7 +105,10 @@ public final class TabGroupSyncLocalObserver {
         return new TabModelObserver() {
             @Override
             public void didAddTab(
-                    Tab tab, int type, int creationState, boolean markedForSelection) {
+                    Tab tab,
+                    @TabLaunchType int type,
+                    @TabCreationState int creationState,
+                    boolean markedForSelection) {
                 LocalTabGroupId localTabGroupId = TabGroupSyncUtils.getLocalTabGroupId(tab);
                 if (!mIsObserving || localTabGroupId == null) return;
                 LogUtils.log(TAG, "didAddTab");
@@ -198,35 +204,36 @@ public final class TabGroupSyncLocalObserver {
     private TabGroupModelFilterObserver createTabGroupModelFilterObserver() {
         return new TabGroupModelFilterObserver() {
             @Override
-            public void didChangeTabGroupColor(int rootId, int newColor) {
+            public void didChangeTabGroupColor(Token tabGroupId, @TabGroupColorId int newColor) {
                 if (!mIsObserving) return;
-                LogUtils.log(TAG, "didChangeTabGroupColor, rootId = " + rootId);
+                LogUtils.log(TAG, "didChangeTabGroupColor, tabGroupId = " + tabGroupId);
                 updateVisualData(
-                        TabGroupSyncUtils.getLocalTabGroupId(mTabGroupModelFilter, rootId));
+                        TabGroupSyncUtils.getLocalTabGroupId(mTabGroupModelFilter, tabGroupId));
             }
 
             @Override
-            public void didChangeTabGroupTitle(int rootId, @Nullable String newTitle) {
+            public void didChangeTabGroupTitle(Token tabGroupId, @Nullable String newTitle) {
                 if (!mIsObserving) return;
-                LogUtils.log(TAG, "didChangeTabGroupTitle, rootId = " + rootId);
+                LogUtils.log(TAG, "didChangeTabGroupTitle, tabGroupId = " + tabGroupId);
                 updateVisualData(
-                        TabGroupSyncUtils.getLocalTabGroupId(mTabGroupModelFilter, rootId));
+                        TabGroupSyncUtils.getLocalTabGroupId(mTabGroupModelFilter, tabGroupId));
             }
 
             @Override
-            public void didMergeTabToGroup(Tab movedTab) {
+            public void didMergeTabToGroup(Tab movedTab, boolean isDestinationTab) {
                 if (!mIsObserving) return;
-                int rootId = movedTab.getRootId();
-                LogUtils.log(TAG, "didMergeTabToGroup, rootId = " + rootId);
+                LogUtils.log(TAG, "didMergeTabToGroup, rootId = " + movedTab.getRootId());
 
-                LocalTabGroupId tabGroupRootId =
+                LocalTabGroupId localTabGroupId =
                         assertNonNull(
-                                TabGroupSyncUtils.getLocalTabGroupId(mTabGroupModelFilter, rootId));
-                if (groupExistsInSync(tabGroupRootId)) {
+                                TabGroupSyncUtils.getLocalTabGroupId(
+                                        mTabGroupModelFilter, movedTab.getTabGroupId()));
+                if (groupExistsInSync(localTabGroupId)) {
                     int positionInGroup = mTabGroupModelFilter.getIndexOfTabInGroup(movedTab);
-                    mRemoteTabGroupMutationHelper.addTab(tabGroupRootId, movedTab, positionInGroup);
+                    mRemoteTabGroupMutationHelper.addTab(
+                            localTabGroupId, movedTab, positionInGroup);
                 } else {
-                    mRemoteTabGroupMutationHelper.createRemoteTabGroup(tabGroupRootId);
+                    mRemoteTabGroupMutationHelper.createRemoteTabGroup(localTabGroupId);
                 }
             }
 
@@ -244,10 +251,10 @@ public final class TabGroupSyncLocalObserver {
 
                 // The tab position was changed. Update sync.
                 int positionInGroup = mTabGroupModelFilter.getIndexOfTabInGroup(movedTab);
-                int rootId = movedTab.getRootId();
                 LocalTabGroupId localTabGroupId =
                         assertNonNull(
-                                TabGroupSyncUtils.getLocalTabGroupId(mTabGroupModelFilter, rootId));
+                                TabGroupSyncUtils.getLocalTabGroupId(
+                                        mTabGroupModelFilter, movedTab.getTabGroupId()));
                 Log.w(
                         TAG,
                         String.format(
@@ -278,7 +285,7 @@ public final class TabGroupSyncLocalObserver {
                 LocalTabGroupId localTabGroupId =
                         assertNonNull(
                                 TabGroupSyncUtils.getLocalTabGroupId(
-                                        mTabGroupModelFilter, destinationTab.getRootId()));
+                                        mTabGroupModelFilter, destinationTab.getTabGroupId()));
                 if (groupExistsInSync(localTabGroupId)) return;
 
                 mRemoteTabGroupMutationHelper.createRemoteTabGroup(localTabGroupId);

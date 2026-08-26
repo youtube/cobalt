@@ -159,7 +159,7 @@ class PLATFORM_EXPORT Resource : public GarbageCollected<Resource>,
 
   void Trace(Visitor*) const override;
 
-  virtual WTF::TextEncoding Encoding() const { return WTF::TextEncoding(); }
+  virtual TextEncoding Encoding() const { return TextEncoding(); }
   // If a BackgroundResponseProcessor consumed the body data on the background
   // thread, this method is called with a SegmentedBuffer data. Otherwise, it is
   // called with a span<const char> data several times.
@@ -530,6 +530,10 @@ class PLATFORM_EXPORT Resource : public GarbageCollected<Resource>,
 
   virtual void SetEncoding(const String&) {}
 
+  // Call this when the resource is successfully retrieved from MemoryCache.
+  void IncrementMemoryCacheHitCount() { ++memory_cache_hit_count_; }
+  uint32_t MemoryCacheHitCount() const { return memory_cache_hit_count_; }
+
  private:
   friend class ResourceLoader;
   friend class MemoryCache;
@@ -575,6 +579,8 @@ class PLATFORM_EXPORT Resource : public GarbageCollected<Resource>,
   bool is_unused_preload_ = false;
   bool stale_revalidation_started_ = false;
   bool is_preloaded_by_early_hints_ = false;
+
+  uint32_t memory_cache_hit_count_ = 0;
 
   enum class RevalidationStatus {
     kNoRevalidatingOrFailed,  // not in revalidate procedure or

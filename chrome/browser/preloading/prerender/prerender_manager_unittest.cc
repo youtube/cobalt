@@ -2,16 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/preloading/prerender/prerender_manager.h"
+
 #include <string>
 
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/preloading/chrome_preloading.h"
-#include "chrome/browser/preloading/prerender/prerender_manager.h"
 #include "chrome/browser/preloading/prerender/prerender_utils.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/search_engines/template_url_service_factory_test_util.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/search_engines/template_url_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/preloading_test_util.h"
 #include "content/public/test/prerender_test_util.h"
 #include "content/public/test/web_contents_tester.h"
@@ -29,7 +33,10 @@ class PrerenderManagerTest : public ChromeRenderViewHostTestHarness {
             content::BrowserTaskEnvironment::REAL_IO_THREAD),
         prerender_helper_(
             base::BindRepeating(&PrerenderManagerTest::GetActiveWebContents,
-                                base::Unretained(this))) {}
+                                base::Unretained(this))) {
+    reuse_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kPrerender2ReuseHost, {{"reuse_search_host", "true"}});
+  }
 
   void SetUp() override {
     prerender_helper_.RegisterServerRequestMonitor(&test_server_);
@@ -47,8 +54,7 @@ class PrerenderManagerTest : public ChromeRenderViewHostTestHarness {
             std::make_unique<TemplateURL>(template_url_data)));
 
     PrerenderManager::CreateForWebContents(GetActiveWebContents());
-    prerender_manager_ = PrerenderManager::FromWebContents(web_contents());
-    ASSERT_TRUE(prerender_manager_);
+    ASSERT_TRUE(PrerenderManager::FromWebContents(web_contents()));
     web_contents_delegate_ =
         std::make_unique<content::test::ScopedPrerenderWebContentsDelegate>(
             *web_contents());
@@ -76,7 +82,9 @@ class PrerenderManagerTest : public ChromeRenderViewHostTestHarness {
  protected:
   GURL GetUrl(const std::string& path) { return test_server_.GetURL(path); }
 
-  PrerenderManager* prerender_manager() { return prerender_manager_; }
+  PrerenderManager* prerender_manager() {
+    return PrerenderManager::FromWebContents(web_contents());
+  }
 
   content::test::PrerenderTestHelper& prerender_helper() {
     return prerender_helper_;
@@ -112,11 +120,13 @@ class PrerenderManagerTest : public ChromeRenderViewHostTestHarness {
   static std::string search_site() { return "/title1.html"; }
 
   content::test::PrerenderTestHelper prerender_helper_;
+  test::ScopedPrewarmFeatureList scoped_prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
+  base::test::ScopedFeatureList reuse_feature_list_;
   std::unique_ptr<content::test::ScopedPrerenderWebContentsDelegate>
       web_contents_delegate_;
 
   net::EmbeddedTestServer test_server_;
-  raw_ptr<PrerenderManager, DanglingUntriaged> prerender_manager_;
 };
 
 TEST_F(PrerenderManagerTest, StartCleanSearchSuggestionPrerender) {
@@ -157,6 +167,9 @@ TEST_F(PrerenderManagerTest, StartNewSuggestionPrerender) {
   EXPECT_TRUE(prerender_manager()->HasSearchResultPagePrerendered());
   EXPECT_EQ(canonical_url2,
             prerender_manager()->GetPrerenderCanonicalSearchURLForTesting());
+  content::FrameTreeNodeId prerender_host_id2 =
+      prerender_helper().GetHostForUrl(prerendering_url2);
+  EXPECT_EQ(prerender_host_id1, prerender_host_id2);
 }
 
 // Tests that the old prerender is not destroyed when starting prerendering the
@@ -307,27 +320,31 @@ TEST_P(PrerenderManagerBasicRequirementTest, NavigateAway) {
   }
 }
 
-// Test that a Searched related url is ignored by the prerender BookmarkBar
-// trigger.
-TEST_F(PrerenderManagerTest, DisallowSearchUrlBookmarkBar) {
-  base::HistogramTester histogram_tester;
-  GURL prerendering_url = GetSearchSuggestionUrl("prer", "prerender");
-  ASSERT_FALSE(prerender_manager()->StartPrerenderBookmark(prerendering_url));
+class PrerenderManagerPrewarmTest : public PrerenderManagerTest {
+ public:
+  PrerenderManagerPrewarmTest() = default;
+  ~PrerenderManagerPrewarmTest() override = default;
 
-  histogram_tester.ExpectUniqueSample(
-      "Prerender.IsPrerenderingSRPUrl.Embedder_BookmarkBar", true, 1);
-}
+ private:
+  test::ScopedPrewarmFeatureList scoped_prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kEnabledWithNoTrigger};
+};
 
-// Test that a Searched related url is ignored by the prerender NewTabPage
-// trigger.
-TEST_F(PrerenderManagerTest, DisallowSearchUrlNewTabPage) {
-  base::HistogramTester histogram_tester;
-  GURL prerendering_url = GetSearchSuggestionUrl("prer", "prerender");
-  ASSERT_FALSE(prerender_manager()->StartPrerenderNewTabPage(
-      prerendering_url, chrome_preloading_predictor::kTouchOnNewTabPage));
+TEST_F(PrerenderManagerPrewarmTest, StartPrewarmSearchResult) {
+  const GURL prewarm_url(features::kPrewarmUrl.Get());
+  ASSERT_TRUE(prewarm_url.is_valid());
 
-  histogram_tester.ExpectUniqueSample(
-      "Prerender.IsPrerenderingSRPUrl.Embedder_NewTabPage", true, 1);
+  // Prerender the prewarm page.
+  content::test::PrerenderHostRegistryObserver registry_observer(
+      *GetActiveWebContents());
+  ASSERT_TRUE(prerender_manager()->MaybeStartPrewarmSearchResult());
+  registry_observer.WaitForTrigger(prewarm_url);
+
+  // Prewarm page should not be found here as it's matcher was set as not
+  // matching to any URL.
+  content::FrameTreeNodeId prerender_host_id =
+      prerender_helper().GetHostForUrl(prewarm_url);
+  EXPECT_EQ(prerender_host_id, content::FrameTreeNodeId());
 }
 
 }  // namespace

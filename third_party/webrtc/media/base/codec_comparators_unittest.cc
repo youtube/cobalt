@@ -425,7 +425,7 @@ TEST(CodecTest, TestVideoCodecMatchesWithDifferentPacketization) {
   EXPECT_TRUE(c1.Matches(c0));
 }
 
-// AV1 codecs compare profile information.
+// AV1 codecs do not compare profile information.
 TEST(CodecTest, TestAV1CodecMatches) {
   const char kProfile0[] = "0";
   const char kProfile1[] = "1";
@@ -469,6 +469,24 @@ TEST(CodecTest, TestAV1CodecMatches) {
   // AV1 entries with different profiles (0 and 2) are seen as distinct.
   EXPECT_FALSE(c_profile0.Matches(c_profile2));
   EXPECT_FALSE(c_no_profile.Matches(c_profile2));
+
+  // AV1 entries with same profile and different tier are seen as equal.
+  Codec c_tier0 = CreateVideoCodec(95, kAv1CodecName);
+  c_tier0.params[kAv1FmtpProfile] = kProfile0;
+  c_tier0.params[kAv1FmtpTier] = "0";
+  Codec c_tier1 = CreateVideoCodec(95, kAv1CodecName);
+  c_tier1.params[kAv1FmtpProfile] = kProfile0;
+  c_tier1.params[kAv1FmtpTier] = "1";
+  EXPECT_TRUE(c_tier0.Matches(c_tier1));
+
+  // AV1 entries with profile and different level are seen as equal.
+  Codec c_level0 = CreateVideoCodec(95, kAv1CodecName);
+  c_level0.params[kAv1FmtpProfile] = kProfile0;
+  c_level0.params[kAv1FmtpLevelIdx] = "0";
+  Codec c_level1 = CreateVideoCodec(95, kAv1CodecName);
+  c_level1.params[kAv1FmtpProfile] = kProfile0;
+  c_level1.params[kAv1FmtpLevelIdx] = "1";
+  EXPECT_TRUE(c_level0.Matches(c_level1));
 }
 
 // VP9 codecs compare profile information.

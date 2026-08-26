@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_reader.h"
@@ -62,6 +63,9 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnFetchOkMessage(const MoqtFetchOk& message) = 0;
   virtual void OnFetchErrorMessage(const MoqtFetchError& message) = 0;
   virtual void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) = 0;
+  virtual void OnPublishMessage(const MoqtPublish& message) = 0;
+  virtual void OnPublishOkMessage(const MoqtPublishOk& message) = 0;
+  virtual void OnPublishErrorMessage(const MoqtPublishError& message) = 0;
   virtual void OnObjectAckMessage(const MoqtObjectAck& message) = 0;
 
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
@@ -130,27 +134,31 @@ class QUICHE_EXPORT MoqtControlParser {
   size_t ProcessFetchOk(quic::QuicDataReader& reader);
   size_t ProcessFetchError(quic::QuicDataReader& reader);
   size_t ProcessRequestsBlocked(quic::QuicDataReader& reader);
+  size_t ProcessPublish(quic::QuicDataReader& reader);
+  size_t ProcessPublishOk(quic::QuicDataReader& reader);
+  size_t ProcessPublishError(quic::QuicDataReader& reader);
   size_t ProcessObjectAck(quic::QuicDataReader& reader);
 
   // If |error| is not provided, assumes kProtocolViolation.
   void ParseError(absl::string_view reason);
   void ParseError(MoqtError error, absl::string_view reason);
 
-  // Parses a message that a track namespace but not name. The last element of
-  // |full_track_name| will be set to the empty string. Returns false if it
-  // could not parse the full namespace field.
+  // Reads a TrackNamespace from the reader. Returns false if the namespace is
+  // too large. Sets a ParseError if the namespace is malformed.
   bool ReadTrackNamespace(quic::QuicDataReader& reader,
-                          FullTrackName& full_track_name);
+                          TrackNamespace& track_namespace);
+  // Reads a FullTrackName from the reader. Returns false if the name is too
+  // large. Sets a ParseError if the name is malformed.
+  bool ReadFullTrackName(quic::QuicDataReader& reader,
+                         FullTrackName& full_track_name);
   // Translates raw key/value pairs into semantically meaningful formats.
-  // The spec defines many encoding errors in AUTHORIZATION TOKEN as
-  // request level. This treats them as session-level, unless they are a result
-  // of expiration, incorrect internal structure, or anything else not defined
-  // in the MoQT spec. It is allowed to promote request errors to session errors
-  // in MoQT. See also https://github.com/moq-wg/moq-transport/issues/964.
+  // Returns false if the parameters contain a protocol violation.
+  bool KeyValuePairListToMoqtSessionParameters(
+      const KeyValuePairList& parameters, MoqtSessionParameters& out);
   bool KeyValuePairListToVersionSpecificParameters(
       const KeyValuePairList& parameters, VersionSpecificParameters& out);
   bool ParseAuthTokenParameter(absl::string_view field,
-                               VersionSpecificParameters& out);
+                               std::vector<AuthToken>& out);
 
   MoqtControlParserVisitor& visitor_;
   quiche::ReadStream& stream_;

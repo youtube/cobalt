@@ -9,9 +9,8 @@
  */
 #include "common_video/h264/h264_bitstream_parser.h"
 
-#include <stdlib.h>
-
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 #include <vector>
 

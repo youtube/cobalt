@@ -79,6 +79,7 @@ rtc_library("call_interfaces") {
     "../rtc_base/network:sent_packet",
     "../video/config:encoder_config",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -401,6 +402,7 @@ rtc_library("video_send_stream_api") {
   ]
   deps = [
     ":rtp_interfaces",
+    "../api:array_view",
     "../api:frame_transformer_interface",
     "../api:rtp_parameters",
     "../api:rtp_sender_interface",
@@ -515,6 +517,7 @@ if (rtc_include_tests) {
         "../api:array_view",
         "../api:bitrate_allocation",
         "../api:create_frame_generator",
+        "../api:field_trials",
         "../api:frame_transformer_interface",
         "../api:make_ref_counted",
         "../api:mock_audio_mixer",
@@ -531,7 +534,6 @@ if (rtc_include_tests) {
         "../api/test/network_emulation",
         "../api/test/video:function_video_factory",
         "../api/transport:bitrate_settings",
-        "../api/transport:field_trial_based_config",
         "../api/transport:network_control",
         "../api/transport/rtp:dependency_descriptor",
         "../api/units:data_rate",
@@ -572,13 +574,12 @@ if (rtc_include_tests) {
         "../rtc_base:timeutils",
         "../rtc_base/synchronization:mutex",
         "../test:audio_codec_mocks",
+        "../test:create_test_field_trials",
         "../test:encoder_settings",
-        "../test:explicit_key_value_config",
         "../test:fake_video_codecs",
         "../test:frame_generator_capturer",
         "../test:mock_transport",
         "../test:run_loop",
-        "../test:scoped_key_value_config",
         "../test:test_common",
         "../test:test_support",
         "../test:video_test_constants",
@@ -649,7 +650,6 @@ if (rtc_include_tests) {
         "../system_wrappers:metrics",
         "../test:encoder_settings",
         "../test:fake_video_codecs",
-        "../test:field_trial",
         "../test:fileutils",
         "../test:frame_generator_capturer",
         "../test:test_common",
@@ -660,6 +660,7 @@ if (rtc_include_tests) {
         "../test/network:simulated_network",
         "../video/config:encoder_config",
         "//third_party/abseil-cpp/absl/flags:flag",
+        "//third_party/abseil-cpp/absl/strings",
         "//third_party/abseil-cpp/absl/strings:string_view",
       ]
     }

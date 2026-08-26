@@ -6,6 +6,7 @@
 
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace blink {
@@ -38,8 +39,9 @@ void CompositorFilterOperations::AppendHueRotateFilter(float amount) {
 void CompositorFilterOperations::AppendColorMatrixFilter(Vector<float> values) {
   DCHECK_EQ(values.size(), 20u);
   cc::FilterOperation::Matrix matrix = {};
-  for (WTF::wtf_size_t i = 0; i < values.size(); ++i)
+  for (wtf_size_t i = 0; i < values.size(); ++i) {
     matrix[i] = values[i];
+  }
   filter_operations_.Append(
       cc::FilterOperation::CreateColorMatrixFilter(matrix));
 }
@@ -127,8 +129,8 @@ bool CompositorFilterOperations::operator==(
 }
 
 String CompositorFilterOperations::ToString() const {
-  return String(filter_operations_.ToString()) + " at " +
-         String(reference_box_.ToString());
+  return StrCat({String(filter_operations_.ToString()), " at ",
+                 String(reference_box_.ToString())});
 }
 
 }  // namespace blink

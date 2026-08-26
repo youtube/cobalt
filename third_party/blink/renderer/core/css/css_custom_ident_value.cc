@@ -47,10 +47,15 @@ AtomicString CSSCustomIdentValue::ComputeIdent(
   if (!ident_function_) {
     return string_;
   }
+  return ComputeIdent(*ident_function_, length_resolver);
+}
 
+AtomicString CSSCustomIdentValue::ComputeIdent(
+    const CSSFunctionValue& ident_function,
+    const CSSLengthResolver& length_resolver) {
   StringBuilder builder;
 
-  for (const Member<const CSSValue>& item : *ident_function_) {
+  for (const Member<const CSSValue>& item : ident_function) {
     if (auto* string_value = DynamicTo<CSSStringValue>(*item)) {
       builder.Append(string_value->Value());
     } else if (auto* custom_ident = DynamicTo<CSSCustomIdentValue>(*item)) {
@@ -92,9 +97,9 @@ String CSSCustomIdentValue::CustomCSSText() const {
 
 unsigned CSSCustomIdentValue::CustomHash() const {
   if (IsKnownPropertyID()) {
-    return WTF::HashInt(property_id_);
+    return HashInt(property_id_);
   } else if (ident_function_) {
-    return WTF::HashPointer(ident_function_.Get());
+    return HashPointer(ident_function_.Get());
   } else {
     return string_.Hash();
   }

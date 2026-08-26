@@ -26,6 +26,7 @@
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "net/base/features.h"
 #include "net/base/net_errors.h"
+#include "net/base/schemeful_site.h"
 #include "net/base/url_util.h"
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_setting_override.h"
@@ -265,6 +266,43 @@ bool CookieSettingsBase::Is1PDtRelatedAllowMechanism(
     case AllowMechanism::kAllowByScheme:
     case AllowMechanism::kAllowBySandboxValue:
       return false;
+  }
+}
+
+// static
+CookieSettingsBase::MetadataSourceType
+CookieSettingsBase::AllowMechanismToMetadataSourceType(
+    const ThirdPartyCookieAllowMechanism& allow_mechanism) {
+  using AllowMechanism = ThirdPartyCookieAllowMechanism;
+  switch (allow_mechanism) {
+    case AllowMechanism::kAllowByTopLevel3PCD:
+    case AllowMechanism::kAllowBy3PCDMetadataSource1pDt:
+      return MetadataSourceType::FirstPartyDt;
+    case AllowMechanism::kAllowBy3PCD:
+    case AllowMechanism::kAllowBy3PCDMetadataSource3pDt:
+      return MetadataSourceType::ThirdPartyDt;
+    case AllowMechanism::kAllowBy3PCDMetadataSourceCriticalSector:
+      return MetadataSourceType::CriticalSector;
+    case AllowMechanism::kAllowBy3PCDMetadataSourceGovEduTld:
+      return MetadataSourceType::CriticalSectorTld;
+    case AllowMechanism::kAllowBy3PCDMetadataSourceCuj:
+      return MetadataSourceType::Cuj;
+    case AllowMechanism::kAllowBy3PCDMetadataSourceUnspecified:
+    case AllowMechanism::kAllowBy3PCDMetadataSourceTest:
+    case AllowMechanism::kAllowBy3PCDMetadataSourceDogFood:
+      return MetadataSourceType::OtherMetadata;
+    case AllowMechanism::kAllowBy3PCDHeuristics:
+      return MetadataSourceType::Heuristics;
+    case AllowMechanism::kNone:
+    case AllowMechanism::kAllowByExplicitSetting:
+    case AllowMechanism::kAllowByTrackingProtectionException:
+    case AllowMechanism::kAllowByGlobalSetting:
+    case AllowMechanism::kAllowByStorageAccess:
+    case AllowMechanism::kAllowByTopLevelStorageAccess:
+    case AllowMechanism::kAllowByEnterprisePolicyCookieAllowedForUrls:
+    case AllowMechanism::kAllowByScheme:
+    case AllowMechanism::kAllowBySandboxValue:
+      return MetadataSourceType::None;
   }
 }
 
@@ -928,12 +966,12 @@ ContentSetting CookieSettingsBase::GetSettingForLegacyCookieAccess(
 
 ContentSetting CookieSettingsBase::GetSettingForLegacyCookieScope(
     const std::string& cookie_domain) const {
-  // The content setting patterns are treated as domains, not URLs, so the
-  // scheme is irrelevant (so we can just arbitrarily pass false).
-  GURL cookie_domain_url = net::cookie_util::CookieOriginToURL(
-      cookie_domain, false /*secure_scheme=*/);
+  // The content setting patterns are treated as registrable domains, not URLs,
+  // so the scheme is irrelevant (so we can just arbitrarily pass false).
+  net::SchemefulSite registrable_domain(net::cookie_util::CookieOriginToURL(
+      cookie_domain, false /*secure_scheme=*/));
 
-  return GetContentSetting(cookie_domain_url, GURL(),
+  return GetContentSetting(registrable_domain.GetURL(), GURL(),
                            ContentSettingsType::LEGACY_COOKIE_SCOPE,
                            /*info=*/nullptr);
 }

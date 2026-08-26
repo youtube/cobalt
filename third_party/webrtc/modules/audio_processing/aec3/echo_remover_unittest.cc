@@ -11,17 +11,24 @@
 #include "modules/audio_processing/aec3/echo_remover.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <string>
+#include <tuple>
+#include <vector>
 
+#include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
-#include "modules/audio_processing/aec3/render_buffer.h"
+#include "modules/audio_processing/aec3/block.h"
+#include "modules/audio_processing/aec3/delay_estimate.h"
+#include "modules/audio_processing/aec3/echo_path_variability.h"
 #include "modules/audio_processing/aec3/render_delay_buffer.h"
-#include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "modules/audio_processing/test/echo_canceller_test_tools.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/random.h"
 #include "rtc_base/strings/string_builder.h"
 #include "test/gtest.h"

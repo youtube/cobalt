@@ -10,6 +10,8 @@ import static androidx.browser.customtabs.CustomTabsIntent.ACTIVITY_SIDE_SHEET_D
 import static androidx.browser.customtabs.CustomTabsIntent.ACTIVITY_SIDE_SHEET_POSITION_END;
 import static androidx.browser.customtabs.CustomTabsIntent.ACTIVITY_SIDE_SHEET_POSITION_START;
 import static androidx.browser.customtabs.CustomTabsIntent.ACTIVITY_SIDE_SHEET_ROUNDED_CORNERS_POSITION_TOP;
+import static androidx.browser.customtabs.CustomTabsIntent.CONTENT_TARGET_TYPE_IMAGE;
+import static androidx.browser.customtabs.CustomTabsIntent.CONTENT_TARGET_TYPE_LINK;
 import static androidx.browser.customtabs.CustomTabsIntent.EXTRA_ACTIVITY_HEIGHT_RESIZE_BEHAVIOR;
 import static androidx.browser.customtabs.CustomTabsIntent.EXTRA_ACTIVITY_SIDE_SHEET_DECORATION_TYPE;
 import static androidx.browser.customtabs.CustomTabsIntent.EXTRA_ACTIVITY_SIDE_SHEET_ENABLE_MAXIMIZATION;
@@ -18,16 +20,21 @@ import static androidx.browser.customtabs.CustomTabsIntent.EXTRA_ACTIVITY_SIDE_S
 import static androidx.browser.customtabs.CustomTabsIntent.EXTRA_CLOSE_BUTTON_POSITION;
 import static androidx.browser.customtabs.CustomTabsIntent.EXTRA_INITIAL_ACTIVITY_HEIGHT_PX;
 import static androidx.browser.customtabs.CustomTabsIntent.EXTRA_TOOLBAR_CORNER_RADIUS_DP;
+import static androidx.browser.customtabs.CustomTabsIntent.OPEN_IN_BROWSER_STATE_DEFAULT;
+import static androidx.browser.customtabs.CustomTabsIntent.OPEN_IN_BROWSER_STATE_OFF;
+import static androidx.browser.customtabs.CustomTabsIntent.OPEN_IN_BROWSER_STATE_ON;
 import static androidx.browser.customtabs.CustomTabsIntent.SHARE_STATE_DEFAULT;
 import static androidx.browser.customtabs.CustomTabsIntent.SHARE_STATE_OFF;
 import static androidx.browser.customtabs.CustomTabsIntent.SHARE_STATE_ON;
 
+import android.Manifest;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -68,6 +75,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.Px;
 import androidx.appcompat.app.AppCompatActivity;
@@ -75,6 +83,7 @@ import androidx.browser.auth.AuthTabCallback;
 import androidx.browser.auth.AuthTabColorSchemeParams;
 import androidx.browser.auth.AuthTabIntent;
 import androidx.browser.auth.AuthTabSession;
+import androidx.browser.customtabs.CustomContentAction;
 import androidx.browser.customtabs.CustomTabsCallback;
 import androidx.browser.customtabs.CustomTabsClient;
 import androidx.browser.customtabs.CustomTabsIntent;
@@ -82,8 +91,12 @@ import androidx.browser.customtabs.CustomTabsService;
 import androidx.browser.customtabs.CustomTabsServiceConnection;
 import androidx.browser.customtabs.CustomTabsSession;
 import androidx.browser.customtabs.EngagementSignalsCallback;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.color.DynamicColors;
 
 import org.chromium.build.annotations.NullUnmarked;
 import org.chromium.build.annotations.Nullable;
@@ -120,8 +133,10 @@ public class MainActivity extends AppCompatActivity
     private static final String SHARED_PREF_THEME = "Theme";
     private static final String SHARED_PREF_URL_HIDING = "UrlHiding";
     private static final String SHARED_PREF_SIDE_SHEET_MAX_BUTTON = "SideSheetMaxButton";
-    private static final String SHARED_PREF_OPEN_IN_BROWSER_BUTTON = "OpenInBrowserButton";
+    private static final String SHARED_PREF_OPEN_IN_BROWSER_STATE = "OpenInBrowserToggle";
     private static final String SHARED_PREF_SHOW_ACTION_BUTTON = "ShowActionButton";
+    private static final String SHARED_PREF_SHOW_ADDITIONAL_ACTION_BUTTON =
+            "ShowAdditionalActionButton";
     private static final String SHARED_PREF_SHOW_CLOSE_BUTTON = "ShowCloseButton";
     private static final String SHARED_PREF_EPHEMERAL_BROWSING = "EphemeralBrowsing";
     private static final String SHARED_PREF_SHARE_STATE = "ShareStateToggle";
@@ -137,6 +152,16 @@ public class MainActivity extends AppCompatActivity
     private static final String SHARED_PREF_ENGAGEMENT_SIGNALS_BUTTON = "EngagementSignalsButton";
     private static final String SHARED_PREF_CUSTOM_SCHEME = "CustomScheme";
     private static final String SHARED_PREF_USE_SEPARATE_TASK_BUTTON = "SeparateTaskButton";
+    private static final String SHARED_PREF_IMAGE_CONTEXTUAL_MENU_ITEM_BUTTON =
+            "ImageMenuItemButton";
+    private static final String SHARED_PREF_ADDITIONAL_IMAGE_CONTEXTUAL_MENU_ITEM_BUTTON =
+            "AdditionalImageMenuItemButton";
+    private static final String SHARED_PREF_LINK_CONTEXTUAL_MENU_ITEM_BUTTON = "LinkMenuItemButton";
+    private static final String SHARED_PREF_ADDITIONAL_LINK_CONTEXTUAL_MENU_ITEM_BUTTON =
+            "AdditionalLinkMenuItemButton";
+    private static final String SHARED_PREF_OVERFLOW_CONTEXTUAL_MENU_ITEM_BUTTON =
+            "OverflowMenuItemButton";
+    private static final String SHARED_PREF_CAN_LEAVE = "CanLeave";
     private static final String CCT_OPTION_REGULAR = "CCT";
     private static final String CCT_OPTION_PARTIAL = "Partial CCT";
     private static final String CCT_OPTION_INCOGNITO = "Incognito CCT";
@@ -179,6 +204,7 @@ public class MainActivity extends AppCompatActivity
     private MaterialButtonToggleGroup mThemeButton;
     private MaterialButtonToggleGroup mSideSheetPositionToggle;
     private MaterialButtonToggleGroup mShareStateButton;
+    private MaterialButtonToggleGroup mOpenInBrowserToggle;
 
     private TextView mToolbarCornerRadiusLabel;
     private SeekBar mToolbarCornerRadiusSlider;
@@ -188,8 +214,8 @@ public class MainActivity extends AppCompatActivity
     private CheckBox mUrlHidingCheckbox;
     private CheckBox mBackgroundInteractCheckbox;
     private CheckBox mSideSheetMaxButtonCheckbox;
-    private CheckBox mOpenInBrowserButtonCheckbox;
     private CheckBox mShowActionButtonCheckbox;
+    private CheckBox mShowAdditionalActionButtonCheckbox;
     private CheckBox mShowCloseButtonCheckbox;
     private CheckBox mEphemeralCctCheckbox;
     private CheckBox mSideSheetRoundedCornerCheckbox;
@@ -198,6 +224,12 @@ public class MainActivity extends AppCompatActivity
     private CheckBox mSendToExternalAppCheckbox;
     private CheckBox mShareIdentityCheckbox;
     private CheckBox mUseSeparateTaskCheckbox;
+    private CheckBox mImageContextualMenuItemCheckbox;
+    private CheckBox mAdditionalImageContextualMenuItemCheckbox;
+    private CheckBox mLinkContextualMenuItemCheckbox;
+    private CheckBox mAdditionalLinkContextualMenuItemCheckbox;
+    private CheckBox mOverflowContextualMenuItemCheckbox;
+    private CheckBox mInitialIntentCanLeaveBrowser;
     private TextView mPcctBreakpointLabel;
     private SeekBar mPcctBreakpointSlider;
     private TextView mPcctInitialHeightLabel;
@@ -218,6 +250,25 @@ public class MainActivity extends AppCompatActivity
 
     private final ActivityResultLauncher<Intent> mLauncher =
             AuthTabIntent.registerActivityResultLauncher(this, this::handleAuthResult);
+
+    private final ActivityResultLauncher<String> mRequestPermissionLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.RequestPermission(),
+                    isGranted -> {
+                        if (isGranted) {
+                            Toast.makeText(
+                                            this,
+                                            "Notification permission granted!",
+                                            Toast.LENGTH_LONG)
+                                    .show();
+                        } else {
+                            Toast.makeText(
+                                            this,
+                                            "Notification permission denied.",
+                                            Toast.LENGTH_LONG)
+                                    .show();
+                        }
+                    });
 
     private void handleAuthResult(AuthTabIntent.AuthResult result) {
         int messageRes =
@@ -400,7 +451,17 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        DynamicColors.applyToActivityIfAvailable(this);
         setContentView(R.layout.main);
+        ViewCompat.setOnApplyWindowInsetsListener(
+                findViewById(android.R.id.content),
+                (v, insets) -> {
+                    var systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                    v.setPadding(
+                            systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+                    return WindowInsetsCompat.CONSUMED;
+                });
+
         mSharedPref = getPreferences(Context.MODE_PRIVATE);
         mMediaPlayer = MediaPlayer.create(this, R.raw.amazing_grace);
         mCustomTabsPackageHelper = new CustomTabsPackageHelper(this, mSharedPref);
@@ -416,6 +477,16 @@ public class MainActivity extends AppCompatActivity
         initializeCctSpinner();
         initializeButtons(savedInstanceState != null);
         mLogImportance.run();
+        askNotificationPermission();
+    }
+
+    private void askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                mRequestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
     }
 
     private void initializeUrlEditTextView() {
@@ -517,7 +588,7 @@ public class MainActivity extends AppCompatActivity
         } else {
             // TODO(crbug.com/40240792) Refactor the way ordering is stored so it's not mixed with
             // URLs
-            savedUrlSet = new HashSet<String>();
+            savedUrlSet = new HashSet<>();
             if (!TextUtils.isEmpty(url)) {
                 savedUrlSet.add("1" + url);
                 editor.putStringSet(SHARED_PREF_SITES, savedUrlSet);
@@ -581,7 +652,7 @@ public class MainActivity extends AppCompatActivity
 
     private void initializeColorSpinner() {
         Spinner colorSpinner = (Spinner) findViewById(R.id.color_spinner);
-        HashMap<String, String> colors = new HashMap<String, String>();
+        HashMap<String, String> colors = new HashMap<>();
         colors.put("Default", "");
         colors.put("White (AGA Light)", "#ffffff");
         colors.put("Orange", "#ef6c00");
@@ -602,7 +673,7 @@ public class MainActivity extends AppCompatActivity
         }
 
         final ArrayAdapter<String> colorAdapter =
-                new ArrayAdapter<String>(this, 0, colorsArr) {
+                new ArrayAdapter<>(this, 0, colorsArr) {
                     @Override
                     public View getView(
                             int position, @Nullable View convertView, ViewGroup parent) {
@@ -667,6 +738,24 @@ public class MainActivity extends AppCompatActivity
                                 ? R.id.share_state_on_button
                                 : R.id.share_state_off_button;
         mShareStateButton.check(desiredShareState);
+
+        mOpenInBrowserToggle = findViewById(R.id.open_in_browser_toggle);
+        int desiredOpenInBrowserStateValue =
+                mSharedPref.getInt(
+                        SHARED_PREF_OPEN_IN_BROWSER_STATE, OPEN_IN_BROWSER_STATE_DEFAULT);
+
+        int desiredOpenInBrowserState;
+
+        if (desiredOpenInBrowserStateValue == OPEN_IN_BROWSER_STATE_ON) {
+            desiredOpenInBrowserState = R.id.open_in_browser_on_button;
+        } else if (desiredOpenInBrowserStateValue == OPEN_IN_BROWSER_STATE_OFF) {
+            desiredOpenInBrowserState = R.id.open_in_browser_off_button;
+        } else {
+            // If the value is OPEN_IN_BROWSER_STATE_DEFAULT, or any other unexpected
+            // value, it will fall through to this else case.
+            desiredOpenInBrowserState = R.id.open_in_browser_default_button;
+        }
+        mOpenInBrowserToggle.check(desiredOpenInBrowserState);
 
         mCloseButtonPositionToggle = findViewById(R.id.close_button_position_toggle);
         int buttonType =
@@ -754,12 +843,13 @@ public class MainActivity extends AppCompatActivity
         mSideSheetMaxButtonCheckbox = findViewById(R.id.side_sheet_max_button_checkbox);
         mSideSheetMaxButtonCheckbox.setChecked(
                 mSharedPref.getInt(SHARED_PREF_SIDE_SHEET_MAX_BUTTON, CHECKED) == CHECKED);
-        mOpenInBrowserButtonCheckbox = findViewById(R.id.open_in_browser_checkbox);
-        mOpenInBrowserButtonCheckbox.setChecked(
-                mSharedPref.getInt(SHARED_PREF_OPEN_IN_BROWSER_BUTTON, CHECKED) == CHECKED);
         mShowActionButtonCheckbox = findViewById(R.id.show_action_button_checkbox);
         mShowActionButtonCheckbox.setChecked(
                 mSharedPref.getInt(SHARED_PREF_SHOW_ACTION_BUTTON, CHECKED) == CHECKED);
+        mShowAdditionalActionButtonCheckbox =
+                findViewById(R.id.show_additional_action_button_checkbox);
+        mShowAdditionalActionButtonCheckbox.setChecked(
+                mSharedPref.getInt(SHARED_PREF_SHOW_ADDITIONAL_ACTION_BUTTON, CHECKED) == CHECKED);
         mShowCloseButtonCheckbox = findViewById(R.id.show_close_button_checkbox);
         mShowCloseButtonCheckbox.setChecked(
                 mSharedPref.getInt(SHARED_PREF_SHOW_CLOSE_BUTTON, CHECKED) == CHECKED);
@@ -784,8 +874,35 @@ public class MainActivity extends AppCompatActivity
         mUseSeparateTaskCheckbox = findViewById(R.id.use_separate_task_checkbox);
         mUseSeparateTaskCheckbox.setChecked(
                 mSharedPref.getInt(SHARED_PREF_USE_SEPARATE_TASK_BUTTON, UNCHECKED) == CHECKED);
+        mImageContextualMenuItemCheckbox = findViewById(R.id.add_image_custom_menu_item_checkbox);
+        mImageContextualMenuItemCheckbox.setChecked(
+                mSharedPref.getInt(SHARED_PREF_IMAGE_CONTEXTUAL_MENU_ITEM_BUTTON, CHECKED)
+                        == CHECKED);
+        mAdditionalImageContextualMenuItemCheckbox =
+                findViewById(R.id.add_extra_image_custom_menu_item_checkbox);
+        mAdditionalImageContextualMenuItemCheckbox.setChecked(
+                mSharedPref.getInt(
+                                SHARED_PREF_ADDITIONAL_IMAGE_CONTEXTUAL_MENU_ITEM_BUTTON, CHECKED)
+                        == CHECKED);
+        mLinkContextualMenuItemCheckbox = findViewById(R.id.add_link_custom_menu_item_checkbox);
+        mLinkContextualMenuItemCheckbox.setChecked(
+                mSharedPref.getInt(SHARED_PREF_LINK_CONTEXTUAL_MENU_ITEM_BUTTON, CHECKED)
+                        == CHECKED);
+        mAdditionalLinkContextualMenuItemCheckbox =
+                findViewById(R.id.add_extra_link_custom_menu_item_checkbox);
+        mAdditionalLinkContextualMenuItemCheckbox.setChecked(
+                mSharedPref.getInt(SHARED_PREF_ADDITIONAL_LINK_CONTEXTUAL_MENU_ITEM_BUTTON, CHECKED)
+                        == CHECKED);
+        mOverflowContextualMenuItemCheckbox =
+                findViewById(R.id.add_overflow_custom_menu_item_checkbox);
+        mOverflowContextualMenuItemCheckbox.setChecked(
+                mSharedPref.getInt(SHARED_PREF_OVERFLOW_CONTEXTUAL_MENU_ITEM_BUTTON, CHECKED)
+                        == CHECKED);
         EditText customSchemeEdit = (EditText) findViewById(R.id.custom_scheme);
         customSchemeEdit.setText(mCustomScheme, TextView.BufferType.NORMAL);
+        mInitialIntentCanLeaveBrowser = findViewById(R.id.allow_initial_navigation_to_leave);
+        mInitialIntentCanLeaveBrowser.setChecked(
+                mSharedPref.getInt(SHARED_PREF_CAN_LEAVE, UNCHECKED) == CHECKED);
     }
 
     private void initializeCctSpinner() {
@@ -804,7 +921,7 @@ public class MainActivity extends AppCompatActivity
         }
 
         final ArrayAdapter<String> cctAdapter =
-                new ArrayAdapter<String>(this, 0, cctOptions) {
+                new ArrayAdapter<>(this, 0, cctOptions) {
                     @Override
                     public View getView(
                             int position, @Nullable View convertView, ViewGroup parent) {
@@ -968,9 +1085,6 @@ public class MainActivity extends AppCompatActivity
                     SHARED_PREF_ENGAGEMENT_SIGNALS_BUTTON, mEngagementSignalsButton.isEnabled());
             editor.putBoolean(SHARED_PREF_SEARCH_IN_CCT, mSearchInCctCheckbox.isChecked());
             editor.putInt(
-                    SHARED_PREF_OPEN_IN_BROWSER_BUTTON,
-                    mOpenInBrowserButtonCheckbox.isChecked() ? CHECKED : UNCHECKED);
-            editor.putInt(
                     SHARED_PREF_EPHEMERAL_BROWSING,
                     mEphemeralCctCheckbox.isChecked() ? CHECKED : UNCHECKED);
             editor.apply();
@@ -1074,8 +1188,12 @@ public class MainActivity extends AppCompatActivity
         CustomTabsSession session = getSession();
         CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder(session);
         prepareMenuItems(builder);
+        handleContextualMenuItems(builder);
         if (mShowActionButtonCheckbox.isChecked()) {
             prepareActionButton(builder);
+        }
+        if (mShowAdditionalActionButtonCheckbox.isChecked()) {
+            addToolbarItem(builder, 0);
         }
         boolean isPcct = mCctType.equals(CCT_OPTION_PARTIAL);
         prepareAesthetics(builder, isPcct);
@@ -1100,6 +1218,15 @@ public class MainActivity extends AppCompatActivity
         if (!mShowCloseButtonCheckbox.isChecked()) builder.setCloseButtonEnabled(false);
         if (mSendToExternalAppCheckbox.isChecked()) {
             builder.setSendToExternalDefaultHandlerEnabled(true);
+        }
+
+        if (mEphemeralCctCheckbox.isChecked()
+                && (mCctType.equals(CCT_OPTION_REGULAR) || mCctType.equals(CCT_OPTION_PARTIAL))) {
+            builder.setEphemeralBrowsingEnabled(true);
+        }
+
+        if (mInitialIntentCanLeaveBrowser.isChecked()) {
+            builder.setInitialNavigationAllowedToLeaveBrowser(true);
         }
 
         CustomTabsIntent customTabsIntent;
@@ -1168,17 +1295,7 @@ public class MainActivity extends AppCompatActivity
             customTabsIntent.intent.putExtra(EXTRA_CLOSE_BUTTON_POSITION, closeButtonPosition);
         }
 
-        if (mEphemeralCctCheckbox.isChecked()
-                && (mCctType.equals(CCT_OPTION_REGULAR) || mCctType.equals(CCT_OPTION_PARTIAL))) {
-            builder.setEphemeralBrowsingEnabled(true);
-        }
-
         customTabsIntent.intent.putExtra(EXTRA_OMNIBOX_ENABLED, mSearchInCctCheckbox.isChecked());
-
-        if (mOpenInBrowserButtonCheckbox.isChecked()) {
-            customTabsIntent.intent.putExtra(
-                    "androidx.browser.customtabs.extra.OPEN_IN_BROWSER_STATE", SHARE_STATE_ON);
-        }
 
         if (mCctType.equals(CCT_OPTION_AUTHTAB)) {
             launchAuthTab(url);
@@ -1216,6 +1333,9 @@ public class MainActivity extends AppCompatActivity
                 SHARED_PREF_SHOW_ACTION_BUTTON,
                 mShowActionButtonCheckbox.isChecked() ? CHECKED : UNCHECKED);
         editor.putInt(
+                SHARED_PREF_SHOW_ADDITIONAL_ACTION_BUTTON,
+                mShowAdditionalActionButtonCheckbox.isChecked() ? CHECKED : UNCHECKED);
+        editor.putInt(
                 SHARED_PREF_SHOW_CLOSE_BUTTON,
                 mShowCloseButtonCheckbox.isChecked() ? CHECKED : UNCHECKED);
         editor.putInt(
@@ -1224,6 +1344,24 @@ public class MainActivity extends AppCompatActivity
         editor.putInt(
                 SHARED_PREF_USE_SEPARATE_TASK_BUTTON,
                 mUseSeparateTaskCheckbox.isChecked() ? CHECKED : UNCHECKED);
+        editor.putInt(
+                SHARED_PREF_IMAGE_CONTEXTUAL_MENU_ITEM_BUTTON,
+                mImageContextualMenuItemCheckbox.isChecked() ? CHECKED : UNCHECKED);
+        editor.putInt(
+                SHARED_PREF_ADDITIONAL_IMAGE_CONTEXTUAL_MENU_ITEM_BUTTON,
+                mAdditionalImageContextualMenuItemCheckbox.isChecked() ? CHECKED : UNCHECKED);
+        editor.putInt(
+                SHARED_PREF_LINK_CONTEXTUAL_MENU_ITEM_BUTTON,
+                mLinkContextualMenuItemCheckbox.isChecked() ? CHECKED : UNCHECKED);
+        editor.putInt(
+                SHARED_PREF_ADDITIONAL_LINK_CONTEXTUAL_MENU_ITEM_BUTTON,
+                mAdditionalLinkContextualMenuItemCheckbox.isChecked() ? CHECKED : UNCHECKED);
+        editor.putInt(
+                SHARED_PREF_OVERFLOW_CONTEXTUAL_MENU_ITEM_BUTTON,
+                mOverflowContextualMenuItemCheckbox.isChecked() ? CHECKED : UNCHECKED);
+        editor.putInt(
+                SHARED_PREF_CAN_LEAVE,
+                mInitialIntentCanLeaveBrowser.isChecked() ? CHECKED : UNCHECKED);
         editor.putInt(SHARED_PREF_DECORATION, decorationType);
         editor.apply();
     }
@@ -1294,6 +1432,7 @@ public class MainActivity extends AppCompatActivity
         int closeButton = mCloseButtonIcon.getCheckedButtonId();
         int colorScheme = getColorSchemeFromButton(editor);
         int shareState = getShareStateFromButton(editor);
+        int openInBrowserState = getOpenInBrowserStateFromToggle(editor);
         if (!TextUtils.isEmpty(mToolbarColor)) {
             builder.setToolbarColor(Color.parseColor(mToolbarColor));
         }
@@ -1302,6 +1441,7 @@ public class MainActivity extends AppCompatActivity
                 .setColorScheme(colorScheme)
                 .setUrlBarHidingEnabled(urlHiding);
         builder.setShareState(shareState);
+        builder.setOpenInBrowserButtonState(openInBrowserState);
         if (isPcct) {
             builder.setStartAnimations(this, R.anim.slide_in_up, R.anim.slide_out_bottom);
             builder.setExitAnimations(this, R.anim.slide_in_bottom, R.anim.slide_out_up);
@@ -1351,6 +1491,25 @@ public class MainActivity extends AppCompatActivity
         return shareState;
     }
 
+    private int getOpenInBrowserStateFromToggle(SharedPreferences.Editor editor) {
+        int openInBrowserState;
+        int checkedButtonId = mOpenInBrowserToggle.getCheckedButtonId();
+
+        if (checkedButtonId == R.id.open_in_browser_on_button) {
+            openInBrowserState = OPEN_IN_BROWSER_STATE_ON;
+        } else if (checkedButtonId == R.id.open_in_browser_off_button) {
+            openInBrowserState = OPEN_IN_BROWSER_STATE_OFF;
+        } else {
+            // This handles the default case, including R.id.open_in_browser_default_button
+            // or any other unexpected button ID.
+            openInBrowserState = OPEN_IN_BROWSER_STATE_DEFAULT;
+        }
+        if (editor != null) {
+            editor.putInt(SHARED_PREF_OPEN_IN_BROWSER_STATE, openInBrowserState);
+        }
+        return openInBrowserState;
+    }
+
     private void prepareMenuItems(CustomTabsIntent.Builder builder) {
         Intent menuIntent = new Intent();
         menuIntent.setClass(getApplicationContext(), this.getClass());
@@ -1381,6 +1540,14 @@ public class MainActivity extends AppCompatActivity
         builder.setActionButton(icon, "send email", pi, true);
     }
 
+    private void addToolbarItem(CustomTabsIntent.Builder builder, int id) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.example.com/item1"));
+        PendingIntent pi = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        Bitmap firstIcon =
+                BitmapFactory.decodeResource(getResources(), R.drawable.baseline_check_white);
+        builder.addToolbarItem(id, firstIcon, "View Item 1", pi);
+    }
+
     private void prepareBottombar(CustomTabsIntent.Builder builder) {
         BottomBarManager.setMediaPlayer(mMediaPlayer);
         Intent broadcastIntent = new Intent(this, BottomBarManager.class);
@@ -1400,6 +1567,92 @@ public class MainActivity extends AppCompatActivity
             if (!TextUtils.isEmpty(mPackageNameToBind)) {
                 customTabsIntent.intent.setPackage(mPackageNameToBind);
             }
+        }
+    }
+
+    private void handleContextualMenuItems(CustomTabsIntent.Builder builder) {
+        addMenuItemIfChecked(
+                builder,
+                mImageContextualMenuItemCheckbox,
+                ContextualMenuItemReceiver.ACTION_IMAGE_ITEM_CLICKED,
+                101,
+                1,
+                "Image contextual menu item",
+                CONTENT_TARGET_TYPE_IMAGE);
+
+        addMenuItemIfChecked(
+                builder,
+                mAdditionalImageContextualMenuItemCheckbox,
+                ContextualMenuItemReceiver.ACTION_IMAGE_ITEM_CLICKED,
+                102,
+                2,
+                "Additional image contextual menu item",
+                CONTENT_TARGET_TYPE_IMAGE);
+
+        addMenuItemIfChecked(
+                builder,
+                mLinkContextualMenuItemCheckbox,
+                ContextualMenuItemReceiver.ACTION_LINK_ITEM_CLICKED,
+                201,
+                3,
+                "Link contextual menu item",
+                CONTENT_TARGET_TYPE_LINK);
+
+        addMenuItemIfChecked(
+                builder,
+                mAdditionalLinkContextualMenuItemCheckbox,
+                ContextualMenuItemReceiver.ACTION_LINK_ITEM_CLICKED,
+                202,
+                4,
+                "Additional link contextual menu item",
+                CONTENT_TARGET_TYPE_LINK);
+
+        addMenuItemIfChecked(
+                builder,
+                mOverflowContextualMenuItemCheckbox,
+                ContextualMenuItemReceiver.ACTION_IMAGE_ITEM_CLICKED,
+                301,
+                5,
+                "Overflow contextual menu item",
+                CONTENT_TARGET_TYPE_IMAGE);
+    }
+
+    /**
+     * A helper method to create and add a CustomContentAction to the builder if the corresponding
+     * checkbox is checked.
+     *
+     * @param builder The CustomTabsIntent.Builder to add the action to.
+     * @param checkbox The CheckBox to check for state.
+     * @param action The Intent action string.
+     * @param requestCode A unique request code for the PendingIntent.
+     * @param actionId A unique ID for the CustomContentAction.
+     * @param description The user-visible description of the menu item.
+     * @param targetType The type of content this action targets (e.g., image or link).
+     */
+    private void addMenuItemIfChecked(
+            CustomTabsIntent.Builder builder,
+            CheckBox checkbox,
+            String action,
+            int requestCode,
+            int actionId,
+            String description,
+            @CustomTabsIntent.ContentTargetType int targetType) {
+
+        if (checkbox.isChecked()) {
+            Intent contextualMenuItemIntent = new Intent(this, ContextualMenuItemReceiver.class);
+            contextualMenuItemIntent.setAction(action);
+
+            PendingIntent pi =
+                    PendingIntent.getBroadcast(
+                            this,
+                            requestCode,
+                            contextualMenuItemIntent,
+                            PendingIntent.FLAG_MUTABLE);
+
+            CustomContentAction cca =
+                    new CustomContentAction.Builder(actionId, description, pi, targetType).build();
+
+            builder.addCustomContentAction(cca);
         }
     }
 

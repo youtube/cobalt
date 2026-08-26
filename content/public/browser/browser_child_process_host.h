@@ -37,22 +37,21 @@ struct ChildProcessData;
 
 // This represents child processes of the browser process, i.e. plugins. They
 // will get terminated at browser shutdown.
-class CONTENT_EXPORT BrowserChildProcessHost : public IPC::Sender {
+class CONTENT_EXPORT BrowserChildProcessHost {
  public:
   // Used to create a child process host. The delegate must outlive this object.
   // |process_type| needs to be either an enum value from ProcessType or an
   // embedder-defined value.
   static std::unique_ptr<BrowserChildProcessHost> Create(
       content::ProcessType process_type,
-      BrowserChildProcessHostDelegate* delegate,
-      ChildProcessHost::IpcMode ipc_mode);
+      BrowserChildProcessHostDelegate* delegate);
 
   // Returns the child process host with unique id |child_process_id|, or
   // nullptr if it doesn't exist. |child_process_id| is NOT the process ID, but
   // is the same unique ID as |ChildProcessData::id|.
   static BrowserChildProcessHost* FromID(int child_process_id);
 
-  ~BrowserChildProcessHost() override {}
+  virtual ~BrowserChildProcessHost() = default;
 
   // Derived classes call this to launch the child process asynchronously.
   virtual void Launch(
@@ -80,12 +79,6 @@ class CONTENT_EXPORT BrowserChildProcessHost : public IPC::Sender {
 
   // Sets the name of the process used for metrics reporting.
   virtual void SetMetricsName(const std::string& metrics_name) = 0;
-
-  // Set the process. BrowserChildProcessHost will do this when the Launch
-  // method is used to start the process. However if the owner of this object
-  // doesn't call Launch and starts the process in another way, they need to
-  // call this method so that the process is associated with this object.
-  virtual void SetProcess(base::Process process) = 0;
 
 #if BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
   // Returns a PortProvider used to get the task port for child processes.

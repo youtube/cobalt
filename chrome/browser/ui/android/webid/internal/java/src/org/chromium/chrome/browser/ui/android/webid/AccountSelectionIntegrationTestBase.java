@@ -26,7 +26,9 @@ import org.chromium.chrome.browser.ui.android.webid.data.ClientIdMetadata;
 import org.chromium.chrome.browser.ui.android.webid.data.IdentityCredentialTokenError;
 import org.chromium.chrome.browser.ui.android.webid.data.IdentityProviderData;
 import org.chromium.chrome.browser.ui.android.webid.data.IdentityProviderMetadata;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
@@ -76,8 +78,10 @@ public class AccountSelectionIntegrationTestBase {
     @Mock AccountSelectionComponent.Delegate mMockBridge;
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
+    WebPageStation mPage;
     BottomSheetController mBottomSheetController;
 
     String mTestUrlTermsOfService;
@@ -96,7 +100,7 @@ public class AccountSelectionIntegrationTestBase {
     @Before
     public void setUp() throws InterruptedException {
         MockitoAnnotations.initMocks(this);
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
 
         mTestUrlTermsOfService =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/title1.html");
@@ -133,9 +137,10 @@ public class AccountSelectionIntegrationTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ false,
+                        /* fields= */ new int[0],
                         mIdpData);
         mNewBob =
                 new Account(
@@ -146,9 +151,10 @@ public class AccountSelectionIntegrationTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ false,
+                        /* isIdpClaimedSignIn= */ false,
                         /* isBrowserTrustedSignIn= */ false,
                         /* isFilteredOut= */ false,
+                        DEFAULT_DISCLOSURE_FIELDS,
                         mIdpData);
 
         mReturningAnaWithAddAccount =
@@ -160,9 +166,10 @@ public class AccountSelectionIntegrationTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ false,
+                        /* fields= */ new int[0],
                         mIdpDataWithAddAccount);
         mNewBobWithAddAccount =
                 new Account(
@@ -173,9 +180,10 @@ public class AccountSelectionIntegrationTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ false,
+                        /* isIdpClaimedSignIn= */ false,
                         /* isBrowserTrustedSignIn= */ false,
                         /* isFilteredOut= */ false,
+                        DEFAULT_DISCLOSURE_FIELDS,
                         mIdpDataWithAddAccount);
 
         mNewAccountsReturningAna = Arrays.asList(mReturningAna);

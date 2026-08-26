@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/video_rtp_depacketizer_vp9.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <optional>
 #include <utility>
 

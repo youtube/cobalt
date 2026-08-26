@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Отсега може да користите само „Алатки за клас“</translation>
 <translation id="1762483337755424125">Транскрипција</translation>
 <translation id="1765169783255151332">Брзо менувајте копчиња</translation>
 <translation id="1768959921651994223">Тип автентикација</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Прекинувач за распоред</translation>
 <translation id="224421911978987610">долга експозиција</translation>
 <translation id="2244834438220057800">зелена</translation>
+<translation id="2248689665683494517">минималистичка мртва природа на неколку цветови на булки во стаклена вазна на црна заднина</translation>
 <translation id="225692081236532131">Статус на активирање</translation>
 <translation id="2267285889943769271">Додајте слика од екранот</translation>
 <translation id="2268044343513325586">Подобри</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Неуспешно - запрено</translation>
 <translation id="3102119246920354026">Кеш</translation>
 <translation id="3103783611481501187">нереално</translation>
+<translation id="3119672627216736407">Преводот е достапен</translation>
 <translation id="3122464029669770682">ЦПУ</translation>
 <translation id="3122614491980756867">базени</translation>
 <translation id="3122883569442693641">Повеќе детали</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">шифон</translation>
 <translation id="4310735698903592804">Неодамнешни тапети овозможени од Google AI</translation>
 <translation id="4320904097188876154">неонска розова</translation>
+<translation id="432961742358282111">Кликнете со десното копче или притиснете и задржете за да добиете дефиниции, преводи или конверзии на единици. Користете го копчето со стрелка налево или со стрелка надесно за да управувате со функцијава.</translation>
 <translation id="4333390807948134856">Копчето <ph name="KEY_NAME" /> е притиснато</translation>
 <translation id="4334293042716981313">Може и <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />да напишете сопствено барање<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">копче</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">За да завршите, внесете ги старата и новата лозинка</translation>
 <translation id="6061772781719867950">Неуспешни HTTP-барања</translation>
 <translation id="6073292342939316679">намалување на осветленоста на тастатурата</translation>
+<translation id="6074608334942655098">Сопри со преведување</translation>
 <translation id="6074752328838739425">Скриј го резимето</translation>
 <translation id="6075872808778243331">(Android) Латенција на HTTP</translation>
 <translation id="6078323886959318429">Додајте кратенка</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Прашајте ги експертите во „Форумот за помош“ на Chromebook</translation>
-<translation id="7309823890857024809">минималистичка мртва природа на неколку дршки на булки во стаклена вазна на црна заднина</translation>
 <translation id="7311368985037279727">боја на тастатура</translation>
 <translation id="7317831949569936035">Регистрирање училиште</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@
 <translation id="8088963492174775412">Притиснете за снимање</translation>
 <translation id="8094062939584182041">Дозволете Google да ви праќа е-пораки за проблемов</translation>
 <translation id="8104083085214006426">Користите отворена и небезбедна мрежа</translation>
+<translation id="8108879170356113798">Ќе може да користите само „Алатки за клас“ по <ph name="NUM_SECONDS" /> секунди</translation>
 <translation id="811820734797650957">(Android) Може да се испрати пинг до порталот</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">Потврди</translation>

@@ -37,8 +37,8 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.NullUnmarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.externalauth.ExternalAuthUtils;
-import org.chromium.components.signin.base.GaiaId;
 import org.chromium.components.signin.metrics.FetchAccountCapabilitiesFromSystemLibraryResult;
+import org.chromium.google_apis.gaia.GaiaId;
 import org.chromium.google_apis.gaia.GoogleServiceAuthError;
 import org.chromium.google_apis.gaia.GoogleServiceAuthErrorState;
 
@@ -153,22 +153,6 @@ public class SystemAccountManagerDelegate implements AccountManagerDelegate {
                     ex,
                     new GoogleServiceAuthError(GoogleServiceAuthErrorState.CONNECTION_FAILED));
         }
-    }
-
-    protected boolean hasFeatures(Account account, String[] features) {
-        if (hasGetAccountsPermission()) {
-            try {
-                return mAccountManager.hasFeatures(account, features, null, null).getResult();
-            } catch (AuthenticatorException | IOException | OperationCanceledException e) {
-                Log.e(TAG, "Error while checking features: ", e);
-            }
-        }
-        return false;
-    }
-
-    @Override
-    public boolean hasFeature(Account account, String feature) {
-        return hasFeatures(account, new String[] {feature});
     }
 
     @Override

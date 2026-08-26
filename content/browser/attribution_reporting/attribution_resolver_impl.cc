@@ -17,7 +17,6 @@
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
-#include "base/functional/overloaded.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
@@ -47,6 +46,7 @@
 #include "content/browser/attribution_reporting/storable_source.h"
 #include "content/browser/attribution_reporting/store_source_result.h"
 #include "content/browser/attribution_reporting/stored_source.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 
 namespace content {
@@ -190,7 +190,7 @@ AttributionResolverImpl::AttributionResolverImpl(
     std::unique_ptr<AttributionResolverDelegate> delegate)
     : delegate_(std::move(delegate)),
       storage_(user_data_directory, delegate_.get()) {
-  DCHECK(delegate_);
+  CHECK(delegate_);
 }
 
 AttributionResolverImpl::~AttributionResolverImpl() {
@@ -268,7 +268,7 @@ StoreSourceResult AttributionResolverImpl::StoreSource(StorableSource source) {
   // operations.
   const base::TimeDelta delete_frequency =
       delegate_->GetDeleteExpiredSourcesFrequency();
-  DCHECK_GE(delete_frequency, base::TimeDelta());
+  CHECK_GE(delete_frequency, base::TimeDelta());
   if (source_time - last_deleted_expired_sources_ >= delete_frequency) {
     if (!storage_.DeleteExpiredSources()) {
       return make_result(StoreSourceResult::InternalError());
@@ -553,11 +553,11 @@ CreateReportResult AttributionResolverImpl::MaybeCreateAndStoreReport(
              new_event_level_result.has_value())) {
           event_level_result = std::move(new_event_level_result);
         }
-        DCHECK(event_level_result.has_value());
+        CHECK(event_level_result.has_value());
 
         aggregatable_result = MergeResult(std::move(aggregatable_result),
                                           std::move(new_aggregatable_result));
-        DCHECK(aggregatable_result.has_value());
+        CHECK(aggregatable_result.has_value());
 
         if (IsInternalError(*event_level_result) ||
             IsInternalError(*aggregatable_result)) {
@@ -603,8 +603,8 @@ CreateReportResult AttributionResolverImpl::MaybeCreateAndStoreReport(
             aggregatable_result =
                 MergeResult(std::move(aggregatable_result),
                             std::move(new_aggregatable_result));
-            DCHECK(aggregatable_result.has_value());
-            DCHECK(!GetSuccessResult(*aggregatable_result));
+            CHECK(aggregatable_result.has_value());
+            CHECK(!GetSuccessResult(*aggregatable_result));
 
             if (!GenerateNullAggregatableReportsAndStoreReports(
                     trigger, attribution_info,
@@ -706,8 +706,8 @@ CreateReportResult AttributionResolverImpl::MaybeCreateAndStoreReport(
         aggregatable_dedup_key);
   }
 
-  DCHECK(event_level_result.has_value());
-  DCHECK(aggregatable_result.has_value());
+  CHECK(event_level_result.has_value());
+  CHECK(aggregatable_result.has_value());
 
   if (IsInternalError(*event_level_result) ||
       IsInternalError(*aggregatable_result)) {
@@ -851,8 +851,6 @@ AttributionResolverImpl::MaybeCreateEventLevelReport(
     const AttributionTrigger& trigger,
     std::optional<uint64_t>& dedup_key) {
   if (source.attribution_logic() == StoredSource::AttributionLogic::kFalsely) {
-    DCHECK_EQ(source.active_state(),
-              StoredSource::ActiveState::kReachedEventLevelAttributionLimit);
     return CreateReportResult::FalselyAttributedSource();
   }
 
@@ -1005,11 +1003,11 @@ bool AttributionResolverImpl::GenerateNullAggregatableReportsAndStoreReports(
   if (new_aggregatable_report) {
     const auto* data = std::get_if<AttributionReport::AggregatableData>(
         &new_aggregatable_report->data());
-    DCHECK(data);
-    DCHECK(!data->is_null());
+    CHECK(data);
+    CHECK(!data->is_null());
     attributed_source_time = data->source_time();
 
-    DCHECK(source);
+    CHECK(source);
 
     std::optional<AttributionReport::Id> report_id =
         storage_.StoreAggregatableReport(
@@ -1153,6 +1151,32 @@ std::optional<base::Time> AttributionResolverImpl::AdjustOfflineReportTimes() {
   return storage_.GetNextReportTime(base::Time::Min());
 }
 
+std::optional<base::Time>
+AttributionResolverImpl::AdjustNavigationRetryReportTimes() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (auto delay = delegate_->GetOfflineReportDelayConfig()) {
+    if (base::flat_map<AttributionReport::Type, int> report_types =
+            storage_.AdjustNavigationRetryReportTimes(delay->min, delay->max);
+        !report_types.empty()) {
+      if (auto it = report_types.find(AttributionReport::Type::kEventLevel);
+          it != report_types.end()) {
+        base::UmaHistogramCounts100(
+            "Conversions.ReportsAdjustedOnNavigationRetryAttempt.Event",
+            it->second);
+      }
+      if (auto it = report_types.find(
+              AttributionReport::Type::kAggregatableAttribution);
+          it != report_types.end()) {
+        base::UmaHistogramCounts100(
+            "Conversions.ReportsAdjustedOnNavigationRetryAttempt.Aggregatable",
+            it->second);
+      }
+      return storage_.GetNextReportTime(base::Time::Min());
+    }
+  }
+  return std::nullopt;
+}
+
 void AttributionResolverImpl::ClearDataIncludingRateLimit(
     base::Time delete_begin,
     base::Time delete_end,
@@ -1294,7 +1318,7 @@ void AttributionResolverImpl::StoreOsRegistrations(
 void AttributionResolverImpl::SetDelegate(
     std::unique_ptr<AttributionResolverDelegate> delegate) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(delegate);
+  CHECK(delegate);
   storage_.SetDelegate(delegate.get());
   delegate_ = std::move(delegate);
 }
@@ -1313,11 +1337,11 @@ AttributionResolverImpl::MaybeReplaceLowerPriorityEventLevelReport(
     const AttributionReport& report,
     const StoredSource& source,
     int num_attributions) {
-  DCHECK_GE(num_attributions, 0);
+  CHECK_GE(num_attributions, 0);
 
   const auto* data =
       std::get_if<AttributionReport::EventLevelData>(&report.data());
-  DCHECK(data);
+  CHECK(data);
 
   // If there's already capacity for the new report, there's nothing to do.
   if (num_attributions < source.max_event_level_reports()) {
@@ -1375,7 +1399,7 @@ AttributionResolverImpl::MaybeStoreEventLevelReport(
   AttributionReport& report = success.new_report;
   const auto* event_level_data =
       std::get_if<AttributionReport::EventLevelData>(&report.data());
-  DCHECK(event_level_data);
+  CHECK(event_level_data);
 
   if (source.active_state() ==
       StoredSource::ActiveState::kReachedEventLevelAttributionLimit) {
@@ -1396,7 +1420,7 @@ AttributionResolverImpl::MaybeStoreEventLevelReport(
   };
 
   std::optional<CreateReportResult::EventLevel> result = std::visit(
-      base::Overloaded{
+      absl::Overload{
           [](ReplaceReportError)
               -> std::optional<CreateReportResult::EventLevel> {
             return CreateReportResult::InternalError();

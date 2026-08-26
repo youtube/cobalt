@@ -73,7 +73,7 @@ bool MediaChannelUtil::SendRtcp(CopyOnWriteBuffer* packet,
 }
 
 int MediaChannelUtil::SetOption(MediaChannelNetworkInterface::SocketType type,
-                                webrtc::Socket::Option opt,
+                                Socket::Option opt,
                                 int option) {
   return transport_.SetOption(type, opt, option);
 }
@@ -98,7 +98,7 @@ bool MediaChannelUtil::DscpEnabled() const {
   return transport_.DscpEnabled();
 }
 
-void MediaChannelUtil::SetPreferredDscp(webrtc::DiffServCodePoint new_dscp) {
+void MediaChannelUtil::SetPreferredDscp(DiffServCodePoint new_dscp) {
   transport_.SetPreferredDscp(new_dscp);
 }
 
@@ -159,9 +159,9 @@ std::map<std::string, std::string> VideoSenderParameters::ToStringMap() const {
 // --------------------- MediaChannelUtil::TransportForMediaChannels -----
 
 MediaChannelUtil::TransportForMediaChannels::TransportForMediaChannels(
-    webrtc::TaskQueueBase* network_thread,
+    TaskQueueBase* network_thread,
     bool enable_dscp)
-    : network_safety_(webrtc::PendingTaskSafetyFlag::CreateDetachedInactive()),
+    : network_safety_(PendingTaskSafetyFlag::CreateDetachedInactive()),
       network_thread_(network_thread),
 
       enable_dscp_(enable_dscp) {}
@@ -192,8 +192,7 @@ MediaChannelUtil::TransportForMediaChannels::TranslatePacketOptions(
 bool MediaChannelUtil::TransportForMediaChannels::SendRtcp(
     ArrayView<const uint8_t> packet,
     const PacketOptions& options) {
-  auto send = [this,
-               packet = CopyOnWriteBuffer(packet, webrtc::kMaxRtpPacketLen),
+  auto send = [this, packet = CopyOnWriteBuffer(packet, kMaxRtpPacketLen),
                options]() mutable {
     DoSendPacket(&packet, true, TranslatePacketOptions(options));
   };
@@ -208,9 +207,8 @@ bool MediaChannelUtil::TransportForMediaChannels::SendRtcp(
 
 bool MediaChannelUtil::TransportForMediaChannels::SendRtp(
     ArrayView<const uint8_t> packet,
-    const webrtc::PacketOptions& options) {
-  auto send = [this,
-               packet = CopyOnWriteBuffer(packet, webrtc::kMaxRtpPacketLen),
+    const PacketOptions& options) {
+  auto send = [this, packet = CopyOnWriteBuffer(packet, kMaxRtpPacketLen),
                options]() mutable {
     DoSendPacket(&packet, false, TranslatePacketOptions(options));
   };
@@ -236,13 +234,12 @@ void MediaChannelUtil::TransportForMediaChannels::SetInterface(
 }
 
 void MediaChannelUtil::TransportForMediaChannels::UpdateDscp() {
-  webrtc::DiffServCodePoint value =
-      enable_dscp_ ? preferred_dscp_ : webrtc::DSCP_DEFAULT;
+  DiffServCodePoint value = enable_dscp_ ? preferred_dscp_ : DSCP_DEFAULT;
   int ret = SetOptionLocked(MediaChannelNetworkInterface::ST_RTP,
-                            webrtc::Socket::OPT_DSCP, value);
+                            Socket::OPT_DSCP, value);
   if (ret == 0)
-    SetOptionLocked(MediaChannelNetworkInterface::ST_RTCP,
-                    webrtc::Socket::OPT_DSCP, value);
+    SetOptionLocked(MediaChannelNetworkInterface::ST_RTCP, Socket::OPT_DSCP,
+                    value);
 }
 
 bool MediaChannelUtil::TransportForMediaChannels::DoSendPacket(
@@ -259,7 +256,7 @@ bool MediaChannelUtil::TransportForMediaChannels::DoSendPacket(
 
 int MediaChannelUtil::TransportForMediaChannels::SetOption(
     MediaChannelNetworkInterface::SocketType type,
-    webrtc::Socket::Option opt,
+    Socket::Option opt,
     int option) {
   RTC_DCHECK_RUN_ON(network_thread_);
   return SetOptionLocked(type, opt, option);
@@ -267,7 +264,7 @@ int MediaChannelUtil::TransportForMediaChannels::SetOption(
 
 int MediaChannelUtil::TransportForMediaChannels::SetOptionLocked(
     MediaChannelNetworkInterface::SocketType type,
-    webrtc::Socket::Option opt,
+    Socket::Option opt,
     int option) {
   if (!network_interface_)
     return -1;
@@ -275,7 +272,7 @@ int MediaChannelUtil::TransportForMediaChannels::SetOptionLocked(
 }
 
 void MediaChannelUtil::TransportForMediaChannels::SetPreferredDscp(
-    webrtc::DiffServCodePoint new_dscp) {
+    DiffServCodePoint new_dscp) {
   if (!network_thread_->IsCurrent()) {
     // This is currently the common path as the derived channel classes
     // get called on the worker thread. There are still some tests though

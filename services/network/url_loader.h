@@ -56,6 +56,7 @@
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/network/public/mojom/ip_address_space.mojom-forward.h"
 #include "services/network/public/mojom/ip_address_space.mojom-shared.h"
+#include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "services/network/public/mojom/trust_token_access_observer.mojom.h"
 #include "services/network/public/mojom/trust_tokens.mojom-shared.h"
@@ -65,7 +66,9 @@
 #include "services/network/resource_scheduler/resource_scheduler_client.h"
 #include "services/network/shared_dictionary/shared_dictionary_access_checker.h"
 #include "services/network/shared_storage/shared_storage_request_helper.h"
-#include "services/network/trust_tokens/trust_token_request_helper_factory.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "services/network/trust_tokens/trust_token_request_helper_factory.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "services/network/upload_progress_tracker.h"
 #include "services/network/url_loader_context.h"
 
@@ -168,8 +171,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
       base::StrictNumeric<int32_t> request_id,
       int keepalive_request_size,
       base::WeakPtr<KeepaliveStatisticsRecorder> keepalive_statistics_recorder,
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       std::unique_ptr<TrustTokenRequestHelperFactory>
           trust_token_helper_factory,
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       SharedDictionaryManager* shared_dictionary_manager,
       std::unique_ptr<SharedDictionaryAccessChecker> shared_dictionary_checker,
       ObserverWrapper<mojom::CookieAccessObserver> cookie_observer,
@@ -288,8 +293,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
   SharedStorageRequestHelper* shared_storage_request_helper() const {
     return shared_storage_request_helper_.get();
   }
-
-  void SetEnableReportingRawHeaders(bool enable);
 
   void set_partial_decoder_decoding_buffer_size_for_testing(
       int partial_decoder_decoding_buffer_size) {
@@ -443,6 +446,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
 
   void ScheduleStart();
   void ReadMore();
+  void ReadMoreAsync();
   void DidRead(int num_bytes,
                bool completed_synchronously,
                bool into_slop_bucket);
@@ -460,7 +464,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
   bool IsSharedDictionaryReadAllowed();
   void DispatchOnRawRequest(
       std::vector<network::mojom::HttpRawHeaderPairPtr> headers);
-  bool DispatchOnRawResponse();
+  void DispatchOnRawResponse();
   void SendUploadProgress(const net::UploadProgress& progress);
   void OnUploadProgressACK();
   void OnSSLCertificateErrorResponse(const net::SSLInfo& ssl_info,
@@ -537,6 +541,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
   // value from the request (if present), the URLLoaderFactoryParams, or null.
   const mojom::ClientSecurityState* GetClientSecurityState();
 
+  // Resets raw headers retrieved from underlying net::URLRequest before
+  // starting another network transaction (such as following a redirect).
+  void ResetRawHeadersForRedirect();
+
   const raw_ptr<net::URLRequestContext> url_request_context_;
 
   const raw_ptr<mojom::NetworkContextClient> network_context_client_;
@@ -579,8 +587,19 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
 
   scoped_refptr<net::IOBufferWithSize> discard_buffer_;
 
-  // True if there's a URLRequest::Read() call in progress.
-  bool read_in_progress_ = false;
+  // State checker between URLRequest::Read() and `response_body_stream_`.
+  enum class URLReadState {
+    // While waiting for `response_body_stream_` to be writable.
+    // TODO(yoichio): Since ReadMore() is called both when mojo pipe is ready
+    // to read and we want to write to the pipe.
+    // Consider spliting this into kNotReading and kWaitMojoPipeWritable.
+    kWaitMojoPipeWritable,
+    // While async URLRequest::ReadMore() task is posted.
+    kReadMoreTaskPosted,
+    // While there's a URLRequest::Read() call in progress.
+    kURLReadInProgress
+  };
+  URLReadState url_read_state_ = URLReadState::kWaitMojoPipeWritable;
 
   // Stores any CORS error encountered while processing |url_request_|.
   std::optional<CorsErrorStatus> cors_error_status_;
@@ -601,11 +620,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
   std::unique_ptr<ResourceScheduler::ScheduledResourceRequest>
       resource_scheduler_request_handle_;
 
-  bool enable_reporting_raw_headers_ = false;
-  bool seen_raw_request_headers_ = false;
-  // Used for metrics.
-  size_t raw_request_line_size_ = 0;
-  size_t raw_request_headers_size_ = 0;
   scoped_refptr<const net::HttpResponseHeaders> raw_response_headers_;
 
   std::unique_ptr<UploadProgressTracker> upload_progress_tracker_;
@@ -637,7 +651,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
   const mojom::RequestDestination request_destination_ =
       mojom::RequestDestination::kEmpty;
 
-  const std::vector<std::string> expected_public_keys_;
+  const std::vector<std::vector<uint8_t>> expected_public_keys_;
 
   scoped_refptr<ResourceSchedulerClient> resource_scheduler_client_;
 
@@ -664,7 +678,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
   // (https://github.com/WICG/trust-token-api) protocol operations, annotates
   // the request with the pertinent request headers and, on receiving the
   // corresponding response, processes and strips Trust Tokens response headers.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   std::unique_ptr<TrustTokenUrlLoaderInterceptor> trust_token_interceptor_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // This is used to determine whether it is allowed to use a dictionary when
   // there is a matching shared dictionary for the request.
@@ -703,8 +719,20 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
   // body.
   const bool has_fetch_streaming_upload_body_;
 
+  // Whether DevToolsObserver::OnRaw{Request,Response} should be emitted
+  // (i.e. the request being loaded is monitored by DevTools).
+  bool enable_reporting_raw_headers_ = false;
+
+  // Whether DevToolsObserver::OnRaw{Request,Response} have been emitted for
+  // the current redirect hop. This assures we report raw request/response
+  // not more than once per redirect and that we only either report both
+  // or neither request and response.
   bool emitted_devtools_raw_request_ = false;
   bool emitted_devtools_raw_response_ = false;
+
+  // Used for metrics.
+  size_t raw_request_line_size_ = 0;
+  size_t raw_request_headers_size_ = 0;
 
   // Handles processing of the ACCEPT_CH frame during connection, if enabled
   // and an observer exists. May be nullptr.
@@ -730,6 +758,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) URLLoader
   // high-priority requests that cannot yet be written to the mojo data pipe
   // because it is full.
   std::unique_ptr<SlopBucket> slop_bucket_;
+
+  // Internal counters to record UMA for SlopBucket.
+  int mojo_begin_write_count_for_uma_ = 0;
+  int mojo_blocked_write_count_for_uma_ = 0;
 
   // For decoding a small part of the response body to check its type (for ORB
   // and MIME sniffing) when the response might be compressed and client-side

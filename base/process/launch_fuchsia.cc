@@ -24,7 +24,7 @@
 #include "base/process/environment_internal.h"
 #include "base/scoped_generic.h"
 #include "base/threading/scoped_blocking_call.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 
 namespace base {
 
@@ -301,6 +301,12 @@ bool GetAppOutputWithExitCode(const CommandLine& cl,
   // launched and the exit code was waited upon successfully, but not
   // necessarily that the exit code was EXIT_SUCCESS.
   return GetAppOutputInternal(cl, false, output, exit_code);
+}
+
+bool GetAppOutputWithExitCode(const std::vector<std::string>& argv,
+                              std::string* output,
+                              int* exit_code) {
+  return GetAppOutputWithExitCode(CommandLine(argv), output, exit_code);
 }
 
 void RaiseProcessToHighPriority() {

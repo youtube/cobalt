@@ -214,7 +214,7 @@ bool IsInKioskMode() {
       Shell::Get()->session_controller()->GetUserType();
   // |active_user_type| is empty when there's no active user.
   return active_user_type &&
-         *active_user_type == user_manager::UserType::kKioskApp;
+         *active_user_type == user_manager::UserType::kKioskChromeApp;
 }
 
 // Returns the currently active user session (at index 0).
@@ -1185,9 +1185,7 @@ void WallpaperControllerImpl::ShowUserWallpaper(
     const AccountId& account_id,
     const user_manager::UserType user_type) {
   current_account_id_ = account_id;
-  if (user_type == user_manager::UserType::kKioskApp ||
-      user_type == user_manager::UserType::kWebKioskApp ||
-      user_type == user_manager::UserType::kKioskIWA) {
+  if (user_manager::User::TypeIsKiosk(user_type)) {
     RepaintWallpaper();
     return;
   }

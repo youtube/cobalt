@@ -23,6 +23,7 @@
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -64,9 +65,9 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/wait_until.h"
 
 using webrtc::Candidate;
@@ -137,7 +138,8 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
     config.on_dtls_handshake_error_ = [](SSLHandshakeError s) {};
     transport_controller_ = std::make_unique<JsepTransportController>(
         env_, network_thread, port_allocator,
-        nullptr /* async_resolver_factory */, payload_type_picker_,
+        /*async_resolver_factory=*/nullptr,
+        /*lna_permission_factory=*/nullptr, payload_type_picker_,
         std::move(config));
     SendTask(network_thread, [&] { ConnectTransportControllerSignals(); });
   }
@@ -276,9 +278,8 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
     return config;
   }
 
-  Candidate CreateCandidate(const std::string& transport_name, int component) {
+  Candidate CreateCandidate(int component = ICE_CANDIDATE_COMPONENT_RTP) {
     Candidate c;
-    c.set_transport_name(transport_name);
     c.set_address(SocketAddress("192.168.1.1", 8000));
     c.set_component(component);
     c.set_protocol(UDP_PROTOCOL_NAME);
@@ -306,11 +307,9 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
     auto fake_video_dtls = static_cast<FakeDtlsTransport*>(
         transport_controller_->GetDtlsTransport(kVideoMid1));
     fake_audio_dtls->fake_ice_transport()->SignalCandidateGathered(
-        fake_audio_dtls->fake_ice_transport(),
-        CreateCandidate(kAudioMid1, /*component=*/1));
+        fake_audio_dtls->fake_ice_transport(), CreateCandidate());
     fake_video_dtls->fake_ice_transport()->SignalCandidateGathered(
-        fake_video_dtls->fake_ice_transport(),
-        CreateCandidate(kVideoMid1, /*component=*/1));
+        fake_video_dtls->fake_ice_transport(), CreateCandidate());
     fake_audio_dtls->fake_ice_transport()->SetCandidatesGatheringComplete();
     fake_video_dtls->fake_ice_transport()->SetCandidatesGatheringComplete();
     fake_audio_dtls->fake_ice_transport()->SetConnectionCount(2);
@@ -375,7 +374,7 @@ class JsepTransportControllerTest : public JsepTransportController::Observer,
     return true;
   }
 
-  test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_ = CreateTestFieldTrials();
   Environment env_;
   AutoThread main_thread_;
   // Information received from signals from transport controller.
@@ -579,14 +578,14 @@ TEST_F(JsepTransportControllerTest, AddRemoveRemoteCandidates) {
       transport_controller_->GetDtlsTransport(kAudioMid1));
   ASSERT_NE(nullptr, fake_audio_dtls);
   Candidates candidates;
-  candidates.push_back(
-      CreateCandidate(kAudioMid1, ICE_CANDIDATE_COMPONENT_RTP));
+  candidates.push_back(CreateCandidate());
   EXPECT_TRUE(
       transport_controller_->AddRemoteCandidates(kAudioMid1, candidates).ok());
   EXPECT_EQ(1U,
             fake_audio_dtls->fake_ice_transport()->remote_candidates().size());
 
-  EXPECT_TRUE(transport_controller_->RemoveRemoteCandidates(candidates).ok());
+  IceCandidate ice_candidate(kAudioMid1, -1, candidates[0]);
+  EXPECT_TRUE(transport_controller_->RemoveRemoteCandidate(&ice_candidate));
   EXPECT_EQ(0U,
             fake_audio_dtls->fake_ice_transport()->remote_candidates().size());
 }
@@ -1120,7 +1119,7 @@ TEST_F(JsepTransportControllerTest, SignalCandidatesGathered) {
   auto fake_audio_dtls = static_cast<FakeDtlsTransport*>(
       transport_controller_->GetDtlsTransport(kAudioMid1));
   fake_audio_dtls->fake_ice_transport()->SignalCandidateGathered(
-      fake_audio_dtls->fake_ice_transport(), CreateCandidate(kAudioMid1, 1));
+      fake_audio_dtls->fake_ice_transport(), CreateCandidate());
   EXPECT_THAT(
       WaitUntil([&] { return 1; }, ::testing::Eq(candidates_signal_count_),
                 {.timeout = TimeDelta::Millis(kTimeout)}),

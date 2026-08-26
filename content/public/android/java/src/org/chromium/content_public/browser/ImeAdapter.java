@@ -6,6 +6,7 @@ package org.chromium.content_public.browser;
 
 import android.content.Context;
 import android.os.ResultReceiver;
+import android.view.KeyEvent;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 
@@ -38,7 +39,7 @@ public interface ImeAdapter {
     static InputMethodManagerWrapper createDefaultInputMethodManagerWrapper(
             Context context,
             WindowAndroid windowAndroid,
-            InputMethodManagerWrapper.Delegate delegate) {
+            InputMethodManagerWrapper.@Nullable Delegate delegate) {
         return ImeAdapterImpl.createDefaultInputMethodManagerWrapper(
                 context, windowAndroid, delegate);
     }
@@ -70,6 +71,11 @@ public interface ImeAdapter {
      * @see View#onCheckIsTextEditor()
      */
     boolean onCheckIsTextEditor();
+
+    /**
+     * @see View#onKeyPreIme(int, KeyEvent)
+     */
+    void onKeyPreIme(int keyCode, KeyEvent event);
 
     /** Whether the focused node is editable or not. */
     boolean focusedNodeEditable();
@@ -109,8 +115,12 @@ public interface ImeAdapter {
 
     /**
      * Call this when we get result from ResultReceiver passed in calling showSoftInput().
+     *
      * @param resultCode The result of showSoftInput() as defined in InputMethodManager.
      */
     @VisibleForTesting
     void onShowKeyboardReceiveResult(int resultCode);
+
+    /** Resets IME adapter and hides the keyboard. This will unblock input connection. */
+    void resetAndHideKeyboard();
 }

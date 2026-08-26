@@ -7,6 +7,7 @@
 #import <memory>
 
 #import "base/test/scoped_feature_list.h"
+#import "ios/chrome/browser/ntp/search_engine_logo/ui/search_engine_logo_state.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_features.h"
@@ -96,14 +97,25 @@ class ContentSuggestionsCollectionUtilsTest : public PlatformTest {
   bool IsIPad() {
     return ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
   }
+
+  bool IsIPhone() {
+    return ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE;
+  }
 };
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, doodleFrameIPad) {
+  if (IsIPhone()) {
+    GTEST_SKIP() << "Test unsupported on iPhone";
+  }
   // Action.
-  CGFloat heightDoodle = DoodleHeight(YES, YES, IPadTraitCollection());
-  CGFloat topMarginDoodle = DoodleTopMargin(YES, YES, IPadTraitCollection());
-  CGFloat heightLogo = DoodleHeight(YES, NO, IPadTraitCollection());
-  CGFloat topMarginLogo = DoodleTopMargin(YES, NO, IPadTraitCollection());
+  CGFloat heightDoodle =
+      DoodleHeight(SearchEngineLogoState::kDoodle, IPadTraitCollection());
+  CGFloat topMarginDoodle =
+      DoodleTopMargin(SearchEngineLogoState::kDoodle, IPadTraitCollection());
+  CGFloat heightLogo =
+      DoodleHeight(SearchEngineLogoState::kLogo, IPadTraitCollection());
+  CGFloat topMarginLogo =
+      DoodleTopMargin(SearchEngineLogoState::kLogo, IPadTraitCollection());
 
   // Test.
   EXPECT_EQ(68, heightDoodle);
@@ -113,17 +125,22 @@ TEST_F(ContentSuggestionsCollectionUtilsTest, doodleFrameIPad) {
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, doodleFrameIPhonePortrait) {
+  if (IsIPad()) {
+    GTEST_SKIP() << "Test unsupported on iPad";
+  }
   // Action.
-  CGFloat heightDoodle =
-      DoodleHeight(YES, YES, IPhonePortraitTraitCollection());
-  CGFloat topMarginDoodle =
-      DoodleTopMargin(YES, YES, IPhonePortraitTraitCollection());
-  CGFloat heightLogo = DoodleHeight(YES, NO, IPhonePortraitTraitCollection());
-  CGFloat topMarginLogo =
-      DoodleTopMargin(YES, NO, IPhonePortraitTraitCollection());
-  CGFloat heightNoLogo = DoodleHeight(NO, NO, IPhonePortraitTraitCollection());
-  CGFloat topMarginNoLogo =
-      DoodleTopMargin(NO, NO, IPhonePortraitTraitCollection());
+  CGFloat heightDoodle = DoodleHeight(SearchEngineLogoState::kDoodle,
+                                      IPhonePortraitTraitCollection());
+  CGFloat topMarginDoodle = DoodleTopMargin(SearchEngineLogoState::kDoodle,
+                                            IPhonePortraitTraitCollection());
+  CGFloat heightLogo = DoodleHeight(SearchEngineLogoState::kLogo,
+                                    IPhonePortraitTraitCollection());
+  CGFloat topMarginLogo = DoodleTopMargin(SearchEngineLogoState::kLogo,
+                                          IPhonePortraitTraitCollection());
+  CGFloat heightNoLogo = DoodleHeight(SearchEngineLogoState::kNone,
+                                      IPhonePortraitTraitCollection());
+  CGFloat topMarginNoLogo = DoodleTopMargin(SearchEngineLogoState::kNone,
+                                            IPhonePortraitTraitCollection());
 
   // Action when large logo is enabled.
   base::test::ScopedFeatureList scoped_feature_list;
@@ -132,34 +149,40 @@ TEST_F(ContentSuggestionsCollectionUtilsTest, doodleFrameIPhonePortrait) {
   scoped_feature_list.InitWithFeaturesAndParameters(
       /*enabled_features=*/{{kDeprecateFeedHeader, large_fakebox_params}},
       /*disabled_features=*/{});
-  CGFloat heightLargeLogo =
-      DoodleHeight(YES, NO, IPhonePortraitTraitCollection());
-  CGFloat topMarginLargeLogo =
-      DoodleTopMargin(YES, NO, IPhonePortraitTraitCollection());
+  CGFloat heightLargeLogo = DoodleHeight(SearchEngineLogoState::kLogo,
+                                         IPhonePortraitTraitCollection());
+  CGFloat topMarginLargeLogo = DoodleTopMargin(SearchEngineLogoState::kLogo,
+                                               IPhonePortraitTraitCollection());
 
   // Test.
   EXPECT_EQ(68, heightDoodle);
   EXPECT_EQ(55, topMarginDoodle);
-  EXPECT_EQ(IsIPad() ? 68 : 36, heightLogo);
-  EXPECT_EQ(55, topMarginLogo);
+  EXPECT_EQ(ShouldEnlargeNTPFakeboxForMIA() ? 50 : 36, heightLogo);
+  EXPECT_EQ(ShouldEnlargeNTPFakeboxForMIA() ? 41 : 55, topMarginLogo);
   EXPECT_EQ(kDoodleHeightNoLogo, heightNoLogo);
   EXPECT_EQ(55, topMarginNoLogo);
-  EXPECT_EQ(IsIPad() ? 68 : 50, heightLargeLogo);
+  EXPECT_EQ(50, heightLargeLogo);
   EXPECT_EQ(41, topMarginLargeLogo);
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, doodleFrameIPhoneLandscape) {
+  if (IsIPad()) {
+    GTEST_SKIP() << "Test unsupported on iPad";
+  }
+
   // Action.
-  CGFloat heightDoodle =
-      DoodleHeight(YES, YES, IPhoneLandscapeTraitCollection());
-  CGFloat topMarginDoodle =
-      DoodleTopMargin(YES, YES, IPhonePortraitTraitCollection());
-  CGFloat heightLogo = DoodleHeight(YES, NO, IPhoneLandscapeTraitCollection());
-  CGFloat topMarginLogo =
-      DoodleTopMargin(YES, NO, IPhoneLandscapeTraitCollection());
-  CGFloat heightNoLogo = DoodleHeight(NO, NO, IPhoneLandscapeTraitCollection());
-  CGFloat topMarginNoLogo =
-      DoodleTopMargin(NO, NO, IPhoneLandscapeTraitCollection());
+  CGFloat heightDoodle = DoodleHeight(SearchEngineLogoState::kDoodle,
+                                      IPhoneLandscapeTraitCollection());
+  CGFloat topMarginDoodle = DoodleTopMargin(SearchEngineLogoState::kDoodle,
+                                            IPhonePortraitTraitCollection());
+  CGFloat heightLogo = DoodleHeight(SearchEngineLogoState::kLogo,
+                                    IPhoneLandscapeTraitCollection());
+  CGFloat topMarginLogo = DoodleTopMargin(SearchEngineLogoState::kLogo,
+                                          IPhoneLandscapeTraitCollection());
+  CGFloat heightNoLogo = DoodleHeight(SearchEngineLogoState::kNone,
+                                      IPhoneLandscapeTraitCollection());
+  CGFloat topMarginNoLogo = DoodleTopMargin(SearchEngineLogoState::kNone,
+                                            IPhoneLandscapeTraitCollection());
 
   // Action when large logo is enabled.
   base::test::ScopedFeatureList scoped_feature_list;
@@ -168,23 +191,27 @@ TEST_F(ContentSuggestionsCollectionUtilsTest, doodleFrameIPhoneLandscape) {
   scoped_feature_list.InitWithFeaturesAndParameters(
       /*enabled_features=*/{{kDeprecateFeedHeader, large_fakebox_params}},
       /*disabled_features=*/{});
-  CGFloat heightLargeLogo =
-      DoodleHeight(YES, NO, IPhonePortraitTraitCollection());
-  CGFloat topMarginLargeLogo =
-      DoodleTopMargin(YES, NO, IPhonePortraitTraitCollection());
+  CGFloat heightLargeLogo = DoodleHeight(SearchEngineLogoState::kLogo,
+                                         IPhonePortraitTraitCollection());
+  CGFloat topMarginLargeLogo = DoodleTopMargin(SearchEngineLogoState::kLogo,
+                                               IPhonePortraitTraitCollection());
 
   // Test.
   EXPECT_EQ(68, heightDoodle);
   EXPECT_EQ(55, topMarginDoodle);
-  EXPECT_EQ(IsIPad() ? 68 : 36, heightLogo);
-  EXPECT_EQ(55, topMarginLogo);
+  EXPECT_EQ(ShouldEnlargeNTPFakeboxForMIA() ? 50 : 36, heightLogo);
+  EXPECT_EQ(ShouldEnlargeNTPFakeboxForMIA() ? 41 : 55, topMarginLogo);
   EXPECT_EQ(kDoodleHeightNoLogo, heightNoLogo);
   EXPECT_EQ(55, topMarginNoLogo);
-  EXPECT_EQ(IsIPad() ? 68 : 50, heightLargeLogo);
+  EXPECT_EQ(50, heightLargeLogo);
   EXPECT_EQ(41, topMarginLargeLogo);
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, searchFieldFrameIPad) {
+  if (IsIPhone()) {
+    GTEST_SKIP() << "Test unsupported on iPhone";
+  }
+
   // Setup.
   CGFloat width = 500;
   CGFloat largeIPadWidth = 1366;
@@ -202,6 +229,9 @@ TEST_F(ContentSuggestionsCollectionUtilsTest, searchFieldFrameIPad) {
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, searchFieldFrameIPhonePortrait) {
+  if (IsIPad()) {
+    GTEST_SKIP() << "Test unsupported on iPad";
+  }
   // Setup.
   CGFloat width = 500;
 
@@ -211,11 +241,14 @@ TEST_F(ContentSuggestionsCollectionUtilsTest, searchFieldFrameIPhonePortrait) {
   CGFloat topMargin = SearchFieldTopMargin();
 
   // Test.
-  EXPECT_EQ(22, topMargin);
-  EXPECT_EQ(343, resultWidth);
+  EXPECT_EQ(ShouldEnlargeNTPFakeboxForMIA() ? 29 : 22, topMargin);
+  EXPECT_EQ(ShouldEnlargeNTPFakeboxForMIA() ? 452 : 343, resultWidth);
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, searchFieldFrameIPhoneLandscape) {
+  if (IsIPad()) {
+    GTEST_SKIP() << "Test unsupported on iPad";
+  }
   // Setup.
   CGFloat width = 500;
 
@@ -225,26 +258,42 @@ TEST_F(ContentSuggestionsCollectionUtilsTest, searchFieldFrameIPhoneLandscape) {
   CGFloat topMargin = SearchFieldTopMargin();
 
   // Test.
-  EXPECT_EQ(22, topMargin);
+  EXPECT_EQ(ShouldEnlargeNTPFakeboxForMIA() ? 29 : 22, topMargin);
   EXPECT_EQ(343, resultWidth);
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, heightForLogoHeaderIPad) {
+  if (IsIPhone()) {
+    GTEST_SKIP() << "Test unsupported on iPhone";
+  }
+
   // Action, tests.
-  EXPECT_EQ(331, HeightForLogoHeader(YES, YES, IPadTraitCollection()));
-  EXPECT_EQ(IsIPad() ? 331 : 299,
-            HeightForLogoHeader(YES, NO, IPadTraitCollection()));
-  EXPECT_EQ(64 + kDoodleHeightNoLogo,
-            HeightForLogoHeader(NO, NO, IPadTraitCollection()));
+  EXPECT_EQ(331, HeightForLogoHeader(SearchEngineLogoState::kDoodle,
+                                     IPadTraitCollection()));
+  EXPECT_EQ(331, HeightForLogoHeader(SearchEngineLogoState::kLogo,
+                                     IPadTraitCollection()));
+  EXPECT_EQ(
+      64 + kDoodleHeightNoLogo,
+      HeightForLogoHeader(SearchEngineLogoState::kNone, IPadTraitCollection()));
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, heightForLogoHeaderIPhone) {
+  if (IsIPad()) {
+    GTEST_SKIP() << "Test unsupported on iPad";
+  }
+
+  // Extra spacing when MIA is shown.
+  CGFloat gain_for_MIA = ShouldEnlargeNTPFakeboxForMIA() ? 21 : 0;
   // Action, tests.
-  EXPECT_EQ(200,
-            HeightForLogoHeader(YES, YES, IPhonePortraitTraitCollection()));
-  EXPECT_EQ(IsIPad() ? 200 : 168,
-            HeightForLogoHeader(YES, NO, IPhonePortraitTraitCollection()));
-  EXPECT_EQ(132, HeightForLogoHeader(NO, NO, IPhonePortraitTraitCollection()));
+  EXPECT_EQ(200 + gain_for_MIA,
+            HeightForLogoHeader(SearchEngineLogoState::kDoodle,
+                                IPhonePortraitTraitCollection()));
+  EXPECT_EQ(168 + gain_for_MIA,
+            HeightForLogoHeader(SearchEngineLogoState::kLogo,
+                                IPhonePortraitTraitCollection()));
+  EXPECT_EQ(132 + gain_for_MIA,
+            HeightForLogoHeader(SearchEngineLogoState::kNone,
+                                IPhonePortraitTraitCollection()));
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, NearestAncestor) {
@@ -264,18 +313,20 @@ TEST_F(ContentSuggestionsCollectionUtilsTest, NearestAncestor) {
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, fakeOmniboxHeight) {
-  EXPECT_EQ(50, FakeOmniboxHeight());
+  CGFloat expectedHeight = ShouldEnlargeNTPFakeboxForMIA() ? 64 : 50;
+  EXPECT_EQ(expectedHeight, FakeOmniboxHeight());
   base::test::ScopedFeatureList scoped_feature_list;
   base::FieldTrialParams large_fakebox_params = {
       {kDeprecateFeedHeaderParameterEnlargeLogoAndFakebox, "true"}};
   scoped_feature_list.InitWithFeaturesAndParameters(
       /*enabled_features=*/{{kDeprecateFeedHeader, large_fakebox_params}},
       /*disabled_features=*/{});
-  EXPECT_EQ(65, FakeOmniboxHeight());
+  EXPECT_EQ(64, FakeOmniboxHeight());
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, pinnedFakeOmniboxHeight) {
-  EXPECT_EQ(36, PinnedFakeOmniboxHeight());
+  CGFloat expectedHeight = ShouldEnlargeNTPFakeboxForMIA() ? 48 : 36;
+  EXPECT_EQ(expectedHeight, PinnedFakeOmniboxHeight());
   base::test::ScopedFeatureList scoped_feature_list;
   base::FieldTrialParams large_fakebox_params = {
       {kDeprecateFeedHeaderParameterEnlargeLogoAndFakebox, "true"}};
@@ -286,7 +337,8 @@ TEST_F(ContentSuggestionsCollectionUtilsTest, pinnedFakeOmniboxHeight) {
 }
 
 TEST_F(ContentSuggestionsCollectionUtilsTest, fakeToolbarHeighta) {
-  EXPECT_EQ(50, FakeToolbarHeight());
+  CGFloat expectedHeight = ShouldEnlargeNTPFakeboxForMIA() ? 62 : 50;
+  EXPECT_EQ(expectedHeight, FakeToolbarHeight());
   base::test::ScopedFeatureList scoped_feature_list;
   base::FieldTrialParams large_fakebox_params = {
       {kDeprecateFeedHeaderParameterEnlargeLogoAndFakebox, "true"}};

@@ -1772,7 +1772,7 @@ void ReportLiveCodeFromFrameForGC(
     WasmCode* code = wasm_frame->wasm_code();
     live_wasm_code.insert(code);
 #if V8_TARGET_ARCH_X64
-    if (code->for_debugging()) {
+    if (code->is_inspectable()) {
       Address osr_target =
           base::Memory<Address>(wasm_frame->fp() - kOSRTargetOffset);
       if (osr_target) {
@@ -2022,7 +2022,7 @@ void WasmEngine::DecodeAllNameSections(CanonicalTypeNamesProvider* target) {
 }
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8424);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8392);
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 168);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 56);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);

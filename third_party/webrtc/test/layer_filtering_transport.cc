@@ -10,13 +10,20 @@
 
 #include "test/layer_filtering_transport.h"
 
-#include <string.h>
-
 #include <algorithm>
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <utility>
 
-#include "api/rtp_headers.h"
+#include "api/array_view.h"
+#include "api/call/transport.h"
+#include "api/media_types.h"
+#include "api/rtp_parameters.h"
+#include "api/task_queue/task_queue_base.h"
+#include "api/video/video_codec_type.h"
+#include "call/call.h"
+#include "call/simulated_packet_receiver.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/create_video_rtp_depacketizer.h"
 #include "modules/rtp_rtcp/source/rtp_video_header.h"
@@ -25,6 +32,7 @@
 #include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
 #include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "rtc_base/checks.h"
+#include "test/direct_transport.h"
 
 namespace webrtc {
 namespace test {

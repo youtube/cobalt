@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/rtp_sender_audio.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -256,9 +255,7 @@ bool RTPSenderAudio::SendAudio(const RtpAudioFrame& frame) {
     packet->SetExtension<AbsoluteCaptureTimeExtension>(*absolute_capture_time);
   }
 
-  uint8_t* payload = packet->AllocatePayload(frame.payload.size());
-  RTC_CHECK(payload);
-  memcpy(payload, frame.payload.data(), frame.payload.size());
+  packet->SetPayload(frame.payload);
 
   {
     MutexLock lock(&send_audio_mutex_);

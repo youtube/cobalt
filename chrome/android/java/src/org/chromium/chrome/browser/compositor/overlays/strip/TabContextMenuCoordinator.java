@@ -4,20 +4,32 @@
 
 package org.chromium.chrome.browser.compositor.overlays.strip;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType.ACTIVE;
 import static org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin.TAB_STRIP_CONTEXT_MENU;
 import static org.chromium.ui.listmenu.BasicListMenu.buildMenuDivider;
+import static org.chromium.ui.listmenu.ListItemType.MENU_ITEM;
+import static org.chromium.ui.listmenu.ListItemType.MENU_ITEM_WITH_SUBMENU;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.CLICK_LISTENER;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.ENABLED;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
+import static org.chromium.ui.listmenu.ListMenuSubmenuItemProperties.SUBMENU_ITEMS;
 
 import android.app.Activity;
+import android.content.res.Resources;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.annotation.IdRes;
+import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
-import androidx.core.content.res.ResourcesCompat;
 
 import org.chromium.base.MathUtils;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.multiwindow.InstanceInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -25,30 +37,40 @@ import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.ShareUtils;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabClosureParamsUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
+import org.chromium.chrome.browser.tabmodel.TabList;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabOverflowMenuCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabShareUtils;
 import org.chromium.chrome.tab_ui.R;
-import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
+import org.chromium.components.browser_ui.widget.ListItemBuilder;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.listmenu.ListMenuItemProperties;
+import org.chromium.ui.listmenu.ListMenuSubmenuItemProperties;
+import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
+import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.widget.AnchoredPopupWindow.HorizontalOrientation;
 import org.chromium.ui.widget.RectProvider;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
  * A coordinator for the context menu on the tab strip by long-pressing on a tab. It is responsible
  * for creating a list of menu items, setting up the menu, and displaying the menu.
  */
+@NullMarked
 public class TabContextMenuCoordinator extends TabOverflowMenuCoordinator<Integer> {
     private final Supplier<TabModel> mTabModelSupplier;
+    private final MultiInstanceManager mMultiInstanceManager;
     private final WindowAndroid mWindowAndroid;
 
     private TabContextMenuCoordinator(
@@ -58,7 +80,7 @@ public class TabContextMenuCoordinator extends TabOverflowMenuCoordinator<Intege
             MultiInstanceManager multiInstanceManager,
             Supplier<ShareDelegate> shareDelegateSupplier,
             WindowAndroid windowAndroid,
-            TabGroupSyncService tabGroupSyncService,
+            @Nullable TabGroupSyncService tabGroupSyncService,
             CollaborationService collaborationService) {
         super(
                 R.layout.tab_switcher_action_menu_layout,
@@ -73,6 +95,7 @@ public class TabContextMenuCoordinator extends TabOverflowMenuCoordinator<Intege
                 collaborationService,
                 windowAndroid.getActivity().get());
         mTabModelSupplier = tabModelSupplier;
+        mMultiInstanceManager = multiInstanceManager;
         mWindowAndroid = windowAndroid;
     }
 
@@ -96,11 +119,11 @@ public class TabContextMenuCoordinator extends TabOverflowMenuCoordinator<Intege
             MultiInstanceManager multiInstanceManager,
             Supplier<ShareDelegate> shareDelegateSupplier,
             WindowAndroid windowAndroid) {
-        Profile profile = tabModelSupplier.get().getProfile();
-        @Nullable
-        TabGroupSyncService tabGroupSyncService =
+        Profile profile = assumeNonNull(tabModelSupplier.get().getProfile());
+
+        @Nullable TabGroupSyncService tabGroupSyncService =
                 profile.isOffTheRecord() ? null : TabGroupSyncServiceFactory.getForProfile(profile);
-        @NonNull
+
         CollaborationService collaborationService =
                 CollaborationServiceFactory.getForProfile(profile);
 
@@ -142,7 +165,7 @@ public class TabContextMenuCoordinator extends TabOverflowMenuCoordinator<Intege
                 } else {
                     RecordUserAction.record("MobileToolbarTabMenu.MoveTabToOtherWindow");
                 }
-                multiInstanceManager.moveTabToOtherWindow(tab);
+                multiInstanceManager.moveTabsToOtherWindow(Collections.singletonList(tab));
             } else if (menuId == R.id.share_tab) {
                 shareDelegateSupplier
                         .get()
@@ -152,7 +175,10 @@ public class TabContextMenuCoordinator extends TabOverflowMenuCoordinator<Intege
                 boolean allowUndo = TabClosureParamsUtils.shouldAllowUndo(listViewTouchTracker);
                 tabModel.getTabRemover()
                         .closeTabs(
-                                TabClosureParams.closeTab(tab).allowUndo(allowUndo).build(),
+                                TabClosureParams.closeTab(tab)
+                                        .allowUndo(allowUndo)
+                                        .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP)
+                                        .build(),
                                 /* allowDialog= */ true);
                 RecordUserAction.record("MobileToolbarTabMenu.CloseTab");
             }
@@ -172,9 +198,9 @@ public class TabContextMenuCoordinator extends TabOverflowMenuCoordinator<Intege
                 tabId,
                 /* horizontalOverlapAnchor= */ true,
                 /* verticalOverlapAnchor= */ false,
-                /* animStyle= */ ResourcesCompat.ID_NULL,
+                /* animStyle= */ Resources.ID_NULL,
                 HorizontalOrientation.LAYOUT_DIRECTION,
-                mWindowAndroid.getActivity().get());
+                assumeNonNull(mWindowAndroid.getActivity().get()));
         RecordUserAction.record("MobileToolbarTabMenu.Shown");
     }
 
@@ -185,47 +211,37 @@ public class TabContextMenuCoordinator extends TabOverflowMenuCoordinator<Intege
         boolean isIncognito = mTabModelSupplier.get().isIncognitoBranded();
 
         itemList.add(
-                BrowserUiListMenuUtils.buildMenuListItemWithIncognitoBranding(
-                        R.string.menu_add_tab_to_group,
-                        R.id.add_to_tab_group,
-                        isIncognito,
-                        /* enabled= */ true));
+                buildListItem(R.string.menu_add_tab_to_group, R.id.add_to_tab_group, isIncognito));
 
         if (tab.getTabGroupId() != null) {
             // Show the option to remove the tab from its group iff the tab is already in a group.
             itemList.add(
-                    BrowserUiListMenuUtils.buildMenuListItemWithIncognitoBranding(
+                    buildListItem(
                             R.string.remove_tab_from_group,
                             R.id.remove_from_tab_group,
-                            isIncognito,
-                            /* enabled= */ true));
+                            isIncognito));
         }
 
         if (tab.getTabGroupId() == null && MultiWindowUtils.isMultiInstanceApi31Enabled()) {
             // Show the option to move the tab to another window iff the tab is not in a group.
-            Activity activity = mWindowAndroid.getActivity().get();
-            itemList.add(
-                    BrowserUiListMenuUtils.buildMenuListItemWithIncognitoBranding(
-                            activity.getResources()
-                                    .getQuantityString(
-                                            R.plurals.move_tab_to_another_window,
-                                            MultiWindowUtils.getInstanceCount()),
-                            R.id.move_to_other_window_menu_id,
-                            isIncognito,
-                            /* enabled= */ true));
+            itemList.add(createMoveToWindowItem(tab, isIncognito));
         }
 
         itemList.add(buildMenuDivider(isIncognito));
 
         if (ShareUtils.shouldEnableShare(tab)) {
-            itemList.add(
-                    BrowserUiListMenuUtils.buildMenuListItemWithIncognitoBranding(
-                            R.string.share, R.id.share_tab, isIncognito, /* enabled= */ true));
+            itemList.add(buildListItem(R.string.share, R.id.share_tab, isIncognito));
         }
+        itemList.add(buildListItem(R.string.close, R.id.close_tab, isIncognito));
+    }
 
-        itemList.add(
-                BrowserUiListMenuUtils.buildMenuListItemWithIncognitoBranding(
-                        R.string.close, R.id.close_tab, isIncognito, /* enabled= */ true));
+    private static ListItem buildListItem(
+            @StringRes int titleRes, @IdRes int menuId, boolean isIncognito) {
+        return new ListItemBuilder()
+                .withTitleRes(titleRes)
+                .withMenuId(menuId)
+                .withIsIncognito(isIncognito)
+                .build();
     }
 
     @Override
@@ -236,11 +252,64 @@ public class TabContextMenuCoordinator extends TabOverflowMenuCoordinator<Intege
                 getDimensionPixelSize(R.dimen.tab_strip_context_menu_max_width));
     }
 
-    @Nullable
     @Override
-    protected String getCollaborationIdOrNull(Integer id) {
+    protected @Nullable String getCollaborationIdOrNull(Integer id) {
         var tab = mTabModelSupplier.get().getTabById(id);
         if (tab == null) return null;
         return TabShareUtils.getCollaborationIdOrNull(tab.getTabGroupId(), mTabGroupSyncService);
+    }
+
+    private ListItem createMoveToWindowItem(Tab tab, boolean isIncognito) {
+        Activity activity = assumeNonNull(mWindowAndroid.getActivity().get());
+        String title =
+                activity.getResources()
+                        .getQuantityString(
+                                R.plurals.move_tab_to_another_window,
+                                MultiWindowUtils.getInstanceCount());
+        if (ChromeFeatureList.isEnabled(
+                ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)) {
+            List<InstanceInfo> activeInstances = mMultiInstanceManager.getInstanceInfo(ACTIVE);
+            if (activeInstances.size() == 1) {
+                return new ListItemBuilder()
+                        .withTitle(title)
+                        .withMenuId(R.id.move_to_other_window_menu_id)
+                        .withIsIncognito(isIncognito)
+                        .build();
+            }
+            List<ListItem> windowChoices = new ArrayList<>();
+            for (InstanceInfo instanceInfo : activeInstances) {
+                if (mMultiInstanceManager.getCurrentInstanceId() == instanceInfo.instanceId) {
+                    continue;
+                }
+                windowChoices.add(
+                        new ListItem(
+                                MENU_ITEM,
+                                new PropertyModel.Builder(ListMenuItemProperties.ALL_KEYS)
+                                        .with(TITLE, instanceInfo.title)
+                                        .with(
+                                                CLICK_LISTENER,
+                                                (v) -> {
+                                                    mMultiInstanceManager.moveTabToWindow(
+                                                            instanceInfo,
+                                                            tab,
+                                                            TabList.INVALID_TAB_INDEX);
+                                                })
+                                        .with(ENABLED, true)
+                                        .build()));
+            }
+            return new ListItem(
+                    MENU_ITEM_WITH_SUBMENU,
+                    new PropertyModel.Builder(ListMenuSubmenuItemProperties.ALL_KEYS)
+                            .with(TITLE, title)
+                            .with(SUBMENU_ITEMS, windowChoices)
+                            .with(ENABLED, true)
+                            .build());
+        } else {
+            return new ListItemBuilder()
+                    .withTitle(title)
+                    .withMenuId(R.id.move_to_other_window_menu_id)
+                    .withIsIncognito(isIncognito)
+                    .build();
+        }
     }
 }

@@ -36,10 +36,12 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.document.ChromeAsyncTabLauncher;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.SnackbarController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.widget.DateDividedAdapter.ItemViewType;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
@@ -53,6 +55,7 @@ import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.Clipboard;
 
 import java.util.List;
+import java.util.function.Function;
 
 /** Combines and manages the different UI components of browsing history. */
 public class HistoryManager
@@ -119,6 +122,8 @@ public class HistoryManager
      * @param showAppFilter Whether history page will show app filter UI.
      * @param openHistoryItemCallback Optional callback which is run when a history item is opened
      *     (not called when history manager is in a separate activity).
+     * @param edgeToEdgePadAdjusterGenerator Generator of {@link EdgeToEdgePadAdjuster} to update
+     *     the edge-to-edge pad.
      */
     @SuppressWarnings("unchecked") // mSelectableListLayout
     public HistoryManager(
@@ -134,7 +139,8 @@ public class HistoryManager
             boolean shouldShowClearData,
             boolean launchedForApp,
             boolean showAppFilter,
-            @Nullable Runnable openHistoryItemCallback) {
+            @Nullable Runnable openHistoryItemCallback,
+            @Nullable Function<View, EdgeToEdgePadAdjuster> edgeToEdgePadAdjusterGenerator) {
         mActivity = activity;
         mIsSeparateActivity = isSeparateActivity;
         mSnackbarManager = snackbarManager;
@@ -192,9 +198,12 @@ public class HistoryManager
                         clientPackageName,
                         launchedForApp,
                         showAppFilter,
-                        openHistoryItemCallback);
+                        openHistoryItemCallback,
+                        new ChromeAsyncTabLauncher(mIsIncognito));
         mSelectableListLayout.initializeRecyclerView(
-                mContentManager.getAdapter(), mContentManager.getRecyclerView());
+                mContentManager.getAdapter(),
+                mContentManager.getRecyclerView(),
+                edgeToEdgePadAdjusterGenerator);
         if (mContentManager.showAppFilter()) {
             // Now the search mode can have a header. Let the layout ignore it to
             // return the right item count.

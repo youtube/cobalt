@@ -11,6 +11,9 @@
 #include "ui/events/android/event_type_android.h"
 #include "ui/events/keycodes/keyboard_code_conversion_android.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "ui/events/motionevent_jni_headers/MotionEvent_jni.h"
+
 namespace ui {
 
 PlatformEvent NativeEventFromEvent(Event& event) {
@@ -30,6 +33,48 @@ PlatformEvent NativeEventFromEvent(Event& event) {
 
   // Support other event types as needed.
   NOTREACHED();
+}
+
+#define ACTION_CASE(x)              \
+  case JNI_MotionEvent::ACTION_##x: \
+    return MotionEvent::Action::x
+
+MotionEvent::Action FromAndroidAction(int android_action) {
+  switch (android_action) {
+    ACTION_CASE(DOWN);
+    ACTION_CASE(UP);
+    ACTION_CASE(MOVE);
+    ACTION_CASE(CANCEL);
+    ACTION_CASE(POINTER_DOWN);
+    ACTION_CASE(POINTER_UP);
+    ACTION_CASE(HOVER_ENTER);
+    ACTION_CASE(HOVER_EXIT);
+    ACTION_CASE(HOVER_MOVE);
+    ACTION_CASE(BUTTON_PRESS);
+    ACTION_CASE(BUTTON_RELEASE);
+    default:
+      NOTREACHED() << "Invalid Android MotionEvent action: " << android_action;
+  }
+}
+
+#undef ACTION_CASE
+
+MotionEvent::ToolType FromAndroidToolType(int android_tool_type) {
+  switch (android_tool_type) {
+    case JNI_MotionEvent::TOOL_TYPE_UNKNOWN:
+      return MotionEvent::ToolType::UNKNOWN;
+    case JNI_MotionEvent::TOOL_TYPE_FINGER:
+      return MotionEvent::ToolType::FINGER;
+    case JNI_MotionEvent::TOOL_TYPE_STYLUS:
+      return MotionEvent::ToolType::STYLUS;
+    case JNI_MotionEvent::TOOL_TYPE_MOUSE:
+      return MotionEvent::ToolType::MOUSE;
+    case JNI_MotionEvent::TOOL_TYPE_ERASER:
+      return MotionEvent::ToolType::ERASER;
+    default:
+      NOTREACHED() << "Invalid Android MotionEvent tool type: "
+                   << android_tool_type;
+  }
 }
 
 }  // namespace ui

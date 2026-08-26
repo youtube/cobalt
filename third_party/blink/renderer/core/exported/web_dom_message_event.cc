@@ -66,12 +66,12 @@ WebDOMMessageEvent::WebDOMMessageEvent(
   // right?
   Unwrap<MessageEvent>()->initMessageEvent(
       event_type_names::kMessage, false, false, message_data, origin,
-      "" /*lastEventId*/, window, ports, nullptr /*user_activation*/,
-      mojom::blink::DelegatedCapability::kNone);
+      MessageEvent::kMessageIsSameOrigin, "" /*lastEventId*/, window, ports,
+      nullptr /*user_activation*/, mojom::blink::DelegatedCapability::kNone);
 }
 
-WebString WebDOMMessageEvent::Origin() const {
-  return WebString(ConstUnwrap<MessageEvent>()->origin());
+WebString WebDOMMessageEvent::Origin() {
+  return WebString(Unwrap<MessageEvent>()->origin());
 }
 
 }  // namespace blink

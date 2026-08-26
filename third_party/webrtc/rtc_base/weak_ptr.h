@@ -11,13 +11,12 @@
 #ifndef RTC_BASE_WEAK_PTR_H_
 #define RTC_BASE_WEAK_PTR_H_
 
-#include <memory>
+#include <cstddef>
 #include <utility>
 
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/ref_count.h"
 #include "rtc_base/ref_counted_object.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
@@ -279,13 +278,5 @@ class WeakPtrFactory {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::WeakPtr;
-using ::webrtc::WeakPtrFactory;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_WEAK_PTR_H_

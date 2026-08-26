@@ -550,6 +550,18 @@ void DesktopNativeWidgetAura::UpdateWindowTransparency() {
   content_window_->SetFillsBoundsCompletely(true);
 }
 
+Widget::Widgets DesktopNativeWidgetAura::GetOwnedDesktopWidgets() {
+  Widget::Widgets widgets;
+  // Adds any Widgets owned by this NativeWidget's tree host.
+  DesktopWindowTreeHost::WindowTreeHosts owned_tree_hosts =
+      desktop_window_tree_host_->GetOwnedWindowTreeHosts();
+  for (aura::WindowTreeHost* owned_tree_host : owned_tree_hosts) {
+    widgets.merge(
+        NativeWidgetPrivate::GetAllOwnedWidgets(owned_tree_host->window()));
+  }
+  return widgets;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // DesktopNativeWidgetAura, internal::NativeWidgetPrivate implementation:
 void DesktopNativeWidgetAura::InitNativeWidget(Widget::InitParams params) {
@@ -772,6 +784,12 @@ void DesktopNativeWidgetAura::ViewRemoved(View* view) {
   drop_helper_->ResetTargetViewIfEquals(view);
 }
 
+void DesktopNativeWidgetAura::ClientDestroyedWidget() {
+  if (desktop_window_tree_host_) {
+    desktop_window_tree_host_->ClientDestroyedWidget();
+  }
+}
+
 void DesktopNativeWidgetAura::SetNativeWindowProperty(const char* name,
                                                       void* value) {
   if (content_window_) {
@@ -854,8 +872,9 @@ void DesktopNativeWidgetAura::InitModalType(ui::mojom::ModalType modal_type) {
 }
 
 void DesktopNativeWidgetAura::OnWidgetThemeChanged(
-    ui::ColorProviderKey::ColorMode color_mode) {
-  desktop_window_tree_host_->OnWidgetThemeChanged(color_mode);
+    ui::ColorProviderKey::ColorMode color_mode,
+    std::optional<SkColor> background_color) {
+  desktop_window_tree_host_->OnWidgetThemeChanged(color_mode, background_color);
 }
 
 gfx::Rect DesktopNativeWidgetAura::GetWindowBoundsInScreen() const {
@@ -1283,6 +1302,10 @@ bool DesktopNativeWidgetAura::AreScreenshotsAllowed() {
   return desktop_window_tree_host_
              ? desktop_window_tree_host_->AreScreenshotsAllowed()
              : true;
+}
+
+bool DesktopNativeWidgetAura::IsDesktopNativeWidget() const {
+  return true;
 }
 
 std::string DesktopNativeWidgetAura::GetName() const {

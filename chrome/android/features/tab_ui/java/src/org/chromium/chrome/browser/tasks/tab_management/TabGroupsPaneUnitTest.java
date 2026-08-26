@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,7 +25,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.shadows.ShadowLooper;
@@ -71,7 +71,7 @@ import java.util.function.DoubleConsumer;
 
 /** Unit tests for {@link TabGroupsPane}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@EnableFeatures({ChromeFeatureList.TAB_GROUP_SYNC_ANDROID, ChromeFeatureList.DATA_SHARING})
+@EnableFeatures({ChromeFeatureList.DATA_SHARING})
 @DisableFeatures(ChromeFeatureList.TAB_GROUP_ENTRY_POINTS_ANDROID)
 public class TabGroupsPaneUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -128,6 +128,9 @@ public class TabGroupsPaneUnitTest {
         when(mTabGroupModelFilter.getTabModel()).thenReturn(mTabModel);
         when(mTabModel.getTabCreator()).thenReturn(mTabCreator);
 
+        // Unused at this level.
+        when(mTabGroupSyncService.getVersioningMessageController()).thenReturn(mock());
+
         mTabGroupsPane =
                 new TabGroupsPane(
                         ApplicationProvider.getApplicationContext(),
@@ -174,18 +177,7 @@ public class TabGroupsPaneUnitTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.TAB_GROUP_SYNC_ANDROID)
-    public void testWithoutSyncFeature() {
-        doReturn(false).when(mTabGroupSyncFeaturesJniMock).isTabGroupSyncEnabled(mProfile);
-        mTabGroupsPane.notifyLoadHint(LoadHint.HOT);
-        assertNotEquals(0, mTabGroupsPane.getRootView().getChildCount());
-    }
-
-    @Test
-    @EnableFeatures({
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN,
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE
-    })
+    @EnableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testEdgeToEdgePadAdjuster_BeforeLoadHint() {
         mEdgeToEdgeSupplier.set(mEdgeToEdgeController);
         assertFalse(mEdgeToEdgeSupplier.hasObservers());
@@ -197,10 +189,7 @@ public class TabGroupsPaneUnitTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN,
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE
-    })
+    @EnableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testEdgeToEdgePadAdjuster_AfterLoadHint() {
         mTabGroupsPane.notifyLoadHint(LoadHint.HOT);
         assertTrue(mEdgeToEdgeSupplier.hasObservers());
@@ -210,16 +199,13 @@ public class TabGroupsPaneUnitTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN,
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE
-    })
+    @EnableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testEdgeToEdgePadAdjuster_ChangeController() {
         mTabGroupsPane.notifyLoadHint(LoadHint.HOT);
         mEdgeToEdgeSupplier.set(mEdgeToEdgeController);
         verify(mEdgeToEdgeController).registerAdjuster(notNull());
 
-        EdgeToEdgeController controller2 = Mockito.mock(EdgeToEdgeController.class);
+        EdgeToEdgeController controller2 = mock(EdgeToEdgeController.class);
         mEdgeToEdgeSupplier.set(controller2);
         verify(controller2).registerAdjuster(notNull());
         verify(mEdgeToEdgeController).unregisterAdjuster(notNull());

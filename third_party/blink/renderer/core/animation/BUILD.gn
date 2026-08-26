@@ -114,6 +114,10 @@ blink_core_sources("animation") {
     "css_font_variation_settings_interpolation_type.h",
     "css_font_weight_interpolation_type.cc",
     "css_font_weight_interpolation_type.h",
+    "css_gap_color_list_interpolation_type.cc",
+    "css_gap_color_list_interpolation_type.h",
+    "css_gap_length_list_interpolation_type.cc",
+    "css_gap_length_list_interpolation_type.h",
     "css_grid_template_property_interpolation_type.cc",
     "css_grid_template_property_interpolation_type.h",
     "css_image_interpolation_type.cc",
@@ -208,6 +212,8 @@ blink_core_sources("animation") {
     "interpolable_filter.h",
     "interpolable_font_palette.cc",
     "interpolable_font_palette.h",
+    "interpolable_gap_data_repeater.cc",
+    "interpolable_gap_data_repeater.h",
     "interpolable_grid_length.cc",
     "interpolable_grid_length.h",
     "interpolable_grid_track_list.cc",
@@ -312,6 +318,6 @@ blink_core_sources("animation") {
   deps = [
     ":buildflags",
     "//third_party/blink/renderer/core:core_generated",
-    "//third_party/blink/renderer/core/probe:probe",
+    "//third_party/blink/renderer/core/probe",
   ]
 }

@@ -18,6 +18,7 @@
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
+#include "chrome/browser/signin/chrome_signin_client.h"
 #include "chrome/browser/signin/signin_promo_util.h"
 #include "chrome/browser/ui/bookmarks/bookmark_editor.h"
 #include "chrome/browser/ui/bookmarks/recently_used_folders_combo_model.h"
@@ -25,6 +26,7 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/commerce/price_tracking_email_dialog_view.h"
 #include "chrome/browser/ui/views/commerce/price_tracking_view.h"
 #include "chrome/browser/ui/views/commerce/shopping_collection_iph_view.h"
@@ -306,7 +308,7 @@ class BookmarkBubbleView::BookmarkBubbleDelegate
                   ->GetComboboxByUniqueId(kBookmarkFolderFieldId)
                   ->selected_index());
 
-    browser_->window()->MaybeShowFeaturePromo(
+    BrowserUserEducationInterface::From(browser_)->MaybeShowFeaturePromo(
         feature_engagement::kIPHPowerBookmarksSidePanelFeature);
   }
 
@@ -471,6 +473,9 @@ void BookmarkBubbleView::ShowBubble(views::View* anchor_view,
         web_contents, signin_metrics::AccessPoint::kBookmarkBubble,
         syncer::LocalDataItemModel::DataId(bookmark_node->id()),
         ui::ButtonStyle::kDefault));
+
+    ChromeSigninClient::
+        MaybeAddUserToBookmarksBubblePromoShownSyntheticFieldTrial();
 #endif
   }
 

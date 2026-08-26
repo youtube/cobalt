@@ -10,9 +10,8 @@
 
 #include "rtc_base/message_digest.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 

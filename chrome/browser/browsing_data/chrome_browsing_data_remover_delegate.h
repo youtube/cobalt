@@ -18,14 +18,13 @@
 #include "chrome/common/buildflags.h"
 #include "components/browsing_data/core/browsing_data_utils.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/nacl/common/buildflags.h"
 #include "components/offline_pages/core/offline_page_model.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/browsing_data_remover_delegate.h"
+#include "content/public/common/buildflags.h"
 #include "device/fido/platform_credential_store.h"
 #include "extensions/buildflags/buildflags.h"
 #include "media/media_buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 
 class Profile;
@@ -104,8 +103,8 @@ class ChromeBrowsingDataRemoverDelegate
     kSynchronous = 1,
     kHistory = 2,
     // kHostNameResolution = 3, deprecated
-    kNaclCache = 4,
-    kPnaclCache = 5,
+    // kNaclCache = 4, deprecated
+    // kPnaclCache = 5, deprecated
     kAutofillData = 6,
     kAutofillOrigins = 7,
     // kPluginData = 8, deprecated

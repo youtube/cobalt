@@ -15,13 +15,13 @@
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/password_manager/core/browser/password_form.h"
-#include "ui/accessibility/ax_tree_update.h"
+
+class AnnotatedPageContentCapturer;
+class ModelQualityLogsUploader;
 
 namespace content {
 class WebContents;
 }
-class ModelQualityLogsUploader;
-class OptimizationGuideKeyedService;
 
 // Helper class which verifies whether password change was successful or not.
 class PasswordChangeSubmissionVerifier {
@@ -59,38 +59,25 @@ class PasswordChangeSubmissionVerifier {
   void CheckSubmissionOutcome(FormSubmissionResultCallback callback);
 
 #if defined(UNIT_TEST)
-  void set_annotated_page_callback(
-      base::OnceCallback<void(optimization_guide::OnAIPageContentDone)>
-          callback) {
-    capture_annotated_page_content_ = std::move(callback);
-  }
+  AnnotatedPageContentCapturer* capturer() { return capturer_.get(); }
 #endif
 
  private:
-  void OnAnnotatedPageContentReceived(
+  void CheckSubmissionSuccessful(
       std::optional<optimization_guide::AIPageContentResult> page_content);
-  void OnAxTreeReceived(ui::AXTreeUpdate& ax_tree_update);
-  void CheckSubmissionSuccessful();
   void OnExecutionResponseCallback(
+      base::Time request_time,
       optimization_guide::OptimizationGuideModelExecutionResult
           execution_result,
       std::unique_ptr<
           optimization_guide::proto::PasswordChangeSubmissionLoggingData>
           logging_data);
+  void OnPageLoadCompleted();
 
-  OptimizationGuideKeyedService* GetOptimizationService() const;
-
-  base::WeakPtr<content::WebContents> web_contents_;
-  base::OnceCallback<void(optimization_guide::OnAIPageContentDone)>
-      capture_annotated_page_content_;
+  const raw_ptr<content::WebContents> web_contents_;
+  std::unique_ptr<AnnotatedPageContentCapturer> capturer_;
   FormSubmissionResultCallback callback_;
   raw_ptr<ModelQualityLogsUploader> logs_uploader_;
-  // TODO(crbug.com/409946698): Delete this when removing support for AX tree
-  // prompts.
-  optimization_guide::proto::PasswordChangeRequest
-      check_submission_successful_request_;
-
-  base::Time server_request_start_time_;
 
   base::WeakPtrFactory<PasswordChangeSubmissionVerifier> weak_ptr_factory_{
       this};

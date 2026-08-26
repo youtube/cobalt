@@ -36,6 +36,7 @@
 #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/crx_file/id_util.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -48,6 +49,7 @@
 #include "extensions/common/extension_builder.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/test_extension_dir.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "ui/actions/actions.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/image/image_unittest_util.h"
@@ -653,6 +655,36 @@ IN_PROC_BROWSER_TEST_F(ExtensionSidePanelBrowserTest, SetOptions_Path) {
   // should be active.
   side_panel_coordinator()->Show(extension_key);
   ASSERT_TRUE(panel_1_listener.WaitUntilSatisfied());
+}
+
+// Test that sidePanel.setOptions() can be called with an HTTP/HTTPS URL.
+IN_PROC_BROWSER_TEST_F(ExtensionSidePanelBrowserTest, SetOptions_Url) {
+  const auto kExtensionDir =
+      test_data_dir_.AppendASCII("api_test/side_panel/simple_default");
+
+  embedded_test_server()->ServeFilesFromDirectory(kExtensionDir);
+  auto test_server_handle = embedded_test_server()->StartAndReturnHandle();
+  ASSERT_TRUE(test_server_handle);
+  const GURL kPanelUrl = embedded_test_server()->GetURL("/panel_dom.html");
+
+  scoped_refptr<const extensions::Extension> extension =
+      LoadExtension(kExtensionDir);
+  ASSERT_TRUE(extension);
+  SidePanelEntry::Key extension_key = GetKey(extension->id());
+  EXPECT_TRUE(global_registry()->GetEntryForKey(extension_key));
+
+  // Test calling setOptions with an HTTP/HTTPS URL works.
+  content::DOMMessageQueue message_queue;
+  RunSetOptions(*extension, /*tab_id=*/std::nullopt, kPanelUrl.spec(),
+                /*enabled=*/true);
+  side_panel_coordinator()->Show(extension_key);
+
+  // Note: We use DOMMessageQueue here because since this isn't an extension
+  // page, it doesn't have access to any chrome.* APIs, including chrome.test.
+  std::string message;
+  ASSERT_TRUE(message_queue.WaitForMessage(&message));
+  EXPECT_EQ("\"panel_dom\"", message);
+  EXPECT_TRUE(side_panel_coordinator()->IsSidePanelShowing());
 }
 
 // Test that calling window.close() from an extension side panel deletes the
@@ -1987,6 +2019,76 @@ IN_PROC_BROWSER_TEST_F(
     EXPECT_FALSE(side_panel_coordinator()->IsSidePanelEntryShowing(
         GetKey(side_panel_extension->id())));
   }
+}
+
+// Verify that sidePanel.getLayout() reflects the current side panel
+// alignment ("left" or "right").
+IN_PROC_BROWSER_TEST_F(ExtensionSidePanelBrowserTest, GetLayout) {
+  TestExtensionDir dir;
+  dir.WriteManifest(R"({
+    "name": "GetLayout Test",
+    "version": "1.0",
+    "manifest_version": 3,
+    "permissions": ["sidePanel"],
+    "background": { "service_worker": "bg.js" }
+  })");
+  dir.WriteFile(FILE_PATH_LITERAL("bg.js"), R"(
+    let side = null;
+
+    function fetchLayout() {
+      chrome.sidePanel.getLayout(res => {
+        if (!res || !res.side) {
+          return false;
+        }
+        side = res.side;
+      });
+      return true;
+    }
+
+    function isLayout(expectedSide) {
+      return side === expectedSide;
+    }
+
+    function reset() {
+      side = null;
+      return true;
+    }
+  )");
+  const Extension* ext = LoadExtension(dir.UnpackedPath());
+  ASSERT_TRUE(ext);
+
+  auto* prefs = browser()->profile()->GetPrefs();
+
+  // Helper that sets the side panel alignment preference and
+  // then verifies that getLayout() returns the expected side.
+  auto runCheck = [&](bool pref, const char* expectedSide) {
+    // Set the side panel alignment preference.
+    prefs->SetBoolean(prefs::kSidePanelHorizontalAlignment, pref);
+
+    // Call getLayout(), and verify whether the retrieved panel layout
+    // contains the side value.
+    EXPECT_TRUE(ExecuteScriptInBackgroundPage(
+                    ext->id(), "chrome.test.sendScriptResult(fetchLayout());")
+                    .GetBool());
+
+    // Verify the retrieved side matches the expected side.
+    EXPECT_TRUE(
+        ExecuteScriptInBackgroundPage(
+            ext->id(),
+            base::StringPrintf("chrome.test.sendScriptResult(isLayout('%s'));",
+                               expectedSide))
+            .GetBool());
+
+    // Reset the stored side value.
+    EXPECT_TRUE(ExecuteScriptInBackgroundPage(
+                    ext->id(), "chrome.test.sendScriptResult(reset());")
+                    .GetBool());
+  };
+
+  // Verify that the side panel is aligned to the left when the preference is
+  // false, and to the right when it’s true.
+  runCheck(false, "left");
+  runCheck(true, "right");
 }
 
 // TODO(crbug.com/40243760): Add a test here which requires a browser in

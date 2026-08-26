@@ -21,7 +21,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-forward.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
@@ -39,6 +38,7 @@
 #include "components/sync/model/string_ordinal.h"
 #include "components/sync/protocol/web_app_specifics.pb.h"
 #include "components/webapps/common/web_app_id.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/mojom/manifest/capture_links.mojom-shared.h"
@@ -338,7 +338,7 @@ class WebApp {
     return management_to_external_config_map_;
   }
 
-  const std::optional<blink::Manifest::TabStrip> tab_strip() const {
+  const std::optional<blink::Manifest::TabStrip>& tab_strip() const {
     return tab_strip_;
   }
 
@@ -389,6 +389,20 @@ class WebApp {
       const {
     return related_applications_;
   }
+
+  const std::optional<proto::PendingUpdateInfo>& pending_update_info() const {
+    return pending_update_info_;
+  }
+
+  // Contains the metadata for trusted icons for the web app.
+  const std::vector<apps::IconInfo>& trusted_icons() const {
+    return trusted_icons_;
+  }
+
+  // Represents which icon sizes have been successfully stored on the disk from
+  // |trusted_icons| for the given |purpose|. `Monochrome` is not available
+  // here.
+  const SortedSizesPx& stored_trusted_icon_sizes(IconPurpose purpose) const;
 
   // A Web App can be installed from multiple sources simultaneously. Installs
   // add a source to the app. Uninstalls remove a source from the app.
@@ -491,6 +505,9 @@ class WebApp {
   void SetDiyAppIconsMaskedOnMac(bool diy_app_icons_masked_on_mac);
   void SetRelatedApplications(
       std::vector<blink::Manifest::RelatedApplication> related_applications);
+  void SetPendingUpdateInfo(
+      std::optional<proto::PendingUpdateInfo> pending_update_info);
+  void SetTrustedIcons(std::vector<apps::IconInfo> trusted_icons);
 
   void AddPlaceholderInfoToManagementExternalConfigMap(
       WebAppManagement::Type source_type,
@@ -523,6 +540,8 @@ class WebApp {
 
   void SetGeneratedIconFix(
       std::optional<proto::GeneratedIconFix> generated_icon_fix);
+
+  void SetStoredTrustedIconSizes(IconPurpose purpose, SortedSizesPx sizes);
 
   // For logging and debug purposes.
   bool operator==(const WebApp&) const;
@@ -638,11 +657,22 @@ class WebApp {
 
   std::vector<blink::Manifest::RelatedApplication> related_applications_;
 
+  std::optional<proto::PendingUpdateInfo> pending_update_info_;
+
+  // Metadata required for trusted icons stored in web_app.h
+  std::vector<apps::IconInfo> trusted_icons_;
+
+  // Cache information about stored trusted icon bitmaps on disk to make reading
+  // using the WebAppIconManager less intensive by not having to resort to file
+  // enumeration.
+  SortedSizesPx stored_trusted_icon_sizes_any_;
+  SortedSizesPx stored_trusted_icon_sizes_maskable_;
+
   // New fields must be added to:
   //  - |operator==|
   //  - AsDebugValue()
-  //  - WebAppDatabase::CreateWebApp()
-  //  - WebAppDatabase::CreateWebAppProto()
+  //  - WebAppDatabaseSerialization::ParseWebAppProto()
+  //  - WebAppDatabaseSerialization::WebAppToProto()
   //  - CreateRandomWebApp()
   //  - web_app.proto
   // If parsed from manifest, also add to:
@@ -682,22 +712,10 @@ std::ostream& operator<<(
     std::ostream& out,
     const WebApp::ExternalManagementConfig& management_config);
 
-namespace proto::os_state {
-
-bool operator==(const WebAppOsIntegration& os_integration_state1,
-                const WebAppOsIntegration& os_integration_state2);
-
-}  // namespace proto::os_state
-
 std::vector<std::string> GetSerializedAllowedOrigins(
     const network::ParsedPermissionsPolicyDeclaration
         permissions_policy_declaration);
 
 }  // namespace web_app
-
-namespace sync_pb {
-bool operator==(const WebAppSpecifics& sync_proto1,
-                const WebAppSpecifics& sync_proto2);
-}  // namespace sync_pb
 
 #endif  // CHROME_BROWSER_WEB_APPLICATIONS_WEB_APP_H_

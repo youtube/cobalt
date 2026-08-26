@@ -114,6 +114,9 @@ class NavigationCapturingProcess
 
   explicit NavigationCapturingProcess(const NavigateParams& params);
 
+  BrowserAndTabOverride HandleIsolatedWebAppNavigation(
+      const NavigateParams& params);
+
   // Returns true if based on the NavigateParams this instance was created with
   // the navigation capturing reimpl experiment is enabled.
   bool IsNavigationCapturingReimplExperimentEnabled();
@@ -150,7 +153,8 @@ class NavigationCapturingProcess
   // return the correct return value and update internal state of this class
   // with the corresponding outcome.
   BrowserAndTabOverride CapturingDisabled();
-  BrowserAndTabOverride CancelInitialNavigation();
+  BrowserAndTabOverride CancelInitialNavigation(
+      NavigationCapturingInitialResult result);
   BrowserAndTabOverride NoCapturingOverrideBrowser(Browser* browser);
   BrowserAndTabOverride AuxiliaryContext();
   BrowserAndTabOverride AuxiliaryContextInAppWindow(Browser* app_browser);
@@ -163,12 +167,15 @@ class NavigationCapturingProcess
       Browser* host_browser);
   BrowserAndTabOverride CapturedNavigateExisting(Browser* app_browser,
                                                  int browser_tab);
+  BrowserAndTabOverride CapturedFocusExisting(Browser* browser,
+                                              int browser_tab,
+                                              const GURL& url);
 
   // Updates the `launched_app_id_` field, and if this process as already been
   // attached to a `NavigationHandle`, also creates or updates the
-  // `WebAppLaunchNavigationHandleUserData` for that handle. An empty `app_id`
+  // `WebAppLaunchNavigationHandleUserData` for that handle. A nullopt `app_id`
   // will cause the launch data to be cleared.
-  void SetLaunchedAppId(const webapps::AppId& app_id,
+  void SetLaunchedAppId(std::optional<webapps::AppId> app_id,
                         bool force_iph_off = false);
 
   // Returns true if `initial_nav_handling_result_` is one of the values where
@@ -201,6 +208,8 @@ class NavigationCapturingProcess
   const raw_ptr<Browser> navigation_params_browser_;
   std::optional<webapps::AppId> first_navigation_app_id_;
   std::optional<blink::mojom::DisplayMode> first_navigation_app_display_mode_;
+
+  bool isolated_web_app_navigation_ = false;
 
   bool navigation_capturing_enabled_ = false;
 

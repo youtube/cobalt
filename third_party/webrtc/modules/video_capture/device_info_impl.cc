@@ -10,9 +10,8 @@
 
 #include "modules/video_capture/device_info_impl.h"
 
-#include <stdlib.h>
-
 #include <cstdint>
+#include <cstdlib>
 
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"

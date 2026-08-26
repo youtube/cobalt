@@ -32,14 +32,6 @@ BASE_DECLARE_FEATURE(kInvalidateSearchEngineChoiceOnDeviceRestoreDetection);
 COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
 extern const base::FeatureParam<bool> kInvalidateChoiceOnRestoreIsRetroactive;
 
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_DECLARE_FEATURE(kSearchEngineChoiceTrigger);
-
-#if BUILDFLAG(IS_ANDROID)
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_DECLARE_FEATURE(kRemoveSearchEngineChoiceAttribution);
-#endif
-
 // The string that's passed to
 // `switches::kSearchEngineChoiceTriggerRepromptParams` so that we don't
 // reprompt users with the choice screen.
@@ -55,35 +47,31 @@ inline constexpr char kSearchEngineChoiceNoRepromptString[] = "NO_REPROMPT";
 // 5, and users in all other countries who made the choice strictly before
 // version 2.
 COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
+BASE_DECLARE_FEATURE(kSearchEngineChoiceTriggerReprompt);
+COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
 extern const base::FeatureParam<std::string>
     kSearchEngineChoiceTriggerRepromptParams;
 
-#if BUILDFLAG(IS_IOS)
-// Maximum number of time the search engine choice screen can be skipped
-// because the application is started via an external intent. Once this
-// count is reached, the search engine choice screen is presented on all
-// restart until the user has made a decision.
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-extern const base::FeatureParam<int> kSearchEngineChoiceMaximumSkipCount;
-
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
-// Enables the blocking dialog that directs users to complete their choice of
-// default apps (for Browser & Search) in Android.
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_DECLARE_FEATURE(kClayBlocking);
-
-// Enables the alternative behaviour for the connection to the default apps
-// choice internal backend in Android.
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_DECLARE_FEATURE(kClayBackendConnectionV2);
-
 // Enables showing a snackbar when users change their default search engine in
 // Android.
 COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
 BASE_DECLARE_FEATURE(kClaySnackbar);
+// Suppresses the default browser promo if the user has already completed the
+// OS-level default browser choice.
+COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
+BASE_DECLARE_FEATURE(kSuppressDefaultBrowserPromoIfChoiceSet);
 #endif
+
+// Whether state consistency across choice metadata and DSE pref state should
+// be enforced.
+// The presence of DSE choice metadata implies that a DSE choice was made,
+// and in this case we also expect a DSE to be set in prefs. There are some
+// flows that can cause the DSE pref to be cleared, like pref tampering
+// detection. When this happens, we also wipe the DSE choice metadata to
+// trigger a new choice prompt.
+COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
+BASE_DECLARE_FEATURE(kWipeChoicePrefsOnMissingDefaultSearchEngine);
 
 // Kill switch to revert the fix of using assistedQueryStats for prefetch source
 // component. See crbug.com/345275145.

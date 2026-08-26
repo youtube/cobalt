@@ -20,6 +20,16 @@ TestVirtualCardEnrollmentManager::TestVirtualCardEnrollmentManager(
 
 TestVirtualCardEnrollmentManager::~TestVirtualCardEnrollmentManager() = default;
 
+bool TestVirtualCardEnrollmentManager::ShouldBlockVirtualCardEnrollment(
+    const std::string& instrument_id,
+    VirtualCardEnrollmentSource virtual_card_enrollment_source) const {
+  if (ignore_strike_database_) {
+    return false;
+  }
+  return VirtualCardEnrollmentManager::ShouldBlockVirtualCardEnrollment(
+      instrument_id, virtual_card_enrollment_source);
+}
+
 void TestVirtualCardEnrollmentManager::LoadRiskDataAndContinueFlow(
     PrefService* user_prefs,
     base::OnceCallback<void(const std::string&)> callback) {
@@ -37,11 +47,14 @@ void TestVirtualCardEnrollmentManager::
 
 void TestVirtualCardEnrollmentManager::Reset() {
   reset_called_ = true;
+  VirtualCardEnrollmentManager::Reset();
 }
 
-void TestVirtualCardEnrollmentManager::ShowVirtualCardEnrollBubble() {
+void TestVirtualCardEnrollmentManager::ShowVirtualCardEnrollBubble(
+    VirtualCardEnrollmentFields* virtual_card_enrollment_fields) {
   bubble_shown_ = true;
-  VirtualCardEnrollmentManager::ShowVirtualCardEnrollBubble();
+  VirtualCardEnrollmentManager::ShowVirtualCardEnrollBubble(
+      virtual_card_enrollment_fields);
 }
 
 void TestVirtualCardEnrollmentManager::

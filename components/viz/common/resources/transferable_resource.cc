@@ -3,29 +3,13 @@
 // found in the LICENSE file.
 
 #include "components/viz/common/resources/transferable_resource.h"
+
+#include "base/feature_list.h"
+#include "components/viz/common/features.h"
 #include "components/viz/common/resources/returned_resource.h"
 #include "gpu/command_buffer/client/client_shared_image.h"
 
 namespace viz {
-
-// static
-TransferableResource TransferableResource::MakeSoftwareSharedImage(
-    const scoped_refptr<gpu::ClientSharedImage>& client_shared_image,
-    const gpu::SyncToken& sync_token,
-    const gfx::Size& size,
-    SharedImageFormat format,
-    ResourceSource source) {
-  // Passed in format must be either single or multiplane and not default set.
-  CHECK(format.is_single_plane() || format.is_multi_plane());
-  TransferableResource r;
-  r.is_software = true;
-  r.memory_buffer_id_ = client_shared_image->mailbox();
-  r.sync_token_ = sync_token;
-  r.size = size;
-  r.format = format;
-  r.resource_source = source;
-  return r;
-}
 
 // static
 TransferableResource TransferableResource::MakeGpu(
@@ -48,19 +32,6 @@ TransferableResource TransferableResource::MakeGpu(
   r.is_overlay_candidate = is_overlay_candidate;
   r.resource_source = source;
   return r;
-}
-
-TransferableResource TransferableResource::MakeGpu(
-    const scoped_refptr<gpu::ClientSharedImage>& client_shared_image,
-    uint32_t texture_target,
-    const gpu::SyncToken& sync_token,
-    const gfx::Size& size,
-    SharedImageFormat format,
-    bool is_overlay_candidate,
-    ResourceSource source) {
-  CHECK(client_shared_image);
-  return MakeGpu(client_shared_image->mailbox(), texture_target, sync_token,
-                 size, format, is_overlay_candidate, source);
 }
 
 TransferableResource TransferableResource::Make(
@@ -86,13 +57,19 @@ TransferableResource TransferableResource::Make(
   resource.origin = override.origin.value_or(shared_image->surface_origin());
   SkAlphaType alpha_type =
       override.alpha_type.value_or(shared_image->alpha_type());
-  // TODO(crbug.com/410591523): Set `resource.alpha_type` directly from
-  // `alpha_type` under a killswitch; this will result in kOpaque_SkAlphaType
-  // being passed through to the service side, whereas historically that has
-  // been compressed to a "premul" bool and treated as kPremul_SkAlphaType on
-  // the service side.
-  resource.alpha_type =
-      (alpha_type == kUnpremul_SkAlphaType) ? alpha_type : kPremul_SkAlphaType;
+  // Historically `alpha_type` has been compressed to a "premul" bool with
+  // kOpaque_SkAlphaType being treated as kPremul_SkAlphaType on the service
+  // side. Eliminate this historical behavior under a killswitch.
+  // TODO(crbug.com/410591523): Remove killswitch after it has safely rolled
+  // out.
+  if (base::FeatureList::IsEnabled(
+          features::kTransferableResourcePassAlphaTypeDirectly)) {
+    resource.alpha_type = alpha_type;
+  } else {
+    resource.alpha_type = (alpha_type == kUnpremul_SkAlphaType)
+                              ? alpha_type
+                              : kPremul_SkAlphaType;
+  }
   resource.set_texture_target(
       override.texture_target.value_or(shared_image->GetTextureTarget()));
 

@@ -45,7 +45,7 @@ class MockReceiver : public PacketReceiver {
                RtpPacketReceived packet,
                OnUndemuxablePacketHandler undemuxable_packet_handler),
               (override));
-  virtual ~MockReceiver() = default;
+  ~MockReceiver() override = default;
 };
 
 class ReorderTestReceiver : public MockReceiver {

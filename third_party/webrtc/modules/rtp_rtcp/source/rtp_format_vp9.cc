@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/rtp_format_vp9.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 
 #include "api/array_view.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"

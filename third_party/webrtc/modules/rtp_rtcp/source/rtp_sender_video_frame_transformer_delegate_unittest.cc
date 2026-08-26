@@ -42,6 +42,7 @@ namespace webrtc {
 namespace {
 
 using ::testing::_;
+using ::testing::ElementsAreArray;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::SaveArg;
@@ -136,13 +137,22 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
   auto delegate = make_ref_counted<RTPSenderVideoFrameTransformerDelegate>(
       &test_sender_, frame_transformer_,
       /*ssrc=*/1111, time_controller_.CreateTaskQueueFactory().get());
+  VideoFrameMetadata metadata;
+  EXPECT_CALL(*frame_transformer_, Transform)
+      .WillOnce([&](std::unique_ptr<TransformableFrameInterface> frame) {
+        metadata = static_cast<TransformableVideoFrameInterface*>(frame.get())
+                       ->Metadata();
+      });
 
+  std::vector<uint32_t> csrcs = {1, 2, 3};
   EncodedImage encoded_image;
-  EXPECT_CALL(*frame_transformer_, Transform);
   delegate->TransformFrame(
       /*payload_type=*/1, VideoCodecType::kVideoCodecVP8, /*rtp_timestamp=*/2,
       encoded_image, RTPVideoHeader(),
-      /*expected_retransmission_time=*/TimeDelta::Millis(10));
+      /*expected_retransmission_time=*/TimeDelta::Millis(10), csrcs);
+
+  EXPECT_EQ(metadata.GetSsrc(), 1111U);
+  EXPECT_THAT(metadata.GetCsrcs(), ElementsAreArray(csrcs));
 }
 
 TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
@@ -319,17 +329,19 @@ TEST_F(RtpSenderVideoFrameTransformerDelegateTest,
 
   delegate->StartShortCircuiting();
 
+  std::vector<uint32_t> csrcs = {1, 2, 3};
   // Will not call the actual transformer.
   EXPECT_CALL(*frame_transformer_, Transform).Times(0);
   // Will pass the frame straight to the reciever.
-  EXPECT_CALL(test_sender_, SendVideo);
+  EXPECT_CALL(test_sender_,
+              SendVideo(_, _, _, _, _, _, _, _, ElementsAreArray(csrcs)));
 
   EncodedImage encoded_image;
   encoded_image.SetEncodedData(EncodedImageBuffer::Create(1));
   delegate->TransformFrame(
       /*payload_type=*/1, VideoCodecType::kVideoCodecVP8, /*rtp_timestamp=*/2,
       encoded_image, RTPVideoHeader(),
-      /*expected_retransmission_time=*/TimeDelta::Millis(10));
+      /*expected_retransmission_time=*/TimeDelta::Millis(10), csrcs);
 }
 
 }  // namespace

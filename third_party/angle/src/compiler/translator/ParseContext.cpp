@@ -771,6 +771,9 @@ bool TParseContext::checkCanBeLValue(const TSourceLoc &line, const char *op, TIn
         case EvqLayerIn:
             message = "can't modify gl_Layer in a fragment shader";
             break;
+        case EvqShadingRateEXT:
+            message = "can't modify gl_ShadingRateEXT";
+            break;
         case EvqSampleID:
             message = "can't modify gl_SampleID";
             break;
@@ -5186,12 +5189,35 @@ TIntermDeclaration *TParseContext::addInterfaceBlock(
             // is legal. See bug https://github.com/KhronosGroup/OpenGL-API/issues/7
             fieldType->setMemoryQualifier(fieldMemoryQualifier);
         }
+
+        // For per-vertex members, apply the appropriate built-in qualifiers to the members.
+        if (isGLPerVertex)
+        {
+            if (field->name() == "gl_Position")
+            {
+                fieldType->setQualifier(EvqPosition);
+            }
+            if (field->name() == "gl_PointSize")
+            {
+                fieldType->setQualifier(EvqPointSize);
+            }
+            if (field->name() == "gl_ClipDistance")
+            {
+                fieldType->setQualifier(EvqClipDistance);
+            }
+            if (field->name() == "gl_CullDistance")
+            {
+                fieldType->setQualifier(EvqCullDistance);
+            }
+        }
     }
 
     SymbolType instanceSymbolType = SymbolType::UserDefined;
     if (isGLPerVertex)
     {
         instanceSymbolType = SymbolType::BuiltIn;
+        typeQualifier.qualifier =
+            IsVaryingOut(typeQualifier.qualifier) ? EvqPerVertexOut : EvqPerVertexIn;
     }
     TInterfaceBlock *interfaceBlock = new TInterfaceBlock(&symbolTable, blockName, fieldList,
                                                           blockLayoutQualifier, instanceSymbolType);

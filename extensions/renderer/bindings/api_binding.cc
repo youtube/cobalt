@@ -25,8 +25,9 @@
 #include "extensions/renderer/bindings/binding_access_checker.h"
 #include "extensions/renderer/bindings/declarative_event.h"
 #include "gin/arguments.h"
-#include "gin/handle.h"
 #include "gin/per_context_data.h"
+#include "v8/include/cppgc/allocation.h"
+#include "v8/include/v8-cppgc.h"
 
 namespace extensions {
 
@@ -361,7 +362,7 @@ APIBinding::~APIBinding() = default;
 v8::Local<v8::Object> APIBinding::CreateInstance(
     v8::Local<v8::Context> context) {
   DCHECK(binding::IsContextValid(context));
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   if (object_template_.IsEmpty())
     InitializeTemplate(isolate);
   DCHECK(!object_template_.IsEmpty());
@@ -540,7 +541,7 @@ void APIBinding::GetEventObject(
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context;
-  if (!info.Holder()->GetCreationContext(isolate).ToLocal(&context) ||
+  if (!info.HolderV2()->GetCreationContext(isolate).ToLocal(&context) ||
       !binding::IsContextValidOrThrowError(context)) {
     return;
   }
@@ -553,12 +554,11 @@ void APIBinding::GetEventObject(
           context, event_data->full_name, &retval)) {
     // A custom event was created; our work is done.
   } else if (event_data->supports_rules) {
-    gin::Handle<DeclarativeEvent> event = gin::CreateHandle(
-        isolate, new DeclarativeEvent(
-                     event_data->full_name, event_data->binding->type_refs_,
-                     event_data->binding->request_handler_, event_data->actions,
-                     event_data->conditions, 0));
-    retval = event.ToV8();
+    auto* event = cppgc::MakeGarbageCollected<DeclarativeEvent>(
+        isolate->GetCppHeap()->GetAllocationHandle(), event_data->full_name,
+        event_data->binding->type_refs_, event_data->binding->request_handler_,
+        event_data->actions, event_data->conditions, 0);
+    retval = event->GetWrapper(isolate).ToLocalChecked();
   } else {
     retval = event_data->binding->event_handler_->CreateEventInstance(
         event_data->full_name, event_data->supports_filters,
@@ -574,7 +574,7 @@ void APIBinding::GetCustomPropertyObject(
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context;
-  if (!info.Holder()->GetCreationContext(isolate).ToLocal(&context) ||
+  if (!info.HolderV2()->GetCreationContext(isolate).ToLocal(&context) ||
       !binding::IsContextValid(context)) {
     return;
   }

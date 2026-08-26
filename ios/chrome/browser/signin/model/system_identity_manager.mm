@@ -130,9 +130,15 @@ void SystemIdentityManager::FireIdentityRefreshTokenUpdated(
 
 void SystemIdentityManager::FireIdentityAccessTokenRefreshFailed(
     id<SystemIdentity> identity,
-    id<RefreshAccessTokenError> error) {
+    id<RefreshAccessTokenError> error,
+    const std::set<std::string>& scopes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   for (auto& observer : observers_) {
-    observer.OnIdentityAccessTokenRefreshFailed(identity, error);
+    observer.OnIdentityAccessTokenRefreshFailed(identity, error, scopes);
   }
+}
+
+bool SystemIdentityManager::IsScopeLimitedError(
+    id<RefreshAccessTokenError> error) {
+  return false;
 }

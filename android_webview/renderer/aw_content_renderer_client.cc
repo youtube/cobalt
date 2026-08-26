@@ -37,7 +37,6 @@
 #include "content/public/common/url_constants.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
-#include "ipc/ipc_sync_channel.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -78,11 +77,10 @@ void AwContentRendererClient::RenderThreadStarted() {
 #if BUILDFLAG(SUPPORTS_CODE_ORDERING)
   if (base::FeatureList::IsEnabled(features::kWebViewPrefetchNativeLibrary) &&
       features::kWebViewPrefetchFromRenderer.Get()) {
-    base::ThreadPool::PostTask(
-        FROM_HERE, base::BindOnce([] {
-          base::android::NativeLibraryPrefetcher::ForkAndPrefetchNativeLibrary(
-              false);
-        }));
+    base::ThreadPool::PostTask(FROM_HERE, base::BindOnce([] {
+                                 base::android::NativeLibraryPrefetcher::
+                                     ForkAndPrefetchNativeLibrary();
+                               }));
   }
 #endif
 

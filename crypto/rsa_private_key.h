@@ -1,6 +1,9 @@
 // Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// This interface is deprecated and being removed: https://crbug.com/425863216.
+// New users should use crypto/keypair instead.
 
 #ifndef CRYPTO_RSA_PRIVATE_KEY_H_
 #define CRYPTO_RSA_PRIVATE_KEY_H_
@@ -18,9 +21,9 @@
 
 namespace crypto {
 
-// Encapsulates an RSA private key. Can be used to generate new keys, export
-// keys to other formats, or to extract a public key.
-// TODO(hclam): This class should be ref-counted so it can be reused easily.
+// Encapsulates an RSA private key. Can be used to export keys to other formats
+// or to extract a public key.
+// TODO(https://crbug.com/425863216): Delete this.
 class CRYPTO_EXPORT RSAPrivateKey {
  public:
   RSAPrivateKey(const RSAPrivateKey&) = delete;
@@ -28,19 +31,11 @@ class CRYPTO_EXPORT RSAPrivateKey {
 
   ~RSAPrivateKey();
 
-  // Create a new random instance. Can return NULL if initialization fails.
-  static std::unique_ptr<RSAPrivateKey> Create(uint16_t num_bits);
-
   // Create a new instance by importing an existing private key. The format is
   // an ASN.1-encoded PrivateKeyInfo block from PKCS #8. This can return NULL if
   // initialization fails.
   static std::unique_ptr<RSAPrivateKey> CreateFromPrivateKeyInfo(
       base::span<const uint8_t> input);
-
-  // Create a new instance from an existing EVP_PKEY, taking a
-  // reference to it. |key| must be an RSA key. Returns NULL on
-  // failure.
-  static std::unique_ptr<RSAPrivateKey> CreateFromKey(EVP_PKEY* key);
 
   EVP_PKEY* key() const { return key_.get(); }
 

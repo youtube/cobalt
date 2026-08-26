@@ -8,6 +8,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
+#include "base/memory/safe_ref.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/on_device_model/public/cpp/model_assets.h"
 #include "services/on_device_model/public/mojom/on_device_model.mojom.h"
@@ -23,6 +24,13 @@ enum class ServiceDisconnectReason : uint32_t {
   kGpuBlocked = 1,
   // The chrome_ml shared library could not be loaded.
   kFailedToLoadLibrary = 2,
+};
+
+enum class ModelDisconnectReason : uint32_t {
+  // No reason provided, likely a service crash or similar error.
+  kUnspecified = 0,
+  // The model was disconnected due to an idle timeout.
+  kIdleShutdown = 1,
 };
 
 // Manages a remote that can timeout and reconnect on-demand.
@@ -46,6 +54,9 @@ class COMPONENT_EXPORT(ON_DEVICE_MODEL_CPP) ServiceClient final {
 
   base::WeakPtr<ServiceClient> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
+  }
+  base::SafeRef<ServiceClient> GetSafeRef() {
+    return weak_ptr_factory_.GetSafeRef();
   }
 
   bool is_bound() { return remote_.is_bound(); }

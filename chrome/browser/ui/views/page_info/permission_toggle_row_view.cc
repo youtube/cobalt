@@ -15,7 +15,6 @@
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/page_info/chrome_page_info_ui_delegate.h"
-#include "chrome/browser/ui/views/accessibility/non_accessible_image_view.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/page_info/page_info_navigation_handler.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
@@ -36,6 +35,7 @@
 #include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/controls/button/toggle_button.h"
 #include "ui/views/controls/highlight_path_generator.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/view_class_properties.h"
@@ -191,7 +191,7 @@ void PermissionToggleRowView::OnToggleButtonPressed() {
 void PermissionToggleRowView::AddToggleButton(
     const std::u16string& toggle_accessible_name,
     int icon_label_spacing) {
-  // This skips adding a toggle for 'CAPTURED_SURFACE_CONTROL' pemrission type.
+  // This skips adding a toggle for 'CAPTURED_SURFACE_CONTROL' permission type.
   // We want to use the toggle inside the submenu and not here.
   if (permission_.type == ContentSettingsType::CAPTURED_SURFACE_CONTROL) {
     return;
@@ -253,7 +253,10 @@ void PermissionToggleRowView::InitForUserSource(
       auto spacer_view = std::make_unique<views::View>();
       spacer_view->SetPreferredSize(gfx::Size(icon_size, icon_size));
       spacer_view_ = row_view_->AddControl(std::move(spacer_view));
-    } else {
+    } else if (toggle_button_) {
+      // toggle_button_ could be uninitialized if this row represents
+      // 'CAPTURED_SURFACE_CONTROL' permission type and that permission type
+      // is not found in `DoesSupportTemporaryGrants`.
       toggle_button_->SetProperty(
           views::kMarginsKey, gfx::Insets::TLBR(0, icon_label_spacing, 0, 0));
     }
@@ -272,7 +275,7 @@ void PermissionToggleRowView::InitForManagedSource(
                            gfx::Insets::VH(0, icon_label_spacing));
   row_view_->AddControl(std::move(state_label));
 
-  auto managed_icon = std::make_unique<NonAccessibleImageView>();
+  auto managed_icon = std::make_unique<views::ImageView>();
   managed_icon->SetImage(GetManagedPermissionIcon(permission_));
   std::u16string managed_tooltip =
       PageInfoUI::PermissionManagedTooltipToUIString(delegate, permission_);

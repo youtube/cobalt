@@ -127,7 +127,10 @@ def UpdateWhatsNewPlist(feature_dict: dict[str, str], feature_type: int,
     animation_text_dict = {}
     for animation_text_string in serialized_animation_texts:
         animations_text = json.loads(animation_text_string)
-        animation_text_dict[animations_text['key'].strip()] = StripWhitespacesAndEmptyLines(animations_text['value'])
+        processed_lines = StripWhitespacesAndEmptyLines(
+            animations_text['value'])
+        animation_text_dict[animations_text['key'].strip()] = "".join(
+            processed_lines)
     new_entry = {
         'Type': feature_type,
         'Title': feature_dict['Title'],
@@ -541,6 +544,12 @@ def ExtractTextLayerIDs(lottie_json: dict) -> set[str]:
 
     if 'layers' in lottie_json:
         process_layers(lottie_json['layers'])
+
+    # Check assets for compositions that might have layers
+    if 'assets' in lottie_json:
+        for asset in lottie_json['assets']:
+            if 'layers' in asset:
+                process_layers(asset['layers'])
 
     return text_layer_ids
 

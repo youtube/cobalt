@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/partition_alloc.h"
 
 #include <cstdint>
@@ -46,12 +51,7 @@ void PartitionAllocGlobalInit(OomFunction on_out_of_memory) {
       (internal::PartitionPageSize() & internal::SystemPageOffsetMask()) == 0,
       "ok partition page multiple");
   static_assert(
-      sizeof(
-          internal::PartitionPageMetadata<internal::MetadataKind::kReadOnly>) <=
-              internal::kPageMetadataSize &&
-          sizeof(internal::PartitionPageMetadata<
-                 internal::MetadataKind::kWritable>) <=
-              internal::kPageMetadataSize,
+      sizeof(internal::PartitionPageMetadata) <= internal::kPageMetadataSize,
       "PartitionPage should not be too big");
   STATIC_ASSERT_OR_PA_CHECK(
       internal::kPageMetadataSize * internal::NumPartitionPagesPerSuperPage() <=

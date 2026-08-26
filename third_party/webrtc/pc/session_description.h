@@ -135,22 +135,10 @@ class MediaContentDescription {
   }
   void set_rtp_header_extensions(const RtpHeaderExtensions& extensions) {
     rtp_header_extensions_ = extensions;
-    rtp_header_extensions_set_ = true;
   }
   void AddRtpHeaderExtension(const RtpExtension& ext) {
     rtp_header_extensions_.push_back(ext);
-    rtp_header_extensions_set_ = true;
   }
-  void ClearRtpHeaderExtensions() {
-    rtp_header_extensions_.clear();
-    rtp_header_extensions_set_ = true;
-  }
-  // We can't always tell if an empty list of header extensions is
-  // because the other side doesn't support them, or just isn't hooked up to
-  // signal them. For now we assume an empty list means no signaling, but
-  // provide the ClearRtpHeaderExtensions method to allow "no support" to be
-  // clearly indicated (i.e. when derived from other information).
-  bool rtp_header_extensions_set() const { return rtp_header_extensions_set_; }
   const StreamParamsVec& streams() const { return send_streams_; }
   // TODO(pthatcher): Remove this by giving mediamessage.cc access
   // to MediaContentDescription
@@ -266,7 +254,6 @@ class MediaContentDescription {
   std::string bandwidth_type_ = kApplicationSpecificBandwidth;
 
   std::vector<RtpExtension> rtp_header_extensions_;
-  bool rtp_header_extensions_set_ = false;
   StreamParamsVec send_streams_;
   bool conference_mode_ = false;
   RtpTransceiverDirection direction_ = RtpTransceiverDirection::kSendRecv;
@@ -599,34 +586,5 @@ enum ContentSource { CS_LOCAL, CS_REMOTE };
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::AudioContentDescription;
-using ::webrtc::ContentGroup;
-using ::webrtc::ContentGroups;
-using ::webrtc::ContentInfo;
-using ::webrtc::ContentInfos;
-using ::webrtc::ContentNames;
-using ::webrtc::ContentSource;
-using ::webrtc::CS_LOCAL;
-using ::webrtc::CS_REMOTE;
-using ::webrtc::kAutoBandwidth;
-using ::webrtc::kMsidSignalingMediaSection;
-using ::webrtc::kMsidSignalingNotUsed;
-using ::webrtc::kMsidSignalingSemantic;
-using ::webrtc::kMsidSignalingSsrcAttribute;
-using ::webrtc::MediaContentDescription;
-using ::webrtc::MediaProtocolType;
-using ::webrtc::MsidSignaling;
-using ::webrtc::RtpHeaderExtensions;
-using ::webrtc::RtpMediaContentDescription;
-using ::webrtc::SctpDataContentDescription;
-using ::webrtc::SessionDescription;
-using ::webrtc::UnsupportedContentDescription;
-using ::webrtc::VideoContentDescription;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // PC_SESSION_DESCRIPTION_H_

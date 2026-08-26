@@ -140,7 +140,7 @@ static void draw_outset_line(SkCanvas* canvas, const SkMatrix& local, const SkPo
                              const SkPaint& paint) {
     static constexpr SkScalar kLineOutset = 10.f;
     SkPoint mapped[2];
-    local.mapPoints(mapped, pts, 2);
+    local.mapPoints({mapped, 2}, {pts, 2});
     SkVector v = mapped[1] - mapped[0];
     v.setLength(v.length() + kLineOutset);
     canvas->drawLine(mapped[1] - v, mapped[0] + v, paint);
@@ -531,13 +531,13 @@ private:
         fMatrixNames.push_back(SkString("Skew"));
 
         // Perspective
-        SkPoint src[4];
-        SkRect::MakeWH(kColCount * kTileWidth, kRowCount * kTileHeight).toQuad(src);
+        const std::array<SkPoint, 4> src = SkRect::MakeWH(kColCount * kTileWidth,
+                                                          kRowCount * kTileHeight).toQuad();
         SkPoint dst[4] = {{0, 0},
                           {kColCount * kTileWidth + 10.f, 15.f},
                           {kColCount * kTileWidth - 28.f, kRowCount * kTileHeight + 40.f},
                           {25.f, kRowCount * kTileHeight - 15.f}};
-        SkAssertResult(fMatrices[4].setPolyToPoly(src, dst, 4));
+        SkAssertResult(fMatrices[4].setPolyToPoly(src, dst));
         fMatrices[4].preTranslate(0.f, 10.f);
         fMatrixNames.push_back(SkString("Perspective"));
 

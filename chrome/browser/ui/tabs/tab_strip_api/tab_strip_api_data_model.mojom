@@ -1,0 +1,113 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module tabs_api.mojom;
+
+import "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api_types.mojom";
+import "chrome/browser/ui/webui/tabs/tabs.mojom";
+import "components/tab_groups/public/mojom/tab_group_types.mojom";
+import "url/mojom/url.mojom";
+
+struct Tab {
+  NodeId id;
+  string title;
+  url.mojom.Url url;
+
+  // TODO(crbug.com/414630734). The favicon should be typemapped to ImageModel
+  // in c++. Leave this as a data uri for now.
+  url.mojom.Url favicon_url;
+
+  array<tabs.mojom.TabAlertState> alert_states;
+  tabs.mojom.TabNetworkState network_state;
+};
+
+// Tabstrip is a TabCollection that represents the top-level collection of
+// a browser.
+struct TabStrip {
+  NodeId id;
+};
+
+// PinnedTabs is a TabCollection of all tabs that have been
+// pinned by the user in a browser.
+struct PinnedTabs {
+  NodeId id;
+};
+
+// UnpinnedTabs is a TabCollection of all tabs that are not part of any
+// other collection in a browser.
+struct UnpinnedTabs {
+  NodeId id;
+};
+
+// TabGroup is a TabCollection created by the user to organize a group
+// of tabs with an associated set of visual data.
+struct TabGroup {
+  NodeId id;
+  TabGroupVisualData data;
+};
+
+// TODO(crbug.com/425652802): This should be merged with struct
+// TabGroupVisualData in
+// //chrome/browser/ui/webui/tab_strip/tab_strip.mojom and moved to
+// //components/tab_groups/public/mojom/tab_group_types.mojom
+struct TabGroupVisualData {
+  string title;
+  tab_groups.mojom.Color color;
+  bool is_collapsed;
+};
+
+struct SplitTab {
+  NodeId id;
+  SplitTabVisualData data;
+};
+
+struct SplitTabVisualData {
+  enum Layout {
+    kVertical,
+    kHorizontal,
+  };
+
+  Layout layout;
+  double split_ratio;
+};
+
+// A TabCollection is a container in the tab strip tree. Using a union enforces
+// that a collection must be exactly one of the types below thus preventing
+// inconsistent states.
+union TabCollection {
+  TabStrip tab_strip;
+  PinnedTabs pinned_tabs;
+  UnpinnedTabs unpinned_tabs;
+  TabGroup tab_group;
+  SplitTab split_tab;
+};
+
+// The TabCollection tree has child nodes that can be a Tab or a
+// TabCollection. This container is used to represents the child nodes of the
+// tab strip tree.
+union Container {
+  TabContainer tab_container;
+  TabCollectionContainer tab_collection_container;
+};
+
+// TabCollectionContainer represents a TabCollection's position within the tree.
+// It contains an array of elements that can be either a TabContainer or a
+// TabCollectionContainer.
+struct TabCollectionContainer {
+  TabCollection collection;
+  array<Container> elements;
+};
+
+// TabContainer represents the tab's position within the tree.
+struct TabContainer {
+  Tab tab;
+};
+
+// When a Tab is created, it also needs to know the position.
+// Use this container to hold tab data as well as the position the tab was
+// created in.
+struct TabCreatedContainer {
+  Tab tab;
+  Position position;
+};

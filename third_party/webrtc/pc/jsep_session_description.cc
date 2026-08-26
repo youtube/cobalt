@@ -10,7 +10,9 @@
 
 #include "api/jsep_session_description.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -20,7 +22,6 @@
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "p2p/base/p2p_constants.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/base/transport_info.h"
@@ -54,7 +55,7 @@ void UpdateConnectionAddress(
   int current_preference = 0;  // Start with lowest preference.
   int current_family = AF_UNSPEC;
   for (size_t i = 0; i < candidate_collection.count(); ++i) {
-    const IceCandidateInterface* jsep_candidate = candidate_collection.at(i);
+    const IceCandidate* jsep_candidate = candidate_collection.at(i);
     if (jsep_candidate->candidate().component() !=
         ICE_CANDIDATE_COMPONENT_RTP) {
       continue;
@@ -102,7 +103,6 @@ void UpdateConnectionAddress(
   }
   media_desc->set_connection_address(connection_addr);
 }
-
 }  // namespace
 
 // TODO(steveanton): Remove this default implementation once Chromium has been
@@ -219,20 +219,17 @@ std::unique_ptr<SessionDescriptionInterface> JsepSessionDescription::Clone()
   return new_description;
 }
 
-bool JsepSessionDescription::AddCandidate(
-    const IceCandidateInterface* candidate) {
+bool JsepSessionDescription::AddCandidate(const IceCandidate* candidate) {
   if (!candidate)
     return false;
   size_t mediasection_index = 0;
   if (!GetMediasectionIndex(candidate, &mediasection_index)) {
     return false;
   }
-  if (mediasection_index >= number_of_mediasections())
-    return false;
-  const std::string& content_name =
+  const std::string& mediasection_mid =
       description_->contents()[mediasection_index].mid();
   const TransportInfo* transport_info =
-      description_->GetTransportInfoByName(content_name);
+      description_->GetTransportInfoByName(mediasection_mid);
   if (!transport_info) {
     return false;
   }
@@ -245,14 +242,21 @@ bool JsepSessionDescription::AddCandidate(
     updated_candidate.set_password(transport_info->description.ice_pwd);
   }
 
-  std::unique_ptr<JsepIceCandidate> updated_candidate_wrapper(
-      new JsepIceCandidate(candidate->sdp_mid(),
-                           static_cast<int>(mediasection_index),
-                           updated_candidate));
+  // Use `mediasection_mid` as the mid for the updated candidate. The
+  // `candidate->sdp_mid()` property *should* be the same. However, in some
+  // cases specifying an empty mid but a valid index is a way to add a candidate
+  // without knowing (or caring about) the mid. This is done in several tests.
+  RTC_DCHECK(candidate->sdp_mid().empty() ||
+             candidate->sdp_mid() == mediasection_mid)
+      << "sdp_mid='" << candidate->sdp_mid() << "' mediasection_mid='"
+      << mediasection_mid << "'";
+  auto updated_candidate_wrapper = std::make_unique<IceCandidate>(
+      mediasection_mid, static_cast<int>(mediasection_index),
+      updated_candidate);
   if (!candidate_collection_[mediasection_index].HasCandidate(
           updated_candidate_wrapper.get())) {
     candidate_collection_[mediasection_index].add(
-        updated_candidate_wrapper.release());
+        std::move(updated_candidate_wrapper));
     UpdateConnectionAddress(
         candidate_collection_[mediasection_index],
         description_->contents()[mediasection_index].media_description());
@@ -261,21 +265,18 @@ bool JsepSessionDescription::AddCandidate(
   return true;
 }
 
-size_t JsepSessionDescription::RemoveCandidates(
-    const std::vector<Candidate>& candidates) {
-  size_t num_removed = 0;
-  for (auto& candidate : candidates) {
-    int mediasection_index = GetMediasectionIndex(candidate);
-    if (mediasection_index < 0) {
-      // Not found.
-      continue;
-    }
-    num_removed += candidate_collection_[mediasection_index].remove(candidate);
-    UpdateConnectionAddress(
-        candidate_collection_[mediasection_index],
-        description_->contents()[mediasection_index].media_description());
+bool JsepSessionDescription::RemoveCandidate(const IceCandidate* candidate) {
+  size_t mediasection_index = 0u;
+  if (!GetMediasectionIndex(candidate, &mediasection_index)) {
+    return false;
   }
-  return num_removed;
+  if (!candidate_collection_[mediasection_index].remove(candidate)) {
+    return false;
+  }
+  UpdateConnectionAddress(
+      candidate_collection_[mediasection_index],
+      description_->contents()[mediasection_index].media_description());
+  return true;
 }
 
 size_t JsepSessionDescription::number_of_mediasections() const {
@@ -299,52 +300,33 @@ bool JsepSessionDescription::ToString(std::string* out) const {
   return !out->empty();
 }
 
-bool JsepSessionDescription::GetMediasectionIndex(
-    const IceCandidateInterface* candidate,
-    size_t* index) {
-  if (!candidate || !index) {
+bool JsepSessionDescription::IsValidMLineIndex(int index) const {
+  RTC_DCHECK(description_);
+  return index >= 0 &&
+         index < static_cast<int>(description_->contents().size());
+}
+
+bool JsepSessionDescription::GetMediasectionIndex(const IceCandidate* candidate,
+                                                  size_t* index) const {
+  if (!candidate || !index || !description_) {
     return false;
   }
 
-  // If the candidate has no valid mline index or sdp_mid, it is impossible
-  // to find a match.
-  if (candidate->sdp_mid().empty() &&
-      (candidate->sdp_mline_index() < 0 ||
-       static_cast<size_t>(candidate->sdp_mline_index()) >=
-           description_->contents().size())) {
-    return false;
-  }
-
-  if (candidate->sdp_mline_index() >= 0)
+  auto mid = candidate->sdp_mid();
+  if (!mid.empty()) {
+    *index = GetMediasectionIndex(mid);
+  } else {
+    // An sdp_mline_index of -1 will be treated as invalid.
     *index = static_cast<size_t>(candidate->sdp_mline_index());
-  if (description_ && !candidate->sdp_mid().empty()) {
-    bool found = false;
-    // Try to match the sdp_mid with content name.
-    for (size_t i = 0; i < description_->contents().size(); ++i) {
-      if (candidate->sdp_mid() == description_->contents().at(i).mid()) {
-        *index = i;
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      // If the sdp_mid is presented but we can't find a match, we consider
-      // this as an error.
-      return false;
-    }
   }
-  return true;
+  return IsValidMLineIndex(*index);
 }
 
-int JsepSessionDescription::GetMediasectionIndex(const Candidate& candidate) {
-  // Find the description with a matching transport name of the candidate.
-  const std::string& transport_name = candidate.transport_name();
-  for (size_t i = 0; i < description_->contents().size(); ++i) {
-    if (transport_name == description_->contents().at(i).mid()) {
-      return static_cast<int>(i);
-    }
-  }
-  return -1;
+int JsepSessionDescription::GetMediasectionIndex(absl::string_view mid) const {
+  const auto& contents = description_->contents();
+  auto it =
+      std::find_if(contents.begin(), contents.end(),
+                   [&](const auto& content) { return mid == content.mid(); });
+  return it == contents.end() ? -1 : std::distance(contents.begin(), it);
 }
-
 }  // namespace webrtc

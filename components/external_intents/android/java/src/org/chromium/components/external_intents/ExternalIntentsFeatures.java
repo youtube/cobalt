@@ -29,6 +29,8 @@ public class ExternalIntentsFeatures {
             "ReparentTopLevelNavigationFromPWA";
     public static final String REPARENT_AUXILIARY_NAVIGATION_FROM_PWA_NAME =
             "ReparentAuxiliaryNavigationFromPWA";
+    public static final String AUXILIARY_NAVIGATION_STAYS_IN_PWA_NAME =
+            "AuxiliaryNavigationStaysInPWA";
 
     public static final ExternalIntentsFeature EXTERNAL_NAVIGATION_DEBUG_LOGS =
             new ExternalIntentsFeature(0, EXTERNAL_NAVIGATION_DEBUG_LOGS_NAME);
@@ -49,6 +51,9 @@ public class ExternalIntentsFeatures {
 
     public static final ExternalIntentsFeature REPARENT_AUXILIARY_NAVIGATION_FROM_PWA =
             new ExternalIntentsFeature(5, REPARENT_AUXILIARY_NAVIGATION_FROM_PWA_NAME);
+
+    public static final ExternalIntentsFeature AUXILIARY_NAVIGATION_STAYS_IN_PWA =
+            new ExternalIntentsFeature(6, AUXILIARY_NAVIGATION_STAYS_IN_PWA_NAME);
 
     public static class ExternalIntentsFeature extends Features {
         private final int mOrdinal;
@@ -71,7 +76,7 @@ public class ExternalIntentsFeatures {
 
     public static class AuxiliaryNavigationStaysInBrowserFeature extends ExternalIntentsFeature {
         private static final String PARAM_NAME = "auxiliary_navigation_stays_in_browser";
-        private static final String DESKTOP_WM_FIELD = "desktop_wm";
+        // private static final String DESKTOP_WM_FIELD = "desktop_wm";
         private static final String ALL_WM_FIELD = "all_wm";
 
         private AuxiliaryNavigationStaysInBrowserFeature(int ordinal, String name) {
@@ -83,20 +88,15 @@ public class ExternalIntentsFeatures {
                 return false;
             }
 
+            // The feature is supposed to work on desktop windowing mode Android only.
+            if (isInDesktopWindowingMode) {
+                return true;
+            }
+
             String featureString = getFieldTrialParamByFeatureAsString(PARAM_NAME);
 
-            // The feature is supposed to work for desktop windowing only.
-            if (featureString.equals(DESKTOP_WM_FIELD) && isInDesktopWindowingMode) {
-                return true;
-            }
-
-            // The feature is supposed to work independently of windowing mode.
+            // The feature is supposed to work on all Android windowing modes.
             if (featureString.equals(ALL_WM_FIELD)) {
-                return true;
-            }
-
-            // Enabled for testing. Also corresponds to the "Enabled" option in chrome://flags.
-            if (featureString.isEmpty()) {
                 return true;
             }
 

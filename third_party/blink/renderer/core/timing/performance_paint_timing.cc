@@ -37,16 +37,16 @@ PerformancePaintTiming::PerformancePaintTiming(
     PaintType type,
     const DOMPaintTimingInfo& paint_timing_info,
     DOMWindow* source,
-    bool is_triggered_by_soft_navigation)
+    uint32_t navigation_id)
     : PerformanceEntry(
+          /*duration=*/0.0,
           FromPaintTypeToString(type),
           // https://w3c.github.io/paint-timing/#report-paint-timing
           // Set newEntry’s startTime attribute to the default paint timestamp
           // given paintTimingInfo.
           paint_timing_info.presentation_time,
-          paint_timing_info.presentation_time,
           source,
-          is_triggered_by_soft_navigation) {
+          navigation_id) {
   SetPaintTimingInfo(paint_timing_info);
 }
 

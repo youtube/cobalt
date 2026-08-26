@@ -73,6 +73,13 @@ bool IsAccessibilityPerformanceMeasurementExperimentEnabled() {
       ::features::kAccessibilityPerformanceMeasurementExperiment);
 }
 
+BASE_FEATURE(kAccessibilityUseAXBitset,
+             "AccessibilityUseAXBitset",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsAccessibilityUseAXBitsetEnabled() {
+  return base::FeatureList::IsEnabled(::features::kAccessibilityUseAXBitset);
+}
+
 namespace {
 
 constexpr base::FeatureParam<
@@ -317,7 +324,7 @@ bool IsAccessibilityShakeToLocateEnabled() {
 
 BASE_FEATURE(kAccessibilityManifestV3BrailleIme,
              "AccessibilityManifestV3BrailleIme",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityManifestV3EnabledForBrailleIme() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityManifestV3BrailleIme);
@@ -345,6 +352,14 @@ BASE_FEATURE(kAccessibilityManifestV3EspeakNGTts,
 bool IsAccessibilityManifestV3EnabledForEspeakNGTts() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityManifestV3EspeakNGTts);
+}
+
+BASE_FEATURE(kAccessibilityManifestV3GoogleTts,
+             "AccessibilityManifestV3GoogleTts",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsAccessibilityManifestV3EnabledForGoogleTts() {
+  return base::FeatureList::IsEnabled(
+      ::features::kAccessibilityManifestV3GoogleTts);
 }
 
 BASE_FEATURE(kAccessibilityManifestV3AccessibilityCommon,
@@ -488,6 +503,12 @@ bool IsScreenAITestModeEnabled() {
   return base::FeatureList::IsEnabled(::features::kScreenAITestMode);
 }
 
+#if BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kScreenAIPartitionAllocAdvancedChecksEnabled,
+             "ScreenAIPartitionAllocAdvancedChecksEnabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)
@@ -525,13 +546,12 @@ bool IsBlockRootWindowAccessibleNameChangeEventEnabled() {
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-BASE_FEATURE(kWasmTtsComponentUpdaterEnabled,
-             "WasmTtsComponentUpdaterEnabled",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-bool IsWasmTtsComponentUpdaterEnabled() {
-  return base::FeatureList::IsEnabled(::features::kReadAnythingReadAloud) &&
-         base::FeatureList::IsEnabled(
-             ::features::kWasmTtsComponentUpdaterEnabled);
+BASE_FEATURE(kWasmTtsComponentUpdaterV3Enabled,
+             "WasmTtsComponentUpdaterV3Enabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsWasmTtsComponentUpdaterV3Enabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kWasmTtsComponentUpdaterV3Enabled);
 }
 
 BASE_FEATURE(kWasmTtsEngineAutoInstallDisabled,

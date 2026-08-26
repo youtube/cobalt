@@ -118,23 +118,28 @@ std::unique_ptr<ContentVerifierIOData::ExtensionData> CreateIOData(
     result->canonical_browser_image_paths.insert(canonicalize_path(path));
   }
 
-  for (const std::string& script :
+  for (const ExtensionResource& script :
        BackgroundInfo::GetBackgroundScripts(extension)) {
     result->canonical_background_scripts_paths.insert(
-        canonicalize_path(extension->GetResource(script).relative_path()));
+        canonicalize_path(script.relative_path()));
   }
 
   if (BackgroundInfo::HasBackgroundPage(extension)) {
+    // Note: `NormalizeRelativePath` isn't necessary for relative paths that are
+    // retrieved from URLs since they don't start with a leading '/', and don't
+    // have any '.' or '..' components.
     result->canonical_background_page_path =
-        canonicalize_path(extensions::file_util::ExtensionURLToRelativeFilePath(
-            BackgroundInfo::GetBackgroundURL(extension)));
+        content_verifier_utils::CanonicalizeRelativePath(
+            extensions::file_util::ExtensionURLToRelativeFilePath(
+                BackgroundInfo::GetBackgroundURL(extension)));
   }
 
   if (BackgroundInfo::IsServiceWorkerBased(extension)) {
-    const std::string& script_path =
-        BackgroundInfo::GetBackgroundServiceWorkerScript(extension);
     result->canonical_service_worker_script_path =
-        canonicalize_path(extension->GetResource(script_path).relative_path());
+        content_verifier_utils::CanonicalizeRelativePath(
+            file_util::ExtensionURLToRelativeFilePath(
+                BackgroundInfo::GetBackgroundServiceWorkerScriptURL(
+                    extension)));
   }
 
   for (const std::unique_ptr<UserScript>& script :
@@ -720,21 +725,6 @@ void ContentVerifier::VerifyFailed(
           "Extensions.ContentVerification.VerifyFailedOnFileTypeMV3",
           file_type);
     }
-
-    // TODO(crbug.com/325613709): Remove docs offline specific logging after a
-    // few milestones.
-    if (extension_id == extension_misc::kDocsOfflineExtensionId &&
-        manifest_version == 3) {
-      base::UmaHistogramEnumeration(
-          base::StringPrintf("Extensions.ContentVerification."
-                             "VerifyFailedOnFileMV3.GoogleDocsOffline.%s",
-                             histogram_suffix),
-          reason, ContentVerifyJob::FAILURE_REASON_MAX);
-      base::UmaHistogramEnumeration(
-          "Extensions.ContentVerification.VerifyFailedOnFileTypeMV3."
-          "GoogleDocsOffline",
-          file_type);
-    }
   }
 
   delegate_->VerifyFailed(extension_id, reason);
@@ -889,29 +879,6 @@ void ContentVerifier::OnFetchComplete(
   if (g_content_verifier_test_observer) {
     g_content_verifier_test_observer->OnFetchComplete(content_hash,
                                                       did_hash_mismatch);
-  }
-
-  auto record_hash_mismatch = [&data, &did_hash_mismatch](
-                                  const char* mv2_histogram,
-                                  const char* mv3_histogram) {
-    if (mv2_histogram && data->manifest_version == 2) {
-      base::UmaHistogramBoolean(mv2_histogram, did_hash_mismatch);
-    } else if (data->manifest_version == 3) {
-      base::UmaHistogramBoolean(mv3_histogram, did_hash_mismatch);
-    }
-  };
-
-  record_hash_mismatch(
-      "Extensions.ContentVerification.DidHashMismatchOnFetchCompleteMV2",
-      "Extensions.ContentVerification.DidHashMismatchOnFetchCompleteMV3");
-
-  // TODO(crbug.com/325613709): Remove docs offline specific logging after a few
-  // milestones.
-  if (extension_id == extension_misc::kDocsOfflineExtensionId) {
-    record_hash_mismatch(
-        nullptr,  // No MV2 Google Docs Offline version.
-        "Extensions.ContentVerification.DidHashMismatchOnFetchCompleteMV3."
-        "GoogleDocsOffline");
   }
 
   if (!did_hash_mismatch)

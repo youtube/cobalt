@@ -284,6 +284,15 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Has bypassed download warnings before"/>
 </enum>
 
+<enum name="SBClientPhishingCancelClassificationReason">
+  <int value="0" label="NAVIGATE_AWAY"/>
+  <int value="1" label="NAVIGATE_WITHIN_PAGE"/>
+  <int value="2" label="PAGE_RECAPTURED"/>
+  <int value="3" label="SHUTDOWN"/>
+  <int value="4" label="NEW_PHISHING_SCORER"/>
+  <int value="5" label="SCORER_CLEARED"/>
+</enum>
+
 <enum name="SBClientPhishingCancelImageEmbeddingReason">
   <int value="0" label="NAVIGATE_AWAY"/>
   <int value="1" label="NAVIGATE_WITHIN_PAGE"/>
@@ -334,6 +343,12 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Phishing classifier was destructed"/>
   <int value="5"
       label="Scorer sent update and classifier is ready within timeout"/>
+  <int value="6" label="Phishing classifier request begins"/>
+  <int value="7" label="Phishing classifier completes"/>
+  <int value="8"
+      label="Phishing classifier callback is empty on classification
+             completion"/>
+  <int value="9" label="Phishing classification request is responded"/>
 </enum>
 
 <enum name="TailoredWarningType">

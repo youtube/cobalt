@@ -34,11 +34,15 @@
 #include "components/sync/service/syncable_service_based_data_type_controller.h"
 #include "content/public/browser/browser_thread.h"
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/browser/extensions/api/storage/settings_sync_util.h"  // nogncheck
-#include "chrome/browser/extensions/extension_sync_service.h"
+#include "chrome/browser/extensions/sync/extension_local_data_batch_uploader.h"  // nogncheck
+#include "chrome/browser/extensions/sync/extension_sync_service.h"  // nogncheck
 #include "chrome/browser/sync/glue/extension_data_type_controller.h"
 #include "chrome/browser/sync/glue/extension_setting_data_type_controller.h"
+#endif
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
@@ -79,7 +83,7 @@ void ChromeSyncControllerBuilder::SetSecurityEventRecorder(
   security_event_recorder_.Set(security_event_recorder);
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 void ChromeSyncControllerBuilder::SetExtensionSyncService(
     ExtensionSyncService* extension_sync_service) {
   extension_sync_service_.Set(extension_sync_service);
@@ -88,7 +92,9 @@ void ChromeSyncControllerBuilder::SetExtensionSyncService(
 void ChromeSyncControllerBuilder::SetExtensionSystemProfile(Profile* profile) {
   extension_system_profile_.Set(profile);
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 void ChromeSyncControllerBuilder::SetThemeService(ThemeService* theme_service) {
   theme_service_.Set(theme_service);
 }
@@ -186,15 +192,19 @@ ChromeSyncControllerBuilder::Build(syncer::SyncService* sync_service) {
         std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(
             security_events_delegate)));
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
     if (extension_sync_service_.value()) {
+      // TODO(crbug.com/425381293): Add an ExtensionLocalDataBatchUploader once
+      // its implementation is complete.
       controllers.push_back(
           std::make_unique<browser_sync::ExtensionDataTypeController>(
               syncer::EXTENSIONS, data_type_store_factory,
               extension_sync_service_.value()->AsWeakPtr(), dump_stack,
               browser_sync::ExtensionDataTypeController::DelegateMode::
                   kTransportModeWithSingleModel,
-              extension_system_profile_.value()));
+              extension_system_profile_.value(),
+              std::make_unique<extensions::ExtensionLocalDataBatchUploader>(
+                  extension_system_profile_.value())));
 
       controllers.push_back(
           std::make_unique<browser_sync::ExtensionSettingDataTypeController>(
@@ -206,7 +216,11 @@ ChromeSyncControllerBuilder::Build(syncer::SyncService* sync_service) {
               browser_sync::ExtensionSettingDataTypeController::DelegateMode::
                   kTransportModeWithSingleModel,
               extension_system_profile_.value()));
+    }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+    if (extension_sync_service_.value()) {
       controllers.push_back(
           std::make_unique<browser_sync::ExtensionDataTypeController>(
               syncer::APPS, data_type_store_factory,
@@ -258,7 +272,17 @@ ChromeSyncControllerBuilder::Build(syncer::SyncService* sync_service) {
           /*delegate_for_full_sync_mode=*/
           std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(
               delegate),
-          /*delegate_for_transport_mode=*/nullptr));
+      // TODO(crbug.com/424698545): This special-casing shouldn't be necessary
+      // for ChromeOS, but currently the transport mode delegate may be
+      // exercised in some unexpected cases.
+#if BUILDFLAG(IS_CHROMEOS)
+          /*delegate_for_transport_mode=*/nullptr
+#else   // BUILDFLAG(IS_CHROMEOS)
+          /*delegate_for_transport_mode=*/
+          std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(
+              delegate)
+#endif  // BUILDFLAG(IS_CHROMEOS)
+          ));
     }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 

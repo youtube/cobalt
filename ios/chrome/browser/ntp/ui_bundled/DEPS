@@ -1,5 +1,6 @@
 include_rules = [
   "+ios/chrome/browser/toolbar/ui_bundled",
+  "+ios/chrome/browser/aim/prototype/coordinator",
   "+ios/chrome/browser/browser_view",
   "+ios/chrome/browser/bubble/public",
   "+ios/chrome/browser/bubble/ui_bundled",
@@ -7,6 +8,7 @@ include_rules = [
   "+ios/chrome/browser/favicon/ui_bundled",
   "+ios/chrome/browser/follow/ui_bundled",
   "+ios/chrome/browser/start_surface/ui_bundled",
+  "+ios/chrome/browser/aim/model",
   "+ios/chrome/browser/content_suggestions/ui_bundled",
   "+ios/chrome/browser/first_run/ui_bundled/ios_first_run_field_trials.h",
   "+ios/chrome/browser/authentication/ui_bundled",
@@ -16,6 +18,7 @@ include_rules = [
   "+ios/chrome/browser/omnibox/ui",
   "+ios/chrome/browser/omnibox/coordinator",
   "+ios/chrome/browser/omnibox/public",
+  "+ios/chrome/browser/omnibox/model",
   "+ios/chrome/browser/lens/ui_bundled",
   "+ios/chrome/browser/toolbar/ui_bundled/public",
   "+ios/chrome/browser/sharing/ui_bundled",
@@ -64,6 +67,7 @@ include_rules = [
   "+ios/chrome/browser/toolbar/ui_bundled/tab_groups/ui/tab_group_indicator_view.h",
   "+ios/chrome/browser/location_bar/ui_bundled",
   "+ios/chrome/browser/push_notification/model/constants.h",
+  "+third_party/material_color_utilities/src/cpp"
 ]
 
 specific_include_rules = {

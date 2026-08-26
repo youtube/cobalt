@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <type_traits>
+#include <tuple>
 #include <vector>
 
 #include "third_party/jni_zero/common_apis.h"
@@ -32,6 +33,16 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& opt_value) {
   return ToJniType(env, opt_value.value());
 }
 
+// Allow conversions of a nullable Java array to an std::optional container by
+// wrapping non-optional conversions.
+template <internal::IsOptional T>
+inline T FromJniArray(JNIEnv* env, const JavaRef<jobject>& j_object) {
+  if (!j_object) {
+    return std::nullopt;
+  }
+  return FromJniArray<typename T::value_type>(env, j_object);
+}
+
 // Convert Java array -> container type using FromJniType() on each element.
 template <internal::IsObjectContainer ContainerType>
 inline ContainerType FromJniArray(JNIEnv* env,
@@ -53,9 +64,9 @@ inline ContainerType FromJniArray(JNIEnv* env,
     // Do not call FromJni for jobject->jobject.
     if constexpr (std::is_base_of_v<JavaRef<jobject>, ElementType>) {
       if constexpr (has_push_back) {
-        ret.emplace_back(env, j_element);
+        ret.push_back(ElementType::Adopt(env, j_element));
       } else if constexpr (has_insert) {
-        ret.emplace(env, j_element);
+        ret.insert(ElementType::Adopt(env, j_element));
       }
     } else {
       auto element = ScopedJavaLocalRef<jobject>::Adopt(env, j_element);
@@ -90,7 +101,7 @@ ToJniArray(JNIEnv* env, const ContainerType& collection, jclass clazz) {
     }
     ++i;
   }
-  return ScopedJavaLocalRef<jobjectArray>(env, j_array);
+  return ScopedJavaLocalRef<jobjectArray>::Adopt(env, j_array);
 }
 #else
 namespace internal {

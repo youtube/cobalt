@@ -11,6 +11,7 @@
 
 #include "base/containers/contains.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
@@ -25,6 +26,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -163,7 +165,7 @@ void TabsApiUnitTest::SetUp() {
   Browser::CreateParams params(profile(), true);
   params.type = Browser::TYPE_NORMAL;
   params.window = browser_window_.get();
-  browser_.reset(Browser::Create(params));
+  browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
 
   tab_groups::TabGroupSyncService* saved_service = sync_service();
   ASSERT_TRUE(saved_service);
@@ -814,7 +816,7 @@ TEST_F(TabsApiUnitTest, TabsMoveAcrossWindows) {
   // TestBrowserWindowOwner handles its own lifetime, and also cleans up
   // |window2|.
   new TestBrowserWindowOwner(std::move(window2));
-  std::unique_ptr<Browser> browser2(Browser::Create(params));
+  auto browser2 = Browser::DeprecatedCreateOwnedForTesting(params);
   BrowserList::SetLastActive(browser2.get());
   int window_id2 = ExtensionTabUtil::GetWindowId(browser2.get());
 
@@ -885,7 +887,7 @@ TEST_F(TabsApiUnitTest, TabsMoveAcrossWindowsShouldRespectGroupContiguity) {
   // TestBrowserWindowOwner handles its own lifetime, and also cleans up
   // |window2|.
   new TestBrowserWindowOwner(std::move(window2));
-  std::unique_ptr<Browser> browser2(Browser::Create(params));
+  auto browser2 = Browser::DeprecatedCreateOwnedForTesting(params);
   BrowserList::SetLastActive(browser2.get());
   int window_id2 = ExtensionTabUtil::GetWindowId(browser2.get());
 
@@ -990,7 +992,7 @@ TEST_F(TabsApiUnitTest, TabsGroupWithinWindow) {
     web_contentses.push_back(contents.get());
 
     GetTabStripModel()->AppendWebContents(std::move(contents),
-                                          /* foreground */ true);
+                                          /*foreground=*/true);
   }
   ASSERT_EQ(kNumTabs, GetTabStripModel()->count());
 
@@ -1148,7 +1150,7 @@ TEST_F(TabsApiUnitTest, TabsGroupAcrossWindows) {
   // TestBrowserWindowOwner handles its own lifetime, and also cleans up
   // |window2|.
   new TestBrowserWindowOwner(std::move(window2));
-  std::unique_ptr<Browser> browser2(Browser::Create(params));
+  auto browser2 = Browser::DeprecatedCreateOwnedForTesting(params);
 
   constexpr int kNumTabs2 = 3;
   for (int i = 0; i < kNumTabs2; ++i) {
@@ -1667,7 +1669,7 @@ TEST_F(TabsApiUnitTest, CannotDuplicatePictureInPictureWindows) {
   params.type = Browser::TYPE_PICTURE_IN_PICTURE;
   params.window = pip_window.get();
   std::unique_ptr<Browser> pip_browser;
-  pip_browser.reset(Browser::Create(params));
+  pip_browser = Browser::DeprecatedCreateOwnedForTesting(params);
   std::unique_ptr<content::WebContents> contents(
       content::WebContentsTester::CreateTestWebContents(profile(), nullptr));
   CreateSessionServiceTabHelper(contents.get());
@@ -1723,14 +1725,14 @@ TEST_F(TabsApiUnitTest, TabsDiscard) {
   const std::string args = base::StringPrintf(kFormatArgs, tab_id);
   ASSERT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
                                           api_test_utils::FunctionMode::kNone));
-  // check that the tab has discarded
+  // Check that the tab has discarded
   content::WebContents* new_contents_at_index =
       GetTabStripModel()->GetWebContentsAt(index);
   EXPECT_TRUE(new_contents_at_index->WasDiscarded());
 }
 
-// Tests that calling chrome.tabs.discard on a saved tab does not discard.
-TEST_F(TabsApiUnitTest, TabsDiscardSavedTabGroupTabNotAllowed) {
+// Tests that calling chrome.tabs.discard on a saved tab does discard.
+TEST_F(TabsApiUnitTest, TabsDiscardSavedTabGroupTabAllowed) {
   scoped_refptr<const Extension> extension =
       ExtensionBuilder("DiscardTest").Build();
   const GURL kExampleCom("http://example.com");
@@ -1760,12 +1762,16 @@ TEST_F(TabsApiUnitTest, TabsDiscardSavedTabGroupTabNotAllowed) {
       u"Initial title", tab_groups::TabGroupColorId::kBlue);
   browser()->tab_strip_model()->ChangeTabGroupVisuals(group, visual_data);
 
-  // The tab discard function should fail.
   auto function = base::MakeRefCounted<TabsDiscardFunction>();
   function->set_extension(extension);
   EXPECT_TRUE(api_test_utils::RunFunction(
       function.get(), base::StringPrintf("[%d]", tab_id), profile(),
       api_test_utils::FunctionMode::kNone));
+
+  // Check that the tab has discarded
+  content::WebContents* new_contents_at_index =
+      GetTabStripModel()->GetWebContentsAt(0);
+  EXPECT_TRUE(new_contents_at_index->WasDiscarded());
 }
 
 TEST_F(TabsApiUnitTest, SplitTabsWithHighlightFunction) {
@@ -1778,7 +1784,9 @@ TEST_F(TabsApiUnitTest, SplitTabsWithHighlightFunction) {
                                           /*foreground=*/true);
   }
   GetTabStripModel()->ActivateTabAt(0);
-  GetTabStripModel()->AddToNewSplit({1}, split_tabs::SplitTabVisualData());
+  GetTabStripModel()->AddToNewSplit(
+      {1}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kLinkContextMenu);
 
   // Run extension to highlight tabs
   auto extension = CreateTabsExtension();
@@ -1845,5 +1853,256 @@ TEST_F(TabsApiUnitTest,
   EXPECT_TRUE(new_contents_at_index->WasDiscarded());
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+class TabsApiSideBySideUnitTest : public TabsApiUnitTest {
+ public:
+  TabsApiSideBySideUnitTest() {
+    scoped_feature_list_.InitAndEnableFeature(features::kSideBySide);
+  }
+
+ protected:
+  std::vector<content::WebContents*> CreateAndGetWebContents(int count) {
+    std::vector<int> tab_ids;
+    std::vector<content::WebContents*> web_contentses;
+    for (int i = 0; i < count; ++i) {
+      std::unique_ptr<content::WebContents> contents(
+          content::WebContentsTester::CreateTestWebContents(profile(),
+                                                            nullptr));
+
+      CreateSessionServiceTabHelper(contents.get());
+      tab_ids.push_back(
+          sessions::SessionTabHelper::IdForTab(contents.get()).id());
+      web_contentses.push_back(contents.get());
+
+      GetTabStripModel()->AppendWebContents(std::move(contents),
+                                            /*foreground=*/true);
+    }
+    CHECK_EQ(count, GetTabStripModel()->count());
+    return web_contentses;
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Tests that calling chrome.tabs.move() works when a tab is moved within a
+// split view.
+TEST_F(TabsApiSideBySideUnitTest, TabsMoveWithinSplitView) {
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("TabsMoveWithinSplitView").Build();
+
+  // Add several web contents to the browser and get their tab IDs.
+  std::vector<content::WebContents*> web_contentses =
+      CreateAndGetWebContents(5);
+
+  // Create a split with tabs 3 and 4.
+  GetTabStripModel()->AddToNewSplit(
+      {3}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kTabContextMenu);
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(3).has_value());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(4).has_value());
+
+  // Use the TabsMoveFunction to move tab at index 0 to the middle of the split
+  // view with tabs 3 and 4.
+  int tab_extension_id = sessions::SessionTabHelper::IdForTab(
+                             GetTabStripModel()->GetWebContentsAt(0))
+                             .id();
+  auto function = base::MakeRefCounted<TabsMoveFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] = R"([[%d], {"index": 3}])";
+  const std::string args = base::StringPrintf(kFormatArgs, tab_extension_id);
+
+  EXPECT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
+                                          api_test_utils::FunctionMode::kNone));
+
+  EXPECT_EQ(ExtensionFunction::ResponseType::kSucceeded,
+            *function->response_type());
+
+  // Expect that the tab has been moved between the two tabs previously in a
+  // split view and that the split view has been destroyed.
+  EXPECT_EQ(GetTabStripModel()->GetWebContentsAt(2), web_contentses[3]);
+  EXPECT_EQ(GetTabStripModel()->GetWebContentsAt(3), web_contentses[0]);
+  EXPECT_EQ(GetTabStripModel()->GetWebContentsAt(4), web_contentses[4]);
+  EXPECT_FALSE(GetTabStripModel()->GetSplitForTab(2).has_value());
+  EXPECT_FALSE(GetTabStripModel()->GetSplitForTab(4).has_value());
+}
+
+// Tests that calling chrome.tabs.move() works when a tab within a split view is
+// moved.
+TEST_F(TabsApiSideBySideUnitTest, TabsMoveFromSplitView) {
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("TabsMoveFromSplitView").Build();
+
+  // Add several web contents to the browser and get their tab IDs.
+  std::vector<content::WebContents*> web_contentses =
+      CreateAndGetWebContents(5);
+
+  // Create a split with tabs 3 and 4.
+  GetTabStripModel()->AddToNewSplit({3}, split_tabs::SplitTabVisualData(),
+                                    split_tabs::SplitTabCreatedSource());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(3).has_value());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(4).has_value());
+
+  // Use the TabsMoveFunction to move split tab at index 3 to index 0.
+  int tab_extension_id = sessions::SessionTabHelper::IdForTab(
+                             GetTabStripModel()->GetWebContentsAt(3))
+                             .id();
+  auto function = base::MakeRefCounted<TabsMoveFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] = R"([[%d], {"index": 0}])";
+  const std::string args = base::StringPrintf(kFormatArgs, tab_extension_id);
+
+  EXPECT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
+                                          api_test_utils::FunctionMode::kNone));
+  EXPECT_EQ(ExtensionFunction::ResponseType::kSucceeded,
+            *function->response_type());
+
+  // Expect that the tab has been moved to index 0 and the original split view
+  // is removed.
+  EXPECT_EQ(GetTabStripModel()->GetWebContentsAt(0), web_contentses[3]);
+  EXPECT_EQ(GetTabStripModel()->GetWebContentsAt(1), web_contentses[0]);
+  EXPECT_FALSE(GetTabStripModel()->GetSplitForTab(0).has_value());
+  EXPECT_FALSE(GetTabStripModel()->GetSplitForTab(4).has_value());
+}
+
+// Tests that chrome.tabs.duplicate removes split view.
+TEST_F(TabsApiSideBySideUnitTest, TabsDuplicateSplitView) {
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("TabsDuplicateSplitView").Build();
+
+  // Add a couple of web contents to the browser and mark them as split.
+  CreateAndGetWebContents(2);
+  GetTabStripModel()->ActivateTabAt(0);
+  GetTabStripModel()->AddToNewSplit({1}, split_tabs::SplitTabVisualData(),
+                                    split_tabs::SplitTabCreatedSource());
+
+  // Check that the two tabs are split
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(1).has_value());
+
+  // Use the TabsDuplicateFunction to duplicate the tab at index 0.
+  int tab_extension_id = sessions::SessionTabHelper::IdForTab(
+                             GetTabStripModel()->GetWebContentsAt(0))
+                             .id();
+  auto function = base::MakeRefCounted<TabsDuplicateFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] = R"([%d])";
+  const std::string args = base::StringPrintf(kFormatArgs, tab_extension_id);
+
+  EXPECT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
+                                          api_test_utils::FunctionMode::kNone));
+  EXPECT_EQ(ExtensionFunction::ResponseType::kSucceeded,
+            *function->response_type());
+
+  // Expect that there is one new tab in the tab strip the split view has been
+  // removed.
+  EXPECT_EQ(3, GetTabStripModel()->count());
+  EXPECT_FALSE(GetTabStripModel()->GetSplitForTab(0).has_value());
+  EXPECT_FALSE(GetTabStripModel()->GetSplitForTab(1).has_value());
+  EXPECT_FALSE(GetTabStripModel()->GetSplitForTab(2).has_value());
+}
+
+// Tests that calling chrome.tabs.discard on an inactive tab in an active split
+// will discard that tab.
+TEST_F(TabsApiSideBySideUnitTest, TabsDiscardInactiveTabInActiveSplitView) {
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("TabsDeleteFromSplitView").Build();
+
+  // Add a couple of web contents to the browser and mark them as split.
+  CreateAndGetWebContents(2);
+  GetTabStripModel()->ActivateTabAt(0);
+  GetTabStripModel()->AddToNewSplit({1}, split_tabs::SplitTabVisualData(),
+                                    split_tabs::SplitTabCreatedSource());
+
+  // Check that the two tabs are split and the tab at index 0 is active.
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(1).has_value());
+  EXPECT_EQ(0, GetTabStripModel()->active_index());
+
+  // The tab discard function should succeed.
+  int tab_extension_id = sessions::SessionTabHelper::IdForTab(
+                             GetTabStripModel()->GetWebContentsAt(1))
+                             .id();
+  auto function = base::MakeRefCounted<TabsDiscardFunction>();
+  function->set_extension(extension);
+  EXPECT_TRUE(api_test_utils::RunFunction(
+      function.get(), base::StringPrintf("[%d]", tab_extension_id), profile(),
+      api_test_utils::FunctionMode::kNone));
+  EXPECT_EQ(ExtensionFunction::ResponseType::kSucceeded,
+            *function->response_type());
+
+  // The tab should be discarded.
+  content::WebContents* new_contents_at_index =
+      GetTabStripModel()->GetWebContentsAt(1);
+  EXPECT_TRUE(new_contents_at_index->WasDiscarded());
+}
+
+// Tests that calling chrome.tabs.delete works when a tab within a split view
+// is deleted.
+TEST_F(TabsApiSideBySideUnitTest, TabsDeleteFromSplitView) {
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("TabsDeleteFromSplitView").Build();
+
+  // Add a couple of web contents to the browser and mark them as split.
+  CreateAndGetWebContents(2);
+  GetTabStripModel()->ActivateTabAt(0);
+  GetTabStripModel()->AddToNewSplit({1}, split_tabs::SplitTabVisualData(),
+                                    split_tabs::SplitTabCreatedSource());
+
+  // Check that the two tabs are split
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(1).has_value());
+
+  // Use the TabsRemoveFunction to remove the tab at index 0.
+  int tab_extension_id = sessions::SessionTabHelper::IdForTab(
+                             GetTabStripModel()->GetWebContentsAt(0))
+                             .id();
+  auto function = base::MakeRefCounted<TabsRemoveFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] = R"([[%d]])";
+  const std::string args = base::StringPrintf(kFormatArgs, tab_extension_id);
+
+  EXPECT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
+                                          api_test_utils::FunctionMode::kNone));
+  EXPECT_EQ(ExtensionFunction::ResponseType::kSucceeded,
+            *function->response_type());
+
+  // Expect that the tab has been removed and the remaining tab is not in a
+  // split view.
+  EXPECT_EQ(1, GetTabStripModel()->count());
+  EXPECT_FALSE(GetTabStripModel()->GetSplitForTab(0).has_value());
+}
+
+TEST_F(TabsApiSideBySideUnitTest, TabsQueryWithSplitView) {
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("TabsDeleteFromSplitView").Build();
+
+  // Add a couple of web contents to the browser and mark the first two as
+  // split.
+  CreateAndGetWebContents(5);
+  GetTabStripModel()->ActivateTabAt(0);
+  GetTabStripModel()->AddToNewSplit({1}, split_tabs::SplitTabVisualData(),
+                                    split_tabs::SplitTabCreatedSource());
+
+  // Check that the two tabs are split
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(1).has_value());
+
+  // Use the TabsQueryFunction to get the list of tabs without a split.
+  const char* kNoSplitQueryInfo = "[{\"splitViewId\": -1}]";
+  base::Value::List tabs_list_without_split =
+      RunTabsQueryFunction(profile(), extension.get(), kNoSplitQueryInfo);
+  EXPECT_EQ(3u, tabs_list_without_split.size());
+
+  int split_id = ExtensionTabUtil::GetSplitId(
+      GetTabStripModel()->GetSplitForTab(0).value());
+
+  constexpr char kFormatArgs[] = R"([{"splitViewId": %d}])";
+  const std::string args = base::StringPrintf(kFormatArgs, split_id);
+  base::Value::List tabs_list_with_split =
+      RunTabsQueryFunction(profile(), extension.get(), args);
+  EXPECT_EQ(2u, tabs_list_with_split.size());
+  EXPECT_EQ(split_id, tabs_list_with_split[0].GetDict().FindInt("splitViewId"));
+}
 
 }  // namespace extensions

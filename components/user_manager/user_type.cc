@@ -17,12 +17,14 @@ const char* UserTypeToString(UserType user_type) {
       return "guest";
     case UserType::kPublicAccount:
       return "managed-guest-session";
-    case UserType::kKioskApp:
+    case UserType::kKioskChromeApp:
       return "chrome-app-kiosk";
-    case UserType::kWebKioskApp:
+    case UserType::kKioskWebApp:
       return "web-kiosk";
     case UserType::kKioskIWA:
       return "iwa-kiosk";
+    case UserType::kKioskArcvmApp:
+      return "arcvm-kiosk";
   }
 }
 

@@ -4,7 +4,7 @@
 
 # Execute this file to set up some common GN arg configs for Chromium builders.
 
-load("//lib/gn_args.star", "gn_args")
+load("@chromium-luci//gn_args.star", "gn_args")
 
 gn_args.config(
     name = "afl",
@@ -410,6 +410,14 @@ gn_args.config(
         "clang",
     ],
 )
+
+gn_args.config(
+    name = "no_treat_warnings_as_errors",
+    args = {
+        "treat_warnings_as_errors": False,
+    },
+)
+
 gn_args.config(
     name = "codesearch_builder",
     args = {
@@ -579,13 +587,6 @@ gn_args.config(
     name = "enable_rust_mojom_bindings",
     args = {
         "enable_rust_mojom_bindings": True,
-    },
-)
-
-gn_args.config(
-    name = "enable_rust_png",
-    args = {
-        "enable_rust_png": True,
     },
 )
 
@@ -854,6 +855,11 @@ gn_args.config(
 )
 
 gn_args.config(
+    name = "tvos_platform",
+    args = {"target_platform": "tvos"},
+)
+
+gn_args.config(
     name = "is_skylab",
     args = {
         "is_skylab": True,
@@ -874,9 +880,9 @@ gn_args.config(
 
 # Do not use this for non-FYI builders.
 gn_args.config(
-    name = "libcxx_modules",
+    name = "clang_modules",
     args = {
-        "use_libcxx_modules": True,
+        "use_clang_modules": True,
     },
 )
 

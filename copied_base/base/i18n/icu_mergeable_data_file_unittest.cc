@@ -10,7 +10,6 @@
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if !BUILDFLAG(IS_NACL)
 #if ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE
 
 namespace base::i18n {
@@ -241,4 +240,3 @@ TEST_F(IcuMergeableDataFileTest, IcuDataFileMergesCommonPagesWithCachedHashes) {
 }  // namespace base::i18n
 
 #endif  // ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE
-#endif  // !BUILDFLAG(IS_NACL)

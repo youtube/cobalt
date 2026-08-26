@@ -38,14 +38,9 @@
 namespace partition_alloc::tools {
 
 using partition_alloc::internal::kSuperPageSize;
-using partition_alloc::internal::MetadataKind;
+using partition_alloc::internal::PartitionPageMetadata;
 using partition_alloc::internal::PartitionPageSize;
-template <MetadataKind kind>
-using PartitionPageMetadata =
-    partition_alloc::internal::PartitionPageMetadata<kind>;
-template <MetadataKind kind>
-using PartitionSuperPageExtentEntry =
-    partition_alloc::internal::PartitionSuperPageExtentEntry<kind>;
+using partition_alloc::internal::PartitionSuperPageExtentEntry;
 using partition_alloc::internal::SystemPageSize;
 
 // See https://www.kernel.org/doc/Documentation/vm/pagemap.txt.
@@ -135,12 +130,10 @@ class HeapDumper {
         reinterpret_cast<uintptr_t>(root_.get()->first_extent);
     while (extent_address) {
       auto extent =
-          RawBuffer<PartitionSuperPageExtentEntry<MetadataKind::kReadOnly>>::
-              ReadFromProcessMemory(reader_, extent_address);
+          RawBuffer<PartitionSuperPageExtentEntry>::ReadFromProcessMemory(
+              reader_, extent_address);
       uintptr_t first_super_page_address = SuperPagesBeginFromExtent(
-          reinterpret_cast<
-              PartitionSuperPageExtentEntry<MetadataKind::kReadOnly>*>(
-              extent_address));
+          reinterpret_cast<PartitionSuperPageExtentEntry*>(extent_address));
       for (uintptr_t super_page = first_super_page_address;
            super_page < first_super_page_address +
                             extent->get()->number_of_consecutive_super_pages *
@@ -181,9 +174,14 @@ class HeapDumper {
       ret.Set("type", value);
 
       if (value != "metadata" && value != "guard") {
-        const auto* page_metadata =
-            PartitionPageMetadata<MetadataKind::kReadOnly>::FromAddr(
-                reinterpret_cast<uintptr_t>(data + offset));
+        // TODO(crbug.com/40238514): provide `offsets_to_metadata_`
+        // and `pool` information for pa_dump_heap.
+        // Currently there is no way to provide `metadata_offset_` for
+        // pa_dump_heap. So pa_dump_heap cannot find any metadata, i.e.
+        // PartitionPageMetadata, SlotSpanMetadata, and so on.
+        constexpr std::ptrdiff_t metadata_offset = 0;
+        const auto* page_metadata = PartitionPageMetadata::FromAddr(
+            reinterpret_cast<uintptr_t>(data + offset), metadata_offset);
         ret.Set("page_index_in_span", page_metadata->slot_span_metadata_offset);
         if (page_metadata->slot_span_metadata_offset == 0 &&
             page_metadata->slot_span_metadata.bucket) {

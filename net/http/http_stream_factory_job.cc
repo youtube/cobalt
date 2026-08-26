@@ -23,6 +23,7 @@
 #include "net/base/proxy_chain.h"
 #include "net/base/proxy_delegate.h"
 #include "net/base/session_usage.h"
+#include "net/base/task/task_runner.h"
 #include "net/base/url_util.h"
 #include "net/cert/cert_verifier.h"
 #include "net/dns/public/secure_dns_policy.h"
@@ -65,6 +66,14 @@ BASE_FEATURE(kLimitEarlyPreconnectsExperiment,
              "LimitEarlyPreconnects",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+const scoped_refptr<base::SingleThreadTaskRunner>& TaskRunner(
+    net::RequestPriority priority) {
+  if (features::kNetTaskSchedulerHttpStreamFactoryJob.Get()) {
+    return net::GetTaskRunner(priority);
+  }
+  return base::SingleThreadTaskRunner::GetCurrentDefault();
+}
+
 }  // namespace
 
 const char* NetLogHttpStreamJobType(HttpStreamFactory::JobType job_type) {
@@ -104,7 +113,7 @@ HttpStreamFactory::Job::Job(
     NextProto alternative_protocol,
     quic::ParsedQuicVersion quic_version,
     bool is_websocket,
-    bool enable_ip_based_pooling,
+    bool enable_ip_based_pooling_for_h2,
     std::optional<ConnectionManagementConfig> management_config,
     NetLog* net_log)
     : request_info_(request_info),
@@ -123,8 +132,8 @@ HttpStreamFactory::Job::Job(
       try_websocket_over_http2_(is_websocket_ &&
                                 origin_url_.SchemeIs(url::kWssScheme)),
       // Only support IP-based pooling for non-proxied streams.
-      enable_ip_based_pooling_(enable_ip_based_pooling &&
-                               proxy_info.is_direct()),
+      enable_ip_based_pooling_for_h2_(enable_ip_based_pooling_for_h2 &&
+                                      proxy_info.is_direct()),
       delegate_(delegate),
       job_type_(job_type),
       using_ssl_(origin_url_.SchemeIs(url::kHttpsScheme) ||
@@ -530,7 +539,7 @@ void HttpStreamFactory::Job::RunLoop(int result) {
   RecordCompletionHistograms(result);
 
   if ((job_type_ == PRECONNECT) || (job_type_ == PRECONNECT_DNS_ALPN_H3)) {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+    TaskRunner(priority_)->PostTask(
         FROM_HERE,
         base::BindOnce(&HttpStreamFactory::Job::OnPreconnectsComplete,
                        ptr_factory_.GetWeakPtr(), result));
@@ -543,7 +552,7 @@ void HttpStreamFactory::Job::RunLoop(int result) {
     GetSSLInfo(&ssl_info);
 
     next_state_ = STATE_WAITING_USER_ACTION;
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+    TaskRunner(priority_)->PostTask(
         FROM_HERE,
         base::BindOnce(&HttpStreamFactory::Job::OnCertificateErrorCallback,
                        ptr_factory_.GetWeakPtr(), result, ssl_info));
@@ -552,7 +561,7 @@ void HttpStreamFactory::Job::RunLoop(int result) {
 
   switch (result) {
     case ERR_SSL_CLIENT_AUTH_CERT_NEEDED:
-      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      TaskRunner(priority_)->PostTask(
           FROM_HERE,
           base::BindOnce(
               &Job::OnNeedsClientAuthCallback, ptr_factory_.GetWeakPtr(),
@@ -563,31 +572,31 @@ void HttpStreamFactory::Job::RunLoop(int result) {
       next_state_ = STATE_DONE;
       if (is_websocket_) {
         DCHECK(websocket_stream_);
-        base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        TaskRunner(priority_)->PostTask(
             FROM_HERE,
             base::BindOnce(&Job::OnWebSocketHandshakeStreamReadyCallback,
                            ptr_factory_.GetWeakPtr()));
       } else if (stream_type_ == HttpStreamRequest::BIDIRECTIONAL_STREAM) {
         if (!bidirectional_stream_impl_) {
-          base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          TaskRunner(priority_)->PostTask(
               FROM_HERE, base::BindOnce(&Job::OnStreamFailedCallback,
                                         ptr_factory_.GetWeakPtr(), ERR_FAILED));
         } else {
-          base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          TaskRunner(priority_)->PostTask(
               FROM_HERE,
               base::BindOnce(&Job::OnBidirectionalStreamImplReadyCallback,
                              ptr_factory_.GetWeakPtr()));
         }
       } else {
         DCHECK(stream_.get());
-        base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        TaskRunner(priority_)->PostTask(
             FROM_HERE, base::BindOnce(&Job::OnStreamReadyCallback,
                                       ptr_factory_.GetWeakPtr()));
       }
       return;
 
     default:
-      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      TaskRunner(priority_)->PostTask(
           FROM_HERE, base::BindOnce(&Job::OnStreamFailedCallback,
                                     ptr_factory_.GetWeakPtr(), result));
       return;
@@ -735,18 +744,18 @@ int HttpStreamFactory::Job::DoInitConnectionImpl() {
 
         bool is_blocking_request_for_session;
         existing_spdy_session_ = session_->spdy_session_pool()->RequestSession(
-            spdy_session_key_, enable_ip_based_pooling_, is_websocket_,
+            spdy_session_key_, enable_ip_based_pooling_for_h2_, is_websocket_,
             net_log_, resume_callback, this, &spdy_session_request_,
             &is_blocking_request_for_session);
         if (!existing_spdy_session_ && should_throttle_connect &&
             !is_blocking_request_for_session) {
           net_log_.AddEvent(NetLogEventType::HTTP_STREAM_JOB_THROTTLED);
           next_state_ = STATE_INIT_CONNECTION;
-          base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          TaskRunner(priority_)->PostDelayedTask(
               FROM_HERE, resume_callback, base::Milliseconds(kHTTP2ThrottleMs));
           return ERR_IO_PENDING;
         }
-      } else if (enable_ip_based_pooling_) {
+      } else if (enable_ip_based_pooling_for_h2_) {
         // If already watching for an H2 session, still need to check for an
         // existing connection that can be reused through IP pooling, as those
         // don't post session available notifications.
@@ -755,8 +764,8 @@ int HttpStreamFactory::Job::DoInitConnectionImpl() {
         // callback.
         existing_spdy_session_ =
             session_->spdy_session_pool()->FindAvailableSession(
-                spdy_session_key_, enable_ip_based_pooling_, is_websocket_,
-                net_log_);
+                spdy_session_key_, enable_ip_based_pooling_for_h2_,
+                is_websocket_, net_log_);
       }
     }
     if (existing_spdy_session_) {
@@ -1111,7 +1120,7 @@ int HttpStreamFactory::Job::DoCreateStream() {
                                   session_->websocket_endpoint_lock_manager());
     } else {
       if (!request_info_.is_http1_allowed) {
-        return ERR_H2_OR_QUIC_REQUIRED;
+        return ERR_ALPN_NEGOTIATION_FAILED;
       }
       stream_ = std::make_unique<HttpBasicStream>(std::move(connection_),
                                                   is_for_get_to_http_proxy);
@@ -1131,7 +1140,7 @@ int HttpStreamFactory::Job::DoCreateStream() {
 
     existing_spdy_session_ =
         session_->spdy_session_pool()->FindAvailableSession(
-            spdy_session_key_, enable_ip_based_pooling_,
+            spdy_session_key_, enable_ip_based_pooling_for_h2_,
             /* is_websocket = */ false, net_log_);
   }
   if (existing_spdy_session_) {
@@ -1258,7 +1267,7 @@ HttpStreamFactory::JobFactory::CreateJob(
     url::SchemeHostPort destination,
     GURL origin_url,
     bool is_websocket,
-    bool enable_ip_based_pooling,
+    bool enable_ip_based_pooling_for_h2,
     NetLog* net_log,
     NextProto alternative_protocol,
     quic::ParsedQuicVersion quic_version,
@@ -1266,8 +1275,8 @@ HttpStreamFactory::JobFactory::CreateJob(
   return std::make_unique<HttpStreamFactory::Job>(
       delegate, job_type, session, request_info, priority, proxy_info,
       allowed_bad_certs, std::move(destination), origin_url,
-      alternative_protocol, quic_version, is_websocket, enable_ip_based_pooling,
-      management_config, net_log);
+      alternative_protocol, quic_version, is_websocket,
+      enable_ip_based_pooling_for_h2, management_config, net_log);
 }
 
 bool HttpStreamFactory::Job::ShouldThrottleConnectForSpdy() const {

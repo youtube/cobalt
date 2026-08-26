@@ -80,6 +80,74 @@ function compareBuffersWithConstraints(should, actual, expected, options) {
       .beLessThanOrEqualTo(thresholdDiffCount);
 }
 
+// TODO(saqlain): compareBuffersWithConstraintsModern() is the
+// testharness.js-compatible version of compareBuffersWithConstraints().
+// It replaces the old audit.js-style assertions with
+// standard testharness.js assertions. Once all audit.js tests are migrated,
+// rename this to testTailTime() and delete the old one.
+
+function compareBuffersWithConstraintsModern(actual, expected, options) {
+  if (!options)
+    options = {};
+
+  // Only print out the message if the lengths are different; the
+  // expectation is that they are the same, so don't clutter up the
+  // output.
+  if (actual.length !== expected.length) {
+    assert_equals(
+        actual.length,
+        expected.length,
+        'Length of actual and expected buffers should match');
+  }
+
+  let maxError = -1;
+  let diffCount = 0;
+  let errorPosition = -1;
+  let thresholdSNR = (options.thresholdSNR || 10000);
+
+  let thresholdDiffULP = (options.thresholdDiffULP || 0);
+  let thresholdDiffCount = (options.thresholdDiffCount || 0);
+
+  // By default, the bit depth is 16.
+  let bitDepth = (options.bitDepth || 16);
+  let scaleFactor = Math.pow(2, bitDepth - 1);
+
+  let noisePower = 0, signalPower = 0;
+
+  for (let i = 0; i < actual.length; i++) {
+    let diff = actual[i] - expected[i];
+    noisePower += diff * diff;
+    signalPower += expected[i] * expected[i];
+
+    if (Math.abs(diff) > maxError) {
+      maxError = Math.abs(diff);
+      errorPosition = i;
+    }
+
+    // The reference file is a 16-bit WAV file, so we will almost never get
+    // an exact match between it and the actual floating-point result.
+    if (Math.abs(diff) > scaleFactor)
+      diffCount++;
+  }
+
+  let snr = 10 * Math.log10(signalPower / noisePower);
+  let maxErrorULP = maxError * scaleFactor;
+
+  assert_greater_than_equal(
+      snr, thresholdSNR, 'SNR should be >= threshold (' + thresholdSNR + ')');
+
+  assert_less_than_equal(
+      maxErrorULP,
+      thresholdDiffULP,
+      options.prefix + ': Maximum difference (in ulp units (' + bitDepth +
+          '-bits))');
+
+  assert_less_than_equal(
+      diffCount,
+      thresholdDiffCount,
+      options.prefix + ': Number of differences between results');
+}
+
 // Create an impulse in a buffer of length sampleFrameLength
 function createImpulseBuffer(context, sampleFrameLength) {
   let audioBuffer =
@@ -192,4 +260,117 @@ function computeSNR(actual, expected) {
   }
 
   return signalPower / noisePower;
+}
+
+// BufferLoader – utility for fetching & decoding multiple audio files.
+function BufferLoader(context, urlList, callback) {
+  this.context = context;
+  this.urlList = urlList;
+  this.onload = callback;
+  this.bufferList = new Array();
+  this.loadCount = 0;
+}
+
+// BufferLoader – utility for fetching & decoding multiple audio files.
+BufferLoader.prototype.loadBuffer = function(url, index) {
+  // Load buffer asynchronously
+  let request = new XMLHttpRequest();
+  request.open('GET', url, true);
+  request.responseType = 'arraybuffer';
+
+  let loader = this;
+
+  request.onload = function() {
+    loader.context.decodeAudioData(
+      request.response,
+      function(decodedAudio) {
+        try {
+          loader.bufferList[index] = decodedAudio;
+          if (++loader.loadCount === loader.urlList.length)
+            loader.onload(loader.bufferList);
+        } catch (e) {
+          console.log(e);
+          alert(
+            'BufferLoader: unable to load buffer ' + index +
+            ', url: ' + loader.urlList[index]);
+        }
+      },
+      function() {
+        alert('error decoding file data: ' + url);
+      }
+    );
+  };
+
+  request.onerror = function() {
+    alert('BufferLoader: XHR error');
+  };
+
+  request.send();
+};
+
+BufferLoader.prototype.load = function() {
+  for (let i = 0; i < this.urlList.length; ++i)
+    this.loadBuffer(this.urlList[i], i);
+};
+
+// Returns a promise that resolves with an array of AudioBuffers once all
+// resources have loaded.
+function loadBuffers(context, urls) {
+  return new Promise((resolve, reject) => {
+    const loader = new BufferLoader(context, urls, resolve, reject);
+    loader.load();
+  });
+}
+
+/**
+ * Creates a test buffer with linear ramp PCM data: 0, 1, 2, ... length-1.
+ * @param {!BaseAudioContext} context
+ * @param {number} length Frames in the buffer
+ * @return {!AudioBuffer}
+ */
+function createTestBuffer(context, length) {
+  const buffer = new AudioBuffer({
+    length: length,
+    numberOfChannels: 1,
+    sampleRate: context.sampleRate
+  });
+
+  const channelData = buffer.getChannelData(0);
+  for (let i = 0; i < length; ++i) {
+    channelData[i] = i;
+  }
+
+  return buffer;
+}
+
+/**
+ * Asserts that two arrays are equal within a given epsilon for each element.
+ * @param {!Array<number>} actual
+ * @param {!Array<number>} expected
+ * @param {number} epsilon
+ * @param {string} desc
+ */
+function assert_array_equal_within_eps(
+    actual, expected, epsilon, desc) {
+  assert_equals(
+      actual.length, expected.length, desc + ": length");
+  for (let i = 0; i < actual.length; ++i) {
+    assert_approx_equals(
+        actual[i], expected[i], epsilon, `${desc} sample[${i}]`);
+  }
+}
+
+/**
+ * Asserts that all elements of an array are (approximately) equal to a value.
+ * @param {!Array<number>} arr
+ * @param {number} value
+ * @param {string} desc
+ * @param {number=} epsilon
+ */
+function assert_array_constant_value(
+    arr, value, desc, epsilon = 1e-7) {
+  for (let i = 0; i < arr.length; ++i) {
+    assert_approx_equals(
+        arr[i], value, epsilon, `${desc} sample[${i}]`);
+  }
 }

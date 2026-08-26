@@ -608,6 +608,9 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kStructAtomicRMW:
         ProcessAtomicRMW(op_idx, op.Cast<StructAtomicRMWOp>());
         break;
+      case Opcode::kArrayAtomicRMW:
+        // Nothing to be done. We don't eliminate loads on wasm arrays at all.
+        break;
       case Opcode::kArrayLength:
         ProcessArrayLength(op_idx, op.Cast<ArrayLengthOp>());
         break;
@@ -663,6 +666,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kWasmStackCheck:
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
+      case Opcode::kWasmIncCoverageCounter:
       case Opcode::kParameter:
       case Opcode::kSetStackPointer:
         // We explicitly break for those operations that have can_write effects

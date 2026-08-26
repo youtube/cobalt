@@ -127,9 +127,4 @@
   [_delegate accountPickerConfirmationScreenCoordinatorSubmit:self];
 }
 
-- (void)accountPickerConfirmationScreenViewControllerAddAccountAndSignin:
-    (AccountPickerConfirmationScreenViewController*)viewController {
-  [_delegate accountPickerConfirmationScreenCoordinatorOpenAddAccount:self];
-}
-
 @end

@@ -206,7 +206,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   static RegList DefaultTmpList();
   static DoubleRegList DefaultFPTmpList();
 
-  void AbortedCodeGeneration();
+  void AbortedCodeGeneration() override;
+
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
@@ -220,6 +221,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void GetCode(LocalIsolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
+
+  // On RISC-V, we sometimes need to emit branch trampolines between emitting
+  // a call instruction (jal/jalr) and recording a safepoint. This means that
+  // we have to be careful to make sure the safepoint is recorded at the right
+  // position. So we record the pc right after emitting the call instruction
+  // and use this for the safepoint.
+  int pc_offset_for_safepoint() const { return pc_offset_for_safepoint_; }
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
@@ -248,15 +256,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Get offset from instr.
   int BranchOffset(Instr instr);
-  static int BrachlongOffset(Instr auipc, Instr jalr);
-  static int PatchBranchlongOffset(
+  static int BranchLongOffset(Instr auipc, Instr jalr);
+  static int PatchBranchLongOffset(
       Address pc, Instr auipc, Instr instr_I, int32_t offset,
       WritableJitAllocation* jit_allocation = nullptr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
   // Manages the jump elimination optimization if the second parameter is true.
-  virtual int32_t branch_offset_helper(Label* L, OffsetSize bits);
+  int32_t branch_offset_helper(Label* L, OffsetSize bits) override;
   uintptr_t jump_address(Label* L);
   int32_t branch_long_offset(Label* L);
 
@@ -304,6 +312,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   static int ConstantPoolSizeAt(Instruction* instr);
   // See Assembler::CheckConstPool for more info.
   void EmitPoolGuard();
+
+  void FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
 
 #if defined(V8_TARGET_ARCH_RISCV64)
   static void set_target_value_at(
@@ -384,7 +394,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Max offset for jal instruction with 20-bit offset field (multiple of 2)
   static constexpr int kMaxJumpOffset = (1 << (21 - 1)) - 1;
 
+  // The size of the an entry in the trampoline pool.
   static constexpr int kTrampolineSlotsSize = 2 * kInstrSize;
+
+  // The size of the overhead for a trampoline pool. The overhead covers
+  // the jump around the entries.
+  static constexpr int kTrampolinePoolOverhead = 1 * kInstrSize;
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   DoubleRegList* GetScratchDoubleRegisterList() {
@@ -462,25 +477,37 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   }
 
   using BlockConstPoolScope = ConstantPool::BlockScope;
+
   // Class for scoping postponing the trampoline pool generation.
-  class BlockTrampolinePoolScope {
+  class V8_NODISCARD BlockTrampolinePoolScope {
    public:
+    // We leave space for a number of trampoline pool slots, so we do not
+    // have to pass in an explicit margin for all scopes.
+    static constexpr int kGap = kTrampolineSlotsSize * 16;
+
     explicit BlockTrampolinePoolScope(Assembler* assem, int margin = 0)
-        : assem_(assem) {
+        : assem_(assem), margin_(margin) {
       if (margin > 0) {
-        assem_->CheckTrampolinePoolQuick(margin / kInstrSize);
+        assem->CheckTrampolinePoolQuick(margin);
       }
-      assem_->StartBlockTrampolinePool();
+      assem->StartBlockTrampolinePool();
+      start_offset_ = assem->pc_offset();
     }
 
-    explicit BlockTrampolinePoolScope(Assembler* assem, PoolEmissionCheck check)
-        : assem_(assem) {
-      assem_->StartBlockTrampolinePool();
+    ~BlockTrampolinePoolScope() {
+      int generated = assem_->pc_offset() - start_offset_;
+      USE(generated);  // Only used in DCHECK.
+      int allowed = margin_;
+      if (allowed == 0) allowed = kGap - kTrampolinePoolOverhead;
+      DCHECK_GE(generated, 0);
+      DCHECK_LE(generated, allowed);
+      assem_->EndBlockTrampolinePool();
     }
-    ~BlockTrampolinePoolScope() { assem_->EndBlockTrampolinePool(); }
 
    private:
-    Assembler* assem_;
+    Assembler* const assem_;
+    const int margin_;
+    int start_offset_;
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockTrampolinePoolScope);
   };
 
@@ -546,10 +573,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     return reinterpret_cast<Instruction*>(buffer_start_ + offset);
   }
 
-  // Postpone the generation of the trampoline pool for the specified number of
-  // instructions.
-  void BlockTrampolinePoolFor(int instructions);
-
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
   // an instruction or relocation information.
@@ -591,15 +614,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void ForceConstantPoolEmissionWithoutJump() {
     constpool_.Check(Emission::kForced, Jump::kOmitted);
   }
-  void ForceConstantPoolEmissionWithJump() {
-    constpool_.Check(Emission::kForced, Jump::kRequired);
-  }
+
   // Check if the const pool needs to be emitted while pretending that {margin}
-  // more bytes of instructions have already been emitted.
+  // more bytes of instructions have already been emitted. This variant is used
+  // in positions in code that we might fall through to.
   void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
     constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
   }
 
+  // Check if the const pool needs to be emitted while pretending that {margin}
+  // more bytes of instructions have already been emitted. This variant is used
+  // at unreachable positions in the code, such as right after an unconditional
+  // transfer of control (jump, return).
   void EmitConstPoolWithoutJumpIfNeeded(size_t margin = 0) {
     constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
   }
@@ -612,18 +638,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     return constpool_.RecordEntry(data, rmode);
   }
 
-  void CheckTrampolinePoolQuick(int extra_instructions = 0) {
+  void CheckTrampolinePoolQuick(int margin = 0) {
     DEBUG_PRINTF("\tCheckTrampolinePoolQuick pc_offset:%d %d\n", pc_offset(),
-                 next_buffer_check_ - extra_instructions * kInstrSize);
-    if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
+                 next_buffer_check_ - margin);
+    if (pc_offset() >= next_buffer_check_ - margin) {
       CheckTrampolinePool();
     }
   }
 
+  int next_buffer_check() const { return next_buffer_check_; }
+
   friend class VectorUnit;
   class VectorUnit {
    public:
-    inline int32_t sew() const { return 2 ^ (sew_ + 3); }
+    inline int32_t sew() const { return 1 << (sew_ + 3); }
 
     inline int32_t vlmax() const {
       if ((lmul_ & 0b100) != 0) {
@@ -691,7 +719,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   VectorUnit VU;
 
-  void ClearVectorunit() { VU.clear(); }
+  void ClearVectorunit() override { VU.clear(); }
 
  protected:
   // Readable constants for base and offset adjustment helper, these indicate if
@@ -729,12 +757,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Record reloc info for current pc_.
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
 
-  // Block the emission of the trampoline pool before pc_offset.
-  void BlockTrampolinePoolBefore(int pc_offset) {
-    if (no_trampoline_pool_before_ < pc_offset) {
-      DEBUG_PRINTF("\tBlockTrampolinePoolBefore %d\n", pc_offset);
-      no_trampoline_pool_before_ = pc_offset;
-    }
+  // Record the current pc for the next safepoint.
+  void RecordPcForSafepoint() override {
+    pc_offset_for_safepoint_ = pc_offset();
   }
 
   void StartBlockTrampolinePool() {
@@ -748,7 +773,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
                  trampoline_pool_blocked_nesting_);
     if (trampoline_pool_blocked_nesting_ == 0) {
-      CheckTrampolinePoolQuick(1);
+      CheckTrampolinePoolQuick(1 * kInstrSize);
     }
   }
 
@@ -772,6 +797,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   }
 
   bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
+
+  inline int ConstpoolComputesize() {
+    return constpool_.ComputeSize(Jump::kOmitted, Alignment::kOmitted);
+  }
 
  private:
   // Avoid overflows for displacements etc.
@@ -800,10 +829,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Emission of the trampoline pool may be blocked in some code sequences.
   int trampoline_pool_blocked_nesting_;  // Block emission if this is not zero.
-  int no_trampoline_pool_before_;  // Block emission before this pc offset.
-
-  // Keep track of the last emitted pool to guarantee a maximal distance.
-  int last_trampoline_pool_end_;  // pc offset of the end of the last pool.
 
   // Automatic growth of the assembly buffer may be blocked for some sequences.
   bool block_buffer_growth_;  // Block growth when true.
@@ -816,12 +841,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
+  // Keep track of the last call instruction (jal/jalr) position to ensure that
+  // we can generate a correct safepoint even in the presence of a branch
+  // trampoline between emitting the call and recording the safepoint.
+  int pc_offset_for_safepoint_ = -1;
+
   // InstructionStream emission.
   inline void CheckBuffer();
   void GrowBuffer();
-  void emit(Instr x);
-  void emit(ShortInstr x);
-  void emit(uint64_t x);
+  void emit(Instr x) override;
+  void emit(ShortInstr x) override;
+  void emit(uint64_t x) override;
   template <typename T>
   inline void EmitHelper(T x);
 
@@ -908,7 +938,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
  private:
   ConstantPool constpool_;
 
-  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 
   int WriteCodeComments();
 
@@ -1024,9 +1054,6 @@ class V8_EXPORT_PRIVATE UseScratchRegisterScope {
   RegList old_available_;
   DoubleRegList old_available_double_;
 };
-
-[[nodiscard]] static inline Instr SetHi20Offset(int32_t hi29, Instr instr);
-[[nodiscard]] static inline Instr SetLo12Offset(int32_t lo12, Instr instr);
 
 }  // namespace internal
 }  // namespace v8

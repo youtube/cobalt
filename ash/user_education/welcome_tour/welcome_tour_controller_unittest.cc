@@ -40,8 +40,8 @@
 #include "ash/user_education/welcome_tour/welcome_tour_test_util.h"
 #include "ash/webui/system_apps/public/system_web_app_type.h"
 #include "base/functional/callback.h"
-#include "base/functional/overloaded.h"
 #include "base/scoped_observation.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/gmock_move_support.h"
@@ -55,6 +55,7 @@
 #include "components/user_manager/user_type.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/chromeos/devicetype_utils.h"
@@ -138,7 +139,7 @@ MATCHER_P4(StringFUTF8Eq, message_id, sub1, sub2, sub3, "") {
 }
 
 MATCHER_P(ElementSpecifierEq, element_specifier, "") {
-  return std::visit(base::Overloaded{
+  return std::visit(absl::Overload{
                         [&](const ui::ElementIdentifier& element_id) {
                           return arg.element_id() == element_id &&
                                  arg.element_name().empty();
@@ -964,10 +965,10 @@ INSTANTIATE_TEST_SUITE_P(
         /*is_managed_user=*/::testing::Bool(),
         ::testing::Values(user_manager::UserType::kChild,
                           user_manager::UserType::kGuest,
-                          user_manager::UserType::kKioskApp,
+                          user_manager::UserType::kKioskChromeApp,
                           user_manager::UserType::kPublicAccount,
                           user_manager::UserType::kRegular,
-                          user_manager::UserType::kWebKioskApp)));
+                          user_manager::UserType::kKioskWebApp)));
 
 // Tests -----------------------------------------------------------------------
 

@@ -4,6 +4,7 @@
 
 #include "ash/wm/desks/templates/saved_desk_item_view.h"
 
+#include <optional>
 #include <string>
 
 #include "ash/accessibility/accessibility_controller.h"
@@ -30,6 +31,7 @@
 #include "ash/wm/overview/overview_utils.h"
 #include "ash/wm/wm_constants.h"
 #include "base/i18n/time_formatting.h"
+#include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "chromeos/constants/chromeos_features.h"
@@ -87,7 +89,8 @@ constexpr int kFadeDurationMs = 100;
 std::u16string GetTimeStr(base::Time timestamp) {
   // `ui::TimeFormat::RelativeDate()` returns an empty string if `timestamp` is
   // out of relative date range, which is yesterday and today as of now.
-  const std::u16string date = ui::TimeFormat::RelativeDate(timestamp, nullptr);
+  const std::u16string date =
+      ui::TimeFormat::RelativeDate(timestamp, std::nullopt);
   return date.empty()
              // Syntax `yMMMdjmm` is used by the File App if it's not a relative
              // date. Please note, this might be slightly different for
@@ -224,8 +227,7 @@ SavedDeskItemView::SavedDeskItemView(std::unique_ptr<DeskTemplate> saved_desk)
       this, SystemShadow::Type::kElevation12);
   shadow_->SetRoundedCornerRadius(kSaveDeskCornerRadius);
 
-  if (features::IsBackgroundBlurEnabled() &&
-      chromeos::features::IsSystemBlurEnabled()) {
+  if (chromeos::features::IsSystemBlurEnabled()) {
     background_view->SetPaintToLayer();
     background_view->layer()->SetFillsBoundsOpaquely(false);
     background_view->layer()->SetBackgroundBlur(

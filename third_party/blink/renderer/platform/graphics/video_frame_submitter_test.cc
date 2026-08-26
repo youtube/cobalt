@@ -94,6 +94,7 @@ class VideoMockCompositorFrameSink
   MOCK_METHOD0(SetWantsAnimateOnlyBeginFrames, void());
   MOCK_METHOD0(SetWantsBeginFrameAcks, void());
   MOCK_METHOD0(SetAutoNeedsBeginFrame, void());
+  MOCK_METHOD0(NotifyNewLocalSurfaceIdExpectedWhilePaused, void());
 
   MOCK_METHOD2(DoSubmitCompositorFrame,
                void(const viz::LocalSurfaceId&, viz::CompositorFrame*));
@@ -105,21 +106,11 @@ class VideoMockCompositorFrameSink
     last_submitted_compositor_frame_ = std::move(frame);
     DoSubmitCompositorFrame(id, &last_submitted_compositor_frame_);
   }
-  void SubmitCompositorFrameSync(
-      const viz::LocalSurfaceId& id,
-      viz::CompositorFrame frame,
-      std::optional<viz::HitTestRegionList> hit_test_region_list,
-      uint64_t submit_time,
-      const SubmitCompositorFrameSyncCallback callback) override {
-    last_submitted_compositor_frame_ = std::move(frame);
-    DoSubmitCompositorFrame(id, &last_submitted_compositor_frame_);
-  }
 
   MOCK_METHOD1(DidNotProduceFrame, void(const viz::BeginFrameAck&));
-  MOCK_METHOD1(InitializeCompositorFrameSinkType,
-               void(viz::mojom::CompositorFrameSinkType));
   MOCK_METHOD2(BindLayerContext,
-               void(viz::mojom::blink::PendingLayerContextPtr, bool));
+               void(viz::mojom::blink::PendingLayerContextPtr,
+                    viz::mojom::blink::LayerContextSettingsPtr));
   MOCK_METHOD1(SetThreads, void(const WTF::Vector<viz::Thread>&));
 
  private:
@@ -1028,9 +1019,6 @@ TEST_F(VideoFrameSubmitterTest, PreferredInterval) {
   OnBeginFrame(args, {}, WTF::Vector<viz::ReturnedResource>());
   task_environment_.RunUntilIdle();
 
-  EXPECT_EQ(sink_->last_submitted_compositor_frame()
-                .metadata.preferred_frame_interval,
-            video_frame_provider_->preferred_interval);
   const auto& frame_interval_inputs =
       sink_->last_submitted_compositor_frame().metadata.frame_interval_inputs;
   ASSERT_EQ(frame_interval_inputs.content_interval_info.size(), 1u);

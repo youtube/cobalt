@@ -113,7 +113,7 @@ using ::testing::TestWithParam;
 using ::testing::Values;
 
 // Maximum number of bytes in output bitstream.
-const size_t kMaxBytes = 2000;
+constexpr size_t kMaxBytes = 2000;
 
 class OpusTest
     : public TestWithParam<::testing::tuple<size_t, int, bool, int, int>> {

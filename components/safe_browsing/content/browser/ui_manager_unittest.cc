@@ -123,7 +123,7 @@ class TestSafeBrowsingBlockingPage : public SafeBrowsingBlockingPage {
                 false,                 // is_extended_reporting_policy_managed
                 false,                 // is_enhanced_protection_enabled
                 false,                 // is_proceed_anyway_disabled
-                true,                  // should_open_links_in_new_tab
+                false,                 // should_open_links_in_new_tab
                 true,                  // always_show_back_to_safety
                 false,                 // is_enhanced_protection_message_enabled
                 false,                 // is_safe_browsing_managed
@@ -225,8 +225,6 @@ class TestSafeBrowsingUIManagerDelegate
     return nullptr;
   }
   bool IsMetricsAndCrashReportingEnabled() override { return false; }
-
-  bool IsSendingOfHitReportsEnabled() override { return false; }
 
   void set_is_hosting_extension(bool is_hosting_extension) {
     is_hosting_extension_ = is_hosting_extension;

@@ -111,13 +111,13 @@ void MarkupFormatter::AppendCharactersReplacingEntities(
       {'<', lt_reference, kEntityLt},
       {'>', gt_reference, kEntityGt},
       {'"', quot_reference, kEntityQuot},
-      {kNoBreakSpaceCharacter, nbsp_reference, kEntityNbsp},
+      {uchar::kNoBreakSpace, nbsp_reference, kEntityNbsp},
       {'\t', tab_reference, kEntityTab},
       {'\n', line_feed_reference, kEntityLineFeed},
       {'\r', carriage_return_reference, kEntityCarriageReturn},
   };
 
-  WTF::VisitCharacters(source, [&](auto chars) {
+  VisitCharacters(source, [&](auto chars) {
     AppendCharactersReplacingEntitiesInternal(result, source, chars,
                                               kEntityMaps, entity_mask);
   });
@@ -174,9 +174,7 @@ void MarkupFormatter::AppendStartMarkup(StringBuilder& result,
       NOTREACHED();
     case Node::kCdataSectionNode: {
       auto& cdata = To<CDATASection>(node);
-      if (RuntimeEnabledFeatures::
-              SerializeCdataAsTextInHTMLDocumentsEnabled() &&
-          SerializeAsHTML()) {
+      if (SerializeAsHTML()) {
         AppendText(result, cdata);
       } else {
         AppendCDATASection(result, cdata.data());

@@ -19,10 +19,15 @@
 #include <variant>
 
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
+#include "cobalt/build/configs/buildflags.h"
+
 namespace cobalt {
 namespace browser {
 
@@ -30,6 +35,7 @@ namespace browser {
 void CobaltHangWatcherDelegate::Initialize() {
   static base::NoDestructor<CobaltHangWatcherDelegate> instance;
   base::HangWatcher::SetDelegate(instance.get());
+  base::HangWatcher::UpdateConfiguration();
 }
 
 CobaltHangWatcherDelegate::CobaltHangWatcherDelegate()
@@ -46,7 +52,17 @@ CobaltHangWatcherDelegate::CobaltHangWatcherDelegate(
 // the Chromium TaskEnvironment and thread pool are ready, causing a FATAL
 // crash.
 GlobalFeatures* CobaltHangWatcherDelegate::GetGlobalFeatures() {
-  return global_features_ ? global_features_ : GlobalFeatures::GetInstance();
+  if (global_features_) {
+    return global_features_;
+  }
+
+  // GlobalFeatures::GetInstance() may require ThreadPool to initialize or
+  // access settings. We must ensure it's available to avoid crashes during
+  // early startup or shutdown.
+  if (!base::ThreadPoolInstance::Get()) {
+    return nullptr;
+  }
+  return GlobalFeatures::GetInstance();
 }
 
 std::optional<int64_t> CobaltHangWatcherDelegate::GetIntSetting(
@@ -134,6 +150,50 @@ std::optional<bool> CobaltHangWatcherDelegate::IsThreadDumpingEnabled(
   }
 
   return std::nullopt;
+}
+
+std::optional<bool> CobaltHangWatcherDelegate::IsLongHangDetectionEnabled() {
+  auto val = GetIntSetting("EnableHangWatcherLongHangDetection");
+  if (val.has_value()) {
+    return *val != 0;
+  }
+  return std::nullopt;
+}
+
+std::optional<bool> CobaltHangWatcherDelegate::IsLongHangKillEnabled() {
+  auto val = GetIntSetting("EnableHangWatcherLongHangKill");
+  if (val.has_value()) {
+    return *val != 0;
+  }
+  return std::nullopt;
+}
+
+std::optional<base::TimeDelta> CobaltHangWatcherDelegate::GetLongHangTimeout() {
+  auto val = GetIntSetting("LongHangTimeoutSeconds");
+  if (!val.has_value() || *val <= 0) {
+    return std::nullopt;
+  }
+  return base::Seconds(*val);
+}
+
+void CobaltHangWatcherDelegate::RecordHangStarted(
+    const std::string& hang_uuid) {
+#if BUILDFLAG(USE_EVERGREEN)
+  auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
+  if (nsm) {
+    nsm->RecordHangStarted(hang_uuid);
+  }
+#endif
+}
+
+void CobaltHangWatcherDelegate::RecordHangRecovered(
+    const std::string& hang_uuid) {
+#if BUILDFLAG(USE_EVERGREEN)
+  auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
+  if (nsm) {
+    nsm->RecordHangRecovered(hang_uuid);
+  }
+#endif
 }
 
 }  // namespace browser

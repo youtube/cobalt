@@ -23,6 +23,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -63,6 +64,7 @@
 #include "chrome/browser/user_education/tutorial_identifiers.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/browser/user_education/user_education_service_factory.h"
+#include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/collaboration/public/collaboration_service.h"
 #include "components/data_sharing/public/features.h"
@@ -185,7 +187,7 @@ namespace shared_tab_group_metrics = tab_groups::saved_tab_groups::metrics;
 
 // static
 views::Widget* TabGroupEditorBubbleView::Show(
-    const Browser* browser,
+    Browser* browser,
     const tab_groups::TabGroupId& group,
     TabGroupHeader* header_view,
     std::optional<gfx::Rect> anchor_rect,
@@ -271,7 +273,7 @@ void TabGroupEditorBubbleView::AddedToWidget() {
 }
 
 TabGroupEditorBubbleView::TabGroupEditorBubbleView(
-    const Browser* browser,
+    Browser* browser,
     const tab_groups::TabGroupId& group,
     views::View* anchor_view,
     std::optional<gfx::Rect> anchor_rect,
@@ -689,7 +691,7 @@ void TabGroupEditorBubbleView::UpdateGroup() {
                                                      tab_group->IsCustomized());
 }
 
-const std::u16string TabGroupEditorBubbleView::GetTextForCloseButton() const {
+std::u16string TabGroupEditorBubbleView::GetTextForCloseButton() const {
   tab_groups::TabGroupSyncService* tab_group_service =
       tab_groups::SavedTabGroupUtils::GetServiceForProfile(browser_->profile());
 
@@ -814,8 +816,8 @@ void TabGroupEditorBubbleView::ShareOrManagePressed() {
   collaboration::CollaborationService* service =
       collaboration::CollaborationServiceFactory::GetForProfile(
           browser_->profile());
-  auto delegate = std::make_unique<CollaborationControllerDelegateDesktop>(
-      const_cast<Browser*>(browser_.get()));
+  auto delegate =
+      std::make_unique<CollaborationControllerDelegateDesktop>(browser_);
   service->StartShareOrManageFlow(
       std::move(delegate), group_,
       collaboration::CollaborationServiceShareOrManageEntryPoint::

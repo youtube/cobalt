@@ -10,10 +10,9 @@
 
 #include "api/array_view.h"
 
-#include <stdint.h>
-
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>

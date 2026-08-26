@@ -11,7 +11,7 @@
 #include "third_party/blink/renderer/platform/p2p/socket_dispatcher.h"
 #include "third_party/blink/renderer/platform/testing/fake_mojo_binding_context.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
-#include "third_party/webrtc/rtc_base/network/ecn_marking.h"
+#include "third_party/webrtc/api/transport/ecn_marking.h"
 
 namespace blink {
 
@@ -21,7 +21,7 @@ class IpcPacketSocketFactoryTest : public testing::Test {
     mojo_binding_context_ = MakeGarbageCollected<FakeMojoBindingContext>(
         task_environment_.GetMainThreadTaskRunner());
     socket_factory_ = std::make_unique<IpcPacketSocketFactory>(
-        WTF::CrossThreadBindRepeating(
+        CrossThreadBindRepeating(
             [](base::OnceCallback<void(
                    std::optional<base::UnguessableToken>)>) {}),
         &P2PSocketDispatcher::From(*mojo_binding_context_),

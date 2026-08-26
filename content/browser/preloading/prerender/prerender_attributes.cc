@@ -31,12 +31,14 @@ PrerenderAttributes::PrerenderAttributes(
     ui::PageTransition transition_type,
     bool should_warm_up_compositor,
     bool should_prepare_paint_tree,
+    bool should_pause_javascript_execution,
     base::RepeatingCallback<bool(const GURL&,
                                  const std::optional<UrlMatchType>&)>
         url_match_predicate,
     base::RepeatingCallback<void(NavigationHandle&)>
         prerender_navigation_handle_callback,
-    scoped_refptr<PreloadPipelineInfoImpl> preload_pipeline_info)
+    scoped_refptr<PreloadPipelineInfoImpl> preload_pipeline_info,
+    bool allow_reuse)
     : prerendering_url(prerendering_url),
       trigger_type(trigger_type),
       embedder_histogram_suffix(embedder_histogram_suffix),
@@ -47,10 +49,12 @@ PrerenderAttributes::PrerenderAttributes(
       transition_type(transition_type),
       should_warm_up_compositor(should_warm_up_compositor),
       should_prepare_paint_tree(should_prepare_paint_tree),
+      should_pause_javascript_execution(should_pause_javascript_execution),
       url_match_predicate(std::move(url_match_predicate)),
       prerender_navigation_handle_callback(
           std::move(prerender_navigation_handle_callback)),
-      preload_pipeline_info(std::move(preload_pipeline_info)) {
+      preload_pipeline_info(std::move(preload_pipeline_info)),
+      allow_reuse(allow_reuse) {
   if (initiator_render_frame_host) {
     initiator_origin = initiator_render_frame_host->GetLastCommittedOrigin();
     initiator_process_id =

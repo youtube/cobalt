@@ -7,6 +7,7 @@
 #include <GLES2/gl2.h>
 
 #include "base/functional/callback_helpers.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/process/memory.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -62,6 +63,28 @@ void SharedImageInterface::CreateSharedMemoryRegionFromSIInfo(
       gfx::RowSizeForBufferFormat(si_info.meta.size.width(), buffer_format, 0));
 }
 
+gpu::SharedImageUsageSet SharedImageInterface::GetCpuSIUsage(
+    gfx::BufferUsage buffer_usage) {
+  switch (buffer_usage) {
+    case gfx::BufferUsage::GPU_READ:
+    case gfx::BufferUsage::SCANOUT:
+    case gfx::BufferUsage::SCANOUT_FRONT_RENDERING:
+    case gfx::BufferUsage::SCANOUT_VDA_WRITE:
+    case gfx::BufferUsage::PROTECTED_SCANOUT:
+    case gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE:
+      return gpu::SharedImageUsageSet();
+    case gfx::BufferUsage::SCANOUT_VEA_CPU_READ:
+      return gpu::SHARED_IMAGE_USAGE_CPU_READ;
+    case gfx::BufferUsage::SCANOUT_CAMERA_READ_WRITE:
+    case gfx::BufferUsage::SCANOUT_CPU_READ_WRITE:
+    case gfx::BufferUsage::GPU_READ_CPU_READ_WRITE:
+    case gfx::BufferUsage::CAMERA_AND_CPU_READ_WRITE:
+    case gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE:
+      return gpu::SHARED_IMAGE_USAGE_CPU_READ |
+             gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY;
+  }
+}
+
 SharedImageInterface::SwapChainSharedImages::SwapChainSharedImages(
     scoped_refptr<gpu::ClientSharedImage> front_buffer,
     scoped_refptr<gpu::ClientSharedImage> back_buffer)
@@ -90,19 +113,9 @@ scoped_refptr<ClientSharedImage> SharedImageInterface::NotifyMailboxAdded(
     const gfx::ColorSpace& /*color_space*/,
     GrSurfaceOrigin /*surface_origin*/,
     SkAlphaType /*alpha_type*/,
-    SharedImageUsageSet /*usage*/) {
-  return nullptr;
-}
-
-scoped_refptr<ClientSharedImage> SharedImageInterface::NotifyMailboxAdded(
-    const Mailbox& /*mailbox*/,
-    viz::SharedImageFormat /*format*/,
-    const gfx::Size& /*size*/,
-    const gfx::ColorSpace& /*color_space*/,
-    GrSurfaceOrigin /*surface_origin*/,
-    SkAlphaType /*alpha_type*/,
     SharedImageUsageSet /*usage*/,
-    uint32_t /*texture_target*/) {
+    uint32_t /*texture_target*/,
+    std::string_view /*debug_label*/) {
   return nullptr;
 }
 
@@ -118,20 +131,10 @@ void SharedImageInterface::CopyToGpuMemoryBufferAsync(
   NOTREACHED();
 }
 
-bool SharedImageInterface::CopyNativeGmbToSharedMemorySync(
-    gfx::GpuMemoryBufferHandle buffer_handle,
-    base::UnsafeSharedMemoryRegion memory_region) {
-  NOTREACHED();
-}
-
 void SharedImageInterface::CopyNativeGmbToSharedMemoryAsync(
     gfx::GpuMemoryBufferHandle buffer_handle,
     base::UnsafeSharedMemoryRegion memory_region,
     base::OnceCallback<void(bool)> callback) {
-  NOTREACHED();
-}
-
-bool SharedImageInterface::IsConnected() {
   NOTREACHED();
 }
 

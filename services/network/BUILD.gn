@@ -147,6 +147,10 @@ component("network_service") {
     "restricted_cookie_manager.h",
     "restricted_udp_socket.cc",
     "restricted_udp_socket.h",
+    "scheduler/network_service_task_queues.cc",
+    "scheduler/network_service_task_queues.h",
+    "scheduler/network_service_task_scheduler.cc",
+    "scheduler/network_service_task_scheduler.h",
     "sec_header_helpers.cc",
     "sec_header_helpers.h",
     "session_cleanup_cookie_store.cc",
@@ -325,13 +329,6 @@ component("network_service") {
     "//components/content_settings/core/common",
     "//components/cookie_config",
     "//components/domain_reliability",
-    "//components/ip_protection/common:ip_protection_core_host_remote",
-    "//components/ip_protection/common:ip_protection_core_impl",
-    "//components/ip_protection/common:ip_protection_core_impl_mojo",
-    "//components/ip_protection/common:ip_protection_proxy_delegate",
-    "//components/ip_protection/common:ip_protection_telemetry_uma",
-    "//components/ip_protection/common:masked_domain_list_manager",
-    "//components/ip_protection/common:probabilistic_reveal_token_registry",
     "//components/miracle_parameter/common",
     "//components/network_session_configurator/browser",
     "//components/network_session_configurator/common",
@@ -359,13 +356,25 @@ component("network_service") {
     "//services/network/public/proto",
     "//services/network/shared_storage",
     "//services/network/tpcd/metadata:manager",
-    "//services/network/trust_tokens",
     "//services/service_manager/public/cpp",
     "//services/service_manager/public/mojom",
     "//third_party/liburlpattern",
     "//third_party/re2",
     "//url",
   ]
+
+  if (enable_privacy_sandbox_apis) {
+    deps += [
+      "//components/ip_protection/common:ip_protection_core_host_remote",
+      "//components/ip_protection/common:ip_protection_core_impl",
+      "//components/ip_protection/common:ip_protection_core_impl_mojo",
+      "//components/ip_protection/common:ip_protection_proxy_delegate",
+      "//components/ip_protection/common:ip_protection_telemetry_uma",
+      "//components/ip_protection/common:masked_domain_list_manager",
+      "//components/ip_protection/common:probabilistic_reveal_token_registry",
+    ]
+    deps += [ "//services/network/trust_tokens" ]
+  }
 
   if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
@@ -416,9 +425,9 @@ if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
       "network_sandbox_hook_linux.h",
     ]
     deps = [
-      "//base:base",
+      "//base",
       "//sandbox/linux:sandbox_services",
-      "//sandbox/policy:policy",
+      "//sandbox/policy",
     ]
     configs += [ "//build/config/compiler:wexit_time_destructors" ]
   }
@@ -428,6 +437,7 @@ source_set("tests") {
   testonly = true
 
   sources = [
+    "accept_ch_frame_interceptor_unittest.cc",
     "chunked_data_pipe_upload_data_stream_unittest.cc",
     "connection_change_observer_unittest.cc",
     "cookie_access_delegate_impl_unittest.cc",
@@ -478,6 +488,8 @@ source_set("tests") {
     "resource_scheduler/resource_scheduler_params_manager_unittest.cc",
     "resource_scheduler/resource_scheduler_unittest.cc",
     "restricted_cookie_manager_unittest.cc",
+    "scheduler/network_service_task_queues_unittest.cc",
+    "scheduler/network_service_task_scheduler_unittest.cc",
     "sec_header_helpers_unittest.cc",
     "session_cleanup_cookie_store_unittest.cc",
     "shared_dictionary/shared_dictionary_data_pipe_writer_unittest.cc",
@@ -622,6 +634,10 @@ source_set("tests") {
       "//third_party/blink/public/common:preloading_headers",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("test_support") {
@@ -693,22 +709,26 @@ source_set("test_support") {
   }
 
   public_deps = [
+    "//services/network:network_service",
     "//services/network/public/cpp",
     "//services/network/public/cpp:buildflags",
     "//services/network/public/mojom",
+    "//services/network/trust_tokens",
     "//services/network/trust_tokens:test_support",
-    "//services/network/trust_tokens:trust_tokens",
   ]
 
   deps = [
     "//base",
-    "//components/cbor:cbor",
+    "//components/cbor",
     "//mojo/public/cpp/bindings",
     "//net",
     "//net:test_support",
-    "//services/network:network_service",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 fuzzer_test("network_content_security_policy_fuzzer") {

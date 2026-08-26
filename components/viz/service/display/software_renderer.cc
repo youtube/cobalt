@@ -36,6 +36,7 @@
 #include "skia/ext/image_operations.h"
 #include "skia/ext/legacy_display_globals.h"
 #include "skia/ext/opacity_filter_canvas.h"
+#include "third_party/skia/include/core/SkCPURecorder.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkColorFilter.h"
@@ -320,7 +321,7 @@ void SoftwareRenderer::DoDrawQuad(const DrawQuad* quad,
 
     SkPoint clip_points[4];
     QuadFToSkPoints(local_draw_region, clip_points);
-    draw_region_clip_path.addPoly(clip_points, 4, true);
+    draw_region_clip_path.addPoly(clip_points, true);
 
     current_canvas_->clipPath(draw_region_clip_path);
   }
@@ -686,15 +687,15 @@ void SoftwareRenderer::CopyDrawnRenderPass(
 
   bitmap.setImmutable();
 
-  // Returning kNativeTextures results is only supported with blit requests, so
+  // Returning kSharedImage results is only supported with blit requests, so
   // we copy to client provided image.
   if (request->result_destination() ==
-          CopyOutputResult::Destination::kNativeTextures &&
+          CopyOutputResult::Destination::kSharedImage &&
       request->has_blit_request()) {
     const auto& blit_request = request->blit_request();
 
     auto representation = resource_provider()->GetSharedImageRepresentation(
-        blit_request.mailbox(), blit_request.sync_token());
+        blit_request.shared_image()->mailbox(), blit_request.sync_token());
 
     if (!representation) {
       DLOG(ERROR) << "BlitRequest: Couldn't create shared image representation";
@@ -747,10 +748,9 @@ void SoftwareRenderer::CopyDrawnRenderPass(
           SkCanvas::kFast_SrcRectConstraint);
     }
 
-    request->SendResult(std::make_unique<CopyOutputTextureResult>(
+    request->SendResult(std::make_unique<CopyOutputSharedImageResult>(
         CopyOutputResult::Format::RGBA, geometry.result_selection,
-        CopyOutputResult::TextureResult(request->blit_request().mailbox(),
-                                        representation->color_space()),
+        request->blit_request().shared_image(),
         CopyOutputResult::ReleaseCallbacks()));
 
     return;
@@ -925,8 +925,8 @@ sk_sp<SkShader> SoftwareRenderer::GetBackdropFilterShader(
       return nullptr;
     // Crop the source image to the backdrop_filter_bounds.
     sk_sp<SkImage> cropped_image = SkImages::RasterFromBitmap(backdrop_bitmap);
-    cropped_image = cropped_image->makeSubset(
-        static_cast<GrDirectContext*>(nullptr), RectToSkIRect(filter_clip));
+    cropped_image = cropped_image->makeSubset(skcpu::Recorder::TODO(),
+                                              RectToSkIRect(filter_clip), {});
     cropped_image->asLegacyBitmap(&backdrop_bitmap);
     image_offset = filter_clip.origin();
   }

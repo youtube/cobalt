@@ -12,10 +12,10 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/supports_user_data.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tab_strip_tracker.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "content/public/browser/web_contents.h"
 
 TabStripModelStatsRecorder::TabStripModelStatsRecorder()
     : browser_tab_strip_tracker_(
@@ -137,6 +137,11 @@ void TabStripModelStatsRecorder::OnTabStripModelChanged(
   } else if (change.type() == TabStripModelChange::kReplaced) {
     auto* replace = change.GetReplace();
     OnTabReplaced(replace->old_contents, replace->new_contents);
+  }
+
+  if (selection.selection_changed()) {
+    UMA_HISTOGRAM_COUNTS_1000("Tabs.Selections.Count",
+                              selection.new_model.selected_indices().size());
   }
 
   if (!selection.active_tab_changed() || tab_strip_model->empty()) {

@@ -26,6 +26,7 @@
 #include "chrome/browser/ash/crostini/crostini_manager.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
+#include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/drive/file_system_util.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_manager/volume_manager.h"
@@ -60,6 +61,7 @@
 #include "chromeos/ash/experiences/arc/test/fake_file_system_instance.h"
 #include "components/account_id/account_id.h"
 #include "components/drive/drive_pref_names.h"
+#include "components/prefs/pref_service.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "google_apis/gaia/gaia_id.h"
@@ -108,6 +110,7 @@ class FileManagerPathUtilTest : public testing::Test {
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
+
   user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
       user_manager_{std::make_unique<ash::FakeChromeUserManager>()};
   std::unique_ptr<TestingProfile> profile_;
@@ -803,6 +806,7 @@ class FileManagerPathUtilConvertUrlTest : public testing::Test {
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
+
   arc::FakeFileSystemInstance fake_file_system_;
   user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
       fake_user_manager_;

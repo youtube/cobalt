@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
@@ -40,6 +41,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/checked_math.h"
 #include "base/sequence_checker.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/task_traits.h"
@@ -49,6 +51,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "base/types/expected.h"
+#include "build/build_config.h"
 #include "components/services/storage/privileged/cpp/bucket_client_info.h"
 #include "components/services/storage/privileged/mojom/indexed_db_client_state_checker.mojom.h"
 #include "components/services/storage/privileged/mojom/indexed_db_control_test.mojom.h"
@@ -83,6 +86,8 @@ namespace {
 // Time after the last connection to a database is closed and when we destroy
 // the backing store.
 const int64_t kBackingStoreGracePeriodSeconds = 2;
+
+std::optional<bool> g_should_use_sqlite_for_testing;
 
 // This struct facilitates requesting bucket space usage from the quota manager.
 // There have been reports of the callback being passed to the quota manager
@@ -165,33 +170,23 @@ DatabaseError CreateDefaultError() {
       u"Internal error opening backing store for indexedDB.open.");
 }
 
-// Creates the leveldb and blob storage directories for IndexedDB.
-std::
-    tuple<base::FilePath /*leveldb_path*/, base::FilePath /*blob_path*/, Status>
-    CreateDatabaseDirectories(const base::FilePath& path_base,
-                              const storage::BucketLocator& bucket_locator) {
-  Status status;
-  if (!base::CreateDirectory(path_base)) {
-    status = Status::IOError("Unable to create IndexedDB database path");
-    LOG(ERROR) << status.ToString() << ": \"" << path_base.AsUTF8Unsafe()
-               << "\"";
-    ReportOpenStatus(INDEXED_DB_BACKING_STORE_OPEN_FAILED_DIRECTORY,
-                     bucket_locator);
-    return {base::FilePath(), base::FilePath(), status};
+#if !BUILDFLAG(IS_FUCHSIA)
+// Logs when a path was too long for the filesystem, or when it wasn't. This is
+// called twice for every call to Open() a database, once with true `is_sqlite`
+// and once with false. When the longest path that would be used for a given
+// backend is short enough to fit on the file system, this will be called with
+// `length` of 0. Otherwise, it's called with the length of the path that was
+// too long.
+void LogDatabasePathOverflow(size_t length, bool is_sqlite) {
+  if (is_sqlite) {
+    base::UmaHistogramCounts1000("IndexedDB.DatabasePathOverflow.SQLite",
+                                 length);
+  } else {
+    base::UmaHistogramCounts1000("IndexedDB.DatabasePathOverflow.LevelDB",
+                                 length);
   }
-
-  base::FilePath leveldb_path =
-      path_base.Append(GetLevelDBFileName(bucket_locator));
-  base::FilePath blob_path =
-      path_base.Append(GetBlobStoreFileName(bucket_locator));
-  if (IsPathTooLong(leveldb_path)) {
-    ReportOpenStatus(INDEXED_DB_BACKING_STORE_OPEN_ORIGIN_TOO_LONG,
-                     bucket_locator);
-    status = Status::IOError("File path too long");
-    return {base::FilePath(), base::FilePath(), status};
-  }
-  return {leveldb_path, blob_path, status};
 }
+#endif  // !BUILDFLAG(IS_FUCHSIA)
 
 }  // namespace
 
@@ -232,6 +227,8 @@ BucketContext::BucketContext(
           base::trace_event::MemoryDumpProvider::Options());
   receivers_.set_disconnect_handler(base::BindRepeating(
       &BucketContext::OnReceiverDisconnected, base::Unretained(this)));
+  should_use_sqlite_ = g_should_use_sqlite_for_testing.value_or(
+      base::FeatureList::IsEnabled(kSqliteBackingStore));
 }
 
 BucketContext::~BucketContext() {
@@ -434,6 +431,7 @@ void BucketContext::CreateAllExternalObjects(
     const std::vector<IndexedDBExternalObject>& objects,
     std::vector<blink::mojom::IDBExternalObjectPtr>* mojo_objects) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(!ShouldUseSqlite());
 
   TRACE_EVENT0("IndexedDB", "BucketContext::CreateAllExternalObjects");
 
@@ -504,7 +502,7 @@ void BucketContext::RunTasks() {
     Database& db = *db_it->second;
     Status status = db.RunTasks();
     if (!status.ok()) {
-      OnDatabaseError(status, {});
+      OnDatabaseError(&db, status, {});
       return;
     }
 
@@ -590,6 +588,38 @@ void BucketContext::Open(
   IndexedDBDataLossInfo data_loss_info;
   std::tie(s, error, data_loss_info) =
       InitBackingStoreIfNeeded(/*create_if_missing=*/true);
+
+  // base::GetMaximumPathComponentLength() is hard-coded to return 1024 on
+  // Fuchsia, despite that filenames much shorter than that give "Filename too
+  // long (36)" errors when actual file operations are attempted on them.
+  // Therefore these histograms would be meaningless on Fuchsia.
+#if !BUILDFLAG(IS_FUCHSIA)
+  // Log some metrics to determine if the hypothetical SQLite database path may
+  // be problematic.
+  if (!in_memory()) {
+    const base::FilePath sqlite_directory_path =
+        data_path_.Append(GetSqliteDbDirectory(bucket_locator()));
+    // IsPathTooLong() will only work if the base directory exists, so we must
+    // create it if it doesn't already exist (as will be the case when this
+    // bucket is using LevelDB, or if the data path was too long).
+    const bool directory_path_existed = base::PathExists(sqlite_directory_path);
+    bool directory_path_exists = directory_path_existed ||
+                                 (!IsPathTooLong(sqlite_directory_path) &&
+                                  base::CreateDirectory(sqlite_directory_path));
+    base::FilePath sqlite_database_longest_path =
+        sqlite_directory_path.Append(DatabaseNameToFileName(name))
+            .InsertBeforeExtensionASCII("-wal");
+    const size_t sqlite_longest_path_length =
+        !directory_path_exists || IsPathTooLong(sqlite_database_longest_path)
+            ? sqlite_database_longest_path.value().length()
+            : 0;
+    if (!directory_path_existed) {
+      base::DeleteFile(sqlite_directory_path);
+    }
+    LogDatabasePathOverflow(sqlite_longest_path_length, /*is_sqlite=*/true);
+  }
+#endif  // !BUILDFLAG(IS_FUCHSIA)
+
   if (!backing_store_) {
     FactoryClient(std::move(factory_client)).OnError(error);
     if (s.IsCorruption()) {
@@ -623,11 +653,9 @@ void BucketContext::Open(
   Database* database_ptr = nullptr;
   auto it = databases_.find(name);
   if (it == databases_.end()) {
-    auto database = std::make_unique<Database>(name, *this);
     // The database must be added before the schedule call, as the
     // CreateDatabaseDeleteClosure can be called synchronously.
-    database_ptr = database.get();
-    AddDatabase(name, std::move(database));
+    database_ptr = CreateAndAddDatabase(name);
   } else {
     database_ptr = it->second.get();
   }
@@ -675,13 +703,13 @@ void BucketContext::DeleteDatabase(
   auto it = databases_.find(name);
   if (it != databases_.end()) {
     base::WeakPtr<Database> database = it->second->AsWeakPtr();
-    it->second->ScheduleDeleteDatabase(
+    database->ScheduleDeleteDatabase(
         std::make_unique<FactoryClient>(std::move(factory_client)),
         std::move(on_deletion_complete));
     if (force_close) {
       Status status = database->ForceCloseAndRunTasks(force_close_message);
       if (!status.ok()) {
-        OnDatabaseError(status, "Error aborting transactions.");
+        OnDatabaseError(database.get(), status, "Error aborting transactions.");
       }
     }
     return;
@@ -689,36 +717,34 @@ void BucketContext::DeleteDatabase(
 
   // Otherwise, verify that a database with the given name exists in the backing
   // store. If not, report success.
-  base::expected<std::vector<std::u16string>, Status> names =
-      backing_store()->GetDatabaseNames();
-  if (!names.has_value()) {
+  StatusOr<bool> exists = backing_store()->DatabaseExists(name);
+  if (!exists.has_value()) {
     std::string error_message =
         "Internal error opening backing store for indexedDB.deleteDatabase.";
     DatabaseError error(blink::mojom::IDBException::kUnknownError,
                         error_message);
     FactoryClient(std::move(factory_client)).OnError(error);
-    if (names.error().IsCorruption()) {
+    if (exists.error().IsCorruption()) {
       HandleBackingStoreCorruption(error_message);
     }
     return;
   }
 
-  if (!base::Contains(*names, name)) {
-    FactoryClient(std::move(factory_client)).OnDeleteSuccess(/*version=*/0);
+  if (!*exists) {
+    FactoryClient(std::move(factory_client)).OnDeleteSuccess(/*old_version=*/0);
     return;
   }
 
   // If it exists but does not already have an `Database` object,
   // create it and initiate deletion.
-  auto database = std::make_unique<Database>(name, *this);
-  Database* database_ptr = AddDatabase(name, std::move(database));
+  Database* database_ptr = CreateAndAddDatabase(name);
   database_ptr->ScheduleDeleteDatabase(
       std::make_unique<FactoryClient>(std::move(factory_client)),
       std::move(on_deletion_complete));
   if (force_close) {
     Status status = database_ptr->ForceCloseAndRunTasks(force_close_message);
     if (!status.ok()) {
-      OnDatabaseError(status, "Error aborting transactions.");
+      OnDatabaseError(database_ptr, status, "Error aborting transactions.");
     }
   }
 }
@@ -761,10 +787,11 @@ void BucketContext::BindMockFailureSingletonForTesting(
   level_db::BindMockFailureSingletonForTesting(std::move(receiver));  // IN-TEST
 }
 
-Database* BucketContext::AddDatabase(const std::u16string& name,
-                                     std::unique_ptr<Database> database) {
+Database* BucketContext::CreateAndAddDatabase(const std::u16string& name) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!base::Contains(databases_, name));
+  auto database =
+      std::make_unique<Database>(next_database_id_for_locks_++, name, *this);
   return databases_.emplace(name, std::move(database)).first->second.get();
 }
 
@@ -790,6 +817,11 @@ void BucketContext::OnHandleDestruction() {
 bool BucketContext::CanClose() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_GE(open_handles_, 0);
+
+  if (backing_store_ && !backing_store_->CanOpportunisticallyClose()) {
+    return false;
+  }
+
   return !has_blobs_outstanding_ && open_handles_ <= 0 &&
          (!backing_store_ || is_doomed_ || !in_memory());
 }
@@ -887,9 +919,13 @@ std::string BucketContext::SanitizeErrorMessage(const std::string& message) {
   return sanitized_message;
 }
 
-bool BucketContext::ShouldUseSqliteBackingStore() {
-  // Additional checks may be added subsequently.
-  return base::FeatureList::IsEnabled(kSqliteBackingStore);
+// static
+base::AutoReset<std::optional<bool>>
+BucketContext::OverrideShouldUseSqliteForTesting(bool use_sqlite) {
+  CHECK(!g_should_use_sqlite_for_testing.has_value());
+  base::AutoReset<std::optional<bool>> scoped_override(
+      &g_should_use_sqlite_for_testing, use_sqlite);
+  return scoped_override;
 }
 
 void BucketContext::HandleBackingStoreCorruption(
@@ -911,19 +947,32 @@ void BucketContext::HandleBackingStoreCorruption(
   std::move(handle_corruption).Run();
 }
 
-void BucketContext::OnDatabaseError(Status status, const std::string& message) {
+void BucketContext::OnDatabaseError(Database* database,
+                                    Status status,
+                                    const std::string& message) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!status.ok());
-  const std::string error_message =
-      message.empty() ? status.ToString() : message;
-  if (status.IsCorruption()) {
-    HandleBackingStoreCorruption(error_message);
-    return;
-  }
+
   if (status.IsIOError()) {
     quota_manager_proxy_->OnClientWriteFailed(bucket_info_.storage_key);
   }
-  ForceClose(/*doom=*/false, error_message);
+
+  const std::string error_message =
+      message.empty() ? status.ToString() : message;
+  if (ShouldUseSqlite()) {
+    // TODO(crbug.com/419203257): for now, database errors are most likely due
+    // to unimplemented functionality; in the future, we'll need to deal with
+    // corruption. Unlike in the LevelDB case, an error in one database doesn't
+    // indicate a problem with the entire bucket.
+    CHECK(database);
+    database->ForceCloseAndRunTasks(error_message);
+  } else {
+    if (status.IsCorruption()) {
+      HandleBackingStoreCorruption(error_message);
+      return;
+    }
+    ForceClose(/*doom=*/false, error_message);
+  }
 }
 
 bool BucketContext::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
@@ -957,14 +1006,63 @@ BucketContext::InitBackingStoreIfNeeded(bool create_if_missing) {
     return {};
   }
 
+  // Construct paths and create required directories.
   base::FilePath blob_path;
   base::FilePath database_path;
-  Status status = Status::OK();
   if (!in_memory()) {
-    std::tie(database_path, blob_path, status) =
-        CreateDatabaseDirectories(data_path_, bucket_locator());
-    if (!status.ok()) {
-      return {status, CreateDefaultError(), IndexedDBDataLossInfo()};
+    // Creates the base directory if necessary, e.g.
+    // <user-data-dir>/<profile-name>/IndexedDB/
+    if (!base::CreateDirectory(data_path_)) {
+      ReportOpenStatus(INDEXED_DB_BACKING_STORE_OPEN_FAILED_DIRECTORY,
+                       bucket_locator());
+      return {Status::IOError("Unable to create IndexedDB data path"),
+              CreateDefaultError(), IndexedDBDataLossInfo()};
+    }
+
+    if (ShouldUseSqlite()) {
+      // Construct the directory path where databases are stored, e.g.
+      // <user-data-dir>/<profile-name>/IndexedDB/https_example.com/
+      database_path = data_path_.Append(GetSqliteDbDirectory(bucket_locator()));
+    } else {
+      database_path = data_path_.Append(GetLevelDBFileName(bucket_locator()));
+      blob_path = data_path_.Append(GetBlobStoreFileName(bucket_locator()));
+    }
+
+    if (IsPathTooLong(database_path)) {
+#if !BUILDFLAG(IS_FUCHSIA)
+      if (!ShouldUseSqlite()) {
+        LogDatabasePathOverflow(database_path.value().length(),
+                                /*is_sqlite=*/false);
+      }
+#endif  // !BUILDFLAG(IS_FUCHSIA)
+      ReportOpenStatus(INDEXED_DB_BACKING_STORE_OPEN_ORIGIN_TOO_LONG,
+                       bucket_locator());
+      return {Status::IOError("File path too long"), CreateDefaultError(),
+              IndexedDBDataLossInfo()};
+    }
+
+#if !BUILDFLAG(IS_FUCHSIA)
+    if (!ShouldUseSqlite()) {
+      // The directory path must exist for the below IsPathTooLong() to work.
+      bool directory_exists = base::CreateDirectory(database_path);
+      // This is the longest filename that LevelDB uses inside its directory.
+      // This is logged for purposes of comparing to
+      // IndexedDB.DatabasePathOverflow.SQLite.
+      base::FilePath leveldb_longest_path =
+          database_path.Append(FILE_PATH_LITERAL("MANIFEST-123456"));
+      const size_t leveldb_path_length =
+          (!directory_exists || IsPathTooLong(leveldb_longest_path))
+              ? leveldb_longest_path.value().length()
+              : 0U;
+      LogDatabasePathOverflow(leveldb_path_length, /*is_sqlite=*/false);
+    }
+#endif
+
+    if (ShouldUseSqlite() && !base::CreateDirectory(database_path)) {
+      ReportOpenStatus(INDEXED_DB_BACKING_STORE_OPEN_FAILED_DIRECTORY,
+                       bucket_locator());
+      return {Status::IOError("Unable to create IndexedDB database path"),
+              CreateDefaultError(), IndexedDBDataLossInfo()};
     }
   }
 
@@ -973,13 +1071,14 @@ BucketContext::InitBackingStoreIfNeeded(bool create_if_missing) {
   std::unique_ptr<BackingStore> backing_store;
   bool disk_full = false;
   base::ElapsedTimer open_timer;
-  Status first_try_status;
+  Status status, first_try_status;
   constexpr static const int kNumOpenTries = 2;
   for (int i = 0; i < kNumOpenTries; ++i) {
     const bool is_first_attempt = i == 0;
     std::tie(backing_store, status, data_loss_info, disk_full) =
-        ShouldUseSqliteBackingStore()
-            ? sqlite::BackingStoreImpl::OpenAndVerify(data_path_)
+        ShouldUseSqlite()
+            ? sqlite::BackingStoreImpl::OpenAndVerify(database_path,
+                                                      *blob_storage_context_)
             : level_db::BackingStore::OpenAndVerify(
                   *this, data_path_, database_path, blob_path,
                   lock_manager.get(), is_first_attempt, create_if_missing);

@@ -149,6 +149,26 @@ export const syncPrefsIndividualDataTypes: string[] = [
   'wifiConfigurationsSynced',
 ];
 
+// Always keep in sync with `UserSelectableType` (C++).
+// LINT.IfChange(UserSelectableType)
+export enum UserSelectableType {
+  BOOKMARKS = 0,
+  PREFERENCES = 1,
+  PASSWORDS = 2,
+  AUTOFILL = 3,
+  THEMES = 4,
+  HISTORY = 5,
+  EXTENSIONS = 6,
+  APPS = 7,
+  READING_LIST = 8,
+  TABS = 9,
+  SAVED_TAB_GROUPS = 10,
+  PAYMENTS = 11,
+  PRODUCT_COMPARISON = 12,
+  COOKIES = 13
+}
+// LINT.ThenChange(/components/sync/base/user_selectable_type.h:UserSelectableType)
+
 export enum PageStatus {
   SPINNER = 'spinner',      // Before the page has loaded.
   CONFIGURE = 'configure',  // Preferences ready to be configured.
@@ -178,7 +198,7 @@ export interface ChromeSigninUserChoiceInfo {
 }
 
 export interface SyncBrowserProxy {
-  // <if expr="not chromeos_ash">
+  // <if expr="not is_chromeos">
   /**
    * Starts the signin process for the user. Does nothing if the user is
    * already signed in.
@@ -194,9 +214,21 @@ export interface SyncBrowserProxy {
    * Invalidates the Sync token without signing the user out.
    */
   pauseSync(): void;
+
+  /**
+   * Function to invoke when the account settings page with the account storage
+   * per type settings is shown.
+   */
+  didNavigateToAccountSettingsPage(): void;
+
+  /**
+   * Sets a single type of data to sync.
+   */
+  setSyncDatatype(pref: UserSelectableType, value: boolean):
+      Promise<PageStatus>;
   // </if>
 
-  // <if expr="chromeos_ash">
+  // <if expr="is_chromeos">
   /**
    * Signs the user out.
    */
@@ -310,7 +342,7 @@ export interface SyncBrowserProxy {
 }
 
 export class SyncBrowserProxyImpl implements SyncBrowserProxy {
-  // <if expr="not chromeos_ash">
+  // <if expr="not is_chromeos">
   startSignIn() {
     chrome.send('SyncSetupStartSignIn');
   }
@@ -322,9 +354,17 @@ export class SyncBrowserProxyImpl implements SyncBrowserProxy {
   pauseSync() {
     chrome.send('SyncSetupPauseSync');
   }
+
+  didNavigateToAccountSettingsPage() {
+    chrome.send('ShowAccountSettingsUI');
+  }
+
+  setSyncDatatype(pref: UserSelectableType, value: boolean) {
+    return sendWithPromise('SetDatatype', pref, value);
+  }
   // </if>
 
-  // <if expr="chromeos_ash">
+  // <if expr="is_chromeos">
   attemptUserExit() {
     chrome.send('AttemptUserExit');
   }

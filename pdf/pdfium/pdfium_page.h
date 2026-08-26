@@ -129,6 +129,9 @@ class PDFiumPage {
   std::vector<int> GetImageObjectIndices();
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+  // Returns if the page has images.
+  bool HasImages();
+
   // Returns the image as a 32-bit bitmap format for OCR. The image dimensions
   // will be at most `max_image_dimension`.
   SkBitmap GetImageForOcr(int page_object_index, int max_image_dimension);
@@ -141,6 +144,9 @@ class PDFiumPage {
   // Returns if Searchify has run on the page, regardless of whether it added
   // any text to the page or not.
   bool IsPageSearchified() const;
+
+  // Returns if the page can be unloaded.
+  bool PageCanBeUnloaded() const;
 #endif  // BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
 
   // For all the highlights on the page, get their underlying text ranges and

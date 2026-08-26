@@ -19,6 +19,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/json/values_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -26,21 +27,26 @@
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
 #include "base/version.h"
+#include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+#include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_install_command_helper.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_prepare_and_store_update_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_downloader.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_source.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest_fetcher.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "components/keep_alive_registry/keep_alive_registry.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/webapps/common/web_app_id.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/download/bundle_downloader.h"
+#include "components/webapps/isolated_web_apps/types/source.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/net_errors.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace web_app {
 
@@ -131,6 +137,12 @@ std::string IsolatedWebAppUpdateDiscoveryTask::SuccessToString(
     case IsolatedWebAppUpdateDiscoveryTask::Success::kUpdateAlreadyPending:
       return "Success::kUpdateAlreadyPending";
     case IsolatedWebAppUpdateDiscoveryTask::Success::
+        kPinnedVersionUpdateFoundAndSavedInDatabase:
+      return "Success::kPinnedVersionUpdateFoundAndSavedInDatabase";
+    case IsolatedWebAppUpdateDiscoveryTask::Success::
+        kDowngradeVersionFoundAndSavedInDatabase:
+      return "Success::kDowngradeVersionFoundAndSavedInDatabase";
+    case IsolatedWebAppUpdateDiscoveryTask::Success::
         kUpdateFoundAndSavedInDatabase:
       return "Success::kUpdateFoundAndDryRunSuccessful";
   }
@@ -152,12 +164,19 @@ std::string IsolatedWebAppUpdateDiscoveryTask::ErrorToString(Error error) {
       return "Error::kUpdateManifestNoApplicableVersion";
     case IsolatedWebAppUpdateDiscoveryTask::Error::kIwaNotInstalled:
       return "Error::kIwaNotInstalled";
+    case IsolatedWebAppUpdateDiscoveryTask::Error::
+        kPinnedVersionNotFoundInUpdateManifest:
+      return "Error::kPinnedVersionNotFoundInUpdateManifest";
+    case IsolatedWebAppUpdateDiscoveryTask::Error::kDowngradetNotAllowed:
+      return "Error::kDowngradetNotAllowed";
     case IsolatedWebAppUpdateDiscoveryTask::Error::kBundleDownloadError:
       return "Error::kBundleDownloadError";
     case IsolatedWebAppUpdateDiscoveryTask::Error::kDownloadPathCreationFailed:
       return "Error::kDownloadPathCreationFailed";
     case IsolatedWebAppUpdateDiscoveryTask::Error::kUpdateDryRunFailed:
       return "Error::kUpdateDryRunFailed";
+    case Error::kSystemShutdown:
+      return "Error::kSystemShutdown";
   }
 }
 
@@ -166,14 +185,12 @@ IsolatedWebAppUpdateDiscoveryTask::IsolatedWebAppUpdateDiscoveryTask(
     WebAppCommandScheduler& command_scheduler,
     WebAppRegistrar& registrar,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-    std::unique_ptr<ScopedKeepAlive> optional_keep_alive,
-    std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive)
+    Profile& profile)
     : task_params_(std::move(task_params)),
       command_scheduler_(command_scheduler),
       registrar_(registrar),
       url_loader_factory_(std::move(url_loader_factory)),
-      optional_keep_alive_(std::move(optional_keep_alive)),
-      optional_profile_keep_alive_(std::move(optional_profile_keep_alive)) {
+      profile_(profile) {
   CHECK(url_loader_factory_);
   debug_log_ =
       base::Value::Dict()
@@ -193,6 +210,20 @@ IsolatedWebAppUpdateDiscoveryTask::~IsolatedWebAppUpdateDiscoveryTask() =
     default;
 
 void IsolatedWebAppUpdateDiscoveryTask::Start(CompletionCallback callback) {
+  if (KeepAliveRegistry::GetInstance()->IsShuttingDown()) {
+    FailWith(Error::kSystemShutdown);
+    return;
+  }
+
+  keep_alive_ = std::make_unique<ScopedKeepAlive>(
+      KeepAliveOrigin::ISOLATED_WEB_APP_UPDATE,
+      KeepAliveRestartOption::DISABLED);
+  profile_keep_alive_ =
+      profile_->IsOffTheRecord()
+          ? nullptr
+          : std::make_unique<ScopedProfileKeepAlive>(
+                &*profile_, ProfileKeepAliveOrigin::kIsolatedWebAppUpdate);
+
   CHECK(!has_started_);
   has_started_ = true;
   callback_ = std::move(callback);
@@ -224,15 +255,21 @@ void IsolatedWebAppUpdateDiscoveryTask::OnUpdateManifestFetched(
                      }
                    });
 
-  std::optional<UpdateManifest::VersionEntry> version_entry =
-      task_params_.pinned_version()
-          ? update_manifest.GetVersion(task_params_.pinned_version().value(),
-                                       task_params_.update_channel())
-          : update_manifest.GetLatestVersion(task_params_.update_channel());
-
-  if (!version_entry.has_value()) {
-    FailWith(Error::kUpdateManifestNoApplicableVersion);
-    return;
+  std::optional<UpdateManifest::VersionEntry> version_entry;
+  if (task_params_.pinned_version()) {
+    version_entry = update_manifest.GetVersion(
+        task_params_.pinned_version().value(), task_params_.update_channel());
+    if (!version_entry) {
+      FailWith(Error::kPinnedVersionNotFoundInUpdateManifest);
+      return;
+    }
+  } else {
+    version_entry =
+        update_manifest.GetLatestVersion(task_params_.update_channel());
+    if (!version_entry) {
+      FailWith(Error::kUpdateManifestNoApplicableVersion);
+      return;
+    }
   }
 
   debug_log_.Set(
@@ -258,9 +295,9 @@ void IsolatedWebAppUpdateDiscoveryTask::OnUpdateManifestFetched(
       GetIsolatedWebAppById(*registrar_, task_params_.url_info().app_id()),
       [&](const std::string&) { FailWith(Error::kIwaNotInstalled); });
   const auto& isolation_data = *iwa.isolation_data();
-  base::Version currently_installed_version = isolation_data.version();
+  currently_installed_version_ = isolation_data.version();
   debug_log_.Set("currently_installed_version",
-                 currently_installed_version.GetString());
+                 currently_installed_version_.GetString());
 
   const auto& pending_update = isolation_data.pending_update_info();
 
@@ -302,14 +339,22 @@ void IsolatedWebAppUpdateDiscoveryTask::OnUpdateManifestFetched(
   // that the installed version of the IWA won't change in the time between
   // now and when we schedule the
   // `IsolatedWebAppUpdatePrepareAndStoreCommand`. This is not an issue, as
-  // `IsolatedWebAppUpdatePrepareAndStoreCommand` will re-check that the new
-  // version can be applied.
-  if (ShouldPreventVersionChange(version_entry->version(),
-                                 currently_installed_version,
-                                 task_params_.allow_downgrades(),
-                                 same_version_update_allowed_by_key_rotation)) {
-    SucceedWith(Success::kNoUpdateFound);
-    return;
+  // the mentioned command will re-check that the new version can be applied.
+  VersionChangeValidationResult validation_result =
+      ValidateVersionChangeFeasibility(
+          version_entry->version(), currently_installed_version_,
+          task_params_.allow_downgrades(),
+          same_version_update_allowed_by_key_rotation);
+
+  switch (validation_result) {
+    case VersionChangeValidationResult::kDowngradeDisallowed:
+      FailWith(Error::kDowngradetNotAllowed);
+      return;
+    case VersionChangeValidationResult::kSameVersionUpdateDisallowed:
+      SucceedWith(Success::kNoUpdateFound);
+      return;
+    case VersionChangeValidationResult::kAllowed:
+      break;
   }
 
   bundle_downloader_ = IsolatedWebAppDownloader::Create(url_loader_factory_);
@@ -393,22 +438,33 @@ void IsolatedWebAppUpdateDiscoveryTask::OnWebBundleDownloaded(
                 expected_version, task_params_.allow_downgrades());
 
   command_scheduler_->PrepareAndStoreIsolatedWebAppUpdate(
-      update_info, task_params_.url_info(), std::move(optional_keep_alive_),
-      std::move(optional_profile_keep_alive_),
+      update_info, task_params_.url_info(), std::move(keep_alive_),
+      std::move(profile_keep_alive_),
       base::BindOnce(&IsolatedWebAppUpdateDiscoveryTask::OnUpdateDryRunDone,
                      weak_factory_.GetWeakPtr()));
 }
 
 void IsolatedWebAppUpdateDiscoveryTask::OnUpdateDryRunDone(
     IsolatedWebAppUpdatePrepareAndStoreCommandResult result) {
-  if (result.has_value()) {
-    debug_log_.Set("prepare_and_store_command_update_version",
-                   result->update_version.GetString());
-    SucceedWith(Success::kUpdateFoundAndSavedInDatabase);
-  } else {
+  if (!result.has_value()) {
     debug_log_.Set("prepare_and_store_command_error", result.error().message);
     FailWith(Error::kUpdateDryRunFailed);
+    return;
   }
+  debug_log_.Set("prepare_and_store_command_update_version",
+                 result->update_version.GetString());
+
+  Success success_type = Success::kUpdateFoundAndSavedInDatabase;
+
+  if (task_params_.pinned_version() &&
+      result->update_version == task_params_.pinned_version()) {
+    success_type = Success::kPinnedVersionUpdateFoundAndSavedInDatabase;
+  }
+  if (result->update_version < currently_installed_version_) {
+    success_type = Success::kDowngradeVersionFoundAndSavedInDatabase;
+  }
+
+  SucceedWith(success_type);
 }
 
 void IsolatedWebAppUpdateDiscoveryTask::SucceedWith(Success success) {

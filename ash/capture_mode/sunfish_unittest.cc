@@ -2747,13 +2747,13 @@ TEST_F(SunfishTest, PanelCreationWithMenuObserved) {
 
 using SunfishDisplayMetricsTest = SunfishTest;
 
-// TODO(crbug.com/388564694): Enable after resolving flakiness.
-TEST_F(SunfishDisplayMetricsTest, DISABLED_RefreshPanelBoundsInDefaultMode) {
+TEST_F(SunfishDisplayMetricsTest, RefreshPanelBoundsInDefaultMode) {
   // Start default mode, select a region and press "Search" to show the panel.
   auto* controller =
       StartCaptureSession(CaptureModeSource::kRegion, CaptureModeType::kImage);
   SelectCaptureModeRegion(GetEventGenerator(), gfx::Rect(0, 0, 50, 200),
                           /*release_mouse=*/true, /*verify_region=*/true);
+  WaitForCaptureModeWidgetsVisible();
   CaptureModeSessionTestApi session_test_api(
       controller->capture_mode_session());
   auto* search_button = session_test_api.GetActionButtonByViewId(
@@ -2818,7 +2818,10 @@ class ScannerTest : public AshTestBase {
  public:
   ScannerTest()
       : AshTestBase(
-            base::test::SingleThreadTaskEnvironment::TimeSource::MOCK_TIME) {}
+            base::test::SingleThreadTaskEnvironment::TimeSource::MOCK_TIME) {
+    scoped_feature_list_.InitWithFeatures({features::kScannerUpdate},
+                                          {features::kSunfishFeature});
+  }
   ScannerTest(const ScannerTest&) = delete;
   ScannerTest& operator=(const ScannerTest&) = delete;
   ~ScannerTest() override = default;
@@ -2865,7 +2868,7 @@ class ScannerTest : public AshTestBase {
   MockNewWindowDelegate& new_window_delegate() { return new_window_delegate_; }
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_{features::kScannerUpdate};
+  base::test::ScopedFeatureList scoped_feature_list_;
   MockNewWindowDelegate new_window_delegate_;
 };
 

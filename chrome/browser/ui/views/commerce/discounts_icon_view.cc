@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/views/commerce/discounts_bubble_dialog_view.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/metrics/discounts_metric_collector.h"
 #include "components/strings/grit/components_strings.h"
@@ -30,8 +31,7 @@ DiscountsIconView::DiscountsIconView(
                          0,
                          icon_label_bubble_delegate,
                          page_action_icon_delegate,
-                         "Discounts"),
-      bubble_coordinator_(this) {
+                         "Discounts") {
   GetViewAccessibility().SetName(
       l10n_util::GetStringUTF16(IDS_DISCOUNT_ICON_EXPANDED_TEXT));
   SetUpForInOutAnimation();
@@ -41,7 +41,13 @@ DiscountsIconView::DiscountsIconView(
 DiscountsIconView::~DiscountsIconView() = default;
 
 views::BubbleDialogDelegate* DiscountsIconView::GetBubble() const {
-  return bubble_coordinator_.GetBubble();
+  const commerce::CommerceUiTabHelper* tab_helper = GetTabHelper();
+
+  if (!tab_helper) {
+    return nullptr;
+  }
+
+  return tab_helper->GetDiscountsBubbleCoordinator().GetBubble();
 }
 
 void DiscountsIconView::SetIsLabelExpanded(bool is_expanded) {
@@ -164,6 +170,11 @@ void DiscountsIconView::UnpauseAnimation() {
 }
 
 commerce::CommerceUiTabHelper* DiscountsIconView::GetTabHelper() {
+  return const_cast<commerce::CommerceUiTabHelper*>(
+      std::as_const(*this).GetTabHelper());
+}
+
+const commerce::CommerceUiTabHelper* DiscountsIconView::GetTabHelper() const {
   auto* web_contents = GetWebContents();
   if (!web_contents) {
     return nullptr;
@@ -213,9 +224,9 @@ void DiscountsIconView::MaybeShowBubble(bool from_user) {
     animate_out_timer_.Stop();
   }
 
-  bubble_coordinator_.Show(GetWebContents(), discount_infos[0],
-                           base::BindOnce(&DiscountsIconView::UnpauseAnimation,
-                                          weak_ptr_factory_.GetWeakPtr()));
+  tab_helper->ShowDiscountBubble(
+      discount_infos[0], base::BindOnce(&DiscountsIconView::UnpauseAnimation,
+                                        weak_ptr_factory_.GetWeakPtr()));
 
   tab_helper->DiscountsBubbleShown(discount_infos[0].id);
 

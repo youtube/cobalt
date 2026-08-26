@@ -34,7 +34,6 @@ import static org.chromium.chrome.browser.settings.MainSettings.PREF_UI_THEME;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Looper;
 import android.provider.Settings;
 import android.text.TextUtils;
@@ -97,11 +96,8 @@ import org.chromium.chrome.browser.magic_stack.HomeModulesConfigManager;
 import org.chromium.chrome.browser.magic_stack.HomeModulesConfigSettings;
 import org.chromium.chrome.browser.night_mode.NightModeMetrics.ThemeSettingsEntry;
 import org.chromium.chrome.browser.night_mode.settings.ThemeSettingsFragment;
-import org.chromium.chrome.browser.password_check.PasswordCheck;
-import org.chromium.chrome.browser.password_check.PasswordCheckFactory;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridge;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridgeJni;
-import org.chromium.chrome.browser.password_manager.settings.PasswordSettings;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.privacy.settings.PrivacySettings;
@@ -133,7 +129,6 @@ import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
 import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
-import org.chromium.chrome.test.util.browser.sync.SyncTestUtil;
 import org.chromium.components.autofill.AutofillFeatures;
 import org.chromium.components.browser_ui.accessibility.AccessibilitySettings;
 import org.chromium.components.browser_ui.site_settings.SiteSettings;
@@ -195,7 +190,6 @@ public class MainSettingsFragmentTest {
     @Mock public TemplateUrlService mMockTemplateUrlService;
     @Mock public TemplateUrl mMockSearchEngine;
 
-    @Mock private PasswordCheck mPasswordCheck;
     @Mock private PasswordManagerUtilBridge.Natives mPasswordManagerUtilBridgeJniMock;
 
     @Mock private SigninAndHistorySyncActivityLauncher mSigninAndHistorySyncActivityLauncher;
@@ -211,7 +205,6 @@ public class MainSettingsFragmentTest {
         // ObservableSupplierImpl needs a Looper.
         Looper.prepare();
         InstrumentationRegistry.getInstrumentation().setInTouchMode(true);
-        PasswordCheckFactory.setPasswordCheckForTesting(mPasswordCheck);
         PasswordManagerUtilBridgeJni.setInstanceForTesting(mPasswordManagerUtilBridgeJniMock);
         SigninAndHistorySyncActivityLauncherImpl.setLauncherForTest(
                 mSigninAndHistorySyncActivityLauncher);
@@ -301,18 +294,9 @@ public class MainSettingsFragmentTest {
 
         // Assert for "Basics" section
         assertSettingsExists(MainSettings.PREF_SEARCH_ENGINE, SearchEngineSettings.class);
-        if (supportThirdPartyFillingSetting()) {
-            assertSettingsExists(MainSettings.PREF_AUTOFILL_OPTIONS, null);
-            assertSettingsExists(MainSettings.PREF_AUTOFILL_SECTION, null);
-        } else {
-            Assert.assertNull(
-                    "Third party filling setting should be hidden",
-                    mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_OPTIONS));
-            Assert.assertNull(
-                    "Autofill section header should be hidden",
-                    mMainSettings.findPreference(MainSettings.PREF_AUTOFILL_SECTION));
-        }
-        assertSettingsExists(MainSettings.PREF_PASSWORDS, PasswordSettings.class);
+        assertSettingsExists(MainSettings.PREF_AUTOFILL_OPTIONS, null);
+        assertSettingsExists(MainSettings.PREF_AUTOFILL_SECTION, null);
+        assertSettingsExists(MainSettings.PREF_PASSWORDS, null);
         assertSettingsExists("autofill_payment_methods", AutofillPaymentMethodsFragment.class);
         assertSettingsExists("autofill_addresses", AutofillProfilesFragment.class);
         if (supportNotificationSettings()) {
@@ -427,7 +411,7 @@ public class MainSettingsFragmentTest {
     @Feature({"Sync"})
     @Policies.Add(@Policies.Item(key = "SyncDisabled", string = "true"))
     public void testPressingSignOutSyncDisabled() {
-        CoreAccountInfo accountInfo = mSyncTestRule.setUpAccountAndSignInForTesting();
+        CoreAccountInfo accountInfo = mSyncTestRule.setUpAccountAndSignInWithoutWaitingForTesting();
 
         startSettings();
 
@@ -529,7 +513,6 @@ public class MainSettingsFragmentTest {
         fakeSyncService.setRequiresClientUpgrade(true);
         // Sign in and wait for sync machinery to be active.
         CoreAccountInfo accountInfo = mSyncTestRule.setUpAccountAndSignInForTesting();
-        SyncTestUtil.waitForSyncTransportActive();
 
         startSettings();
 
@@ -684,16 +667,6 @@ public class MainSettingsFragmentTest {
         Assert.assertNull(
                 "Preference should be disabled: " + MainSettings.PREF_DEVELOPER,
                 mMainSettings.findPreference(MainSettings.PREF_DEVELOPER));
-    }
-
-    @Test
-    @SmallTest
-    public void testDestroysPasswordCheck() {
-        startSettings();
-        Activity activity = mMainSettings.getActivity();
-        activity.finish();
-        CriteriaHelper.pollUiThread(() -> activity.isDestroyed());
-        Assert.assertNull(PasswordCheckFactory.getPasswordCheckInstance());
     }
 
     @Test
@@ -1069,13 +1042,8 @@ public class MainSettingsFragmentTest {
     }
 
     private boolean supportNotificationSettings() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false;
         return PackageManagerUtils.canResolveActivity(
                 new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS));
-    }
-
-    private boolean supportThirdPartyFillingSetting() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O;
     }
 
     private void testNewPreferenceLabel(

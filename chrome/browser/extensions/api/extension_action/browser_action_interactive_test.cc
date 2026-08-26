@@ -958,9 +958,9 @@ class NavigatingExtensionPopupInteractiveTest
                     "browser_action/popup_with_iframe")));
   }
 
-  enum ExpectedNavigationStatus {
-    EXPECTING_NAVIGATION_SUCCESS,
-    EXPECTING_NAVIGATION_FAILURE,
+  enum class ExpectedNavigationStatus {
+    kSuccess,
+    kFailure,
   };
 
   void TestPopupNavigationViaGet(
@@ -1010,18 +1010,11 @@ class NavigatingExtensionPopupInteractiveTest
     GURL popup_url = popup_extension().GetResourceURL("popup.html");
     EXPECT_EQ(popup_url, popup->GetLastCommittedURL());
 
-    // Note that the |setTimeout| call below is needed to make sure EvalJs
-    // returns *after* a scheduled navigation has already started.
-    std::string script_to_execute = navigation_starting_script +
-                                    "new Promise(resolve => {\n"
-                                    "  setTimeout(\n"
-                                    "    function() { resolve(true); },\n"
-                                    "    0);\n"
-                                    "});\n";
-
     // Try to navigate the pop-up.
+    content::TestNavigationObserver navigation_observer(popup);
     content::WebContentsDestroyedWatcher popup_destruction_watcher(popup);
-    EXPECT_TRUE(ExecJs(popup, script_to_execute));
+    EXPECT_TRUE(ExecJs(popup, navigation_starting_script));
+    navigation_observer.Wait();
     popup = popup_destruction_watcher.web_contents();
 
     // Verify if the popup navigation succeeded or failed as expected.
@@ -1038,7 +1031,7 @@ class NavigatingExtensionPopupInteractiveTest
       // The popup should still be alive.
       ASSERT_TRUE(popup_destruction_watcher.web_contents());
 
-      if (expected_navigation_status == EXPECTING_NAVIGATION_SUCCESS) {
+      if (expected_navigation_status == ExpectedNavigationStatus::kSuccess) {
         EXPECT_EQ(target_url, popup->GetLastCommittedURL())
             << "Navigation to " << target_url
             << " should succeed in an extension pop-up";
@@ -1078,11 +1071,11 @@ class NavigatingExtensionPopupInteractiveTest
 // Tests that an extension pop-up cannot be navigated to a web page.
 IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest, Webpage_Get) {
   GURL web_url(embedded_test_server()->GetURL("foo.com", "/title1.html"));
-  TestPopupNavigationViaGet(web_url, EXPECTING_NAVIGATION_FAILURE);
+  TestPopupNavigationViaGet(web_url, ExpectedNavigationStatus::kFailure);
 }
 IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest, Webpage_Post) {
   GURL web_url(embedded_test_server()->GetURL("foo.com", "/title1.html"));
-  TestPopupNavigationViaPost(web_url, EXPECTING_NAVIGATION_FAILURE);
+  TestPopupNavigationViaPost(web_url, ExpectedNavigationStatus::kFailure);
 }
 
 // Tests that an extension pop-up can be navigated to another page
@@ -1092,14 +1085,14 @@ IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest,
   GURL other_page_in_same_extension =
       popup_extension().GetResourceURL("other_page.html");
   TestPopupNavigationViaGet(other_page_in_same_extension,
-                            EXPECTING_NAVIGATION_SUCCESS);
+                            ExpectedNavigationStatus::kSuccess);
 }
 IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest,
                        PageInSameExtension_Post) {
   GURL other_page_in_same_extension =
       popup_extension().GetResourceURL("other_page.html");
   TestPopupNavigationViaPost(other_page_in_same_extension,
-                             EXPECTING_NAVIGATION_SUCCESS);
+                             ExpectedNavigationStatus::kSuccess);
 }
 
 // Tests that an extension pop-up cannot be navigated to a page
@@ -1107,13 +1100,15 @@ IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest,
 IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest,
                        PageInOtherExtension_Get) {
   GURL other_extension_url = other_extension().GetResourceURL("other.html");
-  TestPopupNavigationViaGet(other_extension_url, EXPECTING_NAVIGATION_FAILURE);
+  TestPopupNavigationViaGet(other_extension_url,
+                            ExpectedNavigationStatus::kFailure);
 }
 
 IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest,
                        PageInOtherExtension_Post) {
   GURL other_extension_url = other_extension().GetResourceURL("other.html");
-  TestPopupNavigationViaPost(other_extension_url, EXPECTING_NAVIGATION_FAILURE);
+  TestPopupNavigationViaPost(other_extension_url,
+                             ExpectedNavigationStatus::kFailure);
 }
 
 // Tests that navigating an extension pop-up to a http URI that returns
@@ -1132,7 +1127,7 @@ IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest,
   // header.
   GURL download_url(
       embedded_test_server()->GetURL("foo.com", "/download-test3.gif"));
-  TestPopupNavigationViaPost(download_url, EXPECTING_NAVIGATION_FAILURE);
+  TestPopupNavigationViaPost(download_url, ExpectedNavigationStatus::kFailure);
 
   // Verify that "download-test3.gif got downloaded.
   downloads_observer.WaitForFinished();
@@ -1168,7 +1163,7 @@ IN_PROC_BROWSER_TEST_F(NavigatingExtensionPopupInteractiveTest,
   // header.
   GURL download_url(
       embedded_test_server()->GetURL("foo.com", "/download-test3.gif"));
-  TestPopupNavigationViaGet(download_url, EXPECTING_NAVIGATION_FAILURE);
+  TestPopupNavigationViaGet(download_url, ExpectedNavigationStatus::kFailure);
 
   // Verify that "download-test3.gif got downloaded.
   downloads_observer.WaitForFinished();

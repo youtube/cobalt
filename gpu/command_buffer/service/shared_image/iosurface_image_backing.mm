@@ -19,12 +19,12 @@
 #include "base/apple/scoped_nsobject.h"
 #include "base/memory/scoped_policy.h"
 #include "base/trace_event/memory_dump_manager.h"
-#include "components/viz/common/gpu/metal_context_provider.h"
 #include "components/viz/common/resources/resource_sizes.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/shared_image_trace_utils.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/dawn_context_provider.h"
+#include "gpu/command_buffer/service/metal_context_provider.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/command_buffer/service/shared_image/copy_image_plane.h"
 #include "gpu/command_buffer/service/shared_image/dawn_fallback_image_representation.h"
@@ -972,12 +972,16 @@ void IOSurfaceImageBacking::DawnRepresentation::EndAccess() {
   if (end_access_desc.fenceCount > 0) {
     // For write access, we would need to WaitForCommandsToBeScheduled
     // before the image is used by CoreAnimation or WebGL later.
-    // However, we defer the wait on this device until CoreAnimation
-    // or WebGL actually needs to access the image. This could avoid repeated
-    // and unnecessary waits.
+    // However, when it's not thread safe (DrDC is disabled), we defer the wait
+    // on this device until CoreAnimation or WebGL actually needs to access the
+    // image. This could avoid repeated and unnecessary waits.
     // TODO(b/328411251): Investigate whether this is needed if the access
     // is readonly.
-    iosurface_backing->AddWGPUDeviceWithPendingCommands(device_);
+    if (iosurface_backing->is_thread_safe()) {
+      dawn::native::metal::WaitForCommandsToBeScheduled(device_.Get());
+    } else {
+      iosurface_backing->AddWGPUDeviceWithPendingCommands(device_);
+    }
   }
 
   texture_ = nullptr;
@@ -1024,7 +1028,6 @@ bool IOSurfaceImageBacking::SkiaGraphiteDawnMetalRepresentation::
 
 IOSurfaceImageBacking::IOSurfaceImageBacking(
     gfx::ScopedIOSurface io_surface,
-    gfx::GenericSharedMemoryId io_surface_id,
     const Mailbox& mailbox,
     viz::SharedImageFormat format,
     const gfx::Size& size,
@@ -1054,7 +1057,6 @@ IOSurfaceImageBacking::IOSurfaceImageBacking(
       io_surface_size_(IOSurfaceGetWidth(io_surface_.get()),
                        IOSurfaceGetHeight(io_surface_.get())),
       io_surface_format_(IOSurfaceGetPixelFormat(io_surface_.get())),
-      io_surface_id_(io_surface_id),
       dawn_texture_cache_(base::MakeRefCounted<DawnSharedTextureCache>()),
       gl_target_(gl_target),
       framebuffer_attachment_angle_(framebuffer_attachment_angle),
@@ -1062,6 +1064,9 @@ IOSurfaceImageBacking::IOSurfaceImageBacking(
   CHECK(io_surface_);
   CHECK(!is_thread_safe ||
         base::FeatureList::IsEnabled(features::kIOSurfaceMultiThreading));
+
+  // Set the color space for the underlying IOSurface when it's used as overlay.
+  gfx::IOSurfaceSetColorSpace(io_surface_.get(), color_space);
 
   // If this will be bound to different GL backends, then make RetainGLTexture
   // and ReleaseGLTexture actually create and destroy the texture.
@@ -1292,34 +1297,6 @@ base::trace_event::MemoryAllocatorDump* IOSurfaceImageBacking::OnMemoryDump(
   dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
                   base::trace_event::MemoryAllocatorDump::kUnitsBytes,
                   static_cast<uint64_t>(size_bytes));
-
-  // The client tracing id is to identify the GpuMemoryBuffer client that
-  // created the allocation. For CVPixelBufferRefs, there is no corresponding
-  // GpuMemoryBuffer, so use an invalid client id.
-  if (usage().Has(SHARED_IMAGE_USAGE_MACOS_VIDEO_TOOLBOX)) {
-    client_tracing_id =
-        base::trace_event::MemoryDumpManager::kInvalidTracingProcessId;
-  }
-
-  // Create an edge using the GMB GenericSharedMemoryId if the image is not
-  // anonymous. Otherwise, add another nested node to account for the anonymous
-  // IOSurface.
-  if (io_surface_id_.is_valid()) {
-    auto guid = GetGenericSharedGpuMemoryGUIDForTracing(client_tracing_id,
-                                                        io_surface_id_);
-    pmd->CreateSharedGlobalAllocatorDump(guid);
-    pmd->AddOwnershipEdge(dump->guid(), guid);
-  } else {
-    std::string anonymous_dump_name = dump_name + "/anonymous-iosurface";
-    base::trace_event::MemoryAllocatorDump* anonymous_dump =
-        pmd->CreateAllocatorDump(anonymous_dump_name);
-    anonymous_dump->AddScalar(
-        base::trace_event::MemoryAllocatorDump::kNameSize,
-        base::trace_event::MemoryAllocatorDump::kUnitsBytes,
-        static_cast<uint64_t>(size_bytes));
-    anonymous_dump->AddScalar("width", "pixels", size().width());
-    anonymous_dump->AddScalar("height", "pixels", size().height());
-  }
 
   return dump;
 }
@@ -1662,25 +1639,27 @@ bool IOSurfaceImageBacking::IsPurgeable() const {
 
 void IOSurfaceImageBacking::Update(std::unique_ptr<gfx::GpuFence> in_fence) {
   AutoLock auto_lock(this);
-  if (in_fence) {
-    // TODO(dcastagna): Don't wait for the fence if the SharedImage is going
-    // to be scanned out as an HW overlay. Currently we don't know that at
-    // this point and we always bind the image, therefore we need to wait for
-    // the fence.
-    std::unique_ptr<gl::GLFence> egl_fence =
-        gl::GLFence::CreateFromGpuFence(*in_fence.get());
-    egl_fence->ServerWait();
+#if BUILDFLAG(IS_IOS)
+  {
+    // On iOS, we can't use IOKit to access IOSurfaces in the renderer process,
+    // so we share the memory segment backing the IOSurface as shared memory
+    // which is then mapped in the renderer process. We need to signal that the
+    // IOSurface was updated on the CPU so we do an IOSurfaceLock+Unlock here in
+    // case there are other consumers of the IOSurface that rely on its internal
+    // seed value to detect updates - the lock+unlock updates the seed value.
+    // TODO(crbug.com/40254930): Assert that we have CPU_WRITE_ONLY usage so
+    // that we never have the client's CPU-written data overwritten due to a
+    // shadow copy from the GPU - we can also use kIOSurfaceLockAvoidSync then.
+    ScopedIOSurfaceLock io_surface_lock(io_surface_.get(), /*options=*/0);
   }
+#endif
   for (auto iter : egl_state_map_) {
     iter.second->set_bind_pending();
   }
 }
 
 gfx::GpuMemoryBufferHandle IOSurfaceImageBacking::GetGpuMemoryBufferHandle() {
-  gfx::GpuMemoryBufferHandle handle;
-  handle.type = gfx::IO_SURFACE_BUFFER;
-  handle.io_surface = io_surface_;
-  return handle;
+  return gfx::GpuMemoryBufferHandle(io_surface_);
 }
 
 bool IOSurfaceImageBacking::BeginAccess(bool readonly) {
@@ -1879,7 +1858,14 @@ void IOSurfaceImageBacking::IOSurfaceBackingEGLStateEndAccess(
   // glFlush on OpenGL. Defer the call until CoreAnimation, Dawn, or another
   // ANGLE EGLDisplay needs to access to avoid unnecessary overhead. This also
   // ensures that the Metal shared event enqueued above is eventually flushed.
-  AddEGLDisplayWithPendingCommands(display);
+  if (is_thread_safe()) {
+    // With DrDC and Graphite enabled, don't call
+    // AddEGLDisplayWithPendingCommands to avoid the GL context flush on
+    // the Viz thread.
+    eglWaitUntilWorkScheduledANGLE(display->GetDisplay());
+  } else {
+    AddEGLDisplayWithPendingCommands(display);
+  }
 
   // When SwANGLE is used as the GL implementation, it holds an internal
   // texture. We have to call ReleaseTexImage here to trigger a copy from that

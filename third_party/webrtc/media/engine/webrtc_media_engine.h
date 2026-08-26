@@ -41,14 +41,5 @@ BitrateConstraints GetBitrateConfigForCodec(const Codec& codec);
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::FilterRtpExtensions;
-using ::webrtc::GetBitrateConfigForCodec;
-using ::webrtc::ValidateRtpExtensions;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_ENGINE_WEBRTC_MEDIA_ENGINE_H_

@@ -103,6 +103,7 @@ class OpenXrApiWrapper {
   std::vector<mojom::XRInputSourceStatePtr> GetInputState();
 
   std::vector<mojom::XRViewPtr> GetDefaultViews() const;
+  float RecommendedViewportScale() const;
   XrTime GetPredictedDisplayTime() const;
   bool GetStageParameters(std::vector<gfx::Point3F>& stage_bounds,
                           gfx::Transform& local_from_stage);
@@ -113,8 +114,8 @@ class OpenXrApiWrapper {
 
   // Various manager getters if they exist.
   OpenXrAnchorManager* GetAnchorManager();
+  OpenXrHitTestManager* GetHitTestManager();
   OpenXrLightEstimator* GetLightEstimator();
-  OpenXRSceneUnderstandingManager* GetSceneUnderstandingManager();
   OpenXrDepthSensor* GetDepthSensor();
 
   void OnContextProviderCreated(
@@ -129,6 +130,7 @@ class OpenXrApiWrapper {
   void Reset();
   bool Initialize(XrInstance instance, OpenXrGraphicsBinding* graphics_binding);
   void Uninitialize();
+  XrResult ShutdownSession();
   XrResult EnableSupportedFeatures(
       const OpenXrExtensionHelper& extension_helper);
 
@@ -153,7 +155,7 @@ class OpenXrApiWrapper {
       const std::vector<XrSecondaryViewConfigurationStateMSFT>& states);
   XrResult UpdateViewConfigurations();
   XrResult LocateViews(XrReferenceSpaceType space_type,
-                       OpenXrViewConfiguration& view_config) const;
+                       OpenXrViewConfiguration& view_config);
 
   bool HasInstance() const;
   bool HasSystem() const;
@@ -224,6 +226,9 @@ class OpenXrApiWrapper {
   bool try_recreate_local_floor_ = false;
   std::unordered_set<mojom::XRSessionFeature> enabled_features_;
   raw_ptr<OpenXrGraphicsBinding> graphics_binding_ = nullptr;
+
+  bool received_initial_valid_primary_views_ = false;
+  uint64_t frames_before_initial_valid_primary_views_ = 0;
 
   // The swapchain is initializd when a session begins and is re-created when
   // the state of a secondary view configuration changes.

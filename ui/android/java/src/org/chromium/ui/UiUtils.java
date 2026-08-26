@@ -82,11 +82,12 @@ public class UiUtils {
 
     /**
      * Gets the set of locales supported by the current enabled Input Methods.
+     *
      * @param context A {@link Context} instance.
      * @return A possibly-empty {@link Set} of locale strings.
      */
     public static Set<String> getIMELocales(Context context) {
-        LinkedHashSet<String> locales = new LinkedHashSet<String>();
+        LinkedHashSet<String> locales = new LinkedHashSet<>();
         InputMethodManager imManager =
                 (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
         List<InputMethodInfo> enabledMethods = imManager.getEnabledInputMethodList();
@@ -529,5 +530,19 @@ public class UiUtils {
                 }
             }
         }
+    }
+
+    /**
+     * Creates a single color bitmap of the given size.
+     *
+     * @param size The height and width.
+     * @param color The color the fill the bitmap with.
+     * @return The new bitmap.
+     */
+    public static Bitmap createBitmap(int size, @ColorInt int color) {
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        canvas.drawColor(color);
+        return bitmap;
     }
 }

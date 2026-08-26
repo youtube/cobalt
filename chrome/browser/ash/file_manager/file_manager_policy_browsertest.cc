@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -41,6 +42,7 @@
 #include "chrome/common/pref_names.h"
 #include "chromeos/dbus/dlp/dlp_client.h"
 #include "chromeos/dbus/dlp/dlp_service.pb.h"
+#include "components/enterprise/connectors/core/reporting_constants.h"
 #include "components/file_access/test/mock_scoped_file_access_delegate.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
 #include "components/prefs/pref_service.h"
@@ -555,7 +557,7 @@ class FileTransferConnectorFilesAppBrowserTestBase {
               [](base::RepeatingCallback<void(
                      enterprise_connectors::MockFileTransferAnalysisDelegate*)>
                      mock_setup_callback,
-                 safe_browsing::DeepScanAccessPoint access_point,
+                 enterprise_connectors::DeepScanAccessPoint access_point,
                  storage::FileSystemURL source_url,
                  storage::FileSystemURL destination_url, Profile* profile,
                  storage::FileSystemContext* file_system_context,
@@ -711,7 +713,7 @@ class FileTransferConnectorFilesAppBrowserTestBase {
           /*sha*/
           shas,
           /*trigger*/
-          extensions::SafeBrowsingPrivateEventRouter::kTriggerFileTransfer,
+          enterprise_connectors::kFileTransferDataTransferEventTrigger,
           /*dlp_verdict*/ expected_dlp_verdicts,
           /*mimetype*/ JpgMimeTypes(),
           /*size*/ 886,
@@ -1184,7 +1186,8 @@ class SkyVaultFilesAppBrowserTest
       const std::string* provider = value.FindString("provider");
       CHECK(provider);
       CHECK(*provider == download_dir_util::kLocationGoogleDrive ||
-            *provider == download_dir_util::kLocationOneDrive);
+            *provider == download_dir_util::kLocationOneDrive ||
+            *provider == "delete");
       g_browser_process->local_state()->SetString(
           prefs::kLocalUserFilesMigrationDestination, *provider);
       return true;
@@ -1409,6 +1412,9 @@ WRAPPED_INSTANTIATE_TEST_SUITE_P(
                           .DontMountVolumes()
                           .EnableSkyVault(),
                       TestCase("skyVaultMigrationRemovesMyFilesOpenAfter")
+                          .DontMountVolumes()
+                          .EnableSkyVault(),
+                      TestCase("skyVaultMigrationDeleteLocalFiles")
                           .DontMountVolumes()
                           .EnableSkyVault()));
 

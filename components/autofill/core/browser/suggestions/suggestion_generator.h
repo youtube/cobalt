@@ -5,12 +5,17 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_SUGGESTIONS_SUGGESTION_GENERATOR_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_SUGGESTIONS_SUGGESTION_GENERATOR_H_
 
+#include <variant>
+
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/data_model/payments/autofill_offer_data.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
+#include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
+#include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
 
 namespace autofill {
 
@@ -44,17 +49,25 @@ class SuggestionGenerator {
       std::pair<FillingProduct, std::vector<Suggestion>>;
   // Contains the structures used in order to generate various kind of
   // suggestions.
-  using SuggestionData =
-      std::variant<EntityInstance, AutofillProfile, CreditCard, Iban>;
+  using SuggestionData = std::variant<EntityInstance,
+                                      AutofillProfile,
+                                      CreditCard,
+                                      Iban,
+                                      AutofillOfferData,
+                                      AutocompleteEntry>;
 
   // Obtains data that will be used to generate suggestions on a given trigger
   // `field` that belongs to `form` by calling `GenerateSuggestions` later (See
   // top-level documentation of `SuggestionGenerator` for more details).
   // Once the data is obtained, `callback` is called with the `FillingProduct`
   // of which the data is for and the corresponding `SuggestionData`.
+  // `form` and `field` may be null if the `form_data` or `field_data` wasn't
+  // yet parsed.
   virtual void FetchSuggestionData(
-      const FormStructure& form,
-      const AutofillField& field,
+      const FormData& form_data,
+      const FormFieldData& field_data,
+      const FormStructure* form,
+      const AutofillField* field,
       const AutofillClient& client,
       base::OnceCallback<
           void(std::pair<FillingProduct,
@@ -67,9 +80,13 @@ class SuggestionGenerator {
   // Suggestions were triggered on `field` which belongs to `form`. `callback`
   // is called when generation is complete and a list of `Suggestion`
   // objects is passed along with the corresponding `FillingProduct`.
+  // `form` and `field` may be null if the `form_data` or `field_data` wasn't
+  // yet parsed.
   virtual void GenerateSuggestions(
-      const FormStructure& form,
-      const AutofillField& field,
+      const FormData& form_data,
+      const FormFieldData& field_data,
+      const FormStructure* form,
+      const AutofillField* field,
       const std::vector<std::pair<FillingProduct, std::vector<SuggestionData>>>&
           all_suggestion_data,
       base::OnceCallback<void(ReturnedSuggestions)> callback) = 0;

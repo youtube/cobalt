@@ -18,19 +18,24 @@
 #import "components/sync/service/sync_service.h"
 #import "ios/chrome/browser/autofill/model/personal_data_manager_factory.h"
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_credit_card_util.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_credit_card_edit_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_credit_card_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_profile_edit_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_profile_table_view_controller.h"
+#import "ios/chrome/browser/settings/ui_bundled/bwg/coordinator/bwg_settings_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/clear_browsing_data_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/clear_browsing_data_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/features.h"
+#import "ios/chrome/browser/settings/ui_bundled/content_settings/content_settings_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/content_settings/content_settings_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/default_browser/default_browser_settings_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/google_services_settings_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/google_services_settings_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_coordinator.h"
+#import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_coordinator_delegate.h"
+#import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/notifications/notifications_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_details/password_details_coordinator.h"
@@ -85,8 +90,11 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 
 @interface SettingsNavigationController () <
     AutofillProfileEditCoordinatorDelegate,
+    BWGSettingsCoordinatorDelegate,
     ClearBrowsingDataCoordinatorDelegate,
+    ContentSettingsCoordinatorDelegate,
     GoogleServicesSettingsCoordinatorDelegate,
+    ManageAccountsCoordinatorDelegate,
     ManageSyncSettingsCoordinatorDelegate,
     NotificationsCoordinatorDelegate,
     PasswordDetailsCoordinatorDelegate,
@@ -94,8 +102,13 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
     PrivacyCoordinatorDelegate,
     PrivacySafeBrowsingCoordinatorDelegate,
     SafetyCheckCoordinatorDelegate,
+    SyncEncryptionPassphraseTableViewControllerPresentationDelegate,
     UIAdaptivePresentationControllerDelegate,
     UINavigationControllerDelegate>
+
+// Content settings coordinator.
+@property(nonatomic, strong)
+    ContentSettingsCoordinator* contentSettingsCoordinator;
 
 // Google services settings coordinator.
 @property(nonatomic, strong)
@@ -118,6 +131,9 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 // Autofill profile edit coordinator.
 @property(nonatomic, strong)
     AutofillProfileEditCoordinator* autofillProfileEditCoordinator;
+
+// BWG settings coordinator.
+@property(nonatomic, strong) BWGSettingsCoordinator* BWGSettingsCoordinator;
 
 // TODO(crbug.com/335387869): Delete this coordinator when Quick Delete is fully
 // launched. The coordinator for the clear browsing data screen.
@@ -160,6 +176,10 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 // The Browser instance this controller is configured with.
 @property(nonatomic, assign) Browser* browser;
 
+// The Sync EncryptionPassphraseTableViewController if it’s displayed.
+@property(nonatomic, strong) SyncEncryptionPassphraseTableViewController*
+    syncEncryptionPassphraseTableViewController;
+
 @end
 
 @implementation SettingsNavigationController
@@ -185,9 +205,16 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 }
 
 + (instancetype)
-    accountsControllerForBrowser:(Browser*)browser
-                        delegate:
-                            (id<SettingsNavigationControllerDelegate>)delegate {
+           accountsControllerForBrowser:(Browser*)browser
+                     baseViewController:(UIViewController*)baseViewController
+                               delegate:
+                                   (id<SettingsNavigationControllerDelegate>)
+                                       delegate
+              closeSettingsOnAddAccount:(BOOL)closeSettingsOnAddAccount
+                      showSignoutButton:(BOOL)showSignoutButton
+                         showDoneButton:(BOOL)showDoneButton
+    signoutDismissalByParentCoordinator:
+        (BOOL)signoutDismissalByParentCoordinator {
   SettingsNavigationController* navigationController =
       [[SettingsNavigationController alloc]
           initWithRootViewController:nil
@@ -197,9 +224,28 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
       [[ManageAccountsCoordinator alloc]
           initWithBaseNavigationController:navigationController
                                    browser:browser
-                 closeSettingsOnAddAccount:YES];
-  navigationController.manageAccountsCoordinator.showSignoutButton = YES;
+                 closeSettingsOnAddAccount:closeSettingsOnAddAccount
+                            showDoneButton:showDoneButton];
+  navigationController.manageAccountsCoordinator.delegate =
+      navigationController;
+  navigationController.manageAccountsCoordinator.showSignoutButton =
+      showSignoutButton;
   [navigationController.manageAccountsCoordinator start];
+  [baseViewController presentViewController:navigationController
+                                   animated:YES
+                                 completion:nil];
+  return navigationController;
+}
+
++ (instancetype)
+    BWGControllerForBrowser:(Browser*)browser
+                   delegate:(id<SettingsNavigationControllerDelegate>)delegate {
+  SettingsNavigationController* navigationController =
+      [[SettingsNavigationController alloc]
+          initWithRootViewController:nil
+                             browser:browser
+                            delegate:delegate];
+  [navigationController showBWGSettingsPage];
   return navigationController;
 }
 
@@ -296,6 +342,8 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
           initWithRootViewController:controller
                              browser:browser
                             delegate:delegate];
+  controller.presentationDelegate = navigationController;
+  navigationController.syncEncryptionPassphraseTableViewController = controller;
   [controller navigationItem].leftBarButtonItem =
       [navigationController cancelButton];
   return navigationController;
@@ -560,19 +608,14 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
                                delegate:
                                    (id<SettingsNavigationControllerDelegate>)
                                        delegate {
-  ContentSettingsTableViewController* controller =
-      [[ContentSettingsTableViewController alloc] initWithBrowser:browser];
-
   SettingsNavigationController* navigationController =
       [[SettingsNavigationController alloc]
-          initWithRootViewController:controller
+          initWithRootViewController:nil
                              browser:browser
                             delegate:delegate];
 
-  // Make sure the cancel button is always present, as the Contents Settings
-  // screen isn't just shown from Settings.
-  [controller navigationItem].leftBarButtonItem =
-      [navigationController cancelButton];
+  [navigationController showContentSettings];
+
   return navigationController;
 }
 
@@ -681,9 +724,9 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 
   // GoogleServicesSettingsCoordinator and PasswordsCoordinator must be stopped
   // before dismissing the sync settings view.
-  [self.manageAccountsCoordinator stop];
-  self.manageAccountsCoordinator = nil;
+  [self stopManageAccountsCoordinator];
   [self stopSyncSettingsCoordinator];
+  [self stopContentSettingsCoordinator];
   [self stopGoogleServicesSettingsCoordinator];
   [self stopPasswordsCoordinator];
   [self stopSafetyCheckCoordinator];
@@ -694,6 +737,7 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
   [self stopPasswordDetailsCoordinator];
   [self stopAutofillProfileEditCoordinator];
   [self stopNotificationsCoordinator];
+  [self stopBWGSettingsCoordinator];
 
   // Reset the delegate to prevent any queued transitions from attempting to
   // close the settings.
@@ -726,6 +770,45 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 }
 
 #pragma mark - Private
+
+- (void)showBWGSettingsPage {
+  CHECK(IsPageActionMenuEnabled());
+  [self stopBWGSettingsCoordinator];
+  self.BWGSettingsCoordinator = [[BWGSettingsCoordinator alloc]
+      initWithBaseNavigationController:self
+                               browser:self.browser];
+  self.BWGSettingsCoordinator.delegate = self;
+  [self.BWGSettingsCoordinator start];
+}
+
+- (void)stopBWGSettingsCoordinator {
+  self.BWGSettingsCoordinator.delegate = nil;
+  [self.BWGSettingsCoordinator stop];
+  self.BWGSettingsCoordinator = nil;
+}
+
+- (void)stopManageAccountsCoordinator {
+  self.manageAccountsCoordinator.delegate = nil;
+  [self.manageAccountsCoordinator stop];
+  self.manageAccountsCoordinator = nil;
+}
+
+// Pushes a ContentSettingsCoordinator on this settings navigation
+// controller. Does nothing id the top view controller is already of type
+// `ContentSettingsCoordinator`.
+- (void)showContentSettings {
+  if ([self.topViewController
+          isKindOfClass:[ContentSettingsTableViewController class]]) {
+    // The top view controller is already the Contents Settings panel.
+    // No need to open it.
+    return;
+  }
+  self.contentSettingsCoordinator = [[ContentSettingsCoordinator alloc]
+      initWithBaseNavigationController:self
+                               browser:self.browser];
+  self.contentSettingsCoordinator.delegate = self;
+  [self.contentSettingsCoordinator start];
+}
 
 // Pushes a GoogleServicesSettingsViewController on this settings navigation
 // controller. Does nothing id the top view controller is already of type
@@ -796,11 +879,18 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
     return;
   }
   DCHECK(!self.privacySafeBrowsingCoordinator);
+  [self.privacySafeBrowsingCoordinator stop];
   self.privacySafeBrowsingCoordinator = [[PrivacySafeBrowsingCoordinator alloc]
       initWithBaseNavigationController:self
                                browser:self.browser];
   self.privacySafeBrowsingCoordinator.delegate = self;
   [self.privacySafeBrowsingCoordinator start];
+}
+
+// Stops the content settings coordiantor if it exists.
+- (void)stopContentSettingsCoordinator {
+  [self.contentSettingsCoordinator stop];
+  self.contentSettingsCoordinator = nil;
 }
 
 // Stops the underlying Google services settings coordinator if it exists.
@@ -910,6 +1000,14 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
   [self.notificationsCoordinator stop];
   self.notificationsCoordinator.delegate = nil;
   self.notificationsCoordinator = nil;
+}
+
+#pragma mark - ContentSettingsCoordinatorDelegate
+
+- (void)contentSettingsCoordinatorViewControllerWasRemoved:
+    (ContentSettingsCoordinator*)coordinator {
+  DCHECK_EQ(self.contentSettingsCoordinator, coordinator);
+  [self stopContentSettingsCoordinator];
 }
 
 #pragma mark - GoogleServicesSettingsCoordinatorDelegate
@@ -1035,7 +1133,7 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
   }
 }
 
-#pragma mark - Accessibility
+#pragma mark - UIAccessibilityAction
 
 - (BOOL)accessibilityPerformEscape {
   UIViewController* poppedController = [self popViewControllerAnimated:YES];
@@ -1088,7 +1186,7 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 }
 
 - (void)keyCommand_close {
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self closeSettings];
 }
 
@@ -1105,8 +1203,14 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
   self.manageAccountsCoordinator = [[ManageAccountsCoordinator alloc]
       initWithBaseNavigationController:self
                                browser:self.browser
-             closeSettingsOnAddAccount:NO];
+             closeSettingsOnAddAccount:NO
+                        showDoneButton:NO];
+  self.manageAccountsCoordinator.delegate = self;
   [self.manageAccountsCoordinator start];
+}
+
+- (void)showBWGSettings {
+  [self showBWGSettingsPage];
 }
 
 // TODO(crbug.com/41352590) : Do not pass `baseViewController` through
@@ -1127,11 +1231,18 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 // dispatcher.
 - (void)showSyncPassphraseSettingsFromViewController:
     (UIViewController*)baseViewController {
-  SyncEncryptionPassphraseTableViewController* controller =
+  if (self.syncEncryptionPassphraseTableViewController) {
+    // Can occurs if the user double-tap on the "Enter passphrase" button.
+    return;
+  }
+  self.syncEncryptionPassphraseTableViewController =
       [[SyncEncryptionPassphraseTableViewController alloc]
           initWithBrowser:self.browser];
-  ConfigureHandlers(controller, _browser->GetCommandDispatcher());
-  [self pushViewController:controller animated:YES];
+  self.syncEncryptionPassphraseTableViewController.presentationDelegate = self;
+  ConfigureHandlers(self.syncEncryptionPassphraseTableViewController,
+                    _browser->GetCommandDispatcher());
+  [self pushViewController:self.syncEncryptionPassphraseTableViewController
+                  animated:YES];
 }
 
 // TODO(crbug.com/41352590) : Do not pass `baseViewController` through
@@ -1237,15 +1348,7 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
 
 - (void)showContentsSettingsFromViewController:
     (UIViewController*)baseViewController {
-  if ([self.topViewController
-          isKindOfClass:[ContentSettingsTableViewController class]]) {
-    // The top view controller is already the Contents Settings panel.
-    // No need to open it.
-    return;
-  }
-  ContentSettingsTableViewController* controller =
-      [[ContentSettingsTableViewController alloc] initWithBrowser:self.browser];
-  [self pushViewController:controller animated:YES];
+  [self showContentSettings];
 }
 
 - (void)showNotificationsSettings {
@@ -1273,6 +1376,34 @@ NSString* const kSettingsDoneButtonId = @"kSettingsDoneButtonId";
   self.notificationsCoordinator.delegate = self;
   [self.notificationsCoordinator start];
   [self.notificationsCoordinator showTrackingPrice];
+}
+
+#pragma mark - SyncEncryptionPassphraseTableViewControllerPresentationDelegate
+
+- (void)syncEncryptionPassphraseTableViewControllerDidDisappear:
+    (SyncEncryptionPassphraseTableViewController*)viewController {
+  CHECK_EQ(self.syncEncryptionPassphraseTableViewController, viewController,
+           base::NotFatalUntil::M142);
+  self.syncEncryptionPassphraseTableViewController.presentationDelegate = nil;
+  [self.syncEncryptionPassphraseTableViewController settingsWillBeDismissed];
+  self.syncEncryptionPassphraseTableViewController = nil;
+}
+
+#pragma mark - ManageAccountsCoordinatorDelegate
+
+// Requests the delegate to stop the manage accounts coordinator.
+- (void)manageAccountsCoordinatorWantsToBeStopped:
+    (ManageAccountsCoordinator*)coordinator {
+  CHECK_EQ(coordinator, self.manageAccountsCoordinator,
+           base::NotFatalUntil::M144);
+  [self stopManageAccountsCoordinator];
+}
+
+#pragma mark - BWGSettingsCoordinatorDelegate
+
+- (void)BWGSettingsCoordinatorViewControllerWasRemoved:
+    (BWGSettingsCoordinator*)coordinator {
+  [self stopBWGSettingsCoordinator];
 }
 
 @end

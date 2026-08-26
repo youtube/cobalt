@@ -11,8 +11,7 @@
 #ifndef P2P_BASE_ICE_TRANSPORT_INTERNAL_H_
 #define P2P_BASE_ICE_TRANSPORT_INTERNAL_H_
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
@@ -115,7 +114,7 @@ enum class NominationMode {
 // is valid RTCError::OK() is returned.
 RTCError VerifyCandidate(const Candidate& cand);
 
-// Runs through a list of webrtc::Candidate instances and calls VerifyCandidate
+// Runs through a list of Candidate instances and calls VerifyCandidate
 // for each one, stopping on the first error encounted and returning that error
 // value if so. On success returns RTCError::OK().
 RTCError VerifyCandidates(const Candidates& candidates);
@@ -343,7 +342,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
 
   void AddGatheringStateCallback(
       const void* removal_tag,
-      absl::AnyInvocable<void(webrtc::IceTransportInternal*)> callback);
+      absl::AnyInvocable<void(IceTransportInternal*)> callback);
   void RemoveGatheringStateCallback(const void* removal_tag);
 
   // Handles sending and receiving of candidates.
@@ -351,15 +350,14 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
       SignalCandidateGathered;
 
   void SetCandidateErrorCallback(
-      absl::AnyInvocable<void(webrtc::IceTransportInternal*,
-                              const webrtc::IceCandidateErrorEvent&)>
-          callback) {
+      absl::AnyInvocable<void(IceTransportInternal*,
+                              const IceCandidateErrorEvent&)> callback) {
     RTC_DCHECK(!candidate_error_callback_);
     candidate_error_callback_ = std::move(callback);
   }
 
   void SetCandidatesRemovedCallback(
-      absl::AnyInvocable<void(webrtc::IceTransportInternal*, const Candidates&)>
+      absl::AnyInvocable<void(IceTransportInternal*, const Candidates&)>
           callback) {
     RTC_DCHECK(!candidates_removed_callback_);
     candidates_removed_callback_ = std::move(callback);
@@ -374,8 +372,7 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   sigslot::signal2<IceTransportInternal*, const Candidate&> SignalRouteChange;
 
   void SetCandidatePairChangeCallback(
-      absl::AnyInvocable<void(const webrtc::CandidatePairChangeEvent&)>
-          callback) {
+      absl::AnyInvocable<void(const CandidatePairChangeEvent&)> callback) {
     RTC_DCHECK(!candidate_pair_change_callback_);
     candidate_pair_change_callback_ = std::move(callback);
   }
@@ -383,11 +380,6 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   // Invoked when there is conflict in the ICE role between local and remote
   // agents.
   sigslot::signal1<IceTransportInternal*> SignalRoleConflict;
-
-  // Emitted whenever the transport state changed.
-  // TODO(bugs.webrtc.org/9308): Remove once all uses have migrated to the new
-  // IceTransportState.
-  sigslot::signal1<IceTransportInternal*> SignalStateChanged;
 
   // Emitted whenever the new standards-compliant transport state changed.
   sigslot::signal1<IceTransportInternal*> SignalIceTransportStateChanged;
@@ -436,45 +428,17 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
 
   CallbackList<IceTransportInternal*> gathering_state_callback_list_;
 
-  absl::AnyInvocable<void(webrtc::IceTransportInternal*,
-                          const webrtc::IceCandidateErrorEvent&)>
+  absl::AnyInvocable<void(IceTransportInternal*, const IceCandidateErrorEvent&)>
       candidate_error_callback_;
 
-  absl::AnyInvocable<void(webrtc::IceTransportInternal*, const Candidates&)>
+  absl::AnyInvocable<void(IceTransportInternal*, const Candidates&)>
       candidates_removed_callback_;
 
-  absl::AnyInvocable<void(const webrtc::CandidatePairChangeEvent&)>
+  absl::AnyInvocable<void(const CandidatePairChangeEvent&)>
       candidate_pair_change_callback_;
 };
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::Candidates;
-using ::webrtc::ContinualGatheringPolicy;
-using ::webrtc::GATHER_CONTINUALLY;
-using ::webrtc::GATHER_ONCE;
-using ::webrtc::IceConfig;
-using ::webrtc::IceConnectionState;
-using ::webrtc::IceGatheringState;
-using ::webrtc::IceTransportInternal;
-using ::webrtc::IceTransportStats;
-using ::webrtc::kIceConnectionCompleted;
-using ::webrtc::kIceConnectionConnected;
-using ::webrtc::kIceConnectionConnecting;
-using ::webrtc::kIceConnectionFailed;
-using ::webrtc::kIceGatheringComplete;
-using ::webrtc::kIceGatheringGathering;
-using ::webrtc::kIceGatheringNew;
-using ::webrtc::NominationMode;
-using ::webrtc::VerifyCandidate;
-using ::webrtc::VerifyCandidates;
-
-using IceTransportState = ::webrtc::IceTransportStateInternal;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_ICE_TRANSPORT_INTERNAL_H_

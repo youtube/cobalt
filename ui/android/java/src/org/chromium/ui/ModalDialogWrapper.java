@@ -6,6 +6,11 @@ package org.chromium.ui;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -18,6 +23,9 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+
 @JNINamespace("ui")
 @NullMarked
 public class ModalDialogWrapper implements ModalDialogProperties.Controller {
@@ -28,6 +36,8 @@ public class ModalDialogWrapper implements ModalDialogProperties.Controller {
 
     private final PropertyModel.Builder mPropertyModelBuilder;
 
+    private final @Nullable Context mContext;
+
     @CalledByNative
     private static ModalDialogWrapper create(long nativeDelegatePtr, WindowAndroid window) {
         return new ModalDialogWrapper(nativeDelegatePtr, window);
@@ -36,6 +46,7 @@ public class ModalDialogWrapper implements ModalDialogProperties.Controller {
     private ModalDialogWrapper(long nativeDelegatePtr, WindowAndroid window) {
         mNativeDelegatePtr = nativeDelegatePtr;
         mModalDialogManager = window.getModalDialogManager();
+        mContext = window.getContext().get();
         mPropertyModelBuilder =
                 new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
                         .with(ModalDialogProperties.CONTROLLER, this);
@@ -56,8 +67,28 @@ public class ModalDialogWrapper implements ModalDialogProperties.Controller {
     }
 
     @CalledByNative
-    private void withParagraph1(String text) {
-        mPropertyModelBuilder.with(ModalDialogProperties.MESSAGE_PARAGRAPH_1, text);
+    private void withTitleIcon(Bitmap iconBitmap) {
+        if (mContext == null) return;
+        Drawable iconDrawable = new BitmapDrawable(mContext.getResources(), iconBitmap);
+        mPropertyModelBuilder.with(ModalDialogProperties.TITLE_ICON, iconDrawable);
+    }
+
+    @CalledByNative
+    private void withMessageParagraphs(String[] paragraphs) {
+        mPropertyModelBuilder.with(
+                ModalDialogProperties.MESSAGE_PARAGRAPHS,
+                new ArrayList<>(Arrays.asList(paragraphs)));
+    }
+
+    @CalledByNative
+    private void withCheckbox(String text, boolean isChecked) {
+        mPropertyModelBuilder.with(ModalDialogProperties.CHECKBOX_TEXT, text);
+        mPropertyModelBuilder.with(ModalDialogProperties.CHECKBOX_CHECKED, isChecked);
+    }
+
+    @Override
+    public void onCheckboxChecked(boolean isChecked) {
+        ModalDialogWrapperJni.get().checkboxToggled(mNativeDelegatePtr, isChecked);
     }
 
     @Override
@@ -91,6 +122,8 @@ public class ModalDialogWrapper implements ModalDialogProperties.Controller {
         void positiveButtonClicked(long nativeModalDialogWrapper);
 
         void negativeButtonClicked(long nativeModalDialogWrapper);
+
+        void checkboxToggled(long nativeModalDialogWrapper, boolean isChecked);
 
         void dismissed(long nativeModalDialogWrapper);
 

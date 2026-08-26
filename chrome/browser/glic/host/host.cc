@@ -5,11 +5,11 @@
 #include "chrome/browser/glic/host/host.h"
 
 #include "base/containers/to_vector.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "components/guest_view/browser/guest_view_base.h"
 #include "content/public/browser/web_contents.h"
@@ -294,6 +294,15 @@ void Host::WebUiStateChanged(GlicPageHandler* page_handler,
     // UI State has changed
     primary_webui_state_ = new_state;
     observers_.Notify(&Observer::WebUiStateChanged, primary_webui_state_);
+  }
+}
+
+void Host::NotifyZeroStateSuggestion(
+    mojom::ZeroStateSuggestionsV2Ptr suggestions,
+    mojom::ZeroStateSuggestionsOptions options) {
+  if (primary_page_handler_) {
+    primary_page_handler_->ZeroStateSuggestionChanged(std::move(suggestions),
+                                                      std::move(options));
   }
 }
 

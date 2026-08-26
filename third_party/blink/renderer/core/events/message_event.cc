@@ -29,12 +29,16 @@
 
 #include <memory>
 
+#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_message_event_init.h"
 #include "third_party/blink/renderer/core/event_interface_names.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/user_activation.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
+#include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 
 namespace blink {
 
@@ -117,6 +121,7 @@ MessageEvent::MessageEvent(const String& origin,
 
 MessageEvent::MessageEvent(scoped_refptr<SerializedScriptValue> data,
                            const String& origin,
+                           MessageOriginKind message_origin_kind,
                            const String& last_event_id,
                            EventTarget* source,
                            GCedMessagePortArray* ports,
@@ -125,6 +130,8 @@ MessageEvent::MessageEvent(scoped_refptr<SerializedScriptValue> data,
       data_type_(kDataTypeSerializedScriptValue),
       data_as_serialized_script_value_(
           SerializedScriptValue::Unpack(std::move(data))),
+      data_is_from_untrusted_source_(message_origin_kind ==
+                                     kMessageIsCrossOrigin),
       origin_(origin),
       last_event_id_(last_event_id),
       source_(source),
@@ -138,6 +145,7 @@ MessageEvent::MessageEvent(scoped_refptr<SerializedScriptValue> data,
 MessageEvent::MessageEvent(
     scoped_refptr<SerializedScriptValue> data,
     const String& origin,
+    MessageOriginKind message_origin_kind,
     const String& last_event_id,
     EventTarget* source,
     Vector<MessagePortChannel> channels,
@@ -147,6 +155,8 @@ MessageEvent::MessageEvent(
       data_type_(kDataTypeSerializedScriptValue),
       data_as_serialized_script_value_(
           SerializedScriptValue::Unpack(std::move(data))),
+      data_is_from_untrusted_source_(message_origin_kind ==
+                                     kMessageIsCrossOrigin),
       origin_(origin),
       last_event_id_(last_event_id),
       source_(source),
@@ -241,6 +251,7 @@ void MessageEvent::initMessageEvent(
     bool cancelable,
     scoped_refptr<SerializedScriptValue> data,
     const String& origin,
+    MessageOriginKind message_origin_kind,
     const String& last_event_id,
     EventTarget* source,
     GCedMessagePortArray* ports,
@@ -255,6 +266,7 @@ void MessageEvent::initMessageEvent(
   data_as_serialized_script_value_ =
       SerializedScriptValue::Unpack(std::move(data));
   is_data_dirty_ = true;
+  data_is_from_untrusted_source_ = message_origin_kind == kMessageIsCrossOrigin;
   origin_ = origin;
   last_event_id_ = last_event_id;
   source_ = source;
@@ -292,6 +304,31 @@ void MessageEvent::initMessageEvent(const AtomicString& type,
 }
 
 ScriptValue MessageEvent::data(ScriptState* script_state) {
+  // Measure how often developers access `data` prior to accessing (and
+  // hopefully evaluating!) `origin` as a way of evaluating the viability of
+  // https://github.com/mikewest/incentivize-origin-checks/.
+  if (should_measure_data_access_before_origin_) {
+    if (ExecutionContext* context = ExecutionContext::From(script_state)) {
+      scoped_refptr<SecurityOrigin> sending_origin =
+          SecurityOrigin::CreateFromString(origin_);
+      const SecurityOrigin* receiving_origin = context->GetSecurityOrigin();
+      if (sending_origin->IsSameOriginWith(receiving_origin)) {
+        UseCounter::Count(context,
+                          WebFeature::kMessageEventDataBeforeSameOrigin);
+      } else if (sending_origin->IsSameSiteWith(receiving_origin)) {
+        UseCounter::Count(context,
+                          WebFeature::kMessageEventDataBeforeSameSiteOrigin);
+      } else if (sending_origin->IsOpaque()) {
+        UseCounter::Count(context,
+                          WebFeature::kMessageEventDataBeforeOpaqueOrigin);
+      } else {
+        UseCounter::Count(context,
+                          WebFeature::kMessageEventDataBeforeCrossSiteOrigin);
+      }
+    }
+    should_measure_data_access_before_origin_ = false;
+  }
+
   is_data_dirty_ = false;
 
   v8::Isolate* isolate = script_state->GetIsolate();
@@ -317,6 +354,10 @@ ScriptValue MessageEvent::data(ScriptState* script_state) {
         MessagePortArray message_ports = ports();
         SerializedScriptValue::DeserializeOptions options;
         options.message_ports = &message_ports;
+        options.slow_mode =
+            RuntimeEnabledFeatures::
+                MaskDeserializationTimeForCrossOriginMessagesEnabled() &&
+            data_is_from_untrusted_source_;
         value = data_as_serialized_script_value_->Deserialize(isolate, options);
       } else {
         value = v8::Null(isolate);
@@ -338,6 +379,12 @@ ScriptValue MessageEvent::data(ScriptState* script_state) {
   }
 
   return ScriptValue(isolate, value);
+}
+
+const String& MessageEvent::originForBindings() {
+  data_is_from_untrusted_source_ = false;
+  should_measure_data_access_before_origin_ = false;
+  return origin();
 }
 
 const AtomicString& MessageEvent::InterfaceName() const {

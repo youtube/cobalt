@@ -16,11 +16,9 @@ BASE_FEATURE(kBackForwardCacheUnblockPermissionRequest,
              "BackForwardCacheUnblockPermissionRequest",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kKeyboardLockPrompt,
              "KeyboardLockPrompt",
              base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables different positioning of the permission dialog, so that it's placed
 // near the permission element, if possible.
@@ -49,8 +47,12 @@ BASE_FEATURE(kPermissionsAIv3,
              "PermissionsAIv3",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPermissionsAIv3Geolocation,
-             "PermissionsAIv3Geolocation",
+BASE_FEATURE(kPermissionsAIv4,
+             "PermissionsAIv4",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPermissionPromiseLifetimeModulation,
+             "PermissionPromiseLifetimeModulation",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether to trigger showing a HaTS survey, with the given
@@ -81,15 +83,6 @@ BASE_FEATURE(kAllowMultipleOriginsForWebKioskPermissions,
 BASE_FEATURE(kPermissionDedicatedCpssSettingAndroid,
              "PermissionDedicatedCpssSettingAndroid",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kApproximateGeolocationPermission,
-             "ApproximateGeolocationPermission",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-const base::FeatureParam<bool> kApproximateGeolocationPermissionSampleData(
-    &features::kApproximateGeolocationPermission,
-    "sample_data",
-    false);
 
 #else
 

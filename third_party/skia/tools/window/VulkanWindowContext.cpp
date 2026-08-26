@@ -61,22 +61,20 @@ void VulkanWindowContext::initializeContext() {
     PFN_vkGetInstanceProcAddr getInstanceProc = fGetInstanceProcAddr;
     skgpu::VulkanBackendContext backendContext;
     skgpu::VulkanExtensions extensions;
-    VkPhysicalDeviceFeatures2 features;
+    sk_gpu_test::TestVkFeatures features;
     if (!sk_gpu_test::CreateVkBackendContext(getInstanceProc,
                                              &backendContext,
                                              &extensions,
                                              &features,
-                                             &fDebugCallback,
+                                             &fDebugMessenger,
                                              &fPresentQueueIndex,
                                              fCanPresentFn,
                                              fDisplayParams->createProtectedNativeBackend())) {
-        sk_gpu_test::FreeVulkanFeaturesStructs(&features);
         return;
     }
 
     if (!extensions.hasExtension(VK_KHR_SURFACE_EXTENSION_NAME, 25) ||
         !extensions.hasExtension(VK_KHR_SWAPCHAIN_EXTENSION_NAME, 68)) {
-        sk_gpu_test::FreeVulkanFeaturesStructs(&features);
         return;
     }
 
@@ -92,7 +90,6 @@ void VulkanWindowContext::initializeContext() {
                                             backendContext.fInstance,
                                             VK_NULL_HANDLE));
     if (!localGetPhysicalDeviceProperties) {
-        sk_gpu_test::FreeVulkanFeaturesStructs(&features);
         return;
     }
     VkPhysicalDeviceProperties physDeviceProperties;
@@ -107,8 +104,8 @@ void VulkanWindowContext::initializeContext() {
                                                 &extensions));
 
     GET_PROC(DestroyInstance);
-    if (fDebugCallback != VK_NULL_HANDLE) {
-        GET_PROC(DestroyDebugReportCallbackEXT);
+    if (fDebugMessenger != VK_NULL_HANDLE) {
+        GET_PROC(DestroyDebugUtilsMessengerEXT);
     }
     GET_PROC(DestroySurfaceKHR);
     GET_PROC(GetPhysicalDeviceSurfaceSupportKHR);
@@ -140,7 +137,6 @@ void VulkanWindowContext::initializeContext() {
     fSurface = fCreateVkSurfaceFn(fInstance);
     if (VK_NULL_HANDLE == fSurface) {
         this->destroyContext();
-        sk_gpu_test::FreeVulkanFeaturesStructs(&features);
         return;
     }
 
@@ -149,19 +145,16 @@ void VulkanWindowContext::initializeContext() {
                                                        fSurface, &supported);
     if (VK_SUCCESS != res) {
         this->destroyContext();
-        sk_gpu_test::FreeVulkanFeaturesStructs(&features);
         return;
     }
 
     if (!this->createSwapchain(-1, -1)) {
         this->destroyContext();
-        sk_gpu_test::FreeVulkanFeaturesStructs(&features);
         return;
     }
 
     // create presentQueue
     fGetDeviceQueue(fDevice, fPresentQueueIndex, 0, &fPresentQueue);
-    sk_gpu_test::FreeVulkanFeaturesStructs(&features);
 }
 
 bool VulkanWindowContext::createSwapchain(int width, int height) {
@@ -485,8 +478,8 @@ void VulkanWindowContext::destroyContext() {
     }
 
 #ifdef SK_ENABLE_VK_LAYERS
-    if (fDebugCallback != VK_NULL_HANDLE) {
-        fDestroyDebugReportCallbackEXT(fInstance, fDebugCallback, nullptr);
+    if (fDebugMessenger != VK_NULL_HANDLE) {
+        fDestroyDebugUtilsMessengerEXT(fInstance, fDebugMessenger, nullptr);
     }
 #endif
 

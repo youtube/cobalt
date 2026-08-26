@@ -5,6 +5,10 @@
 #ifndef CHROME_BROWSER_ON_DEVICE_TRANSLATION_TRANSLATION_MANAGER_IMPL_H_
 #define CHROME_BROWSER_ON_DEVICE_TRANSLATION_TRANSLATION_MANAGER_IMPL_H_
 
+#include <set>
+#include <string>
+#include <utility>
+
 #include "base/auto_reset.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_refptr.h"
@@ -12,8 +16,10 @@
 #include "base/supports_user_data.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/ai/ai_model_download_progress_manager.h"
+#include "components/component_updater/component_updater_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
@@ -33,6 +39,7 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
                                public blink::mojom::TranslationManager {
  public:
   TranslationManagerImpl(base::PassKey<TranslationManagerImpl>,
+                         content::RenderProcessHost* process_host,
                          content::BrowserContext* browser_context,
                          const url::Origin& origin);
   TranslationManagerImpl(const TranslationManagerImpl&) = delete;
@@ -45,24 +52,31 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
       TranslationManagerImpl* manager);
 
   static void Bind(
+      content::RenderProcessHost* process_host,
       content::BrowserContext* browser_context,
       base::SupportsUserData* context_user_data,
       const url::Origin& origin,
       mojo::PendingReceiver<blink::mojom::TranslationManager> receiver);
 
  protected:
-  TranslationManagerImpl(content::BrowserContext* browser_context,
+  TranslationManagerImpl(content::RenderProcessHost* process_host,
+                         content::BrowserContext* browser_context,
                          const url::Origin& origin);
 
   content::BrowserContext* browser_context() { return browser_context_.get(); }
+  content::RenderProcessHost* process_host() { return process_host_.get(); }
 
  private:
   friend class TranslationManagerImplTest;
 
   static TranslationManagerImpl* GetOrCreate(
+      content::RenderProcessHost* process_host,
       content::BrowserContext* browser_context,
       base::SupportsUserData* context_user_data,
       const url::Origin& origin);
+
+  std::optional<std::string> GetBestFitLanguageCode(
+      std::string requested_language);
 
   // Returns a delay upon initial translator creation to safeguard against
   // fingerprinting resulting from timing translator creation duration.
@@ -76,11 +90,19 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
   virtual component_updater::ComponentUpdateService*
   GetComponentUpdateService();
 
+  // Returns whether the "crash" language code is allowed. This is used for
+  // testing.
+  virtual bool CrashesAllowed();
+
   void CreateTranslatorImpl(
       mojo::PendingRemote<
           blink::mojom::TranslationManagerCreateTranslatorClient> client,
       const std::string& source_language,
       const std::string& target_language);
+
+  // Determines if the Translator API has been accessed from a valid storage
+  // partition.
+  bool AccessedFromValidStoragePartition();
 
   // Dictionary keys for the `INITIALIZED_TRANSLATIONS` website setting.
   // Schema (per origin):
@@ -107,14 +129,18 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
   void SetInitializedTranslation(const std::string& source_language,
                                  const std::string& target_language);
 
+  // A set of language pairs that have been initialized for the current
+  // document. This is used for origins that cannot persist content settings,
+  // e.g. opaque origins or file schemes.
+  std::set<std::pair<std::string, std::string>>
+      transient_initialized_translations_;
+
   // `blink::mojom::TranslationManager` implementation.
-  void CanCreateTranslator(blink::mojom::TranslatorLanguageCodePtr source_lang,
-                           blink::mojom::TranslatorLanguageCodePtr target_lang,
-                           CanCreateTranslatorCallback callback) override;
   void CreateTranslator(
       mojo::PendingRemote<
           blink::mojom::TranslationManagerCreateTranslatorClient> client,
-      blink::mojom::TranslatorCreateOptionsPtr options) override;
+      blink::mojom::TranslatorCreateOptionsPtr options,
+      bool add_fake_download_delay) override;
 
   void TranslationAvailable(blink::mojom::TranslatorLanguageCodePtr source_lang,
                             blink::mojom::TranslatorLanguageCodePtr target_lang,
@@ -125,6 +151,7 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
   // Instance of `TranslationManagerImpl` for testing.
   static TranslationManagerImpl* translation_manager_for_test_;
 
+  raw_ptr<content::RenderProcessHost> process_host_;
   const base::WeakPtr<content::BrowserContext> browser_context_;
   const url::Origin origin_;
 

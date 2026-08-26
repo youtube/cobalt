@@ -18,17 +18,15 @@ class Window;
 
 namespace ash {
 
-class MultiUserWindowManagerDelegate;
+class MultiUserWindowManagerObserver;
 
 // Used to assign windows to user accounts so that ash shows the appropriate set
 // of windows based on the active user.
 class ASH_EXPORT MultiUserWindowManager {
  public:
-  static std::unique_ptr<MultiUserWindowManager> Create(
-      MultiUserWindowManagerDelegate* delegate,
-      const AccountId& account_id);
+  static std::unique_ptr<MultiUserWindowManager> Create();
 
-  virtual ~MultiUserWindowManager() {}
+  virtual ~MultiUserWindowManager() = default;
 
   // Associates a window with a particular account. This may result in hiding
   // |window|. This should *not* be called more than once with a different
@@ -60,8 +58,19 @@ class ASH_EXPORT MultiUserWindowManager {
   // Returns the id of the currently active user.
   virtual const AccountId& CurrentAccountId() const = 0;
 
+  // Registers `observer` to be notified.
+  virtual void AddObserver(MultiUserWindowManagerObserver* observer) = 0;
+
+  // Unregisters `observer` from the instance.
+  virtual void RemoveObserver(MultiUserWindowManagerObserver* observer) = 0;
+
+  // Notifies this instance about the primary user.
+  // TODO(crbug.com/425160398): This is short term work around for the
+  // transition period, so to be removed soon.
+  virtual void SetPrimaryUser(const AccountId& account_id) = 0;
+
  protected:
-  MultiUserWindowManager() {}
+  MultiUserWindowManager() = default;
 };
 
 }  // namespace ash

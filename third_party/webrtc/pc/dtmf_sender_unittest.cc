@@ -10,8 +10,7 @@
 
 #include "pc/dtmf_sender.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -123,7 +122,7 @@ class DtmfSenderTest : public ::testing::Test {
     dtmf_->RegisterObserver(observer_.get());
   }
 
-  ~DtmfSenderTest() {
+  ~DtmfSenderTest() override {
     if (dtmf_) {
       dtmf_->UnregisterObserver();
     }

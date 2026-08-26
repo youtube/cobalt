@@ -63,6 +63,8 @@ class CORE_EXPORT DocumentSpeculationRules
   void LinkGainedOrLostComputedStyle(HTMLAnchorElementBase* link);
   void DocumentStyleUpdated();
   void ChildStyleRecalcBlocked(Element* root);
+  void DisplayLockedRootsForceUpdateEnded(
+      const HeapVector<Member<Element>>& roots);
   void DidStyleChildren(Element* root);
   void DisplayLockedElementDisconnected(Element* root);
 
@@ -74,6 +76,8 @@ class CORE_EXPORT DocumentSpeculationRules
   // Requests a future call to UpdateSpeculationCandidates, if none is yet
   // scheduled.
   void QueueUpdateSpeculationCandidates(bool force_style_update = false);
+
+  void FlushMojoMessageForTesting();
 
   void Trace(Visitor*) const override;
 

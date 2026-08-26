@@ -14,11 +14,12 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
-#include "base/lazy_instance.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
+#include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/strings/escape.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
@@ -113,12 +114,18 @@ using content::WebContents;
 namespace {
 
 typedef std::vector<DevToolsWindow*> DevToolsWindows;
-base::LazyInstance<DevToolsWindows>::Leaky g_devtools_window_instances =
-    LAZY_INSTANCE_INITIALIZER;
+DevToolsWindows& GetDevToolsWindowInstances() {
+  static base::NoDestructor<DevToolsWindows> instances;
+  return *instances;
+}
 
-base::LazyInstance<
-    std::vector<base::RepeatingCallback<void(DevToolsWindow*)>>>::Leaky
-    g_creation_callbacks = LAZY_INSTANCE_INITIALIZER;
+std::vector<base::RepeatingCallback<void(DevToolsWindow*)>>&
+GetCreationCallbacks() {
+  static base::NoDestructor<
+      std::vector<base::RepeatingCallback<void(DevToolsWindow*)>>>
+      creation_callbacks;
+  return *creation_callbacks;
+}
 
 static const char kKeyUpEventName[] = "keyup";
 static const char kKeyDownEventName[] = "keydown";
@@ -462,17 +469,15 @@ const char DevToolsWindow::kDevToolsApp[] = "DevToolsApp";
 // static
 void DevToolsWindow::AddCreationCallbackForTest(
     const CreationCallback& callback) {
-  g_creation_callbacks.Get().push_back(callback);
+  GetCreationCallbacks().push_back(callback);
 }
 
 // static
 void DevToolsWindow::RemoveCreationCallbackForTest(
     const CreationCallback& callback) {
-  for (size_t i = 0; i < g_creation_callbacks.Get().size(); ++i) {
-    if (g_creation_callbacks.Get().at(i) == callback) {
-      g_creation_callbacks.Get().erase(g_creation_callbacks.Get().begin() + i);
-      return;
-    }
+  if (auto it = std::ranges::find(GetCreationCallbacks(), callback);
+      it != GetCreationCallbacks().end()) {
+    GetCreationCallbacks().erase(it);
   }
 }
 
@@ -498,10 +503,10 @@ DevToolsWindow::~DevToolsWindow() {
   browser_list_observation_.Reset();
 #endif
 
-  DevToolsWindows* instances = g_devtools_window_instances.Pointer();
-  auto it = std::ranges::find(*instances, this);
-  CHECK(it != instances->end());
-  instances->erase(it);
+  DevToolsWindows& instances = GetDevToolsWindowInstances();
+  auto it = std::ranges::find(instances, this);
+  CHECK(it != instances.end());
+  instances.erase(it);
 
   if (!close_callback_.is_null()) {
     std::move(close_callback_).Run();
@@ -587,13 +592,12 @@ content::WebContents* DevToolsWindow::GetInTabWebContents(
 // static
 DevToolsWindow* DevToolsWindow::GetInstanceForInspectedWebContents(
     WebContents* inspected_web_contents) {
-  if (!inspected_web_contents || !g_devtools_window_instances.IsCreated()) {
+  if (!inspected_web_contents) {
     return nullptr;
   }
-  DevToolsWindows* instances = g_devtools_window_instances.Pointer();
-  for (auto it(instances->begin()); it != instances->end(); ++it) {
-    if ((*it)->GetInspectedWebContents() == inspected_web_contents) {
-      return *it;
+  for (auto& instance : GetDevToolsWindowInstances()) {
+    if (instance->GetInspectedWebContents() == inspected_web_contents) {
+      return instance;
     }
   }
   return nullptr;
@@ -601,13 +605,12 @@ DevToolsWindow* DevToolsWindow::GetInstanceForInspectedWebContents(
 
 // static
 bool DevToolsWindow::IsDevToolsWindow(content::WebContents* web_contents) {
-  if (!web_contents || !g_devtools_window_instances.IsCreated()) {
+  if (!web_contents) {
     return false;
   }
-  DevToolsWindows* instances = g_devtools_window_instances.Pointer();
-  for (auto it(instances->begin()); it != instances->end(); ++it) {
-    if ((*it)->main_web_contents_ == web_contents ||
-        (*it)->toolbox_web_contents_ == web_contents) {
+  for (auto& instance : GetDevToolsWindowInstances()) {
+    if (instance->main_web_contents_ == web_contents ||
+        instance->toolbox_web_contents_ == web_contents) {
       return true;
     }
   }
@@ -785,7 +788,7 @@ void DevToolsWindow::OpenExternalFrontend(
 DevToolsWindow* DevToolsWindow::OpenNodeFrontendWindow(
     Profile* profile,
     DevToolsOpenedByAction opened_by) {
-  for (DevToolsWindow* window : g_devtools_window_instances.Get()) {
+  for (DevToolsWindow* window : GetDevToolsWindowInstances()) {
     if (window->frontend_type_ == kFrontendNode) {
       window->ActivateWindow();
       return window;
@@ -1168,7 +1171,7 @@ DevToolsWindow::DevToolsWindow(FrontendType frontend_type,
   zoom::ZoomController::FromWebContents(main_web_contents_)
       ->SetShowsNotificationBubble(false);
 
-  g_devtools_window_instances.Get().push_back(this);
+  GetDevToolsWindowInstances().push_back(this);
 
   // There is no inspected_web_contents in case of various workers.
   if (inspected_web_contents) {
@@ -1195,7 +1198,7 @@ DevToolsWindow::DevToolsWindow(FrontendType frontend_type,
   task_manager::WebContentsTags::CreateForDevToolsContents(main_web_contents_);
 
   std::vector<base::RepeatingCallback<void(DevToolsWindow*)>> copy(
-      g_creation_callbacks.Get());
+      GetCreationCallbacks());
   for (const auto& callback : copy) {
     callback.Run(this);
   }
@@ -1349,13 +1352,12 @@ GURL DevToolsWindow::GetDevToolsURL(Profile* profile,
 // static
 DevToolsWindow* DevToolsWindow::FindDevToolsWindow(
     DevToolsAgentHost* agent_host) {
-  if (!agent_host || !g_devtools_window_instances.IsCreated()) {
+  if (!agent_host) {
     return nullptr;
   }
-  DevToolsWindows* instances = g_devtools_window_instances.Pointer();
-  for (auto it(instances->begin()); it != instances->end(); ++it) {
-    if ((*it)->bindings_->IsAttachedTo(agent_host)) {
-      return *it;
+  for (auto& instance : GetDevToolsWindowInstances()) {
+    if (instance->bindings_->IsAttachedTo(agent_host)) {
+      return instance;
     }
   }
   return nullptr;
@@ -1364,13 +1366,12 @@ DevToolsWindow* DevToolsWindow::FindDevToolsWindow(
 // static
 DevToolsWindow* DevToolsWindow::AsDevToolsWindow(
     content::WebContents* web_contents) {
-  if (!web_contents || !g_devtools_window_instances.IsCreated()) {
+  if (!web_contents) {
     return nullptr;
   }
-  DevToolsWindows* instances = g_devtools_window_instances.Pointer();
-  for (auto it(instances->begin()); it != instances->end(); ++it) {
-    if ((*it)->main_web_contents_ == web_contents) {
-      return *it;
+  for (auto& instance : GetDevToolsWindowInstances()) {
+    if (instance->main_web_contents_ == web_contents) {
+      return instance;
     }
   }
   return nullptr;
@@ -1878,9 +1879,25 @@ void DevToolsWindow::SetOpenNewWindowForPopups(bool value) {
 
 void DevToolsWindow::CreateDevToolsBrowser() {
   PrefService* prefs = profile_->GetPrefs();
+  bool resetPrefs = false;
   if (!prefs->GetDict(prefs::kAppWindowPlacement).Find(kDevToolsApp)) {
     // Ensure there is always a default size so that
     // BrowserFrame::InitBrowserFrame can retrieve it later.
+    resetPrefs = true;
+  } else {
+    // Reset to default if stored window size is too small.
+    const base::Value::Dict& devtoolsPlacement =
+        prefs->GetDict(prefs::kAppWindowPlacement)
+            .Find(kDevToolsApp)
+            ->GetDict();
+    const int right = devtoolsPlacement.FindInt("right").value();
+    const int left = devtoolsPlacement.FindInt("left").value();
+    const int top = devtoolsPlacement.FindInt("top").value();
+    const int bottom = devtoolsPlacement.FindInt("bottom").value();
+    const int THRESHOLD = 400;  // go/smoldevtools
+    resetPrefs = right - left < THRESHOLD || bottom - top < THRESHOLD;
+  }
+  if (resetPrefs) {
     ScopedDictPrefUpdate update(prefs, prefs::kAppWindowPlacement);
     base::Value::Dict& wp_prefs = update.Get();
     base::Value::Dict dev_tools_defaults;
@@ -2082,4 +2099,8 @@ void DevToolsWindow::MainWebContentRenderFrameHostChanged(
   }
   bindings_->TransferDelegate(*new_bindings);
   bindings_ = new_bindings;
+}
+
+raw_ptr<content::WebContents> DevToolsWindow::GetDevToolsWebContents() {
+  return main_web_contents_;
 }

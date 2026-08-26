@@ -27,7 +27,7 @@ extern "C" void* __libc_stack_end;  // NOLINT
 #include <sanitizer/asan_interface.h>
 #endif
 
-namespace WTF {
+namespace blink {
 
 size_t GetUnderestimatedStackSize() {
 // FIXME: ASAN bot uses a fake stack as a thread stack frame,
@@ -234,7 +234,7 @@ size_t ThreadStackSize() {
   DCHECK_GE(result_size, sizeof(MEMORY_BASIC_INFORMATION));
   uint8_t* stack_end = reinterpret_cast<uint8_t*>(stack_info.AllocationBase);
 
-  uint8_t* stack_start = reinterpret_cast<uint8_t*>(WTF::GetStackStart());
+  uint8_t* stack_start = reinterpret_cast<uint8_t*>(GetStackStart());
   CHECK(stack_start);
   CHECK_GT(stack_start, stack_end);
   size_t thread_stack_size = static_cast<size_t>(stack_start - stack_end);
@@ -257,4 +257,4 @@ size_t ThreadStackSize() {
 
 }  // namespace internal
 
-}  // namespace WTF
+}  // namespace blink

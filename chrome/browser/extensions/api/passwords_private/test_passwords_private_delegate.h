@@ -44,6 +44,7 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
   void RemoveCredential(
       int id,
       api::passwords_private::PasswordStoreSet from_store) override;
+  void RemoveBackupPassword(int id) override;
   void RemovePasswordException(int id) override;
   // Simplified version of undo logic, only use for testing.
   void UndoRemoveSavedPasswordOrException() override;
@@ -54,6 +55,10 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
   void RequestCredentialsDetails(const std::vector<int>& ids,
                                  UiEntriesCallback callback,
                                  content::WebContents* web_contents) override;
+  void CopyPlaintextBackupPassword(
+      int id,
+      content::WebContents* web_contents,
+      base::OnceCallback<void(bool)> callback) override;
   void MovePasswordsToAccount(const std::vector<int>& ids,
                               content::WebContents* web_contents) override;
   void FetchFamilyMembers(FetchFamilyResultsCallback callback) override;
@@ -72,6 +77,7 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
   bool IsAccountStorageEnabled() override;
   void SetAccountStorageEnabled(bool enabled,
                                 content::WebContents* web_contents) override;
+  bool ShouldShowAccountStorageSettingToggle() override;
   std::vector<api::passwords_private::PasswordUiEntry> GetInsecureCredentials()
       override;
   std::vector<api::passwords_private::PasswordUiEntryList>
@@ -162,6 +168,12 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
     return delete_all_password_manager_data_called_;
   }
 
+  bool copy_plaintext_backup_password() const {
+    return copy_plaintext_backup_password_;
+  }
+
+  bool remove_backup_password() const { return remove_backup_password_; }
+
  protected:
   ~TestPasswordsPrivateDelegate() override;
 
@@ -193,6 +205,8 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
   raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
 
   bool is_account_storage_enabled_ = false;
+
+  bool should_show_account_storage_setting_toggle_ = false;
 
   // Flags for detecting whether password sharing operations have been invoked.
   bool fetch_family_members_triggered_ = false;
@@ -229,6 +243,12 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
 
   // Used to track whether `DeleteAllPasswordManagerData` was called.
   bool delete_all_password_manager_data_called_ = false;
+
+  // Used to track whether `CopyPlaintextBackupPassword` was called.
+  bool copy_plaintext_backup_password_ = false;
+
+  // Used to track whether `RemoveBackupPassword` was called.
+  bool remove_backup_password_ = false;
 
   base::WeakPtrFactory<TestPasswordsPrivateDelegate> weak_ptr_factory_{this};
 };

@@ -18,6 +18,7 @@
 #include "quiche/quic/moqt/moqt_live_relay_queue.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
@@ -26,7 +27,7 @@ namespace moqt::moq_chat {
 
 std::optional<MoqtAnnounceErrorReason>
 ChatServer::ChatServerSessionHandler::OnIncomingAnnounce(
-    const moqt::FullTrackName& track_namespace,
+    const moqt::TrackNamespace& track_namespace,
     std::optional<VersionSpecificParameters> parameters) {
   if (track_name_.has_value() &&
       GetUserNamespace(*track_name_) != track_namespace) {
@@ -58,7 +59,7 @@ ChatServer::ChatServerSessionHandler::OnIncomingAnnounce(
 }
 
 void ChatServer::ChatServerSessionHandler::OnOutgoingAnnounceReply(
-    FullTrackName track_namespace,
+    TrackNamespace track_namespace,
     std::optional<MoqtAnnounceErrorReason> error_message) {
   // Log the result; the server doesn't really care.
   std::cout << "ANNOUNCE for " << track_namespace.ToString();
@@ -83,7 +84,7 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
         }
       };
   session_->callbacks().incoming_subscribe_announces_callback =
-      [this](const moqt::FullTrackName& chat_namespace,
+      [this](const moqt::TrackNamespace& chat_namespace,
              std::optional<VersionSpecificParameters> parameters) {
         if (parameters.has_value()) {
           subscribed_namespaces_.insert(chat_namespace);
@@ -149,9 +150,9 @@ void ChatServer::RemoteTrackVisitor::OnReply(
 }
 
 void ChatServer::RemoteTrackVisitor::OnObjectFragment(
-    const moqt::FullTrackName& full_track_name, moqt::Location sequence,
-    moqt::MoqtPriority /*publisher_priority*/, moqt::MoqtObjectStatus status,
-    absl::string_view object, bool end_of_message) {
+    const moqt::FullTrackName& full_track_name,
+    const PublishedObjectMetadata& metadata, absl::string_view object,
+    bool end_of_message) {
   if (!end_of_message) {
     std::cerr << "Error: received partial message despite requesting "
                  "buffering\n";
@@ -162,14 +163,14 @@ void ChatServer::RemoteTrackVisitor::OnObjectFragment(
               << full_track_name.ToString() << "\n";
     return;
   }
-  if (status != MoqtObjectStatus::kNormal) {
-    it->second->AddObject(sequence, status);
+  if (metadata.status != MoqtObjectStatus::kNormal) {
+    it->second->AddObject(metadata, "", /*fin=*/false);
     return;
   }
   if (!server_->WriteToFile(GetUsername(full_track_name), object)) {
     std::cout << GetUsername(full_track_name) << ": " << object << "\n\n";
   }
-  it->second->AddObject(sequence, object);
+  it->second->AddObject(metadata, object, /*fin=*/false);
 }
 
 ChatServer::ChatServer(std::unique_ptr<quic::ProofSource> proof_source,
@@ -198,10 +199,8 @@ void ChatServer::AddUser(FullTrackName track_name) {
   user_queues_[track_name] = std::make_shared<MoqtLiveRelayQueue>(
       track_name, MoqtForwardingPreference::kSubgroup);
   publisher_.Add(user_queues_[track_name]);
-  FullTrackName track_namespace = track_name;
-  track_namespace.NameToNamespace();
   for (auto& session : sessions_) {
-    session.AnnounceIfSubscribed(track_namespace);
+    session.AnnounceIfSubscribed(track_name.track_namespace());
   }
 }
 
@@ -213,7 +212,7 @@ void ChatServer::DeleteUser(FullTrackName track_name) {
   user_queues_[track_name]->RemoveAllSubscriptions();
   user_queues_.erase(track_name);
   publisher_.Delete(track_name);
-  FullTrackName track_namespace = GetUserNamespace(track_name);
+  TrackNamespace track_namespace = GetUserNamespace(track_name);
   for (auto& session : sessions_) {
     session.UnannounceIfSubscribed(track_namespace);
   }

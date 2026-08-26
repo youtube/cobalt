@@ -4,7 +4,7 @@
 
 /** @fileoverview Test implementation of PasswordManagerProxy. */
 
-import type {AccountStorageEnabledStateChangedListener, BlockedSite, BlockedSitesListChangedListener, CredentialsChangedListener, PasswordCheckInteraction, PasswordCheckStatusChangedListener, PasswordManagerAuthTimeoutListener, PasswordManagerProxy, PasswordsFileExportProgressListener, PasswordViewPageInteractions} from 'chrome://password-manager/password_manager.js';
+import type {AccountStorageEnabledStateChangedListener, BlockedSite, BlockedSitesListChangedListener, CredentialsChangedListener, PasswordCheckInteraction, PasswordCheckStatusChangedListener, PasswordManagerAuthTimeoutListener, PasswordManagerProxy, PasswordsFileExportProgressListener, PasswordViewPageInteractions, ShouldShowAccountStorageToggleChangedListener} from 'chrome://password-manager/password_manager.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 import {makeFamilyFetchResults, makePasswordCheckStatus} from './test_util.js';
@@ -22,6 +22,7 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
     groups: chrome.passwordsPrivate.CredentialGroup[],
     insecureCredentials: chrome.passwordsPrivate.PasswordUiEntry[],
     isAccountStorageEnabled: boolean,
+    shouldShowAccountStorageSettingToggle: boolean,
     passwords: chrome.passwordsPrivate.PasswordUiEntry[],
     isPasswordManagerPinAvailable: boolean,
     isCloudAuthenticatorConnected: boolean,
@@ -34,6 +35,8 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
   listeners: {
     accountStorageEnabledStateListener:
         AccountStorageEnabledStateChangedListener|null,
+    shouldShowAccountStorageToggleListener:
+        ShouldShowAccountStorageToggleChangedListener|null,
     blockedSitesListChangedListener: BlockedSitesListChangedListener|null,
     savedPasswordListChangedListener: CredentialsChangedListener|null,
     passwordCheckStatusListener: PasswordCheckStatusChangedListener|null,
@@ -62,6 +65,7 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
       'changeCredential',
       'changePasswordManagerPin',
       'continueImport',
+      'copyPlaintextBackupPassword',
       'deleteAllPasswordManagerData',
       'disconnectCloudAuthenticator',
       'dismissSafetyHubPasswordMenuNotification',
@@ -78,6 +82,7 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
       'importPasswords',
       'isConnectedToCloudAuthenticator',
       'isAccountStorageEnabled',
+      'shouldShowAccountStorageSettingToggle',
       'isPasswordManagerPinAvailable',
       'movePasswordsToAccount',
       'muteInsecureCredential',
@@ -86,6 +91,7 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
       'recordPasswordViewInteraction',
       'removeBlockedSite',
       'removeCredential',
+      'removeBackupPassword',
       'requestCredentialsDetails',
       'requestExportProgressStatus',
       'requestPlaintextPassword',
@@ -108,6 +114,7 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
       groups: [],
       insecureCredentials: [],
       isAccountStorageEnabled: false,
+      shouldShowAccountStorageSettingToggle: false,
       passwords: [],
       isPasswordManagerPinAvailable: false,
       isCloudAuthenticatorConnected: false,
@@ -120,6 +127,7 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
     // Holds listeners so they can be called when needed.
     this.listeners = {
       accountStorageEnabledStateListener: null,
+      shouldShowAccountStorageToggleListener: null,
       blockedSitesListChangedListener: null,
       insecureCredentialsListener: null,
       passwordCheckStatusListener: null,
@@ -245,6 +253,11 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
     return Promise.resolve('plainTextPassword');
   }
 
+  copyPlaintextBackupPassword(id: number) {
+    this.methodCalled('copyPlaintextBackupPassword', {id});
+    return Promise.resolve(true);
+  }
+
   addPassword(options: chrome.passwordsPrivate.AddPasswordOptions) {
     this.methodCalled('addPassword', options);
     return Promise.resolve();
@@ -258,6 +271,10 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
   removeCredential(
       id: number, fromStores: chrome.passwordsPrivate.PasswordStoreSet) {
     this.methodCalled('removeCredential', {id, fromStores});
+  }
+
+  removeBackupPassword(id: number) {
+    this.methodCalled('removeBackupPassword', {id});
   }
 
   removeBlockedSite(id: number) {
@@ -343,6 +360,16 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
     this.listeners.accountStorageEnabledStateListener = null;
   }
 
+  addShouldShowAccountStorageSettingToggleListener(
+      listener: ShouldShowAccountStorageToggleChangedListener) {
+    this.listeners.shouldShowAccountStorageToggleListener = listener;
+  }
+
+  removeShouldShowAccountStorageSettingToggleListener(
+      _listener: ShouldShowAccountStorageToggleChangedListener) {
+    this.listeners.shouldShowAccountStorageToggleListener = null;
+  }
+
   fetchFamilyMembers() {
     this.methodCalled('fetchFamilyMembers');
     return Promise.resolve(this.data.familyFetchResults);
@@ -384,6 +411,12 @@ export class TestPasswordManagerProxy extends TestBrowserProxy implements
     this.methodCalled('setAccountStorageEnabled');
     this.data.isAccountStorageEnabled = enabled;
   }
+
+  shouldShowAccountStorageSettingToggle() {
+    this.methodCalled('shouldShowAccountStorageSettingToggle');
+    return Promise.resolve(this.data.shouldShowAccountStorageSettingToggle);
+  }
+
 
   movePasswordsToAccount(ids: number[]) {
     this.methodCalled('movePasswordsToAccount', ids);

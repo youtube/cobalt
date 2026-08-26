@@ -36,12 +36,15 @@ import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.ui.signin.R;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
+import org.chromium.components.signin.SigninFeatures;
+import org.chromium.components.signin.test.util.FakeIdentityManager;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
@@ -52,6 +55,7 @@ import java.io.IOException;
 /** Instrumentation tests for account picker dialog. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
+@Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
 @Batch(Batch.PER_CLASS)
 public class AccountPickerDialogTest {
     @ClassRule
@@ -76,6 +80,8 @@ public class AccountPickerDialogTest {
 
     private AccountPickerDialogCoordinator mCoordinator;
 
+    private final FakeIdentityManager mIdentityManager = new FakeIdentityManager();
+
     @BeforeClass
     public static void setupSuite() {
         sActivity = sActivityTestRule.launchActivity(null);
@@ -92,7 +98,8 @@ public class AccountPickerDialogTest {
                                     sActivity,
                                     mListenerMock,
                                     new ModalDialogManager(
-                                            new AppModalPresenter(sActivity), ModalDialogType.APP));
+                                            new AppModalPresenter(sActivity), ModalDialogType.APP),
+                                    mIdentityManager);
                 });
     }
 
@@ -119,9 +126,6 @@ public class AccountPickerDialogTest {
     @Test
     @MediumTest
     public void testSelectDefaultAccount() {
-        onView(withText(TestAccounts.ACCOUNT1.getEmail()))
-                .inRoot(isDialog())
-                .check(matches(isDisplayed()));
         onView(withText(TestAccounts.ACCOUNT1.getFullName())).inRoot(isDialog()).perform(click());
         verify(mListenerMock).onAccountSelected(TestAccounts.ACCOUNT1);
     }
@@ -129,7 +133,7 @@ public class AccountPickerDialogTest {
     @Test
     @MediumTest
     public void testSelectNonDefaultAccount() {
-        onView(withText(TestAccounts.ACCOUNT2.getEmail())).inRoot(isDialog()).perform(click());
+        onView(withText(TestAccounts.ACCOUNT2.getFullName())).inRoot(isDialog()).perform(click());
         verify(mListenerMock).onAccountSelected(TestAccounts.ACCOUNT2);
     }
 

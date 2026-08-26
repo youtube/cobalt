@@ -11,6 +11,7 @@
 #include "modules/audio_processing/test/api_call_statistics.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <limits>

@@ -11,6 +11,9 @@
 #ifndef MODULES_AUDIO_PROCESSING_AEC3_FULLBAND_ERLE_ESTIMATOR_H_
 #define MODULES_AUDIO_PROCESSING_AEC3_FULLBAND_ERLE_ESTIMATOR_H_
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <vector>

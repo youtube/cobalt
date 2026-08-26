@@ -67,10 +67,6 @@
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/widget.h"
 
-#if BUILDFLAG(IS_CHROMEOS)
-#include "chromeos/components/kiosk/kiosk_utils.h"
-#endif
-
 #if BUILDFLAG(IS_MAC)
 #include "chrome/browser/ui/fullscreen_util_mac.h"
 #endif
@@ -98,16 +94,6 @@ PinnedToolbarActionsContainer* GetPinnedToolbarActionsContainer(
 ToolbarButton* GetDownloadsButton(BrowserView* browser_view) {
   auto* container = GetPinnedToolbarActionsContainer(browser_view);
   return container ? container->GetButtonFor(kActionShowDownloads) : nullptr;
-}
-
-SkColor GetIconColor(bool is_dormant,
-                     DownloadDisplay::IconActive active,
-                     const ui::ColorProvider* color_provider) {
-  ui::ColorId color_id = kColorDownloadToolbarButtonActive;
-  if (is_dormant || active != DownloadDisplay::IconActive::kActive) {
-    color_id = kColorDownloadToolbarButtonInactive;
-  }
-  return color_provider->GetColor(color_id);
 }
 
 class DownloadProgressRing : public views::View, gfx::AnimationDelegate {
@@ -472,8 +458,10 @@ void DownloadToolbarUIController::Init() {
       this, browser_view_->browser(), bubble_controller_.get());
 }
 
-void DownloadToolbarUIController::TearDownPreBrowserViewDestruction() {
+void DownloadToolbarUIController::TearDownPreBrowserWindowDestruction() {
   immersive_revealed_lock_.reset();
+  // DownloadDisplayController depends on BrowserView.
+  controller_.reset();
   browser_view_ = nullptr;
 }
 
@@ -608,11 +596,6 @@ bool DownloadToolbarUIController::ShouldShowExclusiveAccessBubble() const {
     return true;
   }
 #endif
-#if BUILDFLAG(IS_CHROMEOS)
-  if (chromeos::IsKioskSession()) {
-    return false;
-  }
-#endif
   return !browser_view_->IsImmersiveModeEnabled() &&
          browser_view_->CanUserExitFullscreen();
 }
@@ -675,8 +658,12 @@ void DownloadToolbarUIController::UpdateIcon() {
       button->GetColorProvider()->GetColor(kColorToolbar);
 
   const gfx::VectorIcon* new_icon;
-  SkColor icon_color =
-      GetIconColor(is_dormant_, active_, browser_view_->GetColorProvider());
+  // An active icon is indicated by the color and the presence of an underline
+  // under the icon button.
+  bool is_icon_active = !is_dormant_ && is_active;
+  SkColor icon_color = browser_view_->GetColorProvider()->GetColor(
+      is_icon_active ? kColorDownloadToolbarButtonActive
+                     : kColorDownloadToolbarButtonInactive);
   bool is_touch_mode = ui::TouchUiController::Get()->touch_ui();
   if (state_ == IconState::kProgress || state_ == IconState::kDeepScanning) {
     new_icon = is_touch_mode ? &kDownloadInProgressTouchIcon
@@ -685,8 +672,7 @@ void DownloadToolbarUIController::UpdateIcon() {
     new_icon = is_touch_mode ? &kDownloadToolbarButtonTouchIcon
                              : &kDownloadToolbarButtonChromeRefreshIcon;
   }
-  action_item_->SetProperty(kActionItemUnderlineIndicatorKey,
-                            (!is_dormant_ && (active_ == IconActive::kActive)));
+  action_item_->SetProperty(kActionItemUnderlineIndicatorKey, is_icon_active);
 
   action_item_->SetImage(ui::ImageModel::FromVectorIcon(*new_icon, icon_color));
 
@@ -700,7 +686,16 @@ void DownloadToolbarUIController::UpdateIcon() {
     tooltip_for_progress_count = l10n_util::GetPluralStringFUTF16(
         IDS_DOWNLOAD_BUBBLE_TOOLTIP_IN_PROGRESS_COUNT, progress_download_count);
   }
-  action_item_->SetTooltipText(tooltip_texts_.at(progress_download_count));
+  if (progress_download_count == 0 && is_icon_active) {
+    // If there are 0 in-progress downloads but the icon is still active, use
+    // the tooltip text to indicate to a11y users (along with the visual
+    // indications of the icon color and underline) that there is a new
+    // "unactioned" complete download.
+    action_item_->SetTooltipText(
+        l10n_util::GetStringUTF16(IDS_TOOLTIP_DOWNLOAD_ICON_NEW_DOWNLOAD));
+  } else {
+    action_item_->SetTooltipText(tooltip_for_progress_count);
+  }
 
   redraw_progress_soon_ = false;
 
@@ -794,8 +789,8 @@ DownloadToolbarUIController::GetWeakPtr() {
 // browser becomes active, so that clicking outside the bubble will deactivate
 // and close it.
 void DownloadToolbarUIController::OnBrowserSetLastActive(Browser* browser) {
-  if (browser == browser_view_->browser() && bubble_delegate_ &&
-      !bubble_delegate_->GetWidget()->IsClosed()) {
+  if (browser_view_ && browser == browser_view_->browser() &&
+      bubble_delegate_ && !bubble_delegate_->GetWidget()->IsClosed()) {
     // We need to defer activating the download bubble when the browser window
     // is being activated, otherwise this is ineffective on macOS.
     content::GetUIThreadTaskRunner()->PostTask(
@@ -1038,8 +1033,9 @@ void DownloadToolbarUIController::ShowIphPromo() {
   if (safe_browsing::GetSafeBrowsingState(*profile->GetPrefs()) ==
           safe_browsing::SafeBrowsingState::STANDARD_PROTECTION &&
       !profile->IsOffTheRecord()) {
-    browser_view_->MaybeShowFeaturePromo(
-        feature_engagement::kIPHDownloadEsbPromoFeature);
+    BrowserUserEducationInterface::From(browser_view_->browser())
+        ->MaybeShowFeaturePromo(
+            feature_engagement::kIPHDownloadEsbPromoFeature);
   }
 #endif
 }

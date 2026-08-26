@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "base/debug/stack_trace.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "components/viz/common/quads/compositor_frame.h"
@@ -191,35 +190,14 @@ void CanvasResourceDispatcher::PostImageToPlaceholder(
                           resource_id));
 }
 
-void CanvasResourceDispatcher::DispatchFrameSync(
-    scoped_refptr<CanvasResource>&& canvas_resource,
-    base::TimeTicks commit_start_time,
-    const SkIRect& damage_rect,
-    bool is_opaque) {
-  TRACE_EVENT0("blink", "CanvasResourceDispatcher::DispatchFrameSync");
-  viz::CompositorFrame frame;
-  if (!PrepareFrame(std::move(canvas_resource), commit_start_time, damage_rect,
-                    is_opaque, &frame)) {
-    return;
-  }
-
-  pending_compositor_frames_++;
-  WTF::Vector<viz::ReturnedResource> resources;
-  sink_->SubmitCompositorFrameSync(
-      parent_local_surface_id_allocator_.GetCurrentLocalSurfaceId(),
-      std::move(frame), std::nullopt, 0, &resources);
-  DidReceiveCompositorFrameAck(std::move(resources));
-}
-
 void CanvasResourceDispatcher::DispatchFrame(
     scoped_refptr<CanvasResource>&& canvas_resource,
-    base::TimeTicks commit_start_time,
     const SkIRect& damage_rect,
     bool is_opaque) {
   TRACE_EVENT0("blink", "CanvasResourceDispatcher::DispatchFrame");
   viz::CompositorFrame frame;
-  if (!PrepareFrame(std::move(canvas_resource), commit_start_time, damage_rect,
-                    is_opaque, &frame)) {
+  if (!PrepareFrame(std::move(canvas_resource), damage_rect, is_opaque,
+                    &frame)) {
     return;
   }
 
@@ -231,7 +209,6 @@ void CanvasResourceDispatcher::DispatchFrame(
 
 bool CanvasResourceDispatcher::PrepareFrame(
     scoped_refptr<CanvasResource>&& canvas_resource,
-    base::TimeTicks commit_start_time,
     const SkIRect& damage_rect,
     bool is_opaque,
     viz::CompositorFrame* frame) {

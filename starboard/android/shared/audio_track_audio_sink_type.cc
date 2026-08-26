@@ -401,6 +401,13 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       expected_written_frames = frames_in_buffer - frames_in_audio_track;
     }
 
+    if (expected_written_frames < 0) {
+      // TODO(cobalt, b/549849936): resolve negative expected_written_frames
+      // issue.
+      ReportError(false, "AudioTrack expected written frames is negative.");
+      break;
+    }
+
     expected_written_frames =
         std::min(expected_written_frames, max_frames_per_request_);
 

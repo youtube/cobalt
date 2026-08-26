@@ -26,11 +26,9 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
 import org.chromium.payments.mojom.PaymentCurrencyAmount;
-import org.chromium.payments.mojom.PaymentDetailsModifier;
 import org.chromium.payments.mojom.PaymentItem;
 import org.chromium.payments.mojom.PaymentMethodData;
 import org.chromium.payments.mojom.PaymentOptions;
-import org.chromium.payments.mojom.PaymentShippingOption;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -96,6 +94,32 @@ public class AndroidPaymentAppUnitTest {
     @SmallTest
     @Test
     @UiThreadTest
+    public void testSetHasEnrolledInstrument() throws Exception {
+        AndroidPaymentApp app =
+                createApp(
+                        /* allowShowWithoutReadyToPay= */ true,
+                        /* showReadyToPayDebugInfo= */ false);
+        Assert.assertFalse(app.hasEnrolledInstrument());
+        app.setHasEnrolledInstrument(true);
+        Assert.assertTrue(app.hasEnrolledInstrument());
+    }
+
+    @SmallTest
+    @Test
+    @UiThreadTest
+    public void testCannotSetHasEnrolledInstrument() throws Exception {
+        AndroidPaymentApp app =
+                createApp(
+                        /* allowShowWithoutReadyToPay= */ false,
+                        /* showReadyToPayDebugInfo= */ false);
+        Assert.assertTrue(app.hasEnrolledInstrument());
+        app.setHasEnrolledInstrument(false);
+        Assert.assertTrue(app.hasEnrolledInstrument());
+    }
+
+    @SmallTest
+    @Test
+    @UiThreadTest
     public void testSuccessfulPayment() throws Exception {
         AndroidPaymentApp app = createApp(/* showReadyToPayDebugInfo= */ false);
         queryReadyToPay(app);
@@ -121,6 +145,11 @@ public class AndroidPaymentAppUnitTest {
     }
 
     private AndroidPaymentApp createApp(boolean showReadyToPayDebugInfo) {
+        return createApp(/* allowShowWithoutReadyToPay= */ false, showReadyToPayDebugInfo);
+    }
+
+    private AndroidPaymentApp createApp(
+            boolean allowShowWithoutReadyToPay, boolean showReadyToPayDebugInfo) {
         AndroidPaymentApp app =
                 new AndroidPaymentApp(
                         mLauncherMock,
@@ -134,8 +163,10 @@ public class AndroidPaymentAppUnitTest {
                         /* isIncognito= */ false,
                         /* appToHide= */ null,
                         new SupportedDelegations(),
+                        allowShowWithoutReadyToPay,
                         showReadyToPayDebugInfo,
-                        /* removeDeprecatedFields= */ false);
+                        /* removeDeprecatedFields= */ false,
+                        /* paymentDetailsUpdateServiceMaxRetryNumber= */ 0);
         app.addMethodName("https://company.com/pay");
         return app;
     }
@@ -147,7 +178,7 @@ public class AndroidPaymentAppUnitTest {
                 "https://merchant.com",
                 "https://psp.com",
                 /* certificateChain= */ null,
-                /* modifiers= */ new HashMap<String, PaymentDetailsModifier>(),
+                /* modifiers= */ new HashMap<>(),
                 new AndroidPaymentApp.IsReadyToPayCallback() {
                     @Override
                     public void onIsReadyToPayResponse(
@@ -174,10 +205,10 @@ public class AndroidPaymentAppUnitTest {
                 /* certificateChain= */ null,
                 mMethods,
                 total,
-                /* displayItems= */ new ArrayList<PaymentItem>(),
-                /* modifiers= */ new HashMap<String, PaymentDetailsModifier>(),
+                /* displayItems= */ new ArrayList<>(),
+                /* modifiers= */ new HashMap<>(),
                 new PaymentOptions(),
-                new ArrayList<PaymentShippingOption>(),
+                new ArrayList<>(),
                 new PaymentApp.InstrumentDetailsCallback() {
                     @Override
                     public void onInstrumentDetailsReady(

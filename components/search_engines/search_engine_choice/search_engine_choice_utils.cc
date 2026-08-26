@@ -112,8 +112,7 @@ std::optional<ChoiceScreenDisplayState> ChoiceScreenDisplayState::FromDict(
     return std::nullopt;
   }
 
-  if (!parsed_country_id.has_value() ||
-      !parsed_search_engines) {
+  if (!parsed_country_id.has_value() || !parsed_search_engines) {
     return std::nullopt;
   }
 
@@ -123,9 +122,8 @@ std::optional<ChoiceScreenDisplayState> ChoiceScreenDisplayState::FromDict(
         static_cast<SearchEngineType>(search_engine_type.GetInt()));
   }
 
-  return ChoiceScreenDisplayState(
-      search_engines, parsed_country_id.value(),
-      parsed_selected_engine_index);
+  return ChoiceScreenDisplayState(search_engines, parsed_country_id.value(),
+                                  parsed_selected_engine_index);
 }
 
 ChoiceScreenData::ChoiceScreenData(
@@ -142,31 +140,6 @@ ChoiceScreenData::ChoiceScreenData(
           country_id)) {}
 
 ChoiceScreenData::~ChoiceScreenData() = default;
-
-void RecordChoiceScreenProfileInitCondition(
-    SearchEngineChoiceScreenConditions condition) {
-  base::UmaHistogramEnumeration(
-      kSearchEngineChoiceScreenProfileInitConditionsHistogram, condition);
-}
-
-void RecordChoiceScreenNavigationCondition(
-    SearchEngineChoiceScreenConditions condition) {
-  base::UmaHistogramEnumeration(
-      kSearchEngineChoiceScreenNavigationConditionsHistogram, condition);
-}
-
-void RecordChoiceScreenEvent(SearchEngineChoiceScreenEvents event) {
-  base::UmaHistogramEnumeration(kSearchEngineChoiceScreenEventsHistogram,
-                                event);
-
-  if (event == SearchEngineChoiceScreenEvents::kChoiceScreenWasDisplayed ||
-      event == SearchEngineChoiceScreenEvents::kFreChoiceScreenWasDisplayed ||
-      event == SearchEngineChoiceScreenEvents::
-                   kProfileCreationChoiceScreenWasDisplayed) {
-    base::RecordAction(
-        base::UserMetricsAction("SearchEngineChoiceScreenShown"));
-  }
-}
 
 void RecordChoiceScreenDefaultSearchProviderType(
     SearchEngineType engine_type,
@@ -210,13 +183,6 @@ void RecordChoiceScreenPositions(
 void WipeSearchEngineChoicePrefs(PrefService& profile_prefs,
                                  SearchEngineChoiceWipeReason reason) {
   base::UmaHistogramEnumeration(kSearchEngineChoiceWipeReasonHistogram, reason);
-  if (reason == SearchEngineChoiceWipeReason::kDeviceRestored &&
-      profile_prefs.HasPrefPath(
-          prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp)) {
-    profile_prefs.SetInt64(
-        prefs::kDefaultSearchProviderChoiceInvalidationTimestamp,
-        base::Time::Now().ToDeltaSinceWindowsEpoch().InSeconds());
-  }
 
   profile_prefs.ClearPref(
       prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp);
@@ -224,10 +190,12 @@ void WipeSearchEngineChoicePrefs(PrefService& profile_prefs,
       prefs::kDefaultSearchProviderChoiceScreenCompletionVersion);
   profile_prefs.ClearPref(
       prefs::kDefaultSearchProviderPendingChoiceScreenDisplayState);
+  profile_prefs.ClearPref(
+      prefs::kDefaultSearchProviderChoiceInvalidationTimestamp);
 
 #if BUILDFLAG(IS_IOS)
-    profile_prefs.ClearPref(
-        prefs::kDefaultSearchProviderChoiceScreenSkippedCount);
+  profile_prefs.ClearPref(
+      prefs::kDefaultSearchProviderChoiceScreenSkippedCount);
 #endif
 }
 
@@ -251,15 +219,19 @@ GetChoiceCompletionMetadata(const PrefService& prefs) {
         ChoiceCompletionMetadata::ParseError::kInvalidVersion);
   }
 
-  // Note: Other error conditions don't have dedicated handling, so we log all
-  // of them as `kOther`.
+  if (!prefs.HasPrefPath(
+          prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp)) {
+    return base::unexpected(
+        ChoiceCompletionMetadata::ParseError::kMissingTimestamp);
+  }
 
   base::Time timestamp =
       base::Time::FromDeltaSinceWindowsEpoch(base::Seconds(prefs.GetInt64(
-          prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp)));
+        prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp)));
 
   if (timestamp.is_null()) {
-    return base::unexpected(ChoiceCompletionMetadata::ParseError::kOther);
+    return base::unexpected(
+        ChoiceCompletionMetadata::ParseError::kNullTimestamp);
   }
 
   return ChoiceCompletionMetadata{
@@ -281,15 +253,8 @@ bool IsSearchEngineChoiceInvalid(PrefService& prefs) {
     return false;
   }
 
-  if (prefs.GetInt64(prefs::kDefaultSearchProviderChoiceInvalidationTimestamp) >
-      0) {
-    CHECK(!prefs.HasPrefPath(
-              prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp),
-          base::NotFatalUntil::M140);
-    return true;
-  }
-
-  return false;
+  return prefs.GetInt64(
+             prefs::kDefaultSearchProviderChoiceInvalidationTimestamp) > 0;
 }
 
 void SetChoiceCompletionMetadata(PrefService& prefs,
@@ -318,8 +283,15 @@ std::optional<base::Time> GetChoiceScreenCompletionTimestamp(
 #if !BUILDFLAG(IS_ANDROID)
 std::u16string GetMarketingSnippetString(
     const TemplateURLData& template_url_data) {
+  constexpr bool kEnableBuiltinSearchProviderAssets =
+      !!BUILDFLAG(ENABLE_BUILTIN_SEARCH_PROVIDER_ASSETS);
+
+  // TODO(crbug.com/420943295): `GetMarketingSnippetResourceId()` is generated
+  // code. The flag-gating should be moved there directly.
   int snippet_resource_id =
-      GetMarketingSnippetResourceId(template_url_data.keyword());
+      kEnableBuiltinSearchProviderAssets
+          ? GetMarketingSnippetResourceId(template_url_data.keyword())
+          : -1;
 
   return snippet_resource_id == -1
              ? l10n_util::GetStringFUTF16(

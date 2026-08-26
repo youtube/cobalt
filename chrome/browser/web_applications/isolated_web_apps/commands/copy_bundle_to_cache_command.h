@@ -34,13 +34,24 @@ class CopyBundleToCacheSuccess {
   base::FilePath cached_bundle_path_;
 };
 
+// These are used in histograms, do not remove/renumber entries. If you're
+// adding to this enum with the intention that it will be logged, update the
+// `IsolatedWebAppCopyBundleToCacheError` enum listing in
+// tools/metrics/histograms/metadata/webapps/enums.xml.
 enum class CopyBundleToCacheError {
-  kSystemShutdown,
-  kAppNotInstalled,
-  kNotIwa,
-  kCannotExtractOwnedBundlePath,
-  kFailedToCreateDir,
-  kFailedToCopyFile,
+  // The system was shut down before the command could complete.
+  kSystemShutdown = 0,
+  // The app is not installed.
+  kAppNotInstalled = 1,
+  // The app is not an Isolated Web App.
+  kNotIwa = 2,
+  // The app is not an owned bundle, so its path cannot be extracted.
+  kCannotExtractOwnedBundlePath = 3,
+  // Failed to create the destination directory in the cache.
+  kFailedToCreateDir = 4,
+  // Failed to copy the bundle file to the cache.
+  kFailedToCopyFile = 5,
+  kMaxValue = kFailedToCopyFile,
 };
 
 std::string CopyBundleToCacheErrorToString(CopyBundleToCacheError error);

@@ -43,6 +43,7 @@ class NameInfo : public FormGroup {
   bool operator==(const NameInfo& other) const;
 
   // FormGroup:
+  using FormGroup::GetInfo;
   std::u16string GetInfo(const AutofillType& type,
                          const std::string& app_locale) const override;
   std::u16string GetRawInfo(FieldType type) const override;
@@ -82,6 +83,17 @@ class NameInfo : public FormGroup {
   // status is updated to the higher one.
   void MergeStructuredNameValidationStatuses(const NameInfo& newer);
 
+  // Returns true if the regular name should be migrated to a phonetic name.
+  // The incorrect assignment happened in the past when we did not have proper
+  // support for phonetic names.
+  // TODO(crbug.com/359768803): Remove this method once the migration is done.
+  bool HasNameEligibleForPhoneticNameMigration() const;
+
+  // Moves the regular name data to the phonetic name fields and clears the
+  // regular name tree.
+  // TODO(crbug.com/359768803): Remove this method once the migration is done.
+  void MigrateRegularNameToPhoneticName();
+
   // Returns a constant reference to the structured name tree.
   const AddressComponent& GetStructuredName() const { return *name_; }
 
@@ -120,6 +132,7 @@ class EmailInfo : public FormGroup {
   bool operator==(const EmailInfo& other) const;
 
   // FormGroup:
+  using FormGroup::GetInfo;
   std::u16string GetInfo(const AutofillType& type,
                          const std::string& app_locale) const override;
   std::u16string GetRawInfo(FieldType type) const override;
@@ -151,6 +164,7 @@ class CompanyInfo : public FormGroup {
   bool operator==(const CompanyInfo& other) const;
 
   // FormGroup:
+  using FormGroup::GetInfo;
   std::u16string GetInfo(const AutofillType& type,
                          const std::string& app_locale) const override;
   std::u16string GetRawInfo(FieldType type) const override;

@@ -11,6 +11,9 @@ namespace manual_fill {
 NSString* const kAccessoryPasswordAccessibilityIdentifier =
     @"ManualFillAccessoryPasswordAccessibilityIdentifier";
 
+NSString* const kExpandedManualFillPasswordFaviconID =
+    @"ExpandedManualFillPasswordFaviconID";
+
 NSString* const kPasswordDoneButtonAccessibilityIdentifier =
     @"ManualFillPasswordDoneButtonAccessibilityIdentifier";
 
@@ -72,6 +75,9 @@ NSString* const kCreatePlusAddressAccessibilityIdentifier =
 NSString* const kSelectPlusAddressAccessibilityIdentifier =
     @"SelectPlusAddressAccessibilityIdentifier";
 
+NSString* const kExpandedManualFillPlusAddressFaviconID =
+    @"ExpandedManualFillPlusAddressFaviconID";
+
 NSString* const kExpandedManualFillPlusAddressOverflowMenuID =
     @"ExpandedManualFillPlusAddressOverflowMenuID";
 
@@ -116,6 +122,7 @@ NSString* const kAccessoryKeyboardAccessibilityIdentifier =
     case autofill::FillingProduct::kPassword:
       return manual_fill::ManualFillDataType::kPassword;
     case autofill::FillingProduct::kAutocomplete:
+    case autofill::FillingProduct::kDataList:
     case autofill::FillingProduct::kNone:
       return manual_fill::ManualFillDataType::kOther;
     case autofill::FillingProduct::kCompose:
@@ -123,6 +130,7 @@ NSString* const kAccessoryKeyboardAccessibilityIdentifier =
     case autofill::FillingProduct::kMerchantPromoCode:
     case autofill::FillingProduct::kLoyaltyCard:
     case autofill::FillingProduct::kIdentityCredential:
+    case autofill::FillingProduct::kOneTimePassword:
       // These cases are currently not available on iOS.
       NOTREACHED();
   }

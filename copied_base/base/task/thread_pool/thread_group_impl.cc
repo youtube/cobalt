@@ -1135,9 +1135,7 @@ void ThreadGroupImpl::AdjustMaxTasks() {
 void ThreadGroupImpl::ScheduleAdjustMaxTasks() {
   // |adjust_max_tasks_posted_| can't change before the task posted below runs.
   // Skip check on NaCl to avoid unsafe reference acquisition warning.
-#if !BUILDFLAG(IS_NACL)
   DCHECK(TS_UNCHECKED_READ(adjust_max_tasks_posted_));
-#endif
 
   after_start().service_thread_task_runner->PostDelayedTask(
       FROM_HERE, BindOnce(&ThreadGroupImpl::AdjustMaxTasks, Unretained(this)),

@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">ଆପଣ ବର୍ତ୍ତମାନ କେବଳ କ୍ଲାସ ଟୁଲ୍ସକୁ ବ୍ୟବହାର କରିବାକୁ ସକ୍ଷମ ଅଟନ୍ତି</translation>
 <translation id="1762483337755424125">ଟ୍ରାନ୍ସକ୍ରିପ୍ଟ</translation>
 <translation id="1765169783255151332">ଶୀଘ୍ର କୀଗୁଡ଼ିକୁ ସୁଇଚ କରନ୍ତୁ</translation>
 <translation id="1768959921651994223">ପ୍ରମାଣୀକରଣର ପ୍ରକାର</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">ଲେଆଉଟ ସ୍ୱିଚ</translation>
 <translation id="224421911978987610">ଲଙ୍ଗ ଏକ୍ସପୋଜର</translation>
 <translation id="2244834438220057800">ସବୁଜ</translation>
+<translation id="2248689665683494517">କଳା ବେକଗ୍ରାଉଣ୍ଡରେ କାଚର ଫୁଲଦାନୀରେ ପାପାଭେର ରିଆ ଫୁଲର ସରଳ ସ୍ଥିର ଜୀବନ</translation>
 <translation id="225692081236532131">ସକ୍ରିୟକରଣ ସ୍ଥିତି</translation>
 <translation id="2267285889943769271">ସ୍କ୍ରିନସଟ ଯୋଗ କରନ୍ତୁ</translation>
 <translation id="2268044343513325586">ମାର୍ଜିତ କରନ୍ତୁ</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">ବିଫଳ ହୋଇଛି - ପ୍ରିଣ୍ଟର୍ ବନ୍ଦ ହୋଇଯାଇଛି</translation>
 <translation id="3102119246920354026">କ୍ୟାଶ୍</translation>
 <translation id="3103783611481501187">ଅବାସ୍ତବ</translation>
+<translation id="3119672627216736407">ଅନୁବାଦ ଉପଲବ୍ଧ ଅଛି</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">ପୁଲ</translation>
 <translation id="3122883569442693641">ଅଧିକ ବିବରଣୀ</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">ସିଫନ</translation>
 <translation id="4310735698903592804">Google AI ଦ୍ୱାରା ପରିଚାଳିତ ବର୍ତ୍ତମାନର ୱାଲପେପରଗୁଡ଼ିକ</translation>
 <translation id="4320904097188876154">ନିଅନ ପିଙ୍କ</translation>
+<translation id="432961742358282111">ସଂଜ୍ଞା, ଅନୁବାଦ କିମ୍ବା ୟୁନିଟ କନଭର୍ସନଗୁଡ଼ିକ ପାଇବା ପାଇଁ ଡାହାଣ-କ୍ଲିକ କରନ୍ତୁ କିମ୍ବା ଦବାଇ ଧରି ରଖନ୍ତୁ। ଏହି ଫିଚରକୁ ପରିଚାଳନା କରିବା ପାଇଁ ବାମ କିମ୍ବା ଡାହାଣ ତୀର କୀ ବ୍ୟବହାର କରନ୍ତୁ।</translation>
 <translation id="4333390807948134856"><ph name="KEY_NAME" /> କୀ'କୁ ଦବାଯାଇଛି</translation>
 <translation id="4334293042716981313">ଆପଣ <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />ନିଜର ପ୍ରମ୍ପ୍ଟ ମଧ୍ୟ ଲେଖିପାରିବେ<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">କୀ</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">ସମ୍ପୂର୍ଣ୍ଣ କରିବା ପାଇଁ, ଆପଣଙ୍କର ପୁରୁଣା ଏବଂ ନୂଆ ପାସ୍‍ୱାର୍ଡଗୁଡ଼ିକ ଲେଖନ୍ତୁ</translation>
 <translation id="6061772781719867950">ବିଫଳ ହୋଇଥିବା HTTP ଅନୁରୋଧ</translation>
 <translation id="6073292342939316679">କୀବୋର୍ଡର ଉଜ୍ଜ୍ୱଳତା କମ୍ କରନ୍ତୁ</translation>
+<translation id="6074608334942655098">ଅନୁବାଦ କରିବା ବନ୍ଦ କରନ୍ତୁ</translation>
 <translation id="6074752328838739425">ସାରାଂଶ ଲୁଚାନ୍ତୁ</translation>
 <translation id="6075872808778243331">(Android) HTTP ଲାଟେନ୍ସି</translation>
 <translation id="6078323886959318429">ସର୍ଟକଟ୍ ଯୋଗ କରନ୍ତୁ</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Chromebook ସହାୟତା ଫୋରମରେ ବିଶେଷଜ୍ଞମାନଙ୍କୁ ପଚାରନ୍ତୁ</translation>
-<translation id="7309823890857024809">କଳା ବେକଗ୍ରାଉଣ୍ଡରେ କାଚର ଫୁଲଦାନୀରେ ପାପାଭେର ରିଆ କାଣ୍ଡର ସରଳ ସ୍ଥିର ଜୀବନ</translation>
 <translation id="7311368985037279727">କୀ'ବୋର୍ଡ ରଙ୍ଗ</translation>
 <translation id="7317831949569936035">ସ୍କୁଲ ପଞ୍ଜିକରଣ</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@
 <translation id="8088963492174775412">ରେକର୍ଡ କରିବାକୁ ଦବାନ୍ତୁ</translation>
 <translation id="8094062939584182041">ଏହି ସମସ୍ୟା ବିଷୟରେ ଆପଣଙ୍କୁ ଇମେଲ କରିବା ପାଇଁ Googleକୁ ଅନୁମତି ଦିଅନ୍ତୁ</translation>
 <translation id="8104083085214006426">ଆପଣ ଏକ ଖୋଲା ଏବଂ ଅସୁରକ୍ଷିତ ନେଟୱାର୍କ ବ୍ୟବହାର କରୁଛନ୍ତି</translation>
+<translation id="8108879170356113798">ଆପଣ କେବଳ <ph name="NUM_SECONDS" /> ସେକେଣ୍ଡରେ କ୍ଲାସ ଟୁଲ୍ସକୁ ବ୍ୟବହାର କରିବାକୁ ସକ୍ଷମ ହେବେ</translation>
 <translation id="811820734797650957">(Android) ଗେଟୱେକୁ ପିଙ୍ଗ୍ କରାଯାଇପାରିବ</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">ନିଶ୍ଚିତ କରନ୍ତୁ</translation>

@@ -35,7 +35,7 @@ import org.chromium.components.signin.ConnectionRetry.AuthTask;
 import org.chromium.components.signin.base.AccountCapabilities;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.base.GaiaId;
+import org.chromium.google_apis.gaia.GaiaId;
 import org.chromium.google_apis.gaia.GoogleServiceAuthError;
 import org.chromium.google_apis.gaia.GoogleServiceAuthErrorState;
 
@@ -50,12 +50,6 @@ import java.util.concurrent.atomic.AtomicReference;
 /** AccountManagerFacade wraps our access of AccountManager in Android. */
 @NullMarked
 public class AccountManagerFacadeImpl implements AccountManagerFacade {
-    /**
-     * An account feature (corresponding to a Gaia service flag) that specifies whether the account
-     * is a USM account.
-     */
-    @VisibleForTesting public static final String FEATURE_IS_USM_ACCOUNT_KEY = "service_usm";
-
     /**
      * The maximum amount of acceptable retries (for a total of MAXIMUM_RETRIES+1 attempts). *
      *
@@ -80,9 +74,6 @@ public class AccountManagerFacadeImpl implements AccountManagerFacade {
     private final AtomicReference<List<Account>> mAllAccounts = new AtomicReference<>();
     private final AtomicReference<List<PatternMatcher>> mAccountRestrictionPatterns =
             new AtomicReference<>();
-
-    // Deprecated in favor of `mAccountsPromise`, to be removed after migrating all affected calls.
-    private Promise<List<CoreAccountInfo>> mCoreAccountInfosPromise = new Promise<>();
 
     private Promise<List<AccountInfo>> mAccountsPromise = new Promise<>();
 
@@ -134,13 +125,6 @@ public class AccountManagerFacadeImpl implements AccountManagerFacade {
         ThreadUtils.assertOnUiThread();
         boolean success = mObservers.removeObserver(observer);
         assert success : "Can't find observer";
-    }
-
-    @MainThread
-    @Override
-    public Promise<List<CoreAccountInfo>> getCoreAccountInfos() {
-        ThreadUtils.assertOnUiThread();
-        return mCoreAccountInfosPromise;
     }
 
     @MainThread
@@ -251,25 +235,6 @@ public class AccountManagerFacadeImpl implements AccountManagerFacade {
     }
 
     @Override
-    public void checkChildAccountStatus(
-            CoreAccountInfo coreAccountInfo, ChildAccountStatusListener listener) {
-        ThreadUtils.assertOnUiThread();
-        new AsyncTask<Boolean>() {
-            @Override
-            public Boolean doInBackground() {
-                Account account = CoreAccountInfo.getAndroidAccountFrom(coreAccountInfo);
-                return mDelegate.hasFeature(account, FEATURE_IS_USM_ACCOUNT_KEY);
-            }
-
-            @Override
-            protected void onPostExecute(Boolean isChild) {
-                // TODO(crbug.com/40201126): rework this interface to avoid passing a null account.
-                listener.onStatusReady(isChild, isChild ? coreAccountInfo : null);
-            }
-        }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-    }
-
-    @Override
     public void checkIsSubjectToParentalControls(
             CoreAccountInfo coreAccountInfo, ChildAccountStatusListener listener) {
         ThreadUtils.assertOnUiThread();
@@ -362,10 +327,7 @@ public class AccountManagerFacadeImpl implements AccountManagerFacade {
         return mDidAccountFetchSucceed;
     }
 
-    /**
-     * Fetches gaia ids, creates account objects and updates {@link #mCoreAccountInfosPromise} and
-     * {@link #mAccountsPromise}.
-     */
+    /** Fetches gaia ids, creates account objects and updates {@link #mAccountsPromise}. */
     @MainThread
     private void fetchGaiaIdsAndUpdateCoreAccountInfos() {
         ThreadUtils.assertOnUiThread();
@@ -484,7 +446,6 @@ public class AccountManagerFacadeImpl implements AccountManagerFacade {
     }
 
     public void resetAccountsForTesting() {
-        mCoreAccountInfosPromise = new Promise<>();
         mAccountsPromise = new Promise<>();
         mAllAccounts.set(null);
         updateAccounts();
@@ -532,20 +493,15 @@ public class AccountManagerFacadeImpl implements AccountManagerFacade {
                 fetchGaiaIdsAndUpdateCoreAccountInfos();
                 return;
             }
-            List<CoreAccountInfo> coreAccountInfos = new ArrayList<>();
             List<AccountInfo> accounts = new ArrayList<>();
             for (int index = 0; index < mEmails.size(); index++) {
                 String email = mEmails.get(index);
                 GaiaId gaiaId = gaiaIds.get(index);
-                coreAccountInfos.add(CoreAccountInfo.createFromEmailAndGaiaId(email, gaiaId));
                 accounts.add(new AccountInfo.Builder(email, gaiaId).build());
             }
-            assert mCoreAccountInfosPromise.isFulfilled() == mAccountsPromise.isFulfilled();
-            if (mCoreAccountInfosPromise.isFulfilled()) {
-                mCoreAccountInfosPromise = Promise.fulfilled(coreAccountInfos);
+            if (mAccountsPromise.isFulfilled()) {
                 mAccountsPromise = Promise.fulfilled(accounts);
             } else {
-                mCoreAccountInfosPromise.fulfill(coreAccountInfos);
                 mAccountsPromise.fulfill(accounts);
             }
             for (AccountsChangeObserver observer : mObservers) {

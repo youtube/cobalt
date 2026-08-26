@@ -184,6 +184,7 @@
             EventNames["ContextCreated"] = "browsingContext.contextCreated";
             EventNames["ContextDestroyed"] = "browsingContext.contextDestroyed";
             EventNames["DomContentLoaded"] = "browsingContext.domContentLoaded";
+            EventNames["DownloadEnd"] = "browsingContext.downloadEnd";
             EventNames["DownloadWillBegin"] = "browsingContext.downloadWillBegin";
             EventNames["FragmentNavigated"] = "browsingContext.fragmentNavigated";
             EventNames["HistoryUpdated"] = "browsingContext.historyUpdated";
@@ -218,6 +219,7 @@
             EventNames["RequestDevicePromptUpdated"] = "bluetooth.requestDevicePromptUpdated";
             EventNames["GattConnectionAttempted"] = "bluetooth.gattConnectionAttempted";
             EventNames["CharacteristicEventGenerated"] = "bluetooth.characteristicEventGenerated";
+            EventNames["DescriptorEventGenerated"] = "bluetooth.descriptorEventGenerated";
         })(Bluetooth.EventNames || (Bluetooth.EventNames = {}));
     })(Bluetooth$2 || (Bluetooth$2 = {}));
     const EVENT_NAMES = new Set([
@@ -355,6 +357,16 @@
             super("no such web extension" , message, stacktrace);
         }
     }
+    class NoSuchNetworkCollectorException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such network collector" , message, stacktrace);
+        }
+    }
+    class NoSuchNetworkDataException extends Exception {
+        constructor(message, stacktrace) {
+            super("no such network data" , message, stacktrace);
+        }
+    }
 
     /**
      * Copyright 2023 Google LLC.
@@ -394,6 +406,9 @@
         parseSimulateDescriptorParameters(params) {
             return params;
         }
+        parseSimulateDescriptorResponseParameters(params) {
+            return params;
+        }
         parseSimulateGattConnectionResponseParameters(params) {
             return params;
         }
@@ -410,6 +425,9 @@
             return params;
         }
         parseRemoveUserContextParameters(params) {
+            return params;
+        }
+        parseSetClientWindowStateParameters(params) {
             return params;
         }
         parseActivateParams(params) {
@@ -460,6 +478,15 @@
         parseSetGeolocationOverrideParams(params) {
             return params;
         }
+        parseSetLocaleOverrideParams(params) {
+            return params;
+        }
+        parseSetScreenOrientationOverrideParams(params) {
+            return params;
+        }
+        parseSetTimezoneOverrideParams(params) {
+            return params;
+        }
         parseAddPreloadScriptParams(params) {
             return params;
         }
@@ -487,6 +514,9 @@
         parseSetFilesParams(params) {
             return params;
         }
+        parseAddDataCollectorParams(params) {
+            return params;
+        }
         parseAddInterceptParams(params) {
             return params;
         }
@@ -499,10 +529,19 @@
         parseContinueWithAuthParams(params) {
             return params;
         }
+        parseDisownDataParams(params) {
+            return params;
+        }
         parseFailRequestParams(params) {
             return params;
         }
+        parseGetDataParams(params) {
+            return params;
+        }
         parseProvideResponseParams(params) {
+            return params;
+        }
+        parseRemoveDataCollectorParams(params) {
             return params;
         }
         parseRemoveInterceptParams(params) {
@@ -596,6 +635,7 @@
             }
             const context = await this.#browserCdpClient.sendCommand('Target.createBrowserContext', request);
             this.#userContextStorage.getConfig(context.browserContextId).acceptInsecureCerts = params['acceptInsecureCerts'];
+            this.#userContextStorage.getConfig(context.browserContextId).userPromptHandler = params['unhandledPromptBehavior'];
             return {
                 userContext: context.browserContextId,
             };
@@ -666,9 +706,6 @@
             const servers = [];
             if (proxyConfig.httpProxy !== undefined) {
                 servers.push(`http=${proxyConfig.httpProxy}`);
-            }
-            if (proxyConfig.ftpProxy !== undefined) {
-                servers.push(`ftp=${proxyConfig.ftpProxy}`);
             }
             if (proxyConfig.sslProxy !== undefined) {
                 servers.push(`https=${proxyConfig.sslProxy}`);
@@ -1019,6 +1056,28 @@
             await Promise.all(browsingContexts.map(async (context) => await context.cdpTarget.setGeolocationOverride(geolocation)));
             return {};
         }
+        async setLocaleOverride(params) {
+            const locale = params.locale ?? null;
+            if (locale !== null && !isValidLocale(locale)) {
+                throw new InvalidArgumentException(`Invalid locale "${locale}"`);
+            }
+            const browsingContexts = await this.#getRelatedTopLevelBrowsingContexts(params.contexts, params.userContexts);
+            for (const userContextId of params.userContexts ?? []) {
+                const userContextConfig = this.#userContextStorage.getConfig(userContextId);
+                userContextConfig.locale = locale;
+            }
+            await Promise.all(browsingContexts.map(async (context) => await context.cdpTarget.setLocaleOverride(locale)));
+            return {};
+        }
+        async setScreenOrientationOverride(params) {
+            const browsingContexts = await this.#getRelatedTopLevelBrowsingContexts(params.contexts, params.userContexts);
+            for (const userContextId of params.userContexts ?? []) {
+                const userContextConfig = this.#userContextStorage.getConfig(userContextId);
+                userContextConfig.screenOrientation = params.screenOrientation;
+            }
+            await Promise.all(browsingContexts.map(async (context) => await context.cdpTarget.setScreenOrientationOverride(params.screenOrientation)));
+            return {};
+        }
         async #getRelatedTopLevelBrowsingContexts(browsingContextIds, userContextIds) {
             if (browsingContextIds === undefined && userContextIds === undefined) {
                 throw new InvalidArgumentException('Either user contexts or browsing contexts must be provided');
@@ -1053,6 +1112,49 @@
             }
             return [...new Set(result).values()];
         }
+        async setTimezoneOverride(params) {
+            let timezone = params.timezone ?? null;
+            if (timezone !== null && !isValidTimezone(timezone)) {
+                throw new InvalidArgumentException(`Invalid timezone "${timezone}"`);
+            }
+            if (timezone !== null && isTimeZoneOffsetString(timezone)) {
+                timezone = `GMT${timezone}`;
+            }
+            const browsingContexts = await this.#getRelatedTopLevelBrowsingContexts(params.contexts, params.userContexts);
+            for (const userContextId of params.userContexts ?? []) {
+                const userContextConfig = this.#userContextStorage.getConfig(userContextId);
+                userContextConfig.timezone = timezone;
+            }
+            await Promise.all(browsingContexts.map(async (context) => await context.cdpTarget.setTimezoneOverride(timezone)));
+            return {};
+        }
+    }
+    function isValidLocale(locale) {
+        try {
+            new Intl.Locale(locale);
+            return true;
+        }
+        catch (e) {
+            if (e instanceof RangeError) {
+                return false;
+            }
+            throw e;
+        }
+    }
+    function isValidTimezone(timezone) {
+        try {
+            Intl.DateTimeFormat(undefined, { timeZone: timezone });
+            return true;
+        }
+        catch (e) {
+            if (e instanceof RangeError) {
+                return false;
+            }
+            throw e;
+        }
+    }
+    function isTimeZoneOffsetString(timezone) {
+        return /^[+-](?:2[0-3]|[01]\d)(?::[0-5]\d)?$/.test(timezone);
     }
 
     /**
@@ -2007,8 +2109,8 @@
         return navigator.platform.toLowerCase().includes('mac');
     }).toString();
     async function getElementCenter(context, element) {
-        const sandbox = await context.getOrCreateSandbox(undefined);
-        const result = await sandbox.callFunction(CALCULATE_IN_VIEW_CENTER_PT_DECL, false, { type: 'undefined' }, [element]);
+        const hiddenSandboxRealm = await context.getOrCreateHiddenSandbox();
+        const result = await hiddenSandboxRealm.callFunction(CALCULATE_IN_VIEW_CENTER_PT_DECL, false, { type: 'undefined' }, [element]);
         if (result.type === 'exception') {
             throw new NoSuchElementException(`Origin element ${element.sharedId} was not found`);
         }
@@ -2020,7 +2122,8 @@
     }
     class ActionDispatcher {
         static isMacOS = async (context) => {
-            const result = await (await context.getOrCreateSandbox(undefined)).callFunction(IS_MAC_DECL, false);
+            const hiddenSandboxRealm = await context.getOrCreateHiddenSandbox();
+            const result = await hiddenSandboxRealm.callFunction(IS_MAC_DECL, false);
             assert(result.type !== 'exception');
             assert(result.result.type === 'boolean');
             return result.result.value;
@@ -2854,10 +2957,10 @@
         }
         async setFiles(params) {
             const context = this.#browsingContextStorage.getContext(params.context);
-            const realm = await context.getOrCreateSandbox(undefined);
+            const hiddenSandboxRealm = await context.getOrCreateHiddenSandbox();
             let result;
             try {
-                result = await realm.callFunction(String(function getFiles(fileListLength) {
+                result = await hiddenSandboxRealm.callFunction(String(function getFiles(fileListLength) {
                     if (!(this instanceof HTMLInputElement)) {
                         if (this instanceof Element) {
                             return 1 ;
@@ -2900,7 +3003,7 @@
                 }
             }
             if (params.files.length === 0) {
-                await realm.callFunction(String(function dispatchEvent() {
+                await hiddenSandboxRealm.callFunction(String(function dispatchEvent() {
                     if (this.files?.length === 0) {
                         this.dispatchEvent(new Event('cancel', {
                             bubbles: true,
@@ -2915,7 +3018,7 @@
             }
             const paths = [];
             for (let i = 0; i < params.files.length; ++i) {
-                const result = await realm.callFunction(String(function getFiles(index) {
+                const result = await hiddenSandboxRealm.callFunction(String(function getFiles(index) {
                     return this.files?.item(index);
                 }), false, params.element, [{ type: 'number', value: 0 }], "root" );
                 assert(result.type === 'success');
@@ -2924,11 +3027,11 @@
                 }
                 const { handle } = result.result;
                 assert(handle !== undefined);
-                const { path } = await realm.cdpClient.sendCommand('DOM.getFileInfo', {
+                const { path } = await hiddenSandboxRealm.cdpClient.sendCommand('DOM.getFileInfo', {
                     objectId: handle,
                 });
                 paths.push(path);
-                void realm.disown(handle).catch(undefined);
+                void hiddenSandboxRealm.disown(handle).catch(undefined);
             }
             paths.sort();
             const sortedFiles = [...params.files].sort();
@@ -2936,15 +3039,15 @@
                 sortedFiles.some((path, index) => {
                     return paths[index] !== path;
                 })) {
-                const { objectId } = await realm.deserializeForCdp(params.element);
+                const { objectId } = await hiddenSandboxRealm.deserializeForCdp(params.element);
                 assert(objectId !== undefined);
-                await realm.cdpClient.sendCommand('DOM.setFileInputFiles', {
+                await hiddenSandboxRealm.cdpClient.sendCommand('DOM.setFileInputFiles', {
                     files: params.files,
                     objectId,
                 });
             }
             else {
-                await realm.callFunction(String(function dispatchEvent() {
+                await hiddenSandboxRealm.callFunction(String(function dispatchEvent() {
                     this.dispatchEvent(new Event('cancel', {
                         bubbles: true,
                     }));
@@ -3182,12 +3285,13 @@
     }
     function sameSiteBiDiToCdp(sameSite) {
         switch (sameSite) {
-            case "strict" :
-                return 'Strict';
-            case "lax" :
-                return 'Lax';
             case "none" :
                 return 'None';
+            case "strict" :
+                return 'Strict';
+            case "default" :
+            case "lax" :
+                return 'Lax';
         }
         throw new InvalidArgumentException(`Unknown 'sameSite' value ${sameSite}`);
     }
@@ -3255,7 +3359,9 @@
     class NetworkProcessor {
         #browsingContextStorage;
         #networkStorage;
-        constructor(browsingContextStorage, networkStorage) {
+        #userContextStorage;
+        constructor(browsingContextStorage, networkStorage, userContextStorage) {
+            this.#userContextStorage = userContextStorage;
             this.#browsingContextStorage = browsingContextStorage;
             this.#networkStorage = networkStorage;
         }
@@ -3268,9 +3374,7 @@
                 phases: params.phases,
                 contexts: params.contexts,
             });
-            await Promise.all(this.#browsingContextStorage.getAllContexts().map((context) => {
-                return context.cdpTarget.toggleNetwork();
-            }));
+            await this.#toggleNetwork();
             return {
                 intercept,
             };
@@ -3350,11 +3454,14 @@
             }
             return {};
         }
-        async removeIntercept(params) {
-            this.#networkStorage.removeIntercept(params.intercept);
+        async #toggleNetwork() {
             await Promise.all(this.#browsingContextStorage.getAllContexts().map((context) => {
                 return context.cdpTarget.toggleNetwork();
             }));
+        }
+        async removeIntercept(params) {
+            this.#networkStorage.removeIntercept(params.intercept);
+            await this.#toggleNetwork();
             return {};
         }
         async setCacheBehavior(params) {
@@ -3564,6 +3671,37 @@
                 return new InvalidArgumentException(error.message);
             }
             return error;
+        }
+        async addDataCollector(params) {
+            if (params.userContexts !== undefined && params.contexts !== undefined) {
+                throw new InvalidArgumentException("'contexts' and 'userContexts' are mutually exclusive");
+            }
+            if (params.userContexts !== undefined) {
+                await this.#userContextStorage.verifyUserContextIdList(params.userContexts);
+            }
+            if (params.contexts !== undefined) {
+                for (const browsingContextId of params.contexts) {
+                    const browsingContext = this.#browsingContextStorage.getContext(browsingContextId);
+                    if (!browsingContext.isTopLevelContext()) {
+                        throw new InvalidArgumentException(`Data collectors are available only on top-level browsing contexts`);
+                    }
+                }
+            }
+            const collectorId = this.#networkStorage.addDataCollector(params);
+            await this.#toggleNetwork();
+            return { collector: collectorId };
+        }
+        async getData(params) {
+            return await this.#networkStorage.getCollectedData(params);
+        }
+        async removeDataCollector(params) {
+            this.#networkStorage.removeDataCollector(params);
+            await this.#toggleNetwork();
+            return {};
+        }
+        disownData(params) {
+            this.#networkStorage.disownData(params);
+            return {};
         }
     }
     function unescapeURLPattern(pattern) {
@@ -4047,6 +4185,7 @@
                 .findRealms({
                 browsingContextId: params.context,
                 type: params.type,
+                isHidden: false,
             })
                 .map((realm) => realm.realmInfo);
             return { realms };
@@ -4054,10 +4193,11 @@
         async #getRealm(target) {
             if ('context' in target) {
                 const context = this.#browsingContextStorage.getContext(target.context);
-                return await context.getOrCreateSandbox(target.sandbox);
+                return await context.getOrCreateUserSandbox(target.sandbox);
             }
             return this.#realmStorage.getRealm({
                 realmId: target.realm,
+                isHidden: false,
             });
         }
     }
@@ -4465,6 +4605,7 @@
      */
     class CommandProcessor extends EventEmitter {
         #bluetoothProcessor;
+        #browserCdpClient;
         #browserProcessor;
         #browsingContextProcessor;
         #cdpProcessor;
@@ -4480,6 +4621,7 @@
         #logger;
         constructor(cdpConnection, browserCdpClient, eventManager, browsingContextStorage, realmStorage, preloadScriptStorage, networkStorage, mapperOptionsStorage, bluetoothProcessor, userContextStorage, parser = new BidiNoOpParser(), initConnection, logger) {
             super();
+            this.#browserCdpClient = browserCdpClient;
             this.#parser = parser;
             this.#logger = logger;
             this.#bluetoothProcessor = bluetoothProcessor;
@@ -4488,7 +4630,7 @@
             this.#cdpProcessor = new CdpProcessor(browsingContextStorage, realmStorage, cdpConnection, browserCdpClient);
             this.#emulationProcessor = new EmulationProcessor(browsingContextStorage, userContextStorage);
             this.#inputProcessor = new InputProcessor(browsingContextStorage);
-            this.#networkProcessor = new NetworkProcessor(browsingContextStorage, networkStorage);
+            this.#networkProcessor = new NetworkProcessor(browsingContextStorage, networkStorage, userContextStorage);
             this.#permissionsProcessor = new PermissionsProcessor(browserCdpClient);
             this.#scriptProcessor = new ScriptProcessor(eventManager, browsingContextStorage, realmStorage, preloadScriptStorage, userContextStorage, logger);
             this.#sessionProcessor = new SessionProcessor(eventManager, browserCdpClient, initConnection);
@@ -4512,7 +4654,7 @@
                 case 'bluetooth.simulateDescriptor':
                     return await this.#bluetoothProcessor.simulateDescriptor(this.#parser.parseSimulateDescriptorParameters(command.params));
                 case 'bluetooth.simulateDescriptorResponse':
-                    throw new UnknownErrorException(`Method ${command.method} is not implemented.`);
+                    return await this.#bluetoothProcessor.simulateDescriptorResponse(this.#parser.parseSimulateDescriptorResponseParameters(command.params));
                 case 'bluetooth.simulateGattConnectionResponse':
                     return await this.#bluetoothProcessor.simulateGattConnectionResponse(this.#parser.parseSimulateGattConnectionResponseParameters(command.params));
                 case 'bluetooth.simulateGattDisconnection':
@@ -4532,6 +4674,7 @@
                 case 'browser.removeUserContext':
                     return await this.#browserProcessor.removeUserContext(this.#parser.parseRemoveUserContextParameters(command.params));
                 case 'browser.setClientWindowState':
+                    this.#parser.parseSetClientWindowStateParameters(command.params);
                     throw new UnknownErrorException(`Method ${command.method} is not implemented.`);
                 case 'browsingContext.activate':
                     return await this.#browsingContextProcessor.activate(this.#parser.parseActivateParams(command.params));
@@ -4565,12 +4708,20 @@
                     return await this.#cdpProcessor.sendCommand(this.#parser.parseSendCommandParams(command.params));
                 case 'emulation.setGeolocationOverride':
                     return await this.#emulationProcessor.setGeolocationOverride(this.#parser.parseSetGeolocationOverrideParams(command.params));
+                case 'emulation.setLocaleOverride':
+                    return await this.#emulationProcessor.setLocaleOverride(this.#parser.parseSetLocaleOverrideParams(command.params));
+                case 'emulation.setScreenOrientationOverride':
+                    return await this.#emulationProcessor.setScreenOrientationOverride(this.#parser.parseSetScreenOrientationOverrideParams(command.params));
+                case 'emulation.setTimezoneOverride':
+                    return await this.#emulationProcessor.setTimezoneOverride(this.#parser.parseSetTimezoneOverrideParams(command.params));
                 case 'input.performActions':
                     return await this.#inputProcessor.performActions(this.#parser.parsePerformActionsParams(command.params));
                 case 'input.releaseActions':
                     return await this.#inputProcessor.releaseActions(this.#parser.parseReleaseActionsParams(command.params));
                 case 'input.setFiles':
                     return await this.#inputProcessor.setFiles(this.#parser.parseSetFilesParams(command.params));
+                case 'network.addDataCollector':
+                    return await this.#networkProcessor.addDataCollector(this.#parser.parseAddDataCollectorParams(command.params));
                 case 'network.addIntercept':
                     return await this.#networkProcessor.addIntercept(this.#parser.parseAddInterceptParams(command.params));
                 case 'network.continueRequest':
@@ -4579,10 +4730,16 @@
                     return await this.#networkProcessor.continueResponse(this.#parser.parseContinueResponseParams(command.params));
                 case 'network.continueWithAuth':
                     return await this.#networkProcessor.continueWithAuth(this.#parser.parseContinueWithAuthParams(command.params));
+                case 'network.disownData':
+                    return this.#networkProcessor.disownData(this.#parser.parseDisownDataParams(command.params));
                 case 'network.failRequest':
                     return await this.#networkProcessor.failRequest(this.#parser.parseFailRequestParams(command.params));
+                case 'network.getData':
+                    return await this.#networkProcessor.getData(this.#parser.parseGetDataParams(command.params));
                 case 'network.provideResponse':
                     return await this.#networkProcessor.provideResponse(this.#parser.parseProvideResponseParams(command.params));
+                case 'network.removeDataCollector':
+                    return await this.#networkProcessor.removeDataCollector(this.#parser.parseRemoveDataCollectorParams(command.params));
                 case 'network.removeIntercept':
                     return await this.#networkProcessor.removeIntercept(this.#parser.parseRemoveInterceptParams(command.params));
                 case 'network.setCacheBehavior':
@@ -4658,8 +4815,11 @@
                 else {
                     const error = e;
                     this.#logger?.(LogType.bidi, error);
+                    const errorException = this.#browserCdpClient.isCloseError(e)
+                        ? new NoSuchFrameException(`Browsing context is gone`)
+                        : new UnknownErrorException(error.message, error.stack);
                     this.emit("response" , {
-                        message: OutgoingMessage.createResolved(new UnknownErrorException(error.message, error.stack).toErrorResponse(command.id), command['goog:channel']),
+                        message: OutgoingMessage.createResolved(errorException.toErrorResponse(command.id), command['goog:channel']),
                         event: command.method,
                     });
                 }
@@ -4745,13 +4905,12 @@
     class BluetoothProcessor {
         #eventManager;
         #browsingContextStorage;
-        #bluetoothDevices;
-        #bluetoothCharacteristics;
+        #bluetoothDevices = new Map();
+        #bluetoothCharacteristics = new Map();
+        #bluetoothDescriptors = new Map();
         constructor(eventManager, browsingContextStorage) {
             this.#eventManager = eventManager;
             this.#browsingContextStorage = browsingContextStorage;
-            this.#bluetoothDevices = new Map();
-            this.#bluetoothCharacteristics = new Map();
         }
         #getDevice(address) {
             const device = this.#bluetoothDevices.get(address);
@@ -4789,6 +4948,7 @@
             await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.disable');
             this.#bluetoothDevices.clear();
             this.#bluetoothCharacteristics.clear();
+            this.#bluetoothDescriptors.clear();
             await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.enable', {
                 state: params.state,
                 leSupported: params.leSupported ?? true,
@@ -4800,6 +4960,7 @@
             await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.disable');
             this.#bluetoothDevices.clear();
             this.#bluetoothCharacteristics.clear();
+            this.#bluetoothDescriptors.clear();
             return {};
         }
         async simulatePreconnectedPeripheral(params) {
@@ -4890,7 +5051,9 @@
                         characteristicId: characteristic.id,
                         descriptorUuid: params.descriptorUuid,
                     });
-                    characteristic.descriptors.set(params.descriptorUuid, new BluetoothDescriptor(response.descriptorId, params.descriptorUuid, characteristic));
+                    const descriptor = new BluetoothDescriptor(response.descriptorId, params.descriptorUuid, characteristic);
+                    characteristic.descriptors.set(params.descriptorUuid, descriptor);
+                    this.#bluetoothDescriptors.set(descriptor.id, descriptor);
                     return {};
                 }
                 case 'remove': {
@@ -4899,11 +5062,28 @@
                         descriptorId: descriptor.id,
                     });
                     characteristic.descriptors.delete(params.descriptorUuid);
+                    this.#bluetoothDescriptors.delete(descriptor.id);
                     return {};
                 }
                 default:
                     throw new InvalidArgumentException(`Parameter "type" of ${params.type} is not supported`);
             }
+        }
+        async simulateDescriptorResponse(params) {
+            const context = this.#browsingContextStorage.getContext(params.context);
+            const device = this.#getDevice(params.address);
+            const service = this.#getService(device, params.serviceUuid);
+            const characteristic = this.#getCharacteristic(service, params.characteristicUuid);
+            const descriptor = this.#getDescriptor(characteristic, params.descriptorUuid);
+            await context.cdpTarget.browserCdpClient.sendCommand('BluetoothEmulation.simulateDescriptorOperationResponse', {
+                descriptorId: descriptor.id,
+                type: params.type,
+                code: params.code,
+                ...(params.data && {
+                    data: btoa(String.fromCharCode(...params.data)),
+                }),
+            });
+            return {};
         }
         async simulateGattConnectionResponse(params) {
             const context = this.#browsingContextStorage.getContext(params.context);
@@ -5010,6 +5190,27 @@
                     },
                 }, cdpTarget.id);
             });
+            cdpTarget.browserCdpClient.on('BluetoothEmulation.descriptorOperationReceived', (event) => {
+                if (!this.#bluetoothDescriptors.has(event.descriptorId)) {
+                    return;
+                }
+                const descriptor = this.#bluetoothDescriptors.get(event.descriptorId);
+                this.#eventManager.registerEvent({
+                    type: 'event',
+                    method: 'bluetooth.descriptorEventGenerated',
+                    params: {
+                        context: cdpTarget.id,
+                        address: descriptor.characteristic.service.device.address,
+                        serviceUuid: descriptor.characteristic.service.uuid,
+                        characteristicUuid: descriptor.characteristic.uuid,
+                        descriptorUuid: descriptor.uuid,
+                        type: event.type,
+                        ...(event.data && {
+                            data: Array.from(atob(event.data), (c) => c.charCodeAt(0)),
+                        }),
+                    },
+                }, cdpTarget.id);
+            });
         }
         async handleRequestDevicePrompt(params) {
             const context = this.#browsingContextStorage.getContext(params.context);
@@ -5050,6 +5251,10 @@
         viewport;
         devicePixelRatio;
         geolocation;
+        locale;
+        screenOrientation;
+        timezone;
+        userPromptHandler;
         constructor(userContextId) {
             this.userContextId = userContextId;
         }
@@ -5291,7 +5496,7 @@
         #logger;
         #origin;
         #realmId;
-        #realmStorage;
+        realmStorage;
         constructor(cdpClient, eventManager, executionContextId, logger, origin, realmId, realmStorage) {
             this.#cdpClient = cdpClient;
             this.#eventManager = eventManager;
@@ -5299,8 +5504,8 @@
             this.#logger = logger;
             this.#origin = origin;
             this.#realmId = realmId;
-            this.#realmStorage = realmStorage;
-            this.#realmStorage.addRealm(this);
+            this.realmStorage = realmStorage;
+            this.realmStorage.addRealm(this);
         }
         cdpToBidiValue(cdpValue, resultOwnership) {
             const bidiValue = this.serializeForBiDi(cdpValue.result.deepSerializedValue, new Map());
@@ -5308,13 +5513,16 @@
                 const objectId = cdpValue.result.objectId;
                 if (resultOwnership === "root" ) {
                     bidiValue.handle = objectId;
-                    this.#realmStorage.knownHandlesToRealmMap.set(objectId, this.realmId);
+                    this.realmStorage.knownHandlesToRealmMap.set(objectId, this.realmId);
                 }
                 else {
                     void this.#releaseObject(objectId).catch((error) => this.#logger?.(LogType.debugError, error));
                 }
             }
             return bidiValue;
+        }
+        isHidden() {
+            return false;
         }
         serializeForBiDi(deepSerializedValue, internalIdMap) {
             if (Object.hasOwn(deepSerializedValue, 'weakLocalObjectReference')) {
@@ -5404,11 +5612,13 @@
             }
         }
         initialize() {
-            this.#registerEvent({
-                type: 'event',
-                method: Script$2.EventNames.RealmCreated,
-                params: this.realmInfo,
-            });
+            if (!this.isHidden()) {
+                this.#registerEvent({
+                    type: 'event',
+                    method: Script$2.EventNames.RealmCreated,
+                    params: this.realmInfo,
+                });
+            }
         }
         async serializeCdpObject(cdpRemoteObject, resultOwnership) {
             const argument = Realm.#cdpRemoteObjectToCallArgument(cdpRemoteObject);
@@ -5682,11 +5892,11 @@
             }
         }
         async disown(handle) {
-            if (this.#realmStorage.knownHandlesToRealmMap.get(handle) !== this.realmId) {
+            if (this.realmStorage.knownHandlesToRealmMap.get(handle) !== this.realmId) {
                 return;
             }
             await this.#releaseObject(handle);
-            this.#realmStorage.knownHandlesToRealmMap.delete(handle);
+            this.realmStorage.knownHandlesToRealmMap.delete(handle);
         }
         dispose() {
             this.#registerEvent({
@@ -5734,6 +5944,9 @@
         }
         get browsingContext() {
             return this.#browsingContextStorage.getContext(this.#browsingContextId);
+        }
+        isHidden() {
+            return this.realmStorage.hiddenSandboxes.has(this.sandbox);
         }
         get associatedBrowsingContexts() {
             return [this.browsingContext];
@@ -6129,6 +6342,8 @@
         #children = new Set();
         #id;
         userContext;
+        #hiddenSandbox = uuidv4();
+        #downloadIdToUrlMap = new Map();
         #loaderId;
         #parentId = null;
         #originalOpener;
@@ -6144,8 +6359,10 @@
         #navigationTracker;
         #realmStorage;
         #unhandledPromptBehavior;
+        #userContextConfig;
         #lastUserPromptType;
-        constructor(id, parentId, userContext, cdpTarget, eventManager, browsingContextStorage, realmStorage, url, originalOpener, unhandledPromptBehavior, logger) {
+        constructor(id, parentId, userContext, userContextConfig, cdpTarget, eventManager, browsingContextStorage, realmStorage, url, originalOpener, unhandledPromptBehavior, logger) {
+            this.#userContextConfig = userContextConfig;
             this.#cdpTarget = cdpTarget;
             this.#id = id;
             this.#parentId = parentId;
@@ -6156,10 +6373,11 @@
             this.#unhandledPromptBehavior = unhandledPromptBehavior;
             this.#logger = logger;
             this.#originalOpener = originalOpener;
+            this.#realmStorage.hiddenSandboxes.add(this.#hiddenSandbox);
             this.#navigationTracker = new NavigationTracker(url, id, eventManager, logger);
         }
-        static create(id, parentId, userContext, cdpTarget, eventManager, browsingContextStorage, realmStorage, url, originalOpener, unhandledPromptBehavior, logger) {
-            const context = new _a$5(id, parentId, userContext, cdpTarget, eventManager, browsingContextStorage, realmStorage, url, originalOpener, unhandledPromptBehavior, logger);
+        static create(id, parentId, userContext, userContextConfig, cdpTarget, eventManager, browsingContextStorage, realmStorage, url, originalOpener, unhandledPromptBehavior, logger) {
+            const context = new _a$5(id, parentId, userContext, userContextConfig, cdpTarget, eventManager, browsingContextStorage, realmStorage, url, originalOpener, unhandledPromptBehavior, logger);
             context.#initListeners();
             browsingContextStorage.addContext(context);
             if (!context.isTopLevelContext()) {
@@ -6277,7 +6495,17 @@
                 throw result.error;
             }
         }
-        async getOrCreateSandbox(sandbox) {
+        async getOrCreateHiddenSandbox() {
+            return await this.#getOrCreateSandboxInternal(this.#hiddenSandbox);
+        }
+        async getOrCreateUserSandbox(sandbox) {
+            const realm = await this.#getOrCreateSandboxInternal(sandbox);
+            if (realm.isHidden()) {
+                throw new NoSuchFrameException(`Realm "${sandbox}" not found`);
+            }
+            return realm;
+        }
+        async #getOrCreateSandboxInternal(sandbox) {
             if (sandbox === undefined || sandbox === '') {
                 return await this.#defaultRealmDeferred;
             }
@@ -6367,6 +6595,7 @@
                         method: 'browsingContext.historyUpdated',
                         params: {
                             context: this.id,
+                            timestamp: getTimestamp(),
                             url: this.#navigationTracker.url,
                         },
                     }, this.id);
@@ -6545,6 +6774,7 @@
                 if (this.id !== params.frameId) {
                     return;
                 }
+                this.#downloadIdToUrlMap.set(params.guid, params.url);
                 this.#eventManager.registerEvent({
                     type: 'event',
                     method: BrowsingContext$2.EventNames.DownloadWillBegin,
@@ -6556,6 +6786,46 @@
                         url: params.url,
                     },
                 }, this.id);
+            });
+            this.#cdpTarget.browserCdpClient.on('Browser.downloadProgress', (params) => {
+                if (!this.#downloadIdToUrlMap.has(params.guid)) {
+                    return;
+                }
+                if (params.state === 'inProgress') {
+                    return;
+                }
+                const url = this.#downloadIdToUrlMap.get(params.guid);
+                switch (params.state) {
+                    case 'canceled':
+                        this.#eventManager.registerEvent({
+                            type: 'event',
+                            method: BrowsingContext$2.EventNames.DownloadEnd,
+                            params: {
+                                status: 'canceled',
+                                context: this.id,
+                                navigation: params.guid,
+                                timestamp: getTimestamp(),
+                                url,
+                            },
+                        }, this.id);
+                        break;
+                    case 'completed':
+                        this.#eventManager.registerEvent({
+                            type: 'event',
+                            method: BrowsingContext$2.EventNames.DownloadEnd,
+                            params: {
+                                filepath: params.filePath ?? null,
+                                status: 'complete',
+                                context: this.id,
+                                navigation: params.guid,
+                                timestamp: getTimestamp(),
+                                url,
+                            },
+                        }, this.id);
+                        break;
+                    default:
+                        throw new UnknownErrorException(`Unknown download state: ${params.state}`);
+                }
             });
         }
         static #getPromptType(cdpType) {
@@ -6574,19 +6844,27 @@
             const defaultPromptHandler = "dismiss" ;
             switch (promptType) {
                 case "alert" :
-                    return (this.#unhandledPromptBehavior?.alert ??
+                    return (this.#userContextConfig.userPromptHandler?.alert ??
+                        this.#userContextConfig.userPromptHandler?.default ??
+                        this.#unhandledPromptBehavior?.alert ??
                         this.#unhandledPromptBehavior?.default ??
                         defaultPromptHandler);
                 case "beforeunload" :
-                    return (this.#unhandledPromptBehavior?.beforeUnload ??
+                    return (this.#userContextConfig.userPromptHandler?.beforeUnload ??
+                        this.#userContextConfig.userPromptHandler?.default ??
+                        this.#unhandledPromptBehavior?.beforeUnload ??
                         this.#unhandledPromptBehavior?.default ??
                         "accept" );
                 case "confirm" :
-                    return (this.#unhandledPromptBehavior?.confirm ??
+                    return (this.#userContextConfig.userPromptHandler?.confirm ??
+                        this.#userContextConfig.userPromptHandler?.default ??
+                        this.#unhandledPromptBehavior?.confirm ??
                         this.#unhandledPromptBehavior?.default ??
                         defaultPromptHandler);
                 case "prompt" :
-                    return (this.#unhandledPromptBehavior?.prompt ??
+                    return (this.#userContextConfig.userPromptHandler?.prompt ??
+                        this.#userContextConfig.userPromptHandler?.default ??
+                        this.#unhandledPromptBehavior?.prompt ??
                         this.#unhandledPromptBehavior?.default ??
                         defaultPromptHandler);
             }
@@ -6745,8 +7023,8 @@
                     break;
                 }
             }
-            const realm = await this.getOrCreateSandbox(undefined);
-            const originResult = await realm.callFunction(script, false);
+            const hiddenSandboxRealm = await this.getOrCreateHiddenSandbox();
+            const originResult = await hiddenSandboxRealm.callFunction(script, false);
             assert(originResult.type === 'success');
             const origin = deserializeDOMRect(originResult.result);
             assert(origin);
@@ -6856,8 +7134,8 @@
                 case 'box':
                     return { x: clip.x, y: clip.y, width: clip.width, height: clip.height };
                 case 'element': {
-                    const sandbox = await this.getOrCreateSandbox(undefined);
-                    const result = await sandbox.callFunction(String((element) => {
+                    const hiddenSandboxRealm = await this.getOrCreateHiddenSandbox();
+                    const result = await hiddenSandboxRealm.callFunction(String((element) => {
                         return element instanceof Element;
                     }), false, { type: 'undefined' }, [clip.element]);
                     if (result.type === 'exception') {
@@ -6868,7 +7146,7 @@
                         throw new NoSuchElementException(`Node '${clip.element.sharedId}' is not an Element`);
                     }
                     {
-                        const result = await sandbox.callFunction(String((element) => {
+                        const result = await hiddenSandboxRealm.callFunction(String((element) => {
                             const rect = element.getBoundingClientRect();
                             return {
                                 x: rect.x,
@@ -7669,7 +7947,13 @@
         #unblocked = new Deferred();
         #unhandledPromptBehavior;
         #logger;
-        #previousViewport = { width: 0, height: 0 };
+        #previousDeviceMetricsOverride = {
+            width: 0,
+            height: 0,
+            deviceScaleFactor: 0,
+            mobile: false,
+            dontSetVisibleSize: true,
+        };
         #windowId;
         #deviceAccessEnabled = false;
         #cacheDisableState = false;
@@ -7794,7 +8078,7 @@
             }
             if (maybeContext === undefined && frame.parentId !== undefined) {
                 const parentBrowsingContext = this.#browsingContextStorage.getContext(frame.parentId);
-                BrowsingContextImpl.create(frame.id, frame.parentId, parentBrowsingContext.userContext, parentBrowsingContext.cdpTarget, this.#eventManager, this.#browsingContextStorage, this.#realmStorage, frame.url, undefined, this.#unhandledPromptBehavior, this.#logger);
+                BrowsingContextImpl.create(frame.id, frame.parentId, parentBrowsingContext.userContext, this.#userContextConfig, parentBrowsingContext.cdpTarget, this.#eventManager, this.#browsingContextStorage, this.#realmStorage, frame.url, undefined, this.#unhandledPromptBehavior, this.#logger);
             }
             frameTree.childFrames?.map((frameTree) => this.#restoreFrameTreeState(frameTree));
         }
@@ -7995,28 +8279,24 @@
                 await this.cdpClient.sendCommand('Emulation.clearDeviceMetricsOverride');
                 return;
             }
-            let newViewport;
-            if (viewport === undefined) {
-                newViewport = this.#previousViewport;
+            const newViewport = { ...this.#previousDeviceMetricsOverride };
+            if (viewport === null) {
+                newViewport.width = 0;
+                newViewport.height = 0;
             }
-            else if (viewport === null) {
-                newViewport = {
-                    width: 0,
-                    height: 0,
-                };
+            else if (viewport !== undefined) {
+                newViewport.width = viewport.width;
+                newViewport.height = viewport.height;
             }
-            else {
-                newViewport = viewport;
+            if (devicePixelRatio === null) {
+                newViewport.deviceScaleFactor = 0;
+            }
+            else if (devicePixelRatio !== undefined) {
+                newViewport.deviceScaleFactor = devicePixelRatio;
             }
             try {
-                await this.cdpClient.sendCommand('Emulation.setDeviceMetricsOverride', {
-                    width: newViewport.width,
-                    height: newViewport.height,
-                    deviceScaleFactor: devicePixelRatio ? devicePixelRatio : 0,
-                    mobile: false,
-                    dontSetVisibleSize: true,
-                });
-                this.#previousViewport = newViewport;
+                await this.cdpClient.sendCommand('Emulation.setDeviceMetricsOverride', newViewport);
+                this.#previousDeviceMetricsOverride = newViewport;
             }
             catch (err) {
                 if (err.message.startsWith(
@@ -8035,6 +8315,16 @@
             if (this.#userContextConfig.geolocation !== undefined &&
                 this.#userContextConfig.geolocation !== null) {
                 promises.push(this.setGeolocationOverride(this.#userContextConfig.geolocation));
+            }
+            if (this.#userContextConfig.screenOrientation !== undefined &&
+                this.#userContextConfig.screenOrientation !== null) {
+                promises.push(this.setScreenOrientationOverride(this.#userContextConfig.screenOrientation));
+            }
+            if (this.#userContextConfig.locale !== undefined) {
+                promises.push(this.setLocaleOverride(this.#userContextConfig.locale));
+            }
+            if (this.#userContextConfig.timezone !== undefined) {
+                promises.push(this.setTimezoneOverride(this.#userContextConfig.timezone));
             }
             if (this.#userContextConfig.acceptInsecureCerts !== undefined) {
                 promises.push(this.cdpClient.sendCommand('Security.setIgnoreCertificateErrors', {
@@ -8078,6 +8368,95 @@
             }
             else {
                 throw new UnknownErrorException('Unexpected geolocation coordinates value');
+            }
+        }
+        async setScreenOrientationOverride(screenOrientation) {
+            const newViewport = { ...this.#previousDeviceMetricsOverride };
+            if (screenOrientation === null) {
+                delete newViewport.screenOrientation;
+            }
+            else {
+                newViewport.screenOrientation =
+                    this.#toCdpScreenOrientationAngle(screenOrientation);
+            }
+            await this.cdpClient.sendCommand('Emulation.setDeviceMetricsOverride', newViewport);
+            this.#previousDeviceMetricsOverride = newViewport;
+        }
+        #toCdpScreenOrientationAngle(orientation) {
+            if (orientation.natural === "portrait" ) {
+                switch (orientation.type) {
+                    case 'portrait-primary':
+                        return {
+                            angle: 0,
+                            type: 'portraitPrimary',
+                        };
+                    case 'landscape-primary':
+                        return {
+                            angle: 90,
+                            type: 'landscapePrimary',
+                        };
+                    case 'portrait-secondary':
+                        return {
+                            angle: 180,
+                            type: 'portraitSecondary',
+                        };
+                    case 'landscape-secondary':
+                        return {
+                            angle: 270,
+                            type: 'landscapeSecondary',
+                        };
+                    default:
+                        throw new UnknownErrorException(`Unexpected screen orientation type ${orientation.type}`);
+                }
+            }
+            if (orientation.natural === "landscape" ) {
+                switch (orientation.type) {
+                    case 'landscape-primary':
+                        return {
+                            angle: 0,
+                            type: 'landscapePrimary',
+                        };
+                    case 'portrait-primary':
+                        return {
+                            angle: 90,
+                            type: 'portraitPrimary',
+                        };
+                    case 'landscape-secondary':
+                        return {
+                            angle: 180,
+                            type: 'landscapeSecondary',
+                        };
+                    case 'portrait-secondary':
+                        return {
+                            angle: 270,
+                            type: 'portraitSecondary',
+                        };
+                    default:
+                        throw new UnknownErrorException(`Unexpected screen orientation type ${orientation.type}`);
+                }
+            }
+            throw new UnknownErrorException(`Unexpected orientation natural ${orientation.natural}`);
+        }
+        async setLocaleOverride(locale) {
+            if (locale === null) {
+                await this.cdpClient.sendCommand('Emulation.setLocaleOverride', {});
+            }
+            else {
+                await this.cdpClient.sendCommand('Emulation.setLocaleOverride', {
+                    locale,
+                });
+            }
+        }
+        async setTimezoneOverride(timezone) {
+            if (timezone === null) {
+                await this.cdpClient.sendCommand('Emulation.setTimezoneOverride', {
+                    timezoneId: '',
+                });
+            }
+            else {
+                await this.cdpClient.sendCommand('Emulation.setTimezoneOverride', {
+                    timezoneId: timezone,
+                });
             }
         }
     }
@@ -8136,7 +8515,7 @@
         #handleFrameAttachedEvent(params) {
             const parentBrowsingContext = this.#browsingContextStorage.findContext(params.parentFrameId);
             if (parentBrowsingContext !== undefined) {
-                BrowsingContextImpl.create(params.frameId, params.parentFrameId, parentBrowsingContext.userContext, parentBrowsingContext.cdpTarget, this.#eventManager, this.#browsingContextStorage, this.#realmStorage,
+                BrowsingContextImpl.create(params.frameId, params.parentFrameId, parentBrowsingContext.userContext, this.#userContextStorage.getConfig(parentBrowsingContext.userContext), parentBrowsingContext.cdpTarget, this.#eventManager, this.#browsingContextStorage, this.#realmStorage,
                 'about:blank', undefined, this.#unhandledPromptBehavior, this.#logger);
             }
         }
@@ -8188,7 +8567,7 @@
                     }
                     else {
                         const parentId = this.#findFrameParentId(targetInfo, parentSessionCdpClient.sessionId);
-                        BrowsingContextImpl.create(targetInfo.targetId, parentId, userContext, cdpTarget, this.#eventManager, this.#browsingContextStorage, this.#realmStorage,
+                        BrowsingContextImpl.create(targetInfo.targetId, parentId, userContext, this.#userContextStorage.getConfig(userContext), cdpTarget, this.#eventManager, this.#browsingContextStorage, this.#realmStorage,
                         targetInfo.url === '' ? 'about:blank' : targetInfo.url, targetInfo.openerFrameId ?? targetInfo.openerId, this.#unhandledPromptBehavior, this.#logger);
                     }
                     return;
@@ -8544,11 +8923,21 @@
             return bodySize;
         }
         get #context() {
-            return (this.#response.paused?.frameId ??
+            const result = this.#response.paused?.frameId ??
                 this.#request.info?.frameId ??
                 this.#request.paused?.frameId ??
-                this.#request.auth?.frameId ??
-                null);
+                this.#request.auth?.frameId;
+            if (result !== undefined) {
+                return result;
+            }
+            if (this.#request?.info?.initiator.type === 'preflight' &&
+                this.#request?.info?.initiator.requestId !== undefined) {
+                const maybeInitiator = this.#networkStorage.getRequestById(this.#request?.info?.initiator.requestId);
+                if (maybeInitiator !== undefined) {
+                    return maybeInitiator.#request.info?.frameId ?? null;
+                }
+            }
+            return null;
         }
         get #statusCode() {
             return (this.#responseOverrides?.statusCode ??
@@ -8675,7 +9064,7 @@
                 responseExtraInfoCompleted &&
                 responseInterceptionCompleted) {
                 this.#emitEvent(this.#getResponseReceivedEvent.bind(this));
-                this.#networkStorage.deleteRequest(this.id);
+                this.#networkStorage.disposeRequest(this.id);
             }
         }
         onRequestWillBeSentEvent(event) {
@@ -8699,6 +9088,7 @@
         onResponseReceivedEvent(event) {
             this.#response.hasExtraInfo = event.hasExtraInfo;
             this.#response.info = event.response;
+            this.#networkStorage.markRequestCollectedIfNeeded(this);
             this.#emitEventsIfReady();
         }
         onServedFromCache() {
@@ -9134,6 +9524,8 @@
         #logger;
         #requests = new Map();
         #intercepts = new Map();
+        #collectors = new Map();
+        #requestCollectors = new Map();
         #defaultCacheBehavior = 'default';
         constructor(eventManager, browsingContextStorage, browserClient, logger) {
             this.#browsingContextStorage = browsingContextStorage;
@@ -9161,7 +9553,7 @@
                         const request = this.getRequestById(params.requestId);
                         if (request && request.isRedirecting()) {
                             request.handleRedirect(params);
-                            this.deleteRequest(params.requestId);
+                            this.disposeRequest(params.requestId);
                             this.#getOrCreateNetworkRequest(params.requestId, cdpTarget, request.redirectCount + 1).onRequestWillBeSentEvent(params);
                         }
                         else {
@@ -9219,6 +9611,83 @@
             ];
             for (const [event, listener] of listeners) {
                 cdpClient.on(event, listener);
+            }
+        }
+        getCollectorsForBrowsingContext(browsingContextId) {
+            if (!this.#browsingContextStorage.hasContext(browsingContextId)) {
+                this.#logger?.(LogType.debugError, 'trying to get collector for unknown browsing context');
+                return [];
+            }
+            const userContext = this.#browsingContextStorage.getContext(browsingContextId).userContext;
+            const collectors = new Set();
+            for (const collector of this.#collectors.values()) {
+                if (collector.contexts?.includes(browsingContextId)) {
+                    collectors.add(collector);
+                }
+                if (collector.userContexts?.includes(userContext)) {
+                    collectors.add(collector);
+                }
+                if (collector.userContexts === undefined &&
+                    collector.contexts === undefined) {
+                    collectors.add(collector);
+                }
+            }
+            return [...collectors.values()];
+        }
+        async getCollectedData(params) {
+            if (params.collector !== undefined &&
+                !this.#collectors.has(params.collector)) {
+                throw new NoSuchNetworkCollectorException(`Unknown collector ${params.collector}`);
+            }
+            const requestCollectors = this.#requestCollectors.get(params.request);
+            if (requestCollectors === undefined) {
+                throw new NoSuchNetworkDataException(`No collected data for request ${params.request}`);
+            }
+            if (params.collector !== undefined &&
+                !requestCollectors.has(params.collector)) {
+                throw new NoSuchNetworkDataException(`Collector ${params.collector} didn't collect data for request ${params.request}`);
+            }
+            if (params.disown && params.collector === undefined) {
+                throw new InvalidArgumentException('Cannot disown collected data without collector ID');
+            }
+            const request = this.getRequestById(params.request);
+            if (request === undefined) {
+                throw new NoSuchNetworkDataException(`No collected data for request ${params.request}`);
+            }
+            const responseBody = await request.cdpClient.sendCommand('Network.getResponseBody', { requestId: request.id });
+            if (params.disown && params.collector !== undefined) {
+                this.#requestCollectors.delete(params.request);
+                this.disposeRequest(request.id);
+            }
+            return {
+                bytes: {
+                    type: responseBody.base64Encoded ? 'base64' : 'string',
+                    value: responseBody.body,
+                },
+            };
+        }
+        #getCollectorIdsForRequest(request) {
+            const collectors = new Set();
+            for (const collectorId of this.#collectors.keys()) {
+                const collector = this.#collectors.get(collectorId);
+                if (!collector.userContexts && !collector.contexts) {
+                    collectors.add(collectorId);
+                }
+                if (collector.contexts?.includes(request.cdpTarget.topLevelId)) {
+                    collectors.add(collectorId);
+                }
+                if (collector.userContexts?.includes(this.#browsingContextStorage.getContext(request.cdpTarget.topLevelId)
+                    .userContext)) {
+                    collectors.add(collectorId);
+                }
+            }
+            this.#logger?.(LogType.debug, `Request ${request.id} has ${collectors.size} collectors`);
+            return [...collectors.values()];
+        }
+        markRequestCollectedIfNeeded(request) {
+            const collectorIds = this.#getCollectorIdsForRequest(request);
+            if (collectorIds.length > 0) {
+                this.#requestCollectors.set(request.id, new Set(collectorIds));
             }
         }
         getInterceptionStages(browsingContextId) {
@@ -9304,7 +9773,10 @@
         addRequest(request) {
             this.#requests.set(request.id, request);
         }
-        deleteRequest(id) {
+        disposeRequest(id) {
+            if (this.#requestCollectors.get(id)?.size ?? 0 > 0) {
+                return;
+            }
             this.#requests.delete(id);
         }
         getNavigationId(contextId) {
@@ -9318,6 +9790,46 @@
         }
         get defaultCacheBehavior() {
             return this.#defaultCacheBehavior;
+        }
+        addDataCollector(params) {
+            const collectorId = uuidv4();
+            this.#collectors.set(collectorId, params);
+            return collectorId;
+        }
+        removeDataCollector(params) {
+            const collectorId = params.collector;
+            if (!this.#collectors.has(collectorId)) {
+                throw new NoSuchNetworkCollectorException(`Collector ${params.collector} does not exist`);
+            }
+            this.#collectors.delete(params.collector);
+            for (const [requestId, collectorIds] of this.#requestCollectors) {
+                if (collectorIds.has(collectorId)) {
+                    collectorIds.delete(collectorId);
+                    if (collectorIds.size === 0) {
+                        this.#requestCollectors.delete(requestId);
+                        this.disposeRequest(requestId);
+                    }
+                }
+            }
+        }
+        disownData(params) {
+            const collectorId = params.collector;
+            const requestId = params.request;
+            if (!this.#collectors.has(collectorId)) {
+                throw new NoSuchNetworkCollectorException(`Collector ${collectorId} does not exist`);
+            }
+            if (!this.#requestCollectors.has(requestId)) {
+                throw new NoSuchNetworkDataException(`No collected data for request ${requestId}`);
+            }
+            const collectorIds = this.#requestCollectors.get(requestId);
+            if (!collectorIds.has(collectorId)) {
+                throw new NoSuchNetworkDataException(`No collected data for request ${requestId} and collector ${collectorId}`);
+            }
+            collectorIds.delete(collectorId);
+            if (collectorIds.size === 0) {
+                this.#requestCollectors.delete(requestId);
+                this.disposeRequest(requestId);
+            }
         }
     }
 
@@ -9387,6 +9899,7 @@
     class RealmStorage {
         #knownHandlesToRealmMap = new Map();
         #realmMap = new Map();
+        hiddenSandboxes = new Set();
         get knownHandlesToRealmMap() {
             return this.#knownHandlesToRealmMap;
         }
@@ -9420,6 +9933,10 @@
                 }
                 if (filter.cdpSessionId !== undefined &&
                     filter.cdpSessionId !== realm.cdpClient.sessionId) {
+                    return false;
+                }
+                if (filter.isHidden !== undefined &&
+                    filter.isHidden !== realm.isHidden()) {
                     return false;
                 }
                 return true;
@@ -10272,7 +10789,7 @@
 
     var util;
     (function (util) {
-        util.assertEqual = (val) => val;
+        util.assertEqual = (_) => { };
         function assertIs(_arg) { }
         util.assertIs = assertIs;
         function assertNever(_x) {
@@ -10319,11 +10836,9 @@
         };
         util.isInteger = typeof Number.isInteger === "function"
             ? (val) => Number.isInteger(val)
-            : (val) => typeof val === "number" && isFinite(val) && Math.floor(val) === val;
+            : (val) => typeof val === "number" && Number.isFinite(val) && Math.floor(val) === val;
         function joinValues(array, separator = " | ") {
-            return array
-                .map((val) => (typeof val === "string" ? `'${val}'` : val))
-                .join(separator);
+            return array.map((val) => (typeof val === "string" ? `'${val}'` : val)).join(separator);
         }
         util.joinValues = joinValues;
         util.jsonStringifyReplacer = (_, value) => {
@@ -10372,7 +10887,7 @@
             case "string":
                 return ZodParsedType.string;
             case "number":
-                return isNaN(data) ? ZodParsedType.nan : ZodParsedType.number;
+                return Number.isNaN(data) ? ZodParsedType.nan : ZodParsedType.number;
             case "boolean":
                 return ZodParsedType.boolean;
             case "function":
@@ -10388,10 +10903,7 @@
                 if (data === null) {
                     return ZodParsedType.null;
                 }
-                if (data.then &&
-                    typeof data.then === "function" &&
-                    data.catch &&
-                    typeof data.catch === "function") {
+                if (data.then && typeof data.then === "function" && data.catch && typeof data.catch === "function") {
                     return ZodParsedType.promise;
                 }
                 if (typeof Map !== "undefined" && data instanceof Map) {
@@ -10408,6 +10920,7 @@
                 return ZodParsedType.unknown;
         }
     };
+
     const ZodIssueCode = util.arrayToEnum([
         "invalid_type",
         "invalid_literal",
@@ -10514,8 +11027,9 @@
             const formErrors = [];
             for (const sub of this.issues) {
                 if (sub.path.length > 0) {
-                    fieldErrors[sub.path[0]] = fieldErrors[sub.path[0]] || [];
-                    fieldErrors[sub.path[0]].push(mapper(sub));
+                    const firstEl = sub.path[0];
+                    fieldErrors[firstEl] = fieldErrors[firstEl] || [];
+                    fieldErrors[firstEl].push(mapper(sub));
                 }
                 else {
                     formErrors.push(mapper(sub));
@@ -10531,6 +11045,7 @@
         const error = new ZodError(issues);
         return error;
     };
+
     const errorMap = (issue, _ctx) => {
         let message;
         switch (issue.code) {
@@ -10597,17 +11112,11 @@
                 else if (issue.type === "string")
                     message = `String must contain ${issue.exact ? "exactly" : issue.inclusive ? `at least` : `over`} ${issue.minimum} character(s)`;
                 else if (issue.type === "number")
-                    message = `Number must be ${issue.exact
-                    ? `exactly equal to `
-                    : issue.inclusive
-                        ? `greater than or equal to `
-                        : `greater than `}${issue.minimum}`;
+                    message = `Number must be ${issue.exact ? `exactly equal to ` : issue.inclusive ? `greater than or equal to ` : `greater than `}${issue.minimum}`;
+                else if (issue.type === "bigint")
+                    message = `Number must be ${issue.exact ? `exactly equal to ` : issue.inclusive ? `greater than or equal to ` : `greater than `}${issue.minimum}`;
                 else if (issue.type === "date")
-                    message = `Date must be ${issue.exact
-                    ? `exactly equal to `
-                    : issue.inclusive
-                        ? `greater than or equal to `
-                        : `greater than `}${new Date(Number(issue.minimum))}`;
+                    message = `Date must be ${issue.exact ? `exactly equal to ` : issue.inclusive ? `greater than or equal to ` : `greater than `}${new Date(Number(issue.minimum))}`;
                 else
                     message = "Invalid input";
                 break;
@@ -10617,23 +11126,11 @@
                 else if (issue.type === "string")
                     message = `String must contain ${issue.exact ? `exactly` : issue.inclusive ? `at most` : `under`} ${issue.maximum} character(s)`;
                 else if (issue.type === "number")
-                    message = `Number must be ${issue.exact
-                    ? `exactly`
-                    : issue.inclusive
-                        ? `less than or equal to`
-                        : `less than`} ${issue.maximum}`;
+                    message = `Number must be ${issue.exact ? `exactly` : issue.inclusive ? `less than or equal to` : `less than`} ${issue.maximum}`;
                 else if (issue.type === "bigint")
-                    message = `BigInt must be ${issue.exact
-                    ? `exactly`
-                    : issue.inclusive
-                        ? `less than or equal to`
-                        : `less than`} ${issue.maximum}`;
+                    message = `BigInt must be ${issue.exact ? `exactly` : issue.inclusive ? `less than or equal to` : `less than`} ${issue.maximum}`;
                 else if (issue.type === "date")
-                    message = `Date must be ${issue.exact
-                    ? `exactly`
-                    : issue.inclusive
-                        ? `smaller than or equal to`
-                        : `smaller than`} ${new Date(Number(issue.maximum))}`;
+                    message = `Date must be ${issue.exact ? `exactly` : issue.inclusive ? `smaller than or equal to` : `smaller than`} ${new Date(Number(issue.maximum))}`;
                 else
                     message = "Invalid input";
                 break;
@@ -10655,6 +11152,7 @@
         }
         return { message };
     };
+
     let overrideErrorMap = errorMap;
     function setErrorMap(map) {
         overrideErrorMap = map;
@@ -10662,6 +11160,7 @@
     function getErrorMap() {
         return overrideErrorMap;
     }
+
     const makeIssue = (params) => {
         const { data, path, errorMaps, issueData } = params;
         const fullPath = [...path, ...(issueData.path || [])];
@@ -10753,8 +11252,7 @@
                     status.dirty();
                 if (value.status === "dirty")
                     status.dirty();
-                if (key.value !== "__proto__" &&
-                    (typeof value.value !== "undefined" || pair.alwaysSet)) {
+                if (key.value !== "__proto__" && (typeof value.value !== "undefined" || pair.alwaysSet)) {
                     finalObject[key.value] = value.value;
                 }
             }
@@ -10770,36 +11268,13 @@
     const isDirty = (x) => x.status === "dirty";
     const isValid = (x) => x.status === "valid";
     const isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
-    /******************************************************************************
-    Copyright (c) Microsoft Corporation.
-    Permission to use, copy, modify, and/or distribute this software for any
-    purpose with or without fee is hereby granted.
-    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-    REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-    AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-    INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-    LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-    OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-    PERFORMANCE OF THIS SOFTWARE.
-    ***************************************************************************** */
-    function __classPrivateFieldGet(receiver, state, kind, f) {
-        if (typeof state === "function" ? receiver !== state || true : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-        return state.get(receiver);
-    }
-    function __classPrivateFieldSet(receiver, state, value, kind, f) {
-        if (typeof state === "function" ? receiver !== state || true : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-        return (state.set(receiver, value)), value;
-    }
-    typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
-        var e = new Error(message);
-        return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
-    };
+
     var errorUtil;
     (function (errorUtil) {
         errorUtil.errToObj = (message) => typeof message === "string" ? { message } : message || {};
-        errorUtil.toString = (message) => typeof message === "string" ? message : message === null || message === void 0 ? void 0 : message.message;
+        errorUtil.toString = (message) => typeof message === "string" ? message : message?.message;
     })(errorUtil || (errorUtil = {}));
-    var _ZodEnum_cache, _ZodNativeEnum_cache;
+
     class ParseInputLazyPath {
         constructor(parent, value, path, key) {
             this._cachedPath = [];
@@ -10810,7 +11285,7 @@
         }
         get path() {
             if (!this._cachedPath.length) {
-                if (this._key instanceof Array) {
+                if (Array.isArray(this._key)) {
                     this._cachedPath.push(...this._path, ...this._key);
                 }
                 else {
@@ -10850,17 +11325,16 @@
         if (errorMap)
             return { errorMap: errorMap, description };
         const customMap = (iss, ctx) => {
-            var _a, _b;
             const { message } = params;
             if (iss.code === "invalid_enum_value") {
-                return { message: message !== null && message !== void 0 ? message : ctx.defaultError };
+                return { message: message ?? ctx.defaultError };
             }
             if (typeof ctx.data === "undefined") {
-                return { message: (_a = message !== null && message !== void 0 ? message : required_error) !== null && _a !== void 0 ? _a : ctx.defaultError };
+                return { message: message ?? required_error ?? ctx.defaultError };
             }
             if (iss.code !== "invalid_type")
                 return { message: ctx.defaultError };
-            return { message: (_b = message !== null && message !== void 0 ? message : invalid_type_error) !== null && _b !== void 0 ? _b : ctx.defaultError };
+            return { message: message ?? invalid_type_error ?? ctx.defaultError };
         };
         return { errorMap: customMap, description };
     }
@@ -10912,14 +11386,13 @@
             throw result.error;
         }
         safeParse(data, params) {
-            var _a;
             const ctx = {
                 common: {
                     issues: [],
-                    async: (_a = params === null || params === void 0 ? void 0 : params.async) !== null && _a !== void 0 ? _a : false,
-                    contextualErrorMap: params === null || params === void 0 ? void 0 : params.errorMap,
+                    async: params?.async ?? false,
+                    contextualErrorMap: params?.errorMap,
                 },
-                path: (params === null || params === void 0 ? void 0 : params.path) || [],
+                path: params?.path || [],
                 schemaErrorMap: this._def.errorMap,
                 parent: null,
                 data,
@@ -10929,7 +11402,6 @@
             return handleResult(ctx, result);
         }
         "~validate"(data) {
-            var _a, _b;
             const ctx = {
                 common: {
                     issues: [],
@@ -10953,7 +11425,7 @@
                         };
                 }
                 catch (err) {
-                    if ((_b = (_a = err === null || err === void 0 ? void 0 : err.message) === null || _a === void 0 ? void 0 : _a.toLowerCase()) === null || _b === void 0 ? void 0 : _b.includes("encountered")) {
+                    if (err?.message?.toLowerCase()?.includes("encountered")) {
                         this["~standard"].async = true;
                     }
                     ctx.common = {
@@ -10980,19 +11452,17 @@
             const ctx = {
                 common: {
                     issues: [],
-                    contextualErrorMap: params === null || params === void 0 ? void 0 : params.errorMap,
+                    contextualErrorMap: params?.errorMap,
                     async: true,
                 },
-                path: (params === null || params === void 0 ? void 0 : params.path) || [],
+                path: params?.path || [],
                 schemaErrorMap: this._def.errorMap,
                 parent: null,
                 data,
                 parsedType: getParsedType(data),
             };
             const maybeAsyncResult = this._parse({ data, path: ctx.path, parent: ctx });
-            const result = await (isAsync(maybeAsyncResult)
-                ? maybeAsyncResult
-                : Promise.resolve(maybeAsyncResult));
+            const result = await (isAsync(maybeAsyncResult) ? maybeAsyncResult : Promise.resolve(maybeAsyncResult));
             return handleResult(ctx, result);
         }
         refine(check, message) {
@@ -11036,9 +11506,7 @@
         refinement(check, refinementData) {
             return this._refinement((val, ctx) => {
                 if (!check(val)) {
-                    ctx.addIssue(typeof refinementData === "function"
-                        ? refinementData(val, ctx)
-                        : refinementData);
+                    ctx.addIssue(typeof refinementData === "function" ? refinementData(val, ctx) : refinementData);
                     return false;
                 }
                 else {
@@ -11218,6 +11686,8 @@
             return false;
         try {
             const [header] = jwt.split(".");
+            if (!header)
+                return false;
             const base64 = header
                 .replace(/-/g, "+")
                 .replace(/_/g, "/")
@@ -11225,13 +11695,15 @@
             const decoded = JSON.parse(atob(base64));
             if (typeof decoded !== "object" || decoded === null)
                 return false;
-            if (!decoded.typ || !decoded.alg)
+            if ("typ" in decoded && decoded?.typ !== "JWT")
+                return false;
+            if (!decoded.alg)
                 return false;
             if (alg && decoded.alg !== alg)
                 return false;
             return true;
         }
-        catch (_a) {
+        catch {
             return false;
         }
     }
@@ -11402,7 +11874,7 @@
                     try {
                         new URL(input.data);
                     }
-                    catch (_a) {
+                    catch {
                         ctx = this._getOrReturnCtx(input, ctx);
                         addIssueToContext(ctx, {
                             validation: "url",
@@ -11631,7 +12103,6 @@
             return this._addCheck({ kind: "cidr", ...errorUtil.errToObj(options) });
         }
         datetime(options) {
-            var _a, _b;
             if (typeof options === "string") {
                 return this._addCheck({
                     kind: "datetime",
@@ -11643,10 +12114,10 @@
             }
             return this._addCheck({
                 kind: "datetime",
-                precision: typeof (options === null || options === void 0 ? void 0 : options.precision) === "undefined" ? null : options === null || options === void 0 ? void 0 : options.precision,
-                offset: (_a = options === null || options === void 0 ? void 0 : options.offset) !== null && _a !== void 0 ? _a : false,
-                local: (_b = options === null || options === void 0 ? void 0 : options.local) !== null && _b !== void 0 ? _b : false,
-                ...errorUtil.errToObj(options === null || options === void 0 ? void 0 : options.message),
+                precision: typeof options?.precision === "undefined" ? null : options?.precision,
+                offset: options?.offset ?? false,
+                local: options?.local ?? false,
+                ...errorUtil.errToObj(options?.message),
             });
         }
         date(message) {
@@ -11662,8 +12133,8 @@
             }
             return this._addCheck({
                 kind: "time",
-                precision: typeof (options === null || options === void 0 ? void 0 : options.precision) === "undefined" ? null : options === null || options === void 0 ? void 0 : options.precision,
-                ...errorUtil.errToObj(options === null || options === void 0 ? void 0 : options.message),
+                precision: typeof options?.precision === "undefined" ? null : options?.precision,
+                ...errorUtil.errToObj(options?.message),
             });
         }
         duration(message) {
@@ -11680,8 +12151,8 @@
             return this._addCheck({
                 kind: "includes",
                 value: value,
-                position: options === null || options === void 0 ? void 0 : options.position,
-                ...errorUtil.errToObj(options === null || options === void 0 ? void 0 : options.message),
+                position: options?.position,
+                ...errorUtil.errToObj(options?.message),
             });
         }
         startsWith(value, message) {
@@ -11810,11 +12281,10 @@
         }
     }
     ZodString.create = (params) => {
-        var _a;
         return new ZodString({
             checks: [],
             typeName: ZodFirstPartyTypeKind.ZodString,
-            coerce: (_a = params === null || params === void 0 ? void 0 : params.coerce) !== null && _a !== void 0 ? _a : false,
+            coerce: params?.coerce ?? false,
             ...processCreateParams(params),
         });
     };
@@ -11822,9 +12292,9 @@
         const valDecCount = (val.toString().split(".")[1] || "").length;
         const stepDecCount = (step.toString().split(".")[1] || "").length;
         const decCount = valDecCount > stepDecCount ? valDecCount : stepDecCount;
-        const valInt = parseInt(val.toFixed(decCount).replace(".", ""));
-        const stepInt = parseInt(step.toFixed(decCount).replace(".", ""));
-        return (valInt % stepInt) / Math.pow(10, decCount);
+        const valInt = Number.parseInt(val.toFixed(decCount).replace(".", ""));
+        const stepInt = Number.parseInt(step.toFixed(decCount).replace(".", ""));
+        return (valInt % stepInt) / 10 ** decCount;
     }
     class ZodNumber extends ZodType {
         constructor() {
@@ -11863,9 +12333,7 @@
                     }
                 }
                 else if (check.kind === "min") {
-                    const tooSmall = check.inclusive
-                        ? input.data < check.value
-                        : input.data <= check.value;
+                    const tooSmall = check.inclusive ? input.data < check.value : input.data <= check.value;
                     if (tooSmall) {
                         ctx = this._getOrReturnCtx(input, ctx);
                         addIssueToContext(ctx, {
@@ -11880,9 +12348,7 @@
                     }
                 }
                 else if (check.kind === "max") {
-                    const tooBig = check.inclusive
-                        ? input.data > check.value
-                        : input.data >= check.value;
+                    const tooBig = check.inclusive ? input.data > check.value : input.data >= check.value;
                     if (tooBig) {
                         ctx = this._getOrReturnCtx(input, ctx);
                         addIssueToContext(ctx, {
@@ -12040,15 +12506,13 @@
             return max;
         }
         get isInt() {
-            return !!this._def.checks.find((ch) => ch.kind === "int" ||
-                (ch.kind === "multipleOf" && util.isInteger(ch.value)));
+            return !!this._def.checks.find((ch) => ch.kind === "int" || (ch.kind === "multipleOf" && util.isInteger(ch.value)));
         }
         get isFinite() {
-            let max = null, min = null;
+            let max = null;
+            let min = null;
             for (const ch of this._def.checks) {
-                if (ch.kind === "finite" ||
-                    ch.kind === "int" ||
-                    ch.kind === "multipleOf") {
+                if (ch.kind === "finite" || ch.kind === "int" || ch.kind === "multipleOf") {
                     return true;
                 }
                 else if (ch.kind === "min") {
@@ -12067,7 +12531,7 @@
         return new ZodNumber({
             checks: [],
             typeName: ZodFirstPartyTypeKind.ZodNumber,
-            coerce: (params === null || params === void 0 ? void 0 : params.coerce) || false,
+            coerce: params?.coerce || false,
             ...processCreateParams(params),
         });
     };
@@ -12082,7 +12546,7 @@
                 try {
                     input.data = BigInt(input.data);
                 }
-                catch (_a) {
+                catch {
                     return this._getInvalidInput(input);
                 }
             }
@@ -12094,9 +12558,7 @@
             const status = new ParseStatus();
             for (const check of this._def.checks) {
                 if (check.kind === "min") {
-                    const tooSmall = check.inclusive
-                        ? input.data < check.value
-                        : input.data <= check.value;
+                    const tooSmall = check.inclusive ? input.data < check.value : input.data <= check.value;
                     if (tooSmall) {
                         ctx = this._getOrReturnCtx(input, ctx);
                         addIssueToContext(ctx, {
@@ -12110,9 +12572,7 @@
                     }
                 }
                 else if (check.kind === "max") {
-                    const tooBig = check.inclusive
-                        ? input.data > check.value
-                        : input.data >= check.value;
+                    const tooBig = check.inclusive ? input.data > check.value : input.data >= check.value;
                     if (tooBig) {
                         ctx = this._getOrReturnCtx(input, ctx);
                         addIssueToContext(ctx, {
@@ -12244,11 +12704,10 @@
         }
     }
     ZodBigInt.create = (params) => {
-        var _a;
         return new ZodBigInt({
             checks: [],
             typeName: ZodFirstPartyTypeKind.ZodBigInt,
-            coerce: (_a = params === null || params === void 0 ? void 0 : params.coerce) !== null && _a !== void 0 ? _a : false,
+            coerce: params?.coerce ?? false,
             ...processCreateParams(params),
         });
     };
@@ -12273,7 +12732,7 @@
     ZodBoolean.create = (params) => {
         return new ZodBoolean({
             typeName: ZodFirstPartyTypeKind.ZodBoolean,
-            coerce: (params === null || params === void 0 ? void 0 : params.coerce) || false,
+            coerce: params?.coerce || false,
             ...processCreateParams(params),
         });
     };
@@ -12292,7 +12751,7 @@
                 });
                 return INVALID;
             }
-            if (isNaN(input.data.getTime())) {
+            if (Number.isNaN(input.data.getTime())) {
                 const ctx = this._getOrReturnCtx(input);
                 addIssueToContext(ctx, {
                     code: ZodIssueCode.invalid_date,
@@ -12383,7 +12842,7 @@
     ZodDate.create = (params) => {
         return new ZodDate({
             checks: [],
-            coerce: (params === null || params === void 0 ? void 0 : params.coerce) || false,
+            coerce: params?.coerce || false,
             typeName: ZodFirstPartyTypeKind.ZodDate,
             ...processCreateParams(params),
         });
@@ -12663,7 +13122,8 @@
                 return this._cached;
             const shape = this._def.shape();
             const keys = util.objectKeys(shape);
-            return (this._cached = { shape, keys });
+            this._cached = { shape, keys };
+            return this._cached;
         }
         _parse(input) {
             const parsedType = this._getType(input);
@@ -12679,8 +13139,7 @@
             const { status, ctx } = this._processInputParams(input);
             const { shape, keys: shapeKeys } = this._getCached();
             const extraKeys = [];
-            if (!(this._def.catchall instanceof ZodNever &&
-                this._def.unknownKeys === "strip")) {
+            if (!(this._def.catchall instanceof ZodNever && this._def.unknownKeys === "strip")) {
                 for (const key in ctx.data) {
                     if (!shapeKeys.includes(key)) {
                         extraKeys.push(key);
@@ -12767,11 +13226,10 @@
                 ...(message !== undefined
                     ? {
                         errorMap: (issue, ctx) => {
-                            var _a, _b, _c, _d;
-                            const defaultError = (_c = (_b = (_a = this._def).errorMap) === null || _b === void 0 ? void 0 : _b.call(_a, issue, ctx).message) !== null && _c !== void 0 ? _c : ctx.defaultError;
+                            const defaultError = this._def.errorMap?.(issue, ctx).message ?? ctx.defaultError;
                             if (issue.code === "unrecognized_keys")
                                 return {
-                                    message: (_d = errorUtil.errToObj(message).message) !== null && _d !== void 0 ? _d : defaultError,
+                                    message: errorUtil.errToObj(message).message ?? defaultError,
                                 };
                             return {
                                 message: defaultError,
@@ -12825,11 +13283,11 @@
         }
         pick(mask) {
             const shape = {};
-            util.objectKeys(mask).forEach((key) => {
+            for (const key of util.objectKeys(mask)) {
                 if (mask[key] && this.shape[key]) {
                     shape[key] = this.shape[key];
                 }
-            });
+            }
             return new ZodObject({
                 ...this._def,
                 shape: () => shape,
@@ -12837,11 +13295,11 @@
         }
         omit(mask) {
             const shape = {};
-            util.objectKeys(this.shape).forEach((key) => {
+            for (const key of util.objectKeys(this.shape)) {
                 if (!mask[key]) {
                     shape[key] = this.shape[key];
                 }
-            });
+            }
             return new ZodObject({
                 ...this._def,
                 shape: () => shape,
@@ -12852,7 +13310,7 @@
         }
         partial(mask) {
             const newShape = {};
-            util.objectKeys(this.shape).forEach((key) => {
+            for (const key of util.objectKeys(this.shape)) {
                 const fieldSchema = this.shape[key];
                 if (mask && !mask[key]) {
                     newShape[key] = fieldSchema;
@@ -12860,7 +13318,7 @@
                 else {
                     newShape[key] = fieldSchema.optional();
                 }
-            });
+            }
             return new ZodObject({
                 ...this._def,
                 shape: () => newShape,
@@ -12868,7 +13326,7 @@
         }
         required(mask) {
             const newShape = {};
-            util.objectKeys(this.shape).forEach((key) => {
+            for (const key of util.objectKeys(this.shape)) {
                 if (mask && !mask[key]) {
                     newShape[key] = this.shape[key];
                 }
@@ -12880,7 +13338,7 @@
                     }
                     newShape[key] = newField;
                 }
-            });
+            }
             return new ZodObject({
                 ...this._def,
                 shape: () => newShape,
@@ -13131,9 +13589,7 @@
         }
         else if (aType === ZodParsedType.object && bType === ZodParsedType.object) {
             const bKeys = util.objectKeys(b);
-            const sharedKeys = util
-                .objectKeys(a)
-                .filter((key) => bKeys.indexOf(key) !== -1);
+            const sharedKeys = util.objectKeys(a).filter((key) => bKeys.indexOf(key) !== -1);
             const newObj = { ...a, ...b };
             for (const key of sharedKeys) {
                 const sharedValue = mergeValues(a[key], b[key]);
@@ -13160,9 +13616,7 @@
             }
             return { valid: true, data: newArray };
         }
-        else if (aType === ZodParsedType.date &&
-            bType === ZodParsedType.date &&
-            +a === +b) {
+        else if (aType === ZodParsedType.date && bType === ZodParsedType.date && +a === +b) {
             return { valid: true, data: a };
         }
         else {
@@ -13519,12 +13973,7 @@
                 return makeIssue({
                     data: args,
                     path: ctx.path,
-                    errorMaps: [
-                        ctx.common.contextualErrorMap,
-                        ctx.schemaErrorMap,
-                        getErrorMap(),
-                        errorMap,
-                    ].filter((x) => !!x),
+                    errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), errorMap].filter((x) => !!x),
                     issueData: {
                         code: ZodIssueCode.invalid_arguments,
                         argumentsError: error,
@@ -13535,12 +13984,7 @@
                 return makeIssue({
                     data: returns,
                     path: ctx.path,
-                    errorMaps: [
-                        ctx.common.contextualErrorMap,
-                        ctx.schemaErrorMap,
-                        getErrorMap(),
-                        errorMap,
-                    ].filter((x) => !!x),
+                    errorMaps: [ctx.common.contextualErrorMap, ctx.schemaErrorMap, getErrorMap(), errorMap].filter((x) => !!x),
                     issueData: {
                         code: ZodIssueCode.invalid_return_type,
                         returnTypeError: error,
@@ -13553,9 +13997,7 @@
                 const me = this;
                 return OK(async function (...args) {
                     const error = new ZodError([]);
-                    const parsedArgs = await me._def.args
-                        .parseAsync(args, params)
-                        .catch((e) => {
+                    const parsedArgs = await me._def.args.parseAsync(args, params).catch((e) => {
                         error.addIssue(makeArgsIssue(args, e));
                         throw error;
                     });
@@ -13613,9 +14055,7 @@
         }
         static create(args, returns, params) {
             return new ZodFunction({
-                args: (args
-                    ? args
-                    : ZodTuple.create([]).rest(ZodUnknown.create())),
+                args: (args ? args : ZodTuple.create([]).rest(ZodUnknown.create())),
                 returns: returns || ZodUnknown.create(),
                 typeName: ZodFirstPartyTypeKind.ZodFunction,
                 ...processCreateParams(params),
@@ -13671,10 +14111,6 @@
         });
     }
     class ZodEnum extends ZodType {
-        constructor() {
-            super(...arguments);
-            _ZodEnum_cache.set(this, void 0);
-        }
         _parse(input) {
             if (typeof input.data !== "string") {
                 const ctx = this._getOrReturnCtx(input);
@@ -13686,10 +14122,10 @@
                 });
                 return INVALID;
             }
-            if (!__classPrivateFieldGet(this, _ZodEnum_cache)) {
-                __classPrivateFieldSet(this, _ZodEnum_cache, new Set(this._def.values));
+            if (!this._cache) {
+                this._cache = new Set(this._def.values);
             }
-            if (!__classPrivateFieldGet(this, _ZodEnum_cache).has(input.data)) {
+            if (!this._cache.has(input.data)) {
                 const ctx = this._getOrReturnCtx(input);
                 const expectedValues = this._def.values;
                 addIssueToContext(ctx, {
@@ -13738,18 +14174,12 @@
             });
         }
     }
-    _ZodEnum_cache = new WeakMap();
     ZodEnum.create = createZodEnum;
     class ZodNativeEnum extends ZodType {
-        constructor() {
-            super(...arguments);
-            _ZodNativeEnum_cache.set(this, void 0);
-        }
         _parse(input) {
             const nativeEnumValues = util.getValidEnumValues(this._def.values);
             const ctx = this._getOrReturnCtx(input);
-            if (ctx.parsedType !== ZodParsedType.string &&
-                ctx.parsedType !== ZodParsedType.number) {
+            if (ctx.parsedType !== ZodParsedType.string && ctx.parsedType !== ZodParsedType.number) {
                 const expectedValues = util.objectValues(nativeEnumValues);
                 addIssueToContext(ctx, {
                     expected: util.joinValues(expectedValues),
@@ -13758,10 +14188,10 @@
                 });
                 return INVALID;
             }
-            if (!__classPrivateFieldGet(this, _ZodNativeEnum_cache)) {
-                __classPrivateFieldSet(this, _ZodNativeEnum_cache, new Set(util.getValidEnumValues(this._def.values)));
+            if (!this._cache) {
+                this._cache = new Set(util.getValidEnumValues(this._def.values));
             }
-            if (!__classPrivateFieldGet(this, _ZodNativeEnum_cache).has(input.data)) {
+            if (!this._cache.has(input.data)) {
                 const expectedValues = util.objectValues(nativeEnumValues);
                 addIssueToContext(ctx, {
                     received: ctx.data,
@@ -13776,7 +14206,6 @@
             return this._def.values;
         }
     }
-    _ZodNativeEnum_cache = new WeakMap();
     ZodNativeEnum.create = (values, params) => {
         return new ZodNativeEnum({
             values: values,
@@ -13790,8 +14219,7 @@
         }
         _parse(input) {
             const { ctx } = this._processInputParams(input);
-            if (ctx.parsedType !== ZodParsedType.promise &&
-                ctx.common.async === false) {
+            if (ctx.parsedType !== ZodParsedType.promise && ctx.common.async === false) {
                 addIssueToContext(ctx, {
                     code: ZodIssueCode.invalid_type,
                     expected: ZodParsedType.promise,
@@ -13799,9 +14227,7 @@
                 });
                 return INVALID;
             }
-            const promisified = ctx.parsedType === ZodParsedType.promise
-                ? ctx.data
-                : Promise.resolve(ctx.data);
+            const promisified = ctx.parsedType === ZodParsedType.promise ? ctx.data : Promise.resolve(ctx.data);
             return OK(promisified.then((data) => {
                 return this._def.type.parseAsync(data, {
                     path: ctx.path,
@@ -13906,9 +14332,7 @@
                     return { status: status.value, value: inner.value };
                 }
                 else {
-                    return this._def.schema
-                        ._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx })
-                        .then((inner) => {
+                    return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((inner) => {
                         if (inner.status === "aborted")
                             return INVALID;
                         if (inner.status === "dirty")
@@ -13927,7 +14351,7 @@
                         parent: ctx,
                     });
                     if (!isValid(base))
-                        return base;
+                        return INVALID;
                     const result = effect.transform(base.value, checkCtx);
                     if (result instanceof Promise) {
                         throw new Error(`Asynchronous transform encountered during synchronous parse operation. Use .parseAsync instead.`);
@@ -13935,12 +14359,13 @@
                     return { status: status.value, value: result };
                 }
                 else {
-                    return this._def.schema
-                        ._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx })
-                        .then((base) => {
+                    return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((base) => {
                         if (!isValid(base))
-                            return base;
-                        return Promise.resolve(effect.transform(base.value, checkCtx)).then((result) => ({ status: status.value, value: result }));
+                            return INVALID;
+                        return Promise.resolve(effect.transform(base.value, checkCtx)).then((result) => ({
+                            status: status.value,
+                            value: result,
+                        }));
                     });
                 }
             }
@@ -14022,9 +14447,7 @@
         return new ZodDefault({
             innerType: type,
             typeName: ZodFirstPartyTypeKind.ZodDefault,
-            defaultValue: typeof params.default === "function"
-                ? params.default
-                : () => params.default,
+            defaultValue: typeof params.default === "function" ? params.default : () => params.default,
             ...processCreateParams(params),
         });
     };
@@ -14189,9 +14612,7 @@
                 }
                 return data;
             };
-            return isAsync(result)
-                ? result.then((data) => freeze(data))
-                : freeze(result);
+            return isAsync(result) ? result.then((data) => freeze(data)) : freeze(result);
         }
         unwrap() {
             return this._def.innerType;
@@ -14205,11 +14626,7 @@
         });
     };
     function cleanParams(params, data) {
-        const p = typeof params === "function"
-            ? params(data)
-            : typeof params === "string"
-                ? { message: params }
-                : params;
+        const p = typeof params === "function" ? params(data) : typeof params === "string" ? { message: params } : params;
         const p2 = typeof p === "string" ? { message: p } : p;
         return p2;
     }
@@ -14217,21 +14634,19 @@
     fatal) {
         if (check)
             return ZodAny.create().superRefine((data, ctx) => {
-                var _a, _b;
                 const r = check(data);
                 if (r instanceof Promise) {
                     return r.then((r) => {
-                        var _a, _b;
                         if (!r) {
                             const params = cleanParams(_params, data);
-                            const _fatal = (_b = (_a = params.fatal) !== null && _a !== void 0 ? _a : fatal) !== null && _b !== void 0 ? _b : true;
+                            const _fatal = params.fatal ?? fatal ?? true;
                             ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
                         }
                     });
                 }
                 if (!r) {
                     const params = cleanParams(_params, data);
-                    const _fatal = (_b = (_a = params.fatal) !== null && _a !== void 0 ? _a : fatal) !== null && _b !== void 0 ? _b : true;
+                    const _fatal = params.fatal ?? fatal ?? true;
                     ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
                 }
                 return;
@@ -14332,93 +14747,95 @@
         date: ((arg) => ZodDate.create({ ...arg, coerce: true })),
     };
     const NEVER = INVALID;
-    var z = Object.freeze({
+
+    var z = /*#__PURE__*/Object.freeze({
         __proto__: null,
-        defaultErrorMap: errorMap,
-        setErrorMap: setErrorMap,
-        getErrorMap: getErrorMap,
-        makeIssue: makeIssue,
-        EMPTY_PATH: EMPTY_PATH,
-        addIssueToContext: addIssueToContext,
-        ParseStatus: ParseStatus,
-        INVALID: INVALID,
+        BRAND: BRAND,
         DIRTY: DIRTY,
+        EMPTY_PATH: EMPTY_PATH,
+        INVALID: INVALID,
+        NEVER: NEVER,
         OK: OK,
-        isAborted: isAborted,
-        isDirty: isDirty,
-        isValid: isValid,
-        isAsync: isAsync,
-        get util () { return util; },
-        get objectUtil () { return objectUtil; },
-        ZodParsedType: ZodParsedType,
-        getParsedType: getParsedType,
-        ZodType: ZodType,
-        datetimeRegex: datetimeRegex,
-        ZodString: ZodString,
-        ZodNumber: ZodNumber,
+        ParseStatus: ParseStatus,
+        Schema: ZodType,
+        ZodAny: ZodAny,
+        ZodArray: ZodArray,
         ZodBigInt: ZodBigInt,
         ZodBoolean: ZodBoolean,
+        ZodBranded: ZodBranded,
+        ZodCatch: ZodCatch,
         ZodDate: ZodDate,
-        ZodSymbol: ZodSymbol,
-        ZodUndefined: ZodUndefined,
-        ZodNull: ZodNull,
-        ZodAny: ZodAny,
-        ZodUnknown: ZodUnknown,
-        ZodNever: ZodNever,
-        ZodVoid: ZodVoid,
-        ZodArray: ZodArray,
-        ZodObject: ZodObject,
-        ZodUnion: ZodUnion,
+        ZodDefault: ZodDefault,
         ZodDiscriminatedUnion: ZodDiscriminatedUnion,
-        ZodIntersection: ZodIntersection,
-        ZodTuple: ZodTuple,
-        ZodRecord: ZodRecord,
-        ZodMap: ZodMap,
-        ZodSet: ZodSet,
+        ZodEffects: ZodEffects,
+        ZodEnum: ZodEnum,
+        ZodError: ZodError,
+        get ZodFirstPartyTypeKind () { return ZodFirstPartyTypeKind; },
         ZodFunction: ZodFunction,
+        ZodIntersection: ZodIntersection,
+        ZodIssueCode: ZodIssueCode,
         ZodLazy: ZodLazy,
         ZodLiteral: ZodLiteral,
-        ZodEnum: ZodEnum,
-        ZodNativeEnum: ZodNativeEnum,
-        ZodPromise: ZodPromise,
-        ZodEffects: ZodEffects,
-        ZodTransformer: ZodEffects,
-        ZodOptional: ZodOptional,
-        ZodNullable: ZodNullable,
-        ZodDefault: ZodDefault,
-        ZodCatch: ZodCatch,
+        ZodMap: ZodMap,
         ZodNaN: ZodNaN,
-        BRAND: BRAND,
-        ZodBranded: ZodBranded,
+        ZodNativeEnum: ZodNativeEnum,
+        ZodNever: ZodNever,
+        ZodNull: ZodNull,
+        ZodNullable: ZodNullable,
+        ZodNumber: ZodNumber,
+        ZodObject: ZodObject,
+        ZodOptional: ZodOptional,
+        ZodParsedType: ZodParsedType,
         ZodPipeline: ZodPipeline,
+        ZodPromise: ZodPromise,
         ZodReadonly: ZodReadonly,
-        custom: custom,
-        Schema: ZodType,
+        ZodRecord: ZodRecord,
         ZodSchema: ZodType,
-        late: late,
-        get ZodFirstPartyTypeKind () { return ZodFirstPartyTypeKind; },
-        coerce: coerce,
+        ZodSet: ZodSet,
+        ZodString: ZodString,
+        ZodSymbol: ZodSymbol,
+        ZodTransformer: ZodEffects,
+        ZodTuple: ZodTuple,
+        ZodType: ZodType,
+        ZodUndefined: ZodUndefined,
+        ZodUnion: ZodUnion,
+        ZodUnknown: ZodUnknown,
+        ZodVoid: ZodVoid,
+        addIssueToContext: addIssueToContext,
         any: anyType,
         array: arrayType,
         bigint: bigIntType,
         boolean: booleanType,
+        coerce: coerce,
+        custom: custom,
         date: dateType,
+        datetimeRegex: datetimeRegex,
+        defaultErrorMap: errorMap,
         discriminatedUnion: discriminatedUnionType,
         effect: effectsType,
-        'enum': enumType,
-        'function': functionType,
-        'instanceof': instanceOfType,
+        enum: enumType,
+        function: functionType,
+        getErrorMap: getErrorMap,
+        getParsedType: getParsedType,
+        instanceof: instanceOfType,
         intersection: intersectionType,
+        isAborted: isAborted,
+        isAsync: isAsync,
+        isDirty: isDirty,
+        isValid: isValid,
+        late: late,
         lazy: lazyType,
         literal: literalType,
+        makeIssue: makeIssue,
         map: mapType,
         nan: nanType,
         nativeEnum: nativeEnumType,
         never: neverType,
-        'null': nullType,
+        null: nullType,
         nullable: nullableType,
         number: numberType,
         object: objectType,
+        get objectUtil () { return objectUtil; },
         oboolean: oboolean,
         onumber: onumber,
         optional: optionalType,
@@ -14426,21 +14843,20 @@
         pipeline: pipelineType,
         preprocess: preprocessType,
         promise: promiseType,
+        quotelessJson: quotelessJson,
         record: recordType,
         set: setType,
+        setErrorMap: setErrorMap,
         strictObject: strictObjectType,
         string: stringType,
         symbol: symbolType,
         transformer: effectsType,
         tuple: tupleType,
-        'undefined': undefinedType,
+        undefined: undefinedType,
         union: unionType,
         unknown: unknownType,
-        'void': voidType,
-        NEVER: NEVER,
-        ZodIssueCode: ZodIssueCode,
-        quotelessJson: quotelessJson,
-        ZodError: ZodError
+        get util () { return util; },
+        void: voidType
     });
 
     /**
@@ -14918,11 +15334,13 @@
         'invalid web extension',
         'move target out of bounds',
         'no such alert',
+        'no such network collector',
         'no such element',
         'no such frame',
         'no such handle',
         'no such history entry',
         'no such intercept',
+        'no such network data',
         'no such node',
         'no such request',
         'no such script',
@@ -14934,6 +15352,7 @@
         'unable to close browser',
         'unable to set cookie',
         'unable to set file input',
+        'unavailable network data',
         'underspecified storage partition',
         'unknown command',
         'unknown error',
@@ -14997,7 +15416,6 @@
         Session.ManualProxyConfigurationSchema = z.lazy(() => z
             .object({
             proxyType: z.literal('manual'),
-            ftpProxy: z.string().optional(),
             httpProxy: z.string().optional(),
             sslProxy: z.string().optional(),
         })
@@ -15189,6 +15607,7 @@
         Browser.CreateUserContextParametersSchema = z.lazy(() => z.object({
             acceptInsecureCerts: z.boolean().optional(),
             proxy: Session$1.ProxyConfigurationSchema.optional(),
+            unhandledPromptBehavior: Session$1.UserPromptHandlerSchema.optional(),
         }));
     })(Browser$1 || (Browser$1 = {}));
     (function (Browser) {
@@ -15275,6 +15694,7 @@
         BrowsingContext$1.ContextCreatedSchema,
         BrowsingContext$1.ContextDestroyedSchema,
         BrowsingContext$1.DomContentLoadedSchema,
+        BrowsingContext$1.DownloadEndSchema,
         BrowsingContext$1.DownloadWillBeginSchema,
         BrowsingContext$1.FragmentNavigatedSchema,
         BrowsingContext$1.HistoryUpdatedSchema,
@@ -15666,6 +16086,7 @@
     (function (BrowsingContext) {
         BrowsingContext.HistoryUpdatedParametersSchema = z.lazy(() => z.object({
             context: BrowsingContext.BrowsingContextSchema,
+            timestamp: JsUintSchema,
             url: z.string(),
         }));
     })(BrowsingContext$1 || (BrowsingContext$1 = {}));
@@ -15691,6 +16112,33 @@
         BrowsingContext.DownloadWillBeginParamsSchema = z.lazy(() => z
             .object({
             suggestedFilename: z.string(),
+        })
+            .and(BrowsingContext.BaseNavigationInfoSchema));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.DownloadEndSchema = z.lazy(() => z.object({
+            method: z.literal('browsingContext.downloadEnd'),
+            params: BrowsingContext.DownloadEndParamsSchema,
+        }));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.DownloadEndParamsSchema = z.lazy(() => z.union([
+            BrowsingContext.DownloadCanceledParamsSchema,
+            BrowsingContext.DownloadCompleteParamsSchema,
+        ]));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.DownloadCanceledParamsSchema = z.lazy(() => z
+            .object({
+            status: z.literal('canceled'),
+        })
+            .and(BrowsingContext.BaseNavigationInfoSchema));
+    })(BrowsingContext$1 || (BrowsingContext$1 = {}));
+    (function (BrowsingContext) {
+        BrowsingContext.DownloadCompleteParamsSchema = z.lazy(() => z
+            .object({
+            status: z.literal('complete'),
+            filepath: z.union([z.string(), z.null()]),
         })
             .and(BrowsingContext.BaseNavigationInfoSchema));
     })(BrowsingContext$1 || (BrowsingContext$1 = {}));
@@ -15741,7 +16189,12 @@
             defaultValue: z.string().optional(),
         }));
     })(BrowsingContext$1 || (BrowsingContext$1 = {}));
-    const EmulationCommandSchema = z.lazy(() => Emulation$1.SetGeolocationOverrideSchema);
+    const EmulationCommandSchema = z.lazy(() => z.union([
+        Emulation$1.SetGeolocationOverrideSchema,
+        Emulation$1.SetLocaleOverrideSchema,
+        Emulation$1.SetScreenOrientationOverrideSchema,
+        Emulation$1.SetTimezoneOverrideSchema,
+    ]));
     var Emulation$1;
     (function (Emulation) {
         Emulation.SetGeolocationOverrideSchema = z.lazy(() => z.object({
@@ -15790,13 +16243,82 @@
             type: z.literal('positionUnavailable'),
         }));
     })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.SetLocaleOverrideSchema = z.lazy(() => z.object({
+            method: z.literal('emulation.setLocaleOverride'),
+            params: Emulation.SetLocaleOverrideParametersSchema,
+        }));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.SetLocaleOverrideParametersSchema = z.lazy(() => z.object({
+            locale: z.union([z.string(), z.null()]),
+            contexts: z
+                .array(BrowsingContext$1.BrowsingContextSchema)
+                .min(1)
+                .optional(),
+            userContexts: z.array(Browser$1.UserContextSchema).min(1).optional(),
+        }));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.SetScreenOrientationOverrideSchema = z.lazy(() => z.object({
+            method: z.literal('emulation.setScreenOrientationOverride'),
+            params: Emulation.SetScreenOrientationOverrideParametersSchema,
+        }));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.ScreenOrientationNaturalSchema = z.lazy(() => z.enum(['portrait', 'landscape']));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.ScreenOrientationTypeSchema = z.lazy(() => z.enum([
+            'portrait-primary',
+            'portrait-secondary',
+            'landscape-primary',
+            'landscape-secondary',
+        ]));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.ScreenOrientationSchema = z.lazy(() => z.object({
+            natural: Emulation.ScreenOrientationNaturalSchema,
+            type: Emulation.ScreenOrientationTypeSchema,
+        }));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.SetScreenOrientationOverrideParametersSchema = z.lazy(() => z.object({
+            screenOrientation: z.union([Emulation.ScreenOrientationSchema, z.null()]),
+            contexts: z
+                .array(BrowsingContext$1.BrowsingContextSchema)
+                .min(1)
+                .optional(),
+            userContexts: z.array(Browser$1.UserContextSchema).min(1).optional(),
+        }));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.SetTimezoneOverrideSchema = z.lazy(() => z.object({
+            method: z.literal('emulation.setTimezoneOverride'),
+            params: Emulation.SetTimezoneOverrideParametersSchema,
+        }));
+    })(Emulation$1 || (Emulation$1 = {}));
+    (function (Emulation) {
+        Emulation.SetTimezoneOverrideParametersSchema = z.lazy(() => z.object({
+            timezone: z.union([z.string(), z.null()]),
+            contexts: z
+                .array(BrowsingContext$1.BrowsingContextSchema)
+                .min(1)
+                .optional(),
+            userContexts: z.array(Browser$1.UserContextSchema).min(1).optional(),
+        }));
+    })(Emulation$1 || (Emulation$1 = {}));
     const NetworkCommandSchema = z.lazy(() => z.union([
+        Network$1.AddDataCollectorSchema,
         Network$1.AddInterceptSchema,
         Network$1.ContinueRequestSchema,
         Network$1.ContinueResponseSchema,
         Network$1.ContinueWithAuthSchema,
+        Network$1.DisownDataSchema,
         Network$1.FailRequestSchema,
+        Network$1.GetDataSchema,
         Network$1.ProvideResponseSchema,
+        Network$1.RemoveDataCollectorSchema,
         Network$1.RemoveInterceptSchema,
         Network$1.SetCacheBehaviorSchema,
     ]));
@@ -15849,7 +16371,13 @@
         }));
     })(Network$1 || (Network$1 = {}));
     (function (Network) {
-        Network.SameSiteSchema = z.lazy(() => z.enum(['strict', 'lax', 'none']));
+        Network.CollectorSchema = z.lazy(() => z.string());
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.CollectorTypeSchema = z.literal('blob');
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.SameSiteSchema = z.lazy(() => z.enum(['strict', 'lax', 'none', 'default']));
     })(Network$1 || (Network$1 = {}));
     (function (Network) {
         Network.CookieSchema = z.lazy(() => z
@@ -15871,6 +16399,9 @@
             name: z.string(),
             value: Network.BytesValueSchema,
         }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.DataTypeSchema = z.literal('response');
     })(Network$1 || (Network$1 = {}));
     (function (Network) {
         Network.FetchTimingInfoSchema = z.lazy(() => z.object({
@@ -15978,6 +16509,29 @@
         }));
     })(Network$1 || (Network$1 = {}));
     (function (Network) {
+        Network.AddDataCollectorSchema = z.lazy(() => z.object({
+            method: z.literal('network.addDataCollector'),
+            params: Network.AddDataCollectorParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.AddDataCollectorParametersSchema = z.lazy(() => z.object({
+            dataTypes: z.array(Network.DataTypeSchema).min(1),
+            maxEncodedDataSize: JsUintSchema,
+            collectorType: Network.CollectorTypeSchema.default('blob').optional(),
+            contexts: z
+                .array(BrowsingContext$1.BrowsingContextSchema)
+                .min(1)
+                .optional(),
+            userContexts: z.array(Browser$1.UserContextSchema).min(1).optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.AddDataCollectorResultSchema = z.lazy(() => z.object({
+            collector: Network.CollectorSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
         Network.AddInterceptParametersSchema = z.lazy(() => z.object({
             phases: z.array(Network.InterceptPhaseSchema).min(1),
             contexts: z
@@ -16061,6 +16615,19 @@
         }));
     })(Network$1 || (Network$1 = {}));
     (function (Network) {
+        Network.DisownDataSchema = z.lazy(() => z.object({
+            method: z.literal('network.disownData'),
+            params: Network.DisownDataParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.DisownDataParametersSchema = z.lazy(() => z.object({
+            dataType: Network.DataTypeSchema,
+            collector: Network.CollectorSchema,
+            request: Network.RequestSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
         Network.FailRequestSchema = z.lazy(() => z.object({
             method: z.literal('network.failRequest'),
             params: Network.FailRequestParametersSchema,
@@ -16069,6 +16636,25 @@
     (function (Network) {
         Network.FailRequestParametersSchema = z.lazy(() => z.object({
             request: Network.RequestSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.GetDataSchema = z.lazy(() => z.object({
+            method: z.literal('network.getData'),
+            params: Network.GetDataParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.GetDataParametersSchema = z.lazy(() => z.object({
+            dataType: Network.DataTypeSchema,
+            collector: Network.CollectorSchema.optional(),
+            disown: z.boolean().default(false).optional(),
+            request: Network.RequestSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.GetDataResultSchema = z.lazy(() => z.object({
+            bytes: Network.BytesValueSchema,
         }));
     })(Network$1 || (Network$1 = {}));
     (function (Network) {
@@ -16085,6 +16671,17 @@
             headers: z.array(Network.HeaderSchema).optional(),
             reasonPhrase: z.string().optional(),
             statusCode: JsUintSchema.optional(),
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.RemoveDataCollectorSchema = z.lazy(() => z.object({
+            method: z.literal('network.removeDataCollector'),
+            params: Network.RemoveDataCollectorParametersSchema,
+        }));
+    })(Network$1 || (Network$1 = {}));
+    (function (Network) {
+        Network.RemoveDataCollectorParametersSchema = z.lazy(() => z.object({
+            collector: Network.CollectorSchema,
         }));
     })(Network$1 || (Network$1 = {}));
     (function (Network) {
@@ -17303,9 +17900,17 @@
             return parseObject(params, Browser$1.RemoveUserContextParametersSchema);
         }
         Browser.parseRemoveUserContextParameters = parseRemoveUserContextParameters;
+        function parseSetClientWindowStateParameters(params) {
+            return parseObject(params, Browser$1.SetClientWindowStateParametersSchema);
+        }
+        Browser.parseSetClientWindowStateParameters = parseSetClientWindowStateParameters;
     })(Browser || (Browser = {}));
     var Network;
     (function (Network) {
+        function parseAddDataCollectorParameters(params) {
+            return parseObject(params, Network$1.AddDataCollectorParametersSchema);
+        }
+        Network.parseAddDataCollectorParameters = parseAddDataCollectorParameters;
         function parseAddInterceptParameters(params) {
             return parseObject(params, Network$1.AddInterceptParametersSchema);
         }
@@ -17326,10 +17931,22 @@
             return parseObject(params, Network$1.FailRequestParametersSchema);
         }
         Network.parseFailRequestParameters = parseFailRequestParameters;
+        function parseGetDataParameters(params) {
+            return parseObject(params, Network$1.GetDataParametersSchema);
+        }
+        Network.parseGetDataParameters = parseGetDataParameters;
+        function parseDisownDataParameters(params) {
+            return parseObject(params, Network$1.DisownDataParametersSchema);
+        }
+        Network.parseDisownDataParameters = parseDisownDataParameters;
         function parseProvideResponseParameters(params) {
             return parseObject(params, Network$1.ProvideResponseParametersSchema);
         }
         Network.parseProvideResponseParameters = parseProvideResponseParameters;
+        function parseRemoveDataCollectorParameters(params) {
+            return parseObject(params, Network$1.RemoveDataCollectorParametersSchema);
+        }
+        Network.parseRemoveDataCollectorParameters = parseRemoveDataCollectorParameters;
         function parseRemoveInterceptParameters(params) {
             return parseObject(params, Network$1.RemoveInterceptParametersSchema);
         }
@@ -17440,6 +18057,18 @@
             return parseObject(params, Emulation$1.SetGeolocationOverrideParametersSchema);
         }
         Emulation.parseSetGeolocationOverrideParams = parseSetGeolocationOverrideParams;
+        function parseSetLocaleOverrideParams(params) {
+            return parseObject(params, Emulation$1.SetLocaleOverrideParametersSchema);
+        }
+        Emulation.parseSetLocaleOverrideParams = parseSetLocaleOverrideParams;
+        function parseSetScreenOrientationOverrideParams(params) {
+            return parseObject(params, Emulation$1.SetScreenOrientationOverrideParametersSchema);
+        }
+        Emulation.parseSetScreenOrientationOverrideParams = parseSetScreenOrientationOverrideParams;
+        function parseSetTimezoneOverrideParams(params) {
+            return parseObject(params, Emulation$1.SetTimezoneOverrideParametersSchema);
+        }
+        Emulation.parseSetTimezoneOverrideParams = parseSetTimezoneOverrideParams;
     })(Emulation || (Emulation = {}));
     var Input;
     (function (Input) {
@@ -17473,15 +18102,15 @@
     })(Storage || (Storage = {}));
     var Cdp;
     (function (Cdp) {
-        const SendCommandRequestSchema = z.object({
-            method: z.string(),
-            params: z.object({}).passthrough().optional(),
-            session: z.string().optional(),
+        const SendCommandRequestSchema = objectType({
+            method: stringType(),
+            params: objectType({}).passthrough().optional(),
+            session: stringType().optional(),
         });
-        const GetSessionRequestSchema = z.object({
+        const GetSessionRequestSchema = objectType({
             context: BrowsingContext$1.BrowsingContextSchema,
         });
-        const ResolveRealmRequestSchema = z.object({
+        const ResolveRealmRequestSchema = objectType({
             realm: Script$1.RealmSchema,
         });
         function parseSendCommandRequest(params) {
@@ -17539,6 +18168,11 @@
             return parseObject(params, Bluetooth$1.SimulateDescriptorParametersSchema);
         }
         Bluetooth.parseSimulateDescriptorParams = parseSimulateDescriptorParams;
+        function parseSimulateDescriptorResponseParams(params) {
+            return parseObject(params, Bluetooth$1
+                .SimulateDescriptorResponseParametersSchema);
+        }
+        Bluetooth.parseSimulateDescriptorResponseParams = parseSimulateDescriptorResponseParams;
         function parseSimulateGattConnectionResponseParams(params) {
             return parseObject(params, Bluetooth$1
                 .SimulateGattConnectionResponseParametersSchema);
@@ -17593,6 +18227,9 @@
         parseSimulateDescriptorParameters(params) {
             return Bluetooth.parseSimulateDescriptorParams(params);
         }
+        parseSimulateDescriptorResponseParameters(params) {
+            return Bluetooth.parseSimulateDescriptorResponseParams(params);
+        }
         parseSimulateGattConnectionResponseParameters(params) {
             return Bluetooth.parseSimulateGattConnectionResponseParams(params);
         }
@@ -17611,6 +18248,9 @@
         }
         parseRemoveUserContextParameters(params) {
             return Browser.parseRemoveUserContextParameters(params);
+        }
+        parseSetClientWindowStateParameters(params) {
+            return Browser.parseSetClientWindowStateParameters(params);
         }
         parseActivateParams(params) {
             return BrowsingContext.parseActivateParams(params);
@@ -17660,6 +18300,15 @@
         parseSetGeolocationOverrideParams(params) {
             return Emulation.parseSetGeolocationOverrideParams(params);
         }
+        parseSetLocaleOverrideParams(params) {
+            return Emulation.parseSetLocaleOverrideParams(params);
+        }
+        parseSetScreenOrientationOverrideParams(params) {
+            return Emulation.parseSetScreenOrientationOverrideParams(params);
+        }
+        parseSetTimezoneOverrideParams(params) {
+            return Emulation.parseSetTimezoneOverrideParams(params);
+        }
         parsePerformActionsParams(params) {
             return Input.parsePerformActionsParams(params);
         }
@@ -17668,6 +18317,9 @@
         }
         parseSetFilesParams(params) {
             return Input.parseSetFilesParams(params);
+        }
+        parseAddDataCollectorParams(params) {
+            return Network.parseAddDataCollectorParameters(params);
         }
         parseAddInterceptParams(params) {
             return Network.parseAddInterceptParameters(params);
@@ -17681,11 +18333,20 @@
         parseContinueWithAuthParams(params) {
             return Network.parseContinueWithAuthParameters(params);
         }
+        parseDisownDataParams(params) {
+            return Network.parseDisownDataParameters(params);
+        }
         parseFailRequestParams(params) {
             return Network.parseFailRequestParameters(params);
         }
+        parseGetDataParams(params) {
+            return Network.parseGetDataParameters(params);
+        }
         parseProvideResponseParams(params) {
             return Network.parseProvideResponseParameters(params);
+        }
+        parseRemoveDataCollectorParams(params) {
+            return Network.parseRemoveDataCollectorParameters(params);
         }
         parseRemoveInterceptParams(params) {
             return Network.parseRemoveInterceptParameters(params);

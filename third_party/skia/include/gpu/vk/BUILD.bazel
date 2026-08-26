@@ -1,4 +1,4 @@
-load("//bazel:skia_rules.bzl", "generate_cpp_files_for_headers", "skia_filegroup")
+load("//bazel:skia_rules.bzl", "skia_filegroup")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -15,19 +15,11 @@ skia_filegroup(
         "VulkanExtensions.h",
         "VulkanMemoryAllocator.h",
         "VulkanMutableTextureState.h",
+        "VulkanPreferredFeatures.h",
         "VulkanTypes.h",
     ],
     visibility = [
         "//src/gpu/ganesh/vk:__pkg__",
         "//src/gpu/vk:__pkg__",
-    ],
-)
-
-generate_cpp_files_for_headers(
-    name = "headers_to_compile",
-    headers = [
-        "VulkanBackendContext.h",
-        "VulkanMemoryAllocator.h",
-        "VulkanTypes.h",
     ],
 )

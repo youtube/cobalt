@@ -5,12 +5,11 @@
 package org.chromium.chrome.browser.suggestions.tile;
 
 import android.annotation.SuppressLint;
-import android.view.ContextMenu;
-import android.view.ContextMenu.ContextMenuInfo;
 import android.view.MotionEvent;
 import android.view.View;
 
 import org.chromium.base.CancelableRunnable;
+import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
@@ -34,10 +33,11 @@ import java.util.Objects;
 class TileInteractionDelegateImpl
         implements TileGroup.TileInteractionDelegate,
                 ContextMenuManager.Delegate,
-                TileGroup.TileDragHandlerDelegate {
+                TileDragSession.EventListener {
+
     private final ContextMenuManager mContextMenuManager;
     private final TileGroup.Delegate mTileGroupDelegate;
-    private final TileGroup.TileDragDelegate mTileDragDelegate;
+    private final TileDragDelegate mTileDragDelegate;
     private final TileGroup.CustomTileModificationDelegate mCustomTileModificationDelegate;
     private final int mPrerenderDelay;
     private final Tile mTile;
@@ -52,7 +52,7 @@ class TileInteractionDelegateImpl
     public TileInteractionDelegateImpl(
             ContextMenuManager contextMenuManager,
             TileGroup.Delegate tileGroupDelegate,
-            TileGroup.TileDragDelegate tileDragDelegate,
+            TileDragDelegate tileDragDelegate,
             TileGroup.CustomTileModificationDelegate customTileModificationDelegate,
             int prerenderDelay,
             Tile tile,
@@ -126,22 +126,9 @@ class TileInteractionDelegateImpl
         mScheduldedPrerenderingUrl = null;
     }
 
-    // TileGroup.TileInteractionDelegate => View.OnCreateContextMenuListener implementation.
-    @Override
-    public void onCreateContextMenu(
-            ContextMenu contextMenu, View view, ContextMenuInfo contextMenuInfo) {
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.TILE_CONTEXT_MENU_REFACTOR)) return;
-
-        mContextMenuManager.createContextMenu(contextMenu, view, this);
-    }
-
     // TileGroup.TileInteractionDelegate => View.OnLongClickListener implementation.
     @Override
     public boolean onLongClick(View view) {
-        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.TILE_CONTEXT_MENU_REFACTOR)) {
-            return false;
-        }
-
         return mContextMenuManager.showListContextMenu(view, this);
     }
 
@@ -188,11 +175,17 @@ class TileInteractionDelegateImpl
     }
 
     @Override
+    public void openAllItems() {}
+
+    @Override
     public void removeItem() {
         if (mOnRemoveRunnable != null) mOnRemoveRunnable.run();
 
         mTileGroupDelegate.removeMostVisitedItem(mTile);
     }
+
+    @Override
+    public void removeAllItems() {}
 
     @Override
     public void pinItem() {
@@ -222,6 +215,16 @@ class TileInteractionDelegateImpl
     @Override
     public boolean isItemSupported(@ContextMenuItemId int menuItemId) {
         switch (menuItemId) {
+            case ContextMenuItemId.OPEN_IN_NEW_TAB:
+                return true;
+            case ContextMenuItemId.OPEN_IN_NEW_TAB_IN_GROUP:
+                return true;
+            case ContextMenuItemId.OPEN_IN_INCOGNITO_TAB:
+                return true;
+            case ContextMenuItemId.OPEN_IN_NEW_WINDOW:
+                return true;
+            case ContextMenuItemId.SAVE_FOR_OFFLINE:
+                return true;
             case ContextMenuItemId.REMOVE:
                 return !isCustomizationItemSupported(/* matchIsCustomLink= */ true);
             case ContextMenuItemId.PIN_THIS_SHORTCUT:
@@ -230,7 +233,7 @@ class TileInteractionDelegateImpl
             case ContextMenuItemId.UNPIN:
                 return isCustomizationItemSupported(/* matchIsCustomLink= */ true);
             default:
-                return true;
+                return false;
         }
     }
 
@@ -242,7 +245,15 @@ class TileInteractionDelegateImpl
     @Override
     public void onContextMenuCreated() {}
 
-    // TileGroup.TileDragHandlerDelegate implementation.
+    @Override
+    public void hideAllItems() {}
+
+    // TileDragSession.EventListener implementation.
+    @Override
+    public void onDragStart() {
+        mTileDragDelegate.showDivider(/* isAnimated= */ true);
+    }
+
     @Override
     public void onDragDominate() {
         mContextMenuManager.hideListContextMenu();
@@ -250,7 +261,21 @@ class TileInteractionDelegateImpl
 
     @Override
     public boolean onDragAccept(SiteSuggestion fromSuggestion, SiteSuggestion toSuggestion) {
-        return mCustomTileModificationDelegate.reorder(fromSuggestion, toSuggestion);
+        RecordUserAction.record("Suggestions.Drag.ReorderItem");
+        return mCustomTileModificationDelegate.reorder(
+                fromSuggestion,
+                toSuggestion,
+                () -> {
+                    // Refresh has taken place, and the divider is re-rendered. For seamless
+                    // transition, show divider immediately, then hide it with animation.
+                    mTileDragDelegate.showDivider(/* isAnimated= */ false);
+                    mTileDragDelegate.hideDivider(/* isAnimated= */ true);
+                });
+    }
+
+    @Override
+    public void onDragCancel() {
+        mTileDragDelegate.hideDivider(/* isAnimated= */ true);
     }
 
     boolean isCustomizationItemSupported(boolean matchIsCustomLink) {

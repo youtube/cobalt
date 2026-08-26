@@ -5,8 +5,6 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
-#include "quiche/common/platform/api/quiche_flag_utils.h"
-#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quiche::header_properties {
@@ -139,21 +137,21 @@ bool IsMultivaluedHeader(absl::string_view header) {
 }
 
 bool IsInvalidHeaderKeyChar(uint8_t c) {
-  static const std::array<bool, 256> invalidHeaderKeyCharTable =
+  static constexpr std::array<bool, 256> invalidHeaderKeyCharTable =
       buildInvalidHeaderKeyCharLookupTable();
 
   return invalidHeaderKeyCharTable[c];
 }
 
 bool IsInvalidHeaderKeyCharAllowDoubleQuote(uint8_t c) {
-  static const std::array<bool, 256> invalidHeaderKeyCharTable =
+  static constexpr std::array<bool, 256> invalidHeaderKeyCharTable =
       buildInvalidHeaderKeyCharLookupTableAllowDoubleQuote();
 
   return invalidHeaderKeyCharTable[c];
 }
 
 bool IsInvalidHeaderChar(uint8_t c) {
-  static const std::array<bool, 256> invalidCharTable =
+  static constexpr std::array<bool, 256> invalidCharTable =
       buildInvalidCharLookupTable();
 
   return invalidCharTable[c];
@@ -169,7 +167,7 @@ bool HasInvalidHeaderChars(absl::string_view value) {
 }
 
 bool HasInvalidPathChar(absl::string_view value) {
-  static const std::array<bool, 256> invalidCharTable =
+  static constexpr std::array<bool, 256> invalidCharTable =
       buildInvalidPathCharLookupTable();
   for (const char c : value) {
     if (invalidCharTable[c]) {
@@ -180,7 +178,7 @@ bool HasInvalidPathChar(absl::string_view value) {
 }
 
 bool HasInvalidQueryChar(absl::string_view value) {
-  static const std::array<bool, 256> invalidCharTable =
+  static constexpr std::array<bool, 256> invalidCharTable =
       buildInvalidQueryCharLookupTable();
   for (const char c : value) {
     if (invalidCharTable[c]) {

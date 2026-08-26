@@ -139,7 +139,8 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
   // main frame being created as a WebContentsObservers. This gives the delegate
   // a chance to act on the main frame accordingly.
   if (raw_web_contents->GetPrimaryMainFrame()->IsRenderFrameLive())
-    g_platform->MainFrameCreated(shell);
+    g_platform->MainFrameCreated(shell,
+                                 raw_web_contents->GetPrimaryMainFrame());
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_ANDROID)
@@ -214,10 +215,11 @@ void Shell::Shutdown() {
   if (quit_loop)
     std::move(quit_loop).Run();
 
-#if !BUILDFLAG(IS_STARBOARD)
-  // Pump the message loop to allow window teardown tasks to run.
+  // Pump the message loop to allow window teardown tasks to run. On iOS the
+  // run loop is controlled differently and cannot be pumped.
+#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
   base::RunLoop().RunUntilIdle();
-#endif  // !BUILDFLAG(IS_STARBOARD)
+#endif  // !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
 }
 
 gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {
@@ -248,8 +250,9 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
 }
 
 void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
-  if (frame_host == web_contents_->GetPrimaryMainFrame())
-    g_platform->MainFrameCreated(this);
+  if (frame_host == frame_host->GetOutermostMainFrame()) {
+    g_platform->MainFrameCreated(this, frame_host);
+  }
 }
 
 void Shell::LoadURL(const GURL& url) {

@@ -13,9 +13,11 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/types/expected.h"
 #include "build/build_config.h"
 #include "chrome/browser/bad_message.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/media/capture_access_handler_base.h"
 #include "chrome/browser/media/webrtc/capture_policy_utils.h"
 #include "chrome/browser/media/webrtc/desktop_capture_devices_util.h"
 #include "chrome/browser/media/webrtc/desktop_media_picker_factory_impl.h"
@@ -274,6 +276,10 @@ void DisplayMediaAccessHandler::HandleRequest(
     // before sending IPC, but just to be sure double check here as well. This
     // is not treated as a BadMessage because it is possible for the transient
     // user activation to expire between the renderer side check and this check.
+    //
+    // TODO(crbug.com/416448339): Introduce and use a new result value,
+    // MediaStreamRequestResult::NO_TRANSIENT_ACTIVATION. In JS, it should map
+    // to `InvalidStateError`, not to `NotAllowedError`.
     if (!rfh->HasTransientUserActivation() &&
         capture_policy::IsTransientActivationRequiredForGetDisplayMedia(
             web_contents)) {
@@ -364,6 +370,21 @@ void DisplayMediaAccessHandler::ShowMediaSelectionDialog(
   }
 }
 
+bool DisplayMediaAccessHandler::IsRequestFirstInQueue(
+    const RequestsQueue& queue,
+    const content::MediaStreamRequest& request) const {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+
+  const PendingAccessRequest& first_pending_request = *queue.front();
+  // If requests are different, then this is a stale request.
+  return first_pending_request.request.render_process_id ==
+             request.render_process_id &&
+         first_pending_request.request.render_frame_id ==
+             request.render_frame_id &&
+         first_pending_request.request.page_request_id ==
+             request.page_request_id;
+}
+
 void DisplayMediaAccessHandler::BypassMediaSelectionDialog(
     WebContents* web_contents,
     const content::MediaStreamRequest& request,
@@ -376,17 +397,39 @@ void DisplayMediaAccessHandler::BypassMediaSelectionDialog(
                             /*ui=*/nullptr);
     return;
   }
+
+  // base::Unretained(this) is safe because DisplayMediaAccessHandler is owned
+  // by MediaCaptureDevicesDispatcher, which is a lazy singleton which is
+  // destroyed when the browser process terminates.
+  GetDevicesForDesktopCapture(
+      web_contents, media_id, request.video_type, request.audio_type,
+      request.security_origin, media_id.audio_share, request.disable_local_echo,
+      request.suppress_local_audio_playback, request.restrict_own_audio,
+      /*display_notification=*/false, GetApplicationTitle(web_contents),
+      request.captured_surface_control_active,
+      base::BindOnce(
+          &DisplayMediaAccessHandler::
+              OnDesktopCaptureDevicesObtainedAfterBypassMediaSelectionDialog,
+          base::Unretained(this), web_contents->GetWeakPtr(), request,
+          std::move(callback)));
+}
+
+void DisplayMediaAccessHandler::
+    OnDesktopCaptureDevicesObtainedAfterBypassMediaSelectionDialog(
+        base::WeakPtr<WebContents> web_contents,
+        content::MediaStreamRequest request,
+        content::MediaResponseCallback callback,
+        blink::mojom::StreamDevices devices,
+        std::unique_ptr<content::MediaStreamUI> ui) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!web_contents) {
+    return;
+  }
+
   blink::mojom::StreamDevicesSet stream_devices_set;
   stream_devices_set.stream_devices.emplace_back(
       blink::mojom::StreamDevices::New());
-  blink::mojom::StreamDevices& stream_devices =
-      *stream_devices_set.stream_devices[0];
-  std::unique_ptr<content::MediaStreamUI> ui = GetDevicesForDesktopCapture(
-      request, web_contents, media_id, media_id.audio_share,
-      request.disable_local_echo, request.suppress_local_audio_playback,
-      request.restrict_own_audio,
-      /*display_notification=*/false, GetApplicationTitle(web_contents),
-      request.captured_surface_control_active, stream_devices);
+  *(stream_devices_set.stream_devices[0]) = std::move(devices);
   std::move(callback).Run(stream_devices_set, MediaStreamRequestResult::OK,
                           std::move(ui));
 }
@@ -524,6 +567,8 @@ void DisplayMediaAccessHandler::ProcessQueuedPickerRequest(
       blink::mojom::MediaStreamType::DISPLAY_AUDIO_CAPTURE;
   picker_params.exclude_system_audio =
       pending_request.request.exclude_system_audio;
+  picker_params.window_audio_preference =
+      pending_request.request.window_audio_preference;
   picker_params.suppress_local_audio_playback =
       pending_request.request.suppress_local_audio_playback;
   picker_params.restrict_own_audio = pending_request.request.restrict_own_audio;
@@ -597,31 +642,65 @@ void DisplayMediaAccessHandler::AcceptRequest(WebContents* web_contents,
       (media_id.type == DesktopMediaID::TYPE_WEB_CONTENTS) &&
       media_id.web_contents_id.disable_local_echo;
 
-  blink::mojom::StreamDevicesSet stream_devices_set;
-  stream_devices_set.stream_devices.emplace_back(
-      blink::mojom::StreamDevices::New());
-  blink::mojom::StreamDevices& stream_devices =
-      *stream_devices_set.stream_devices[0];
-  std::unique_ptr<content::MediaStreamUI> ui = GetDevicesForDesktopCapture(
-      pending_request.request, web_contents, media_id, media_id.audio_share,
+  GetDevicesForDesktopCapture(
+      web_contents, media_id, pending_request.request.video_type,
+      pending_request.request.audio_type,
+      pending_request.request.security_origin, media_id.audio_share,
       disable_local_echo, pending_request.request.suppress_local_audio_playback,
       pending_request.request.restrict_own_audio, display_notification_,
       GetApplicationTitle(web_contents),
-      pending_request.request.captured_surface_control_active, stream_devices);
-  UpdateTarget(pending_request.request, media_id);
+      pending_request.request.captured_surface_control_active,
+      base::BindOnce(&DisplayMediaAccessHandler::
+                         OnDesktopCaptureDevicesObtainedAfterAcceptRequest,
+                     base::Unretained(this), web_contents->GetWeakPtr(),
+                     pending_request.request, media_id));
+}
 
-  std::move(pending_request.callback)
-      .Run(stream_devices_set, MediaStreamRequestResult::OK, std::move(ui));
-  queue.pop_front();
+void DisplayMediaAccessHandler::
+    OnDesktopCaptureDevicesObtainedAfterAcceptRequest(
+        base::WeakPtr<WebContents> web_contents,
+        content::MediaStreamRequest request,
+        const DesktopMediaID& media_id,
+        blink::mojom::StreamDevices devices,
+        std::unique_ptr<content::MediaStreamUI> ui) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!web_contents) {
+    return;
+  }
+
+  auto it = pending_requests_.find(web_contents.get());
+  if (it == pending_requests_.end()) {
+    return;
+  }
+  RequestsQueue& queue = it->second;
+  if (queue.empty()) {
+    // UpdateMediaRequestState() called with MEDIA_REQUEST_STATE_CLOSING. Don't
+    // need to do anything.
+    return;
+  }
+
+  // Only do something if the request is still pending.
+  if (IsRequestFirstInQueue(queue, request)) {
+    PendingAccessRequest& pending_request = *(queue.front());
+    UpdateTarget(pending_request.request, media_id);
+
+    blink::mojom::StreamDevicesSet stream_devices_set;
+    stream_devices_set.stream_devices.emplace_back(
+        blink::mojom::StreamDevices::New());
+    *(stream_devices_set.stream_devices[0]) = std::move(devices);
+    std::move(pending_request.callback)
+        .Run(stream_devices_set, MediaStreamRequestResult::OK, std::move(ui));
+    queue.pop_front();
+  }
 
   if (!queue.empty()) {
-    ProcessQueuedAccessRequest(queue, web_contents);
+    ProcessQueuedAccessRequest(queue, web_contents.get());
   }
 }
 
 void DisplayMediaAccessHandler::OnDisplaySurfaceSelected(
     base::WeakPtr<WebContents> web_contents,
-    DesktopMediaID media_id) {
+    base::expected<DesktopMediaID, MediaStreamRequestResult> result) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   if (!web_contents) {
@@ -630,11 +709,13 @@ void DisplayMediaAccessHandler::OnDisplaySurfaceSelected(
     return;
   }
 
-  if (media_id.is_null()) {
-    RejectRequest(web_contents.get(),
-                  MediaStreamRequestResult::PERMISSION_DENIED);
+  if (!result.has_value()) {
+    RejectRequest(web_contents.get(), result.error());
     return;
   }
+
+  const DesktopMediaID media_id = result.value();
+  CHECK(!media_id.is_null());
 
   // If the media id is tied to a tab, check that it hasn't been destroyed.
   if (media_id.type == DesktopMediaID::TYPE_WEB_CONTENTS &&

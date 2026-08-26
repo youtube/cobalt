@@ -35,6 +35,7 @@ import {
   TraceBufferStream,
   TraceFileStream,
   TraceHttpStream,
+  TraceMultipleFilesStream,
   TraceStream,
 } from '../core/trace_stream';
 import {
@@ -142,6 +143,7 @@ async function createEngine(
     console.log('Opening trace using built-in WASM engine');
     engine = new WasmEngineProxy(engineId);
     engine.resetTraceProcessor({
+      tokenizeOnly: false,
       cropTrackEvents: CROP_TRACK_EVENTS_FLAG.get(),
       ingestFtraceInRawTable: INGEST_FTRACE_IN_RAW_TABLE_FLAG.get(),
       analyzeTraceProtoContent: ANALYZE_TRACE_PROTO_CONTENT_FLAG.get(),
@@ -172,6 +174,8 @@ async function loadTraceIntoEngine(
     serializedAppState = traceSource.serializedAppState;
   } else if (traceSource.type === 'HTTP_RPC') {
     traceStream = undefined;
+  } else if (traceSource.type === 'MULTIPLE_FILES') {
+    traceStream = new TraceMultipleFilesStream(traceSource.files);
   } else {
     throw new Error(`Unknown source: ${JSON.stringify(traceSource)}`);
   }
@@ -410,15 +414,7 @@ async function getTraceInfo(
   // This is the offset between the unix epoch and ts in the ts domain.
   // I.e. the value of ts at the time of the unix epoch - usually some large
   // negative value.
-  const realtimeOffset = Time.sub(snapshot.ts, snapshot.clockValue);
-
-  // Find the previous closest midnight from the trace start time.
-  const utcOffset = Time.getLatestMidnight(traceTime.start, realtimeOffset);
-
-  const traceTzOffset = Time.getLatestMidnight(
-    traceTime.start,
-    Time.sub(realtimeOffset, Time.fromSeconds(tzOffMin * 60)),
-  );
+  const unixOffset = Time.sub(snapshot.ts, snapshot.clockValue);
 
   let traceTitle = '';
   let traceUrl = '';
@@ -468,9 +464,7 @@ async function getTraceInfo(
     traceTitle,
     traceUrl,
     tzOffMin,
-    realtimeOffset,
-    utcOffset,
-    traceTzOffset,
+    unixOffset,
     cpus: await getCpus(engine),
     importErrors: await getTraceErrors(engine),
     source: traceSource,

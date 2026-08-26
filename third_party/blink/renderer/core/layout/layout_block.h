@@ -142,6 +142,10 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
   // child of |this| and |before_descendant| has been reparented into that one.
   // Such things are invisible to the DOM, and addChild() is typically called
   // with the DOM tree (and not the layout tree) in mind.
+  void AddChildBeforeDescendantDeprecated(LayoutObject* new_child,
+                                          LayoutObject* before_descendant);
+
+ private:
   void AddChildBeforeDescendant(LayoutObject* new_child,
                                 LayoutObject* before_descendant);
 
@@ -255,7 +259,8 @@ class CORE_EXPORT LayoutBlock : public LayoutBox {
   void ImageChanged(WrappedImagePtr, CanDeferInvalidation) override;
 
  private:
-  PhysicalRect LocalCaretRect(int caret_offset) const final;
+  PhysicalRect LocalCaretRect(int caret_offset,
+                              CaretShape caret_shape) const final;
   bool IsInlineBoxWrapperActuallyChild() const;
 
   // End helper functions and structs used by layoutBlockChildren.

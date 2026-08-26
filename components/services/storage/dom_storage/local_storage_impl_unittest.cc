@@ -29,9 +29,11 @@
 #include "components/services/storage/dom_storage/storage_area_test_util.h"
 #include "components/services/storage/public/cpp/constants.h"
 #include "components/services/storage/public/cpp/filesystem/filesystem_proxy.h"
+#include "components/services/storage/public/mojom/storage_service.mojom.h"
 #include "components/services/storage/public/mojom/storage_usage_info.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/features.h"
+#include "storage/common/database/db_status.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/leveldatabase/env_chromium.h"
@@ -139,6 +141,7 @@ class LocalStorageImplTest : public testing::Test {
     DCHECK(!storage_);
     storage_ = std::make_unique<LocalStorageImpl>(
         path, base::SingleThreadTaskRunner::GetCurrentDefault(),
+        base::NullCallback(),
         /*receiver=*/mojo::NullReceiver());
   }
 
@@ -167,7 +170,7 @@ class LocalStorageImplTest : public testing::Test {
     base::RunLoop loop;
     context()->GetDatabaseForTesting().PostTaskWithThisObject(
         base::BindLambdaForTesting([&](const DomStorageDatabase& db) {
-          leveldb::Status status =
+          DbStatus status =
               db.Put(base::as_byte_span(key), base::as_byte_span(value));
           ASSERT_TRUE(status.ok());
           loop.Quit();
@@ -179,12 +182,11 @@ class LocalStorageImplTest : public testing::Test {
     WaitForDatabaseOpen();
     base::RunLoop loop;
     context()->GetDatabaseForTesting().PostTaskWithThisObject(
-        base::BindLambdaForTesting([&](const DomStorageDatabase& db) {
-          leveldb::WriteBatch batch;
-          leveldb::Status status = db.DeletePrefixed({}, &batch);
-          ASSERT_TRUE(status.ok());
-          status = db.Commit(&batch);
-          ASSERT_TRUE(status.ok());
+        base::BindLambdaForTesting([&](DomStorageDatabase* db) {
+          std::unique_ptr<DomStorageBatchOperation> batch =
+              db->CreateBatchOperation();
+          ASSERT_TRUE(batch->DeletePrefixed({}).ok());
+          ASSERT_TRUE(batch->Commit().ok());
           loop.Quit();
         }));
     loop.Run();
@@ -196,7 +198,7 @@ class LocalStorageImplTest : public testing::Test {
     base::RunLoop loop;
     context()->GetDatabaseForTesting().PostTaskWithThisObject(
         base::BindLambdaForTesting([&](const DomStorageDatabase& db) {
-          leveldb::Status status = db.GetPrefixed({}, &entries);
+          DbStatus status = db.GetPrefixed({}, &entries);
           ASSERT_TRUE(status.ok());
           loop.Quit();
         }));
@@ -948,37 +950,6 @@ TEST_F(LocalStorageImplTest, OnDisk) {
       "LocalStorage.DatabaseOpen",
       leveldb_env::LevelDBStatusValue::LEVELDB_STATUS_OK, 2);
 }
-
-#if BUILDFLAG(IS_COBALT)
-TEST_F(LocalStorageImplTest, DeleteLockFile) {
-  auto key = StdStringToUint8Vector("key");
-  auto value = StdStringToUint8Vector("value");
-
-  DoTestPut(key, value);
-  std::vector<uint8_t> result;
-  EXPECT_TRUE(DoTestGet(key, &result));
-
-  ShutDownStorage();
-
-  base::FilePath db_path = storage_path()
-                               .Append(kLocalStoragePath)
-                               .AppendASCII(kLocalStorageLeveldbName);
-  base::FilePath lock_file_path = db_path.AppendASCII("LOCK");
-
-  // Create a dummy LOCK file to simulate an orphaned lock file.
-  ASSERT_TRUE(base::WriteFile(lock_file_path, ""));
-  ASSERT_TRUE(base::PathExists(lock_file_path));
-
-  // Re-opening the storage with kLocalStorageDeleteLockFile enabled (default).
-  InitializeStorage(storage_path());
-  EXPECT_TRUE(DoTestGet(key, &result));
-  EXPECT_EQ(value, result);
-
-  // Verify the lock file has been deleted.
-  RunUntilIdle();
-  EXPECT_FALSE(base::PathExists(lock_file_path));
-}
-#endif
 
 TEST_F(LocalStorageImplTest, InvalidVersionOnDisk) {
   auto key = StdStringToUint8Vector("key");

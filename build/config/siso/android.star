@@ -43,13 +43,13 @@ def __step_config(ctx, step_config):
     remote_run = True  # Turn this to False when you do file access trace.
 
     # Run static analysis steps locally when build server is enabled.
+    # android_static_analysis = "build_server" by default.
     # https://chromium.googlesource.com/chromium/src/+/main/docs/android_build_instructions.md#asynchronous-static-analysis
     remote_run_static_analysis = False
     if "args.gn" in ctx.metadata:
         gn_args = gn.args(ctx)
 
-        # android_static_analysis = "build_server" by default.
-        if gn_args.get("android_static_analysis") == '"on"':
+        if gn_args.get("android_static_analysis") in ('"on"', '"off"'):
             remote_run_static_analysis = True
         if gn_args.get("enable_kythe_annotations") == "true":
             # Remote Kythe annotations isn't supported.
@@ -159,7 +159,9 @@ def __step_config(ctx, step_config):
             "remote": remote_run_static_analysis,
             "platform_ref": "large",
             "canonicalize_dir": True,
-            "timeout": "2m",
+            # obj/chrome/android/chrome_java__errorprone.stamp step takes too
+            # long.
+            "timeout": "6m",
         },
         {
             "name": "android/compile_kt",
@@ -241,6 +243,16 @@ def __step_config(ctx, step_config):
             "remote": remote_run,
             "platform_ref": "large",
             "timeout": "10m",
+        },
+        {
+            "name": "android/proguard/local",
+            "command_prefix": "python3 ../../build/android/gyp/proguard.py",
+            "action_outs": [
+                # http://crbug.com/396004680#comment15: It slows down CQ build.
+                # It's better to run it locally.
+                "./obj/chrome/test/android_browsertests__apk/android_browsertests__apk.r8dex.jar",
+            ],
+            "remote": False,
         },
         {
             "name": "android/proguard",
@@ -335,14 +347,14 @@ def __android_compile_resources_handler(ctx, cmd):
     #   --webp-cache-dir=obj/android-webp-cache
     inputs = []
     for i, arg in enumerate(cmd.args):
-        for k in ["--dependencies-res-zips=", "--dependencies-res-zip-overlays=", "--extra-res-packages="]:
+        for k in ["--dependencies-res-zips=", "--dependencies-res-zip-overlays="]:
             if arg.startswith(k):
                 arg = arg.removeprefix(k)
                 _, v = __filearg(ctx, arg)
                 for f in v:
                     f = ctx.fs.canonpath(f)
                     inputs.append(f)
-                    if k == "--dependencies-res-zips=" and ctx.fs.exists(f + ".info"):
+                    if ctx.fs.exists(f + ".info"):
                         inputs.append(f + ".info")
 
     ctx.actions.fix(
@@ -458,7 +470,7 @@ def __android_trace_event_bytecode_rewriter(ctx, cmd):
         trace_event_adder_json = json.decode(
             str(ctx.fs.read(ctx.fs.canonpath("gen/build/android/bytecode/trace_event_adder.build_config.json"))),
         )
-        for path in trace_event_adder_json.get("host_classpath", []):
+        for path in trace_event_adder_json.get("processed_classpath", []):
             inputs.append(ctx.fs.canonpath(path))
 
     ctx.actions.fix(
@@ -567,26 +579,17 @@ def __android_turbine_handler(ctx, cmd):
         inputs = cmd.inputs + inputs,
     )
 
-def __deps_configs(ctx, build_config_path, seen, inputs):
-    if build_config_path in seen:
+def __recursive_params_json(ctx, params_path, seen, inputs):
+    if params_path in seen:
         return
-    seen[build_config_path] = True
-    params_path = build_config_path.replace(".build_config.json", ".params.json")
-    inputs.append(build_config_path)
+    seen[params_path] = True
     inputs.append(params_path)
-    build_config_data = json.decode(str(ctx.fs.read(build_config_path)))
-    params_data = None
+    params_data = json.decode(str(ctx.fs.read(params_path)))
 
     # Entries can be in either .build_config.json or in .params.json.
     for configs_key in ["deps_configs", "public_deps_configs"]:
-        sub_configs = build_config_data.get(configs_key)
-        if not sub_configs:
-            if not params_data:
-                params_data = json.decode(str(ctx.fs.read(params_path)))
-            sub_configs = params_data.get(configs_key, [])
-
-        for f in sub_configs:
-            __deps_configs(ctx, ctx.fs.canonpath(f), seen, inputs)
+        for f in params_data.get(configs_key, []):
+            __recursive_params_json(ctx, ctx.fs.canonpath(f), seen, inputs)
 
 def __android_write_build_config_handler(ctx, cmd):
     # Script:
@@ -594,14 +597,13 @@ def __android_write_build_config_handler(ctx, cmd):
     # GN Config:
     #   https://crsrc.org/c/build/config/android/internal_rules.gni;l=122;drc=99e4f79301e108ea3d27ec84320f430490382587
     # Sample args:
+    #   --output gen/third_party/android_deps/org_jetbrains_kotlinx_kotlinx_metadata_jvm_java.build_config.json
     #   --depfile gen/third_party/android_deps/org_jetbrains_kotlinx_kotlinx_metadata_jvm_java__build_config_crbug_908819.d
-    #   --params gen/third_party/android_deps/org_jetbrains_kotlinx_kotlinx_metadata_jvm_java.params.json
     inputs = []
     seen = {}
     for i, arg in enumerate(cmd.args):
-        if arg == "--params":
-            params_path = ctx.fs.canonpath(cmd.args[i + 1])
-            output_build_config_path = params_path.replace(".params.json", ".build_config.json")
+        if arg == "--output":
+            params_path = ctx.fs.canonpath(cmd.args[i + 1].replace(".build_config.json", ".params.json"))
             v = json.decode(str(ctx.fs.read(params_path)))
             path = v.get("shared_libraries_runtime_deps_file")
             if path:
@@ -609,16 +611,14 @@ def __android_write_build_config_handler(ctx, cmd):
             path = v.get("secondary_abi_shared_libraries_runtime_deps_file")
             if path:
                 inputs.append(ctx.fs.canonpath(path))
-            for k in ["apk_under_test_config", "base_module_config", "parent_module_config", "suffix_apk_assets_used_by_config"]:
-                path = v.get(k)
-                if path:
-                    path = ctx.fs.canonpath(path)
-                    if path != output_build_config_path:
-                        __deps_configs(ctx, path, seen, inputs)
-            for k in ["deps_configs", "public_deps_configs", "processor_configs", "module_configs"]:
+            for k in ["deps_configs", "public_deps_configs", "processor_configs"]:
                 for path in v.get(k, []):
                     path = ctx.fs.canonpath(path)
-                    __deps_configs(ctx, path, seen, inputs)
+                    __recursive_params_json(ctx, path, seen, inputs)
+            path = v.get("apk_under_test_config")
+            if path:
+                path = ctx.fs.canonpath(path)
+                __recursive_params_json(ctx, path, seen, inputs)
 
     ctx.actions.fix(inputs = cmd.inputs + inputs)
 

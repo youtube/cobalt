@@ -23,6 +23,10 @@
     #play-pause {
     --cr-icon-button-fill-color: CanvasText;
   }
+
+  cr-icon-button#color {
+    display: none;
+  }
 }
 
 .audio-background-when-active-false {
@@ -50,6 +54,17 @@
 
 .audio-controls {
   margin: 0px;
+}
+
+/* Separate CSS classes are needed instead of setting the style directly so
+ * that when forced colors are active, the color menu isn't reshown through
+ * the code used to manage toolbar overflows. */
+.hidden {
+  display: none;
+}
+
+.visibility-hidden {
+  visibility: hidden;
 }
 
 .granularity-container-when-active-true {
@@ -94,6 +109,28 @@
 
 #more {
   display: none;
+}
+
+/*
+ * Based on styling for cr-icon-button.
+ * The rate menu needs to use a text-based button instead of an icon-based
+ * button in order for the rates to be properly localized. i.e. 1,5 vs. 1.5
+ */
+#rate {
+  background-color: transparent;
+  border: none;
+  border-radius: 50%;
+  --cr-button-text-color: var(--color-sys-on-surface-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+  height: 24px;
+  margin: 4px;
+  min-width: 0;
+  padding: 0;
+  width: 24px;
 }
 
 .separator {

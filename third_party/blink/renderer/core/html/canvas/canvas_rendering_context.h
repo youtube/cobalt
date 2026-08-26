@@ -71,6 +71,7 @@ class VideoFrame;
 namespace blink {
 
 class CanvasResourceProvider;
+class CanvasElementHitTestRegion;
 class ComputedStyle;
 class Document;
 class Element;
@@ -102,13 +103,24 @@ class CORE_EXPORT CanvasRenderingContext
     CanvasRenderingContext& this_;
   };
 
+  class CORE_EXPORT ElementHitTestRegion
+      : public GarbageCollected<ElementHitTestRegion> {
+   public:
+    ElementHitTestRegion(Element* element, const gfx::RectF& rect);
+
+    void Trace(Visitor*) const;
+
+    Element* element() const { return element_.Get(); }
+    gfx::RectF rect() const { return rect_; }
+
+   private:
+    WeakMember<Element> element_;
+    gfx::RectF rect_;
+  };
+
   CanvasRenderingContext(const CanvasRenderingContext&) = delete;
   CanvasRenderingContext& operator=(const CanvasRenderingContext&) = delete;
   ~CanvasRenderingContext() override = default;
-
-  // TODO(crbug.com/40280152): Remove these methods once killswitch-guarded
-  // behavior has shipped.
-  static bool CheckProviderInCanvas2DRenderingContextIsPaintable();
 
   // Correspond to CanvasRenderingAPI defined in
   // tools/metrics/histograms/enums.xml
@@ -163,19 +175,6 @@ class CORE_EXPORT CanvasRenderingContext
 
   CanvasRenderingContextHost* Host() const { return host_.Get(); }
 
-  const CanvasResourceProvider* ResourceProvider() const {
-    if (const CanvasRenderingContextHost* host = Host()) [[likely]] {
-      return host->ResourceProvider();
-    }
-    return nullptr;
-  }
-  CanvasResourceProvider* ResourceProvider() {
-    if (const CanvasRenderingContextHost* host = Host()) [[likely]] {
-      return host->ResourceProvider();
-    }
-    return nullptr;
-  }
-
   virtual SkAlphaType GetAlphaType() const = 0;
   virtual viz::SharedImageFormat GetSharedImageFormat() const = 0;
   virtual gfx::ColorSpace GetColorSpace() const = 0;
@@ -191,6 +190,7 @@ class CORE_EXPORT CanvasRenderingContext
   // which are being rendered to, just not being displayed in the
   // page.
   virtual void PageVisibilityChanged() = 0;
+  virtual void SizeChanged() {}
   virtual bool isContextLost() const { return true; }
   bool IsContextBeingRestored() const { return is_context_being_restored_; }
   // TODO(fserb): remove AsV8RenderingContext and AsV8OffscreenRenderingContext.
@@ -199,6 +199,7 @@ class CORE_EXPORT CanvasRenderingContext
     NOTREACHED();
   }
   virtual bool IsPaintable() const = 0;
+  virtual bool IsHibernating() const { return false; }
   void DidDraw(CanvasPerformanceMonitor::DrawType draw_type) {
     const CanvasRenderingContextHost* const host = Host();
     return DidDraw(host ? SkIRect::MakeWH(host->width(), host->height())
@@ -207,14 +208,18 @@ class CORE_EXPORT CanvasRenderingContext
   }
   void DidDraw(const SkIRect& dirty_rect, CanvasPerformanceMonitor::DrawType);
 
-  // Returns a CanvasResourceProvider containing the current content, or nullptr
-  // if it was not possible to obtain that content. Default implementation
-  // returns the host's CanvasResourceProvider, which is suitable for contexts
-  // that write directly to that resource provider. Other contexts will need to
-  // override this method as suitable.
-  virtual CanvasResourceProvider* PaintRenderingResultsToCanvas(
-      SourceDrawingBuffer) {
-    return Host()->ResourceProvider();
+  // Returns a StaticBitmapImage containing the current content, or nullptr if
+  // it was not possible to obtain that content.
+  virtual scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
+      SourceDrawingBuffer source_buffer,
+      FlushReason reason) = 0;
+
+  // WebGL-specific methods
+  virtual void ClearMarkedCanvasDirty() {}
+  virtual scoped_refptr<CanvasResource> PaintRenderingResultsToResource(
+      SourceDrawingBuffer source_buffer,
+      FlushReason reason) {
+    NOTREACHED();
   }
 
   // Copy the contents of the rendering context to a media::VideoFrame created
@@ -255,9 +260,10 @@ class CORE_EXPORT CanvasRenderingContext
   virtual void LoseContext(LostContextMode) {}
   virtual void SendContextLostEventIfNeeded() {}
 
-  // This method gets called at the end of script tasks that modified
-  // the contents of the canvas (called didDraw). It marks the completion
+  // These methods get called at the end of script tasks that modified
+  // the contents of the canvas (called didDraw). They mark the completion
   // of a presentable frame.
+  virtual void PreFinalizeFrame() {}
   virtual void FinalizeFrame(FlushReason) {}
 
   // Thread::TaskObserver implementation
@@ -273,11 +279,26 @@ class CORE_EXPORT CanvasRenderingContext
   virtual void LangAttributeChanged() {}
   virtual String GetIdFromControl(const Element* element) { return String(); }
   virtual int LayerCount() const { return 0; }
+  virtual bool IsCanvas2DResourceProviderValid() { NOTREACHED(); }
+  virtual CanvasResourceProvider* GetOrCreateCanvas2DResourceProvider() {
+    NOTREACHED();
+  }
+  // If the ResourceProvider currently exists, replaces it with a newly-created
+  // CanvasResourceProvider.
+  virtual void DropAndRecreateExistingCanvas2DResourceProvider() {
+    NOTREACHED();
+  }
+  virtual CanvasResourceProvider* GetResourceProviderForCanvas2D() const {
+    NOTREACHED();
+  }
+  virtual const std::optional<cc::PaintRecord>& GetLastRecordingForCanvas2D() {
+    return empty_recording_;
+  }
+  virtual bool Is2DCanvasAccelerated() const { NOTREACHED(); }
 
   virtual void setFontForTesting(const String&) { NOTREACHED(); }
 
   // WebGL-specific interface
-  virtual bool UsingSwapChain() const { return false; }
   virtual void MarkLayerComposited() { NOTREACHED(); }
   virtual scoped_refptr<StaticBitmapImage>
   GetRGBAUnacceleratedStaticBitmapImage(SourceDrawingBuffer source_buffer) {
@@ -288,7 +309,8 @@ class CORE_EXPORT CanvasRenderingContext
   // WebGL & WebGPU-specific interface
   virtual void SetHdrMetadata(const gfx::HDRMetadata& hdr_metadata) {}
   virtual void Reshape(int width, int height) {}
-  virtual int ExternallyAllocatedBufferCountPerPixel() { NOTREACHED(); }
+
+  virtual int AllocatedBufferCountPerPixel() { NOTREACHED(); }
 
   // OffscreenCanvas-specific methods.
   virtual bool PushFrame() { return false; }
@@ -340,6 +362,18 @@ class CORE_EXPORT CanvasRenderingContext
                          CanvasRenderingAPI);
 
   virtual void Dispose();
+
+  bool IsDrawElementEligible(Element* element,
+                             const String& func_name,
+                             ExceptionState& exception_state);
+
+  bool ConvertHitTestRegionsToHTMLCanvasRegions(
+      const HeapVector<Member<CanvasElementHitTestRegion>>& hit_test_regions,
+      VectorOf<ElementHitTestRegion>& result,
+      const String& func_name,
+      ExceptionState& exception_state);
+
+  std::optional<cc::PaintRecord> empty_recording_;
 
  private:
   Member<CanvasRenderingContextHost> host_;

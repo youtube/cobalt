@@ -375,9 +375,8 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
     if (attributes.IsNothing()) return Nothing<bool>();
     if (attributes.FromJust() != ABSENT) {
       DirectHandle<Object> target_length;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_length,
-                                       Object::GetProperty(&length_lookup),
-                                       Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, target_length,
+                                 Object::GetProperty(&length_lookup));
       if (IsNumber(*target_length)) {
         length = isolate->factory()->NewNumber(std::max(
             0.0,
@@ -407,19 +406,16 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
       !name_lookup.GetAccessors().is_identical_to(function_name_accessor) ||
       (name_lookup.IsFound() && !name_lookup.HolderIsReceiver())) {
     DirectHandle<Object> target_name;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_name,
-                                     Object::GetProperty(&name_lookup),
-                                     Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, target_name,
+                               Object::GetProperty(&name_lookup));
     DirectHandle<String> name;
     if (IsString(*target_name)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, name,
-          Name::ToFunctionName(isolate, Cast<String>(target_name)),
-          Nothing<bool>());
+          Name::ToFunctionName(isolate, Cast<String>(target_name)));
       if (!prefix.is_null()) {
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, name, isolate->factory()->NewConsString(prefix, name),
-            Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, name, isolate->factory()->NewConsString(prefix, name));
       }
     } else if (prefix.is_null()) {
       name = isolate->factory()->empty_string();
@@ -489,9 +485,8 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
     DirectHandle<JSWrappedFunction> target(
         Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
     int target_length = 0;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, target_length, JSWrappedFunction::GetLength(isolate, target),
-        Nothing<int>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, target_length,
+                               JSWrappedFunction::GetLength(isolate, target));
     int length = std::max(0, target_length - nof_bound_arguments);
     return Just(length);
   }
@@ -597,10 +592,8 @@ MaybeDirectHandle<Object> JSWrappedFunction::Create(
         creation_context->type_error_function(), isolate);
     DirectHandle<String> string =
         Object::NoSideEffectsToString(isolate, exception);
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewError(type_error_function, MessageTemplate::kCannotWrap, string),
-        {});
+    THROW_NEW_ERROR(isolate, NewError(type_error_function,
+                                      MessageTemplate::kCannotWrap, string));
   }
   DCHECK(is_abrupt.FromJust());
 
@@ -767,7 +760,7 @@ void JSFunction::InitializeFeedbackCell(
   }
 
   const bool needs_feedback_vector =
-      !v8_flags.lazy_feedback_allocation || v8_flags.always_turbofan ||
+      !v8_flags.lazy_feedback_allocation ||
       // We also need a feedback vector for certain log events, collecting type
       // profile and more precise code coverage.
       v8_flags.log_function_events ||
@@ -1058,7 +1051,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
     case JS_TEMPORAL_PLAIN_TIME_TYPE:
     case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
-    case JS_TEMPORAL_TIME_ZONE_TYPE:
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
 #endif
     case JS_WEAK_MAP_TYPE:
@@ -1469,7 +1461,7 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
   // If this function was compiled from asm.js, use the recorded offset
   // information.
 #if V8_ENABLE_WEBASSEMBLY
-  if (shared_info->HasWasmExportedFunctionData()) {
+  if (shared_info->HasWasmExportedFunctionData(isolate)) {
     DirectHandle<WasmExportedFunctionData> function_data(
         shared_info->wasm_exported_function_data(), isolate);
     const wasm::WasmModule* module = function_data->instance_data()->module();

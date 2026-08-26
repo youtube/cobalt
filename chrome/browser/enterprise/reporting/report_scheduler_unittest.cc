@@ -151,7 +151,7 @@ class ReportSchedulerTest : public ::testing::Test {
   ReportSchedulerTest()
       : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME),
         local_state_(TestingBrowserProcess::GetGlobal()),
-        profile_manager_(TestingBrowserProcess::GetGlobal(), &local_state_) {}
+        profile_manager_(TestingBrowserProcess::GetGlobal()) {}
 
   ReportSchedulerTest(const ReportSchedulerTest&) = delete;
   ReportSchedulerTest& operator=(const ReportSchedulerTest&) = delete;
@@ -942,8 +942,10 @@ TEST_F(ReportSchedulerTest, OnNewVersionRegularReport) {
 
   histogram_tester_.ExpectUniqueSample(kUploadTriggerMetricName, 1, 1);
 }
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 
-// Profile security signals are not supported on Android nor ChromeOS.
+#if !BUILDFLAG(IS_CHROMEOS)
+// Profile security signals are not supported on ChromeOS.
 class EnabledProfileSecuritySignalsReportSchedulerTest
     : public ReportSchedulerTest {
  protected:
@@ -1222,6 +1224,6 @@ TEST_F(EnabledProfileSecuritySignalsReportSchedulerTest,
   histogram_tester_.ExpectTotalCount(kSignalsReportingModeMetricName, 0);
 }
 
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace enterprise_reporting

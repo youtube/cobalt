@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "base/process/process.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 
 namespace base {

@@ -31,7 +31,6 @@
 #include "components/autofill/core/browser/metrics/payments/cvc_storage_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/iban_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/mandatory_reauth_metrics.h"
-#include "components/autofill/core/browser/metrics/payments/offers_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/wallet_usage_data_metrics.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/constants.h"
@@ -557,6 +556,16 @@ const Iban* PaymentsDataManager::GetIbanByGUID(const std::string& guid) const {
   return iter != local_ibans_.end() ? iter->get() : nullptr;
 }
 
+const AutofillOfferData* PaymentsDataManager::GetMerchantPromoCodeByOfferId(
+    const int64_t offer_id) const {
+  auto iter = std::ranges::find_if(
+      autofill_offer_data_,
+      [&offer_id](const std::unique_ptr<AutofillOfferData>& offer_data) {
+        return offer_data->GetOfferId() == offer_id;
+      });
+  return iter != autofill_offer_data_.end() ? iter->get() : nullptr;
+}
+
 const Iban* PaymentsDataManager::GetIbanByInstrumentId(
     int64_t instrument_id) const {
   for (const Iban* iban : GetServerIbans()) {
@@ -664,8 +673,7 @@ PaymentsDataManager::GetApplicableBenefitDescriptionForCardAndOrigin(
     const url::Origin& origin,
     const AutofillOptimizationGuide* optimization_guide) const {
   // Ensures that benefit suggestions can be displayed.
-  if (ShouldBlockCardBenefitSuggestionLabels(credit_card, origin,
-                                             optimization_guide)) {
+  if (ShouldBlockCardBenefitSuggestionLabels()) {
     return std::u16string();
   }
 
@@ -685,7 +693,7 @@ PaymentsDataManager::GetApplicableBenefitDescriptionForCardAndOrigin(
   if (optimization_guide) {
     CreditCardCategoryBenefit::BenefitCategory category_benefit_type =
         optimization_guide->AttemptToGetEligibleCreditCardBenefitCategory(
-            credit_card.issuer_id(), origin.GetURL());
+            credit_card.benefit_source(), origin.GetURL());
     if (category_benefit_type !=
         CreditCardCategoryBenefit::BenefitCategory::kUnknownBenefitCategory) {
       std::optional<CreditCardCategoryBenefit> category_benefit =
@@ -701,7 +709,16 @@ PaymentsDataManager::GetApplicableBenefitDescriptionForCardAndOrigin(
   std::optional<CreditCardFlatRateBenefit> flat_rate_benefit =
       GetFlatRateBenefitByInstrumentId(benefit_instrument_id);
   if (flat_rate_benefit && flat_rate_benefit->IsActiveBenefit()) {
-    return flat_rate_benefit->benefit_description();
+    // Return empty string if flat rate benefit is blocked on the current
+    // merchant.
+    return base::FeatureList::IsEnabled(
+               features::kAutofillEnableFlatRateCardBenefitsBlocklist) &&
+                   optimization_guide &&
+                   optimization_guide
+                       ->ShouldBlockFlatRateBenefitSuggestionLabelsForUrl(
+                           origin.GetURL())
+               ? std::u16string()
+               : flat_rate_benefit->benefit_description();
   }
 
   // No eligible benefit to display.
@@ -992,6 +1009,10 @@ void PaymentsDataManager::SetPrefService(PrefService* pref_service) {
         // BUILDFLAG(IS_CHROMEOS)
 }
 
+bool PaymentsDataManager::IsAutofillBnplPrefEnabled() const {
+  return prefs::IsAutofillBnplEnabled(pref_service_);
+}
+
 void PaymentsDataManager::NotifyObservers() {
   if (!HasPendingPaymentQueries()) {
     for (Observer& o : observers_) {
@@ -1025,20 +1046,10 @@ bool PaymentsDataManager::IsCardBenefitsFeatureEnabled() {
              features::kAutofillEnableFlatRateCardBenefitsFromCurinos);
 }
 
-bool PaymentsDataManager::ShouldBlockCardBenefitSuggestionLabels(
-    const CreditCard& credit_card,
-    const url::Origin& origin,
-    const AutofillOptimizationGuide* optimization_guide) const {
+bool PaymentsDataManager::ShouldBlockCardBenefitSuggestionLabels() const {
   // Benefits are only supported for app locale set to U.S. English or Great
   // Britain English.
-  if (app_locale_ != "en-US" && app_locale_ != "en-GB") {
-    return true;
-  }
-  // Ensure that benefit suggestions can be displayed for this card on the
-  // current origin.
-  return optimization_guide &&
-         optimization_guide->ShouldBlockBenefitSuggestionLabelsForCardAndUrl(
-             credit_card, origin.GetURL());
+  return app_locale_ != "en-US" && app_locale_ != "en-GB";
 }
 
 bool PaymentsDataManager::IsCardBenefitsPrefEnabled() const {
@@ -1048,10 +1059,6 @@ bool PaymentsDataManager::IsCardBenefitsPrefEnabled() const {
 bool PaymentsDataManager::IsCardBenefitsSyncEnabled() const {
   return base::FeatureList::IsEnabled(
       features::kAutofillEnableCardBenefitsSync);
-}
-
-bool PaymentsDataManager::IsAutofillBnplPrefEnabled() const {
-  return prefs::IsAutofillBnplEnabled(pref_service_);
 }
 
 bool PaymentsDataManager::IsAutofillPaymentMethodsEnabled() const {
@@ -1952,7 +1959,6 @@ void PaymentsDataManager::LogStoredPaymentsDataMetrics() const {
       GetServerCardWithArtImageCount(), kDisusedDataModelTimeDelta);
   autofill_metrics::LogStoredIbanMetrics(local_ibans_, server_ibans_,
                                          kDisusedDataModelTimeDelta);
-  autofill_metrics::LogStoredOfferMetrics(autofill_offer_data_);
   autofill_metrics::LogStoredVirtualCardUsageCount(
       autofill_virtual_card_usage_data_.size());
   LogBnplIssuersSyncedCountAtStartup(GetBnplIssuers().size());
@@ -2022,8 +2028,26 @@ bool PaymentsDataManager::IsFacilitatedPaymentsPixUserPrefEnabled() const {
   return prefs::IsFacilitatedPaymentsPixEnabled(pref_service_);
 }
 
+void PaymentsDataManager::SetFacilitatedPaymentsPixAccountLinkingUserPref(
+    bool enabled) {
+  prefs::SetFacilitatedPaymentsPixAccountLinking(pref_service_, enabled);
+}
+
+bool PaymentsDataManager::
+    IsFacilitatedPaymentsPixAccountLinkingUserPrefEnabled() const {
+  return prefs::IsFacilitatedPaymentsPixAccountLinkingEnabled(pref_service_);
+}
+
 bool PaymentsDataManager::IsFacilitatedPaymentsEwalletUserPrefEnabled() const {
   return prefs::IsFacilitatedPaymentsEwalletEnabled(pref_service_);
+}
+
+bool PaymentsDataManager::IsFacilitatedPaymentsA2AUserPrefEnabled() const {
+  return prefs::IsFacilitatedPaymentsA2AEnabled(pref_service_);
+}
+
+void PaymentsDataManager::SetFacilitatedPaymentsA2ATriggeredOnce(bool enabled) {
+  prefs::SetFacilitatedPaymentsA2ATriggeredOnce(pref_service_, enabled);
 }
 
 bool PaymentsDataManager::HasPendingPaymentQueries() const {
@@ -2219,8 +2243,8 @@ void PaymentsDataManager::CacheIfLinkedBnplPaymentInstrument(
       payment_instrument.bnpl_issuer_details();
 
   // If `payment_instrument` has an unsupported issuer ID, do not cache it.
-  if (!base::Contains(payments::BnplManager::GetSupportedBnplIssuerIds(),
-                      bnpl_issuer_details.issuer_id())) {
+  if (!payments::BnplManager::IsBnplIssuerSupported(
+          bnpl_issuer_details.issuer_id())) {
     return;
   }
 
@@ -2242,7 +2266,29 @@ void PaymentsDataManager::CacheIfLinkedBnplPaymentInstrument(
     return;
   }
 
-  // `GetSupportedBnplIssuerIds` is already called to filter out any unknown
+  DenseSet<PaymentInstrument::ActionRequired> action_required =
+      DenseSet<PaymentInstrument::ActionRequired>();
+
+  // Sets values for `BnplIssuer::action_required` when the list is not empty
+  // and flag 'kAutofillEnableBuyNowPayLaterForExternallyLinked` is enabled.
+  // Note: `action_required_size()` is checked first so that the experiment
+  // groups only contain users having nonempty`action_required` info.
+  if (payment_instrument.action_required_size() > 0 &&
+      base::FeatureList::IsEnabled(
+          features::kAutofillEnableBuyNowPayLaterForExternallyLinked)) {
+    for (int action_required_sync : payment_instrument.action_required()) {
+      switch (action_required_sync) {
+        case sync_pb::PaymentInstrument_ActionRequired_ACTION_REQUIRED_UNKNOWN:
+          action_required.insert(PaymentInstrument::ActionRequired::kUnknown);
+          break;
+        case sync_pb::PaymentInstrument_ActionRequired_ACCEPT_TOS:
+          action_required.insert(PaymentInstrument::ActionRequired::kAcceptTos);
+          break;
+      }
+    }
+  }
+
+  // `IsBnplIssuerSupported` is already called to filter out any unknown
   // issuer IDs that might be returned by the payment server. This ensures that
   // only issuer IDs with a corresponding BnplIssuer::IssuerId enum value are
   // processed, thus guaranteeing that `ConvertToBnplIssuerIdEnum` will not
@@ -2250,7 +2296,7 @@ void PaymentsDataManager::CacheIfLinkedBnplPaymentInstrument(
   linked_bnpl_issuers_.emplace_back(
       payment_instrument.instrument_id(),
       ConvertToBnplIssuerIdEnum(bnpl_issuer_details.issuer_id()),
-      std::move(eligible_price_ranges));
+      std::move(eligible_price_ranges), std::move(action_required));
 }
 
 void PaymentsDataManager::CacheIfEwalletPaymentInstrument(
@@ -2300,8 +2346,7 @@ void PaymentsDataManager::CacheIfBnplPaymentInstrumentCreationOption(
 
   // If `payment_instrument_creation_option` has an unsupported issuer ID, do
   // not cache it.
-  if (!base::Contains(payments::BnplManager::GetSupportedBnplIssuerIds(),
-                      bnpl_issuer.issuer_id())) {
+  if (!payments::BnplManager::IsBnplIssuerSupported(bnpl_issuer.issuer_id())) {
     return;
   }
 
@@ -2322,7 +2367,7 @@ void PaymentsDataManager::CacheIfBnplPaymentInstrumentCreationOption(
     return;
   }
 
-  // `GetSupportedBnplIssuerIds` is already called to filter out any unknown
+  // `IsBnplIssuerSupported` is already called to filter out any unknown
   // issuer IDs that might be returned by the payment server. This ensures that
   // only issuer IDs with a corresponding BnplIssuer::IssuerId enum value are
   // processed, thus guaranteeing that `ConvertToBnplIssuerIdEnum` will not

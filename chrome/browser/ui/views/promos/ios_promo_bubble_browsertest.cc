@@ -13,6 +13,8 @@
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
+#include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
+#include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "content/public/test/browser_test.h"
@@ -34,8 +36,7 @@ class IOSPasswordPromoBubbleTest : public DialogBrowserTest {
     // Test for iOS Promo Bubble for Desktop Passwords promo.
     IOSPromoBubble::ShowPromoBubble(
         button_provider->GetAnchorView(kActionShowPasswordsBubbleOrPage),
-        button_provider->GetPageActionIconView(
-            PageActionIconType::kManagePasswords),
+        button_provider->GetPageActionView(kActionShowPasswordsBubbleOrPage),
         browser()->profile(), IOSPromoType::kPassword);
   }
 };
@@ -54,6 +55,7 @@ class IOSAddressPromoBubbleTest : public DialogBrowserTest {
     ToolbarButtonProvider* button_provider =
         BrowserView::GetBrowserViewForBrowser(browser())
             ->toolbar_button_provider();
+
     // Test for iOS Promo Bubble for Desktop Address promo.
     IOSPromoBubble::ShowPromoBubble(
         button_provider->GetAnchorView(kActionShowAddressesBubbleOrPage),
@@ -90,6 +92,23 @@ IN_PROC_BROWSER_TEST_F(IOSPasswordPromoBubbleTest, InvokeUi_default) {
 }
 
 IN_PROC_BROWSER_TEST_F(IOSAddressPromoBubbleTest, InvokeUi_default) {
+  if (IsPageActionMigrated(PageActionIconType::kAutofillAddress)) {
+    GTEST_SKIP()
+        << "This test should be merged with InvokeUi_with_no_page_action after "
+           "page action migration (See: https://crbug.com/424188577).\n";
+  }
+
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(IOSAddressPromoBubbleTest,
+                       InvokeUi_with_no_page_action) {
+  if (!IsPageActionMigrated(PageActionIconType::kAutofillAddress)) {
+    GTEST_SKIP()
+        << "This test should be merged with InvokeUi_default after "
+           "page action migration (See: https://crbug.com/424188577).\n";
+  }
+
   ShowAndVerifyUi();
 }
 

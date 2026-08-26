@@ -10,7 +10,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
-#include "chrome/browser/password_manager/password_sender_service_factory.h"
+#include "chrome/browser/password_manager/factories/password_sender_service_factory.h"
 #include "chrome/browser/sync/test/integration/fake_server_match_status_checker.h"
 #include "chrome/browser/sync/test/integration/password_sharing_invitation_helper.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
@@ -216,7 +216,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientOutgoingPasswordSharingInvitationTest,
   ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
   ASSERT_FALSE(GetSyncService(0)->IsSyncFeatureEnabled());
   ASSERT_TRUE(password_manager::features_util::IsAccountStorageEnabled(
-      GetProfile(0)->GetPrefs(), GetSyncService(0)));
+      GetSyncService(0)));
 
   PasswordRecipient recipient = {
       .user_id = kRecipientUserId,

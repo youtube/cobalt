@@ -11,18 +11,29 @@
 #include "modules/desktop_capture/win/full_screen_win_application_handler.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cwchar>
 #include <cwctype>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
-#include "modules/desktop_capture/win/screen_capture_utils.h"
-#include "modules/desktop_capture/win/window_capture_utils.h"
-#include "rtc_base/arraysize.h"
+#include "absl/strings/string_view.h"
+#include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/full_screen_application_handler.h"
 #include "rtc_base/logging.h"  // For RTC_LOG_GLE
 #include "rtc_base/string_utils.h"
+#include "system_wrappers/include/metrics.h"
+
+void RecordFullScreenDetectorResult(FullScreenDetectorResult result) {
+  RTC_HISTOGRAM_ENUMERATION(
+      "WebRTC.Screenshare.FullScreenDetectorResult", static_cast<int>(result),
+      static_cast<int>(FullScreenDetectorResult::kMaxValue));
+}
 
 namespace webrtc {
 namespace {
@@ -48,6 +59,26 @@ bool CheckWindowClassName(HWND window, const wchar_t* class_name) {
   return wcsncmp(buffer, class_name, classNameLength) == 0;
 }
 
+bool IsFullScreenWindow(HWND wnd) {
+  // Get the monitor info of the display monitor where the window is.
+  MONITORINFO monitor_info = {sizeof(monitor_info)};
+  if (!::GetMonitorInfo(::MonitorFromWindow(wnd, MONITOR_DEFAULTTONEAREST),
+                        &monitor_info)) {
+    return false;
+  }
+
+  // Verifies if the window rectangle is same as the monitor.
+  RECT wnd_rect;
+  if (!::GetWindowRect(wnd, &wnd_rect) ||
+      !::EqualRect(&wnd_rect, &monitor_info.rcMonitor)) {
+    return false;
+  }
+
+  // Check if the window style does not have WS_OVERLAPPEDWINDOW as the full
+  // screen window should not have a title bar or border.
+  return !(::GetWindowLongPtr(wnd, GWL_STYLE) & WS_OVERLAPPEDWINDOW);
+}
+
 std::string WindowText(HWND window) {
   size_t len = ::GetWindowTextLength(window);
   if (len == 0) {
@@ -59,7 +90,7 @@ std::string WindowText(HWND window) {
   if (copied == 0) {
     return std::string();
   }
-  return webrtc::ToUtf8(buffer.data(), copied);
+  return ToUtf8(buffer.data(), copied);
 }
 
 DWORD WindowProcessId(HWND window) {
@@ -97,7 +128,9 @@ DesktopCapturer::SourceList GetProcessWindows(
 
 FullScreenPowerPointHandler::FullScreenPowerPointHandler(
     DesktopCapturer::SourceId sourceId)
-    : FullScreenApplicationHandler(sourceId) {}
+    : FullScreenApplicationHandler(sourceId),
+      was_slide_show_created_after_capture_started_(false),
+      full_screen_detector_result_(FullScreenDetectorResult::kUnknown) {}
 
 DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
     const DesktopCapturer::SourceList& window_list,
@@ -117,22 +150,61 @@ DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
   // No relevant windows with the same process id as the `original_window` were
   // found.
   if (powerpoint_windows.empty()) {
+    was_slide_show_created_after_capture_started_ = true;
     return 0;
   }
 
+  bool do_same_title_editors_exist = false;
+  bool does_slide_show_exist = false;
+  DesktopCapturer::SourceId full_screen_slide_show_id = 0;
   const std::string original_document_title =
       GetDocumentTitleFromEditor(original_window);
+  auto result = full_screen_detector_result_;
   for (const auto& source : powerpoint_windows) {
     HWND window = reinterpret_cast<HWND>(source.id);
+
+    // If another PowerPoint editor window with the same title exists, then we
+    // don't use the heuristic as we don't know which editor has opened the
+    // slide show.
+    if (GetWindowType(window) == WindowType::kEditor &&
+        GetDocumentTitleFromEditor(window) == original_document_title) {
+      do_same_title_editors_exist = true;
+      result = FullScreenDetectorResult::kFailureDueToSameTitleWindows;
+    }
 
     // Looking for fullscreen slide show window for the corresponding editor
     // document.
     if (GetWindowType(window) == WindowType::kSlideShow &&
         GetDocumentTitleFromSlideShow(window) == original_document_title) {
-      return source.id;
+      does_slide_show_exist = true;
+      full_screen_slide_show_id = source.id;
     }
   }
-  return 0;
+  if (does_slide_show_exist) {
+    if (!was_slide_show_created_after_capture_started_) {
+      full_screen_slide_show_id = 0;
+      result = FullScreenDetectorResult::kFailureDueToSlideShowWasNotChosen;
+    } else if (do_same_title_editors_exist) {
+      full_screen_slide_show_id = 0;
+      result = FullScreenDetectorResult::kFailureDueToSameTitleWindows;
+    } else {
+      result = FullScreenDetectorResult::kSuccess;
+    }
+  } else {
+    was_slide_show_created_after_capture_started_ = true;
+  }
+
+  if (full_screen_detector_result_ != result) {
+    full_screen_detector_result_ = result;
+    RecordFullScreenDetectorResult(result);
+  }
+  return full_screen_slide_show_id;
+}
+
+void FullScreenPowerPointHandler::SetSlideShowCreationStateForTest(
+    bool fullscreen_slide_show_started_after_capture_start) {
+  was_slide_show_created_after_capture_started_ =
+      fullscreen_slide_show_started_after_capture_start;
 }
 
 FullScreenPowerPointHandler::WindowType
@@ -181,12 +253,8 @@ bool FullScreenPowerPointHandler::IsEditorWindow(HWND window) const {
 }
 
 bool FullScreenPowerPointHandler::IsSlideShowWindow(HWND window) const {
-  // TODO(https://crbug.com/409473386): Change this to use GetWindowLongPtr
-  // instead as recommended in the MS Windows API.
-  // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowlongptra
-  const bool has_minimize_or_maximize_buttons =
-      ::GetWindowLong(window, GWL_STYLE) & (WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
-  return !has_minimize_or_maximize_buttons;
+  return CheckWindowClassName(window, L"screenClass") &&
+         IsFullScreenWindow(window);
 }
 
 class OpenOfficeApplicationHandler : public FullScreenApplicationHandler {

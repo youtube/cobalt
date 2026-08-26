@@ -18,12 +18,11 @@
 #include "ui/gl/gl_gl_api_implementation.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/gl_version_info.h"
-#include "ui/gl/startup_trace.h"
 
 namespace gl {
 
 void DriverGL::InitializeStaticBindings(GLGetProcAddressProc get_proc_address) {
-  GPU_STARTUP_TRACE_EVENT("DriverGL::InitializeStaticBindings");
+  TRACE_EVENT("gpu,startup", "DriverGL::InitializeStaticBindings");
   fn.glActiveTextureFn = reinterpret_cast<glActiveTextureProc>(
       get_proc_address("glActiveTexture"));
   fn.glAttachShaderFn =
@@ -450,6 +449,8 @@ void DriverGL::InitializeDynamicBindings(GLGetProcAddressProc get_proc_address,
   ext.b_GL_KHR_robustness = gfx::HasExtension(extensions, "GL_KHR_robustness");
   ext.b_GL_MESA_framebuffer_flip_y =
       gfx::HasExtension(extensions, "GL_MESA_framebuffer_flip_y");
+  ext.b_GL_MESA_sampler_objects =
+      gfx::HasExtension(extensions, "GL_MESA_sampler_objects");
   ext.b_GL_NV_blend_equation_advanced =
       gfx::HasExtension(extensions, "GL_NV_blend_equation_advanced");
   ext.b_GL_NV_fence = gfx::HasExtension(extensions, "GL_NV_fence");
@@ -539,7 +540,7 @@ void DriverGL::InitializeDynamicBindings(GLGetProcAddressProc get_proc_address,
         get_proc_address("glBindProgramPipeline"));
   }
 
-  if (ver->IsAtLeastGLES(3u, 0u)) {
+  if (ver->IsAtLeastGLES(3u, 0u) || ext.b_GL_MESA_sampler_objects) {
     fn.glBindSamplerFn =
         reinterpret_cast<glBindSamplerProc>(get_proc_address("glBindSampler"));
   }
@@ -798,7 +799,7 @@ void DriverGL::InitializeDynamicBindings(GLGetProcAddressProc get_proc_address,
         get_proc_address("glDeleteQueriesEXT"));
   }
 
-  if (ver->IsAtLeastGLES(3u, 0u)) {
+  if (ver->IsAtLeastGLES(3u, 0u) || ext.b_GL_MESA_sampler_objects) {
     fn.glDeleteSamplersFn = reinterpret_cast<glDeleteSamplersProc>(
         get_proc_address("glDeleteSamplers"));
   }
@@ -1081,7 +1082,7 @@ void DriverGL::InitializeDynamicBindings(GLGetProcAddressProc get_proc_address,
         reinterpret_cast<glGenQueriesProc>(get_proc_address("glGenQueriesEXT"));
   }
 
-  if (ver->IsAtLeastGLES(3u, 0u)) {
+  if (ver->IsAtLeastGLES(3u, 0u) || ext.b_GL_MESA_sampler_objects) {
     fn.glGenSamplersFn =
         reinterpret_cast<glGenSamplersProc>(get_proc_address("glGenSamplers"));
   }
@@ -1500,7 +1501,7 @@ void DriverGL::InitializeDynamicBindings(GLGetProcAddressProc get_proc_address,
             get_proc_address("glGetRenderbufferParameterivRobustANGLE"));
   }
 
-  if (ver->IsAtLeastGLES(3u, 0u)) {
+  if (ver->IsAtLeastGLES(3u, 0u) || ext.b_GL_MESA_sampler_objects) {
     fn.glGetSamplerParameterfvFn =
         reinterpret_cast<glGetSamplerParameterfvProc>(
             get_proc_address("glGetSamplerParameterfv"));
@@ -1524,7 +1525,7 @@ void DriverGL::InitializeDynamicBindings(GLGetProcAddressProc get_proc_address,
             get_proc_address("glGetSamplerParameterIuivRobustANGLE"));
   }
 
-  if (ver->IsAtLeastGLES(3u, 0u)) {
+  if (ver->IsAtLeastGLES(3u, 0u) || ext.b_GL_MESA_sampler_objects) {
     fn.glGetSamplerParameterivFn =
         reinterpret_cast<glGetSamplerParameterivProc>(
             get_proc_address("glGetSamplerParameteriv"));
@@ -1762,7 +1763,7 @@ void DriverGL::InitializeDynamicBindings(GLGetProcAddressProc get_proc_address,
         reinterpret_cast<glIsQueryProc>(get_proc_address("glIsQueryEXT"));
   }
 
-  if (ver->IsAtLeastGLES(3u, 0u)) {
+  if (ver->IsAtLeastGLES(3u, 0u) || ext.b_GL_MESA_sampler_objects) {
     fn.glIsSamplerFn =
         reinterpret_cast<glIsSamplerProc>(get_proc_address("glIsSampler"));
   }
@@ -2205,12 +2206,12 @@ void DriverGL::InitializeDynamicBindings(GLGetProcAddressProc get_proc_address,
         reinterpret_cast<glSampleMaskiProc>(get_proc_address("glSampleMaski"));
   }
 
-  if (ver->IsAtLeastGLES(3u, 0u)) {
+  if (ver->IsAtLeastGLES(3u, 0u) || ext.b_GL_MESA_sampler_objects) {
     fn.glSamplerParameterfFn = reinterpret_cast<glSamplerParameterfProc>(
         get_proc_address("glSamplerParameterf"));
   }
 
-  if (ver->IsAtLeastGLES(3u, 0u)) {
+  if (ver->IsAtLeastGLES(3u, 0u) || ext.b_GL_MESA_sampler_objects) {
     fn.glSamplerParameterfvFn = reinterpret_cast<glSamplerParameterfvProc>(
         get_proc_address("glSamplerParameterfv"));
   }
@@ -2221,7 +2222,7 @@ void DriverGL::InitializeDynamicBindings(GLGetProcAddressProc get_proc_address,
             get_proc_address("glSamplerParameterfvRobustANGLE"));
   }
 
-  if (ver->IsAtLeastGLES(3u, 0u)) {
+  if (ver->IsAtLeastGLES(3u, 0u) || ext.b_GL_MESA_sampler_objects) {
     fn.glSamplerParameteriFn = reinterpret_cast<glSamplerParameteriProc>(
         get_proc_address("glSamplerParameteri"));
   }
@@ -2238,7 +2239,7 @@ void DriverGL::InitializeDynamicBindings(GLGetProcAddressProc get_proc_address,
             get_proc_address("glSamplerParameterIuivRobustANGLE"));
   }
 
-  if (ver->IsAtLeastGLES(3u, 0u)) {
+  if (ver->IsAtLeastGLES(3u, 0u) || ext.b_GL_MESA_sampler_objects) {
     fn.glSamplerParameterivFn = reinterpret_cast<glSamplerParameterivProc>(
         get_proc_address("glSamplerParameteriv"));
   }

@@ -33,7 +33,6 @@
 #include "content/public/browser/render_view_host.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
-#include "ipc/ipc_sender.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/bindings/sync_call_restrictions.h"
 #include "third_party/skia/include/core/SkCanvas.h"
@@ -166,6 +165,8 @@ SynchronousCompositorHost::SynchronousCompositorHost(
       host_frame_sink_manager_(host_frame_sink_manager),
       use_in_process_zero_copy_software_draw_(use_in_proc_software_draw),
       bytes_limit_(0u),
+      allow_async_draw_(
+          base::FeatureList::IsEnabled(features::kWebViewAsyncDrawOnly)),
       renderer_param_version_(0u),
       need_invalidate_count_(0u),
       invalidate_needs_draw_(false),
@@ -237,14 +238,13 @@ SynchronousCompositorHost::DemandDrawHwAsync(
           transform_for_tile_priority,
           /*need_new_local_surface_id=*/was_evicted_);
 
-  was_evicted_ = false;
-
   blink::mojom::SynchronousCompositor* compositor = GetSynchronousCompositor();
   if (!bridge_->SetFrameFutureOnUIThread(frame_future)) {
     frame_future->SetFrame(nullptr);
   } else {
     DCHECK(compositor);
     compositor->DemandDrawHwAsync(std::move(params));
+    was_evicted_ = false;
   }
   return frame_future;
 }

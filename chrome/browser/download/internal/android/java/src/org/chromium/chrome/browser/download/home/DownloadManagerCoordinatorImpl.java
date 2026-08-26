@@ -67,6 +67,7 @@ class DownloadManagerCoordinatorImpl
             Callback<Context> settingsNavigation,
             SnackbarManager snackbarManager,
             ModalDialogManager modalDialogManager,
+            DownloadHelpPageLauncher helpPageLauncher,
             Tracker tracker,
             FaviconProvider faviconProvider,
             OfflineContentProvider provider,
@@ -74,7 +75,7 @@ class DownloadManagerCoordinatorImpl
         mActivity = activity;
         mSettingsNavigation = settingsNavigation;
         mDeleteCoordinator = new DeleteUndoCoordinator(snackbarManager);
-        mSelectionDelegate = new SelectionDelegate<ListItem>();
+        mSelectionDelegate = new SelectionDelegate<>();
         mListCoordinator =
                 new DateOrderedListCoordinator(
                         mActivity,
@@ -86,6 +87,7 @@ class DownloadManagerCoordinatorImpl
                         this::notifyFilterChanged,
                         createDateOrderedListObserver(),
                         modalDialogManager,
+                        helpPageLauncher,
                         faviconProvider,
                         discardableReferencePool);
         mToolbarCoordinator =
@@ -95,7 +97,7 @@ class DownloadManagerCoordinatorImpl
                         /* listActionDelegate= */ mListCoordinator,
                         /* listContentView= */ mListCoordinator.getView(),
                         mSelectionDelegate,
-                        config.isSeparateActivity,
+                        config,
                         tracker);
 
         initializeView();

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 
 #include "base/command_line.h"
@@ -6784,6 +6785,29 @@ TEST_F(ViewTest, TestEnabledChangedCallback) {
   EXPECT_FALSE(test_view->GetEnabled());
 }
 
+TEST_F(ViewTest, TestEnabledInViewsSubtreeChangedCallback) {
+  auto test_view = std::make_unique<View>();
+  auto* test_child = test_view->AddChildView(std::make_unique<View>());
+  int enabled_vs_changed_count = 0;
+  auto callback = base::BindRepeating(
+      [](int* enabled_vs_changed_count) { ++(*enabled_vs_changed_count); },
+      &enabled_vs_changed_count);
+  auto subscription_1 =
+      test_view->AddEnabledInViewsSubtreeChangedCallback(callback);
+  auto subscription_2 =
+      test_child->AddEnabledInViewsSubtreeChangedCallback(callback);
+  test_view->SetEnabled(false);
+  EXPECT_EQ(2, enabled_vs_changed_count);
+
+  EXPECT_FALSE(test_view->GetEnabled());
+  EXPECT_FALSE(test_view->GetEnabledInViewsSubtree());
+
+  // The child view should save its enabled state, but should be in disabled
+  // visual state.
+  EXPECT_TRUE(test_child->GetEnabled());
+  EXPECT_FALSE(test_child->GetEnabledInViewsSubtree());
+}
+
 TEST_F(ViewTest, TestVisibleChangedCallback) {
   auto test_view = std::make_unique<View>();
   bool visibility_changed = false;
@@ -6970,9 +6994,12 @@ class TestViewObserver : public ViewObserver {
     child_view_removed_parent_ = parent;
   }
 
-  void OnViewVisibilityChanged(View* view, View* starting_view) override {
+  void OnViewVisibilityChanged(View* view,
+                               View* starting_view,
+                               bool visible) override {
     view_visibility_changed_ = view;
     view_visibility_changed_starting_ = starting_view;
+    last_view_visibility_ = visible;
   }
 
   void OnViewBoundsChanged(View* view) override { view_bounds_changed_ = view; }
@@ -7019,6 +7046,9 @@ class TestViewObserver : public ViewObserver {
   const View* view_visibility_changed_starting() const {
     return view_visibility_changed_starting_;
   }
+  std::optional<bool> last_view_visibility() const {
+    return last_view_visibility_;
+  }
   const View* view_bounds_changed() const { return view_bounds_changed_; }
   const View* view_reordered() const { return view_reordered_; }
 
@@ -7036,6 +7066,7 @@ class TestViewObserver : public ViewObserver {
   raw_ptr<View> child_view_removed_parent_ = nullptr;
   raw_ptr<View> view_visibility_changed_ = nullptr;
   raw_ptr<View> view_visibility_changed_starting_ = nullptr;
+  std::optional<bool> last_view_visibility_;
   raw_ptr<View> view_bounds_changed_ = nullptr;
   raw_ptr<View> view_reordered_ = nullptr;
 };
@@ -7112,6 +7143,7 @@ TEST_F(ViewObserverTest, ViewVisibilityChanged) {
     weak_child->SetVisible(false);
     EXPECT_EQ(weak_child, observer.view_visibility_changed());
     EXPECT_EQ(weak_child, observer.view_visibility_changed_starting());
+    EXPECT_EQ(false, observer.last_view_visibility());
   }
 
   // Ditto for setting it visible.
@@ -7120,6 +7152,7 @@ TEST_F(ViewObserverTest, ViewVisibilityChanged) {
     weak_child->SetVisible(true);
     EXPECT_EQ(weak_child, observer.view_visibility_changed());
     EXPECT_EQ(weak_child, observer.view_visibility_changed_starting());
+    EXPECT_EQ(true, observer.last_view_visibility());
   }
 
   // Ensure setting |parent| not visible also calls the
@@ -7129,6 +7162,7 @@ TEST_F(ViewObserverTest, ViewVisibilityChanged) {
     parent->SetVisible(false);
     EXPECT_EQ(weak_child, observer.view_visibility_changed());
     EXPECT_EQ(parent.get(), observer.view_visibility_changed_starting());
+    EXPECT_EQ(false, observer.last_view_visibility());
   }
 }
 
@@ -7372,6 +7406,68 @@ TEST_F(ViewTest, DoNotCompleteAXCacheInitializationOnChildViewAddedWithAXOff) {
   auto* child = parent->AddChildView(std::make_unique<View>());
 
   EXPECT_FALSE(child->GetViewAccessibility().is_initialized());
+}
+
+// Tests that no widget is set on a View that is not connected to a RootView.
+TEST_F(ViewTest, NoWidgetOnViewNotConnectedToRoot) {
+  auto view = std::make_unique<TestView>();
+  view->SetBoundsRect(gfx::Rect(0, 0, 300, 300));
+
+  EXPECT_EQ(view->GetWidget(), nullptr);
+}
+
+// Tests that the RootView always has a widget.
+TEST_F(ViewTest, RootViewHasWidget) {
+  auto widget = std::make_unique<Widget>();
+  Widget::InitParams params = CreateParams(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_POPUP);
+  widget->Init(std::move(params));
+  auto* root = AsViewClass<internal::RootView>(widget->GetRootView());
+
+  EXPECT_EQ(root->GetWidget(), widget.get());
+}
+
+// Tests that the widget is properly cached on the view as it get added to and
+// removed from the widget.
+TEST_F(ViewTest, WidgetCachedOnViews) {
+  auto view_1 = std::make_unique<TestView>();
+  view_1->SetBoundsRect(gfx::Rect(0, 0, 300, 300));
+
+  auto view_2 = std::make_unique<TestView>();
+  view_2->SetBoundsRect(gfx::Rect(0, 0, 300, 300));
+
+  ASSERT_EQ(view_1->GetWidget(), nullptr);
+  ASSERT_EQ(view_2->GetWidget(), nullptr);
+
+  auto widget = std::make_unique<Widget>();
+  Widget::InitParams params = CreateParams(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_POPUP);
+  params.bounds = gfx::Rect(50, 50, 650, 650);
+  widget->Init(std::move(params));
+  auto* root = AsViewClass<internal::RootView>(widget->GetRootView());
+
+  ASSERT_EQ(root->GetWidget(), widget.get());
+
+  // Adding view_2 to view_1 should not set the widget on view_2.
+  auto* added_view_2 = view_1->AddChildView(std::move(view_2));
+
+  EXPECT_EQ(added_view_2->GetWidget(), nullptr);
+
+  // Adding view_1 to the root should set the widget on view_1 and view_2.
+  auto* added_view_1 = root->AddChildView(std::move(view_1));
+  EXPECT_EQ(added_view_1->GetWidget(), widget.get());
+  EXPECT_EQ(added_view_2->GetWidget(), widget.get());
+
+  // Removing view_1 from the root should remove the widget from view_1 and
+  // view_2.
+  root->RemoveChildView(added_view_1);
+  EXPECT_EQ(added_view_1->GetWidget(), nullptr);
+  EXPECT_EQ(added_view_2->GetWidget(), nullptr);
+
+  widget->CloseNow();
+  widget.reset();
+
+  delete added_view_1;
 }
 
 using BaseActionViewInterfaceTest = ViewsTestBase;

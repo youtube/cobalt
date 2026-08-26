@@ -8,6 +8,7 @@ import '../icons.html.js';
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
+import {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 import {loadTimeData} from '../i18n_setup.js';
 import type {MetricsBrowserProxy} from '../metrics_browser_proxy.js';
 import {MetricsBrowserProxyImpl, PrivacyElementInteractions} from '../metrics_browser_proxy.js';
@@ -45,7 +46,7 @@ export class IncognitoTrackingProtectionsPageElement extends
             loadTimeData.getBoolean('isIpProtectionDisabledForEnterprise'),
       },
 
-      // Mock pref to show disabled toggle with enterprise policy indicator.
+      // Mock pref to show the IPP toggle as disabled by enterprise policy.
       ipProtectionDisabledForEnterprisePref_: {
         type: Object,
         value() {
@@ -57,6 +58,19 @@ export class IncognitoTrackingProtectionsPageElement extends
           };
         },
       },
+
+      // Mock pref for the block 3PCs toggle. Required as all
+      // `settings-toggle-button` elements must have an associated pref.
+      block3pcsIncognitoPref_: {
+        type: Object,
+        value() {
+          return {
+            type: chrome.settingsPrivate.PrefType.BOOLEAN,
+            value: true,
+            enforcement: chrome.settingsPrivate.Enforcement.ENFORCED,
+          };
+        },
+      },
     };
   }
 
@@ -64,16 +78,30 @@ export class IncognitoTrackingProtectionsPageElement extends
   declare private isFingerprintingProtectionAvailable_: boolean;
   declare private isIpProtectionDisabledForEnterprise_: boolean;
   declare private ipProtectionDisabledForEnterprisePref_: chrome.settingsPrivate.PrefObject<boolean>;
+  declare private block3pcsIncognitoPref_:
+      chrome.settingsPrivate.PrefObject<boolean>;
 
   private metricsBrowserProxy_: MetricsBrowserProxy =
       MetricsBrowserProxyImpl.getInstance();
 
-  private onFpProtectionChanged_() {
+  private onFpProtectionChanged_(e: Event) {
+    if (e.target instanceof SettingsToggleButtonElement) {
+      const actionName = e.target.checked ?
+          'Settings.TrackingProtections.FingerprintingProtection.Enabled' :
+          'Settings.TrackingProtections.FingerprintingProtection.Disabled';
+      this.metricsBrowserProxy_.recordAction(actionName);
+    }
     this.metricsBrowserProxy_.recordSettingsPageHistogram(
         PrivacyElementInteractions.FINGERPRINTING_PROTECTION);
   }
 
-  private onIpProtectionChanged_() {
+  private onIpProtectionChanged_(e: Event) {
+    if (e.target instanceof SettingsToggleButtonElement) {
+      const actionName = e.target.checked ?
+          'Settings.TrackingProtections.IpProtection.Enabled' :
+          'Settings.TrackingProtections.IpProtection.Disabled';
+      this.metricsBrowserProxy_.recordAction(actionName);
+    }
     this.metricsBrowserProxy_.recordSettingsPageHistogram(
         PrivacyElementInteractions.IP_PROTECTION);
   }

@@ -10,7 +10,7 @@
 
 #include "modules/audio_processing/vad/vad_circular_buffer.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 
 namespace webrtc {
 

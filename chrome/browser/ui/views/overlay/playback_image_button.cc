@@ -16,6 +16,7 @@
 #include "ui/color/color_id.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/animation/ink_drop.h"
 #include "ui/views/background.h"
 #include "ui/views/vector_icons.h"
 
@@ -33,15 +34,20 @@ PlaybackImageButton::PlaybackImageButton(PressedCallback callback)
           media::kVideoPictureInPictureControlsUpdate2024)) {
     SetSize(gfx::Size(kCenterButtonSize, kCenterButtonSize));
 
+    // We use a solid background color in the 2024 updated UI, and that ends up
+    // sitting above the ink drop layer, so we need to force the ink drop layer
+    // higher here.
+    views::InkDrop::Get(this)->SetLayerRegion(views::LayerRegion::kAbove);
+
     play_image_ = ui::ImageModel::FromVectorIcon(
         vector_icons::kPlayArrowIcon, ui::kColorSysOnSecondaryContainer,
         kPlaybackButtonIconSize);
     pause_image_ = ui::ImageModel::FromVectorIcon(vector_icons::kPauseIcon,
                                                   kColorPipWindowForeground,
                                                   kPlaybackButtonIconSize);
-    replay_image_ = ui::ImageModel::FromVectorIcon(
-        vector_icons::kReplayIcon, ui::kColorSysOnSecondaryContainer,
-        kPlaybackButtonIconSize);
+    replay_image_ = ui::ImageModel::FromVectorIcon(vector_icons::kReplayIcon,
+                                                   kColorPipWindowForeground,
+                                                   kPlaybackButtonIconSize);
 
     UpdateImageAndText();
   }
@@ -102,7 +108,7 @@ void PlaybackImageButton::UpdateImageAndText() {
     }
     case VideoOverlayWindowViews::kEndOfVideo: {
       SetImageModel(views::Button::STATE_NORMAL, replay_image_);
-      SetPlayButtonBackground();
+      SetPauseButtonBackground();
       std::u16string replay_text =
           l10n_util::GetStringUTF16(IDS_PICTURE_IN_PICTURE_REPLAY_CONTROL_TEXT);
       SetTooltipText(replay_text);

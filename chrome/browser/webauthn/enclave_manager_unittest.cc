@@ -26,12 +26,14 @@
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/process/process.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/current_thread.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/threading/platform_thread.h"
@@ -44,6 +46,7 @@
 #include "chrome/browser/webauthn/proto/enclave_local_state.pb.h"
 #include "chrome/browser/webauthn/test_util.h"
 #include "chrome/browser/webauthn/unexportable_key_utils.h"
+#include "components/cbor/reader.h"
 #include "components/os_crypt/sync/os_crypt_mocker.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
@@ -51,6 +54,8 @@
 #include "components/trusted_vault/command_line_switches.h"
 #include "components/trusted_vault/proto/vault.pb.h"
 #include "components/trusted_vault/trusted_vault_connection.h"
+#include "crypto/aead.h"
+#include "crypto/hkdf.h"
 #include "crypto/scoped_fake_unexportable_key_provider.h"
 #include "crypto/scoped_fake_user_verifying_key_provider.h"
 #include "crypto/user_verifying_key.h"
@@ -61,6 +66,7 @@
 #include "device/fido/enclave/constants.h"
 #include "device/fido/enclave/enclave_authenticator.h"
 #include "device/fido/enclave/types.h"
+#include "device/fido/features.h"
 #include "device/fido/fido_authenticator.h"
 #include "device/fido/fido_constants.h"
 #include "device/fido/fido_types.h"
@@ -80,7 +86,7 @@
 
 #if BUILDFLAG(IS_MAC)
 #include "components/trusted_vault/icloud_recovery_key_mac.h"
-#include "crypto/scoped_fake_apple_keychain_v2.h"
+#include "crypto/apple/scoped_fake_keychain_v2.h"
 #include "device/fido/mac/scoped_touch_id_test_environment.h"
 #include "third_party/boringssl/src/include/openssl/hmac.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
@@ -105,8 +111,6 @@ using NoArgFuture = base::test::TestFuture<void>;
 using BoolFuture = base::test::TestFuture<bool>;
 
 namespace {
-
-constexpr int32_t kSecretVersion = 417;
 
 constexpr std::array<uint8_t, 32> kTestKey = {
     0xc4, 0xdf, 0xa4, 0xed, 0xfc, 0xf9, 0x7c, 0xc0, 0x3a, 0xb1, 0xcb,
@@ -166,7 +170,6 @@ webauthn_pb::EnclaveLocalState::WrappedPIN GetTestWrappedPIN() {
   webauthn_pb::EnclaveLocalState::WrappedPIN wrapped_pin;
   wrapped_pin.set_wrapped_pin(StringOfZeros(30));
   wrapped_pin.set_claim_key(StringOfZeros(32));
-  wrapped_pin.set_generation(0);
   wrapped_pin.set_form(wrapped_pin.FORM_SIX_DIGITS);
   wrapped_pin.set_hash(wrapped_pin.HASH_SCRYPT);
   wrapped_pin.set_hash_difficulty(1 << 12);
@@ -202,6 +205,29 @@ std::unique_ptr<network::NetworkService> CreateNetwork(
 scoped_refptr<device::JSONRequest> JSONFromString(std::string_view json_str) {
   base::Value json_request = base::JSONReader::Read(json_str).value();
   return base::MakeRefCounted<device::JSONRequest>(std::move(json_request));
+}
+
+std::vector<uint8_t> DecryptWrappedPin(
+    base::span<const uint8_t> security_domain_secret,
+    base::span<const uint8_t> wrapped_pin) {
+  base::span<const uint8_t> nonce = wrapped_pin.first(12u);
+  base::span<const uint8_t> encrypted_pin = wrapped_pin.subspan(12u);
+  // This is "KeychainApplicationKey:chrome:GPM PIN data wrapping key".
+  static constexpr uint8_t kKeyPurposePinDataKey[] = {
+      0x4b, 0x65, 0x79, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x41, 0x70, 0x70,
+      0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x4b, 0x65, 0x79,
+      0x3a, 0x63, 0x68, 0x72, 0x6f, 0x6d, 0x65, 0x3a, 0x47, 0x50, 0x4d,
+      0x20, 0x50, 0x49, 0x4e, 0x20, 0x64, 0x61, 0x74, 0x61, 0x20, 0x77,
+      0x72, 0x61, 0x70, 0x70, 0x69, 0x6e, 0x67, 0x20, 0x6b, 0x65, 0x79};
+  const std::array<uint8_t, 32> derived_key = crypto::HkdfSha256<32>(
+      security_domain_secret, /*salt=*/base::span<const uint8_t>(),
+      kKeyPurposePinDataKey);
+  crypto::Aead aead(crypto::Aead::AeadAlgorithm::AES_256_GCM);
+  aead.Init(derived_key);
+  std::optional<std::vector<uint8_t>> pin = aead.Open(
+      encrypted_pin, nonce, /*additional_data=*/base::span<const uint8_t>());
+  CHECK(pin.has_value());
+  return *pin;
 }
 
 }  // namespace
@@ -481,6 +507,8 @@ class EnclaveManagerTest : public testing::Test, EnclaveManager::Observer {
   std::unique_ptr<FakeRecoveryKeyStore> recovery_key_store_;
   std::unique_ptr<crypto::ScopedFakeUnexportableKeyProvider> fake_hw_provider_;
   EnclaveManager manager_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      device::kWebAuthnWrapCohortData};
 };
 
 TEST_F(EnclaveManagerTest, TestInfrastructure) {
@@ -780,6 +808,21 @@ TEST_F(EnclaveManagerTest, SetupWithPIN) {
   CHECK(security_domain_secret.has_value());
   EXPECT_EQ(manager_.TakeSecret()->second, *security_domain_secret);
 
+  // Verify that the wrapped PIN Chrome generated contains the cohort details.
+  std::vector<uint8_t> wrapped_pin = DecryptWrappedPin(
+      *security_domain_secret,
+      base::as_byte_span(manager_.GetWrappedPIN()->wrapped_pin()));
+  std::optional<cbor::Value> cbor = cbor::Reader::Read(wrapped_pin);
+  const cbor::Value::MapValue& wrapped_pin_cbor = cbor->GetMap();
+  int cert_xml_serial_number =
+      wrapped_pin_cbor.find(cbor::Value(6))->second.GetInteger();
+  EXPECT_EQ(cert_xml_serial_number, FakeRecoveryKeyStore::kTestSerialNumber);
+  const std::vector<uint8_t> cohort_public_key =
+      wrapped_pin_cbor.find(cbor::Value(7))->second.GetBytestring();
+  EXPECT_EQ(cohort_public_key,
+            recovery_key_store_->endpoint_public_key_bytes());
+
+  // Verify we can use the PIN to create a passkey and assert it.
   std::unique_ptr<device::enclave::ClaimedPIN> claimed_pin =
       EnclaveManager::MakeClaimedPINSlowly(pin, manager_.GetWrappedPIN());
   std::unique_ptr<sync_pb::WebauthnCredentialSpecifics> entity;
@@ -845,6 +888,21 @@ TEST_F(EnclaveManagerTest, AddDeviceAndPINToAccount) {
                                     *recovery_key_store_);
   CHECK(security_domain_secret.has_value());
   EXPECT_EQ(manager_.TakeSecret()->second, *security_domain_secret);
+
+  // Verify that the wrapped PIN the enclave generated contains the cohort
+  // details.
+  std::vector<uint8_t> wrapped_pin = DecryptWrappedPin(
+      *security_domain_secret,
+      base::as_byte_span(manager_.GetWrappedPIN()->wrapped_pin()));
+  std::optional<cbor::Value> cbor = cbor::Reader::Read(wrapped_pin);
+  const cbor::Value::MapValue& wrapped_pin_cbor = cbor->GetMap();
+  int cert_xml_serial_number =
+      wrapped_pin_cbor.find(cbor::Value(6))->second.GetInteger();
+  EXPECT_EQ(cert_xml_serial_number, FakeRecoveryKeyStore::kTestSerialNumber);
+  const std::vector<uint8_t> cohort_public_key =
+      wrapped_pin_cbor.find(cbor::Value(7))->second.GetBytestring();
+  EXPECT_EQ(cohort_public_key,
+            recovery_key_store_->endpoint_public_key_bytes());
 
   std::unique_ptr<device::enclave::ClaimedPIN> claimed_pin =
       EnclaveManager::MakeClaimedPINSlowly(pin, manager_.GetWrappedPIN());
@@ -1607,7 +1665,10 @@ TEST_F(EnclaveManagerTest, MAYBE_HardwareKeyLost) {
   // create before testing that it is later deleted.
   EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/false),
             EnclaveManager::UvKeyState::kUsesSystemUIDeferredCreation);
-  auto key_creation_callback = manager_.UserVerifyingKeyCreationCallback();
+  std::unique_ptr<EnclaveManager::UvKeyCreationLock> uv_creation_lock;
+  device::enclave::UVKeyCreationCallback key_creation_callback;
+  std::tie(uv_creation_lock, key_creation_callback) =
+      manager_.UserVerifyingKeyCreationCallback();
   quit_closure = task_env_.QuitClosure();
   std::move(key_creation_callback)
       .Run(base::BindLambdaForTesting(
@@ -1833,8 +1894,8 @@ class EnclaveUVTest : public EnclaveManagerTest {
  protected:
   void SetUp() override {
 #if BUILDFLAG(IS_MAC)
-    scoped_fake_apple_keychain_.SetUVMethod(
-        crypto::ScopedFakeAppleKeychainV2::UVMethod::kPasswordOnly);
+    scoped_fake_keychain_.SetUVMethod(
+        crypto::apple::ScopedFakeKeychainV2::UVMethod::kPasswordOnly);
 #endif  // BUILDFLAG(IS_MAC)
   }
 
@@ -1868,7 +1929,7 @@ class EnclaveUVTest : public EnclaveManagerTest {
       fake_provider_;
 
 #if BUILDFLAG(IS_MAC)
-  crypto::ScopedFakeAppleKeychainV2 scoped_fake_apple_keychain_{
+  crypto::apple::ScopedFakeKeychainV2 scoped_fake_keychain_{
       "test-keychain-access-group"};
 #endif  // BUILDFLAG(IS_MAC)
 };
@@ -1965,7 +2026,10 @@ TEST_F(EnclaveUVTest, UserVerifyingKeyLost) {
   // create before testing that it is later deleted.
   EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/false),
             EnclaveManager::UvKeyState::kUsesSystemUIDeferredCreation);
-  auto key_creation_callback = manager_.UserVerifyingKeyCreationCallback();
+  std::unique_ptr<EnclaveManager::UvKeyCreationLock> uv_creation_lock;
+  device::enclave::UVKeyCreationCallback key_creation_callback;
+  std::tie(uv_creation_lock, key_creation_callback) =
+      manager_.UserVerifyingKeyCreationCallback();
   quit_closure = task_env_.QuitClosure();
   std::move(key_creation_callback)
       .Run(base::BindLambdaForTesting(
@@ -2071,19 +2135,13 @@ TEST_F(EnclaveUVTest, ChromeHandlesBiometrics) {
   ASSERT_FALSE(manager_.is_idle());
   EXPECT_TRUE(add_future.Wait());
 
-  scoped_fake_apple_keychain_.SetUVMethod(
-      crypto::ScopedFakeAppleKeychainV2::UVMethod::kBiometrics);
-  // The TouchID view is only available on macOS 12+.
-  if (__builtin_available(macos 12, *)) {
-    EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/true),
-              EnclaveManager::UvKeyState::kUsesChromeUI);
-  } else {
-    EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/false),
-              EnclaveManager::UvKeyState::kUsesSystemUI);
-  }
+  scoped_fake_keychain_.SetUVMethod(
+      crypto::apple::ScopedFakeKeychainV2::UVMethod::kBiometrics);
+  EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/true),
+            EnclaveManager::UvKeyState::kUsesChromeUI);
 
-  scoped_fake_apple_keychain_.SetUVMethod(
-      crypto::ScopedFakeAppleKeychainV2::UVMethod::kPasswordOnly);
+  scoped_fake_keychain_.SetUVMethod(
+      crypto::apple::ScopedFakeKeychainV2::UVMethod::kPasswordOnly);
   EXPECT_EQ(manager_.uv_key_state(/*platform_has_biometrics=*/false),
             EnclaveManager::UvKeyState::kUsesSystemUI);
 }
@@ -2124,7 +2182,10 @@ TEST_F(EnclaveUVTest, DeferredUVKeyCreation) {
               user_state.deferred_uv_key_creation());
   EXPECT_TRUE(user_state.wrapped_uv_private_key().empty());
 
-  auto key_creation_callback = manager_.UserVerifyingKeyCreationCallback();
+  std::unique_ptr<EnclaveManager::UvKeyCreationLock> uv_creation_lock;
+  device::enclave::UVKeyCreationCallback key_creation_callback;
+  std::tie(uv_creation_lock, key_creation_callback) =
+      manager_.UserVerifyingKeyCreationCallback();
   auto quit_closure = task_env_.QuitClosure();
   std::move(key_creation_callback)
       .Run(base::BindLambdaForTesting(
@@ -2185,7 +2246,8 @@ TEST_F(EnclaveUVTest, UnregisterOnFailedDeferredUVKeyCreation) {
       [](sync_pb::WebauthnCredentialSpecifics) { NOTREACHED(); });
   ui_request->up_and_uv_bits =
       device::enclave::UserPresentAndVerifiedBits::kPresentAndVerified;
-  ui_request->uv_key_creation_callback =
+  std::unique_ptr<EnclaveManager::UvKeyCreationLock> uv_creation_lock;
+  std::tie(uv_creation_lock, ui_request->uv_key_creation_callback) =
       manager_.UserVerifyingKeyCreationCallback();
   ui_request->unregister_callback =
       base::BindOnce(&EnclaveManager::Unenroll, manager_.GetWeakPtr(),

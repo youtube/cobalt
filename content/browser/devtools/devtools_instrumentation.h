@@ -214,7 +214,7 @@ void OnAuctionWorkletNetworkRequestComplete(
     const std::string& request_id,
     const network::URLLoaderCompletionStatus& status);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 bool NeedInterestGroupAuctionEvents(FrameTreeNodeId frame_tree_node_id);
 
 void OnInterestGroupAuctionEventOccurred(
@@ -229,7 +229,7 @@ void OnInterestGroupAuctionNetworkRequestCreated(
     InterestGroupAuctionFetchType type,
     const std::string& request_id,
     const std::vector<std::string>& devtools_auction_ids);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 bool ShouldBypassCSP(const NavigationRequest& nav_request);
 bool ShouldBypassCertificateErrors();
@@ -397,9 +397,9 @@ void ReportCookieIssue(
 //
 // DevTools must be attached, otherwise issues reported through
 // |ReportBrowserInitiatedIssue| are lost.
-void CONTENT_EXPORT
-ReportBrowserInitiatedIssue(RenderFrameHostImpl* frame,
-                            protocol::Audits::InspectorIssue* issue);
+void CONTENT_EXPORT ReportBrowserInitiatedIssue(
+    RenderFrameHostImpl* frame,
+    std::unique_ptr<protocol::Audits::InspectorIssue> issue);
 
 // Produces an inspector issue and sends it to the client with
 // |ReportBrowserInitiatedIssue|.

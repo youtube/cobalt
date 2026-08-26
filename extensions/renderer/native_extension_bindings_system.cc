@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/typed_macros.h"
 #include "base/tracing/protos/chrome_track_event.pbzero.h"
@@ -59,7 +60,6 @@
 #include "extensions/renderer/worker_thread_util.h"
 #include "gin/converter.h"
 #include "gin/data_object_builder.h"
-#include "gin/handle.h"
 #include "gin/per_context_data.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
@@ -67,6 +67,8 @@
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_origin_trials.h"
+#include "v8/include/cppgc/allocation.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8-context.h"
 #include "v8/include/v8-isolate.h"
 #include "v8/include/v8-object.h"
@@ -87,8 +89,7 @@ constexpr char kBindingsSystemPerContextKey[] = "extension_bindings_system";
 // This is designed to be used as a utility when iterating over a sorted map, so
 // assumes that |api| is lexicographically greater than |root_api|.
 bool IsPrefixedAPI(std::string_view api, std::string_view root_api) {
-  DCHECK_NE(api, root_api);
-  DCHECK_GT(api, root_api);
+  CHECK_GT(api, root_api);
   return base::StartsWith(api, root_api, base::CompareCase::SENSITIVE) &&
          api[root_api.size()] == '.';
 }
@@ -139,7 +140,7 @@ v8::Local<v8::Object> GetOrCreateGlobalObjectProperty(
   // On the one hand, anyone writing that code is probably asking for trouble.
   // On the other, it'd be nice to avoid. I wonder if we can?
   v8::Local<v8::String> object_string =
-      gin::StringToSymbol(context->GetIsolate(), object_name);
+      gin::StringToSymbol(v8::Isolate::GetCurrent(), object_name);
   v8::Local<v8::Value> object_value;
   if (!context->Global()->Get(context, object_string).ToLocal(&object_value)) {
     return v8::Local<v8::Object>();
@@ -147,7 +148,7 @@ v8::Local<v8::Object> GetOrCreateGlobalObjectProperty(
 
   v8::Local<v8::Object> requested_object;
   if (object_value->IsUndefined()) {
-    requested_object = v8::Object::New(context->GetIsolate());
+    requested_object = v8::Object::New(v8::Isolate::GetCurrent());
     v8::Maybe<bool> success = context->Global()->CreateDataProperty(
         context, object_string, requested_object);
     if (!success.IsJust() || !success.FromJust())
@@ -207,7 +208,8 @@ void AddConsoleError(v8::Local<v8::Context> context, const std::string& error) {
 const base::Value::Dict& GetAPISchema(const std::string& api_name) {
   const base::Value::Dict* schema =
       ExtensionAPI::GetSharedInstance()->GetSchema(api_name);
-  CHECK(schema) << api_name;
+  // Don't use CHECK() here so we capture the `api_name` in the logs.
+  LOG_IF(FATAL, !schema) << "Unknown API " << api_name;
   return *schema;
 }
 
@@ -253,12 +255,13 @@ v8::Local<v8::Object> CreateRootBinding(v8::Local<v8::Context> context,
   v8::Local<v8::Object> binding_object =
       bindings_system->CreateAPIInstance(name, context, &hooks);
 
-  gin::Handle<APIBindingBridge> bridge_handle = gin::CreateHandle(
-      context->GetIsolate(),
-      new APIBindingBridge(hooks, context, binding_object,
-                           script_context->GetExtensionID(),
-                           script_context->GetContextTypeDescription()));
-  v8::Local<v8::Value> native_api_bridge = bridge_handle.ToV8();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  auto* bridge = cppgc::MakeGarbageCollected<APIBindingBridge>(
+      isolate->GetCppHeap()->GetAllocationHandle(), hooks, context,
+      binding_object, script_context->GetExtensionID(),
+      script_context->GetContextTypeDescription());
+  v8::Local<v8::Value> native_api_bridge =
+      bridge->GetWrapper(isolate).ToLocalChecked();
   script_context->module_system()->OnNativeBindingCreated(name,
                                                           native_api_bridge);
 
@@ -367,7 +370,7 @@ v8::Local<v8::Object> CreateFullBinding(
       continue;
 
     if (root_binding.IsEmpty())
-      root_binding = v8::Object::New(context->GetIsolate());
+      root_binding = v8::Object::New(v8::Isolate::GetCurrent());
 
     // The nested api name contains a '.', e.g. 'app.runtime', but we want to
     // expose it on the object simply as 'runtime'.
@@ -377,7 +380,7 @@ v8::Local<v8::Object> CreateFullBinding(
     std::string_view accessor_name =
         binding_name.substr(binding_name.rfind('.') + 1);
     v8::Local<v8::String> nested_name =
-        gin::StringToSymbol(context->GetIsolate(), accessor_name);
+        gin::StringToSymbol(v8::Isolate::GetCurrent(), accessor_name);
     v8::Maybe<bool> success =
         root_binding->CreateDataProperty(context, nested_name, nested_binding);
     if (!success.IsJust() || !success.FromJust())
@@ -802,7 +805,7 @@ void NativeExtensionBindingsSystem::BindingAccessor(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context = info.Holder()->GetCreationContextChecked();
+  v8::Local<v8::Context> context = info.HolderV2()->GetCreationContextChecked();
 
   // Force binding creation in the owning context (even if another context is
   // calling in). This is also important to ensure that objects created through
@@ -838,7 +841,7 @@ v8::Local<v8::Object> NativeExtensionBindingsSystem::GetAPIHelper(
   if (!data)
     return v8::Local<v8::Object>();
 
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Object> apis;
   if (data->api_object.IsEmpty()) {
     apis = v8::Object::New(isolate);
@@ -883,11 +886,11 @@ v8::Local<v8::Object> NativeExtensionBindingsSystem::GetLastErrorParents(
   if (secondary_parent &&
       IsAPIFeatureAvailable(context, "extension.lastError")) {
     *secondary_parent = GetAPIHelper(
-        context, gin::StringToSymbol(context->GetIsolate(), "extension"));
+        context, gin::StringToSymbol(v8::Isolate::GetCurrent(), "extension"));
   }
 
-  return GetAPIHelper(context,
-                      gin::StringToSymbol(context->GetIsolate(), "runtime"));
+  return GetAPIHelper(
+      context, gin::StringToSymbol(v8::Isolate::GetCurrent(), "runtime"));
 }
 
 // static
@@ -1080,12 +1083,12 @@ void NativeExtensionBindingsSystem::OnEventListenerChanged(
 void NativeExtensionBindingsSystem::GetJSBindingUtil(
     v8::Local<v8::Context> context,
     v8::Local<v8::Value>* binding_util_out) {
-  gin::Handle<APIBindingJSUtil> handle = gin::CreateHandle(
-      context->GetIsolate(),
-      new APIBindingJSUtil(
-          api_system_.type_reference_map(), api_system_.request_handler(),
-          api_system_.event_handler(), api_system_.exception_handler()));
-  *binding_util_out = handle.ToV8();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  APIBindingJSUtil* util = cppgc::MakeGarbageCollected<APIBindingJSUtil>(
+      isolate->GetCppHeap()->GetAllocationHandle(),
+      api_system_.type_reference_map(), api_system_.request_handler(),
+      api_system_.event_handler(), api_system_.exception_handler());
+  *binding_util_out = util->GetWrapper(isolate).ToLocalChecked();
 }
 
 void NativeExtensionBindingsSystem::UpdateContentCapabilities(

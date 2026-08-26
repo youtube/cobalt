@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // Windows Timer Primer
 //
 // A good article:  http://www.ddj.com/windows/184416651
@@ -422,7 +427,8 @@ ThreadTicks ThreadTicks::GetForThread(
   ::GetThreadTimes(thread_handle.platform_handle(), &creation_time, &exit_time,
                    &kernel_time, &user_time);
 
-  const int64_t us = FileTimeToMicroseconds(user_time);
+  const int64_t us =
+      FileTimeToMicroseconds(user_time) + FileTimeToMicroseconds(kernel_time);
 #else
   // Get the number of TSC ticks used by the current thread.
   ULONG64 thread_cycle_time = 0;

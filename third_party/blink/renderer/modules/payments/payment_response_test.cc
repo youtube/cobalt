@@ -2,25 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "third_party/blink/renderer/modules/payments/payment_response.h"
 
 #include <memory>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
+#include "build/buildflag.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_complete.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_validation_errors.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/modules/credentialmanagement/public_key_credential.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "third_party/blink/renderer/modules/payments/payment_address.h"
 #include "third_party/blink/renderer/modules/payments/payment_state_resolver.h"
 #include "third_party/blink/renderer/modules/payments/payment_test_helper.h"
@@ -107,9 +106,11 @@ MATCHER_P(ArrayBufferEqualTo, other_buffer, "equal to") {
   }
 
   uint8_t* data = (uint8_t*)arg->Data();
-  return std::equal(data, data + arg->ByteLength(), std::begin(other_buffer));
+  return std::equal(data, UNSAFE_TODO(data + arg->ByteLength()),
+                    std::begin(other_buffer));
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 // Calls getClientExtensionResults on the given public_key_credential.
 static v8::Local<v8::Object> GetClientExtensionResults(
     V8TestingScope& scope,
@@ -178,6 +179,7 @@ TEST(PaymentResponseTest, PaymentResponseDetailsContainsSpcExtensionsPRF) {
   EXPECT_THAT(GetArrayBuffer(scope, results, "second"),
               ArrayBufferEqualTo(WTF::Vector{4, 5, 6}));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 TEST(PaymentResponseTest,
      PaymentResponseDetailsWithUnexpectedJSONFormatString) {

@@ -10,12 +10,20 @@
 
 #include "modules/audio_device/dummy/file_audio_device.h"
 
-#include <string.h>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 
 #include "absl/strings/string_view.h"
+#include "api/audio/audio_device.h"
+#include "api/audio/audio_device_defines.h"
+#include "modules/audio_device/audio_device_buffer.h"
+#include "modules/audio_device/audio_device_generic.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/platform_thread.h"
+#include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 

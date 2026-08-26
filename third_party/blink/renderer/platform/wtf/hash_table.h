@@ -28,18 +28,29 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_TABLE_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_TABLE_H_
 
+#include <array>
 #include <memory>
 
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
+#include "base/memory/stack_allocated.h"
 #include "base/numerics/checked_math.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partition_allocator.h"
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/atomic_operations.h"
 #include "third_party/blink/renderer/platform/wtf/construct_traits.h"
+#include "third_party/blink/renderer/platform/wtf/gc_plugin.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
+#include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
+
+// Templates in this file are instantiated many times with different types.
+// Adding the regular GC_PLUGIN_IGNORE annotations to fields in the templates
+// results in the annotation being duplicated many times, growing the debug
+// symbols, and regressing binary size. To avoid the binary size regression,
+// mark the file to ignore instead.
+GC_PLUGIN_IGNORE_FILE("crbug.com/428987863")
 
 #if !defined(DUMP_HASHTABLE_STATS)
 #define DUMP_HASHTABLE_STATS 0
@@ -94,7 +105,7 @@
 #endif
 #endif
 
-namespace WTF {
+namespace blink {
 
 #if DUMP_HASHTABLE_STATS || DUMP_HASHTABLE_STATS_PER_TABLE
 struct WTF_EXPORT HashTableStats {
@@ -225,7 +236,7 @@ template <typename Key,
           typename KeyTraits,
           typename Allocator>
 class HashTableConstIterator final {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
  private:
   typedef HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>
@@ -412,7 +423,7 @@ template <typename Key,
           typename KeyTraits,
           typename Allocator>
 class HashTableIterator final {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
  private:
   typedef HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>
@@ -514,8 +525,6 @@ std::ostream& operator<<(std::ostream& stream,
   return iterator.PrintTo(stream);
 }
 
-using std::swap;
-
 template <typename T,
           typename Allocator,
           typename Traits,
@@ -524,7 +533,7 @@ struct Mover {
   STATIC_ONLY(Mover);
   static void Move(T&& from, T& to) {
     to.~T();
-    new (NotNullTag::kNotNull, &to) T(std::move(from));
+    new (base::NotNullTag::kNotNull, &to) T(std::move(from));
   }
 };
 
@@ -534,7 +543,7 @@ struct Mover<T, Allocator, Traits, true> {
   static void Move(T&& from, T& to) {
     Allocator::EnterGCForbiddenScope();
     to.~T();
-    new (NotNullTag::kNotNull, &to) T(std::move(from));
+    new (base::NotNullTag::kNotNull, &to) T(std::move(from));
     Allocator::LeaveGCForbiddenScope();
   }
 };
@@ -689,11 +698,11 @@ class HashTable final {
     return MakeKnownGoodConstIterator(table_ + table_size_);
   }
 
-  unsigned size() const {
+  wtf_size_t size() const {
     DCHECK(!AccessForbidden());
     return key_count_;
   }
-  unsigned Capacity() const {
+  wtf_size_t Capacity() const {
     DCHECK(!AccessForbidden());
     return table_size_;
   }
@@ -702,7 +711,7 @@ class HashTable final {
     return !key_count_;
   }
 
-  void ReserveCapacityForSize(unsigned size);
+  void ReserveCapacityForSize(wtf_size_t size);
 
   template <typename IncomingValueType>
   AddResult insert(IncomingValueType&& value) {
@@ -811,8 +820,8 @@ class HashTable final {
     requires Allocator::kIsGarbageCollected;
 
  private:
-  static ValueType* AllocateTable(unsigned size);
-  static void DeleteAllBucketsAndDeallocate(ValueType* table, unsigned size);
+  static ValueType* AllocateTable(wtf_size_t size);
+  static void DeleteAllBucketsAndDeallocate(ValueType* table, wtf_size_t size);
 
   struct LookupResult {
     ValueType* entry;
@@ -840,11 +849,11 @@ class HashTable final {
   ValueType* Expand(ValueType* entry = nullptr);
   void Shrink() { Rehash(table_size_ / 2, nullptr); }
 
-  ValueType* ExpandBuffer(unsigned new_table_size, ValueType* entry, bool&);
+  ValueType* ExpandBuffer(wtf_size_t new_table_size, ValueType* entry, bool&);
   ValueType* RehashTo(ValueType* new_table,
-                      unsigned new_table_size,
+                      wtf_size_t new_table_size,
                       ValueType* entry);
-  ValueType* Rehash(unsigned new_table_size, ValueType* entry);
+  ValueType* Rehash(wtf_size_t new_table_size, ValueType* entry);
   ValueType* Reinsert(ValueType&&);
 
   static void ReinitializeBucket(ValueType& bucket);
@@ -889,32 +898,18 @@ class HashTable final {
 
   // Constructor for hash tables with raw storage.
   struct RawStorageTag {};
-  HashTable(RawStorageTag, ValueType* table, unsigned size)
-      : table_(table),
-        table_size_(size),
-        key_count_(0),
-        deleted_count_(0)
-#if DCHECK_IS_ON()
-        ,
-        access_forbidden_(0),
-        modifications_(0)
-#endif
-#if DUMP_HASHTABLE_STATS_PER_TABLE
-        ,
-        stats_(nullptr)
-#endif
-  {
-  }
+  HashTable(RawStorageTag, ValueType* table, wtf_size_t size)
+      : table_(table), table_size_(size) {}
 
   ValueType* table_;
-  unsigned table_size_;
-  unsigned key_count_;
+  wtf_size_t table_size_;
+  wtf_size_t key_count_ = 0;
 #if DCHECK_IS_ON()
-  unsigned deleted_count_ : 30;
-  unsigned access_forbidden_ : 1;
-  unsigned modifications_;
+  wtf_size_t deleted_count_ : 30 = 0;
+  wtf_size_t access_forbidden_ : 1 = 0;
+  wtf_size_t modifications_ = 0;
 #else
-  unsigned deleted_count_ : 31;
+  wtf_size_t deleted_count_ : 31 = 0;
 #endif
 
 #if DUMP_HASHTABLE_STATS_PER_TABLE
@@ -922,7 +917,8 @@ class HashTable final {
   mutable
       typename std::conditional<Allocator::kIsGarbageCollected,
                                 HashTableStats*,
-                                std::unique_ptr<HashTableStats>>::type stats_;
+                                std::unique_ptr<HashTableStats>>::type stats_ =
+          nullptr;
   void DumpStats() {
     if (stats_) {
       stats_->DumpStats();
@@ -983,9 +979,10 @@ inline HashTable<Key,
 {
 }
 
-inline unsigned CalculateCapacity(unsigned size) {
-  for (unsigned mask = size; mask; mask >>= 1)
+inline wtf_size_t CalculateCapacity(wtf_size_t size) {
+  for (wtf_size_t mask = size; mask; mask >>= 1) {
     size |= mask;         // 00110101010 -> 00111111111
+  }
   return (size + 1) * 2;  // 00111111111 -> 10000000000
 }
 
@@ -995,14 +992,9 @@ template <typename Key,
           typename Traits,
           typename KeyTraits,
           typename Allocator>
-void HashTable<Key,
-               Value,
-               Extractor,
-
-               Traits,
-               KeyTraits,
-               Allocator>::ReserveCapacityForSize(unsigned new_size) {
-  unsigned new_capacity = CalculateCapacity(new_size);
+void HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::
+    ReserveCapacityForSize(wtf_size_t new_size) {
+  wtf_size_t new_capacity = CalculateCapacity(new_size);
   if (new_capacity < KeyTraits::kMinimumTableSize)
     new_capacity = KeyTraits::kMinimumTableSize;
 
@@ -1151,7 +1143,7 @@ struct HashTableBucketInitializer {
   }
 
   template <typename HashTable>
-  static Value* AllocateTable(unsigned size, size_t alloc_size) {
+  static Value* AllocateTable(wtf_size_t size, size_t alloc_size) {
     Value* result =
         Allocator::template AllocateHashTableBacking<Value, HashTable>(
             alloc_size);
@@ -1159,8 +1151,8 @@ struct HashTableBucketInitializer {
     return result;
   }
 
-  static void InitializeTable(Value* table, unsigned size) {
-    for (unsigned i = 0; i < size; i++) {
+  static void InitializeTable(Value* table, wtf_size_t size) {
+    for (wtf_size_t i = 0; i < size; i++) {
       Reinitialize(table[i]);
     }
   }
@@ -1184,7 +1176,7 @@ struct HashTableBucketInitializer<Traits, Allocator, Value, true> {
   }
 
   template <typename HashTable>
-  static Value* AllocateTable(unsigned size, size_t alloc_size) {
+  static Value* AllocateTable(wtf_size_t size, size_t alloc_size) {
     Value* result =
         Allocator::template AllocateZeroedHashTableBacking<Value, HashTable>(
             alloc_size);
@@ -1192,15 +1184,15 @@ struct HashTableBucketInitializer<Traits, Allocator, Value, true> {
     return result;
   }
 
-  static void InitializeTable(Value* table, unsigned size) {
+  static void InitializeTable(Value* table, wtf_size_t size) {
     AtomicMemzero(table, size * sizeof(Value));
     CheckEmptyValues(table, size);
   }
 
  private:
-  static void CheckEmptyValues(Value* values, unsigned size) {
+  static void CheckEmptyValues(Value* values, wtf_size_t size) {
 #if EXPENSIVE_DCHECKS_ARE_ON()
-    for (unsigned i = 0; i < size; i++) {
+    for (wtf_size_t i = 0; i < size; i++) {
       DCHECK(IsHashTraitsEmptyValue<Traits>(values[i]));
     }
 #endif
@@ -1303,7 +1295,7 @@ typename HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::
 
   if (ShouldExpand()) {
     entry = Expand(entry);
-  } else if (WTF::IsWeak<ValueType>::value && ShouldShrink()) {
+  } else if (IsWeakV<ValueType> && ShouldShrink()) {
     // When weak hash tables are processed by the garbage collector,
     // elements with no other strong references to them will have their
     // table entries cleared. But no shrinking of the backing store is
@@ -1497,7 +1489,7 @@ void HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::erase_if(
   RegisterModification();
   EnterAccessForbiddenScope();
 
-  for (unsigned i = 0; i < table_size_; ++i) {
+  for (wtf_size_t i = 0; i < table_size_; ++i) {
     if (!IsEmptyOrDeletedBucket(table_[i]) && pred(table_[i])) {
       DeleteBucket(table_[i]);
 #if DUMP_HASHTABLE_STATS
@@ -1567,7 +1559,7 @@ template <typename Key,
           typename Allocator>
 Value*
 HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::AllocateTable(
-    unsigned size) {
+    wtf_size_t size) {
   // Assert that we will not use memset on things with a vtable entry.  The
   // compiler will also check this on some platforms. We would like to check
   // this on the whole value (key-value pair), but std::is_polymorphic will
@@ -1596,7 +1588,7 @@ template <typename Key,
           typename KeyTraits,
           typename Allocator>
 void HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::
-    DeleteAllBucketsAndDeallocate(ValueType* table, unsigned size) {
+    DeleteAllBucketsAndDeallocate(ValueType* table, wtf_size_t size) {
   // We delete a bucket in the following cases:
   // - It is not trivially destructible.
   // - The table is weak (thus garbage collected) and we are currently marking.
@@ -1606,9 +1598,9 @@ void HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::
   // verifier that checks that all backings are in consistent state.
   const bool needs_bucket_deletion =
       !std::is_trivially_destructible<ValueType>::value ||
-      (WTF::IsWeak<ValueType>::value && Allocator::IsIncrementalMarking());
+      (IsWeakV<ValueType> && Allocator::IsIncrementalMarking());
   if (needs_bucket_deletion) {
-    for (unsigned i = 0; i < size; ++i) {
+    for (wtf_size_t i = 0; i < size; ++i) {
       // This code is called when the hash table is cleared or resized. We
       // have allocated a new backing store and we need to run the
       // destructors on the old backing store, as it is being freed. If we
@@ -1637,7 +1629,7 @@ template <typename Key,
           typename Allocator>
 Value* HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::Expand(
     Value* entry) {
-  unsigned new_size;
+  wtf_size_t new_size;
   if (!table_size_) {
     new_size = KeyTraits::kMinimumTableSize;
   } else if (MustRehashInPlace()) {
@@ -1658,7 +1650,7 @@ template <typename Key,
           typename Allocator>
 Value*
 HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::ExpandBuffer(
-    unsigned new_table_size,
+    wtf_size_t new_table_size,
     Value* entry,
     bool& success) {
   success = false;
@@ -1672,11 +1664,11 @@ HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::ExpandBuffer(
   success = true;
 
   Value* new_entry = nullptr;
-  unsigned old_table_size = table_size_;
+  wtf_size_t old_table_size = table_size_;
   ValueType* original_table = table_;
 
   ValueType* temporary_table = AllocateTable(old_table_size);
-  for (unsigned i = 0; i < old_table_size; i++) {
+  for (wtf_size_t i = 0; i < old_table_size; i++) {
     if (&table_[i] == entry)
       new_entry = &temporary_table[i];
     if (IsEmptyOrDeletedBucket(table_[i])) {
@@ -1708,7 +1700,7 @@ template <typename Key,
           typename Allocator>
 Value* HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::RehashTo(
     ValueType* new_table,
-    unsigned new_table_size,
+    wtf_size_t new_table_size,
     Value* entry) {
 #if DUMP_HASHTABLE_STATS
   if (table_size_ != 0) {
@@ -1729,7 +1721,7 @@ Value* HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::RehashTo(
 #endif
 
   Value* new_entry = nullptr;
-  for (unsigned i = 0; i != table_size_; ++i) {
+  for (wtf_size_t i = 0; i != table_size_; ++i) {
     if (IsEmptyOrDeletedBucket(table_[i])) {
       DCHECK_NE(&table_[i], entry);
       continue;
@@ -1744,7 +1736,7 @@ Value* HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::RehashTo(
   Allocator::TraceBackingStoreIfMarked(new_hash_table.table_);
 
   ValueType* old_table = table_;
-  unsigned old_table_size = table_size_;
+  wtf_size_t old_table_size = table_size_;
 
   // This swaps the newly allocated buffer with the current one. The store to
   // the current table has to be atomic to prevent races with concurrent marker.
@@ -1778,9 +1770,9 @@ template <typename Key,
           typename KeyTraits,
           typename Allocator>
 Value* HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::Rehash(
-    unsigned new_table_size,
+    wtf_size_t new_table_size,
     Value* entry) {
-  unsigned old_table_size = table_size_;
+  wtf_size_t old_table_size = table_size_;
 
 #if DUMP_HASHTABLE_STATS
   if (old_table_size != 0) {
@@ -1860,7 +1852,7 @@ HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::HashTable(
   key_count_ = other.key_count_;
   deleted_count_ = other.deleted_count_;
 
-  for (unsigned i = 0; i < table_size_; i++) {
+  for (wtf_size_t i = 0; i < table_size_; i++) {
     if (other.IsEmptyBucket(other.table_[i])) {
       // Do nothing. All entries are initially empty by AllocateTable().
     } else if (other.IsDeletedBucket(other.table_[i])) {
@@ -1917,7 +1909,7 @@ void HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::swap(
   AtomicWriteSwap(table_, other.table_);
   Allocator::BackingWriteBarrier(&table_);
   Allocator::BackingWriteBarrier(&other.table_);
-  if (IsWeak<ValueType>::value) {
+  if (IsWeakV<ValueType>) {
     // Weak processing is omitted when no backing store is present. In case such
     // an empty table is later on used it needs to be strongified.
     if (table_)
@@ -1928,7 +1920,7 @@ void HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::swap(
   std::swap(table_size_, other.table_size_);
   std::swap(key_count_, other.key_count_);
   // std::swap does not work for bit fields.
-  unsigned deleted = deleted_count_;
+  wtf_size_t deleted = deleted_count_;
   deleted_count_ = other.deleted_count_;
   other.deleted_count_ = deleted;
 
@@ -1986,7 +1978,7 @@ template <typename Key,
           typename Traits,
           typename KeyTraits,
           typename Allocator>
-struct WeakProcessingHashTableHelper<kWeakHandling,
+struct WeakProcessingHashTableHelper<WeakHandlingFlag::kWeakHandling,
                                      Key,
                                      Value,
                                      Extractor,
@@ -2014,8 +2006,8 @@ struct WeakProcessingHashTableHelper<kWeakHandling,
     for (ValueType* element = table->table_ + table->table_size_ - 1;
          element >= table->table_; element--) {
       if (!HashTableType::IsEmptyOrDeletedBucket(*element)) {
-        if (!TraceInCollectionTrait<kWeakHandling, ValueType, Traits>::IsAlive(
-                info, *element)) {
+        if (!TraceInCollectionTrait<WeakHandlingFlag::kWeakHandling, ValueType,
+                                    Traits>::IsAlive(info, *element)) {
           table->RegisterModification();
           HashTableType::DeleteBucket(*element);  // Also calls the destructor.
           table->deleted_count_++;
@@ -2038,7 +2030,7 @@ void HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::Trace(
     auto visitor) const
   requires Allocator::kIsGarbageCollected
 {
-  static_assert(WTF::IsWeak<ValueType>::value || IsTraceable<ValueType>::value,
+  static_assert(IsWeakV<ValueType> || IsTraceableV<ValueType>,
                 "Value should not be traced");
   TraceTable(visitor, AsAtomicPtr(&table_)->load(std::memory_order_relaxed));
 }
@@ -2054,7 +2046,7 @@ void HashTable<Key, Value, Extractor, Traits, KeyTraits, Allocator>::TraceTable(
     const ValueType* table) const
   requires Allocator::kIsGarbageCollected
 {
-  if (!WTF::IsWeak<ValueType>::value) {
+  if (!IsWeakV<ValueType>) {
     // Strong HashTable.
     Allocator::template TraceHashTableBackingStrongly<ValueType, HashTable>(
         visitor, table, &table_);
@@ -2350,6 +2342,6 @@ inline void RemoveAll(Collection1& collection,
     collection.erase(*it);
 }
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_TABLE_H_

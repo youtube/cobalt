@@ -63,9 +63,11 @@ const base::FeatureParam<bool> kCookieDeprecationUseProfileFiltering{
 
 PrivacySandboxSettingsDelegate::PrivacySandboxSettingsDelegate(
     Profile* profile,
-    tpcd::experiment::ExperimentManager* experiment_manager)
+    tpcd::experiment::ExperimentManager* experiment_manager,
+    PrivacySandboxCountries* privacy_sandbox_countries)
     : profile_(profile),
-      experiment_manager_(experiment_manager)
+      experiment_manager_(experiment_manager),
+      privacy_sandbox_countries_(privacy_sandbox_countries)
 #if BUILDFLAG(IS_ANDROID)
       ,
       webapp_registry_(std::make_unique<WebappRegistry>())
@@ -76,7 +78,8 @@ PrivacySandboxSettingsDelegate::PrivacySandboxSettingsDelegate(
 PrivacySandboxSettingsDelegate::~PrivacySandboxSettingsDelegate() = default;
 
 bool PrivacySandboxSettingsDelegate::IsRestrictedNoticeEnabled() const {
-  return privacy_sandbox::IsRestrictedNoticeRequired();
+  return privacy_sandbox::IsRestrictedNoticeRequired(
+      privacy_sandbox_countries_);
 }
 
 bool PrivacySandboxSettingsDelegate::IsPrivacySandboxRestricted() const {
@@ -128,7 +131,8 @@ bool PrivacySandboxSettingsDelegate::IsPrivacySandboxCurrentlyUnrestricted()
 
 bool PrivacySandboxSettingsDelegate::IsSubjectToM1NoticeRestricted() const {
   // If the feature is deactivated, the notice shouldn't be shown.
-  if (!privacy_sandbox::IsRestrictedNoticeRequired()) {
+  if (!privacy_sandbox::IsRestrictedNoticeRequired(
+          privacy_sandbox_countries_)) {
     return false;
   }
   return PrivacySandboxRestrictedNoticeRequired();
@@ -141,7 +145,7 @@ bool PrivacySandboxSettingsDelegate::IsIncognitoProfile() const {
 bool PrivacySandboxSettingsDelegate::HasAppropriateTopicsConsent() const {
   // If the profile doesn't require a release 4 consent, then it always has
   // an appropriate (i.e. not required) Topics consent.
-  if (!privacy_sandbox::IsConsentRequired()) {
+  if (!privacy_sandbox::IsConsentRequired(privacy_sandbox_countries_)) {
     return true;
   }
 
@@ -248,7 +252,7 @@ TpcdExperimentEligibility PrivacySandboxSettingsDelegate::
 
   // Whether it's a dasher account.
   if (tpcd::experiment::kExcludeDasherAccount.Get() &&
-      IsSubjectToEnterprisePolicies()) {
+      IsSubjectToEnterpriseFeatures()) {
     return TpcdExperimentEligibility(
         TpcdExperimentEligibility::Reason::kEnterpriseUser);
   }
@@ -282,7 +286,7 @@ TpcdExperimentEligibility PrivacySandboxSettingsDelegate::
       TpcdExperimentEligibility::Reason::kEligible);
 }
 
-bool PrivacySandboxSettingsDelegate::IsSubjectToEnterprisePolicies() const {
+bool PrivacySandboxSettingsDelegate::IsSubjectToEnterpriseFeatures() const {
   auto* identity_manager = IdentityManagerFactory::GetForProfile(profile_);
   if (!identity_manager ||
       !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
@@ -295,7 +299,7 @@ bool PrivacySandboxSettingsDelegate::IsSubjectToEnterprisePolicies() const {
       identity_manager->FindExtendedPrimaryAccountInfo(
           signin::ConsentLevel::kSignin);
   auto capability =
-      account_info.capabilities.is_subject_to_enterprise_policies();
+      account_info.capabilities.is_subject_to_enterprise_features();
   return capability == signin::Tribool::kTrue;
 }
 

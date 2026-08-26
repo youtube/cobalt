@@ -148,6 +148,8 @@
   ContextualPanelTabHelper* contextualPanelTabHelper =
       ContextualPanelTabHelper::FromWebState(
           _webStateList->GetActiveWebState());
+  ContextualPanelItemConfiguration* config =
+      contextualPanelTabHelper->GetFirstCachedConfig().get();
 
   if (contextualPanelTabHelper->IsContextualPanelCurrentlyOpened()) {
     base::UmaHistogramEnumeration(
@@ -156,13 +158,20 @@
     [_contextualSheetHandler closeContextualSheet];
   } else {
     [self logEntrypointFirstTapMetrics];
-    // TODO(crbug.com/416224001): If the tapped item configuration is for
-    // Reading mode, open reading mode instead.
-    [_contextualSheetHandler openContextualSheet];
+    if (!config || !config->entrypoint_custom_action) {
+      // The contextual panel should not be opened if there is a primary item
+      // with a custom action.
+      [_contextualSheetHandler openContextualSheet];
+    }
   }
 
-  ContextualPanelItemConfiguration* config =
-      contextualPanelTabHelper->GetFirstCachedConfig().get();
+  if (config && config->entrypoint_custom_action) {
+    // Regardless of whether the contextual panel is opened or closed, if the
+    // primary item has a custom action, then it should be triggered when upon
+    // being tapped.
+    config->entrypoint_custom_action.Run();
+  }
+
   if (!config || config->iph_entrypoint_used_event_name.empty()) {
     return;
   }
@@ -172,6 +181,21 @@
 - (void)setLocationBarLabelCenteredBetweenContent:(BOOL)centered {
   [self.delegate setLocationBarLabelCenteredBetweenContent:self
                                                   centered:centered];
+}
+
+- (void)didCompleteTransitionToSmallEntrypoint {
+  web::WebState* activeWebState = _webStateList->GetActiveWebState();
+  if (!activeWebState || activeWebState->IsBeingDestroyed()) {
+    return;
+  }
+  // Notify the configuration item that it transitioned to a small entrypoint.
+  ContextualPanelTabHelper* contextualPanelTabHelper =
+      ContextualPanelTabHelper::FromWebState(activeWebState);
+  ContextualPanelItemConfiguration* config =
+      contextualPanelTabHelper->GetFirstCachedConfig().get();
+  if (config) {
+    config->DidTransitionToSmallEntrypoint();
+  }
 }
 
 #pragma mark - ContextualPanelTabHelperObserving
@@ -285,7 +309,7 @@
   _transitionToEntrypointLoudMomentTimer = nullptr;
   _transitionToDefaultEntrypointTimer = nullptr;
   [self dismissEntrypointIPHAnimated:animated];
-  [self.delegate enableFullscreen];
+  [self cleanupAndTransitionToSmallEntrypoint];
 }
 
 // Updates the entrypoint state whenever the active tab changes or new data is
@@ -366,8 +390,7 @@
 
   _transitionToDefaultEntrypointTimer = std::make_unique<base::OneShotTimer>();
   _transitionToDefaultEntrypointTimer->Start(
-      FROM_HERE,
-      base::Seconds(LargeContextualPanelEntrypointDisplayedInSeconds()),
+      FROM_HERE, config->GetLargeEntrypointDisplayedDuration(),
       base::BindOnce(^{
         [weakSelf cleanupAndTransitionToSmallEntrypoint];
       }));
@@ -431,8 +454,7 @@
   __weak ContextualPanelEntrypointMediator* weakSelf = self;
   _transitionToDefaultEntrypointTimer = std::make_unique<base::OneShotTimer>();
   _transitionToDefaultEntrypointTimer->Start(
-      FROM_HERE,
-      base::Seconds(LargeContextualPanelEntrypointDisplayedInSeconds()),
+      FROM_HERE, config->GetLargeEntrypointDisplayedDuration(),
       base::BindOnce(^{
         [weakSelf dismissEntrypointIPHAnimated:YES];
         [weakSelf.delegate enableFullscreen];

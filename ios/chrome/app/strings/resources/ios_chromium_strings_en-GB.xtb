@@ -7,8 +7,8 @@
 <translation id="1086486568852410168">Search with Google Lens</translation>
 <translation id="1091252999271033193">This means that Chromium will request the mobile site every time.</translation>
 <translation id="1115463765356382667">Complete these suggested actions below to get the most out of Chrome.</translation>
-<translation id="1140315115515116765">Use Chromium by default to easily get price insights</translation>
 <translation id="1185134272377778587">About Chromium</translation>
+<translation id="1229234641991056119">Use your Safari passwords, history, bookmarks and credit cards in Chromium</translation>
 <translation id="1257458525759135959">To save images, tap on settings to let Chromium add to your photos</translation>
 <translation id="1260702988262336471">Open the Chromium menu</translation>
 <translation id="12739128458173458">To send this tab to another device, sign in to Chromium on both devices.</translation>
@@ -53,6 +53,7 @@
 <translation id="2195025571279539885">Would you like Chromium to offer to translate <ph name="LANGUAGE_NAME" /> pages from this site next time?</translation>
 <translation id="22313767259766852">This address is currently saved to Chromium. To use it across Google products, save it in your Google Account, <ph name="USER_EMAIL" />.</translation>
 <translation id="2236584955986023187">This means that Chromium will request the desktop site every time.</translation>
+<translation id="2245694534483711162">Gemini may use your precise location, depending on the permission that you've already given Chromium</translation>
 <translation id="2270466829363945454">Shop</translation>
 <translation id="2313870531055795960">Checks URLs with a list of unsafe sites stored in Chromium. If a site tries to steal your password, or when you download a harmful file, Chromium may also send URLs, including bits of page content, to Safe Browsing.</translation>
 <translation id="2314220608288760290">Chromium automatically opens YouTube Incognito links in Incognito.</translation>
@@ -91,7 +92,6 @@ For more settings that use data to improve your Chromium experience, go to <ph n
 <translation id="3102849287235003384">To sign out of your Google Account on all websites, <ph name="BEGIN_LINK" />sign out of Chromium<ph name="END_LINK" />.</translation>
 <translation id="3115956258722352278">Make Chromium your default browser?</translation>
 <translation id="3180939591219927904">Turn on 'Lock Incognito tabs when you close Chromium'</translation>
-<translation id="3242612358525156339">From your device's settings, open '<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />' and select 'Chromium'</translation>
 <translation id="328933489847748230">{count,plural, =1{Now showing 1 Chromium window}other{Now showing {count} Chromium windows}}</translation>
 <translation id="3344973607274501920">Chromium couldn't check your passwords. Try checking your Internet connection.</translation>
 <translation id="3366305173356742781">Chromium data in your account</translation>
@@ -118,10 +118,10 @@ Try waiting a few minutes before switching accounts. If you switch accounts now,
 <translation id="3816686541346279443">Chromium will offer to save your password.</translation>
 <translation id="3827545470516145620">You're getting standard security protection on this device</translation>
 <translation id="3833326979834193417">Chromium automatically runs Safety Check every day to keep you safe from data breaches, unsafe websites and more. You can find more about Safety Check in Settings.</translation>
+<translation id="3845223911364528001">Return to Chromium to upload your file</translation>
 <translation id="3855938650519180865">What's new in Chromium</translation>
 <translation id="3886689467633467988">Sign in to this site and Chromium to get your bookmarks and more on all your devices.</translation>
 <translation id="3949514465204582407">Chromium tip: Get your passwords in any app</translation>
-<translation id="3983291422281996849">Set Chromium as your default browser to easily track prices and get price insights for things that you want to buy.</translation>
 <translation id="4005283307739974863">Opens and Runs Safety Check in Chromium.</translation>
 <translation id="4043291146360695975">Passwords are saved to Password Manager on this device only.</translation>
 <translation id="4066426933127344530">Use Chromium by default</translation>
@@ -165,7 +165,6 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chromium data in your
 <translation id="5042011327527167688">Tap 'View with Google Maps on Chrome'</translation>
 <translation id="5044871537677053278">Chromium detects addresses and uses Google Maps to give you directions and local info.</translation>
 <translation id="5048140766121299007">From '<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />' settings, toggle 'Chromium' on</translation>
-<translation id="5048795749726991615">To get your saved passwords in your other apps easily, use Chromium for auto-fill</translation>
 <translation id="5053429694249468757">Deleting Chromium data…</translation>
 <translation id="5071749685031362629">Chromium for iOS</translation>
 <translation id="5124429847818367226">You can now use Chromium any time that you browse or tap links in messages, documents and other apps.</translation>
@@ -174,8 +173,10 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chromium data in your
 <translation id="5203244847421322551">Save and autofill passwords in Chromium</translation>
 <translation id="5224391634244552924">No saved passwords. Chromium can check your passwords when you save them.</translation>
 <translation id="5259423875997548710">Search visuals in Chromium.</translation>
+<translation id="5284913972719948193">Import your data to use your passwords, history, bookmarks and credit cards on Chromium</translation>
 <translation id="5308226104666789935">Chromium can't check for updates</translation>
 <translation id="5311557153294205270">Adds the inputted URLs to your bookmarks in Chromium.</translation>
+<translation id="5383251701169024761">To easily get your saved passwords in other apps, choose Chromium for autofill.</translation>
 <translation id="538767207339317086">Allow Chromium sign-in</translation>
 <translation id="5389058611415066188">Stay safe with Chromium</translation>
 <translation id="5415273218238091735">Chromium tip</translation>
@@ -244,17 +245,16 @@ Things to consider:
 <translation id="6852799557929001644">Access your Chrome passwords and more across other apps on this device.</translation>
 <translation id="6887138405044152640">To send this tab to another device, sign in to Chromium there.</translation>
 <translation id="6911341667534646387">Keep using the Chromium data in your Google Account</translation>
-<translation id="7006920032187763988">You can use the passwords that you saved to Password Manager in other apps on your iPad.</translation>
 <translation id="7018284295775193585">Chromium can't update</translation>
 <translation id="7055269218854630176">Your organisation, <ph name="DOMAIN" />, manages the account that you're signing in to and how Chromium can be used. Your administrator can set up or restrict certain features.</translation>
 <translation id="7099326575020694068">Chromium can't use your camera in Split View mode</translation>
-<translation id="7129379408282555630">Get the power of Chromium Shopping</translation>
 <translation id="7165402419892018581">Choose Chromium for auto-fill</translation>
 <translation id="7175400662502680481">Your password was exposed in a data breach. Password Manager recommends changing it now.</translation>
 <translation id="7185731475720473450">Payment methods and addresses won't be encrypted. Browsing history from Chromium won't sync.
 
 Only someone with your passphrase can read your encrypted data. The passphrase is not sent to or stored by Google. If you forget your passphrase or want to change this setting, <ph name="BEGIN_LINK" />delete the Chromium data in your account<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">Chromium notifications are currently turned off in your device settings.</translation>
+<translation id="7195217321165708458">Gemini in Chromium</translation>
 <translation id="7219205286115692265">Access Chromium faster from your iPad's Home Screen Dock.</translation>
 <translation id="7222001353246886083">Search ${searchPhrase} in Chromium</translation>
 <translation id="7228180817326917122">Chromium tip: Choose your address bar position</translation>
@@ -276,7 +276,6 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="7763454117143368771">Use Chromium as your default browser to stay protected from dangerous sites and keep your passwords safe</translation>
 <translation id="7784950022329154821">Lock Incognito tabs when you close Chromium</translation>
 <translation id="78025249032851484">Your Chromium is out of date.</translation>
-<translation id="7811371919871579588">To easily get your saved passwords in other apps, choose Chromium for autofill.</translation>
 <translation id="7859018312476869945">When you type in the address bar or search box, Chromium sends what you type to your default search engine to get better suggestions. This is off in Incognito.</translation>
 <translation id="7890287942691234100">Start using Chromium scanner</translation>
 <translation id="7905064834449738336">When you use a password, Chromium warns you if it has been published online. When doing this, your passwords and usernames are encrypted, so they can’t be read by anyone, including Google.</translation>
@@ -301,12 +300,12 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="8390323835464055390">Sign in with your saved passwords and passkeys from any app using Chromium for Autofill</translation>
 <translation id="8409374867500149834">You have Chromium's strongest security against harmful websites</translation>
 <translation id="8543509361021925846">{THRESHOLD,plural, =1{This happens when Chromium isn't used for {THRESHOLD} minute. Data saved only to this device while you were signed in will be deleted. This could include history and passwords.}other{This happens when Chromium isn't used for {THRESHOLD} minutes. Data saved only to this device while you were signed in will be deleted. This could include history and passwords.}}</translation>
-<translation id="858114650497379505">You can use the passwords that you saved to Password Manager in other apps on your iPhone.</translation>
 <translation id="8586442755830160949">Copyright <ph name="YEAR" /> The Chromium Authors. All rights reserved.</translation>
 <translation id="8602103377623855616">Chromium page</translation>
 <translation id="865600487977764604">Keeps you safe on Chromium and may be used to improve your security in other Google apps when you are signed in.</translation>
 <translation id="8663480472502753423">Keep Chromium up to date</translation>
 <translation id="8685813584220679697">Sign in to this site and Chromium.</translation>
+<translation id="8698780336333802489">Import to Chromium</translation>
 <translation id="8730503818204408000">Opens the Chromium Setting to set Chromium as Default Browser.</translation>
 <translation id="8754966941001340678">Chromium recommends enhanced protection</translation>
 <translation id="8759037115129007407">Your family member can't receive passwords right now. Ask them to update Chromium and sync their passwords. <ph name="BEGIN_LINK" />Learn more<ph name="END_LINK" /></translation>
@@ -331,6 +330,7 @@ Try waiting a few minutes before signing out. If you sign out now, this data wil
 <translation id="9050790730841755540">Use Chrome anytime that you tap links in other apps.</translation>
 <translation id="9059693977935746710">You won't need to remember this password. It will be saved to Password Manager for <ph name="EMAIL" /></translation>
 <translation id="9089354809943900324">Chromium is out of date</translation>
+<translation id="9105645282262300612">Chromium tip: Search what you see</translation>
 <translation id="9152995302810511799">Chromium tip: Get Chromium's strongest security</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Chromium is managed.</translation>
 <translation id="921174536258924340">Chromium couldn't check all passwords. Try again tomorrow or <ph name="BEGIN_LINK" />check passwords in your Google Account.<ph name="END_LINK" /></translation>

@@ -7,7 +7,6 @@
 
 #include <memory>
 #include <string>
-#include <unordered_set>
 
 #include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
@@ -24,6 +23,7 @@ namespace autofill {
 class AutofillSyncMetadataTable;
 class AutofillWebDataBackend;
 class AutofillWebDataService;
+class BankAccount;
 class CreditCard;
 class Iban;
 struct CreditCardCloudTokenData;

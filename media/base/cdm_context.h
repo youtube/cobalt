@@ -118,6 +118,7 @@ class MEDIA_EXPORT CdmContext {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   virtual SbDrmSystem GetSbDrmSystem();
+  virtual std::optional<std::string> GetKeySystem() const;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_FUCHSIA)

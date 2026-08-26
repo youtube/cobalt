@@ -5,18 +5,29 @@
 #include "third_party/blink/renderer/core/url_pattern/url_pattern_component.h"
 
 #include <algorithm>
+#include <optional>
+#include <string>
 #include <string_view>
+#include <tuple>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/types/expected.h"
 #include "components/url_pattern/url_pattern_util.h"
+#include "third_party/abseil-cpp/absl/status/status.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_url_pattern_options.h"
 #include "third_party/blink/renderer/core/url_pattern/url_pattern_canon.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
+#include "third_party/liburlpattern/part.h"
+#include "third_party/liburlpattern/pattern.h"
+#include "third_party/liburlpattern/utils.h"
 #include "url/url_util.h"
 
 namespace blink {
@@ -194,7 +205,7 @@ Component* Component::Compile(v8::Isolate* isolate,
   // Parse the pattern.
   // Lossy UTF8 conversion is fine given the input has come through a
   // USVString webidl argument.
-  StringUTF8Adaptor utf8(final_pattern);
+  StringUtf8Adaptor utf8(final_pattern);
 
   auto parse_result =
       liburlpattern::Parse(utf8.AsStringView(),
@@ -218,8 +229,8 @@ Component* Component::Compile(v8::Isolate* isolate,
         parse_result.value().GenerateRegexString(&name_list);
 
     // Compile the regular expression to verify it is valid.
-    auto case_sensitive = options.sensitive ? WTF::kTextCaseSensitive
-                                            : WTF::kTextCaseASCIIInsensitive;
+    auto case_sensitive =
+        options.sensitive ? kTextCaseSensitive : kTextCaseASCIIInsensitive;
     DCHECK(base::IsStringASCII(regexp_string));
     regexp = MakeGarbageCollected<ScriptRegexp>(
         isolate, String(regexp_string), case_sensitive,
@@ -336,7 +347,7 @@ bool Component::Match(StringView input,
       pattern_group_list;
   // Lossy UTF8 conversion is fine given the input has come through a
   // USVString webidl argument.
-  StringUTF8Adaptor utf8(input);
+  StringUtf8Adaptor utf8(input);
   bool result = pattern_.DirectMatch(
       utf8.AsStringView(), group_list ? &pattern_group_list : nullptr);
   if (group_list) {
@@ -380,6 +391,34 @@ bool Component::ShouldTreatAsStandardURL() const {
   should_treat_as_standard_url_ =
       std::ranges::any_of(url::GetStandardSchemes(), protocol_matches);
   return *should_treat_as_standard_url_;
+}
+
+std::optional<String> Component::Generate(
+    const WTF::Vector<std::pair<String, String>>& groups,
+    bool should_treat_as_standard_url,
+    ExceptionState& exception_state) const {
+  std::string pattern_string = pattern_.GeneratePatternString();
+  auto callback =
+      GetEncodeCallback(pattern_string, type_, should_treat_as_standard_url);
+
+  std::unordered_map<std::string, std::string> groups_map;
+  for (auto&& [key, value] : groups) {
+    StringUtf8Adaptor utf8_key(key);
+    StringUtf8Adaptor utf8_value(value);
+
+    auto [it, inserted] = groups_map.insert(
+        std::make_pair(utf8_key.AsStringView(), utf8_value.AsStringView()));
+    // Not `inserted` means key names are duplicated, which should not happen.
+    CHECK(inserted);
+  }
+
+  base::expected<std::string, absl::Status> result =
+      pattern_.Generate(groups_map, callback);
+  if (!result.has_value()) {
+    exception_state.ThrowTypeError(String::FromUTF8(result.error().message()));
+    return std::nullopt;
+  }
+  return String::FromUTF8(result.value());
 }
 
 const std::vector<liburlpattern::Part>& Component::PartList() const {

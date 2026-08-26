@@ -87,8 +87,15 @@ bool MapKeyCodeForScroll(int key_code,
   if (modifiers & WebInputEvent::kControlKey) {
     // Match FF behavior in the sense that Ctrl+home/end are the only Ctrl
     // key combinations which affect scrolling.
+#if BUILDFLAG(IS_MAC)
+    if (RuntimeEnabledFeatures::MacDisableCtrlHomeEndEnabled() ||
+        (key_code != VKEY_HOME && key_code != VKEY_END)) {
+      return false;
+    }
+#else
     if (key_code != VKEY_HOME && key_code != VKEY_END)
       return false;
+#endif  // BUILDFLAG(IS_MAC)
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -595,16 +602,6 @@ void KeyboardEventManager::DefaultEscapeEventHandler(KeyboardEvent* event) {
   Document& document = *frame_->GetDocument();
   if (IsSpatialNavigationEnabled(frame_) && !document.InDesignMode()) {
     page->GetSpatialNavigationController().HandleEscapeKeyboardEvent(event);
-  }
-
-  if (RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
-          document.GetExecutionContext())) {
-    // Make a copy of the list, in case the event handlers change its state.
-    auto elements{document.CurrentInterestTargetElements()};
-    for (Element* el : elements) {
-      Element::GainOrLoseInterest(el, el->InterestTargetElement(),
-                                  Element::InterestState::kNoInterest);
-    }
   }
 
   frame_->DomWindow()->closewatcher_stack()->EscapeKeyHandler(event);

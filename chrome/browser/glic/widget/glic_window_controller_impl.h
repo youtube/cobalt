@@ -10,6 +10,7 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/widget/application_hotkey_delegate.h"
+#include "chrome/browser/glic/widget/glic_window_config.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/glic/widget/glic_window_hotkey_delegate.h"
 #include "chrome/browser/glic/widget/local_hotkey_manager.h"
@@ -29,6 +31,7 @@
 #include "components/web_modal/web_contents_modal_dialog_manager_delegate.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/interaction/element_tracker.h"
+#include "ui/display/display_observer.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
 
@@ -52,7 +55,8 @@ class GlicButton;
 // window is open |attached_browser_| indicates if the window is attached or
 // standalone. See |IsAttached|
 class GlicWindowControllerImpl
-    : public GlicWindowController,
+    : public display::DisplayObserver,
+      public GlicWindowController,
       public views::WidgetObserver,
       public Host::Observer,
       public web_modal::WebContentsModalDialogManagerDelegate,
@@ -83,6 +87,7 @@ class GlicWindowControllerImpl
               base::TimeDelta duration,
               base::OnceClosure callback) override;
   void EnableDragResize(bool enabled) override;
+  void MaybeSetWidgetCanResize() override;
   gfx::Size GetSize() override;
   void SetDraggableAreas(
       const std::vector<gfx::Rect>& draggable_areas) override;
@@ -133,6 +138,10 @@ class GlicWindowControllerImpl
                              const gfx::Rect& new_bounds) override;
   void OnWidgetUserResizeStarted() override;
   void OnWidgetUserResizeEnded() override;
+
+  // display::DisplayObserver implementation
+  void OnDisplayMetricsChanged(const display::Display& display,
+                               uint32_t changed_metrics) override;
 
  private:
   Host& host() const;
@@ -185,7 +194,7 @@ class GlicWindowControllerImpl
   void DetachFinished();
 
   // Save the top-right corner position for re-opening.
-  void SaveWidgetPosition();
+  void SaveWidgetPosition(bool user_modified);
 
   // Clear the previous position if the widget would not be on an existing
   // display when shown.
@@ -267,6 +276,9 @@ class GlicWindowControllerImpl
   base::ScopedObservation<views::Widget, views::WidgetObserver>
       glic_widget_observation_{this};
 
+  // Observes the display configuration.
+  display::ScopedOptionalDisplayObserver display_observer_{this};
+
   // Used for observing closing of the pinned browser.
   std::optional<base::CallbackListSubscription> browser_close_subscription_;
 
@@ -286,6 +298,11 @@ class GlicWindowControllerImpl
   // This member contains the last size that glic requested. This should be
   // reset every time glic is closed but is currently cached.
   std::optional<gfx::Size> glic_size_;
+
+  // Contains the size of the draggable area zone for the glic widget.
+  // This value gets sent from the web client; if it is ever null, the draggable
+  // area will be set to a default value.
+  std::optional<gfx::Rect> draggable_area_ = std::nullopt;
 
   // Whether the widget should be user resizable, kept here in case it's
   // specified before the widget is created.
@@ -323,6 +340,8 @@ class GlicWindowControllerImpl
 
   // Whether the user is currently drag-resizing the widget.
   bool user_resizing_ = false;
+
+  GlicWindowConfig window_config_;
 
   // The invocation source requesting the opening of the web client. Note that
   // this value is retained until it is consumed by the web client. Because

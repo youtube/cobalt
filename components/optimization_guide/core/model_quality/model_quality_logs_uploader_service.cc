@@ -12,7 +12,6 @@
 #include "components/optimization_guide/core/feature_registry/mqls_feature_registry.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
-#include "components/optimization_guide/core/model_execution/model_execution_util.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "components/optimization_guide/core/model_quality/model_quality_util.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
@@ -21,6 +20,7 @@
 #include "components/optimization_guide/core/optimization_guide_logger.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
+#include "components/optimization_guide/optimization_guide_buildflags.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/net/variations_http_headers.h"
@@ -32,6 +32,10 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
+#include "components/optimization_guide/core/model_execution/performance_class.h"
+#endif  // BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
 
 namespace optimization_guide {
 
@@ -111,10 +115,8 @@ void OnURLLoadComplete(
 }
 
 proto::PerformanceClass GetPerformanceClass(PrefService* local_state) {
-  int value = local_state->GetInteger(
-      model_execution::prefs::localstate::kOnDevicePerformanceClass);
-  OnDeviceModelPerformanceClass performance_class =
-      static_cast<OnDeviceModelPerformanceClass>(value);
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
+  auto performance_class = PerformanceClassFromPref(*local_state);
   switch (performance_class) {
     case OnDeviceModelPerformanceClass::kVeryLow:
       return proto::PERFORMANCE_CLASS_VERY_LOW;
@@ -133,6 +135,7 @@ proto::PerformanceClass GetPerformanceClass(PrefService* local_state) {
     case OnDeviceModelPerformanceClass::kFailedToLoadLibrary:
       return proto::PERFORMANCE_CLASS_UNSPECIFIED;
   }
+#endif  // BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
   return proto::PERFORMANCE_CLASS_UNSPECIFIED;
 }
 
@@ -298,6 +301,16 @@ void ModelQualityLogsUploaderService::UploadFinalizedLog(
       url_loader_factory_.get(),
       base::BindOnce(&OnURLLoadComplete, std::move(active_url_loader),
                      feature));
+}
+
+void ModelQualityLogsUploaderService::SetMqlsLogForWebUI(
+    optimization_guide_internals::mojom::MqlsLogPtr log) {
+  mqls_logs_for_web_ui_.push_back(std::move(log));
+}
+
+std::vector<optimization_guide_internals::mojom::MqlsLogPtr>
+ModelQualityLogsUploaderService::GetMqlsLogsForWebUI() {
+  return std::move(mqls_logs_for_web_ui_);
 }
 
 }  // namespace optimization_guide

@@ -196,7 +196,7 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
   }
   void UpdateShouldCreateBoxFragment();
 
-  PhysicalRect LocalCaretRect(int) const final;
+  PhysicalRect LocalCaretRect(int, CaretShape) const final;
 
   // When this LayoutInline doesn't generate line boxes of its own, regenerate
   // the rects of the line boxes and hit test the rects.
@@ -276,8 +276,6 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
   template <typename PhysicalRectCollector>
   void CollectLineBoxRects(const PhysicalRectCollector&) const;
 
-  void AddChildIgnoringContinuation(LayoutObject* new_child,
-                                    LayoutObject* before_child = nullptr) final;
   void AddChildAsBlockInInline(LayoutObject* new_child,
                                LayoutObject* before_child);
 

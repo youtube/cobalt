@@ -43,7 +43,7 @@ TEST(CSSParsingUtilsTest, BasicShapeUseCount) {
   Document& document = dummy_page_holder->GetDocument();
   WebFeature feature = WebFeature::kCSSBasicShape;
   EXPECT_FALSE(document.IsUseCounted(feature));
-  document.documentElement()->setInnerHTML(
+  document.documentElement()->SetInnerHTMLWithoutTrustedTypes(
       "<style>span { shape-outside: circle(); }</style>");
   EXPECT_TRUE(document.IsUseCounted(feature));
 }
@@ -56,8 +56,21 @@ TEST(CSSParsingUtilsTest, OverflowClipUseCount) {
   Document& document = dummy_page_holder->GetDocument();
   WebDXFeature feature = WebDXFeature::kOverflowClip;
   EXPECT_FALSE(document.IsWebDXFeatureCounted(feature));
-  document.documentElement()->setInnerHTML(
+  document.documentElement()->SetInnerHTMLWithoutTrustedTypes(
       "<style>span { overflow: clip; }</style>");
+  EXPECT_TRUE(document.IsWebDXFeatureCounted(feature));
+}
+
+TEST(CSSParsingUtilsTest, FontFamilyMathUseCount) {
+  test::TaskEnvironment task_environment;
+  auto dummy_page_holder =
+      std::make_unique<DummyPageHolder>(gfx::Size(800, 600));
+  Page::InsertOrdinaryPageForTesting(&dummy_page_holder->GetPage());
+  Document& document = dummy_page_holder->GetDocument();
+  WebDXFeature feature = WebDXFeature::kFontFamilyMath;
+  EXPECT_FALSE(document.IsWebDXFeatureCounted(feature));
+  document.documentElement()->SetInnerHTMLWithoutTrustedTypes(
+      "<style>.equation { font-family: math; }</style>");
   EXPECT_TRUE(document.IsWebDXFeatureCounted(feature));
 }
 

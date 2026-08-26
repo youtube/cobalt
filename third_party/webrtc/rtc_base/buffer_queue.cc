@@ -10,10 +10,9 @@
 
 #include "rtc_base/buffer_queue.h"
 
-#include <stdint.h>
-#include <string.h>
-
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 
 #include "api/sequence_checker.h"
 #include "rtc_base/buffer.h"

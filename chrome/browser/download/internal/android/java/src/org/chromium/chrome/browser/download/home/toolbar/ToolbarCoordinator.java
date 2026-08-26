@@ -14,6 +14,7 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.download.home.DownloadManagerUiConfig;
 import org.chromium.chrome.browser.download.home.list.ListItem;
 import org.chromium.chrome.browser.download.internal.R;
 import org.chromium.components.browser_ui.widget.FadingShadow;
@@ -95,7 +96,7 @@ public class ToolbarCoordinator implements SelectionObserver<ListItem>, BackPres
             ToolbarListActionDelegate listActionDelegate,
             View listContentView,
             SelectionDelegate<ListItem> selectionDelegate,
-            boolean hasCloseButton,
+            DownloadManagerUiConfig config,
             Tracker tracker) {
         mDelegate = delegate;
         mListActionDelegate = listActionDelegate;
@@ -111,10 +112,14 @@ public class ToolbarCoordinator implements SelectionObserver<ListItem>, BackPres
                 R.string.menu_downloads,
                 R.id.normal_menu_group,
                 R.id.selection_mode_menu_group,
-                hasCloseButton);
+                config.isSeparateActivity);
         mToolbar.setOnMenuItemClickListener(this::onMenuItemClick);
         mToolbar.setFocusable(true);
         mToolbar.setListContentView(listContentView);
+
+        if (config.inlineSearchBar) {
+            mToolbar.removeMenuItem(R.id.search_menu_id);
+        }
 
         // TODO(crbug.com/41412009): Pass the visible group to the toolbar during initialization.
         mToolbar.initializeSearchView(
@@ -124,7 +129,7 @@ public class ToolbarCoordinator implements SelectionObserver<ListItem>, BackPres
 
         mShadow.init(context.getColor(R.color.toolbar_shadow_color), FadingShadow.POSITION_TOP);
 
-        if (!hasCloseButton) mToolbar.removeMenuItem(R.id.close_menu_id);
+        if (!config.isSeparateActivity) mToolbar.removeMenuItem(R.id.close_menu_id);
         mBackPressStateSupplier.set(mToolbar.isSearching());
         mToolbar.isSearchingSupplier().addObserver(mBackPressStateSupplier::set);
     }

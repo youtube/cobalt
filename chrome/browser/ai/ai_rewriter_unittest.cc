@@ -54,7 +54,8 @@ class MockCreateRewriterClient
               (override));
   MOCK_METHOD(void,
               OnError,
-              (blink::mojom::AIManagerCreateClientError error),
+              (blink::mojom::AIManagerCreateClientError error,
+               blink::mojom::QuotaErrorInfoPtr quota_error_info),
               (override));
 
  private:
@@ -195,9 +196,11 @@ TEST_F(AIRewriterTest, CreateRewriterNoService) {
 
   MockCreateRewriterClient mock_create_rewriter_client;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_create_rewriter_client, OnError(_))
+  EXPECT_CALL(mock_create_rewriter_client, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::AIManagerCreateClientError
-                                        error) {
+                                        error,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         ASSERT_EQ(
             error,
             blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
@@ -228,9 +231,11 @@ TEST_F(AIRewriterTest, CreateRewriterModelNotEligible) {
 
   MockCreateRewriterClient mock_create_rewriter_client;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_create_rewriter_client, OnError(_))
+  EXPECT_CALL(mock_create_rewriter_client, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::AIManagerCreateClientError
-                                        error) {
+                                        error,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         ASSERT_EQ(
             error,
             blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
@@ -342,12 +347,19 @@ TEST_F(AIRewriterTest, CreateRewriterContextLimitExceededError) {
 
   MockCreateRewriterClient mock_create_rewriter_client;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_create_rewriter_client, OnError(_))
+  EXPECT_CALL(mock_create_rewriter_client, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::AIManagerCreateClientError
-                                        error) {
+                                        error,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         ASSERT_EQ(
             error,
             blink::mojom::AIManagerCreateClientError::kInitialInputTooLarge);
+        ASSERT_TRUE(quota_error_info);
+        ASSERT_EQ(quota_error_info->requested,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize + 1);
+        ASSERT_EQ(quota_error_info->quota,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize);
         run_loop.Quit();
       }));
 
@@ -465,6 +477,21 @@ TEST_F(AIRewriterTest, CanCreateUnIsLanguagesSupported) {
                                              callback.Get());
 }
 
+TEST_F(AIRewriterTest, ToProtoOptionsLanguagesSupported) {
+  // Rewriter proto expects base language display names in English.
+  std::vector<std::pair<std::string, std::string>> languages = {
+      {"en", "English"},  {"en-us", "English"},  {"en-uk", "English"},
+      {"es", "Spanish"},  {"es-sp", "Spanish"},  {"es-mx", "Spanish"},
+      {"ja", "Japanese"}, {"ja-jp", "Japanese"}, {"ja-foo", "Japanese"},
+  };
+  blink::mojom::AIRewriterCreateOptionsPtr options = GetDefaultOptions();
+  for (const auto& language : languages) {
+    options->output_language = AILanguageCode::New(language.first);
+    const auto proto_options = AIRewriter::ToProtoOptions(options);
+    EXPECT_EQ(proto_options->output_language(), language.second);
+  }
+}
+
 TEST_F(AIRewriterTest, RewriteDefault) {
   SetupMockOptimizationGuideKeyedService();
   SetupMockSession();
@@ -517,12 +544,19 @@ TEST_F(AIRewriterTest, InputLimitExceededError) {
           }));
   AITestUtils::MockModelStreamingResponder mock_responder;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_responder, OnError(_))
+  EXPECT_CALL(mock_responder, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::ModelStreamingResponseStatus
-                                        status) {
+                                        status,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         EXPECT_EQ(
             status,
             blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge);
+        ASSERT_TRUE(quota_error_info);
+        ASSERT_EQ(quota_error_info->requested,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize + 1);
+        ASSERT_EQ(quota_error_info->quota,
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize);
         run_loop.Quit();
       }));
 
@@ -552,9 +586,11 @@ TEST_F(AIRewriterTest, ModelExecutionError) {
   auto rewriter_remote = GetAIRewriterRemote();
   AITestUtils::MockModelStreamingResponder mock_responder;
   base::RunLoop run_loop;
-  EXPECT_CALL(mock_responder, OnError(_))
+  EXPECT_CALL(mock_responder, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::ModelStreamingResponseStatus
-                                        status) {
+                                        status,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         EXPECT_EQ(
             status,
             blink::mojom::ModelStreamingResponseStatus::kErrorPermissionDenied);
@@ -719,9 +755,11 @@ TEST_F(AIRewriterTest, RewriterDisconnected) {
   auto rewriter_remote = GetAIRewriterRemote();
   AITestUtils::MockModelStreamingResponder mock_responder;
   base::RunLoop run_loop_for_response;
-  EXPECT_CALL(mock_responder, OnError(_))
+  EXPECT_CALL(mock_responder, OnError(_, _))
       .WillOnce(testing::Invoke([&](blink::mojom::ModelStreamingResponseStatus
-                                        status) {
+                                        status,
+                                    blink::mojom::QuotaErrorInfoPtr
+                                        quota_error_info) {
         EXPECT_EQ(
             status,
             blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);

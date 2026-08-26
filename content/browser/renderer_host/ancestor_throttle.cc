@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/feature_list.h"
+#include "build/buildflag.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_split.h"
@@ -59,6 +60,7 @@ bool HeadersContainFrameAncestorsCSP(
 RenderFrameHostImpl* GetParentForFrameAncestors(NavigationRequest* request,
                                                 RenderFrameHostImpl* frame) {
   bool allows_information_inflow = false;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (base::FeatureList::IsEnabled(
           blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
     if (request) {
@@ -76,6 +78,9 @@ RenderFrameHostImpl* GetParentForFrameAncestors(NavigationRequest* request,
   } else {
     allows_information_inflow = !frame->IsFencedFrameRoot();
   }
+#else
+  allows_information_inflow = !frame->IsFencedFrameRoot();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   if (!allows_information_inflow && request &&
       base::FeatureList::IsEnabled(
@@ -94,11 +99,10 @@ RenderFrameHostImpl* GetParentForFrameAncestors(NavigationRequest* request,
 }  // namespace
 
 // static
-std::unique_ptr<NavigationThrottle> AncestorThrottle::MaybeCreateThrottleFor(
-    NavigationHandle* handle) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+void AncestorThrottle::CreateAndAdd(NavigationThrottleRegistry& registry) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  return base::WrapUnique(new AncestorThrottle(handle));
+  registry.AddThrottle(base::WrapUnique(new AncestorThrottle(registry)));
 }
 
 AncestorThrottle::~AncestorThrottle() {}
@@ -164,8 +168,8 @@ const char* AncestorThrottle::GetNameForLogging() {
   return "AncestorThrottle";
 }
 
-AncestorThrottle::AncestorThrottle(NavigationHandle* handle)
-    : NavigationThrottle(handle) {}
+AncestorThrottle::AncestorThrottle(NavigationThrottleRegistry& registry)
+    : NavigationThrottle(registry) {}
 
 void AncestorThrottle::ParseXFrameOptionsError(
     const net::HttpResponseHeaders* headers,

@@ -23,7 +23,8 @@ class ReadAnythingMochaBrowserTest : public WebUIMochaBrowserTest {
     scoped_feature_list_.InitWithFeatures(
         {features::kReadAnythingReadAloud,
          features::kReadAnythingImagesViaAlgorithm},
-        {features::kReadAnythingReadAloudPhraseHighlighting});
+        {features::kReadAnythingReadAloudPhraseHighlighting,
+         features::kReadAnythingDocsIntegration});
   }
 
   void RunSidePanelTest(const std::string& file, const std::string& trigger) {
@@ -168,9 +169,8 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, NextPrevious) {
                    "mocha.run()");
 }
 
-IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, RateSelection) {
-  RunSidePanelTest("side_panel/read_anything/rate_selection_test.js",
-                   "mocha.run()");
+IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, RateMenu) {
+  RunSidePanelTest("side_panel/read_anything/rate_menu_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, FakeTreeBuilderTest) {
@@ -269,11 +269,6 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, WordHighlighting) {
                    "mocha.run()");
 }
 
-IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, HighlightToggle) {
-  RunSidePanelTest("side_panel/read_anything/highlight_toggle_test.js",
-                   "mocha.run()");
-}
-
 IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, Highlighter) {
   RunSidePanelTest("side_panel/read_anything/highlighter_test.js",
                    "mocha.run()");
@@ -299,6 +294,16 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, SpeechModel) {
                    "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, ConnectedCallback) {
+  RunSidePanelTest("side_panel/read_anything/connected_callback_test.js",
+                   "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, HighlightMenu) {
+  RunSidePanelTest("side_panel/read_anything/highlight_menu_test.js",
+                   "mocha.run()");
+}
+
 class ReadAnythingReadAloudPhraseHighlightingMochaTest
     : public ReadAnythingMochaBrowserTest {
  protected:
@@ -315,7 +320,7 @@ class ReadAnythingReadAloudPhraseHighlightingMochaTest
 
 IN_PROC_BROWSER_TEST_F(ReadAnythingReadAloudPhraseHighlightingMochaTest,
                        HighlightMenu) {
-  RunSidePanelTest("side_panel/read_anything/highlight_menu_test.js",
+  RunSidePanelTest("side_panel/read_anything/phrase_highlight_menu_test.js",
                    "mocha.run()");
 }
 

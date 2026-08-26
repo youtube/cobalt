@@ -11,6 +11,7 @@
 #include "base/json/json_reader.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -348,7 +349,7 @@ Browser* ExtensionContextMenuModelTest::GetBrowser() {
     Browser::CreateParams params(profile(), true);
     test_window_ = std::make_unique<TestBrowserWindow>();
     params.window = test_window_.get();
-    browser_.reset(Browser::Create(params));
+    browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
   }
   return browser_.get();
 }
@@ -1644,7 +1645,6 @@ TEST_F(ExtensionContextMenuModelTest,
 
     // Set the extension to run "on click". Since we are revoking b.com
     // permissions, we need to automatically accept the reload page bubble.
-    menu.ExecuteCommand(kOnClick, 0);
     ExtensionActionRunner::GetForWebContents(web_contents)
         ->accept_bubble_for_testing(true);
     PermissionsManagerWaiter waiter(permissions_manager);

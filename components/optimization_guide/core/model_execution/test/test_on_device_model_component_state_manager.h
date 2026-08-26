@@ -5,42 +5,50 @@
 #ifndef COMPONENTS_OPTIMIZATION_GUIDE_CORE_MODEL_EXECUTION_TEST_TEST_ON_DEVICE_MODEL_COMPONENT_STATE_MANAGER_H_
 #define COMPONENTS_OPTIMIZATION_GUIDE_CORE_MODEL_EXECUTION_TEST_TEST_ON_DEVICE_MODEL_COMPONENT_STATE_MANAGER_H_
 
-#include "base/memory/scoped_refptr.h"
-#include "components/optimization_guide/core/model_execution/on_device_model_component.h"
+#include <memory>
 
-class PrefService;
+#include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/task/current_thread.h"
+#include "components/optimization_guide/core/model_execution/on_device_model_component.h"
 
 namespace optimization_guide {
 
 class FakeBaseModelAsset;
-class FakeOnDeviceModelComponentStateManagerDelegate;
 
-// Provides scoped creation and destruction of
-// OnDeviceModelComponentStateManager. Checks to make sure only one instance is
-// used at a time.
-class TestOnDeviceModelComponentStateManager {
+// Test stand in for component_updater infrastructure.
+class TestComponentState final {
  public:
-  explicit TestOnDeviceModelComponentStateManager(PrefService* local_state);
-  ~TestOnDeviceModelComponentStateManager();
+  TestComponentState();
+  ~TestComponentState();
 
-  scoped_refptr<OnDeviceModelComponentStateManager> get();
+  std::unique_ptr<OnDeviceModelComponentStateManager::Delegate>
+  CreateDelegate();
 
-  void Reset();
+  void SetFreeDiskSpace(int64_t free_space_bytes) {
+    free_disk_space_ = free_space_bytes;
+  }
+  bool installer_registered() const { return !!registered_manager_; }
+  bool uninstall_called() const { return uninstall_called_; }
 
-  bool IsInstallerRegistered() const;
-  bool WasComponentUninstalled() const;
+  void Install(std::unique_ptr<FakeBaseModelAsset> asset);
+  void SimulateShutdown() {
+    registered_manager_.reset();
+    uninstall_called_ = false;
+  }
 
-  void SetFreeDiskSpace(int64_t free_space_bytes);
-
-  void SetReady(const FakeBaseModelAsset& asset);
-
-  struct State;
+  bool WaitForRegistration() const {
+    return base::test::RunUntil([&]() { return installer_registered(); });
+  }
 
  private:
-  raw_ptr<PrefService> local_state_;
-  raw_ptr<FakeOnDeviceModelComponentStateManagerDelegate> delegate_;
-  scoped_refptr<OnDeviceModelComponentStateManager> manager_;
-  scoped_refptr<State> state_;
+  class DelegateImpl;
+
+  int64_t free_disk_space_ = 100 * 1024ll * 1024 * 1024;
+  base::WeakPtr<OnDeviceModelComponentStateManager> registered_manager_;
+  bool uninstall_called_ = false;
+  std::unique_ptr<FakeBaseModelAsset> installed_asset_;
+  base::WeakPtrFactory<TestComponentState> weak_ptr_factory_{this};
 };
 
 }  // namespace optimization_guide

@@ -35,7 +35,6 @@
 #include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_predictor_factory.h"
-#include "chrome/browser/predictors/preconnect_manager.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -44,6 +43,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -75,7 +76,9 @@
 #include "components/proxy_config/proxy_config_pref_names.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/sync/test/test_sync_service.h"
+#include "components/user_education/common/user_education_features.h"
 #include "content/public/browser/global_routing_id.h"
+#include "content/public/browser/preconnect_manager.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
@@ -222,15 +225,6 @@ class RenderViewContextMenuTest : public testing::Test {
   RenderViewContextMenuTest& operator=(const RenderViewContextMenuTest&) =
       delete;
 
-  // Proxy defined here to minimize friend classes in RenderViewContextMenu
-  static bool ExtensionContextAndPatternMatch(
-      const content::ContextMenuParams& params,
-      MenuItem::ContextList contexts,
-      const URLPatternSet& patterns) {
-    return RenderViewContextMenu::ExtensionContextAndPatternMatch(
-        params, contexts, patterns);
-  }
-
   // Returns a test item.
   std::unique_ptr<MenuItem> CreateTestItem(const Extension* extension,
                                            int uid) {
@@ -250,174 +244,6 @@ class RenderViewContextMenuTest : public testing::Test {
  private:
   content::RenderViewHostTestEnabler rvh_test_enabler_;
 };
-
-// Generates a URLPatternSet with a single pattern
-static URLPatternSet CreatePatternSet(const std::string& pattern) {
-  URLPattern target(URLPattern::SCHEME_HTTP);
-  target.Parse(pattern);
-
-  URLPatternSet rv;
-  rv.AddPattern(target);
-
-  return rv;
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForPage) {
-  content::ContextMenuParams params = CreateParams(0);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::PAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetCheckedForLink) {
-  content::ContextMenuParams params = CreateParams(MenuItem::LINK);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::PAGE);
-  contexts.Add(MenuItem::LINK);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_FALSE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetCheckedForImage) {
-  content::ContextMenuParams params = CreateParams(MenuItem::IMAGE);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::PAGE);
-  contexts.Add(MenuItem::IMAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_FALSE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetCheckedForVideo) {
-  content::ContextMenuParams params = CreateParams(MenuItem::VIDEO);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::PAGE);
-  contexts.Add(MenuItem::VIDEO);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_FALSE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetCheckedForAudio) {
-  content::ContextMenuParams params = CreateParams(MenuItem::AUDIO);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::PAGE);
-  contexts.Add(MenuItem::AUDIO);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_FALSE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, MatchWhenLinkedImageMatchesTarget) {
-  content::ContextMenuParams params =
-      CreateParams(MenuItem::IMAGE | MenuItem::LINK);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::LINK);
-  contexts.Add(MenuItem::IMAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.link/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, MatchWhenLinkedImageMatchesSource) {
-  content::ContextMenuParams params =
-      CreateParams(MenuItem::IMAGE | MenuItem::LINK);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::LINK);
-  contexts.Add(MenuItem::IMAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.image/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, NoMatchWhenLinkedImageMatchesNeither) {
-  content::ContextMenuParams params =
-      CreateParams(MenuItem::IMAGE | MenuItem::LINK);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::LINK);
-  contexts.Add(MenuItem::IMAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_FALSE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForFrame) {
-  content::ContextMenuParams params = CreateParams(MenuItem::FRAME);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::FRAME);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForEditable) {
-  content::ContextMenuParams params = CreateParams(MenuItem::EDITABLE);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::EDITABLE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForSelection) {
-  content::ContextMenuParams params = CreateParams(MenuItem::SELECTION);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::SELECTION);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForSelectionOnLink) {
-  content::ContextMenuParams params =
-      CreateParams(MenuItem::SELECTION | MenuItem::LINK);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::SELECTION);
-  contexts.Add(MenuItem::LINK);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
-
-TEST_F(RenderViewContextMenuTest, TargetIgnoredForSelectionOnImage) {
-  content::ContextMenuParams params =
-      CreateParams(MenuItem::SELECTION | MenuItem::IMAGE);
-
-  MenuItem::ContextList contexts;
-  contexts.Add(MenuItem::SELECTION);
-  contexts.Add(MenuItem::IMAGE);
-
-  URLPatternSet patterns = CreatePatternSet("*://test.none/*");
-
-  EXPECT_TRUE(ExtensionContextAndPatternMatch(params, contexts, patterns));
-}
 
 // Check that the fenced frame untrusted network status gated command ids are
 // within the valid command id range.
@@ -503,7 +329,7 @@ TEST_F(RenderViewContextMenuExtensionsTest,
 
 class RenderViewContextMenuPrefsTest
     : public ChromeRenderViewHostTestHarness,
-      public predictors::PreconnectManager::Observer {
+      public content::PreconnectManager::Observer {
  public:
   RenderViewContextMenuPrefsTest() = default;
 
@@ -623,9 +449,9 @@ class RenderViewContextMenuPrefsTest
   Browser* GetBrowser() {
     if (!browser_) {
       Browser::CreateParams create_params(profile(), true);
-      auto test_window = std::make_unique<TestBrowserWindow>();
-      create_params.window = test_window.get();
-      browser_.reset(Browser::Create(create_params));
+      browser_window_ = std::make_unique<TestBrowserWindow>();
+      create_params.window = browser_window_.get();
+      browser_ = Browser::DeprecatedCreateOwnedForTesting(create_params);
     }
     return browser_.get();
   }
@@ -634,9 +460,9 @@ class RenderViewContextMenuPrefsTest
     if (!browser_) {
       Browser::CreateParams create_params(Browser::Type::TYPE_APP, profile(),
                                           true);
-      auto test_window = std::make_unique<TestBrowserWindow>();
-      create_params.window = test_window.get();
-      browser_.reset(Browser::Create(create_params));
+      browser_window_ = std::make_unique<TestBrowserWindow>();
+      create_params.window = browser_window_.get();
+      browser_ = Browser::DeprecatedCreateOwnedForTesting(create_params);
     }
     return browser_.get();
   }
@@ -655,6 +481,7 @@ class RenderViewContextMenuPrefsTest
   std::unique_ptr<ScopedTestingLocalState> testing_local_state_;
   raw_ptr<TemplateURLService> template_url_service_;
   std::unique_ptr<Browser> browser_;
+  std::unique_ptr<TestBrowserWindow> browser_window_;
   GURL last_preresolved_url_;
   base::OnceClosure preresolved_finished_closure_;
 
@@ -1646,6 +1473,52 @@ TEST_F(RenderViewContextMenuPrefsTest,
       IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE, &model, &index));
 
   ASSERT_EQ(initial_num_processes, mock_rph_factory().GetProcesses()->size());
+}
+
+BASE_FEATURE(kTestUnregisteredFeature,
+             "TestUnregisteredFeature",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+TEST_F(RenderViewContextMenuPrefsTest, GetIsNewFeatureAtValue) {
+  // Set the profile creation time to be 100 days ago, to ensure that the
+  // feature is considered new.
+  UserEducationServiceFactory::GetForBrowserContext(profile())
+      ->user_education_storage_service()
+      .set_profile_creation_time_for_testing(base::Time::Now() -
+                                             base::Days(100));
+
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures({user_education::features::kNewBadgeTestFeature,
+                             kTestUnregisteredFeature},
+                            {});
+
+  UserEducationServiceFactory::GetForBrowserContext(profile())
+      ->new_badge_registry()
+      ->RegisterFeature({user_education::features::kNewBadgeTestFeature,
+                         user_education::Metadata()});
+
+  // Initialize the New Badge controller, so that the new badge data for this
+  // profile is set.
+  auto* const controller =
+      UserEducationServiceFactory::GetForBrowserContext(profile())
+          ->new_badge_controller();
+  controller->InitData();
+
+  // Create a context menu with a registered feature.
+  content::ContextMenuParams params;
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+
+  // A registered feature should be considered new.
+  ASSERT_TRUE(menu.GetIsNewFeatureAtValue(
+      user_education::features::kNewBadgeTestFeature.name));
+
+  // An unregistered feature should not be considered new.
+  ASSERT_FALSE(menu.GetIsNewFeatureAtValue(kTestUnregisteredFeature.name));
+
+  const char* const kUnregisteredFeatureName = "UnregisteredFeature";
+  // An unknown feature name should not be considered new.
+  ASSERT_FALSE(menu.GetIsNewFeatureAtValue(kUnregisteredFeatureName));
 }
 
 // Verify that the Lens Region Search menu item is enabled for Progressive Web

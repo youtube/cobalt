@@ -88,7 +88,7 @@ robolectric_library("junit") {
     "//components/browser_ui/settings/android:java",
     "//components/prefs/android:java",
     "//third_party/androidx:androidx_test_runner_java",
-    "//third_party/junit:junit",
+    "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java",
   ]
@@ -108,6 +108,7 @@ android_library("javatests") {
     "//chrome/browser/sync/android:java",
     "//chrome/browser/ui/android/strings:ui_strings_grd",
     "//chrome/test/android:chrome_java_integration_test_support",
+    "//chrome/test/android:chrome_java_transit",
     "//components/browser_ui/bottomsheet/android:java",
     "//components/browser_ui/settings/android:java",
     "//components/prefs/android:java",

@@ -20,5 +20,5 @@ class SkFontMgr;
  */
 class SkFontScanner;
 SK_API sk_sp<SkFontMgr> SkFontMgr_New_FontConfig(FcConfig* fc, std::unique_ptr<SkFontScanner> scanner);
-SK_API sk_sp<SkFontMgr> SkFontMgr_New_FontConfig(FcConfig* fc);
+
 #endif // #ifndef SkFontMgr_fontconfig_DEFINED

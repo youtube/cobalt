@@ -10,8 +10,7 @@
 
 #include "pc/sctp_utils.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>

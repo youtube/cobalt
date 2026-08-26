@@ -110,6 +110,10 @@ if (enable_rlz_support) {
         "lib/recursive_cross_process_lock_posix.h",
       ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   source_set("rlz_lib") {
@@ -129,7 +133,7 @@ if (enable_rlz_support) {
       ":rlz_utils",
       "//build:chromeos_buildflags",
       "//net",
-      "//services/network/public/cpp:cpp",
+      "//services/network/public/cpp",
       "//services/network/public/mojom",
       "//url",
     ]

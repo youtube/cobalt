@@ -27,13 +27,17 @@ source_set("caspian-lib") {
     "tree_builder.h",
   ]
   deps = [
-    "//third_party/re2:re2",
-    "//third_party/zlib:zlib",
+    "//third_party/re2",
+    "//third_party/zlib",
     "//third_party/zlib/google:compression_utils_portable",
   ]
-  public_deps = [ "//third_party/jsoncpp:jsoncpp" ]
+  public_deps = [ "//third_party/jsoncpp" ]
   configs -= [ "//build/config/compiler:default_optimization" ]
   configs += [ "//build/config/compiler:optimize_speed" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 test("caspian_unittests") {
@@ -49,8 +53,12 @@ test("caspian_unittests") {
     "//base",
     "//testing/gtest",
     "//testing/gtest:gtest_main",
-    "//third_party/re2:re2",
+    "//third_party/re2",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 executable("caspian_cli") {
@@ -65,7 +73,7 @@ if (enable_caspian) {
       sources = [ "caspian_web.cc" ]
       deps = [
         ":caspian-lib",
-        "//third_party/re2:re2",
+        "//third_party/re2",
       ]
       ldflags = [
         "-s",

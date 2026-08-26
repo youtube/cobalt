@@ -11,14 +11,13 @@
 #ifndef TEST_PC_E2E_ANALYZER_VIDEO_VIDEO_DUMPING_H_
 #define TEST_PC_E2E_ANALYZER_VIDEO_VIDEO_DUMPING_H_
 
+#include <cstdint>
 #include <memory>
-#include <string>
 
 #include "absl/strings/string_view.h"
 #include "api/test/video/video_frame_writer.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
-#include "test/testsupport/video_frame_writer.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

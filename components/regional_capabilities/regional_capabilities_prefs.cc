@@ -6,9 +6,12 @@
 
 #include <cstdint>
 
+#include "base/feature_list.h"
 #include "base/rand_util.h"
+#include "components/country_codes/country_codes.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
+#include "components/regional_capabilities/regional_capabilities_switches.h"
 #include "components/search_engines/search_engines_pref_names.h"
 
 namespace regional_capabilities::prefs {
@@ -16,6 +19,12 @@ namespace regional_capabilities::prefs {
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterInt64Pref(
       ::prefs::kDefaultSearchProviderChoiceScreenRandomShuffleSeed, 0);
+  registry->RegisterIntegerPref(kCountryIDAtInstall,
+                                country_codes::CountryId().Serialize());
+  if (base::FeatureList::IsEnabled(switches::kDynamicProfileCountry)) {
+    registry->RegisterIntegerPref(kCountryID,
+                                  country_codes::CountryId().Serialize());
+  }
 }
 
 uint64_t GetShuffleSeed(PrefService& profile_prefs) {

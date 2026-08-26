@@ -118,7 +118,7 @@ class InstantService : public KeyedService,
 
  private:
   friend class InstantExtendedTest;
-  friend class InstantUnitTestBase;
+  friend class InstantBrowserTestBase;
   friend class TestInstantService;
 
   FRIEND_TEST_ALL_PREFIXES(InstantServiceTest, GetNTPTileSuggestion);
@@ -135,6 +135,7 @@ class InstantService : public KeyedService,
 
   // ntp_tiles::MostVisitedSites::Observer implementation.
   void OnURLsAvailable(
+      bool is_user_triggered,
       const std::map<ntp_tiles::SectionType, ntp_tiles::NTPTilesVector>&
           sections) override;
   void OnIconMadeAvailable(const GURL& site_url) override;

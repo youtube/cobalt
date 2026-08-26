@@ -19,7 +19,9 @@ class RenderFrame;
 // window.errorPageController object.
 class NetErrorPageController : public gin::Wrappable<NetErrorPageController> {
  public:
-  static gin::WrapperInfo kWrapperInfo;
+  static constexpr gin::WrapperInfo kWrapperInfo = {
+      {gin::kEmbedderNativeGin},
+      gin::kNetErrorPageController};
 
   // Interface used to notify creator of user actions invoked on the error page.
   class Delegate {
@@ -64,11 +66,12 @@ class NetErrorPageController : public gin::Wrappable<NetErrorPageController> {
   static void Install(content::RenderFrame* render_frame,
                       base::WeakPtr<Delegate> delegate);
 
- private:
   explicit NetErrorPageController(base::WeakPtr<Delegate> delegate);
   ~NetErrorPageController() override;
 
-  void ErrorPageLoadedOrUpdated();
+ private:
+  // gin::WrappableBase
+  const gin::WrapperInfo* wrapper_info() const override;
 
   // Execute a button click to download page later.
   bool DownloadButtonClick();
@@ -96,7 +99,6 @@ class NetErrorPageController : public gin::Wrappable<NetErrorPageController> {
   void SavePageForLater();
   void CancelSavePage();
 
-  // gin::WrappableBase
   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
       v8::Isolate* isolate) override;
 

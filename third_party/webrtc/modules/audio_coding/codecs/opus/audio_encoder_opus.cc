@@ -11,6 +11,7 @@
 #include "modules/audio_coding/codecs/opus/audio_encoder_opus.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
@@ -37,7 +38,6 @@
 #include "modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor.h"
 #include "modules/audio_coding/codecs/opus/audio_coder_opus_common.h"
 #include "modules/audio_coding/codecs/opus/opus_interface.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -72,11 +72,11 @@ constexpr int kDefaultMaxPlaybackRate = 48000;
 
 // These two lists must be sorted from low to high
 #if WEBRTC_OPUS_SUPPORT_120MS_PTIME
-constexpr int kANASupportedFrameLengths[] = {20, 40, 60, 120};
-constexpr int kOpusSupportedFrameLengths[] = {10, 20, 40, 60, 120};
+constexpr std::array kANASupportedFrameLengths = {20, 40, 60, 120};
+constexpr std::array kOpusSupportedFrameLengths = {10, 20, 40, 60, 120};
 #else
-constexpr int kANASupportedFrameLengths[] = {20, 40, 60};
-constexpr int kOpusSupportedFrameLengths[] = {10, 20, 40, 60};
+constexpr std::array kANASupportedFrameLengths = {20, 40, 60};
+constexpr std::array kOpusSupportedFrameLengths = {10, 20, 40, 60};
 #endif
 
 // PacketLossFractionSmoother uses an exponential filter with a time constant
@@ -264,9 +264,8 @@ std::optional<AudioEncoderOpusConfig> AudioEncoderOpusImpl::SdpToConfig(
                            ? AudioEncoderOpusConfig::ApplicationMode::kVoip
                            : AudioEncoderOpusConfig::ApplicationMode::kAudio;
 
-  constexpr int kMinANAFrameLength = kANASupportedFrameLengths[0];
-  constexpr int kMaxANAFrameLength =
-      kANASupportedFrameLengths[arraysize(kANASupportedFrameLengths) - 1];
+  constexpr int kMinANAFrameLength = kANASupportedFrameLengths.front();
+  constexpr int kMaxANAFrameLength = kANASupportedFrameLengths.back();
 
   // For now, minptime and maxptime are only used with ANA. If ptime is outside
   // of this range, it will get adjusted once ANA takes hold. Ideally, we'd know
@@ -383,8 +382,6 @@ AudioEncoderOpusImpl::AudioEncoderOpusImpl(
     const AudioNetworkAdaptorCreator& audio_network_adaptor_creator,
     std::unique_ptr<SmoothingFilter> bitrate_smoother)
     : payload_type_(payload_type),
-      use_stable_target_for_adaptation_(!env.field_trials().IsDisabled(
-          "WebRTC-Audio-StableTargetAdaptation")),
       adjust_bandwidth_(
           env.field_trials().IsEnabled("WebRTC-AdjustOpusBandwidth")),
       bitrate_changed_(true),
@@ -485,7 +482,7 @@ bool AudioEncoderOpusImpl::EnableAudioNetworkAdaptor(
     RtcEventLog* event_log) {
   audio_network_adaptor_ =
       audio_network_adaptor_creator_(config_string, event_log);
-  return audio_network_adaptor_.get() != nullptr;
+  return audio_network_adaptor_ != nullptr;
 }
 
 void AudioEncoderOpusImpl::DisableAudioNetworkAdaptor() {
@@ -509,31 +506,25 @@ void AudioEncoderOpusImpl::OnReceivedTargetAudioBitrate(
   SetTargetBitrate(target_audio_bitrate_bps);
 }
 
-void AudioEncoderOpusImpl::OnReceivedUplinkBandwidth(
+void AudioEncoderOpusImpl::OnReceivedUplinkBandwidthImpl(
     int target_audio_bitrate_bps,
-    std::optional<int64_t> bwe_period_ms,
-    std::optional<int64_t> stable_target_bitrate_bps) {
+    std::optional<int64_t> bwe_period_ms) {
   if (audio_network_adaptor_) {
     audio_network_adaptor_->SetTargetAudioBitrate(target_audio_bitrate_bps);
-    if (use_stable_target_for_adaptation_) {
-      if (stable_target_bitrate_bps)
-        audio_network_adaptor_->SetUplinkBandwidth(*stable_target_bitrate_bps);
-    } else {
-      // We give smoothed bitrate allocation to audio network adaptor as
-      // the uplink bandwidth.
-      // The BWE spikes should not affect the bitrate smoother more than 25%.
-      // To simplify the calculations we use a step response as input signal.
-      // The step response of an exponential filter is
-      // u(t) = 1 - e^(-t / time_constant).
-      // In order to limit the affect of a BWE spike within 25% of its value
-      // before
-      // the next BWE update, we would choose a time constant that fulfills
-      // 1 - e^(-bwe_period_ms / time_constant) < 0.25
-      // Then 4 * bwe_period_ms is a good choice.
-      if (bwe_period_ms)
-        bitrate_smoother_->SetTimeConstantMs(*bwe_period_ms * 4);
-      bitrate_smoother_->AddSample(target_audio_bitrate_bps);
-    }
+    // We give smoothed bitrate allocation to audio network adaptor as
+    // the uplink bandwidth.
+    // The BWE spikes should not affect the bitrate smoother more than 25%.
+    // To simplify the calculations we use a step response as input signal.
+    // The step response of an exponential filter is
+    // u(t) = 1 - e^(-t / time_constant).
+    // In order to limit the affect of a BWE spike within 25% of its value
+    // before
+    // the next BWE update, we would choose a time constant that fulfills
+    // 1 - e^(-bwe_period_ms / time_constant) < 0.25
+    // Then 4 * bwe_period_ms is a good choice.
+    if (bwe_period_ms)
+      bitrate_smoother_->SetTimeConstantMs(*bwe_period_ms * 4);
+    bitrate_smoother_->AddSample(target_audio_bitrate_bps);
 
     ApplyAudioNetworkAdaptor();
   } else {
@@ -554,14 +545,13 @@ void AudioEncoderOpusImpl::OnReceivedUplinkBandwidth(
 void AudioEncoderOpusImpl::OnReceivedUplinkBandwidth(
     int target_audio_bitrate_bps,
     std::optional<int64_t> bwe_period_ms) {
-  OnReceivedUplinkBandwidth(target_audio_bitrate_bps, bwe_period_ms,
-                            std::nullopt);
+  OnReceivedUplinkBandwidthImpl(target_audio_bitrate_bps, bwe_period_ms);
 }
 
 void AudioEncoderOpusImpl::OnReceivedUplinkAllocation(
     BitrateAllocationUpdate update) {
-  OnReceivedUplinkBandwidth(update.target_bitrate.bps(), update.bwe_period.ms(),
-                            update.stable_target_bitrate.bps());
+  OnReceivedUplinkBandwidthImpl(update.target_bitrate.bps(),
+                                update.bwe_period.ms());
 }
 
 void AudioEncoderOpusImpl::OnReceivedRtt(int rtt_ms) {
@@ -795,7 +785,7 @@ AudioEncoderOpusImpl::DefaultAudioNetworkAdaptorCreator(
 }
 
 void AudioEncoderOpusImpl::MaybeUpdateUplinkBandwidth() {
-  if (audio_network_adaptor_ && !use_stable_target_for_adaptation_) {
+  if (audio_network_adaptor_) {
     int64_t now_ms = TimeMillis();
     if (!bitrate_smoother_last_update_time_ ||
         now_ms - *bitrate_smoother_last_update_time_ >=

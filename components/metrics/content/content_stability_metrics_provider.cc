@@ -15,7 +15,6 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/page_visibility_state.h"
 #include "content/public/common/process_type.h"
-#include "ppapi/buildflags/buildflags.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "components/crash/content/browser/crash_metrics_reporter_android.h"
@@ -80,6 +79,9 @@ bool IsCdmUtilityProcess(const content::ChildProcessData& data) {
           (data.sandbox_type == sandbox::mojom::Sandbox::kCdm
 #if BUILDFLAG(IS_WIN)
            || data.sandbox_type == sandbox::mojom::Sandbox::kMediaFoundationCdm
+#endif
+#if BUILDFLAG(IS_ANDROID)
+           || data.metrics_name == "media.mojom.MediaDrmSupport"
 #endif
            ));
 }

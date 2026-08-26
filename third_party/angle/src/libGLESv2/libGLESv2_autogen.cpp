@@ -4397,6 +4397,37 @@ void GL_APIENTRY glBufferStorageExternalEXT(GLenum target,
 
 // GL_EXT_float_blend
 
+// GL_EXT_fragment_shading_rate
+void GL_APIENTRY glFramebufferShadingRateEXT(GLenum target,
+                                             GLenum attachment,
+                                             GLuint texture,
+                                             GLint baseLayer,
+                                             GLsizei numLayers,
+                                             GLsizei texelWidth,
+                                             GLsizei texelHeight)
+{
+    return GL_FramebufferShadingRateEXT(target, attachment, texture, baseLayer, numLayers,
+                                        texelWidth, texelHeight);
+}
+
+void GL_APIENTRY glGetFragmentShadingRatesEXT(GLsizei samples,
+                                              GLsizei maxCount,
+                                              GLsizei *count,
+                                              GLenum *shadingRates)
+{
+    return GL_GetFragmentShadingRatesEXT(samples, maxCount, count, shadingRates);
+}
+
+void GL_APIENTRY glShadingRateEXT(GLenum rate)
+{
+    return GL_ShadingRateEXT(rate);
+}
+
+void GL_APIENTRY glShadingRateCombinerOpsEXT(GLenum combinerOp0, GLenum combinerOp1)
+{
+    return GL_ShadingRateCombinerOpsEXT(combinerOp0, combinerOp1);
+}
+
 // GL_EXT_geometry_shader
 void GL_APIENTRY glFramebufferTextureEXT(GLenum target,
                                          GLenum attachment,
@@ -4723,7 +4754,9 @@ void GL_APIENTRY glBindProgramPipelineEXT(GLuint pipeline)
     return GL_BindProgramPipelineEXT(pipeline);
 }
 
-GLuint GL_APIENTRY glCreateShaderProgramvEXT(GLenum type, GLsizei count, const GLchar **strings)
+GLuint GL_APIENTRY glCreateShaderProgramvEXT(GLenum type,
+                                             GLsizei count,
+                                             const GLchar *const *strings)
 {
     return GL_CreateShaderProgramvEXT(type, count, strings);
 }
@@ -5393,6 +5426,8 @@ void GL_APIENTRY glBlitFramebufferNV(GLint srcX0,
     return GL_BlitFramebufferNV(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask,
                                 filter);
 }
+
+// GL_NV_pack_subimage
 
 // GL_NV_pixel_buffer_object
 

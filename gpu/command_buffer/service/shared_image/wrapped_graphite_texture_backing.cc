@@ -15,6 +15,7 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/shared_image/skia_gl_image_representation.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkSurfaceProps.h"
@@ -156,7 +157,10 @@ WrappedGraphiteTextureBacking::WrappedGraphiteTextureBacking(
   CHECK(context_state_);
   CHECK(context_state_->graphite_shared_context());
 
-  if (is_thread_safe()) {
+  // TODO:crbug.com/427657657 - Implement a generic solution to handle all
+  // SkImage release callbacks through GraphiteSharedContext.
+  if (is_thread_safe() || (context_state_->is_drdc_enabled() &&
+                           features::IsGraphiteContextThreadSafe())) {
     // If the backing is thread safe then it may be destroyed on a different
     // thread. Store the task runner so textures can be destroyed on the same
     // thread they were created on.
@@ -313,16 +317,15 @@ bool WrappedGraphiteTextureBacking::ReadbackToMemory(
     const gfx::Size plane_size = format().GetPlaneSize(i, size());
     const SkIRect src_rect =
         SkIRect::MakeWH(plane_size.width(), plane_size.height());
-    context_state_->graphite_shared_context()->asyncRescaleAndReadPixels(
-        sk_image.get(), pixmaps[i].info(), src_rect,
-        SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kRepeatedLinear,
-        base::BindOnce(&OnReadPixelsDone), &contexts[i]);
-  }
-
-  if (!context_state_->graphite_shared_context()->submit(
-          skgpu::graphite::SyncToCpu::kYes)) {
-    LOG(ERROR) << "Graphite context submit() failed";
-    return false;
+    if (!context_state_->graphite_shared_context()
+             ->asyncRescaleAndReadPixelsAndSubmit(
+                 sk_image.get(), pixmaps[i].info(), src_rect,
+                 SkImage::RescaleGamma::kSrc,
+                 SkImage::RescaleMode::kRepeatedLinear,
+                 base::BindOnce(&OnReadPixelsDone), &contexts[i])) {
+      LOG(ERROR) << "Graphite context submit() failed";
+      return false;
+    }
   }
 
   for (int i = 0; i < format().NumberOfPlanes(); i++) {
@@ -351,10 +354,7 @@ bool WrappedGraphiteTextureBacking::InsertRecordingAndSubmit() {
     LOG(ERROR) << "Graphite insertRecording() failed";
     return false;
   }
-  if (!context_state_->graphite_shared_context()->submit()) {
-    LOG(ERROR) << "Graphite context submit() failed";
-    return false;
-  }
+  context_state_->graphite_shared_context()->submit();
   return true;
 }
 

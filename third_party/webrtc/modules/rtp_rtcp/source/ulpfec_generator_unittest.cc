@@ -29,7 +29,6 @@
 namespace webrtc {
 
 namespace {
-using test::fec::AugmentedPacket;
 using test::fec::AugmentedPacketGenerator;
 
 constexpr int kFecPayloadType = 96;
@@ -122,12 +121,10 @@ TEST_F(UlpfecGeneratorTest, OneFrameFec) {
   ulpfec_generator_.SetProtectionParameters(params, params);
   uint32_t last_timestamp = 0;
   for (size_t i = 0; i < kNumPackets; ++i) {
-    std::unique_ptr<AugmentedPacket> packet =
-        packet_generator_.NextPacket(i, 10);
-    RtpPacketToSend rtp_packet(nullptr);
-    EXPECT_TRUE(rtp_packet.Parse(packet->data.data(), packet->data.size()));
+    RtpPacketToSend rtp_packet =
+        packet_generator_.NextPacket<RtpPacketToSend>(i, 10);
     ulpfec_generator_.AddPacketAndGenerateFec(rtp_packet);
-    last_timestamp = packet->header.timestamp;
+    last_timestamp = rtp_packet.Timestamp();
   }
   std::vector<std::unique_ptr<RtpPacketToSend>> fec_packets =
       ulpfec_generator_.GetFecPackets();
@@ -160,12 +157,11 @@ TEST_F(UlpfecGeneratorTest, TwoFrameFec) {
   for (size_t i = 0; i < kNumFrames; ++i) {
     packet_generator_.NewFrame(kNumPackets);
     for (size_t j = 0; j < kNumPackets; ++j) {
-      std::unique_ptr<AugmentedPacket> packet =
-          packet_generator_.NextPacket(i * kNumPackets + j, 10);
-      RtpPacketToSend rtp_packet(nullptr);
-      EXPECT_TRUE(rtp_packet.Parse(packet->data.data(), packet->data.size()));
+      RtpPacketToSend rtp_packet =
+          packet_generator_.NextPacket<RtpPacketToSend>(i * kNumPackets + j,
+                                                        10);
       ulpfec_generator_.AddPacketAndGenerateFec(rtp_packet);
-      last_timestamp = packet->header.timestamp;
+      last_timestamp = rtp_packet.Timestamp();
     }
   }
   std::vector<std::unique_ptr<RtpPacketToSend>> fec_packets =
@@ -188,10 +184,8 @@ TEST_F(UlpfecGeneratorTest, MixedMediaRtpHeaderLengths) {
   // Fill up internal buffer with media packets with short RTP header length.
   packet_generator_.NewFrame(kUlpfecMaxMediaPackets + 1);
   for (size_t i = 0; i < kUlpfecMaxMediaPackets; ++i) {
-    std::unique_ptr<AugmentedPacket> packet =
-        packet_generator_.NextPacket(i, 10);
-    RtpPacketToSend rtp_packet(nullptr);
-    EXPECT_TRUE(rtp_packet.Parse(packet->data.data(), packet->data.size()));
+    RtpPacketToSend rtp_packet =
+        packet_generator_.NextPacket<RtpPacketToSend>(i, 10);
     EXPECT_EQ(rtp_packet.headers_size(), kShortRtpHeaderLength);
     ulpfec_generator_.AddPacketAndGenerateFec(rtp_packet);
     EXPECT_TRUE(ulpfec_generator_.GetFecPackets().empty());
@@ -199,10 +193,8 @@ TEST_F(UlpfecGeneratorTest, MixedMediaRtpHeaderLengths) {
 
   // Kick off FEC generation with media packet with long RTP header length.
   // Since the internal buffer is full, this packet will not be protected.
-  std::unique_ptr<AugmentedPacket> packet =
-      packet_generator_.NextPacket(kUlpfecMaxMediaPackets, 10);
-  RtpPacketToSend rtp_packet(nullptr);
-  EXPECT_TRUE(rtp_packet.Parse(packet->data.data(), packet->data.size()));
+  RtpPacketToSend rtp_packet =
+      packet_generator_.NextPacket<RtpPacketToSend>(kUlpfecMaxMediaPackets, 10);
   EXPECT_TRUE(rtp_packet.SetPayloadSize(0) != nullptr);
   const uint32_t csrcs[]{1};
   rtp_packet.SetCsrcs(csrcs);
@@ -238,10 +230,8 @@ TEST_F(UlpfecGeneratorTest, UpdatesProtectionParameters) {
   // or delta-frame.
   auto add_frame = [&](bool is_keyframe) {
     packet_generator_.NewFrame(1);
-    std::unique_ptr<AugmentedPacket> packet =
-        packet_generator_.NextPacket(0, 10);
-    RtpPacketToSend rtp_packet(nullptr);
-    EXPECT_TRUE(rtp_packet.Parse(packet->data.data(), packet->data.size()));
+    RtpPacketToSend rtp_packet =
+        packet_generator_.NextPacket<RtpPacketToSend>(0, 10);
     rtp_packet.set_is_key_frame(is_keyframe);
     ulpfec_generator_.AddPacketAndGenerateFec(rtp_packet);
   };

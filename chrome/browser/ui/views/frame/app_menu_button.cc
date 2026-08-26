@@ -54,7 +54,6 @@ void AppMenuButton::CloseMenu() {
 }
 
 void AppMenuButton::OnMenuClosed() {
-  promo_handle_.Release();
   observer_list_.Notify(&AppMenuButtonObserver::AppMenuClosed);
 }
 
@@ -69,24 +68,7 @@ void AppMenuButton::RunMenu(std::unique_ptr<AppMenuModel> menu_model,
   // in the class declaration.
   menu_.reset();
   menu_model_ = std::move(menu_model);
-  if (BrowserWindow* browser_window = browser->window()) {
-    if (auto* controller = browser_window->GetFeaturePromoController(
-            base::PassKey<AppMenuButton>())) {
-      if (auto* promo_specification =
-              controller->GetCurrentPromoSpecificationForAnchor(
-                  GetProperty(views::kElementIdentifierKey))) {
-        if (auto highlighted_identifier =
-                promo_specification->highlighted_menu_identifier()) {
-          promo_handle_ = browser_window->CloseFeaturePromoAndContinue(
-              *controller->GetCurrentPromoFeature());
-
-          if (promo_handle_.is_valid()) {
-            menu_model_->SetHighlightedIdentifier(highlighted_identifier);
-          }
-        }
-      }
-    }
-  }
+  highlighter_.MaybeHighlight(browser, this, menu_model_.get());
   menu_model_->Init();
 
   menu_ = std::make_unique<AppMenu>(browser, menu_model_.get(), run_flags);

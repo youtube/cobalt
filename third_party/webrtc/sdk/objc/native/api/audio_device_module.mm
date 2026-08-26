@@ -11,7 +11,6 @@
 #include "audio_device_module.h"
 
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
 #include "rtc_base/logging.h"
 #include "sdk/objc/native/src/audio/audio_device_module_ios.h"
@@ -32,16 +31,6 @@ scoped_refptr<AudioDeviceModule> CreateAudioDeviceModule(
       /*error_handler=*/nullptr);
 }
 
-scoped_refptr<AudioDeviceModule> CreateAudioDeviceModule(
-    bool bypass_voice_processing) {
-  RTC_DLOG(LS_INFO) << __FUNCTION__;
-  return make_ref_counted<ios_adm::AudioDeviceModuleIOS>(
-      CreateEnvironment(),
-      bypass_voice_processing,
-      /*muted_speech_event_handler=*/nullptr,
-      /*error_handler=*/nullptr);
-}
-
 scoped_refptr<AudioDeviceModule> CreateMutedDetectAudioDeviceModule(
     const Environment& env,
     AudioDeviceModule::MutedSpeechEventHandler muted_speech_event_handler,
@@ -52,15 +41,4 @@ scoped_refptr<AudioDeviceModule> CreateMutedDetectAudioDeviceModule(
       env, bypass_voice_processing, muted_speech_event_handler, error_handler);
 }
 
-scoped_refptr<AudioDeviceModule> CreateMutedDetectAudioDeviceModule(
-    AudioDeviceModule::MutedSpeechEventHandler muted_speech_event_handler,
-    ADMErrorHandler error_handler,
-    bool bypass_voice_processing) {
-  RTC_DLOG(LS_INFO) << __FUNCTION__;
-  return make_ref_counted<ios_adm::AudioDeviceModuleIOS>(
-      CreateEnvironment(),
-      bypass_voice_processing,
-      muted_speech_event_handler,
-      error_handler);
-}
 }  // namespace webrtc

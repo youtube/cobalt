@@ -419,7 +419,7 @@ class TestRectangleBuffer {
                                      << stride_;
     for (int y = top; y < top + height; ++y) {
       for (int x = left; x < left + width; ++x) {
-        SkColor buffer_color = buffer_[x + y * stride_];
+        SkColor buffer_color = UNSAFE_TODO(buffer_[x + y * stride_]);
         EXPECT_EQ(color, buffer_color) << string_ << " at " << x << ", " << y;
       }
     }
@@ -431,7 +431,7 @@ class TestRectangleBuffer {
                                 int top,
                                 int width,
                                 int height) const {
-    SkColor buffer_color = buffer_[left + top * stride_];
+    SkColor buffer_color = UNSAFE_TODO(buffer_[left + top * stride_]);
     EnsureSolidRect(buffer_color, left, top, width, height);
   }
 
@@ -2421,6 +2421,22 @@ TEST_F(RenderTextTest, SetElideBehavior) {
   // Setting a different eliding behavior must trigger a relayout.
   render_text->SetElideBehavior(ELIDE_HEAD);
   EXPECT_EQ(u"…ef", render_text->GetDisplayText());
+}
+
+TEST_F(RenderTextTest, ElideMissingGlyphs) {
+  constexpr int kGlyphWidth = 10;
+  SetGlyphWidth(kGlyphWidth);
+
+  RenderText* render_text = GetRenderText();
+  render_text->SetText(u"𪛗𪛗𪛗𪛗龭疆龭疆龭疆龭疆疆疆疆");
+  render_text->SetCursorEnabled(false);
+  render_text->SetDisplayRect(Rect(0, 0, 10 * kGlyphWidth, 100));
+
+  // Missing glyph state shouldn't change with elision.
+  const bool has_missing_glyphs = GetHarfBuzzRunList()->HasMissingGlyphs();
+  render_text->SetElideBehavior(ELIDE_TAIL);
+  EXPECT_EQ(u"𪛗𪛗𪛗𪛗龭疆龭疆龭…", render_text->GetDisplayText());
+  EXPECT_EQ(has_missing_glyphs, GetHarfBuzzRunList()->HasMissingGlyphs());
 }
 
 TEST_F(RenderTextTest, SetWhitespaceElision) {

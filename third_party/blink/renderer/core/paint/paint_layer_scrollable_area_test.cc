@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/layout/hit_test_location.h"
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/page/scrolling/snap_coordinator.h"
 #include "third_party/blink/renderer/core/paint/paint_controller_paint_test.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
@@ -374,12 +375,7 @@ TEST_P(PaintLayerScrollableAreaTest, SelectElementPromotionTest) {
   element->setAttribute(html_names::kClassAttr, AtomicString("composited"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(HasDirectCompositingReasons(element->GetLayoutBox()));
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-  // <select> implementation is different and not scrollable on Android and iOS.
-  EXPECT_FALSE(UsesCompositedScrolling(element->GetLayoutBox()));
-#else
   EXPECT_TRUE(UsesCompositedScrolling(element->GetLayoutBox()));
-#endif
 }
 
 // Ensure OverlayScrollbarColorTheme get updated when page load
@@ -1230,6 +1226,65 @@ TEST_P(PaintLayerScrollableAreaTest, StickyPositionUseCounter) {
                      AtomicString("top: 0; position: sticky;"));
   UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(GetDocument().IsUseCounted(WebFeature::kPositionSticky));
+}
+
+// Test when the observed behavior will change as a result of enabling
+// OverscrollBehaviorRespectedOnAllScrollContainers.
+TEST_P(PaintLayerScrollableAreaTest,
+       OverscrollBehaviorOnNonScrollableScrollContainerUseCounter) {
+  SetBodyInnerHTML(R"HTML(
+    <div id=scroller style="overflow: auto; width: 300px; height: 300px;">
+      <div id=content style="width: 200px; height: 200px;"></div>
+    </div>
+  )HTML");
+
+  mojom::WebFeature feature =
+      WebFeature::kOverscrollBehaviorOnNonScrollableScrollContainer;
+  EXPECT_FALSE(GetDocument().IsUseCounted(feature));
+
+  auto* scroller = GetElementById("scroller");
+  scroller->SetInlineStyleProperty(CSSPropertyID::kOverscrollBehaviorY,
+                                   CSSValueID::kNone);
+  UpdateAllLifecyclePhasesForTest();
+  // If we have non-auto overscroll behavior on a non-scrollable scroll
+  // container, the behavior will be respected with the feature enabled.
+  EXPECT_TRUE(GetDocument().IsUseCounted(feature));
+  EXPECT_EQ(scroller->ComputedStyleRef().OverscrollBehaviorX(),
+            EOverscrollBehavior::kAuto);
+  EXPECT_EQ(scroller->ComputedStyleRef().OverscrollBehaviorY(),
+            EOverscrollBehavior::kNone);
+
+  GetDocument().ClearUseCounterForTesting(feature);
+  EXPECT_FALSE(GetDocument().IsUseCounted(feature));
+
+  scroller->SetInlineStyleProperty(CSSPropertyID::kOverflow,
+                                   CSSValueID::kHidden);
+  UpdateAllLifecyclePhasesForTest();
+  // If we have non-auto overscroll behavior on a overflow: hidden scroll
+  // container, the behavior will be respected with the feature enabled.
+  EXPECT_TRUE(GetDocument().IsUseCounted(feature));
+  EXPECT_EQ(scroller->ComputedStyleRef().OverflowX(), EOverflow::kHidden);
+  EXPECT_EQ(scroller->ComputedStyleRef().OverflowY(), EOverflow::kHidden);
+
+  GetDocument().ClearUseCounterForTesting(feature);
+  EXPECT_FALSE(GetDocument().IsUseCounted(feature));
+
+  auto* content = GetElementById("content");
+  content->SetInlineStyleProperty(CSSPropertyID::kWidth, "400px");
+  UpdateAllLifecyclePhasesForTest();
+  EXPECT_TRUE(GetDocument().IsUseCounted(feature));
+
+  GetDocument().ClearUseCounterForTesting(feature);
+  EXPECT_FALSE(GetDocument().IsUseCounted(feature));
+
+  scroller->SetInlineStyleProperty(CSSPropertyID::kOverscrollBehaviorY,
+                                   CSSValueID::kAuto);
+  UpdateAllLifecyclePhasesForTest();
+  // If we have auto overscroll behavior on a scroll container, the behavior
+  // will not be affected with the feature enabled.
+  EXPECT_FALSE(GetDocument().IsUseCounted(feature));
+  EXPECT_EQ(scroller->ComputedStyleRef().OverscrollBehaviorY(),
+            EOverscrollBehavior::kAuto);
 }
 
 // Delayed scroll offset clamping should not crash. https://crbug.com/842495
@@ -2112,7 +2167,7 @@ class PaintLayerScrollableAreaWithWebFrameTest : public ::testing::Test {
 // because threaded scrolling is not possible without a WebLocalFrame.
 TEST_F(PaintLayerScrollableAreaWithWebFrameTest,
        UpdateShouldAnimateScrollOnMainThread) {
-  GetDocument().documentElement()->setInnerHTML(R"HTML(
+  GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="scroller"
          style="width: 100px; height: 100px; background: red; overflow: hidden">
       <div style="height: 2000px"></div>
@@ -2138,7 +2193,7 @@ TEST_F(PaintLayerScrollableAreaWithWebFrameTest,
   EXPECT_TRUE(scrollable_area->ShouldScrollOnMainThread());
   EXPECT_FALSE(box->FirstFragment().PaintProperties()->Scroll());
 
-  scroller->scrollTo(0, 200);
+  scroller->scrollToForTesting(0, 200);
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();
   EXPECT_TRUE(scrollable_area->ShouldScrollOnMainThread());
   EXPECT_TRUE(box->FirstFragment().PaintProperties()->Scroll());

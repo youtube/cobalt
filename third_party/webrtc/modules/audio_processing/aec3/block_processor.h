@@ -14,7 +14,6 @@
 #include <stddef.h>
 
 #include <memory>
-#include <vector>
 
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"

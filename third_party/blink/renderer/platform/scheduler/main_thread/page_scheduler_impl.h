@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_MAIN_THREAD_PAGE_SCHEDULER_IMPL_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_MAIN_THREAD_PAGE_SCHEDULER_IMPL_H_
 
+#include <array>
 #include <memory>
 #include <optional>
 
@@ -84,7 +85,6 @@ class PLATFORM_EXPORT PageSchedulerImpl : public PageScheduler {
   bool IsAudioPlaying() const override;
   bool IsExemptFromBudgetBasedThrottling() const override;
   bool OptedOutFromAggressiveThrottlingForTest() const override;
-  bool RequestBeginMainFrameNotExpected(bool new_state) override;
   scoped_refptr<WidgetScheduler> CreateWidgetScheduler(
       WidgetScheduler::Delegate*) override;
 

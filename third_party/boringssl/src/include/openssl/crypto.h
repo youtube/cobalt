@@ -15,7 +15,7 @@
 #ifndef OPENSSL_HEADER_CRYPTO_H
 #define OPENSSL_HEADER_CRYPTO_H
 
-#include <openssl/base.h>   // IWYU pragma: export
+#include <openssl/base.h>  // IWYU pragma: export
 #include <openssl/sha.h>
 
 // Upstream OpenSSL defines |OPENSSL_malloc|, etc., in crypto.h rather than
@@ -205,8 +205,7 @@ OPENSSL_EXPORT const uint8_t *FIPS_module_hash(void);
 
 // FIPS_version returns the version of the FIPS module, or zero if the build
 // isn't exactly at a verified version. The version, expressed in base 10, will
-// be a date in the form yyyymmddXX where XX is often "00", but can be
-// incremented if multiple versions are defined on a single day.
+// be a date in the form yyyymmdd.
 //
 // (This format exceeds a |uint32_t| in the year 4294.)
 OPENSSL_EXPORT uint32_t FIPS_version(void);

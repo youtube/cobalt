@@ -56,6 +56,7 @@ static_library("renderer") {
 
   public_deps = [
     "//content/public/renderer",
+    "//pdf:structs",
     "//pdf/mojom",
     "//ui/accessibility",
     "//ui/gfx/geometry",
@@ -64,17 +65,8 @@ static_library("renderer") {
   if (enable_printing) {
     deps += [ "//components/printing/renderer" ]
   }
-
   if (enable_screen_ai_service) {
-    sources += [
-      "pdf_ocr_helper.cc",
-      "pdf_ocr_helper.h",
-    ]
-    deps += [
-      "//components/language/core/common",
-      "//services/screen_ai/public/cpp:metrics",
-      "//services/screen_ai/public/mojom",
-    ]
+    deps += [ "//services/screen_ai/public/mojom" ]
   }
 }
 
@@ -93,4 +85,8 @@ source_set("unit_tests") {
     # from ":renderer".
     "//v8",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

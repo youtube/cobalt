@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 
-#include <string.h>
-
 #include <cctype>
+#include <cstring>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"

@@ -6,11 +6,12 @@
 #define CHROME_BROWSER_UI_COMMERCE_MOCK_COMMERCE_UI_TAB_HELPER_H_
 
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
+#include "components/tabs/public/tab_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-namespace content {
-class WebContents;
-}  // namespace content
+namespace tabs {
+class TabInterface;
+}  // namespace tabs
 
 namespace views {
 class View;
@@ -19,13 +20,10 @@ class View;
 class MockCommerceUiTabHelper : public commerce::CommerceUiTabHelper {
  public:
   // Anytime a CommerceUiTabHelper would be created, a MockCommerceUiTabHelper
-  // is created instead. This is done by replacing the factory for TabFeatures.
-  // As such this is not compatible with other code that also replaces
-  // TabFeatures.
-  static void ReplaceFactory();
+  // is created instead, until the return value goes out of scope.
+  static ui::UserDataFactory::ScopedOverride ReplaceFactory();
 
-  MockCommerceUiTabHelper(content::WebContents* content,
-                          SidePanelRegistry* registry);
+  MockCommerceUiTabHelper(tabs::TabInterface& tab, SidePanelRegistry* registry);
   ~MockCommerceUiTabHelper() override;
 
   const gfx::Image& GetValidProductImage();

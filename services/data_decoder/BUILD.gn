@@ -29,13 +29,6 @@ source_set("lib") {
     "xml_parser.h",
   ]
 
-  if (is_chromeos) {
-    sources += [
-      "ble_scan_parser_impl.cc",
-      "ble_scan_parser_impl.h",
-    ]
-  }
-
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   deps = [
@@ -56,6 +49,14 @@ source_set("lib") {
   ]
 
   public_deps = [ "//services/data_decoder/public/mojom" ]
+
+  if (is_chromeos) {
+    sources += [
+      "ble_scan_parser_impl.cc",
+      "ble_scan_parser_impl.h",
+    ]
+    deps += [ "//services/data_decoder/ble_scan_parser:parser" ]
+  }
 
   if (use_blink) {
     sources += [
@@ -80,23 +81,28 @@ source_set("tests") {
     "xml_parser_unittest.cc",
   ]
 
-  if (is_chromeos) {
-    sources += [ "ble_scan_parser_impl_unittest.cc" ]
-  }
-
   deps = [
     ":lib",
     "//base",
     "//base/test:test_support",
     "//components/cbor",
     "//components/web_package",
-    "//components/web_package/test_support:test_support",
+    "//components/web_package/test_support",
     "//services/data_decoder/public/cpp",
     "//services/data_decoder/public/cpp:test_support",
     "//skia",
     "//testing/gtest",
     "//ui/gfx",
   ]
+
+  if (is_chromeos) {
+    sources += [ "ble_scan_parser_impl_unittest.cc" ]
+
+    deps += [
+      "//services/data_decoder/ble_scan_parser:lib",
+      "//services/data_decoder/ble_scan_parser:parser",
+    ]
+  }
 
   if (is_ios) {
     deps += [ "//components/test:web_package_test_bundle_data" ]
@@ -142,6 +148,15 @@ source_set("xml_parser_fuzzer_deps") {
   visibility = [
     ":run_xml_parser_fuzzer",
     ":xml_parser_fuzzer",
+    ":xml_parser_fuzzer__apk__compile_java",
+    ":xml_parser_fuzzer__apk__compile_resources",
+    ":xml_parser_fuzzer__apk__create",
+    ":xml_parser_fuzzer__apk__java",
+    ":xml_parser_fuzzer__apk__java__dex",
+    ":xml_parser_fuzzer__apk__java__header",
+    ":xml_parser_fuzzer__apk__java__validate",
+    ":xml_parser_fuzzer__library",
+    ":xml_parser_fuzzer__library__jni_registration__native_sources",
     ":xml_parser_fuzzer_executable",
   ]
   public_deps = [
@@ -162,6 +177,11 @@ fuzzer_test("xml_parser_fuzzer") {
 if (is_chromeos) {
   fuzzer_test("ble_scan_parser_fuzzer") {
     sources = [ "ble_scan_parser_impl_fuzzer.cc" ]
-    deps = [ ":lib" ]
+    deps = [
+      ":lib",
+      "//services/data_decoder/ble_scan_parser:parser",
+    ]
+
+    seed_corpus = "//services/data_decoder/ble_scan_parser/data"
   }
 }

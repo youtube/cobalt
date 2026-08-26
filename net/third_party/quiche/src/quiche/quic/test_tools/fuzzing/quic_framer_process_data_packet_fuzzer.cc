@@ -110,7 +110,7 @@ QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
 
   header.remaining_packet_length = 0;
 
-  if (header.form != quic::GOOGLE_QUIC_PACKET && header.version_flag) {
+  if (header.form != quic::GOOGLE_QUIC_Q043_PACKET && header.version_flag) {
     header.long_packet_type = static_cast<QuicLongHeaderType>(
         provider->ConsumeIntegralInRange<uint8_t>(
             // INITIAL, ZERO_RTT_PROTECTED, or HANDSHAKE.
@@ -201,10 +201,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                              receiver_perspective,
                              kQuicDefaultConnectionIdLength);
   SetupFramer(&receiver_framer, &receiver_framer_visitor);
-  if (receiver_perspective == Perspective::IS_CLIENT) {
-    QuicFramerPeer::SetLastSerializedServerConnectionId(
-        &receiver_framer, header.source_connection_id);
-  }
 
   std::array<char, kEthernetMTU> packet_buffer;
   while (data_provider.remaining_bytes() > 16) {

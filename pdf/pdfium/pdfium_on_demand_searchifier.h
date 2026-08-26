@@ -16,6 +16,7 @@
 #include "services/screen_ai/public/mojom/screen_ai_service.mojom.h"
 #include "third_party/pdfium/public/cpp/fpdf_scopers.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+
 namespace chrome_pdf {
 
 class PDFiumOnDemandSearchifier {
@@ -37,20 +38,30 @@ class PDFiumOnDemandSearchifier {
   bool IsPageScheduled(int page_index) const;
 
   // Puts a page in the queue to be searchified. This function can be called
-  // before `Start` and if so, the page stays in the queue until searchifier
-  // starts.
+  // before `Start` and if so, the page stays in the queue until `Start` is
+  // called.
   void SchedulePage(int page_index);
 
   bool HasFailed() const { return state_ == State::kFailed; }
-  bool IsIdleForTesting() const { return state_ == State::kIdle; }
+  bool PerformedOCR() const { return performed_ocr_; }
 
  private:
-  enum class State { kIdle, kWaitingForResults, kFailed };
+  friend class PDFiumOnDemandSearchifierTest;
+  enum class State {
+    kIdle,
+    kWaitingForResults,
+    kWaitingForPageAvailability,
+    kFailed
+  };
 
   void SearchifyNextPage();
   void SearchifyNextImage();
 
   void CommitResultsToPage();
+
+  // Resets `current_page_` and tries to unload the page if it was not loaded
+  // before `SearchifyNextPage` gets the page.
+  void ClearCurrentPage();
 
   struct BitmapResult {
     SkBitmap bitmap;
@@ -82,6 +93,9 @@ class PDFiumOnDemandSearchifier {
 
   ScopedFPDFFont font_;
 
+  // Callback function to get max resolution. Should be used only once.
+  GetOcrMaxImageDimensionCallbackAsync get_max_dimension_callback_;
+
   // Callback function to perform OCR.
   PerformOcrCallbackAsync perform_ocr_callback_;
 
@@ -97,6 +111,9 @@ class PDFiumOnDemandSearchifier {
   bool current_page_was_loaded_ = false;
   std::vector<int> current_page_image_object_indices_;
   std::vector<OcrResult> current_page_ocr_results_;
+
+  // Records if any call to OCR service was successful.
+  bool performed_ocr_ = false;
 
   // Scheduled pages to be searchified.
   base::circular_deque<int> pages_queue_;

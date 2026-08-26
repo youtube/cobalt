@@ -37,8 +37,8 @@ public class XMLParser extends DefaultHandler {
 
         public Node(@Nullable String tagName) {
             tag = tagName;
-            attributes = new HashMap<String, String>();
-            children = new ArrayList<Node>();
+            attributes = new HashMap<>();
+            children = new ArrayList<>();
         }
     }
 
@@ -47,7 +47,7 @@ public class XMLParser extends DefaultHandler {
 
     public XMLParser(String serverResponse) throws RequestFailureException {
         mRootNode = new Node(null);
-        mTagStack = new Stack<Node>();
+        mTagStack = new Stack<>();
         mTagStack.push(mRootNode);
 
         try {

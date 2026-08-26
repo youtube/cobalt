@@ -2,10 +2,7 @@
 -org.chromium.chrome.browser.display_cutout.DisplayCutoutTest.*
 
 # crbug.com/375710620
--org.chromium.chrome.browser.VirtualKeyboardResizeTest.testModeAfterNavigation
 -org.chromium.chrome.browser.VirtualKeyboardResizeTest.testModeAfterNavigationWithPref
--org.chromium.chrome.browser.VirtualKeyboardResizeTest.testNoSpuriousResizeEventOverlaysContent
--org.chromium.chrome.browser.VirtualKeyboardResizeTest.testResizesVisualMetaTag
 
 # crbug.com/376100658
 -org.chromium.chrome.browser.payments.PaymentRequestServiceWorkerPaymentAppTest.testCanNotPreselectWithoutIcon
@@ -79,9 +76,6 @@
 # crbug.com/394675204
 -org.chromium.chrome.browser.page_info.PageInfoViewDarkModeTest.testChromePage
 -org.chromium.chrome.browser.page_info.PageInfoViewDarkModeTest.testShowOnSecureWebsiteDark
-
-# crbug.com/415101606
--org.chromium.chrome.browser.contextmenu.ContextMenuTest.testSavePage
 
 # crbug.com/415118264
 -org.chromium.chrome.browser.customtabs.CustomTabActivityIncognitoTest.ensureAddCustomMenuItemHasNoEffect

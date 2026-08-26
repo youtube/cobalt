@@ -85,8 +85,10 @@ UIImage* ImageFromView(UIView* view,
       [[UIGraphicsImageRenderer alloc] initWithBounds:imageBounds];
   return [renderer imageWithActions:^(UIGraphicsImageRendererContext* context) {
     // Draw background.
-    [backgroundColor set];
-    UIRectFill(imageBounds);
+    if (backgroundColor) {
+      [backgroundColor set];
+      UIRectFill(imageBounds);
+    }
 
     // Draw view.
     [view drawViewHierarchyInRect:contentBounds afterScreenUpdates:YES];
@@ -182,8 +184,9 @@ UIImage* BlurredImageWithImage(UIImage* image, CGFloat blurRadius) {
                 forKey:@"inputRadius"];
 
   CIContext* context = [CIContext contextWithOptions:nil];
-  UIImage* blurredImage =
-      [UIImage imageWithCGImage:[context createCGImage:blurFilter.outputImage
-                                              fromRect:inputImage.extent]];
+  CGImageRef cgImage = [context createCGImage:blurFilter.outputImage
+                                     fromRect:inputImage.extent];
+  UIImage* blurredImage = [UIImage imageWithCGImage:cgImage];
+  CGImageRelease(cgImage);
   return blurredImage;
 }

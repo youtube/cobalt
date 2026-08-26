@@ -5,14 +5,18 @@
 #ifndef CHROME_BROWSER_UI_COMMERCE_COMMERCE_UI_TAB_HELPER_H_
 #define CHROME_BROWSER_UI_COMMERCE_COMMERCE_UI_TAB_HELPER_H_
 
+#include <memory>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/commerce/price_tracking_page_action_controller.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
-#include "components/commerce/core/shopping_service.h"
+#include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
+#include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/gfx/image/image.h"
 
 // TODO(https://crbug.com/362675963): Once //c/b/ui/views/commerce/ gets
@@ -26,14 +30,22 @@ class GURL;
 class SidePanelEntryScope;
 class SidePanelRegistry;
 class SidePanelUI;
+class DiscountsBubbleCoordinator;
+class DiscountsIconViewBrowserTest;
+class ProductSpecificationsIconViewBrowserTest;
+
 namespace bookmarks {
 class BookmarkModel;
 }
 
 namespace content {
 class NavigationHandle;
-class WebContents;
 }  // namespace content
+
+namespace tabs {
+class TabInterface;
+class TabModel;
+}
 
 namespace image_fetcher {
 class ImageFetcher;
@@ -47,12 +59,13 @@ namespace commerce {
 
 class DiscountsPageActionController;
 class ProductSpecificationsPageActionController;
+class ShoppingService;
 
 // This tab helper is used to update and maintain the state of UI for commerce
 // features.
-class CommerceUiTabHelper : public content::WebContentsObserver {
+class CommerceUiTabHelper : public tabs::ContentsObservingTabFeature {
  public:
-  CommerceUiTabHelper(content::WebContents* contents,
+  CommerceUiTabHelper(tabs::TabInterface& tab_interface,
                       ShoppingService* shopping_service,
                       bookmarks::BookmarkModel* model,
                       image_fetcher::ImageFetcher* image_fetcher,
@@ -60,6 +73,9 @@ class CommerceUiTabHelper : public content::WebContentsObserver {
   ~CommerceUiTabHelper() override;
   CommerceUiTabHelper(const CommerceUiTabHelper& other) = delete;
   CommerceUiTabHelper& operator=(const CommerceUiTabHelper& other) = delete;
+
+  DECLARE_USER_DATA(CommerceUiTabHelper);
+  static CommerceUiTabHelper* From(tabs::TabModel* tab);
 
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
 
@@ -150,6 +166,12 @@ class CommerceUiTabHelper : public content::WebContentsObserver {
                                              bool is_merchant_wide);
   void DiscountsBubbleShown(uint64_t discount_id);
 
+  // Trigger the discount bubble show for the provided `discount` data.
+  void ShowDiscountBubble(const DiscountInfo& discount,
+                          base::OnceClosure one_bubble_closing_callback);
+
+  const DiscountsBubbleCoordinator& GetDiscountsBubbleCoordinator() const;
+
   PriceTrackingPageActionController* GetPriceTrackingControllerForTesting();
 
   void SetPriceTrackingControllerForTesting(
@@ -165,6 +187,8 @@ class CommerceUiTabHelper : public content::WebContentsObserver {
 
  private:
   friend class CommerceUiTabHelperTest;
+  friend class ::DiscountsIconViewBrowserTest;
+  friend class ::ProductSpecificationsIconViewBrowserTest;
 
   void UpdateUiForShoppingServiceReady(ShoppingService* service);
 
@@ -176,6 +200,10 @@ class CommerceUiTabHelper : public content::WebContentsObserver {
       const std::optional<PriceInsightsInfo>& info);
 
   void UpdateDiscountsIconView();
+
+  // Returns the discounts page action view. It's used by the discount bubble
+  // coordinator.
+  views::View* GetDiscountsIconView();
 
   void UpdatePriceTrackingIconView();
 
@@ -198,7 +226,7 @@ class CommerceUiTabHelper : public content::WebContentsObserver {
   // first.
   void MakeShoppingInsightsSidePanelUnavailable();
 
-  SidePanelUI* GetSidePanelUI() const;
+  SidePanelUI* GetSidePanelUI();
 
   void MaybeComputePageActionToExpand();
 
@@ -216,6 +244,10 @@ class CommerceUiTabHelper : public content::WebContentsObserver {
 
   base::RepeatingClosure GetPageActionControllerNotificationCallback(
       base::RepeatingClosure page_action_icon_update_callback);
+
+  // This helper is for the legacy page actions. It will be removed after the
+  // migration to the new framework.
+  void UpdatePageActionIconView(PageActionIconType type);
 
   // The shopping service is tied to the lifetime of the browser context
   // which will always outlive this tab helper.
@@ -277,6 +309,10 @@ class CommerceUiTabHelper : public content::WebContentsObserver {
   // The price insights icon label type for the current page load.
   PriceInsightsIconLabelType price_insights_label_type_;
 
+  // Coordinates the creation and the display of the discounts bubble view.
+  std::unique_ptr<DiscountsBubbleCoordinator> discounts_bubble_coordinator_;
+
+  ui::ScopedUnownedUserData<CommerceUiTabHelper> scoped_unowned_user_data_;
   base::WeakPtrFactory<CommerceUiTabHelper> weak_ptr_factory_{this};
 };
 

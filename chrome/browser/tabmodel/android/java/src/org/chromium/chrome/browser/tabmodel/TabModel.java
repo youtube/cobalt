@@ -10,8 +10,11 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
+import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+
+import java.util.Set;
 
 /**
  * TabModel organizes all the open tabs and allows you to create new ones. Regular and Incognito
@@ -23,10 +26,10 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
     @Nullable Profile getProfile();
 
     /** Returns the matching tab that has the given id, or null if there is none. */
-    @Nullable Tab getTabById(int tabId);
+    @Nullable Tab getTabById(@TabId int tabId);
 
     /** Returns the matching tab that has the given id, or null if there is none. */
-    default Tab getTabByIdChecked(int tabId) {
+    default Tab getTabByIdChecked(@TabId int tabId) {
         Tab t = getTabById(tabId);
         assert t != null;
         return t;
@@ -42,7 +45,7 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      * @param uponExit If the next tab is being selected upon exit or backgrounding of the app.
      * @return The id of the next tab that would be visible.
      */
-    @Nullable Tab getNextTabIfClosed(int id, boolean uponExit);
+    @Nullable Tab getNextTabIfClosed(@TabId int id, boolean uponExit);
 
     /**
      * @return Whether or not this model supports pending closures.
@@ -53,7 +56,7 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      * @param tabId The id of the {@link Tab} that might have a pending closure.
      * @return Whether or not the {@link Tab} specified by {@code tabId} has a pending closure.
      */
-    boolean isClosurePending(int tabId);
+    boolean isClosurePending(@TabId int tabId);
 
     /** Commits all pending closures, closing all tabs that had a chance to be undone. */
     void commitAllTabClosures();
@@ -63,7 +66,7 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      *
      * @param tabId The id of the {@link Tab} to commit the pending closure.
      */
-    void commitTabClosure(int tabId);
+    void commitTabClosure(@TabId int tabId);
 
     /**
      * Cancels a pending {@link Tab} closure, bringing the tab back into this model. Note that this
@@ -71,7 +74,7 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      *
      * @param tabId The id of the {@link Tab} to undo.
      */
-    void cancelTabClosure(int tabId);
+    void cancelTabClosure(@TabId int tabId);
 
     /**
      * Restores the most recent closure, bringing the tab(s) back into their original tab model or
@@ -113,7 +116,21 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      * @param id The id of the tab to move.
      * @param newIndex The new place to put the tab.
      */
-    void moveTab(int id, int newIndex);
+    void moveTab(@TabId int id, int newIndex);
+
+    /**
+     * Pins a tab to the model.
+     *
+     * @param tabId The id of the tab to pin.
+     */
+    void pinTab(int tabId);
+
+    /**
+     * Unpins a tab from the model.
+     *
+     * @param tabId The id of the tab to unpin.
+     */
+    void unpinTab(int tabId);
 
     /**
      * Returns a supplier for the number of tabs in this tab model. This does not count tabs that
@@ -133,4 +150,42 @@ public interface TabModel extends SupportsTabModelObserver, TabList {
      * @param creationState How the tab was created.
      */
     void addTab(Tab tab, int index, @TabLaunchType int type, @TabCreationState int creationState);
+
+    /** Broadcast a native-side notification that all tabs are now loaded from storage. */
+    void broadcastSessionRestoreComplete();
+
+    /**
+     * Sets the multi-selected state for a collection of tabs in a single batch operation.
+     *
+     * @param tabIds A Set of tab IDs to either add to or remove from the multi-selection.
+     * @param isSelected If true, the tab IDs will be added to the selection; if false, they will be
+     *     removed.
+     */
+    void setTabsMultiSelected(Set<Integer> tabIds, boolean isSelected);
+
+    /**
+     * Clears the entire multi-selection set.
+     *
+     * @param notifyObservers If true, observers will be notified of the change. This can be set to
+     *     false to avoid redundant notifications when this clear is part of a larger operation.
+     */
+    void clearMultiSelection(boolean notifyObservers);
+
+    /**
+     * Checks if a tab is part of the current selection. A tab is considered selected if it is
+     * either the currently active tab or has been explicitly added to the multi-selection group.
+     *
+     * @param tabId The ID of the tab to check.
+     * @return true if the tab is selected, false otherwise.
+     */
+    boolean isTabMultiSelected(int tabId);
+
+    /**
+     * Gets the total number of selected tabs. This includes the currently active tab plus any other
+     * tabs explicitly added to the multi-selection group. If no tabs are multi-selected, this will
+     * return 1 (for the active tab). If there are no tabs in the model, this will return 0.
+     *
+     * @return The total count of selected tabs.
+     */
+    int getMultiSelectedTabsCount();
 }

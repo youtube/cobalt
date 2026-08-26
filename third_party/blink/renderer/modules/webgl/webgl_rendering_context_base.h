@@ -39,6 +39,7 @@
 #include "third_party/blink/public/platform/web_graphics_context_3d_provider.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_canvas_element_hit_test_region.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_webgl_context_attributes.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_context_creation_attributes_core.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
@@ -419,14 +420,16 @@ class MODULES_EXPORT WebGLRenderingContextBase
                   ImageBitmap*,
                   ExceptionState&);
 
-  void texElement2D(ScriptState* script_state,
-                    GLenum target,
+  void texElement2D(GLenum target,
                     GLint level,
                     GLint internalformat,
                     GLenum format,
                     GLenum type,
                     Element* element,
                     ExceptionState& exception_state);
+
+  void setHitTestRegions(VectorOf<CanvasElementHitTestRegion> hit_test_regions,
+                         ExceptionState& exception_state);
 
   void texParameterf(GLenum target, GLenum pname, GLfloat param);
   void texParameteri(GLenum target, GLenum pname, GLint param);
@@ -604,7 +607,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
   void Trace(Visitor*) const override;
 
   // Returns approximate gpu memory allocated per pixel.
-  int ExternallyAllocatedBufferCountPerPixel() override;
+  int AllocatedBufferCountPerPixel() override;
 
   // Returns the drawing buffer size after it is, probably, has scaled down
   // to the maximum supported canvas size.
@@ -637,8 +640,6 @@ class MODULES_EXPORT WebGLRenderingContextBase
   V8UnionHTMLCanvasElementOrOffscreenCanvas* getHTMLOrOffscreenCanvas() const;
 
   void drawingBufferStorage(GLenum sizedformat, GLsizei width, GLsizei height);
-
-  void commit();
 
   ScriptPromise<IDLUndefined> makeXRCompatible(ScriptState*, ExceptionState&);
   bool IsXRCompatible() const;
@@ -713,10 +714,25 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   // CanvasRenderingContext implementation.
   bool IsComposited() const override { return true; }
-  bool UsingSwapChain() const override;
+  bool CanUseDrawingBufferSIWithoutCopyForLowLatency();
   void PageVisibilityChanged() override;
-  CanvasResourceProvider* PaintRenderingResultsToCanvas(
-      SourceDrawingBuffer) override;
+  void SizeChanged() override;
+  std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProvider(
+      bool use_bitmap_provider);
+  scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
+      SourceDrawingBuffer source_buffer,
+      FlushReason reason) override;
+  void ClearMarkedCanvasDirty() override { marked_canvas_dirty_ = false; }
+  scoped_refptr<CanvasResource> PaintRenderingResultsToResource(
+      SourceDrawingBuffer source_buffer,
+      FlushReason reason) override;
+
+  scoped_refptr<StaticBitmapImage>
+  CopyRenderingResultsToUnacceleratedStaticBitmapImage(
+      SourceDrawingBuffer source_buffer,
+      viz::SharedImageFormat format,
+      SkAlphaType alpha_type,
+      GrSurfaceOrigin origin);
   bool CopyRenderingResultsToVideoFrame(
       WebGraphicsContext3DVideoFramePool*,
       SourceDrawingBuffer,
@@ -725,7 +741,6 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   cc::Layer* CcLayer() const override;
   void Stop() override;
-  void FinalizeFrame(FlushReason) override;
   bool PushFrame() override;
 
   // DrawingBuffer::Client implementation.
@@ -991,7 +1006,8 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
     bool MatchesName(const String&) const;
 
-    virtual WebGLExtension* GetExtension(WebGLRenderingContextBase*) = 0;
+    virtual WebGLExtension* GetExtension(WebGLRenderingContextBase*,
+                                         ExecutionContext*) = 0;
     virtual bool Supported(WebGLRenderingContextBase*) const = 0;
     virtual const char* ExtensionName() const = 0;
     virtual void LoseExtension(bool) = 0;
@@ -1000,7 +1016,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
     virtual WebGLExtension* GetExtensionObjectIfAlreadyEnabled() = 0;
 
     virtual void Trace(Visitor* visitor) const {}
-    const char* NameInHeapSnapshot() const override {
+    const char* GetHumanReadableName() const override {
       return "ExtensionTracker";
     }
 
@@ -1015,9 +1031,10 @@ class MODULES_EXPORT WebGLRenderingContextBase
     explicit TypedExtensionTracker(ExtensionFlags flags)
         : ExtensionTracker(flags) {}
 
-    WebGLExtension* GetExtension(WebGLRenderingContextBase* context) override {
+    WebGLExtension* GetExtension(WebGLRenderingContextBase* context,
+                                 ExecutionContext* execution_context) override {
       if (!extension_) {
-        extension_ = MakeGarbageCollected<T>(context);
+        extension_ = MakeGarbageCollected<T>(context, execution_context);
       }
 
       return extension_.Get();
@@ -1063,7 +1080,9 @@ class MODULES_EXPORT WebGLRenderingContextBase
   }
 
   bool ExtensionSupportedAndAllowed(const ExtensionTracker*);
-  WebGLExtension* EnableExtensionIfSupported(const String& name);
+  WebGLExtension* EnableExtensionIfSupported(
+      const String& name,
+      ExecutionContext* execution_context);
 
   bool TimerQueryExtensionsEnabled();
 
@@ -1952,9 +1971,16 @@ class MODULES_EXPORT WebGLRenderingContextBase
                                 Platform::ContextType context_type,
                                 Platform::GraphicsInfo* graphics_info);
 
-  CanvasResourceProvider* PaintRenderingResultsToCanvasInternal(
+  scoped_refptr<ExternalCanvasResource> ExportLowLatencyCanvasResource(
       SourceDrawingBuffer source_buffer,
-      bool& resource_provider_was_updated);
+      bool export_only_if_update);
+
+  CanvasResourceProvider* GetOrCreateCanvasResourceProvider(
+      bool use_bitmap_provider);
+  CanvasResourceProvider* PaintRenderingResultsToResourceProvider(
+      SourceDrawingBuffer source_buffer,
+      bool use_bitmap_provider,
+      bool* resource_provider_was_updated = nullptr);
   void TexImageHelperMediaVideoFrame(
       TexImageParams,
       WebGLTexture*,
@@ -1986,6 +2012,8 @@ class MODULES_EXPORT WebGLRenderingContextBase
                                            GLenum precision_type,
                                            WebGLShaderPrecisionFormat* format);
 
+  void Dispose() override;
+
   // PushFrameWithCopy will make a potential copy if the resource is accelerated
   // or a drawImage if the resource is non accelerated.
   bool PushFrameWithCopy();
@@ -1993,13 +2021,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
   // ExtenralCanvasResource.
   bool PushFrameNoCopy();
 
-  // Returns true if the given element can be used in a texElement2D call.
-  // Return false and adds relevant exceptions to `exception_state` if that's
-  // not the case.
-  bool IsDrawElementEligible(Element* element,
-                             GLenum target,
-                             ExceptionState& exception_state);
-
+  std::unique_ptr<CanvasResourceProvider> resource_provider_;
   static bool webgl_context_limits_initialized_;
   static unsigned max_active_webgl_contexts_;
   static unsigned max_active_webgl_contexts_on_worker_;
@@ -2009,6 +2031,10 @@ class MODULES_EXPORT WebGLRenderingContextBase
   bool checkProgramCompletionQueryAvailable(WebGLProgram* program,
                                             bool* completed);
   static constexpr unsigned int kMaxProgramCompletionQueries = 128u;
+
+  // `did_fail_to_create_resource_provider_` prevents repeated attempts in
+  // allocating resources after the first attempt failed.
+  bool did_fail_to_create_resource_provider_ = false;
 
   // Support for KHR_parallel_shader_compile.
   //

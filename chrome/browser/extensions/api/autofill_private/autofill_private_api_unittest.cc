@@ -188,7 +188,12 @@ INSTANTIATE_TEST_SUITE_P(,
 
 class AutofillPrivateApiUnitTest : public extensions::ExtensionApiTest {
  public:
-  AutofillPrivateApiUnitTest() = default;
+  AutofillPrivateApiUnitTest() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{autofill::features::kAutofillAiWithDataSchema},
+        /*disabled_features=*/
+        {autofill::features::kAutofillAiIgnoreLocale});
+  }
   AutofillPrivateApiUnitTest(const AutofillPrivateApiUnitTest&) = delete;
   AutofillPrivateApiUnitTest& operator=(const AutofillPrivateApiUnitTest&) =
       delete;
@@ -228,8 +233,7 @@ class AutofillPrivateApiUnitTest : public extensions::ExtensionApiTest {
  private:
   autofill::TestAutofillClientInjector<autofill::TestContentAutofillClient>
       test_autofill_client_injector_;
-  base::test::ScopedFeatureList feature_list_{
-      autofill::features::kAutofillAiWithDataSchema};
+  base::test::ScopedFeatureList feature_list_;
 };
 
 // Test to verify all the CVCs(server and local) are bulk deleted when the API
@@ -362,7 +366,8 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiUnitTest, SetAutofillAiOptIn) {
   autofill_client()->set_entity_data_manager(
       autofill::AutofillEntityDataManagerFactory::GetForProfile(profile()));
   autofill_client()->SetUpPrefsAndIdentityForAutofillAi();
-  EXPECT_TRUE(autofill::SetAutofillAiOptInStatus(*autofill_client(), false));
+  EXPECT_TRUE(autofill::SetAutofillAiOptInStatus(
+      *autofill_client(), autofill::AutofillAiOptInStatus::kOptedOut));
   EXPECT_FALSE(autofill::GetAutofillAiOptInStatus(*autofill_client()));
   EXPECT_TRUE(RunAutofillSubtest("verifyUserOptedOutOfAutofillAi"));
 
@@ -392,7 +397,8 @@ IN_PROC_BROWSER_TEST_F(AutofillPrivateApiUnitTest,
 
   ASSERT_TRUE(autofill::MayPerformAutofillAiAction(
       *autofill_client(), autofill::AutofillAiAction::kOptIn));
-  EXPECT_TRUE(autofill::SetAutofillAiOptInStatus(*autofill_client(), true));
+  EXPECT_TRUE(autofill::SetAutofillAiOptInStatus(
+      *autofill_client(), autofill::AutofillAiOptInStatus::kOptedIn));
 
   // Verify that we can opt out of Autofill AI while eligible.
   ASSERT_TRUE(RunAutofillSubtest("optOutOfAutofillAi"));

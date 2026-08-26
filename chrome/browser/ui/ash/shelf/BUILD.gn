@@ -71,6 +71,7 @@ static_library("shelf") {
     "//chrome/browser:browser_public_dependencies",
     "//chrome/browser/ui/extensions:extension_enable_flow_delegate",
     "//chrome/browser/ui/tabs:tab_strip_model_observer",
+    "//components/app_icon_loader",
   ]
 
   deps = [
@@ -95,6 +96,7 @@ static_library("shelf") {
     "//chrome/browser/ash/arc/fileapi",
     "//chrome/browser/ash/arc/pip",
     "//chrome/browser/ash/arc/session",
+    "//chrome/browser/ash/browser_delegate",
     "//chrome/browser/ash/crostini",
     "//chrome/browser/ash/eche_app",
     "//chrome/browser/ash/extensions",
@@ -108,7 +110,6 @@ static_library("shelf") {
     "//chrome/browser/ash/system_web_apps",
     "//chrome/browser/chromeos/extensions/login_screen/login/cleanup",
     "//chrome/browser/extensions",
-    "//chrome/browser/image_decoder",
     "//chrome/browser/prefs",
     "//chrome/browser/prefs:util",
     "//chrome/browser/profiles:profile",
@@ -119,10 +120,13 @@ static_library("shelf") {
     "//chrome/browser/ui/ash/multi_user",
     "//chrome/browser/ui/ash/shelf/app_service",
     "//chrome/browser/ui/ash/system_web_apps",
+    "//chrome/browser/ui/extensions",
     "//chrome/browser/ui/tabs:tab_enums",
+    "//chrome/browser/ui/web_applications",
     "//chrome/browser/ui/webui/ash/settings/app_management",
     "//chrome/browser/web_applications",
     "//chrome/common",
+    "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/components/default_pinned_apps",
     "//chromeos/ash/components/file_manager:constants",
     "//chromeos/ash/components/scalable_iph",
@@ -139,6 +143,7 @@ static_library("shelf") {
     "//components/favicon/content",
     "//components/pref_registry",
     "//components/prefs",
+    "//components/session_manager/core",
     "//components/sync_preferences",
     "//components/webapps/common",
     "//extensions/browser",
@@ -217,6 +222,7 @@ source_set("unit_tests") {
     "//chrome/browser/ash/arc",
     "//chrome/browser/ash/arc:arc_util",
     "//chrome/browser/ash/arc/session",
+    "//chrome/browser/ash/browser_delegate:impl",
     "//chrome/browser/ash/crostini:test_support",
     "//chrome/browser/ash/eche_app",
     "//chrome/browser/ash/file_manager",
@@ -254,6 +260,7 @@ source_set("unit_tests") {
     "//chromeos/ash/experiences/system_web_apps/types",
     "//components/account_id",
     "//components/app_constants",
+    "//components/app_icon_loader",
     "//components/exo",
     "//components/keep_alive_registry",
     "//components/prefs",
@@ -266,6 +273,10 @@ source_set("unit_tests") {
     "//extensions/common",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("browser_tests") {
@@ -313,6 +324,8 @@ source_set("browser_tests") {
     "//chrome/browser/ui",
     "//chrome/browser/ui:test_support",
     "//chrome/browser/ui/ash/system_web_apps",
+    "//chrome/browser/ui/extensions",
+    "//chrome/browser/ui/web_applications",
     "//chrome/browser/web_applications",
     "//chrome/browser/web_applications:web_applications_test_support",
     "//chrome/common",

@@ -6,6 +6,7 @@ import("//build/buildflag_header.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/rust.gni")
+import("//content/browser/devtools/features.gni")
 import("//skia/features.gni")
 import("//testing/test.gni")
 import("//third_party/blink/public/public_features.gni")
@@ -47,6 +48,7 @@ blink_python_runner("make_runtime_feature_state_contexts_headers") {
              "../../renderer/build/scripts/templates/runtime_feature_state_context.h.tmpl",
              "../../renderer/build/scripts/templates/runtime_feature_state_read_context.h.tmpl",
              "../../renderer/platform/runtime_enabled_features.json5",
+             "../../renderer/platform/runtime_enabled_features.override.json5",
            ]
 
   outputs = [
@@ -70,7 +72,7 @@ component("common") {
   output_name = "blink_common"
 
   public_deps = [
-    "//third_party/blink/common/privacy_budget:privacy_budget",
+    "//third_party/blink/common/privacy_budget",
     "//third_party/blink/public/common:headers",
     "//third_party/blink/public/mojom:mojom_modules",
     "//third_party/blink/public/mojom:web_bluetooth_mojo_bindings",
@@ -88,6 +90,7 @@ buildflag_header("buildflags") {
     "RTC_USE_H264=$rtc_use_h264",
     "RTC_USE_H265=$rtc_use_h265",
     "USE_WEBRTC_PEER_CONNECTION=$use_webrtc_peer_connection",
+    "ENABLE_DEVTOOLS_BACKEND=$enable_devtools_backend",
   ]
 }
 
@@ -100,6 +103,7 @@ source_set("common_export") {
 }
 
 source_set("preloading_headers") {
+  deps = [ ":common_export" ]
   sources = [ "navigation/preloading_headers.h" ]
 }
 
@@ -203,6 +207,7 @@ source_set("headers") {
     "interest_group/seller_capabilities.h",
     "link_to_text/link_to_text_mojom_traits.h",
     "loader/background_resource_fetch_histograms.h",
+    "loader/code_cache_util.h",
     "loader/http_body_element_type.h",
     "loader/inter_process_time_ticks_converter.h",
     "loader/javascript_framework_detection.h",
@@ -273,7 +278,6 @@ source_set("headers") {
     "peerconnection/webrtc_ip_handling_policy.h",
     "peerconnection/webrtc_ip_handling_url_entry.h",
     "performance/largest_contentful_paint_type.h",
-    "performance/performance_timeline_constants.h",
     "permissions/permission_utils.h",
     "permissions_policy/document_policy.h",
     "permissions_policy/document_policy_features.h",
@@ -333,7 +337,7 @@ source_set("headers") {
     "//base",
     "//mojo/public/cpp/bindings",
     "//services/metrics/public/cpp:metrics_cpp",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//services/network/public/mojom:mojom_permissions_policy",
     "//skia",
     "//skia/public/mojom:shared_typemap_traits",
@@ -365,7 +369,7 @@ source_set("headers") {
     "//mojo/public/cpp/system",
     "//mojo/public/mojom/base",
     "//net",
-    "//ui/base:base",
+    "//ui/base",
   ]
 
   # Chromium without blink doesn't use and must not depend on //media
@@ -390,6 +394,10 @@ source_set("headers") {
   if (is_mac) {
     sources += [ "sandbox_support/sandbox_support_mac.h" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_android || is_win) {

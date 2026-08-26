@@ -9,11 +9,14 @@
 
 #include "base/auto_reset.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "content/public/browser/service_worker_context.h"
+#include "extensions/browser/service_worker/sequenced_context_id.h"
 #include "extensions/browser/service_worker/worker_id.h"
+#include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 
 namespace extensions {
 class ProcessManager;
@@ -24,13 +27,11 @@ class ServiceWorkerState
  public:
   // Browser process worker state of an activated extension.
   enum class BrowserState {
-    // Initial state, not started.
-    kNotStarted,
-    // Worker has completed starting at least once (i.e. has seen
-    // DidStartWorkerForScope).
-    kStarted,
-    // Worker has completed starting at least once and has run all pending
-    // tasks (i.e. has seen DidStartWorkerForScope and
+    // Worker has not started or has been stopped/terminated.
+    kNotActive,
+    // Worker has started (i.e. has seen DidStartWorkerForScope).
+    kActive,
+    // Worker has completed starting (i.e. has seen DidStartWorkerForScope and
     // DidStartServiceWorkerContext).
     kReady,
   };
@@ -43,8 +44,8 @@ class ServiceWorkerState
     kActive,
   };
 
-  explicit ServiceWorkerState(
-      content::ServiceWorkerContext* service_worker_context);
+  ServiceWorkerState(content::ServiceWorkerContext* service_worker_context,
+                     const ProcessManager* process_manager);
   ~ServiceWorkerState() override;
 
   ServiceWorkerState(const ServiceWorkerState&) = delete;
@@ -52,10 +53,15 @@ class ServiceWorkerState
 
   class Observer : public base::CheckedObserver {
    public:
+    // Called when an extension service worker has started.
+    virtual void OnWorkerStart(const SequencedContextId& context_id,
+                               const WorkerId& worker_id) {}
+    // Called when an extension service worker has failed to start.
+    virtual void OnWorkerStartFail(const SequencedContextId& context_id,
+                                   base::Time start_time,
+                                   content::StatusCodeResponse status) {}
     // Called when an extension service worker is stopping or has stopped.
-    virtual void OnWorkerStop(
-        int64_t version_id,
-        const content::ServiceWorkerRunningInfo& worker_info) {}
+    virtual void OnWorkerStop(int64_t version_id, const GURL& scope) {}
   };
 
   void AddObserver(Observer* observer);
@@ -65,21 +71,48 @@ class ServiceWorkerState
   void SetRendererState(RendererState renderer_state);
   void Reset();
 
+  // Returns true if a request to start the worker has been made but the worker
+  // is not ready yet.
+  bool IsStarting() const;
+
+  // Returns true if the worker is running and is ready to execute tasks.
   bool IsReady() const;
+
+  // Starts the extension service worker. This method should only be called
+  // if the service worker hasn't started yet. If this method is called while
+  // the service worker is in the process of starting, it's a no-op.
+  void StartWorker(const SequencedContextId& context_id);
 
   // Called when a service worker renderer process is running, has executed its
   // global JavaScript scope, and all its global event listeners have been
   // registered with the //extensions layer. It is considered the
   // "renderer-side" signal that the worker is ready.
-  void DidStartServiceWorkerContext(const WorkerId& worker_id,
-                                    const ProcessManager* process_manager);
+  // NOTE: this can be called before or after `RendererDidStartWorkerForScope`.
+  void RendererDidStartServiceWorkerContext(
+      const SequencedContextId& context_id,
+      const WorkerId& worker_id);
+
+  // Called when the render worker thread is preparing to terminate. It is
+  // considered the "renderer-side" signal that the worker is stopping.
+  // NOTE: this can be called before or after `OnStoppingSync` and
+  // `OnStoppedSync`.
+  void RendererDidStopServiceWorkerContext(const WorkerId& worker_id,
+                                           const GURL& scope);
 
   // Called when the worker was requested to start and it verified that a worker
   // registration exists at the //content layer. It is considered the
   // "browser-side" signal that the worker is ready.
-  void DidStartWorkerForScope(const WorkerId& worker_id,
+  // NOTE: this can be called before or after
+  // `RendererDidStartServiceWorkerContext`.
+  void DidStartWorkerForScope(const SequencedContextId& context_id,
                               base::Time start_time,
-                              const ProcessManager* process_manager);
+                              int64_t version_id,
+                              int process_id,
+                              int thread_id);
+  // Called when the worker was requested to start, but failed.
+  void DidStartWorkerFail(const SequencedContextId& context_id,
+                          base::Time start_time,
+                          content::StatusCodeResponse status);
 
   BrowserState browser_state() const { return browser_state_; }
   RendererState renderer_state() const { return renderer_state_; }
@@ -89,20 +122,29 @@ class ServiceWorkerState
   void StopObservingContextForTest();
 
   // content::ServiceWorkerContextObserverSynchronous:
-  // Called when an extension service worker has stopped.
-  void OnStopped(int64_t version_id,
-                 const content::ServiceWorkerRunningInfo& worker_info) override;
+
   // Called when an extension service worker is stopping.
-  void OnStopping(
-      int64_t version_id,
-      const content::ServiceWorkerRunningInfo& worker_info) override;
+  // It is considered the "browser-side" signal that the worker is stopping.
+  // NOTE: this can be called before or after
+  // `RendererDidStopServiceWorkerContext`.
+  void OnStoppingSync(int64_t version_id, const GURL& scope) override;
+
+  // Called when an extension service worker has stopped.
+  // It is considered the "browser-side" signal that the worker has stopped.
+  // NOTE: this can be called before or after
+  // `RendererDidStopServiceWorkerContext`.
+  void OnStoppedSync(int64_t version_id, const GURL& scope) override;
 
  private:
-  void SetWorkerId(const WorkerId& worker_id,
-                   const ProcessManager* process_manager);
+  void SetWorkerId(const WorkerId& worker_id);
+  void NotifyObserversIfReady(const SequencedContextId& context_id);
+  void HandleStop(int64_t version_id, const GURL& scope);
 
-  BrowserState browser_state_ = BrowserState::kNotStarted;
+  BrowserState browser_state_ = BrowserState::kNotActive;
   RendererState renderer_state_ = RendererState::kNotActive;
+
+  // Whether the service worker is in the process of starting.
+  bool worker_starting_ = false;
 
   // Contains the worker's WorkerId associated with this ServiceWorkerState,
   // once we have discovered info about the worker.
@@ -112,11 +154,18 @@ class ServiceWorkerState
   const raw_ptr<content::ServiceWorkerContext> service_worker_context_ =
       nullptr;
 
+  // Holds a pointer to the ProcessManager associated with a profile /
+  // BrowserContext. This ServiceWorkerState is owned by ServiceWorkerTaskQueue,
+  // ensuring ProcessManager outlives this instance.
+  const raw_ptr<const ProcessManager> process_manager_ = nullptr;
+
   base::ScopedObservation<content::ServiceWorkerContext,
                           content::ServiceWorkerContextObserverSynchronous>
       service_worker_context_observation_{this};
 
   base::ObserverList<Observer> observers_;
+
+  base::WeakPtrFactory<ServiceWorkerState> weak_factory_{this};
 };
 
 }  // namespace extensions

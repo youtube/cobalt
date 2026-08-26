@@ -16,11 +16,13 @@
 #include "chrome/browser/ui/views/page_info/page_info_main_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_merchant_trust_content_view.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
+#include "chrome/browser/ui/views/permissions/permission_prompt_bubble_base_view.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/commerce/core/proto/merchant_trust.pb.h"
-#include "components/optimization_guide/core/optimization_metadata.h"
+#include "components/optimization_guide/core/hints/optimization_metadata.h"
+#include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/page_info/core/features.h"
 #include "components/strings/grit/components_strings.h"
@@ -40,7 +42,8 @@ optimization_guide::OptimizationMetadata GetMerchantTrustMetadata() {
   metadata.set_merchant_details_page_url("https://reviews.test");
   metadata.set_shopper_voice_summary("Test summary");
 
-  optimization_metadata.SetAnyMetadataForTesting(metadata);
+  optimization_metadata.set_any_metadata(
+      optimization_guide::AnyWrapProto(metadata));
   return optimization_metadata;
 }
 

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/allocator/partition_alloc_features.h"
 
 #include "base/allocator/miracle_parameter.h"
@@ -28,11 +33,6 @@ static constexpr char kBrowserOnlyStr[] = "browser-only";
 static constexpr char kBrowserAndRendererStr[] = "browser-and-renderer";
 static constexpr char kNonRendererStr[] = "non-renderer";
 static constexpr char kAllProcessesStr[] = "all-processes";
-
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-static constexpr char kRendererOnlyStr[] = "renderer-only";
-static constexpr char kAllChildProcessesStr[] = "all-child-processes";
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
 
 }  // namespace
 
@@ -139,22 +139,12 @@ constinit const FeatureParam<PartitionAllocWithAdvancedChecksEnabledProcesses>
 BASE_FEATURE(kPartitionAllocSchedulerLoopQuarantine,
              "PartitionAllocSchedulerLoopQuarantine",
              FEATURE_DISABLED_BY_DEFAULT);
-// Scheduler Loop Quarantine's per-branch capacity in bytes.
+// Scheduler Loop Quarantine's config.
 // Note: Do not use the prepared macro as of no need for a local cache.
-constinit const FeatureParam<int>
-    kPartitionAllocSchedulerLoopQuarantineBranchCapacity{
+constinit const FeatureParam<std::string>
+    kPartitionAllocSchedulerLoopQuarantineConfig{
         &kPartitionAllocSchedulerLoopQuarantine,
-        "PartitionAllocSchedulerLoopQuarantineBranchCapacity", 0};
-// Scheduler Loop Quarantine's capacity for the UI thread in bytes.
-BASE_FEATURE_PARAM(int,
-                   kPartitionAllocSchedulerLoopQuarantineBrowserUICapacity,
-                   &kPartitionAllocSchedulerLoopQuarantine,
-                   "PartitionAllocSchedulerLoopQuarantineBrowserUICapacity",
-                   0);
-
-BASE_FEATURE(kPartitionAllocZappingByFreeFlags,
-             "PartitionAllocZappingByFreeFlags",
-             FEATURE_DISABLED_BY_DEFAULT);
+        "PartitionAllocSchedulerLoopQuarantineConfig", "{}"};
 
 BASE_FEATURE(kPartitionAllocEventuallyZeroFreedMemory,
              "PartitionAllocEventuallyZeroFreedMemory",
@@ -213,6 +203,12 @@ BASE_FEATURE_ENUM_PARAM(BackupRefPtrMode,
 // Note: Do not use the prepared macro as of no need for a local cache.
 constinit const FeatureParam<int> kBackupRefPtrExtraExtrasSizeParam{
     &kPartitionAllocBackupRefPtr, "brp-extra-extras-size", 0};
+constinit const FeatureParam<bool> kBackupRefPtrSuppressDoubleFreeDetectedCrash{
+    &kPartitionAllocBackupRefPtr, "brp-suppress-double-free-detected-crash",
+    false};
+constinit const FeatureParam<bool> kBackupRefPtrSuppressCorruptionDetectedCrash{
+    &kPartitionAllocBackupRefPtr, "brp-suppress-corruption-detected-crash",
+    false};
 
 BASE_FEATURE(kPartitionAllocMemoryTagging,
              "PartitionAllocMemoryTagging",
@@ -479,29 +475,6 @@ BASE_FEATURE(kPartitionAllocAdjustSizeWhenInForeground,
 #else
              FEATURE_DISABLED_BY_DEFAULT);
 #endif
-
-BASE_FEATURE(kPartitionAllocUseSmallSingleSlotSpans,
-             "PartitionAllocUseSmallSingleSlotSpans",
-             FEATURE_ENABLED_BY_DEFAULT);
-
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-BASE_FEATURE(kPartitionAllocShadowMetadata,
-             "PartitionAllocShadowMetadata",
-             FEATURE_DISABLED_BY_DEFAULT);
-
-constexpr FeatureParam<ShadowMetadataEnabledProcesses>::Option
-    kShadowMetadataEnabledProcessesOptions[] = {
-        {ShadowMetadataEnabledProcesses::kRendererOnly, kRendererOnlyStr},
-        {ShadowMetadataEnabledProcesses::kAllChildProcesses,
-         kAllChildProcessesStr}};
-
-// Note: Do not use the prepared macro as of no need for a local cache.
-constinit const FeatureParam<ShadowMetadataEnabledProcesses>
-    kShadowMetadataEnabledProcessesParam{
-        &kPartitionAllocShadowMetadata, kPAFeatureEnabledProcessesStr,
-        ShadowMetadataEnabledProcesses::kRendererOnly,
-        &kShadowMetadataEnabledProcessesOptions};
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
 
 #if PA_BUILDFLAG(ENABLE_PARTITION_LOCK_PRIORITY_INHERITANCE)
 BASE_FEATURE(kPartitionAllocUsePriorityInheritanceLocks,

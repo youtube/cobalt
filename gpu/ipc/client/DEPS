@@ -8,7 +8,6 @@ include_rules = [
 
 specific_include_rules = {
   "gpu_in_process_context_tests.cc": [
-    "+components/viz/test/test_gpu_memory_buffer_manager.h",
     "+components/viz/test/test_gpu_service_holder.h",
   ],
   "image_decode_accelerator_proxy(_unittest)?\.cc": [
@@ -16,7 +15,6 @@ specific_include_rules = {
   ],
   "raster_in_process_context_tests.cc": [
     "+components/viz/common/resources/shared_image_format.h",
-    "+components/viz/test/test_gpu_memory_buffer_manager.h",
   ],
   "client_shared_image_interface.cc": [
     "+components/viz/common/resources/shared_image_format.h",

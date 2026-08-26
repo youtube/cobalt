@@ -112,11 +112,33 @@ bool CSPSourceListAllowNonce(
 
 bool CSPSourceListAllowHash(
     const network::mojom::blink::CSPSourceList& source_list,
-    const network::mojom::blink::CSPHashSource& hash_value) {
-  for (const network::mojom::blink::CSPHashSourcePtr& hash :
-       source_list.hashes) {
-    if (*hash == hash_value)
+    const network::IntegrityMetadata& hash_value) {
+  for (const network::IntegrityMetadata& hash : source_list.hashes) {
+    if (hash == hash_value) {
       return true;
+    }
+  }
+  return false;
+}
+
+bool CSPSourceListAllowEvalHash(
+    const network::mojom::blink::CSPSourceList& source_list,
+    const network::IntegrityMetadata& hash_value) {
+  for (const network::IntegrityMetadata& hash : source_list.eval_hashes) {
+    if (hash == hash_value) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool CSPSourceListAllowUrlHash(
+    const network::mojom::blink::CSPSourceList& source_list,
+    const network::IntegrityMetadata& url_hash_value) {
+  for (const network::IntegrityMetadata& url_hash : source_list.url_hashes) {
+    if (url_hash == url_hash_value) {
+      return true;
+    }
   }
   return false;
 }
@@ -153,6 +175,11 @@ bool CSPSourceListIsSelf(
 bool CSPSourceListIsHashOrNoncePresent(
     const network::mojom::blink::CSPSourceList& source_list) {
   return !source_list.nonces.empty() || !source_list.hashes.empty();
+}
+
+bool CSPSourceListIsEvalHashPresent(
+    const network::mojom::blink::CSPSourceList& source_list) {
+  return !source_list.eval_hashes.empty();
 }
 
 bool CSPSourceListAllowsURLBasedMatching(

@@ -238,6 +238,11 @@ public class ChildProcessLauncherTest {
                         Assert.assertEquals(0, onConnectionLostHelper.getCallCount());
                         onConnectionLostHelper.notifyCalled();
                     }
+
+                    @Override
+                    public int getLibraryProcessType() {
+                        return 0;
+                    }
                 };
 
         final String[] commandLine = new String[] {"--test-param1", "--test-param2"};
@@ -257,8 +262,7 @@ public class ChildProcessLauncherTest {
                                                 commandLine,
                                                 filesToBeMapped,
                                                 mConnectionAllocator,
-                                                Arrays.asList(childProcessBinder),
-                                                /* binderBox= */ null);
+                                                Arrays.asList(childProcessBinder));
                                 processLauncher.start(
                                         /* setupConnection= */ true,
                                         /* queueIfNoFreeConnection= */ false);
@@ -505,12 +509,16 @@ public class ChildProcessLauncherTest {
                         ChildProcessLauncher processLauncher =
                                 new ChildProcessLauncher(
                                         LauncherThread.getHandler(),
-                                        new ChildProcessLauncher.Delegate() {},
+                                        new ChildProcessLauncher.Delegate() {
+                                            @Override
+                                            public int getLibraryProcessType() {
+                                                return 0;
+                                            }
+                                        },
                                         new String[0],
                                         new IFileDescriptorInfo[0],
                                         connectionAllocator,
-                                        /* clientInterfaces= */ null,
-                                        /* binderBox= */ null);
+                                        /* clientInterfaces= */ null);
                         if (!processLauncher.start(setupConnection, queueIfNoFreeConnection)) {
                             return null;
                         }

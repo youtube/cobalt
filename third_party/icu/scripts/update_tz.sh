@@ -35,7 +35,7 @@ curl -L $repo_url --output $tarball
 echo "Extracting timezone files from main to ICU tree root"
 for file in metaZones.txt timezoneTypes.txt windowsZones.txt zoneinfo64.txt
 do
-  tar -xf $tarball -C $treeroot "icu-main/icu4c/${datapath}/${file}" --strip-components=2
+  tar -xf $tarball -C $treeroot --strip-components=2 "icu-main/icu4c/${datapath}/${file}"
 done
 
 echo "Cleaning up tmp directory"

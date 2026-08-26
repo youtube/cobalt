@@ -9,6 +9,11 @@
 
 #include "printing/backend/cups_helper.h"
 
+#include "base/logging.h"
+#include "base/time/time.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_LINUX)
 #include <cups/ppd.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -24,13 +29,9 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_file.h"
-#include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/time/time.h"
-#include "build/build_config.h"
 #include "printing/backend/cups_deleters.h"
-#include "printing/backend/cups_weak_functions.h"
 #include "printing/backend/print_backend.h"
 #include "printing/backend/print_backend_consts.h"
 #include "printing/mojom/print.mojom.h"
@@ -40,8 +41,15 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
+#endif  // BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_LINUX)
+#include "printing/backend/cups_weak_functions.h"
+#endif
+
+#if BUILDFLAG(IS_LINUX)
 using base::EqualsCaseInsensitiveASCII;
+#endif  // BUILDFLAG(IS_LINUX)
 
 namespace printing {
 
@@ -52,6 +60,7 @@ namespace {
 // able to start and respond on all systems within this duration.
 constexpr base::TimeDelta kCupsTimeout = base::Seconds(5);
 
+#if BUILDFLAG(IS_LINUX)
 // CUPS default max copies value (parsed from kCupsMaxCopies PPD attribute).
 constexpr int32_t kDefaultMaxCopies = 9999;
 constexpr char kCupsMaxCopies[] = "cupsMaxCopies";
@@ -159,11 +168,7 @@ std::pair<std::vector<gfx::Size>, gfx::Size> GetResolutionSettings(
   // Some printers, such as Generic-CUPS-BRF-Printer, do not specify a
   // resolution in their ppd file. Provide a default DPI if no valid DPI is
   // found.
-#if BUILDFLAG(IS_MAC)
-  constexpr gfx::Size kDefaultMissingDpi(kDefaultMacDpi, kDefaultMacDpi);
-#else
   constexpr gfx::Size kDefaultMissingDpi(kDefaultPdfDpi, kDefaultPdfDpi);
-#endif
 
   std::vector<gfx::Size> dpis;
   gfx::Size default_dpi;
@@ -757,9 +762,11 @@ bool GetColorModelSettings(ppd_file_t* ppd,
 
 // Default port for IPP print servers.
 const int kDefaultIPPServerPort = 631;
+#endif  // BUILDFLAG(IS_LINUX)
 
 }  // namespace
 
+#if BUILDFLAG(IS_LINUX)
 // Helper wrapper around http_t structure, with connection and cleanup
 // functionality.
 HttpConnectionCUPS::HttpConnectionCUPS(const GURL& print_server_url,
@@ -954,6 +961,7 @@ bool ParsePpdCapabilities(cups_dest_t* dest,
   *printer_info = caps;
   return true;
 }
+#endif  // BUILDFLAG(IS_LINUX)
 
 ScopedHttpPtr HttpConnect2(const char* host,
                            int port,
@@ -963,6 +971,7 @@ ScopedHttpPtr HttpConnect2(const char* host,
                            int blocking,
                            int msec,
                            int* cancel) {
+#if BUILDFLAG(IS_LINUX)
   ScopedHttpPtr http;
   if (httpConnect2) {
     http.reset(httpConnect2(host, port,
@@ -985,6 +994,15 @@ ScopedHttpPtr HttpConnect2(const char* host,
   }
 
   return http;
+#else
+  ScopedHttpPtr http(httpConnect2(
+      host, port, /*addrlist=*/nullptr, AF_UNSPEC, encryption, blocking ? 1 : 0,
+      kCupsTimeout.InMilliseconds(), /*cancel=*/nullptr));
+  if (!http) {
+    LOG(ERROR) << "CP_CUPS: Failed connecting to print server: " << host;
+  }
+  return http;
+#endif  // BUILDFLAG(IS_LINUX)
 }
 
 }  // namespace printing

@@ -23,6 +23,10 @@ BASE_FEATURE(kManualLogUploadsInTheFRE,
              "ManualLogUploadsInTheFRE",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSkipDefaultBrowserPromoInFirstRun,
+             "SkipDefaultBrowserPromoInFirstRun",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kUpdatedFirstRunSequence,
              "UpdatedFirstRunSequence",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -56,7 +60,7 @@ UpdatedFRESequenceVariationType GetUpdatedFRESequenceVariation(
   regional_capabilities::RegionalCapabilitiesService* regional_capabilities =
       ios::RegionalCapabilitiesServiceFactory::GetForProfile(profile);
   if (!base::FeatureList::IsEnabled(kUpdatedFirstRunSequence) ||
-      regional_capabilities->IsInEeaCountry()) {
+      regional_capabilities->IsInSearchEngineChoiceScreenRegion()) {
     return UpdatedFRESequenceVariationType::kDisabled;
   }
   return static_cast<UpdatedFRESequenceVariationType>(

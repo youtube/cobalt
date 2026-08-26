@@ -21,9 +21,9 @@
 #include "build/build_config.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/webui_url_constants.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/url_constants.h"
 #include "net/net_buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 
 namespace chrome {
 
@@ -384,6 +384,10 @@ inline constexpr char kInsecureDownloadBlockingLearnMoreUrl[] =
 // "myactivity.google.com" URL for the history checkbox in ClearBrowsingData.
 inline constexpr char16_t kMyActivityUrlInClearBrowsingData[] =
     u"https://myactivity.google.com/myactivity?utm_source=chrome_cbd";
+
+// The URL for "Your Gemini Apps Activity" page.
+inline constexpr char16_t kMyActivityGeminiAppsUrl[] =
+    u"https://myactivity.google.com/product/gemini";
 
 // Help URL for the Omnibox setting.
 inline constexpr char16_t kOmniboxLearnMoreURL[] =
@@ -760,14 +764,6 @@ inline constexpr char kEchoLearnMoreURL[] =
 // The URL for EOL notification
 inline constexpr char16_t kEolNotificationURL[] =
     u"https://www.google.com/chromebook/older/";
-
-// The URL for the EOL incentive with offer.
-inline constexpr char kEolIncentiveNotificationOfferURL[] =
-    "https://www.google.com/chromebook/renew-chromebook-offer";
-
-// The URL for the EOL incentive with no offer.
-inline constexpr char kEolIncentiveNotificationNoOfferURL[] =
-    "https://www.google.com/chromebook/renew-chromebook";
 
 // The URL for Auto Update Policy.
 inline constexpr char16_t kAutoUpdatePolicyURL[] =

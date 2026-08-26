@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/neteq/merge.h"
 
-#include <string.h>  // memmove, memcpy, memset, size_t
-
 #include <algorithm>  // min, max
 #include <cstdint>
+#include <cstring>  // memmove, memcpy, memset, size_t
 #include <limits>
 #include <memory>
 

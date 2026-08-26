@@ -20,6 +20,8 @@
 
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/containers/auto_spanification_helper.h"
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -35,8 +37,8 @@
 #include "content/web_test/renderer/test_runner.h"
 #include "content/web_test/renderer/web_frame_test_proxy.h"
 #include "content/web_test/renderer/web_test_spell_checker.h"
-#include "gin/handle.h"
 #include "gin/object_template_builder.h"
+#include "gin/public/wrappable_pointer_tags.h"
 #include "gin/wrappable.h"
 #include "net/base/filename_util.h"
 #include "third_party/blink/public/common/context_menu_data/context_menu_data.h"
@@ -61,6 +63,9 @@
 #include "ui/events/keycodes/dom/keycode_converter.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/geometry/point_conversions.h"
+#include "v8/include/cppgc/allocation.h"
+#include "v8/include/cppgc/prefinalizer.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -471,8 +476,9 @@ std::vector<std::string> MakeMenuItemStringsFor(ContextMenuData* context_menu) {
   PopulateCustomItems(context_menu->custom_items, "", &strings);
 
   if (context_menu->is_editable) {
-    for (const char** item = kEditableMenuStrings; *item; ++item) {
-      strings.push_back(*item);
+    for (base::span<const char*> item = kEditableMenuStrings; item[0];
+         base::PreIncrementSpan(item)) {
+      strings.push_back(item[0]);
     }
     std::vector<WebString> suggestions;
     WebTestSpellChecker::FillSuggestionList(
@@ -480,8 +486,9 @@ std::vector<std::string> MakeMenuItemStringsFor(ContextMenuData* context_menu) {
     for (const WebString& suggestion : suggestions)
       strings.push_back(suggestion.Utf8());
   } else {
-    for (const char** item = kNonEditableMenuStrings; *item; ++item) {
-      strings.push_back(*item);
+    for (base::span<const char*> item = kNonEditableMenuStrings; item[0];
+         base::PreIncrementSpan(item)) {
+      strings.push_back(item[0]);
     }
   }
 
@@ -546,15 +553,26 @@ const char* kSourceDeviceStringTouchscreen = "touchscreen";
 
 }  // namespace
 
-class EventSenderBindings : public gin::Wrappable<EventSenderBindings> {
+class EventSenderBindings final : public gin::Wrappable<EventSenderBindings> {
+  CPPGC_USING_PRE_FINALIZER(EventSenderBindings, Dispose);
+
  public:
-  static gin::WrapperInfo kWrapperInfo;
+  static constexpr gin::WrapperInfo kWrapperInfo = {{gin::kEmbedderNativeGin},
+                                                    gin::kEventSenderBindings};
+
+  const gin::WrapperInfo* wrapper_info() const override {
+    return &kWrapperInfo;
+  }
 
   EventSenderBindings(const EventSenderBindings&) = delete;
   EventSenderBindings& operator=(const EventSenderBindings&) = delete;
 
+  explicit EventSenderBindings(base::WeakPtr<EventSender> sender,
+                               WebFrameTestProxy* frame);
   static void Install(base::WeakPtr<EventSender> sender,
                       WebFrameTestProxy* frame);
+
+  void Dispose() { frame_observer_.Dispose(); }
 
  private:
   // Watches for the RenderFrame that the EventSenderBindings is attached to
@@ -571,10 +589,6 @@ class EventSenderBindings : public gin::Wrappable<EventSenderBindings> {
    private:
     const raw_ptr<EventSenderBindings> bindings_;
   };
-
-  explicit EventSenderBindings(base::WeakPtr<EventSender> sender,
-                               WebFrameTestProxy* frame);
-  ~EventSenderBindings() override;
 
   // gin::Wrappable:
   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
@@ -673,15 +687,11 @@ class EventSenderBindings : public gin::Wrappable<EventSenderBindings> {
   const raw_ptr<blink::WebLocalFrame> frame_;
 };
 
-gin::WrapperInfo EventSenderBindings::kWrapperInfo = {gin::kEmbedderNativeGin};
-
 EventSenderBindings::EventSenderBindings(base::WeakPtr<EventSender> sender,
                                          WebFrameTestProxy* frame)
     : frame_observer_(this, frame),
       sender_(sender),
       frame_(frame->GetWebFrame()) {}
-
-EventSenderBindings::~EventSenderBindings() = default;
 
 // static
 void EventSenderBindings::Install(base::WeakPtr<EventSender> sender,
@@ -696,12 +706,14 @@ void EventSenderBindings::Install(base::WeakPtr<EventSender> sender,
 
   v8::Context::Scope context_scope(context);
 
-  gin::Handle<EventSenderBindings> bindings =
-      gin::CreateHandle(isolate, new EventSenderBindings(sender, frame));
-  if (bindings.IsEmpty())
+  auto* bindings = cppgc::MakeGarbageCollected<EventSenderBindings>(
+      isolate->GetCppHeap()->GetAllocationHandle(), sender, frame);
+  v8::Local<v8::Object> wrapper;
+  if (!bindings->GetWrapper(isolate).ToLocal(&wrapper)) {
     return;
+  }
   v8::Local<v8::Object> global = context->Global();
-  global->Set(context, gin::StringToV8(isolate, "eventSender"), bindings.ToV8())
+  global->Set(context, gin::StringToV8(isolate, "eventSender"), wrapper)
       .Check();
 }
 

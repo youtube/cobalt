@@ -37,6 +37,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
@@ -259,10 +260,15 @@ class ObjectGenerator : public quic::simulator::Actor,
   }
 
   quic::QuicBandwidth GetCurrentBitrate() const override { return bitrate_; }
-  bool AdjustBitrate(quic::QuicBandwidth bandwidth) override {
+  bool CouldUseExtraBandwidth() override { return true; }
+  void ConsiderAdjustingBitrate(quic::QuicBandwidth bandwidth,
+                                BitrateAdjustmentType type) override {
+    if (moqt::ShouldIgnoreBitrateAdjustment(bandwidth, type, bitrate_,
+                                            /*min_change=*/0.01)) {
+      return;
+    }
     bitrate_ = bandwidth;
     bitrate_history_.push_back(bandwidth);
-    return true;
   }
   std::string FormatBitrateHistory() const {
     std::vector<std::string> bits;
@@ -299,12 +305,12 @@ class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
     object_ack_function_ = std::move(ack_function);
   }
 
-  void OnObjectFragment(const FullTrackName& full_track_name, Location sequence,
-                        MoqtPriority /*publisher_priority*/,
-                        MoqtObjectStatus status, absl::string_view object,
+  void OnObjectFragment(const FullTrackName& full_track_name,
+                        const PublishedObjectMetadata& metadata,
+                        absl::string_view object,
                         bool end_of_message) override {
     QUICHE_DCHECK(full_track_name == TrackName());
-    if (status != MoqtObjectStatus::kNormal) {
+    if (metadata.status != MoqtObjectStatus::kNormal) {
       QUICHE_DCHECK(end_of_message);
       return;
     }
@@ -312,10 +318,11 @@ class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
       QUICHE_LOG(DFATAL) << "Partial receiving of objects wasn't enabled";
       return;
     }
-    OnFullObject(sequence, object);
+    OnFullObject(metadata.location, object);
   }
 
   void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+  void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
 
   void OnFullObject(Location sequence, absl::string_view payload) {
     QUICHE_CHECK_GE(payload.size(), 8u);
@@ -443,11 +450,14 @@ class MoqtSimulator {
     //       some catching up to do.
     generator_.Start();
     VersionSpecificParameters subscription_parameters;
+    if (parameters_.bitrate_adaptation) {
+      subscription_parameters.oack_window_size = parameters_.deadline;
+    }
     if (!parameters_.delivery_timeout.IsInfinite()) {
       subscription_parameters.delivery_timeout = parameters_.delivery_timeout;
     }
-    server_session()->JoiningFetch(TrackName(), &receiver_, 0,
-                                   subscription_parameters);
+    server_session()->RelativeJoiningFetch(TrackName(), &receiver_, 0,
+                                           subscription_parameters);
     simulator_.RunFor(parameters_.duration);
 
     // At the end, we wait for eight RTTs until the connection settles down.

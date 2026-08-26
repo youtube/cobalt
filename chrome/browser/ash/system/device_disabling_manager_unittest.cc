@@ -14,15 +14,14 @@
 #include "base/run_loop.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_manager_ash.h"
-#include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/policy/server_backed_state/server_backed_device_state.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
+#include "chromeos/ash/components/policy/device_policy/device_policy_builder.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
 #include "components/ownership/mock_owner_key_util.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
@@ -147,8 +146,6 @@ class DeviceDisablingManagerOOBETest : public DeviceDisablingManagerTestBase {
  private:
   void OnDeviceDisabledChecked(bool device_disabled);
 
-  ScopedTestingLocalState scoped_testing_local_state_{
-      TestingBrowserProcess::GetGlobal()};
   FakeStatisticsProvider statistics_provider_;
 
   base::RunLoop run_loop_;
@@ -177,7 +174,7 @@ void DeviceDisablingManagerOOBETest::CheckWhetherDeviceDisabledDuringOOBE() {
 }
 
 void DeviceDisablingManagerOOBETest::SetDeviceDisabled(bool disabled) {
-  ScopedDictPrefUpdate dict(scoped_testing_local_state_.Get(),
+  ScopedDictPrefUpdate dict(TestingBrowserProcess::GetGlobal()->local_state(),
                             prefs::kServerBackedDeviceState);
   if (disabled) {
     dict->Set(policy::kDeviceStateMode, policy::kDeviceStateModeDisabled);
@@ -284,7 +281,7 @@ class DeviceDisablingManagerTest : public DeviceDisablingManagerTestBase,
 DeviceDisablingManagerTest::DeviceDisablingManagerTest() = default;
 
 void DeviceDisablingManagerTest::TearDown() {
-  DeviceSettingsService::Get()->UnsetSessionManager();
+  DeviceSettingsService::Get()->StopProcessing();
   DeviceDisablingManagerTestBase::TearDown();
 }
 
@@ -303,8 +300,9 @@ void DeviceDisablingManagerTest::MakeCrosSettingsTrusted() {
   scoped_refptr<ownership::MockOwnerKeyUtil> owner_key_util(
       new ownership::MockOwnerKeyUtil);
   owner_key_util->SetPublicKeyFromPrivateKey(*device_policy_.GetSigningKey());
-  DeviceSettingsService::Get()->SetSessionManager(&session_manager_client_,
-                                                  owner_key_util);
+  DeviceSettingsService::Get()->StartProcessing(
+      TestingBrowserProcess::GetGlobal()->local_state(),
+      &session_manager_client_, owner_key_util);
   SimulatePolicyFetch();
 }
 

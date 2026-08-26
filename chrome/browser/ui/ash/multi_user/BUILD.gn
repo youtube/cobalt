@@ -40,6 +40,7 @@ static_library("multi_user") {
     "//chrome/browser/ash/system_web_apps/apps",
     "//chrome/browser/profiles:profile",
     "//chrome/common",
+    "//chromeos/ash/components/browser_context_helper",
     "//components/account_id",
     "//components/prefs",
     "//components/user_manager",
@@ -54,23 +55,6 @@ static_library("multi_user") {
     "//chrome/browser/ash/arc/notification",
     "//chrome/browser/ash/arc/session",
     "//chrome/browser/ash/system_web_apps/apps",
-  ]
-}
-
-static_library("test_support") {
-  testonly = true
-
-  sources = [
-    "test_multi_user_window_manager.cc",
-    "test_multi_user_window_manager.h",
-  ]
-
-  deps = [
-    ":multi_user",
-    "//ash/public/cpp",
-    "//base",
-    "//chrome/browser/ui",
-    "//components/account_id",
   ]
 }
 
@@ -92,12 +76,15 @@ source_set("unit_tests") {
     "//chrome/browser/ash/login/users:test_support",
     "//chrome/browser/ash/profiles",
     "//chrome/browser/ash/settings",
+    "//chrome/browser/signin",
     "//chrome/browser/ui",
     "//chrome/browser/ui/ash/new_window",
     "//chrome/browser/ui/ash/session",
     "//chrome/test:test_support",
     "//chrome/test:test_support_unit",
+    "//chromeos/ash/components/browser_context_helper",
     "//components/account_id",
+    "//components/account_id:test_support",
     "//components/user_manager",
   ]
 }

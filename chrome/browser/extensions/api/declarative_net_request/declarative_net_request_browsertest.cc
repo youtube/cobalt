@@ -123,7 +123,6 @@
 #include "extensions/common/url_pattern_set.h"
 #include "extensions/test/extension_background_page_waiter.h"
 #include "extensions/test/extension_test_message_listener.h"
-#include "ipc/ipc_message.h"
 #include "net/base/net_errors.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_request_headers.h"
@@ -134,7 +133,6 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "net/test/embedded_test_server/install_default_websocket_handlers.h"
-#include "net/test/spawned_test_server/spawned_test_server.h"
 #include "net/test/test_data_directory.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/network/public/cpp/features.h"
@@ -305,6 +303,10 @@ class DeclarativeNetRequestBrowserTest
     embedded_test_server()->RegisterRequestMonitor(
         base::BindRepeating(&DeclarativeNetRequestBrowserTest::MonitorRequest,
                             base::Unretained(this)));
+
+    // Set up WebSockets for any test that needs it. This does not interfere
+    // with non-WebSocket requests.
+    net::test_server::InstallDefaultWebSocketHandlers(embedded_test_server());
 
     content::SetupCrossSiteRedirector(embedded_test_server());
 
@@ -3547,8 +3549,8 @@ IN_PROC_BROWSER_TEST_P(DeclarativeNetRequestBrowserTest, Redirect) {
 #if !BUILDFLAG(IS_ANDROID)
 // Test that the badge text for an extension will update to reflect the number
 // of actions taken on requests matching the extension's ruleset.
-// TODO(crbug.com/371298229): Port to desktop Android when extension badges are
-// supported.
+// TODO(crbug.com/371298229): Fix a dependency_manager.cc DCHECK that this
+// triggers on Android.
 IN_PROC_BROWSER_TEST_P(DeclarativeNetRequestBrowserTest,
                        ActionsMatchedCountAsBadgeText) {
   // Load the extension with a background script so scripts can be run from its
@@ -6901,12 +6903,10 @@ IN_PROC_BROWSER_TEST_P(DeclarativeNetRequestBrowserTest,
 
   ASSERT_NO_FATAL_FAILURE(LoadExtensionWithRules(rules));
 
-  // Start a web socket test server.
-  net::SpawnedTestServer websocket_test_server(
-      net::SpawnedTestServer::TYPE_WS, net::GetWebSocketTestDataDirectory());
-  ASSERT_TRUE(websocket_test_server.Start());
   std::string websocket_url =
-      websocket_test_server.GetURL("echo-with-no-extension").spec();
+      net::test_server::GetWebSocketURL(*embedded_test_server(),
+                                        "/echo-with-no-extension")
+          .spec();
 
   static constexpr char kOpenWebSocketsScript[] = R"(
     {
@@ -7334,7 +7334,8 @@ IN_PROC_BROWSER_TEST_P(DeclarativeNetRequestBrowserTest,
   // Redirecting a bidder script, even to another bidder script, should cause
   // the request to fail, which causes the entire auction to fail, since there's
   // only one bidder script.
-  EXPECT_EQ(nullptr, content::EvalJs(web_contents(), run_auction_command));
+  EXPECT_EQ(base::Value(),
+            content::EvalJs(web_contents(), run_auction_command));
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -8764,7 +8765,7 @@ IN_PROC_BROWSER_TEST_P(DeclarativeNetRequestAllowChromeURLsBrowserTest,
 
   // Initiate main_frame and sub_frame requests via an extension page.
   base::Time start_time = base::Time::Now();
-  GURL extension_page_url = extension_2->GetResourceURL("/manifest.json");
+  GURL extension_page_url = extension_2->GetResourceURL("manifest.json");
   GURL main_frame_url = embedded_test_server()->GetURL("example.com", "/");
   GURL sub_frame_url =
       embedded_test_server()->GetURL("example.com", "/child_frame.html");

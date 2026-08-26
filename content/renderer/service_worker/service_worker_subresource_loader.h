@@ -29,7 +29,6 @@
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom-forward.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
-#include "third_party/blink/public/mojom/blob/blob.mojom-forward.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_event_status.mojom-forward.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_fetch_response_callback.mojom.h"
@@ -217,7 +216,7 @@ class CONTENT_EXPORT ServiceWorkerSubresourceLoader
   bool MaybeStartAutoPreload();
 
   void DidCacheStorageMatch(base::TimeTicks event_dispatch_time,
-                            blink::mojom::MatchResultPtr result);
+                            blink::mojom::CacheStorage::MatchResult result);
 
   void MaybeDeleteThis();
   bool IsResponseAlreadyCommittedByRaceNetworkRequest();

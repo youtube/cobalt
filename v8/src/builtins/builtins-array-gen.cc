@@ -382,6 +382,10 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   Label object_push(this, &arg_index);
   Label double_push(this, &arg_index);
   Label double_transition(this);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  Label holey_double_push(this, &arg_index);
+  Label holey_double_transition(this);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   Label runtime(this, Label::kDeferred);
 
   auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
@@ -429,12 +433,22 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    GotoIfNotNumberOrUndefined(arg, &object_push);
+    Branch(IsElementsKindGreaterThan(elements_kind, PACKED_DOUBLE_ELEMENTS),
+           &holey_double_push, &double_push);
+#else
     GotoIfNotNumber(arg, &object_push);
     Goto(&double_push);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
 
   BIND(&object_push_pre);
   {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    GotoIf(Word32Equal(kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
+           &holey_double_push);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     Branch(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS), &double_push,
            &object_push);
   }
@@ -472,8 +486,43 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
     GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &default_label);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    GotoIf(Word32Equal(elements_kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
+           &holey_double_push);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     Goto(&object_push);
   }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  BIND(&holey_double_push);
+  {
+    TNode<Smi> new_length =
+        BuildAppendJSArray(HOLEY_DOUBLE_ELEMENTS, array_receiver, &args,
+                           &arg_index, &holey_double_transition);
+    args.PopAndReturn(new_length);
+  }
+
+  // If the argument is not a double, then use a heavyweight SetProperty to
+  // transition the array for only the single next element. If the argument is
+  // a double, the failure is due to some other reason and we should fall back
+  // on the most generic implementation for the rest of the array.
+  BIND(&holey_double_transition);
+  {
+    TNode<Object> arg = args.AtIndex(arg_index.value());
+    GotoIfNumberOrUndefined(arg, &default_label);
+    TNode<Number> length = LoadJSArrayLength(array_receiver);
+    // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
+    // calling into the runtime to do the elements transition is overkill.
+    SetPropertyStrict(context, array_receiver, length, arg);
+    Increment(&arg_index);
+    // The runtime SetProperty call could have converted the array to dictionary
+    // mode, which must be detected to abort the fast-path.
+    TNode<Int32T> elements_kind = LoadElementsKind(array_receiver);
+    GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
+           &default_label);
+    Goto(&object_push);
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
   // Fallback that stores un-processed arguments using the full, heavyweight
   // SetProperty machinery.
@@ -1415,10 +1464,14 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   TNode<Number> index = LoadJSArrayIteratorNextIndex(iterator);
   CSA_DCHECK(this, IsNumberNonNegativeSafeInteger(index));
 
+  TVARIABLE(Number, var_max_length, NumberConstant(kMaxSafeInteger));
+
   // Dispatch based on the type of the {array}.
   TNode<Map> array_map = LoadMap(array);
   TNode<Uint16T> array_type = LoadMapInstanceType(array_map);
   GotoIf(InstanceTypeEqual(array_type, JS_ARRAY_TYPE), &if_array);
+  GotoIfNumberGreaterThanOrEqual(index, var_max_length.value(),
+                                 &allocate_iterator_result);
   Branch(InstanceTypeEqual(array_type, JS_TYPED_ARRAY_TYPE), &if_typedarray,
          &if_other);
 
@@ -1427,9 +1480,13 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     // If {array} is a JSArray, then the {index} must be in Unsigned32 range.
     CSA_DCHECK(this, IsNumberArrayIndex(index));
 
+    var_max_length = NumberConstant(kMaxUInt32);
+
     // Check that the {index} is within range for the {array}. We handle all
     // kinds of JSArray's here, so we do the computation on Uint32.
     TNode<Uint32T> index32 = ChangeNonNegativeNumberToUint32(index);
+    GotoIf(Uint32GreaterThanOrEqual(index32, Uint32Constant(kMaxUInt32)),
+           &allocate_iterator_result);
     TNode<Uint32T> length32 =
         ChangeNonNegativeNumberToUint32(LoadJSArrayLength(CAST(array)));
     GotoIfNot(Uint32LessThan(index32, length32), &set_done);
@@ -1497,17 +1554,11 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     // The terminal value we chose here depends on the type of the {array},
     // for JSArray's we use kMaxUInt32 so that TurboFan can always use
     // Word32 representation for fast-path indices (and this is safe since
-    // the "length" of JSArray's is limited to Unsigned32 range). For other
+    // the "length" of JSArray's is limited to Unsigned32 range).
+    // And TypedArray does have JSArrayBuffer::kMaxSafeInteger also. For other
     // JSReceiver's we have to use kMaxSafeInteger, since the "length" can
     // be any arbitrary value in the safe integer range.
-    //
-    // Note specifically that JSTypedArray's will never take this path, so
-    // we don't need to worry about their maximum value.
-    CSA_DCHECK(this, Word32BinaryNot(IsJSTypedArray(array)));
-    TNode<Number> max_length =
-        SelectConstant(IsJSArray(array), NumberConstant(kMaxUInt32),
-                       NumberConstant(kMaxSafeInteger));
-    StoreJSArrayIteratorNextIndex(iterator, max_length);
+    StoreJSArrayIteratorNextIndex(iterator, var_max_length.value());
     Goto(&allocate_iterator_result);
   }
 
@@ -1530,8 +1581,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Label detached(this);
     TNode<UintPtrT> length =
         LoadJSTypedArrayLengthAndCheckDetached(CAST(array), &detached);
-    GotoIfNot(UintPtrLessThan(index_uintptr, length),
-              &allocate_iterator_result);
+    GotoIfNot(UintPtrLessThan(index_uintptr, length), &set_done);
     // TODO(v8:4153): Consider storing next index as uintptr. Update this and
     // the relevant TurboFan code.
     StoreJSArrayIteratorNextIndex(

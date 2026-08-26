@@ -16,9 +16,9 @@
 #include "base/time/time.h"
 #include "base/types/optional_util.h"
 #include "content/browser/child_process_security_policy_impl.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/interest_group/interest_group_features.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/debug_urls.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -596,7 +596,7 @@ void Navigator::DidNavigate(
           .ShouldClearProxiesOnCommit(),
       navigation_request->commit_params().frame_policy, allow_paint_holding);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   // Reset the old frame host's weak pointer to auction initiator page when it
   // is a cross-document navigation and the frame does not go into bfcache.
   if ((base::FeatureList::IsEnabled(features::kDetectInconsistentPageImpl)) &&
@@ -604,7 +604,7 @@ void Navigator::DidNavigate(
       !old_frame_host->IsInBackForwardCache()) {
     old_frame_host->set_auction_initiator_page(nullptr);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   // The main frame, same site, and cross-site navigation checks for user
   // activation mirror the checks in DocumentLoader::CommitNavigation() (note:
@@ -633,10 +633,13 @@ void Navigator::DidNavigate(
   // proxies, including the proxy created in DidNavigateFrame() to replace the
   // old frame in cross-process navigation cases. Note that the origin-related
   // bits are set separately, through `SetLastCommittedOrigin()`.
-  render_frame_host->browsing_context_state()->SetInsecureRequestPolicy(
-      params.insecure_request_policy);
-  render_frame_host->browsing_context_state()->SetInsecureNavigationsSet(
-      params.insecure_navigations_set);
+  if (!was_within_same_document ||
+      !::features::IsEnforceSameDocumentOriginInvariantsEnabled()) {
+    render_frame_host->browsing_context_state()->SetInsecureRequestPolicy(
+        params.insecure_request_policy);
+    render_frame_host->browsing_context_state()->SetInsecureNavigationsSet(
+        params.insecure_navigations_set);
+  }
 
   // If the committing URL requires the SiteInstance's site to be assigned,
   // that site assignment should've already happened at ReadyToCommit time. We
@@ -893,6 +896,10 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
         base::FeatureList::IsEnabled(features::kIgnoreDuplicateNavs)) {
       request->set_navigation_discard_reason(
           NavigationDiscardReason::kNeverStarted);
+      DVLOG(0) << "Ignoring duplicate navigation to "
+               << request->common_params().url
+               << " due to the short interval since the previous one.";
+
       return;
     } else {
       ongoing_navigation_request->set_navigation_discard_reason(

@@ -238,13 +238,9 @@ class VisitedLinkPlatform : public TestingPlatformSupport {
 
 enum TestMode {
   kUnpartitionedStorageAndLinks,
-  kUnpartitionedStoragePartitionedNoSelfLinks,
   kUnpartitionedStorageParttionedWithSelfLinks,
-  kUnpartitionedStoragePartitionedLinksBothEnabled,
   kPartitionedStorageUnpartitionedLinks,
-  kPartitionedStorageAndLinksNoSelfLinks,
-  kPartitionedStorageAndLinksWithSelfLinks,
-  kPartitionedAllEnabled
+  kPartitionedStorageAndLinksWithSelfLinks
 };
 
 class DocumentLoaderTest : public testing::Test,
@@ -255,49 +251,21 @@ class DocumentLoaderTest : public testing::Test,
       case TestMode::kUnpartitionedStorageAndLinks:
         scoped_feature_list_.InitWithFeatures(
             {}, {net::features::kThirdPartyStoragePartitioning,
-                 blink::features::kPartitionVisitedLinkDatabase,
                  blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks});
-        break;
-      case TestMode::kUnpartitionedStoragePartitionedNoSelfLinks:
-        scoped_feature_list_.InitWithFeatures(
-            {blink::features::kPartitionVisitedLinkDatabase},
-            {net::features::kThirdPartyStoragePartitioning,
-             blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks});
         break;
       case TestMode::kUnpartitionedStorageParttionedWithSelfLinks:
         scoped_feature_list_.InitWithFeatures(
             {blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks},
-            {net::features::kThirdPartyStoragePartitioning,
-             blink::features::kPartitionVisitedLinkDatabase});
-        break;
-      case TestMode::kUnpartitionedStoragePartitionedLinksBothEnabled:
-        scoped_feature_list_.InitWithFeatures(
-            {blink::features::kPartitionVisitedLinkDatabase,
-             blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks},
             {net::features::kThirdPartyStoragePartitioning});
         break;
       case TestMode::kPartitionedStorageUnpartitionedLinks:
         scoped_feature_list_.InitWithFeatures(
             {net::features::kThirdPartyStoragePartitioning},
-            {blink::features::kPartitionVisitedLinkDatabase,
-             blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks});
-        break;
-      case TestMode::kPartitionedStorageAndLinksNoSelfLinks:
-        scoped_feature_list_.InitWithFeatures(
-            {net::features::kThirdPartyStoragePartitioning,
-             blink::features::kPartitionVisitedLinkDatabase},
             {blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks});
         break;
       case TestMode::kPartitionedStorageAndLinksWithSelfLinks:
         scoped_feature_list_.InitWithFeatures(
             {net::features::kThirdPartyStoragePartitioning,
-             blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks},
-            {blink::features::kPartitionVisitedLinkDatabase});
-        break;
-      case TestMode::kPartitionedAllEnabled:
-        scoped_feature_list_.InitWithFeatures(
-            {net::features::kThirdPartyStoragePartitioning,
-             blink::features::kPartitionVisitedLinkDatabase,
              blink::features::kPartitionVisitedLinkDatabaseWithSelfLinks},
             {});
         break;
@@ -326,17 +294,17 @@ class DocumentLoaderTest : public testing::Test,
         url_test_helpers::ToKURL("http://192.168.1.1/foo.html"),
         test::CoreTestDataPath("foo.html"), WebString::FromUTF8("text/html"),
         URLLoaderMockFactory::GetSingletonInstance(),
-        network::mojom::IPAddressSpace::kPrivate);
+        network::mojom::IPAddressSpace::kLocal);
     url_test_helpers::RegisterMockedURLLoad(
         url_test_helpers::ToKURL("https://192.168.1.1/foo.html"),
         test::CoreTestDataPath("foo.html"), WebString::FromUTF8("text/html"),
         URLLoaderMockFactory::GetSingletonInstance(),
-        network::mojom::IPAddressSpace::kPrivate);
+        network::mojom::IPAddressSpace::kLocal);
     url_test_helpers::RegisterMockedURLLoad(
         url_test_helpers::ToKURL("http://somethinglocal/foo.html"),
         test::CoreTestDataPath("foo.html"), WebString::FromUTF8("text/html"),
         URLLoaderMockFactory::GetSingletonInstance(),
-        network::mojom::IPAddressSpace::kLocal);
+        network::mojom::IPAddressSpace::kLoopback);
   }
 
   void TearDown() override {
@@ -344,12 +312,8 @@ class DocumentLoaderTest : public testing::Test,
   }
 
   bool are_visited_links_partitioned() {
-    return GetParam() == kUnpartitionedStoragePartitionedNoSelfLinks ||
-           (GetParam() == kUnpartitionedStorageParttionedWithSelfLinks) ||
-           (GetParam() == kUnpartitionedStoragePartitionedLinksBothEnabled) ||
-           (GetParam() == kPartitionedStorageAndLinksNoSelfLinks) ||
-           (GetParam() == kPartitionedStorageAndLinksWithSelfLinks) ||
-           (GetParam() == kPartitionedAllEnabled);
+    return GetParam() == kUnpartitionedStorageParttionedWithSelfLinks ||
+           (GetParam() == kPartitionedStorageAndLinksWithSelfLinks);
   }
 
   class ScopedLoaderDelegate {
@@ -372,13 +336,9 @@ INSTANTIATE_TEST_SUITE_P(
     DocumentLoaderTest,
     DocumentLoaderTest,
     testing::Values(TestMode::kUnpartitionedStorageAndLinks,
-                    TestMode::kUnpartitionedStoragePartitionedNoSelfLinks,
                     TestMode::kUnpartitionedStorageParttionedWithSelfLinks,
-                    TestMode::kUnpartitionedStoragePartitionedLinksBothEnabled,
                     TestMode::kPartitionedStorageUnpartitionedLinks,
-                    TestMode::kPartitionedStorageAndLinksNoSelfLinks,
-                    TestMode::kPartitionedStorageAndLinksWithSelfLinks,
-                    TestMode::kPartitionedAllEnabled));
+                    TestMode::kPartitionedStorageAndLinksWithSelfLinks));
 
 TEST_P(DocumentLoaderTest, SingleChunk) {
   class TestDelegate : public URLLoaderTestDelegate {
@@ -886,8 +846,8 @@ TEST_P(DocumentLoaderTest, PublicNonSecureNotCounted) {
       WebFeature::kMainFrameNonSecurePrivateAddressSpace));
 }
 
-TEST_P(DocumentLoaderTest, PrivateSecureNotCounted) {
-  // Checking to make sure secure pages served in the private address space
+TEST_P(DocumentLoaderTest, LocalSecureNotCounted) {
+  // Checking to make sure secure pages served in the local address space
   // aren't counted for WebFeature::kMainFrameNonSecurePrivateAddressSpace
   WebViewImpl* web_view_impl =
       web_view_helper_.InitializeAndLoad("https://192.168.1.1/foo.html");
@@ -897,8 +857,8 @@ TEST_P(DocumentLoaderTest, PrivateSecureNotCounted) {
       WebFeature::kMainFrameNonSecurePrivateAddressSpace));
 }
 
-TEST_P(DocumentLoaderTest, PrivateNonSecureIsCounted) {
-  // Checking to make sure non-secure pages served in the private address space
+TEST_P(DocumentLoaderTest, LocalNonSecureIsCounted) {
+  // Checking to make sure non-secure pages served in the local address space
   // are counted for WebFeature::kMainFrameNonSecurePrivateAddressSpace
   WebViewImpl* web_view_impl =
       web_view_helper_.InitializeAndLoad("http://192.168.1.1/foo.html");
@@ -908,8 +868,8 @@ TEST_P(DocumentLoaderTest, PrivateNonSecureIsCounted) {
       WebFeature::kMainFrameNonSecurePrivateAddressSpace));
 }
 
-TEST_P(DocumentLoaderTest, LocalNonSecureIsCounted) {
-  // Checking to make sure non-secure pages served in the local address space
+TEST_P(DocumentLoaderTest, LoopbackNonSecureIsCounted) {
+  // Checking to make sure non-secure pages served in the loopback address space
   // are counted for WebFeature::kMainFrameNonSecurePrivateAddressSpace
   WebViewImpl* web_view_impl =
       web_view_helper_.InitializeAndLoad("http://somethinglocal/foo.html");
@@ -919,8 +879,8 @@ TEST_P(DocumentLoaderTest, LocalNonSecureIsCounted) {
       WebFeature::kMainFrameNonSecurePrivateAddressSpace));
 }
 
-TEST_F(DocumentLoaderSimTest, PrivateNonSecureChildFrameNotCounted) {
-  // Checking to make sure non-secure iframes served in the private address
+TEST_F(DocumentLoaderSimTest, LocalNonSecureChildFrameNotCounted) {
+  // Checking to make sure non-secure iframes served in the local address
   // space are not counted for
   // WebFeature::kMainFrameNonSecurePrivateAddressSpace
   SimRequest main_resource("http://example.com", "text/html");

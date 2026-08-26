@@ -14,7 +14,6 @@
 #include <map>
 #include <optional>
 #include <string>
-#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/numerics/samples_stats_counter.h"

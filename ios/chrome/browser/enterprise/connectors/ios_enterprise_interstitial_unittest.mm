@@ -174,8 +174,7 @@ class IOSEnterpriseInterstitialTest : public PlatformTest {
 TEST_F(IOSEnterpriseInterstitialTest, EnterpriseBlock_MetricsRecorded) {
   base::test::ScopedFeatureList feature;
   feature.InitWithFeatures(
-      /*enable_features=*/{kEnterpriseRealtimeEventReportingOnIOS,
-                           kIOSEnterpriseRealtimeUrlFiltering},
+      /*enable_features=*/{kIOSEnterpriseRealtimeUrlFiltering},
       /*disable_features=*/{});
 
   base::HistogramTester histograms;
@@ -207,8 +206,7 @@ TEST_F(IOSEnterpriseInterstitialTest, EnterpriseBlock_MetricsRecorded) {
 TEST_F(IOSEnterpriseInterstitialTest, EnterpriseWarn_MetricsRecorded) {
   base::test::ScopedFeatureList feature;
   feature.InitWithFeatures(
-      /*enable_features=*/{kEnterpriseRealtimeEventReportingOnIOS,
-                           kIOSEnterpriseRealtimeUrlFiltering},
+      /*enable_features=*/{kIOSEnterpriseRealtimeUrlFiltering},
       /*disable_features=*/{});
 
   base::HistogramTester histograms;
@@ -247,23 +245,24 @@ TEST_F(IOSEnterpriseInterstitialTest, EnterpriseWarn_MetricsRecorded) {
 
 TEST_F(IOSEnterpriseInterstitialTest, CustomMessageDisplayed) {
   std::string expected_primary_paragraph =
-      base::StrCat({"Your administrator says: \"<a target=\"_blank\" href=\"",
+      base::StrCat({"Your organization says: \"<a target=\"_blank\" href=\"",
                     kTestUrl, "\">", kTestMessage, "</a>\""});
 
   auto block_resource = CreateBlockUnsafeResource();
   AddCustomMessageToResource(
       block_resource, safe_browsing::RTLookupResponse::ThreatInfo::DANGEROUS);
-  EXPECT_NE(IOSEnterpriseInterstitial::CreateBlockingPage(block_resource)
-                ->GetHtmlContents()
-                .find(expected_primary_paragraph),
+
+  auto block_page = CreateBlockingPage(block_resource);
+
+  EXPECT_NE(block_page->GetHtmlContents().find(expected_primary_paragraph),
             std::string::npos);
 
   auto warn_resource = CreateWarnUnsafeResource();
   AddCustomMessageToResource(warn_resource,
                              safe_browsing::RTLookupResponse::ThreatInfo::WARN);
-  EXPECT_NE(CreateWarningPage(warn_resource)
-                ->GetHtmlContents()
-                .find(expected_primary_paragraph),
+  auto warn_page = CreateWarningPage(warn_resource);
+
+  EXPECT_NE(warn_page->GetHtmlContents().find(expected_primary_paragraph),
             std::string::npos);
 }
 

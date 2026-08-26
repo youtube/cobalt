@@ -125,7 +125,8 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
   DCHECK_GE(return_double_registers.size(), DerivedDescriptor::kReturnCount);
   data->InitializeRegisters(
       DerivedDescriptor::flags(), DerivedDescriptor::kEntrypointTag,
-      DerivedDescriptor::kReturnCount, DerivedDescriptor::GetParameterCount(),
+      DerivedDescriptor::kSandboxingMode, DerivedDescriptor::kReturnCount,
+      DerivedDescriptor::GetParameterCount(),
       DerivedDescriptor::kStackArgumentOrder,
       DerivedDescriptor::GetRegisterParameterCount(), registers.data(),
       double_registers.data(), return_registers.data(),
@@ -535,6 +536,9 @@ OnStackReplacementDescriptor::ExpectedParameterCountRegister() {
 constexpr auto VoidDescriptor::registers() { return RegisterArray(); }
 
 // static
+constexpr auto JSEntryDescriptor::registers() { return RegisterArray(); }
+
+// static
 constexpr auto AllocateDescriptor::registers() {
   return RegisterArray(kAllocateSizeRegister);
 }
@@ -813,9 +817,10 @@ constexpr auto WasmToJSWrapperDescriptor::return_double_registers() {
     using type = DescriptorName##Descriptor;                          \
   };
 BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN,
-             /*TSC*/ DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER,
+             /*TFC_TSA*/ DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER,
              /*TFC*/ DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER, IGNORE_BUILTIN,
              /*TFH*/ DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER, IGNORE_BUILTIN,
+             IGNORE_BUILTIN,
              /*ASM*/ DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER)
 #undef DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER
 #define DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER(Name, ...) \

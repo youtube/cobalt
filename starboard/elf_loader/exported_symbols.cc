@@ -14,17 +14,13 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
-// clang-format off
-#include "build/build_config.h"
-// clang-format off
-
 #include <dirent.h>
 
 #include "build/build_config.h"
 
-#if !defined(OFFICIAL_BUILD)
+#if !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #include <dlfcn.h>
-#endif  // !defined(OFFICIAL_BUILD)
+#endif  // !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #include <errno.h>
 #include <fcntl.h>
@@ -432,14 +428,14 @@ const void* ExportedSymbols::Lookup(const char* name) {
 
   // Not an error, as it could be a weak symbol.
   SB_DLOG(WARNING) << "Failed to retrieve the address of '" << name << "'.";
-#if !defined(OFFICIAL_BUILD)
+#if !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
   // potentially keep it behind a flag to help with future maintenance.
   address = dlsym(RTLD_DEFAULT, name);
   if (address == nullptr) {
     SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
   }
-#endif  // !defined(OFFICIAL_BUILD)
+#endif  // !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   return address;
 }
 

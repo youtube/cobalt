@@ -8,6 +8,7 @@
 #include "components/enterprise/connectors/core/common.h"
 #include "components/enterprise/connectors/core/reporting_constants.h"
 #include "components/enterprise/connectors/core/reporting_test_utils.h"
+#include "components/safe_browsing/core/common/features.h"
 #include "net/base/network_interfaces.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -30,13 +31,16 @@ TEST(ReportingUtilsTest, GetPasswordBreachEventReturnsValidEvent) {
   settings.enabled_opt_in_events.insert(enabled_opt_in_events.begin(),
                                         enabled_opt_in_events.end());
 
-  auto event = GetPasswordBreachEvent(kPasswordTrigger, identities, settings);
+  auto event = GetPasswordBreachEvent(kPasswordTrigger, identities, settings,
+                                      "identifier", "profile_username");
   ASSERT_EQ(
       event->trigger(),
       chrome::cros::reporting::proto::PasswordBreachEvent::PASSWORD_ENTRY);
   auto identity = event->identities()[0];
   ASSERT_EQ(identity.url(), "https://google.com/");
   ASSERT_EQ(identity.username(), "*****");
+  ASSERT_EQ(event->profile_identifier(), "identifier");
+  ASSERT_EQ(event->profile_user_name(), "profile_username");
 }
 
 TEST(ReportingUtilsTest,
@@ -49,7 +53,8 @@ TEST(ReportingUtilsTest,
   settings.enabled_opt_in_events.insert(enabled_opt_in_events.begin(),
                                         enabled_opt_in_events.end());
 
-  auto event = GetPasswordBreachEvent(kPasswordTrigger, identities, settings);
+  auto event = GetPasswordBreachEvent(kPasswordTrigger, identities, settings,
+                                      "identifier", "profile_username");
   ASSERT_FALSE(event.has_value());
 }
 
@@ -59,35 +64,47 @@ TEST(ReportingUtilsTest,
       {GURL("https://google.com/"), u"username"}};
   ReportingSettings settings;
 
-  auto event = GetPasswordBreachEvent(kPasswordTrigger, identities, settings);
+  auto event = GetPasswordBreachEvent(kPasswordTrigger, identities, settings,
+                                      "identifier", "profile_username");
   ASSERT_FALSE(event.has_value());
 }
 
 TEST(ReportingUtilsTest, GetPasswordReuseEventWithWarning) {
   auto event = GetPasswordReuseEvent(
       /*url=*/GURL("https://google.com/"), /*user_name=*/kUsername,
-      /*is_phishing_url=*/false, /*warning_shown=*/true);
+      /*is_phishing_url=*/false, /*warning_shown=*/true,
+      /*profile_identifier=*/"identifier",
+      /*profile_username=*/"profile_username");
   ASSERT_EQ(event.url(), "https://google.com/");
   ASSERT_EQ(event.user_name(), kUsername);
   ASSERT_FALSE(event.is_phishing_url());
   ASSERT_EQ(event.event_result(),
             chrome::cros::reporting::proto::EVENT_RESULT_WARNED);
+  ASSERT_EQ(event.profile_identifier(), "identifier");
+  ASSERT_EQ(event.profile_user_name(), "profile_username");
 }
 
 TEST(ReportingUtilsTest, GetPasswordReuseEventWithoutWarning) {
   auto event = GetPasswordReuseEvent(
       /*url=*/GURL("https://google.com/"), /*user_name=*/kUsername,
-      /*is_phishing_url=*/false, /*warning_shown=*/true);
+      /*is_phishing_url=*/false, /*warning_shown=*/true,
+      /*profile_identifier=*/"identifier",
+      /*profile_username=*/"profile_username");
   ASSERT_EQ(event.url(), "https://google.com/");
   ASSERT_EQ(event.user_name(), kUsername);
   ASSERT_FALSE(event.is_phishing_url());
   ASSERT_EQ(event.event_result(),
             chrome::cros::reporting::proto::EVENT_RESULT_WARNED);
+  ASSERT_EQ(event.profile_identifier(), "identifier");
+  ASSERT_EQ(event.profile_user_name(), "profile_username");
 }
 
 TEST(ReportingUtilsTest, GetPasswordChangedEvent) {
-  auto event = GetPasswordChangedEvent(kUsername);
+  auto event =
+      GetPasswordChangedEvent(kUsername, "identifier", "profile_username");
   ASSERT_EQ(event.user_name(), kUsername);
+  ASSERT_EQ(event.profile_identifier(), "identifier");
+  ASSERT_EQ(event.profile_user_name(), "profile_username");
 }
 
 TEST(ReportingUtilsTest, GetLoginEvent) {
@@ -108,10 +125,15 @@ TEST(ReportingUtilsTest, GetLoginEvent) {
 }
 
 TEST(ReportingUtilsTest, GetInterstitialEvent) {
+  ReferrerChain referrer_chain;
+  referrer_chain.Add(test::MakeReferrerChainEntry());
   auto event = GetInterstitialEvent(/*url=*/GURL("https://google.com/"),
                                     /*reason=*/"MALWARE", /*net_error_code=*/0,
                                     /*clicked_through=*/false,
-                                    /*event_result=*/EventResult::WARNED);
+                                    /*event_result=*/EventResult::WARNED,
+                                    /*profile_identifier=*/"identifier",
+                                    /*profile_username=*/"profile_username",
+                                    /*referrer_chain*/ referrer_chain);
 
   ASSERT_EQ(event.url(), "https://google.com/");
   ASSERT_EQ(
@@ -120,6 +142,69 @@ TEST(ReportingUtilsTest, GetInterstitialEvent) {
   ASSERT_EQ(event.net_error_code(), 0);
   ASSERT_EQ(event.event_result(),
             chrome::cros::reporting::proto::EventResult::EVENT_RESULT_WARNED);
+  ASSERT_EQ(event.profile_identifier(), "identifier");
+  ASSERT_EQ(event.profile_user_name(), "profile_username");
+  if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
+    ASSERT_EQ(event.referrers_size(), 1);
+    auto referrer = event.referrers()[0];
+    ASSERT_EQ(referrer.url(), "https://referrer.com");
+    ASSERT_EQ(referrer.ip(), "1.2.3.4");
+  } else {
+    ASSERT_EQ(event.referrers_size(), 0);
+  }
+}
+
+TEST(ReportingUtilsTest, GetUrlFilteringInterstitialEvent) {
+  ReferrerChain referrer_chain;
+  referrer_chain.Add(test::MakeReferrerChainEntry());
+
+  safe_browsing::RTLookupResponse response;
+  auto* threat_info = response.add_threat_info();
+  threat_info->set_verdict_type(
+      safe_browsing::RTLookupResponse::ThreatInfo::DANGEROUS);
+  auto* matched_url_navigation_rule =
+      threat_info->mutable_matched_url_navigation_rule();
+  matched_url_navigation_rule->set_rule_id("123");
+  matched_url_navigation_rule->set_rule_name("test rule name");
+  matched_url_navigation_rule->set_matched_url_category("test rule category");
+
+  auto event = GetUrlFilteringInterstitialEvent(
+      /*url=*/GURL("https://filteredurl.com"),
+      /*threat_type=*/"ENTERPRISE_BLOCKED_SEEN", /*response=*/response,
+      /*profile_identifier=*/"identifier",
+      /*profile_username=*/"profile_username",
+      /*active_user=*/"active_user@example.com",
+      /*referrer_chain=*/referrer_chain);
+
+  ASSERT_EQ(event.url(), "https://filteredurl.com/");
+  ASSERT_FALSE(event.clicked_through());
+  ASSERT_EQ(event.threat_type(),
+            chrome::cros::reporting::proto::UrlFilteringInterstitialEvent::
+                ENTERPRISE_BLOCKED_SEEN);
+  ASSERT_EQ(event.event_result(),
+            chrome::cros::reporting::proto::EventResult::EVENT_RESULT_BLOCKED);
+  ASSERT_EQ(event.triggered_rule_info_size(), 1);
+
+  chrome::cros::reporting::proto::TriggeredRuleInfo triggered_rule_info =
+      event.mutable_triggered_rule_info()->at(0);
+  ASSERT_EQ(triggered_rule_info.rule_name(), "test rule name");
+  ASSERT_EQ(triggered_rule_info.rule_id(), 123);
+  ASSERT_EQ(triggered_rule_info.url_category(), "test rule category");
+  ASSERT_EQ(triggered_rule_info.action(),
+            chrome::cros::reporting::proto::TriggeredRuleInfo::BLOCK);
+  ASSERT_FALSE(triggered_rule_info.has_watermarking());
+  ASSERT_EQ(event.profile_identifier(), "identifier");
+  ASSERT_EQ(event.profile_user_name(), "profile_username");
+  ASSERT_EQ(event.web_app_signed_in_account(), "active_user@example.com");
+
+  if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
+    ASSERT_EQ(event.referrers_size(), 1);
+    auto referrer = event.referrers()[0];
+    ASSERT_EQ(referrer.url(), "https://referrer.com");
+    ASSERT_EQ(referrer.ip(), "1.2.3.4");
+  } else {
+    ASSERT_EQ(event.referrers_size(), 0);
+  }
 }
 
 TEST(ReportingUtilsTest, GetBrowserCrashEvent) {
@@ -131,6 +216,112 @@ TEST(ReportingUtilsTest, GetBrowserCrashEvent) {
   ASSERT_EQ(event.version(), "100.0.0000.000");
   ASSERT_EQ(event.report_id(), "123");
   ASSERT_EQ(event.platform(), "Windows");
+}
+
+TEST(ReportingUtilsTest, GetUnscannedFileEvent) {
+  auto event = GetUnscannedFileEvent(
+      /*url=*/GURL("https://google.com/"), /*tab_url=*/GURL("about:blank"),
+      /*source=*/"source", /*destination=*/"destination",
+      /*file_name=*/"encrypted.zip",
+      /*download_digest_sha256=*/"sha256_of_data",
+      /*mime_type=*/"application/zip", /*trigger=*/"FILE_UPLOAD",
+      /*reason=*/"FILE_PASSWORD_PROTECTED",
+      /*content_transfer_method=*/"CONTENT_TRANSFER_METHOD_DRAG_AND_DROP",
+      /*profile_identifier=*/"identifier",
+      /*profile_username=*/"profile_username", /*content_size=*/-1,
+      /*event_result=*/EventResult::ALLOWED);
+
+  ASSERT_EQ(event.url(), "https://google.com/");
+  ASSERT_EQ(event.tab_url(), "about:blank");
+  ASSERT_EQ(event.source(), "source");
+  ASSERT_EQ(event.destination(), "destination");
+  ASSERT_EQ(event.file_name(), "encrypted.zip");
+  ASSERT_EQ(event.download_digest_sha_256(), "sha256_of_data");
+  ASSERT_EQ(event.content_type(), "application/zip");
+  ASSERT_EQ(
+      event.trigger(),
+      chrome::cros::reporting::proto::DataTransferEventTrigger::FILE_UPLOAD);
+  ASSERT_EQ(event.unscanned_reason(),
+            chrome::cros::reporting::proto::UnscannedFileEvent::
+                FILE_PASSWORD_PROTECTED);
+  ASSERT_EQ(
+      event.content_transfer_method(),
+      chrome::cros::reporting::proto::CONTENT_TRANSFER_METHOD_DRAG_AND_DROP);
+  ASSERT_EQ(event.profile_identifier(), "identifier");
+  ASSERT_EQ(event.profile_user_name(), "profile_username");
+  ASSERT_FALSE(event.content_size());
+  ASSERT_EQ(event.event_result(),
+            chrome::cros::reporting::proto::EventResult::EVENT_RESULT_ALLOWED);
+}
+
+TEST(ReportingUtilsTest, GetDlpSensitiveDataEvent) {
+  ReferrerChain referrer_chain;
+  referrer_chain.Add(test::MakeReferrerChainEntry());
+
+  ContentAnalysisResponse response;
+  response.set_request_token("123");
+  auto* result = response.add_results();
+  result->set_tag("dlp");
+  result->set_status(
+      enterprise_connectors::ContentAnalysisResponse::Result::SUCCESS);
+  auto* rule = result->add_triggered_rules();
+  rule->set_action(enterprise_connectors::TriggeredRule::BLOCK);
+  rule->set_rule_name("fake rule");
+  rule->set_rule_id("12345");
+  rule->set_url_category("test rule category");
+
+  auto event = GetDlpSensitiveDataEvent(
+      /*url=*/GURL("https://google.com/"), /*tab_url=*/GURL("about:blank"),
+      /*source=*/"source", /*destination=*/"destination",
+      /*file_name=*/"encrypted.zip",
+      /*download_digest_sha256=*/"sha256_of_data",
+      /*mime_type=*/"application/zip", /*trigger=*/"FILE_UPLOAD",
+      /*scan_id=*/"123",
+      /*content_transfer_method=*/"CONTENT_TRANSFER_METHOD_DRAG_AND_DROP",
+      /*source_email=*/"source@gmail.com",
+      /*content_area_account_email=*/"content@gmail.com",
+      /*profile_identifier=*/"identifier",
+      /*profile_username=*/"profile_username", /*content_size=*/-1,
+      /*result=*/*result,
+      /*referrer_chain=*/referrer_chain,
+      /*event_result=*/EventResult::BLOCKED);
+
+  ASSERT_EQ(event.url(), "https://google.com/");
+  ASSERT_EQ(event.tab_url(), "about:blank");
+  ASSERT_EQ(event.source(), "source");
+  ASSERT_EQ(event.destination(), "destination");
+  ASSERT_EQ(event.file_name(), "encrypted.zip");
+  ASSERT_EQ(event.download_digest_sha_256(), "sha256_of_data");
+  ASSERT_EQ(event.content_type(), "application/zip");
+  ASSERT_EQ(
+      event.trigger(),
+      chrome::cros::reporting::proto::DataTransferEventTrigger::FILE_UPLOAD);
+  ASSERT_EQ(event.scan_id(), "123");
+  ASSERT_EQ(
+      event.content_transfer_method(),
+      chrome::cros::reporting::proto::CONTENT_TRANSFER_METHOD_DRAG_AND_DROP);
+  ASSERT_EQ(event.source_web_app_signed_in_account(), "source@gmail.com");
+  ASSERT_EQ(event.web_app_signed_in_account(), "content@gmail.com");
+  ASSERT_EQ(event.profile_identifier(), "identifier");
+  ASSERT_EQ(event.profile_user_name(), "profile_username");
+  ASSERT_FALSE(event.content_size());
+  ASSERT_EQ(event.event_result(),
+            chrome::cros::reporting::proto::EventResult::EVENT_RESULT_BLOCKED);
+
+  ASSERT_EQ(event.triggered_rule_info_size(), 1);
+  auto triggered_rule = event.triggered_rule_info()[0];
+  ASSERT_EQ(triggered_rule.rule_id(), 12345);
+  ASSERT_EQ(triggered_rule.url_category(), "test rule category");
+  ASSERT_EQ(triggered_rule.rule_name(), "fake rule");
+
+  if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
+    ASSERT_EQ(event.referrers_size(), 1);
+    auto referrer = event.referrers()[0];
+    ASSERT_EQ(referrer.url(), "https://referrer.com");
+    ASSERT_EQ(referrer.ip(), "1.2.3.4");
+  } else {
+    ASSERT_EQ(event.referrers_size(), 0);
+  }
 }
 
 TEST(ReportingUtilsTest, TestEventLocalIp) {

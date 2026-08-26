@@ -28,9 +28,11 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 
 import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 
+import {getLanguageHelperInstance} from './languages.js';
 import type {LanguageSettingsMetricsProxy} from './languages_settings_metrics_proxy.js';
 import {LanguageSettingsActionType, LanguageSettingsMetricsProxyImpl} from './languages_settings_metrics_proxy.js';
 import type {LanguageHelper, LanguagesModel} from './languages_types.js';
+import {convertLanguageCodeForChrome, getFullName, isTranslateBaseLanguage} from './languages_util.js';
 import {getTemplate} from './translate_page.html.js';
 
 const SettingsTranslatePageElementBase = PrefsMixin(I18nMixin(PolymerElement));
@@ -51,12 +53,7 @@ export class SettingsTranslatePageElement extends
        * Read-only reference to the languages model provided by the
        * 'settings-languages' instance.
        */
-      languages: {
-        type: Object,
-        notify: true,
-      },
-
-      languageHelper: Object,
+      languages: Object,
 
       showAddAlwaysTranslateDialog_: Boolean,
       showAddNeverTranslateDialog_: Boolean,
@@ -65,16 +62,22 @@ export class SettingsTranslatePageElement extends
   }
 
   declare languages?: LanguagesModel;
-  declare languageHelper: LanguageHelper;
   declare private showAddAlwaysTranslateDialog_: boolean;
   declare private showAddNeverTranslateDialog_: boolean;
   declare private addLanguagesDialogLanguages_:
       chrome.languageSettingsPrivate.Language[]|null;
+  private languageHelper_: LanguageHelper;
   private languageSettingsMetricsProxy_: LanguageSettingsMetricsProxy =
       LanguageSettingsMetricsProxyImpl.getInstance();
 
+  override connectedCallback() {
+    super.connectedCallback();
+
+    this.languageHelper_ = getLanguageHelperInstance();
+  }
+
   private onTargetLanguageChange_() {
-    this.languageHelper.setTranslateTargetLanguage(
+    this.languageHelper_.setTranslateTargetLanguage(
         this.shadowRoot!.querySelector<HTMLSelectElement>(
                             '#targetLanguage')!.value);
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
@@ -88,7 +91,7 @@ export class SettingsTranslatePageElement extends
    */
   private getTargetLanguageDisplayOption_(
       item: chrome.languageSettingsPrivate.Language): string {
-    return this.languageHelper.getFullName(item);
+    return getFullName(item);
   }
 
   /**
@@ -98,8 +101,7 @@ export class SettingsTranslatePageElement extends
    */
   private translateLanguageEqual_(
       chromeItemCode: string, translateTarget: string): boolean {
-    return chromeItemCode ===
-        this.languageHelper.convertLanguageCodeForChrome(translateTarget);
+    return chromeItemCode === convertLanguageCodeForChrome(translateTarget);
   }
 
   /**
@@ -148,7 +150,7 @@ export class SettingsTranslatePageElement extends
   private onAlwaysTranslateLanguagesAdded_(e: CustomEvent<string[]>) {
     const languagesToAdd = e.detail;
     languagesToAdd.forEach(languageCode => {
-      this.languageHelper.setLanguageAlwaysTranslateState(languageCode, true);
+      this.languageHelper_.setLanguageAlwaysTranslateState(languageCode, true);
       this.languageSettingsMetricsProxy_.recordSettingsMetric(
           LanguageSettingsActionType.ADD_TO_ALWAYS_TRANSLATE);
     });
@@ -160,7 +162,7 @@ export class SettingsTranslatePageElement extends
   private onRemoveAlwaysTranslateLanguageClick_(
       e: DomRepeatEvent<chrome.languageSettingsPrivate.Language>) {
     const languageCode = e.model.item.code;
-    this.languageHelper.setLanguageAlwaysTranslateState(languageCode, false);
+    this.languageHelper_.setLanguageAlwaysTranslateState(languageCode, false);
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
         LanguageSettingsActionType.REMOVE_FROM_ALWAYS_TRANSLATE);
   }
@@ -189,7 +191,7 @@ export class SettingsTranslatePageElement extends
   private onNeverTranslateLanguagesAdded_(e: CustomEvent<string[]>) {
     const languagesToAdd = e.detail;
     languagesToAdd.forEach(languageCode => {
-      this.languageHelper.disableTranslateLanguage(languageCode);
+      this.languageHelper_.disableTranslateLanguage(languageCode);
       this.languageSettingsMetricsProxy_.recordSettingsMetric(
           LanguageSettingsActionType.ADD_TO_NEVER_TRANSLATE);
     });
@@ -201,7 +203,7 @@ export class SettingsTranslatePageElement extends
   private onRemoveNeverTranslateLanguageClick_(
       e: DomRepeatEvent<chrome.languageSettingsPrivate.Language>) {
     const languageCode = e.model.item.code;
-    this.languageHelper.enableTranslateLanguage(languageCode);
+    this.languageHelper_.enableTranslateLanguage(languageCode);
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
         LanguageSettingsActionType.REMOVE_FROM_NEVER_TRANSLATE);
   }
@@ -242,7 +244,7 @@ export class SettingsTranslatePageElement extends
    */
   private isTranslateSupported_(
       language: chrome.languageSettingsPrivate.Language): boolean {
-    return this.languageHelper.isTranslateBaseLanguage(language);
+    return isTranslateBaseLanguage(language);
   }
 }
 

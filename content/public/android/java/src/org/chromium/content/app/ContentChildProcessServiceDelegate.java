@@ -13,19 +13,17 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.SparseArray;
-import android.view.Surface;
 import android.window.InputTransferToken;
 
 import androidx.annotation.RequiresApi;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
-import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.UnguessableToken;
+import org.chromium.base.library_loader.IRelroLibInfo;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.memory.MemoryPressureUma;
 import org.chromium.base.process_launcher.ChildProcessServiceDelegate;
@@ -48,9 +46,6 @@ import java.util.List;
 @NullMarked
 public class ContentChildProcessServiceDelegate implements ChildProcessServiceDelegate {
     private static final String TAG = "ContentCPSDelegate";
-
-    // The binder box passed to us by the browser. May be null.
-    private @Nullable IBinder mBinderBox;
 
     private @Nullable IGpuProcessCallback mGpuCallback;
 
@@ -78,9 +73,7 @@ public class ContentChildProcessServiceDelegate implements ChildProcessServiceDe
     }
 
     @Override
-    public void onConnectionSetup(
-            IChildProcessArgs args, List<IBinder> clientInterfaces, IBinder binderBox) {
-        mBinderBox = binderBox;
+    public void onConnectionSetup(IChildProcessArgs args, List<IBinder> clientInterfaces) {
         mGpuCallback =
                 clientInterfaces != null && !clientInterfaces.isEmpty()
                         ? IGpuProcessCallback.Stub.asInterface(clientInterfaces.get(0))
@@ -90,7 +83,7 @@ public class ContentChildProcessServiceDelegate implements ChildProcessServiceDe
         mCpuFeatures = args.cpuFeatures;
         assert mCpuCount > 0;
 
-        LibraryLoader.getInstance().getMediator().takeSharedRelrosFromBundle(args.relroBundle);
+        LibraryLoader.getInstance().getMediator().takeSharedRelrosFromAidl(args.relroInfo);
     }
 
     @Override
@@ -120,16 +113,15 @@ public class ContentChildProcessServiceDelegate implements ChildProcessServiceDe
         // Now that the library is loaded, get the FD map,
         // TODO(jcivelli): can this be done in onBeforeMain? We would have to mode onBeforeMain
         // so it's called before FDs are registered.
-        ContentChildProcessServiceDelegateJni.get()
-                .retrieveFileDescriptorsIdsToKeys(ContentChildProcessServiceDelegate.this);
+        ContentChildProcessServiceDelegateJni.get().retrieveFileDescriptorsIdsToKeys(this);
     }
 
     @Override
-    public void consumeRelroBundle(Bundle bundle) {
+    public void consumeRelroLibInfo(IRelroLibInfo libInfo) {
         // Does not block, but may jank slightly. If the library has not been loaded yet, the bundle
         // will be unpacked and saved for the future. If the library is loaded, the RELRO region
         // will be replaced, which involves mmap(2) of shared memory and memcpy+memcmp of a few MB.
-        LibraryLoader.getInstance().getMediator().takeSharedRelrosFromBundle(bundle);
+        LibraryLoader.getInstance().getMediator().takeSharedRelrosFromAidl(libInfo);
     }
 
     @Override
@@ -140,8 +132,7 @@ public class ContentChildProcessServiceDelegate implements ChildProcessServiceDe
 
     @Override
     public void onBeforeMain() {
-        ContentChildProcessServiceDelegateJni.get()
-                .initChildProcess(ContentChildProcessServiceDelegate.this, mCpuCount, mCpuFeatures);
+        ContentChildProcessServiceDelegateJni.get().initChildProcess(this, mCpuCount, mCpuFeatures);
         ThreadUtils.getUiThreadHandler()
                 .post(
                         () -> {
@@ -153,7 +144,6 @@ public class ContentChildProcessServiceDelegate implements ChildProcessServiceDe
 
     @Override
     public void runMain() {
-        ContentMain.setBindersFromParent(mBinderBox);
         ContentMain.start(false);
     }
 
@@ -164,25 +154,6 @@ public class ContentChildProcessServiceDelegate implements ChildProcessServiceDe
         mFdsIdsToKeys = new SparseArray<>();
         for (int i = 0; i < ids.length; ++i) {
             mFdsIdsToKeys.put(ids[i], keys[i]);
-        }
-    }
-
-    @SuppressWarnings("unused")
-    @CalledByNative
-    private void forwardSurfaceForSurfaceRequest(
-            @JniType("base::UnguessableToken") UnguessableToken requestToken, Surface surface) {
-        if (mGpuCallback == null) {
-            Log.e(TAG, "No callback interface has been provided.");
-            return;
-        }
-
-        try {
-            mGpuCallback.forwardSurfaceForSurfaceRequest(requestToken, surface);
-        } catch (RemoteException e) {
-            Log.e(TAG, "Unable to call forwardSurfaceForSurfaceRequest: %s", e);
-            return;
-        } finally {
-            surface.release();
         }
     }
 
@@ -227,15 +198,14 @@ public class ContentChildProcessServiceDelegate implements ChildProcessServiceDe
          * @param cpuFeatures The CPU features.
          */
         void initChildProcess(
-                ContentChildProcessServiceDelegate caller, int cpuCount, long cpuFeatures);
+                ContentChildProcessServiceDelegate self, int cpuCount, long cpuFeatures);
 
         /**
-         * Initializes the MemoryPressureListener on the same thread callbacks will be
-         * received on.
+         * Initializes the MemoryPressureListener on the same thread callbacks will be received on.
          */
         void initMemoryPressureListener();
 
         // Retrieves the FD IDs to keys map and set it by calling setFileDescriptorsIdsToKeys().
-        void retrieveFileDescriptorsIdsToKeys(ContentChildProcessServiceDelegate caller);
+        void retrieveFileDescriptorsIdsToKeys(ContentChildProcessServiceDelegate self);
     }
 }

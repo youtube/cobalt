@@ -165,6 +165,9 @@ class RtpPacket {
   // Same as SetPayloadSize but doesn't guarantee to keep current payload.
   uint8_t* AllocatePayload(size_t size_bytes);
 
+  // Sets payload size to `payload.size()` and copies `payload`.
+  void SetPayload(ArrayView<const uint8_t> payload);
+
   bool SetPadding(size_t padding_size);
 
   // Returns debug string of RTP packet (without detailed extension info).

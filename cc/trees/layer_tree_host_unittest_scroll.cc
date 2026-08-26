@@ -4,7 +4,6 @@
 
 #include <array>
 
-
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
@@ -620,11 +619,6 @@ class LayerTreeHostScrollTestCaseWithChild : public LayerTreeHostScrollTest {
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
-  void CleanupBeforeDestroy() override {
-    expected_scroll_layer_ = nullptr;
-    expected_no_scroll_layer_ = nullptr;
-  }
-
   void WillCommit(const CommitState& commit_state) override {
     // Keep the test committing (otherwise the early out for no update
     // will stall the test).
@@ -755,6 +749,10 @@ class LayerTreeHostScrollTestCaseWithChild : public LayerTreeHostScrollTest {
   void AfterTest() override {
     EXPECT_EQ(scroll_child_layer_ ? 0 : 2, num_outer_viewport_scrolls_);
     EXPECT_POINTF_EQ(javascript_scroll_ + scroll_amount_, final_scroll_offset_);
+
+    expected_scroll_layer_ = nullptr;
+    expected_no_scroll_layer_ = nullptr;
+    LayerTreeHostScrollTest::AfterTest();
   }
 
  protected:
@@ -906,13 +904,17 @@ class LayerTreeHostScrollTestSimple : public LayerTreeHostScrollTest {
   void CommitCompleteOnThread(LayerTreeHostImpl* impl) override {
     // We force a second draw here of the first commit before activating
     // the second commit.
-    if (impl->active_tree()->source_frame_number() == 0)
-      impl->SetNeedsRedraw();
+    if (impl->active_tree()->source_frame_number() == 0) {
+      impl->SetNeedsRedraw(/*animation_only=*/false,
+                           /*skip_if_inside_draw=*/false);
+    }
   }
 
   void DrawLayersOnThread(LayerTreeHostImpl* impl) override {
-    if (impl->pending_tree())
-      impl->SetNeedsRedraw();
+    if (impl->pending_tree()) {
+      impl->SetNeedsRedraw(/*animation_only=*/false,
+                           /*skip_if_inside_draw=*/false);
+    }
 
     LayerImpl* root = impl->active_tree()->root_layer();
     LayerImpl* scroll_layer =
@@ -1086,8 +1088,10 @@ class LayerTreeHostScrollTestImplOnlyScroll : public LayerTreeHostScrollTest {
   }
 
   void DrawLayersOnThread(LayerTreeHostImpl* impl) override {
-    if (impl->pending_tree())
-      impl->SetNeedsRedraw();
+    if (impl->pending_tree()) {
+      impl->SetNeedsRedraw(/*animation_only=*/false,
+                           /*skip_if_inside_draw=*/false);
+    }
 
     LayerImpl* scroll_layer =
         impl->active_tree()->OuterViewportScrollLayerForTesting();
@@ -2164,7 +2168,8 @@ class LayerTreeHostScrollTestScrollAbortedCommitMFBA
     switch (num_impl_commits_) {
       case 1:
         // Redraw so that we keep scrolling.
-        impl->SetNeedsRedraw();
+        impl->SetNeedsRedraw(/*animation_only=*/false,
+                             /*skip_if_inside_draw=*/false);
         // Block activation until third commit is aborted.
         impl->BlockNotifyReadyToActivateForTesting(true);
         break;
@@ -2185,7 +2190,8 @@ class LayerTreeHostScrollTestScrollAbortedCommitMFBA
       case 1:
         EXPECT_EQ(2, num_impl_commits_);
         // Redraw to end the test.
-        impl->SetNeedsRedraw();
+        impl->SetNeedsRedraw(/*animation_only=*/false,
+                             /*skip_if_inside_draw=*/false);
         break;
     }
     num_aborted_commits_++;
@@ -2454,14 +2460,18 @@ class LayerTreeHostScrollTestElasticOverscroll
     gfx::Vector2dF expected_elastic_overscroll =
         elastic_overscroll_test_cases_[4];
     EXPECT_EQ(expected_elastic_overscroll, current_elastic_overscroll_);
+
+    // Reset before LayerTreeHost destruction to avoid dangling pointer, since
+    // InputHandler (which owns the helper) is destroyed first.
+    scroll_elasticity_helper_ = nullptr;
+    LayerTreeHostScrollTest::AfterTest();
   }
 
  private:
   // These values should be used on the impl thread only.
   int num_begin_main_frames_impl_thread_;
   MockInputHandlerClient input_handler_client_;
-  raw_ptr<ScrollElasticityHelper, AcrossTasksDanglingUntriaged>
-      scroll_elasticity_helper_;
+  raw_ptr<ScrollElasticityHelper> scroll_elasticity_helper_;
 
   // These values should be used on the main thread only.
   int num_begin_main_frames_main_thread_;
@@ -3151,7 +3161,8 @@ class PreventRecreatingTilingDuringScroll : public LayerTreeHostScrollTest {
         host_impl->GetInputHandler().ScrollEnd();
         // make sure redraw happen
         host_impl->active_tree()->set_needs_update_draw_properties();
-        host_impl->SetNeedsRedraw();
+        host_impl->SetNeedsRedraw(/*animation_only=*/false,
+                                  /*skip_if_inside_draw=*/false);
       }
     }
   }
@@ -3180,7 +3191,8 @@ class PreventRecreatingTilingDuringScroll : public LayerTreeHostScrollTest {
           // In pending tree, recreating tiling should delayed during scroll
           ASSERT_TRUE(scroll_check_pending_);
           ASSERT_EQ(tiling_transform.scale(), initial_scale_);
-          host_impl->SetNeedsRedraw();
+          host_impl->SetNeedsRedraw(/*animation_only=*/false,
+                                    /*skip_if_inside_draw=*/false);
         } else {
           // recreating tiling should happen after scroll finish
           ASSERT_FALSE(scroll_check_pending_);
@@ -3293,7 +3305,8 @@ class LayerTreeHostScrollTestScrollFrameIntervalInputs
   void WillSubmitCompositorFrame(LayerTreeHostImpl* host_impl,
                                  const viz::CompositorFrame& frame) override {
     if (!has_scrolled_) {
-      host_impl->SetNeedsRedraw();
+      host_impl->SetNeedsRedraw(/*animation_only=*/false,
+                                /*skip_if_inside_draw=*/false);
       host_impl->SetFullViewportDamage();
     } else {
       int scroll_delta = kScrollDelta;

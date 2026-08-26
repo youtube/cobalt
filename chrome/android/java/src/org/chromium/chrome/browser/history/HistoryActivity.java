@@ -18,6 +18,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerFactory;
 import org.chromium.components.browser_ui.bottomsheet.ManagedBottomSheetController;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
+import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 
 /** Activity for displaying the browsing history manager. */
@@ -52,7 +53,9 @@ public class HistoryActivity extends SnackbarActivity {
                         shouldShowClearData,
                         appSpecificHistory,
                         showAppFilter,
-                        /* openHistoryItemCallback= */ null);
+                        /* openHistoryItemCallback= */ null,
+                        // HistoryActivity doesn't support edge to edge yet.
+                        /* edgeToEdgePadAdjusterGenerator= */ null);
         ViewGroup contentView = mHistoryManager.getView();
         setContentView(contentView);
         if (showAppFilter) createBottomSheetController(contentView);
@@ -63,7 +66,8 @@ public class HistoryActivity extends SnackbarActivity {
         ViewGroup sheetContainer =
                 (ViewGroup)
                         LayoutInflater.from(this).inflate(R.layout.bottom_sheet_container, null);
-        ScrimManager scrimManager = new ScrimManager(this, contentView);
+        ScrimManager scrimManager =
+                new ScrimManager(this, contentView, ScrimClient.HISTORY_ACTIVITY);
         mBottomSheetController =
                 BottomSheetControllerFactory.createBottomSheetController(
                         () -> scrimManager,

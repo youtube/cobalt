@@ -47,13 +47,6 @@
 
 namespace {
 
-// Keep in sync with web_app_frame_toolbar_browsertest.cc
-constexpr double kTitlePaddingWidthFraction = 0.1;
-
-// Empirical measurements of the traffic lights.
-constexpr int kCaptionButtonsWidth = 52;
-constexpr int kCaptionButtonsLeadingPadding = 20;
-
 FullscreenToolbarStyle GetUserPreferredToolbarStyle(bool always_show) {
   // In Kiosk mode, we don't show top Chrome UI.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kKioskMode)) {
@@ -204,26 +197,6 @@ gfx::Rect BrowserNonClientFrameViewMac::GetBoundsForWebAppFrameToolbar(
   return bounds;
 }
 
-void BrowserNonClientFrameViewMac::LayoutWebAppWindowTitle(
-    const gfx::Rect& available_space,
-    views::Label& window_title_label) const {
-  gfx::Rect toolbar_bounds(0, 0, width(), available_space.height());
-  gfx::Rect title_bounds = available_space;
-  const int title_padding =
-      base::ClampRound(width() * kTitlePaddingWidthFraction);
-  title_bounds.Inset(gfx::Insets::VH(0, title_padding));
-  window_title_label.SetBoundsRect(GetCenteredTitleBounds(
-      toolbar_bounds, title_bounds,
-      window_title_label
-          .GetPreferredSize(views::SizeBounds(window_title_label.width(), {}))
-          .width()));
-  // The background of the title area is always opaquely drawn, but when in
-  // immersive fullscreen, it is drawn in a way that isn't detected by the
-  // DCHECK in Label. As such, disable the DCHECK.
-  window_title_label.SetSkipSubpixelRenderingOpacityCheck(
-      browser_view()->IsImmersiveModeEnabled());
-}
-
 int BrowserNonClientFrameViewMac::GetTopInset(bool restored) const {
   return 0;
 }
@@ -233,12 +206,10 @@ void BrowserNonClientFrameViewMac::UpdateFullscreenTopUI() {
   // Update to the new toolbar style if needed.
   FullscreenToolbarStyle new_style;
   if (fullscreen_utils::IsInContentFullscreen(browser)) {
-    browser_view()->HideDownloadShelf();
     new_style = FullscreenToolbarStyle::TOOLBAR_NONE;
   } else {
     bool always_show = fullscreen_utils::IsAlwaysShowToolbarEnabled(browser);
     new_style = GetUserPreferredToolbarStyle(always_show);
-    browser_view()->UnhideDownloadShelf();
   }
 
   if (browser_view()->UsesImmersiveFullscreenMode()) {
@@ -377,8 +348,7 @@ void BrowserNonClientFrameViewMac::WindowControlsOverlayEnabledChanged() {
         AddChildView(std::make_unique<CaptionButtonPlaceholderContainer>());
     UpdateCaptionButtonPlaceholderContainerBackground();
   } else {
-    RemoveChildView(caption_button_placeholder_container_);
-    caption_button_placeholder_container_ = nullptr;
+    RemoveChildViewT(caption_button_placeholder_container_.ExtractAsDangling());
   }
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -419,13 +389,19 @@ void BrowserNonClientFrameViewMac::PaintChildren(const views::PaintInfo& info) {
 }
 
 gfx::Insets BrowserNonClientFrameViewMac::GetCaptionButtonInsets() const {
-  const int kCaptionButtonInset = kCaptionButtonsWidth +
-                                  (kCaptionButtonsLeadingPadding * 2) -
-                                  TabStyle::Get()->GetBottomCornerRadius();
-  if (CaptionButtonsOnLeadingEdge()) {
-    return gfx::Insets::TLBR(0, kCaptionButtonInset, 0, 0);
+  int button_total_width;
+  if (@available(macOS 26, *)) {
+    button_total_width = 86;
   } else {
-    return gfx::Insets::TLBR(0, 0, 0, kCaptionButtonInset);
+    button_total_width = 92;
+  }
+  int caption_button_inset =
+      button_total_width - TabStyle::Get()->GetBottomCornerRadius();
+
+  if (CaptionButtonsOnLeadingEdge()) {
+    return gfx::Insets::TLBR(0, caption_button_inset, 0, 0);
+  } else {
+    return gfx::Insets::TLBR(0, 0, 0, caption_button_inset);
   }
 }
 

@@ -211,7 +211,7 @@ void BidirectionalStream::StartRequest() {
   stream_request_ =
       session_->http_stream_factory()->RequestBidirectionalStreamImpl(
           http_request_info, request_info_->priority, /*allowed_bad_certs=*/{},
-          this, /* enable_ip_based_pooling = */ true,
+          this, /* enable_ip_based_pooling_for_h2 = */ true,
           /* enable_alternative_services = */ true, net_log_);
   // Check that this call does not fail.
   DCHECK(stream_request_);
@@ -413,11 +413,6 @@ void BidirectionalStream::OnNeedsClientAuth(SSLCertRequestInfo* cert_info) {
 }
 
 void BidirectionalStream::OnQuicBroken() {}
-
-void BidirectionalStream::OnSwitchesToHttpStreamPool(
-    HttpStreamPoolRequestInfo request_info) {
-  NOTREACHED();
-}
 
 void BidirectionalStream::NotifyFailed(int error) {
   delegate_->OnFailed(error);

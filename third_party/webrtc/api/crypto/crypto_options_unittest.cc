@@ -14,9 +14,13 @@
 #include <set>
 #include <vector>
 
-#include "rtc_base/openssl_stream_adapter.h"
+#include "api/field_trials.h"
+#include "rtc_base/openssl_stream_adapter.h"  // IWYU pragma: keep
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
+
+namespace webrtc {
+namespace {
 
 TEST(EphemeralKeyExchangeCipherGroupsTest, GetSupported) {
   std::set<uint16_t> expected = {
@@ -123,8 +127,8 @@ TEST(EphemeralKeyExchangeCipherGroupsTest, Update) {
   };
 
   webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups groups;
-  webrtc::test::ScopedKeyValueConfig field_trials(
-      "WebRTC-EnableDtlsPqc/Enabled/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-EnableDtlsPqc/Enabled/");
   groups.Update(&field_trials, &disable);
   EXPECT_EQ(groups.GetEnabled(), expected);
 }
@@ -139,3 +143,6 @@ TEST(EphemeralKeyExchangeCipherGroupsTest, CopyCryptoOptions) {
   EXPECT_EQ(options, copy1);
   EXPECT_EQ(options, copy2);
 }
+
+}  // namespace
+}  // namespace webrtc

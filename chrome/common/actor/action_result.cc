@@ -11,7 +11,11 @@
 namespace actor {
 
 bool IsOk(const mojom::ActionResult& result) {
-  return result.code == mojom::ActionResultCode::kOk;
+  return IsOk(result.code);
+}
+
+bool IsOk(mojom::ActionResultCode code) {
+  return code == mojom::ActionResultCode::kOk;
 }
 
 mojom::ActionResultPtr MakeOkResult() {
@@ -24,7 +28,7 @@ mojom::ActionResultPtr MakeErrorResult() {
 
 mojom::ActionResultPtr MakeResult(mojom::ActionResultCode code,
                                   std::string_view msg) {
-  return mojom::ActionResult::New(code, std::string(msg));
+  return mojom::ActionResult::New(code, std::string(msg), std::nullopt);
 }
 
 std::string ToDebugString(const mojom::ActionResult& result) {

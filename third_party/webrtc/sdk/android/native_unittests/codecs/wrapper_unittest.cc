@@ -17,6 +17,8 @@
 #include "api/environment/environment_factory.h"
 #include "media/base/media_constants.h"
 #include "sdk/android/generated_native_unittests_jni/CodecsWrapperTestHelper_jni.h"
+#include "sdk/android/native_api/jni/java_types.h"
+#include "sdk/android/native_api/jni/jvm.h"
 #include "sdk/android/src/jni/video_encoder_wrapper.h"
 #include "test/gtest.h"
 

@@ -50,6 +50,11 @@ const char NavigatorContentUtils::kSupplementName[] = "NavigatorContentUtils";
 
 namespace {
 
+constexpr char kIsolatedAppError[] =
+    "Isolated Web Apps do not support registering/unregistering protocol "
+    "handlers via the navigator API; use the `protocol_handlers` field in the "
+    "web app manifest instead.";
+
 // Verify custom handler URL security as described in steps 6 and 7
 // https://html.spec.whatwg.org/multipage/system-state.html#normalize-protocol-handler-parameters
 static bool VerifyCustomHandlerURLSecurity(
@@ -86,7 +91,7 @@ static bool VerifyCustomHandlerURL(
   String error_message;
 
   if (!VerifyCustomHandlerURLSyntax(full_url, base_url, user_url,
-                                    error_message)) {
+                                    security_level, error_message)) {
     exception_state.ThrowDOMException(DOMExceptionCode::kSyntaxError,
                                       error_message);
     return false;
@@ -113,7 +118,7 @@ bool VerifyCustomHandlerScheme(const String& scheme,
   }
 
   bool has_custom_scheme_prefix = false;
-  StringUTF8Adaptor scheme_adaptor(scheme);
+  StringUtf8Adaptor scheme_adaptor(scheme);
   if (!IsValidCustomHandlerScheme(scheme_adaptor.AsStringView(), security_level,
                                   &has_custom_scheme_prefix)) {
     if (has_custom_scheme_prefix) {
@@ -135,10 +140,11 @@ bool VerifyCustomHandlerScheme(const String& scheme,
 bool VerifyCustomHandlerURLSyntax(const KURL& full_url,
                                   const KURL& base_url,
                                   const String& user_url,
+                                  ProtocolHandlerSecurityLevel security_level,
                                   String& error_message) {
-  StringUTF8Adaptor url_adaptor(user_url);
-  URLSyntaxErrorCode code =
-      IsValidCustomHandlerURLSyntax(GURL(full_url), url_adaptor.AsStringView());
+  StringUtf8Adaptor url_adaptor(user_url);
+  URLSyntaxErrorCode code = IsValidCustomHandlerURLSyntax(
+      GURL(full_url), url_adaptor.AsStringView(), security_level);
   switch (code) {
     case URLSyntaxErrorCode::kNoError:
       return true;
@@ -176,10 +182,16 @@ void NavigatorContentUtils::registerProtocolHandler(
     const String& url,
     ExceptionState& exception_state) {
   LocalDOMWindow* window = navigator.DomWindow();
-  if (!window)
+  if (!window) {
     return;
+  }
 
   WebSecurityOrigin origin(window->GetSecurityOrigin());
+  if (CommonSchemeRegistry::IsIsolatedAppScheme(origin.Protocol().Ascii())) {
+    exception_state.ThrowSecurityError(kIsolatedAppError);
+    return;
+  }
+
   ProtocolHandlerSecurityLevel security_level =
       Platform::Current()->GetProtocolHandlerSecurityLevel(origin);
 
@@ -191,8 +203,9 @@ void NavigatorContentUtils::registerProtocolHandler(
     return;
   }
 
-  if (!VerifyCustomHandlerURL(*window, url, exception_state, security_level))
+  if (!VerifyCustomHandlerURL(*window, url, exception_state, security_level)) {
     return;
+  }
 
   // Count usage; perhaps we can forbid this from cross-origin subframes as
   // proposed in https://crbug.com/977083.
@@ -226,10 +239,16 @@ void NavigatorContentUtils::unregisterProtocolHandler(
     const String& url,
     ExceptionState& exception_state) {
   LocalDOMWindow* window = navigator.DomWindow();
-  if (!window)
+  if (!window) {
     return;
+  }
 
   WebSecurityOrigin origin(window->GetSecurityOrigin());
+  if (CommonSchemeRegistry::IsIsolatedAppScheme(origin.Protocol().Ascii())) {
+    exception_state.ThrowSecurityError(kIsolatedAppError);
+    return;
+  }
+
   ProtocolHandlerSecurityLevel security_level =
       Platform::Current()->GetProtocolHandlerSecurityLevel(origin);
 
@@ -239,8 +258,9 @@ void NavigatorContentUtils::unregisterProtocolHandler(
     return;
   }
 
-  if (!VerifyCustomHandlerURL(*window, url, exception_state, security_level))
+  if (!VerifyCustomHandlerURL(*window, url, exception_state, security_level)) {
     return;
+  }
 
   Document* document = window->document();
   auto* client =

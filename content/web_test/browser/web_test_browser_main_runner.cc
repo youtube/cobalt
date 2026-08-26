@@ -41,7 +41,6 @@
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/url_util.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "ui/base/ui_base_switches.h"
 #include "ui/display/display_switches.h"
@@ -50,10 +49,6 @@
 
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
-#endif
-
-#if BUILDFLAG(ENABLE_PPAPI)
-#include "content/public/test/ppapi_test_utils.h"
 #endif
 
 #if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_IOS)
@@ -201,9 +196,9 @@ void WebTestBrowserMainRunner::Initialize() {
   // interference. This GPU process is launched 120 seconds after chrome starts.
   command_line.AppendSwitch(switches::kDisableGpuProcessForDX12InfoCollection);
 
-#if BUILDFLAG(ENABLE_PPAPI)
-  CHECK(ppapi::RegisterBlinkTestPlugin(&command_line));
-#endif
+  // Disable IgnoreDuplicateNavs by default to ensure tests run with predictable
+  // navigation behavior and don't have navigations unintentionally ignored.
+  command_line.AppendSwitch(switches::kDisableIgnoreDuplicateNavsForTesting);
 
   command_line.AppendSwitch(switches::kEnableGpuBenchmarking);
   command_line.AppendSwitch(switches::kEnableLogging);

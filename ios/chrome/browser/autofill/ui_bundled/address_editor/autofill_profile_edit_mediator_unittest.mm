@@ -6,6 +6,7 @@
 
 #import "base/memory/raw_ptr.h"
 #import "base/strings/sys_string_conversions.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/autofill/core/browser/country_type.h"
 #import "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #import "components/autofill/core/browser/data_manager/personal_data_manager.h"
@@ -46,7 +47,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
 
 // YES, if the profile's record type is
 // autofill::AutofillProfile::RecordType::kAccountHome/kAccountWork.
-@property(nonatomic, assign) BOOL isHomeWorkProfile;
+@property(nonatomic, assign) BOOL isHomeAndWorkProfile;
 
 @property(nonatomic, copy) NSString* countrySelected;
 @end
@@ -141,7 +142,7 @@ class AutofillProfileEditMediatorTest : public PlatformTest {
         GeoIpCountryCode(variations_service
                              ? variations_service->GetLatestCountry()
                              : std::string()),
-        GetApplicationContext()->GetApplicationLocale());
+        GetApplicationContext()->GetApplicationLocaleStorage()->Get());
     return country_model_.countries();
   }
 

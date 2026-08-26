@@ -16,6 +16,8 @@
 #include "base/notreached.h"
 #include "base/task/thread_pool.h"
 #include "base/timer/timer.h"
+#include "chrome/browser/ash/drive/drive_integration_service.h"
+#include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/drive/file_system_util.h"
 #include "chrome/browser/ash/file_manager/copy_or_move_io_task.h"
 #include "chrome/browser/ash/file_manager/delete_io_task.h"
@@ -109,14 +111,14 @@ void DriveSkyvaultUploader::Run() {
   // Observe Drive updates.
   drive::DriveIntegrationService::Observer::Observe(drive_integration_service_);
 
-  auto drive_status = drive::util::GetDriveConnectionStatus(profile_);
-  if (drive_status == drive::util::ConnectionStatus::kNoService) {
+  if (!drive_integration_service_->is_enabled()) {
     // Drive is completely disabled for this profile.
     LOG(ERROR) << "Drive integration service isn't available";
     OnEndCopy(MigrationUploadError::kServiceUnavailable);
     return;
   }
 
+  auto drive_status = drive::util::GetDriveConnectionStatus(profile_);
   waiting_for_connection_ =
       drive_status != drive::util::ConnectionStatus::kConnected;
   SkyVaultMigrationWaitForConnectionHistogram(

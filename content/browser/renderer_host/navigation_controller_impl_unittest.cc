@@ -240,13 +240,6 @@ TEST(TimeSmoother, ClockBackwardsJump) {
 class NavigationControllerTest : public RenderViewHostImplTestHarness,
                                  public WebContentsObserver {
  public:
-  NavigationControllerTest() {
-    // Disable BackForward cache size overwritten by
-    // `kBackForwardCacheSize` so that it won't break some tests assumption.
-    scoped_feature_list_.InitWithFeaturesAndParameters({},
-                                                       {kBackForwardCacheSize});
-  }
-
   void SetUp() override {
     RenderViewHostImplTestHarness::SetUp();
     WebContents* web_contents = RenderViewHostImplTestHarness::web_contents();
@@ -3297,36 +3290,33 @@ TEST_F(NavigationControllerTest, HistoryNavigate) {
   NavigateAndCommit(url3);
   controller.GoBack();
   contents()->CommitPendingNavigation();
-  process()->sink().ClearMessages();
 
   // Simulate the page calling history.back(). It should create a pending entry.
-  main_test_rfh()->GoToEntryAtOffset(-1, false, std::nullopt);
+  main_test_rfh()->GoToEntryAtOffset(-1, false, base::TimeTicks::Now(),
+                                     std::nullopt);
   EXPECT_EQ(0, controller.GetPendingEntryIndex());
 
   // Also make sure we told the page to navigate.
   GURL nav_url = GetLastNavigationURL();
   EXPECT_EQ(url1, nav_url);
   contents()->CommitPendingNavigation();
-  process()->sink().ClearMessages();
 
   // Now test history.forward()
-  main_test_rfh()->GoToEntryAtOffset(2, false, std::nullopt);
+  main_test_rfh()->GoToEntryAtOffset(2, false, base::TimeTicks::Now(),
+                                     std::nullopt);
   EXPECT_EQ(2, controller.GetPendingEntryIndex());
 
   nav_url = GetLastNavigationURL();
   EXPECT_EQ(url3, nav_url);
   contents()->CommitPendingNavigation();
-  process()->sink().ClearMessages();
 
   controller.DiscardNonCommittedEntries();
 
   // Make sure an extravagant history.go() doesn't break.
-  main_test_rfh()->GoToEntryAtOffset(120, false,
+  main_test_rfh()->GoToEntryAtOffset(120, false, base::TimeTicks::Now(),
                                      std::nullopt);  // Out of bounds.
   EXPECT_EQ(-1, controller.GetPendingEntryIndex());
-  // TODO(crbug.com/40780539): Figure out why HasNavigationRequest() is
-  // true when back/forward cache is enabled.
-  EXPECT_EQ(IsBackForwardCacheEnabled(), HasNavigationRequest());
+  EXPECT_FALSE(HasNavigationRequest());
 }
 
 // Test call to PruneAllButLastCommitted for the only entry.

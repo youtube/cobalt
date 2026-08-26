@@ -47,6 +47,7 @@ _CONFIG = [
             'absl::Int128Low64',
             'absl::MakeInt128',
             'absl::MakeUint128',
+            'absl::Overload',
             'absl::uint128',
             'absl::Uint128High64',
             'absl::Uint128Low64',
@@ -111,10 +112,10 @@ _CONFIG = [
             'base::Minutes',
             'base::Nanoseconds',
             'base::NotFatalUntil',
+            'base::NotNullTag',
             'base::optional_ref',
             'base::OptionalFromPtr',
             'base::OptionalToPtr',
-            'base::Overloaded',
             'base::PassKey',
             'base::PersistentHash',
             'base::PlatformThread',
@@ -196,7 +197,7 @@ _CONFIG = [
             'base::SplitOnceCallback',
 
             # //base/functional/callback.h is allowed, but you need to use
-            # WTF::Bind or WTF::BindRepeating to create callbacks in
+            # blink::BindOnce or blink::BindRepeating to create callbacks in
             # //third_party/blink/renderer.
             'base::BarrierCallback',
             'base::BarrierClosure',
@@ -214,6 +215,9 @@ _CONFIG = [
 
             # //base/memory/ptr_util.h.
             'base::WrapUnique',
+
+            # //base/memory/safety_checks.h
+            'base::ScopedSafetyChecksExclusion',
 
             # //base/containers/adapters.h
             'base::Reversed',
@@ -443,6 +447,10 @@ _CONFIG = [
         ],
     },
     {
+        'paths': ['third_party/blink/public/platform/web_url_response.h'],
+        'allowed': ['network::IntegrityMetadata']
+    },
+    {
         'paths': ['third_party/blink/renderer/'],
         'allowed': [
             # TODO(dcheng): Should these be in a more specific config?
@@ -492,6 +500,7 @@ _CONFIG = [
             'gfx::DecomposedTransform',
             'gfx::Insets',
             'gfx::InsetsF',
+            'gfx::LineF',
             'gfx::Outsets',
             'gfx::OutsetsF',
             'gfx::Point',
@@ -520,6 +529,7 @@ _CONFIG = [
             'gfx::MapRect',
             'gfx::MapRect',
             'gfx::MaximumCoveredRect',
+            'gfx::NormalizeVector2d',
             'gfx::PointAtOffsetFromOrigin',
             'gfx::PointFToSkPoint',
             'gfx::PointToSkIPoint',
@@ -734,6 +744,7 @@ _CONFIG = [
             'svg_path_parser::.+',
             'touch_action_util::.+',
             'trace_event::.+',
+            'uchar::.+',
             'unicode::.+',
             'v8_compile_hints::.+',
             'vector_math::.+',
@@ -773,8 +784,17 @@ _CONFIG = [
             'net::CookieSameSite',
             'net::CookieSourceScheme',
 
+            # Cookie prefix feature flags.
+            'net::features::kPrefixCookieHttp',
+            'net::features::kPrefixCookieHostHttp',
+
             # HTTP status codes
+            'net::OK',
+
+            # Net error codes
             'net::ERR_.*',
+
+            # HTTP status codes
             'net::HTTP_.+',
 
             # For ConnectionInfo enumeration
@@ -912,8 +932,8 @@ _CONFIG = [
             'hw::.+',
         ],
         'disallowed': [
-            ('base::Bind(Once|Repeating)',
-             'Use WTF::BindOnce or WTF::BindRepeating.'),
+            ('(base|WTF)::Bind(Once|Repeating)',
+             'Use blink::BindOnce or blink::BindRepeating.'),
             'base::BindPostTaskToCurrentDefault',
             _DISALLOW_NON_BLINK_MOJOM,
             _DISALLOW_CONTINUATION_DATA_,
@@ -935,7 +955,7 @@ _CONFIG = [
             'third_party/blink/renderer/bindings/core/v8/serialization/',
             'third_party/blink/renderer/core/typed_arrays/',
         ],
-        'allowed': ['base::BufferIterator'],
+        'allowed': ['base::BufferIterator', 'gin::kEmbedderBlink'],
     },
     {
         'paths': [
@@ -1047,6 +1067,13 @@ _CONFIG = [
             'viz::SharedImageFormat',
             'viz::SkColorTypeToSinglePlaneSharedImageFormat',
             'viz::ToClosestSkColorType',
+        ],
+    },
+    {
+        'paths':
+        ['third_party/blink/public/common/messaging/transferable_message.h'],
+        'allowed': [
+            'scheduler::TaskAttributionId',
         ],
     },
     {
@@ -1297,6 +1324,7 @@ _CONFIG = [
             'gfx::RectF',
             'gfx::Size',
             'gfx::SizeF',
+            'gfx::Vector2d',
             'gfx::Vector2dF',
 
             # The Blink public API is shared between non-Blink and Blink code
@@ -1366,6 +1394,7 @@ _CONFIG = [
         ],
         'allowed': [
             'network::mojom::IntegrityAlgorithm',
+            'network::IntegrityMetadata',
         ],
     },
     {
@@ -1611,11 +1640,37 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/renderer/modules/webgl/webgl_rendering_context_webgpu_base.cc',
+            'third_party/blink/renderer/modules/webgl/webgl_rendering_context_webgpu_base.h',
+        ],
+        # This class needs access to ui/gl classes for driver loading.
+        'allowed': [
+            'angle::InitializePlatform',
+            'angle::ResetPlatform',
+            'dawn::wire::client::GetProcs',
+            'gfx::ExtensionSet',
+            'gfx::MakeExtensionSet',
+            'gl::DriverEGL',
+            'gl::DriverGL',
+            'gl::GLVersionInfo',
+            'gl::GetDebugSeverityString',
+            'gl::GetDebugSourceString',
+            'gl::GetDebugTypeString',
+            'gpu::gles2::GLES2InterfaceStub',
+            'ui::LogEGLDebugMessage',
+        ],
+    },
+    {
+        'paths': [
             'third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc',
         ],
-        # This class needs access to a GPU driver bug workaround entry.
+        # This class needs access to various GPU-related functionality.
         'allowed': [
+            'gfx::BufferFormat',
             'gpu::ENABLE_WEBGL_TIMER_QUERY_EXTENSIONS',
+            'gpu::IsImageFromGpuMemoryBufferFormatSupported',
+            'gpu::IsImageSizeValidForGpuMemoryBufferFormat',
+            'viz::SinglePlaneSharedImageFormatToBufferFormat',
         ],
     },
     {
@@ -1704,6 +1759,15 @@ _CONFIG = [
             'fidl::InterfaceHandle',
         ],
         'inclass_allowed': ['base::SequencedTaskRunner::GetCurrentDefault']
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/modules/nfc/nfc_parser_ios.mm',
+        ],
+        'allowed': [
+            'base::apple::NSDataToSpan',
+            'device::MapCoreNFCFormat',
+        ]
     },
     {
         'paths': [
@@ -1911,8 +1975,8 @@ _CONFIG = [
         # Suppress almost all checks on platform since code in this directory is
         # meant to be a bridge between Blink and non-Blink code. However,
         # base::RefCounted and base::RefCountedThreadSafe should still be
-        # explicitly blocked.
-        # WTF::RefCounted and WTF::ThreadSafeRefCounted should be used instead.
+        # explicitly blocked. blink::RefCounted and blink::ThreadSafeRefCounted
+        # should be used instead.
         'allowed': ['.+'],
         'inclass_allowed': ['.+'],
         'disallowed': [
@@ -1928,11 +1992,9 @@ _CONFIG = [
             'third_party/blink/renderer/platform/media/',
         ],
         'allowed': [
-            # TODO(crbug.com/40760651): migrate to Blink variant.
-            'media::mojom::MediaMetricsProvider',
-            'media::mojom::PlaybackPropertiesPtr',
-            'media::mojom::SecondaryPlaybackPropertiesPtr',
-            'media::mojom::WatchTimeRecorder',
+            # For interoperability with non-Blink code.
+            'learning::mojom::LearningTaskControllerInterfaceBase',
+            'media::mojom::MediaMetricsProviderInterfaceBase',
         ],
     },
     {
@@ -1985,6 +2047,7 @@ _CONFIG = [
             'third_party/blink/renderer/modules/ai/',
         ],
         'allowed': [
+            'base::DoNothingWithBoundArgs',
             'base::MakeFixedFlatSet',
         ],
     },
@@ -2011,7 +2074,7 @@ _CONFIG = [
             # liburlpattern API.
             "base::IsStringASCII",
 
-            # Needed to use part of the StringUTF8Adaptor API.
+            # Needed to use part of the StringUtf8Adaptor API.
             "base::StringPiece",
 
             # //third_party/liburlpattern
@@ -2101,7 +2164,6 @@ _CONFIG = [
             # base::OnceClosure, base::RepeatingClosure, base::CurrentThread and
             # base::RetainedRef.
             'base::Bind.*',
-            'base::MD5.*',
             'base::CurrentThread',
             'base::.*Closure',
             'base::PowerObserver',
@@ -2112,6 +2174,7 @@ _CONFIG = [
             # TODO(crbug.com/787254): Replace base::Thread with the appropriate Blink class.
             'base::Thread',
             'base::WrapRefCounted',
+            'crypto::hash::Sha256',
             'cricket::.*',
             'webrtc::ThreadWrapper',
             # TODO(crbug.com/787254): Remove GURL usage.
@@ -2150,6 +2213,15 @@ _CONFIG = [
             'net::Error',
             'net::MutableNetworkTrafficAnnotationTag',
             'net::NetworkTrafficAnnotationTag',
+        ]
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/modules/webtransport/',
+        ],
+        'allowed': [
+            'net::Error',
+            'net::IPEndPoint',
         ]
     },
     {
@@ -2386,6 +2458,15 @@ _CONFIG = [
         'allowed': [
             'attribution_reporting::.*',
         ]
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/core/frame/web_frame_widget_impl.cc',
+        ],
+        'allowed': [
+            # Temporarily added to generate the value of a crash key.
+            'base::NumberToString',
+        ],
     },
     {
         'paths': [
@@ -2650,11 +2731,12 @@ _COMPILED_CONFIG = _precompile_config()
 # GURL isn't namespace qualified and wouldn't match otherwise.
 # ContinuationPreservedEmbedder data is similarly hardcoded to restrict access
 # to the v8 APIs which would not otherwise match.
+# "WTF::" is hardcoded because the namespace is not lowercased.
 #
 # An example of an identifier that will be matched with this RE is
 # "base::BindOnce" or "performance_manager::policies::WorkingSetTrimData".
 _IDENTIFIER_WITH_NAMESPACE_RE = re.compile(
-    r'\b(?:(?:[a-z_][a-z0-9_]*::)+[A-Za-z_][A-Za-z0-9_]*|GURL|.*ContinuationPreservedEmbedderData.*)\b'
+    r'\b(?:(?:[a-z_][a-z0-9_]*::|WTF::)+[A-Za-z_][A-Za-z0-9_]*|GURL|.*ContinuationPreservedEmbedderData.*)\b'
 )
 
 # Different check which matches a non-empty sequence of lower-case

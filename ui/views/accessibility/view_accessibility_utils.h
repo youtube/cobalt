@@ -5,7 +5,6 @@
 #ifndef UI_VIEWS_ACCESSIBILITY_VIEW_ACCESSIBILITY_UTILS_H_
 #define UI_VIEWS_ACCESSIBILITY_VIEW_ACCESSIBILITY_UTILS_H_
 
-#include <unordered_set>
 
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_node_data.h"
@@ -36,6 +35,10 @@ class VIEWS_EXPORT ViewAccessibilityUtils {
   // setting attributes both in the cache before it gets fully initialized and
   // during the initialization step, through the
   // `View::OnAccessibilityInitializing` function.
+  //
+  // Because this is a performance-intensive debugging check, call sites MUST
+  // be wrapped in a `DCHECK_IS_ON()` block to ensure it has no impact on
+  // release builds.
   static void ValidateAttributesNotSet(const ui::AXNodeData& new_data,
                                        const ui::AXNodeData& existing_data);
 };

@@ -98,9 +98,6 @@ class CONTENT_EXPORT NestedTracingScenario : public TracingScenarioBase {
   // Enables a disabled scenario. Cannot be called after the scenario is
   // enabled.
   void Enable() override;
-  // Request to stop an active scenario. Upload rules are still active until
-  // Disable() is called.
-  void Stop();
 
   State current_state() const { return current_state_; }
 
@@ -200,6 +197,8 @@ class CONTENT_EXPORT TracingScenario : public TracingScenarioBase,
   void GenerateMetadataProto(
       perfetto::protos::pbzero::ChromeMetadataPacket* metadata);
 
+  std::string description() const { return description_; }
+
   State current_state() const { return current_state_; }
   bool privacy_filter_enabled() const { return privacy_filtering_enabled_; }
   bool is_local_scenario() const { return is_local_scenario_; }
@@ -264,6 +263,7 @@ class CONTENT_EXPORT TracingScenario : public TracingScenarioBase,
   base::WeakPtr<TracingScenario> GetWeakPtr();
   void SetState(State new_state);
 
+  const std::string description_;
   const bool privacy_filtering_enabled_;
   const bool is_local_scenario_;
   const bool request_startup_tracing_;

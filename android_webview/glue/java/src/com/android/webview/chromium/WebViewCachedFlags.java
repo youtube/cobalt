@@ -11,7 +11,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.android_webview.AwFeatureMap;
+import org.chromium.android_webview.common.AwFeatureMap;
 import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
@@ -46,7 +46,7 @@ public class WebViewCachedFlags {
     @IntDef({DefaultState.DISABLED, DefaultState.ENABLED})
     @Retention(RetentionPolicy.SOURCE)
     @Target(TYPE_USE)
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public @interface DefaultState {
         int DISABLED = 0;
         int ENABLED = 1;
@@ -77,10 +77,15 @@ public class WebViewCachedFlags {
                             Map.of(
                                     // Add new CachedFlags here along with their default state.
                                     AwFeatures.WEBVIEW_SEPARATE_RESOURCE_CONTEXT,
-                                            DefaultState.DISABLED,
-                                    AwFeatures.WEBVIEW_DISABLE_CHIPS, DefaultState.DISABLED,
+                                    DefaultState.DISABLED,
+                                    AwFeatures.WEBVIEW_DISABLE_CHIPS,
+                                    DefaultState.DISABLED,
                                     AwFeatures.WEBVIEW_USE_STARTUP_TASKS_LOGIC,
-                                            DefaultState.DISABLED));
+                                    DefaultState.DISABLED,
+                                    AwFeatures.WEBVIEW_USE_STARTUP_TASKS_LOGIC_P2,
+                                    DefaultState.DISABLED,
+                                    AwFeatures.WEBVIEW_STARTUP_TASKS_YIELD_TO_NATIVE,
+                                    DefaultState.DISABLED));
         }
     }
 
@@ -136,7 +141,7 @@ public class WebViewCachedFlags {
                 .apply();
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public WebViewCachedFlags(
             SharedPreferences prefs, Map<String, @DefaultState Integer> defaults) {
         // TODO(crbug.com/414342590): Remove the call to HashSet constructor once the migration code

@@ -12,10 +12,13 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/views/bubble/webui_bubble_dialog_view.h"
 #include "chrome/browser/ui/views/user_education/custom_webui_help_bubble_controller.h"
+#include "chrome/browser/ui/views/user_education/impl/browser_user_education_context.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/user_education/common/feature_promo/feature_promo_specification.h"
 #include "components/user_education/common/help_bubble/help_bubble_params.h"
+#include "components/user_education/common/user_education_context.h"
+#include "components/user_education/views/help_bubble_factory_views.h"
 #include "components/user_education/views/help_bubble_views.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
@@ -57,8 +60,7 @@ class CustomWebUIHelpBubble : public user_education::CustomHelpBubbleViews {
     requires IsCustomWebUIHelpBubbleController<T>
   static std::unique_ptr<CustomWebUIHelpBubble> CreateForController(
       const GURL& webui_url,
-      ui::ElementContext from_context,
-      user_education::HelpBubbleArrow arrow,
+      const user_education::UserEducationContextPtr& from_context,
       user_education::FeaturePromoSpecification::BuildHelpBubbleParams params,
       const BuildCustomWebUIHelpBubbleViewCallback& build_bubble_view_callback =
           GetDefaultBuildBubbleViewCallback());
@@ -88,11 +90,11 @@ MakeCustomWebUIHelpBubbleFactoryCallback(
       [](const GURL& webui_url,
          const CustomWebUIHelpBubble::BuildCustomWebUIHelpBubbleViewCallback&
              build_bubble_view_callback,
-         ui::ElementContext from_context, user_education::HelpBubbleArrow arrow,
+         const user_education::UserEducationContextPtr& from_context,
          user_education::FeaturePromoSpecification::BuildHelpBubbleParams
              params) {
         auto bubble = CustomWebUIHelpBubble::CreateForController<T>(
-            webui_url, from_context, arrow, std::move(params),
+            webui_url, from_context, std::move(params),
             build_bubble_view_callback);
         return bubble;
       },
@@ -122,23 +124,40 @@ template <typename T>
 std::unique_ptr<CustomWebUIHelpBubble>
 CustomWebUIHelpBubble::CreateForController(
     const GURL& webui_url,
-    ui::ElementContext from_context,
-    user_education::HelpBubbleArrow arrow,
+    const user_education::UserEducationContextPtr& from_context,
     user_education::FeaturePromoSpecification::BuildHelpBubbleParams params,
     const BuildCustomWebUIHelpBubbleViewCallback& build_bubble_view_callback) {
-  Browser* const browser =
-      chrome::FindBrowserWithUiElementContext(from_context);  // NOLINT
-  CHECK(browser);
+  auto* const browser_context =
+      from_context->AsA<BrowserUserEducationContext>();
+  CHECK(browser_context);
   auto wrapper = std::make_unique<WebUIContentsWrapperT<T>>(
-      webui_url, browser->profile(), IDS_HELP_BUBBLE);
+      webui_url, browser_context->GetBrowserView().GetProfile(),
+      IDS_HELP_BUBBLE);
   auto ui = wrapper->GetWebUIController()->GetCustomUiAsWeakPtr();
   auto bubble_ptr = build_bubble_view_callback.Run(
       params.anchor_element->AsA<views::TrackedElementViews>()->view(),
-      user_education::HelpBubbleViews::TranslateArrow(arrow),
+      user_education::HelpBubbleViews::TranslateArrow(params.arrow),
       wrapper->GetWeakPtr());
   auto* const bubble = bubble_ptr.get();
+
+  // Ensure that the bubble gets the correct background and frame color.
+  bubble->SetBackgroundColor(
+      wrapper->GetWebUIController()->GetBackgroundAndFrameColor());
+
+  // Specific shadow types are required for help bubbles in order to properly
+  // render visible bubble arrows.
+  bubble->set_shadow(
+      user_education::HelpBubbleFactoryViews::GetDefaultBubbleShadow());
+
   auto widget = base::WrapUnique(views::BubbleDialogDelegateView::CreateBubble(
       std::move(bubble_ptr), views::Widget::InitParams::CLIENT_OWNS_WIDGET));
+
+  // Maybe set the arrow. This may require recalculating the bubble bounds.
+  if (params.arrow != user_education::HelpBubbleArrow::kNone) {
+    bubble->GetBubbleFrameView()->SetDisplayVisibleArrow(true);
+    bubble->SizeToContents();
+  }
+
   wrapper->ShowUI();
   return base::WrapUnique(new CustomWebUIHelpBubble(
       std::move(widget), bubble, std::move(wrapper), params.anchor_element));

@@ -17,15 +17,14 @@
 
 #include "base/check_op.h"
 #include "base/containers/contains.h"
-#include "base/functional/overloaded.h"
 #include "base/strings/string_util.h"
 #include "components/js_injection/common/interfaces.mojom-forward.h"
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
 #include "gin/converter.h"
 #include "gin/data_object_builder.h"
-#include "gin/handle.h"
 #include "gin/object_template_builder.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/messaging/message_port_channel.h"
 #include "third_party/blink/public/common/messaging/string_message_codec.h"
@@ -34,6 +33,8 @@
 #include "third_party/blink/public/web/web_frame.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_message_port_converter.h"
+#include "v8/include/cppgc/allocation.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8.h"
 
 namespace {
@@ -77,10 +78,8 @@ class V8ArrayBufferPayload : public blink::WebMessageArrayBufferPayload {
 
 namespace js_injection {
 
-gin::WrapperInfo JsBinding::kWrapperInfo = {gin::kEmbedderNativeGin};
-
 // static
-base::WeakPtr<JsBinding> JsBinding::Install(
+cppgc::WeakPersistent<JsBinding> JsBinding::Install(
     content::RenderFrame* render_frame,
     const std::u16string& js_object_name,
     base::WeakPtr<JsCommunication> js_communication,
@@ -103,24 +102,21 @@ base::WeakPtr<JsBinding> JsBinding::Install(
 
     context_scope.emplace(context);
   }
-  // The call to CreateHandle() takes ownership of `js_binding` (but only on
-  // success).
-  JsBinding* js_binding =
-      new JsBinding(render_frame, js_object_name, js_communication);
-  gin::Handle<JsBinding> bindings = gin::CreateHandle(isolate, js_binding);
-  if (bindings.IsEmpty()) {
-    delete js_binding;
+  JsBinding* js_binding = cppgc::MakeGarbageCollected<JsBinding>(
+      isolate->GetCppHeap()->GetAllocationHandle(), render_frame,
+      js_object_name, js_communication);
+  v8::Local<v8::Object> wrapper;
+  if (!js_binding->GetWrapper(isolate).ToLocal(&wrapper)) {
     return nullptr;
   }
 
   v8::Local<v8::Object> global = context->Global();
   global
-      ->CreateDataProperty(context,
-                           gin::StringToSymbol(isolate, js_object_name),
-                           bindings.ToV8())
+      ->CreateDataProperty(
+          context, gin::StringToSymbol(isolate, js_object_name), wrapper)
       .Check();
 
-  return js_binding->weak_ptr_factory_.GetWeakPtr();
+  return js_binding;
 }
 
 JsBinding::JsBinding(content::RenderFrame* render_frame,
@@ -155,7 +151,7 @@ void JsBinding::OnPostMessage(blink::WebMessagePayload message) {
   try_catch.SetVerbose(true);
 
   v8::Local<v8::Value> v8_message = std::visit(
-      base::Overloaded{
+      absl::Overload{
           [isolate](std::u16string& string_value) -> v8::Local<v8::Value> {
             return gin::ConvertToV8(isolate, std::move(string_value));
           },
@@ -342,6 +338,10 @@ void JsBinding::SetOnMessage(v8::Isolate* isolate, v8::Local<v8::Value> value) {
     on_message_.Reset(isolate, value.As<v8::Function>());
   else
     on_message_.Reset();
+}
+
+const gin::WrapperInfo* JsBinding::wrapper_info() const {
+  return &kWrapperInfo;
 }
 
 }  // namespace js_injection

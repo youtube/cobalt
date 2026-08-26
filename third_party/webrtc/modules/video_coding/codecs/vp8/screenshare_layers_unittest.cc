@@ -11,9 +11,10 @@
 #include "modules/video_coding/codecs/vp8/screenshare_layers.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -30,7 +31,7 @@
 #include "system_wrappers/include/metrics.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "vpx/vp8cx.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8cx.h"
 
 using ::testing::_;
 using ::testing::ElementsAre;
@@ -39,21 +40,21 @@ using ::testing::NiceMock;
 namespace webrtc {
 namespace {
 // 5 frames per second at 90 kHz.
-const uint32_t kTimestampDelta5Fps = 90000 / 5;
-const int kDefaultQp = 54;
-const int kDefaultTl0BitrateKbps = 200;
-const int kDefaultTl1BitrateKbps = 2000;
-const int kFrameRate = 5;
-const int kSyncPeriodSeconds = 2;
-const int kMaxSyncPeriodSeconds = 4;
+constexpr uint32_t kTimestampDelta5Fps = 90000 / 5;
+constexpr int kDefaultQp = 54;
+constexpr int kDefaultTl0BitrateKbps = 200;
+constexpr int kDefaultTl1BitrateKbps = 2000;
+constexpr int kFrameRate = 5;
+constexpr int kSyncPeriodSeconds = 2;
+constexpr int kMaxSyncPeriodSeconds = 4;
 
 // Expected flags for corresponding temporal layers.
-const int kTl0Flags = VP8_EFLAG_NO_UPD_GF | VP8_EFLAG_NO_UPD_ARF |
-                      VP8_EFLAG_NO_REF_GF | VP8_EFLAG_NO_REF_ARF;
-const int kTl1Flags =
+constexpr int kTl0Flags = VP8_EFLAG_NO_UPD_GF | VP8_EFLAG_NO_UPD_ARF |
+                          VP8_EFLAG_NO_REF_GF | VP8_EFLAG_NO_REF_ARF;
+constexpr int kTl1Flags =
     VP8_EFLAG_NO_REF_ARF | VP8_EFLAG_NO_UPD_ARF | VP8_EFLAG_NO_UPD_LAST;
-const int kTl1SyncFlags = VP8_EFLAG_NO_REF_ARF | VP8_EFLAG_NO_REF_GF |
-                          VP8_EFLAG_NO_UPD_ARF | VP8_EFLAG_NO_UPD_LAST;
+constexpr int kTl1SyncFlags = VP8_EFLAG_NO_REF_ARF | VP8_EFLAG_NO_REF_GF |
+                              VP8_EFLAG_NO_UPD_ARF | VP8_EFLAG_NO_UPD_LAST;
 const std::vector<uint32_t> kDefault2TlBitratesBps = {
     kDefaultTl0BitrateKbps * 1000,
     (kDefaultTl1BitrateKbps - kDefaultTl0BitrateKbps) * 1000};
@@ -68,7 +69,7 @@ class ScreenshareLayerTest : public ::testing::Test {
         frame_size_(-1),
         timestamp_(90),
         config_updated_(false) {}
-  virtual ~ScreenshareLayerTest() {}
+  ~ScreenshareLayerTest() override {}
 
   void SetUp() override {
     layers_.reset(new ScreenshareLayers(2));
@@ -534,7 +535,7 @@ TEST_F(ScreenshareLayerTest, UpdatesHistograms) {
   const int kTl0Qp = 35;
   const int kTl1Qp = 30;
   for (int64_t timestamp = 0;
-       timestamp < kTimestampDelta5Fps * 5 * metrics::kMinRunTimeInSeconds;
+       timestamp < kTimestampDelta5Fps * 5 * metrics::kMinRunTime.seconds();
        timestamp += kTimestampDelta5Fps) {
     tl_config_ = NextFrameConfig(0, timestamp);
     if (tl_config_.drop_frame) {

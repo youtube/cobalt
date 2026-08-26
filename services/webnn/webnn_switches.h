@@ -28,10 +28,28 @@ inline constexpr char kWebNNTfliteDumpModel[] = "webnn-tflite-dump-model";
 
 #if BUILDFLAG(IS_WIN)
 // Configure the logging severity level of ONNX Runtime.
-// Usage: --no-sandbox --enable-logging --webnn-ort-logging-level=VERBOSE
+// Usage: --webnn-ort-logging-level=VERBOSE
 // Other severity levels could be "INFO", "WARNING", "ERROR" (default), and
 // "FATAL".
 inline constexpr char kWebNNOrtLoggingLevel[] = "webnn-ort-logging-level";
+// Set the folder specified by --webnn-ort-dump-model for ONNX Runtime to save
+// optimized ONNX model after graph level transformations.
+// Usage: --no-sandbox --webnn-ort-dump-model=/tmp/ort_models
+inline constexpr char kWebNNOrtDumpModel[] = "webnn-ort-dump-model";
+// Force onnxruntime.dll to be loaded from a location specified by the switch
+// for testing development ORT build. This switch is not to be used in shipping
+// scenarios and is ignored by default.
+// Usage: --webnn-ort-library-path-for-testing="C:\Program Files\ONNXRuntime"
+// --allow-third-party-modules
+inline constexpr char kWebNNOrtLibraryPathForTesting[] =
+    "webnn-ort-library-path-for-testing";
+// Force ORT EP libraries to be loaded from a location specified by the switch
+// for testing development EP build. This switch is not to be used in shipping
+// scenarios and is ignored by default.
+// Usage: --webnn-ort-ep-library-path-for-testing="C:\Program
+// Files\ONNXRuntime-EP" --allow-third-party-modules
+inline constexpr char kWebNNOrtEpLibraryPathForTesting[] =
+    "webnn-ort-ep-library-path-for-testing";
 #endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace switches

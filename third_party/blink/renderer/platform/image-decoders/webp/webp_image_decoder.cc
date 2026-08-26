@@ -18,6 +18,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkData.h"
@@ -126,7 +127,7 @@ bool IsSimpleLossyWebPImage(const sk_sp<SkData>& blob) {
 // This method parses |blob|'s header and emits a UMA with the file format, as
 // defined by WebP, see WebPFileFormat.
 void UpdateWebPFileFormatUMA(const sk_sp<SkData>& blob) {
-  if (!IsMainThread()) {
+  if (!blink::IsMainThread()) {
     return;
   }
 

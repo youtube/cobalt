@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/sync_device_info/device_info_sync_bridge.h"
 
 #include <stdint.h>
@@ -18,6 +13,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
@@ -90,9 +86,6 @@ std::optional<DeviceInfo::SharingInfo> SpecificsToSharingInfo(
     enabled_features.insert(specifics.sharing_fields().enabled_features(i));
   }
   return DeviceInfo::SharingInfo(
-      {specifics.sharing_fields().vapid_fcm_token(),
-       specifics.sharing_fields().vapid_p256dh(),
-       specifics.sharing_fields().vapid_auth_secret()},
       {specifics.sharing_fields().sender_id_fcm_token_v2(),
        specifics.sharing_fields().sender_id_p256dh_v2(),
        specifics.sharing_fields().sender_id_auth_secret_v2()},
@@ -121,13 +114,14 @@ SpecificsToPhoneAsASecurityKeyInfo(const DeviceInfoSpecifics& specifics) {
   if (from.secret().size() != to.secret.size()) {
     return std::nullopt;
   }
-  memcpy(to.secret.data(), from.secret().data(), to.secret.size());
+  UNSAFE_TODO(memcpy(to.secret.data(), from.secret().data(), to.secret.size()));
 
   if (from.peer_public_key_x962().size() != to.peer_public_key_x962.size()) {
     return std::nullopt;
   }
-  memcpy(to.peer_public_key_x962.data(), from.peer_public_key_x962().data(),
-         to.peer_public_key_x962.size());
+  UNSAFE_TODO(memcpy(to.peer_public_key_x962.data(),
+                     from.peer_public_key_x962().data(),
+                     to.peer_public_key_x962.size()));
 
   return to;
 }
@@ -264,11 +258,6 @@ std::unique_ptr<DeviceInfoSpecifics> MakeLocalDeviceSpecifics(
       info.sharing_info();
   if (sharing_info) {
     SharingSpecificFields* sharing_fields = specifics->mutable_sharing_fields();
-    sharing_fields->set_vapid_fcm_token(
-        sharing_info->vapid_target_info.fcm_token);
-    sharing_fields->set_vapid_p256dh(sharing_info->vapid_target_info.p256dh);
-    sharing_fields->set_vapid_auth_secret(
-        sharing_info->vapid_target_info.auth_secret);
     sharing_fields->set_sender_id_fcm_token_v2(
         sharing_info->sender_id_target_info.fcm_token);
     sharing_fields->set_sender_id_p256dh_v2(
@@ -674,7 +663,8 @@ std::optional<ModelError> DeviceInfoSyncBridge::ParseSpecificsOnBackendSequence(
   for (const Record& r : *record_list) {
     DeviceInfoSpecifics specifics;
     if (!specifics.ParseFromString(r.value)) {
-      return ModelError(FROM_HERE, "Failed to deserialize specifics.");
+      return ModelError(
+          FROM_HERE, ModelError::Type::kDeviceInfoDeserializeSpecificsFailed);
     }
 
     std::string cache_guid = specifics.cache_guid();
@@ -722,7 +712,8 @@ void DeviceInfoSyncBridge::OnStoreCreated(
     const std::optional<syncer::ModelError>& error,
     std::unique_ptr<DataTypeStore> store) {
   if (error) {
-    change_processor()->ReportError(*error);
+    change_processor()->ReportError(
+        {FROM_HERE, ModelError::Type::kDeviceInfoStoreCreationFailed});
     return;
   }
 

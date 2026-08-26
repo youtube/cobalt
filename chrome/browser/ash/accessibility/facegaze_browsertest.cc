@@ -116,7 +116,9 @@ class MockEventHandler : public ui::EventHandler {
 
 }  // namespace
 
-class FaceGazeIntegrationTest : public AccessibilityFeatureBrowserTest {
+class FaceGazeIntegrationTest
+    : public AccessibilityFeatureBrowserTest,
+      public ::testing::WithParamInterface<ManifestVersion> {
  public:
   FaceGazeIntegrationTest() = default;
   ~FaceGazeIntegrationTest() override = default;
@@ -126,9 +128,18 @@ class FaceGazeIntegrationTest : public AccessibilityFeatureBrowserTest {
  protected:
   // InProcessBrowserTest:
   void SetUpCommandLine(base::CommandLine* command_line) override {
-    scoped_feature_list_.InitAndEnableFeature(
-        ::features::kAccessibilityFaceGaze);
-    InProcessBrowserTest::SetUpCommandLine(command_line);
+    std::vector<base::test::FeatureRef> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+    enabled_features.push_back(::features::kAccessibilityFaceGaze);
+    if (GetParam() == ManifestVersion::kTwo) {
+      disabled_features.push_back(
+          ::features::kAccessibilityManifestV3AccessibilityCommon);
+    } else if (GetParam() == ManifestVersion::kThree) {
+      enabled_features.push_back(
+          ::features::kAccessibilityManifestV3AccessibilityCommon);
+    }
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
+    AccessibilityFeatureBrowserTest::SetUpCommandLine(command_line);
   }
 
   void SetUpOnMainThread() override {
@@ -164,7 +175,14 @@ class FaceGazeIntegrationTest : public AccessibilityFeatureBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, UpdateCursorLocation) {
+INSTANTIATE_TEST_SUITE_P(ManifestV2,
+                         FaceGazeIntegrationTest,
+                         ::testing::Values(ManifestVersion::kTwo));
+INSTANTIATE_TEST_SUITE_P(ManifestV3,
+                         FaceGazeIntegrationTest,
+                         ::testing::Values(ManifestVersion::kThree));
+
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, UpdateCursorLocation) {
   utils()->EnableFaceGaze(Config().Default());
   event_handler().ClearEvents();
 
@@ -189,7 +207,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, UpdateCursorLocation) {
   ASSERT_TRUE(mouse_events[1].IsSynthesized());
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, ResetCursor) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, ResetCursor) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::JAW_OPEN, MacroName::RESET_CURSOR}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -222,7 +240,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, ResetCursor) {
   ASSERT_TRUE(mouse_events[0].IsSynthesized());
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest,
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest,
                        IgnoreGesturesWithLowConfidence) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::JAW_OPEN, MacroName::RESET_CURSOR}};
@@ -248,7 +266,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest,
   ASSERT_EQ(0u, event_handler().mouse_events().size());
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest,
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest,
                        UpdateCursorLocationWithSpeed1) {
   utils()->EnableFaceGaze(Config().Default().WithCursorSpeeds(
       {/*up=*/1, /*down=*/1, /*left=*/1, /*right=*/1}));
@@ -266,7 +284,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest,
   }
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, SpaceKeyEvents) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, SpaceKeyEvents) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::MOUTH_LEFT, MacroName::KEY_PRESS_SPACE}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -298,7 +316,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, SpaceKeyEvents) {
 // separate facial gestures (BROW_DOWN_LEFT and BROW_DOWN_RIGHT). This test
 // ensures that the associated action is performed if either of the gestures is
 // detected.
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, BrowsDownGesture) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, BrowsDownGesture) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::BROWS_DOWN, MacroName::RESET_CURSOR}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -354,7 +372,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, BrowsDownGesture) {
   AssertLatestMouseEvent(1, ui::EventType::kMouseMoved, kCenter);
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, MousePressAndReleaseEvents) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, MousePressAndReleaseEvents) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::MOUTH_PUCKER, MacroName::MOUSE_CLICK_LEFT}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -384,7 +402,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, MousePressAndReleaseEvents) {
   ASSERT_EQ(0u, event_handler().mouse_events().size());
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, MouseLongClick) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, MouseLongClick) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::MOUTH_RIGHT, MacroName::MOUSE_LONG_CLICK_LEFT}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -442,7 +460,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, MouseLongClick) {
 }
 
 // TODO(crbug.com/367758998): Re-enable this test.
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DISABLED_PerformanceHistogram) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, DISABLED_PerformanceHistogram) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::MOUTH_PUCKER, MacroName::MOUSE_CLICK_LEFT}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -459,7 +477,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DISABLED_PerformanceHistogram) {
   waiter.Wait();
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, OpenSettingsPage) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, OpenSettingsPage) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::MOUTH_RIGHT, MacroName::OPEN_FACEGAZE_SETTINGS}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -477,7 +495,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, OpenSettingsPage) {
   waiter.Run();
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, ToggleVirtualKeyboard) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, ToggleVirtualKeyboard) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::JAW_OPEN, MacroName::TOGGLE_VIRTUAL_KEYBOARD}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -497,7 +515,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, ToggleVirtualKeyboard) {
   waiter.Run();
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DoubleClick) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, DoubleClick) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::MOUTH_FUNNEL, MacroName::MOUSE_CLICK_LEFT_DOUBLE}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -536,7 +554,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DoubleClick) {
   ASSERT_EQ(0u, event_handler().mouse_events().size());
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, TripleClick) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, TripleClick) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::MOUTH_FUNNEL, MacroName::MOUSE_CLICK_LEFT_TRIPLE}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -575,7 +593,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, TripleClick) {
   ASSERT_EQ(0u, event_handler().mouse_events().size());
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, AcceptDialog) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, AcceptDialog) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
 
@@ -605,7 +623,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, AcceptDialog) {
       prefs::kAccessibilityFaceGazeAcceleratorDialogHasBeenAccepted));
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, CancelDialog) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, CancelDialog) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
 
@@ -636,7 +654,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, CancelDialog) {
       prefs::kAccessibilityFaceGazeAcceleratorDialogHasBeenAccepted));
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, ScrollMode) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, ScrollMode) {
   const base::flat_map<FaceGazeGesture, MacroName> gestures_to_macros = {
       {FaceGazeGesture::JAW_LEFT, MacroName::TOGGLE_SCROLL_MODE}};
   const base::flat_map<FaceGazeGesture, int> gestures_to_confidences = {
@@ -675,7 +693,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, ScrollMode) {
   utils()->AssertScrollMode(false);
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DefaultBehavior) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, DefaultBehavior) {
   utils()->EnableFaceGaze(Config().Default());
   // Default gesture-to-macro and gesture-to-confidence mappings should be
   // installed if we didn't specify them.
@@ -697,7 +715,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DefaultBehavior) {
                     FaceGazeTestUtils::ToString(FaceGazeGesture::JAW_OPEN)));
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DisableDialogAccept) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, DisableDialogAccept) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
 
@@ -728,7 +746,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DisableDialogAccept) {
   ASSERT_FALSE(prefs->GetBoolean(prefs::kAccessibilityFaceGazeEnabled));
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DisableDialogCancel) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, DisableDialogCancel) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
 
@@ -760,7 +778,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DisableDialogCancel) {
 
 // TODO(crbug.com/383757982): Add test API for .WithCursorControlEnabled() and
 // .WithActionsEnabled() and update tests accordingly.
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, EnableCursorControlNoDialog) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, EnableCursorControlNoDialog) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
 
@@ -781,7 +799,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, EnableCursorControlNoDialog) {
   ASSERT_EQ(nullptr, controller->GetFeatureDisableDialogForTest());
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest,
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest,
                        DisableCursorControlDialogAccept) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
@@ -826,7 +844,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest,
       prefs::kAccessibilityFaceGazeCursorControlEnabledSentinel));
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest,
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest,
                        DisableCursorControlDialogCancel) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
@@ -870,7 +888,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest,
       prefs::kAccessibilityFaceGazeCursorControlEnabledSentinel));
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, EnableActionsNoDialog) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, EnableActionsNoDialog) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
 
@@ -889,7 +907,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, EnableActionsNoDialog) {
   ASSERT_EQ(nullptr, controller->GetFeatureDisableDialogForTest());
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DisableActionsDialogAccept) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, DisableActionsDialogAccept) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
 
@@ -930,7 +948,7 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DisableActionsDialogAccept) {
       prefs->GetBoolean(prefs::kAccessibilityFaceGazeActionsEnabledSentinel));
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DisableActionsDialogCancel) {
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, DisableActionsDialogCancel) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
 
@@ -970,7 +988,13 @@ IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, DisableActionsDialogCancel) {
       prefs->GetBoolean(prefs::kAccessibilityFaceGazeActionsEnabledSentinel));
 }
 
-IN_PROC_BROWSER_TEST_F(FaceGazeIntegrationTest, CloseButton) {
+// TODO(crbug.com/423267032): Fix and re-enable flaky test.
+#if defined(MEMORY_SANITIZER)
+#define MAYBE_CloseButton DISABLED_CloseButton
+#else
+#define MAYBE_CloseButton CloseButton
+#endif
+IN_PROC_BROWSER_TEST_P(FaceGazeIntegrationTest, MAYBE_CloseButton) {
   auto* controller = ash::Shell::Get()->accessibility_controller();
   auto* prefs = GetPrefs();
 

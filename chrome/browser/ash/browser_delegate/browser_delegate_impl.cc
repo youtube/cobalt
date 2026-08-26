@@ -5,14 +5,21 @@
 #include "chrome/browser/ash/browser_delegate/browser_delegate_impl.h"
 
 #include "base/check_deref.h"
+#include "base/check_is_test.h"
 #include "chrome/browser/ash/browser_delegate/browser_type_conversion.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
+#include "chrome/browser/web_applications/web_app_helpers.h"
+#include "chromeos/ash/components/browser_context_helper/annotated_account_id.h"
+#include "components/tab_groups/tab_group_id.h"
+#include "components/tab_groups/tab_group_info.h"
 
 namespace ash {
 
@@ -31,6 +38,17 @@ BrowserType BrowserDelegateImpl::GetType() const {
 
 SessionID BrowserDelegateImpl::GetSessionID() const {
   return browser_->session_id();
+}
+
+const AccountId& BrowserDelegateImpl::GetAccountId() const {
+  const AccountId* id =
+      ash::AnnotatedAccountId::Get(browser_->profile()->GetOriginalProfile());
+  if (id) {
+    CHECK(id->is_valid());
+  } else {
+    CHECK_IS_TEST();
+  }
+  return id ? *id : EmptyAccountId();
 }
 
 bool BrowserDelegateImpl::IsOffTheRecord() const {
@@ -58,12 +76,36 @@ aura::Window* BrowserDelegateImpl::GetNativeWindow() const {
   return browser_->window()->GetNativeWindow();
 }
 
+std::optional<webapps::AppId> BrowserDelegateImpl::GetAppId() const {
+  // The implementation of `GetAppIdFromApplicationName()` isn't specific to
+  // WebApps, although the function resides in web_app_helpers.cc|h.
+  std::string app_id =
+      web_app::GetAppIdFromApplicationName(browser_->app_name());
+  return app_id.empty() ? std::nullopt : std::optional<webapps::AppId>(app_id);
+}
+
+bool BrowserDelegateImpl::IsWebApp() const {
+  return web_app::AppBrowserController::IsWebApp(&*browser_);
+}
+
 bool BrowserDelegateImpl::IsClosing() const {
   return browser_->IsBrowserClosing();
 }
 
+bool BrowserDelegateImpl::IsActive() const {
+  return browser_->window()->IsActive();
+}
+
 void BrowserDelegateImpl::Show() {
   browser_->window()->Show();
+}
+
+void BrowserDelegateImpl::ShowInactive() {
+  browser_->window()->ShowInactive();
+}
+
+void BrowserDelegateImpl::Activate() {
+  browser_->window()->Activate();
 }
 
 void BrowserDelegateImpl::Minimize() {
@@ -94,6 +136,41 @@ content::WebContents* BrowserDelegateImpl::NavigateWebApp(const GURL& url,
   }
 
   return web_app::NavigateWebAppUsingParams(nav_params);
+}
+
+void BrowserDelegateImpl::CreateTabGroup(
+    const tab_groups::TabGroupInfo& tab_group) {
+  std::vector<int> indices;
+  for (uint32_t index = tab_group.tab_range.start();
+       index < tab_group.tab_range.end(); ++index) {
+    indices.push_back(static_cast<int>(index));
+  }
+
+  TabStripModel* tab_strip_model = browser_->tab_strip_model();
+  const tab_groups::TabGroupId new_group_id =
+      tab_strip_model->AddToNewGroup(indices);
+  tab_strip_model->ChangeTabGroupVisuals(new_group_id, tab_group.visual_data);
+}
+
+void BrowserDelegateImpl::PinTab(size_t tab_index) {
+  browser_->tab_strip_model()->SetTabPinned(static_cast<int>(tab_index),
+                                            /*pinned=*/true);
+}
+
+void BrowserDelegateImpl::MoveTab(size_t tab_index,
+                                  BrowserDelegate& target_browser) {
+  TabStripModel* source_tab_strip = browser_->tab_strip_model();
+  TabStripModel* target_tab_strip =
+      static_cast<BrowserDelegateImpl&>(target_browser)
+          .browser_->tab_strip_model();
+
+  const bool was_pinned = source_tab_strip->IsTabPinned(tab_index);
+
+  std::unique_ptr<tabs::TabModel> detached_tab =
+      source_tab_strip->DetachTabAtForInsertion(tab_index);
+  target_tab_strip->InsertDetachedTabAt(
+      TabStripModel::kNoTab, std::move(detached_tab),
+      was_pinned ? AddTabTypes::ADD_PINNED : AddTabTypes::ADD_ACTIVE);
 }
 
 }  // namespace ash

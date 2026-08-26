@@ -40,6 +40,8 @@ class GroupSuggestionsServiceImpl : public GroupSuggestionsService,
 
   // GroupSuggestionsService impl:
   TabEventTracker* GetTabEventTracker() override;
+  std::optional<CachedSuggestions> GetCachedSuggestions(
+      const Scope& scope) override;
   void RegisterDelegate(GroupSuggestionsDelegate* delegate,
                         const Scope& scope) override;
   void UnregisterDelegate(GroupSuggestionsDelegate* delegate) override;
@@ -48,6 +50,9 @@ class GroupSuggestionsServiceImpl : public GroupSuggestionsService,
   GroupSuggestionsManager* group_suggestions_manager_for_testing() {
     return group_suggestions_manager_.get();
   }
+
+  // Invalidates the cached suggestions.
+  void InvalidateCache();
 
  private:
   void OnNewSuggestionTabEvent();

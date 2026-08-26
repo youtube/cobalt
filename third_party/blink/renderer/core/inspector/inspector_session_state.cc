@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/inspector/inspector_session_state.h"
 
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/inspector_protocol/crdtp/cbor.h"
 
 namespace blink {
@@ -159,7 +160,7 @@ InspectorAgentState::InspectorAgentState(const WTF::String& domain_name)
 
 WTF::String InspectorAgentState::RegisterField(Field* field) {
   WTF::String prefix_key =
-      domain_name_ + "." + WTF::String::Number(fields_.size()) + "/";
+      StrCat({domain_name_, ".", WTF::String::Number(fields_.size()), "/"});
   fields_.push_back(field);
   return prefix_key;
 }

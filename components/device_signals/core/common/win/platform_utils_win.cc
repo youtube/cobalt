@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "components/device_signals/core/common/platform_utils.h"
 
@@ -268,6 +264,18 @@ base::FilePath GetCrowdStrikeZtaFilePath() {
   return app_data_dir.Append(kZtaFilePathSuffix);
 }
 
+base::FilePath GetCrowdStrikeAgentInstallPath() {
+  static constexpr base::FilePath::CharType kCrowdstrikeAgentPathSuffix[] =
+      FILE_PATH_LITERAL("CrowdStrike\\FalconService.exe");
+
+  base::FilePath app_path;
+  if (!base::PathService::Get(base::DIR_PROGRAM_FILES, &app_path)) {
+    // Returning the empty path when failing.
+    return app_path;
+  }
+  return app_path.Append(kCrowdstrikeAgentPathSuffix);
+}
+
 std::string GetDeviceModel() {
   return base::SysInfo::HardwareModelName();
 }
@@ -354,7 +362,7 @@ SettingValue GetDiskEncrypted() {
   return SettingValue::DISABLED;
 }
 
-std::vector<std::string> GetMacAddresses() {
+std::vector<std::string> internal::GetMacAddressesImpl() {
   std::vector<std::string> mac_addresses;
   ULONG adapter_info_size = 0;
   // Get the right buffer size in case of overflow

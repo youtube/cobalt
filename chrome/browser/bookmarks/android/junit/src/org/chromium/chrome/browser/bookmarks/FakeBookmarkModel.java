@@ -30,10 +30,10 @@ public class FakeBookmarkModel extends BookmarkModel {
     public static final String OTHER_FOLDER_TITLE = "Other bookmarks";
     public static final String DESKTOP_FOLDER_TITLE = "Bookmarks bar";
     public static final String MOBILE_FOLDER_TITLE = "Mobile bookmarks";
-    public static final String PARTNER_FOLDER_TITLE = "Parter bookmarks";
+    public static final String PARTNER_FOLDER_TITLE = "Partner bookmarks";
     public static final String READING_LIST_FOLDER_TITLE = "Reading list";
 
-    // Factory constructor for the FakeBoomkarkModel
+    // Factory constructor for the FakeBookmarkModel
     public static FakeBookmarkModel createModel() {
         // Temporary Jni mock.
         BookmarkBridgeJni.setInstanceForTesting(Mockito.mock(BookmarkBridge.Natives.class));
@@ -612,10 +612,6 @@ public class FakeBookmarkModel extends BookmarkModel {
         public boolean doesBookmarkExist(long nativeBookmarkBridge, long id, int type) {
             return mBookmarkIdToItemMap.containsKey(new BookmarkId(id, type));
         }
-
-        @Override
-        public void getBookmarksForFolder(
-                long nativeBookmarkBridge, BookmarkId folderId, List<BookmarkItem> bookmarksList) {}
 
         @Override
         public boolean isFolderVisible(long nativeBookmarkBridge, long id, int type) {

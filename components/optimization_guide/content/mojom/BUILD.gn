@@ -5,10 +5,7 @@
 import("//mojo/public/tools/bindings/mojom.gni")
 
 mojom("mojo_interfaces") {
-  sources = [
-    "page_text_service.mojom",
-    "ai_page_content_metadata.mojom"
-  ]
+  sources = [ "page_text_service.mojom" ]
 
   webui_module_path = "/"
   generate_legacy_js_bindings = true

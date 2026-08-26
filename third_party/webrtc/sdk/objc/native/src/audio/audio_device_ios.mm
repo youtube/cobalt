@@ -33,6 +33,7 @@
 #import "components/audio/RTCAudioSession.h"
 #import "components/audio/RTCAudioSessionConfiguration.h"
 #import "components/audio/RTCNativeAudioSessionDelegateAdapter.h"
+#import "helpers/AudioTimeStamp+Nanoseconds.h"
 
 namespace webrtc {
 namespace ios_adm {
@@ -130,9 +131,6 @@ AudioDeviceIOS::AudioDeviceIOS(
 
   audio_session_observer_ =
       [[RTCNativeAudioSessionDelegateAdapter alloc] initWithObserver:this];
-  mach_timebase_info_data_t tinfo;
-  mach_timebase_info(&tinfo);
-  machTickUnitsToNanoseconds_ = (double)tinfo.numer / tinfo.denom;
 }
 
 AudioDeviceIOS::~AudioDeviceIOS() {
@@ -417,8 +415,8 @@ OSStatus AudioDeviceIOS::OnDeliverRecordedData(
   // Get audio timestamp for the audio.
   // The timestamp will not have NTP time epoch, but that will be addressed by
   // the TimeStampAligner in AudioDeviceBuffer::SetRecordedBuffer().
-  SInt64 capture_timestamp_ns =
-      time_stamp->mHostTime * machTickUnitsToNanoseconds_;
+  std::optional<int64_t> capture_timestamp_ns =
+      AudioTimeStampGetNanoseconds(time_stamp);
 
   // Allocate AudioBuffers to be used as storage for the received audio.
   // The AudioBufferList structure works as a placeholder for the

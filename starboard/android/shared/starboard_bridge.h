@@ -17,6 +17,9 @@
 
 #include <jni.h>
 
+#include <string>
+#include <vector>
+
 #include "base/memory/singleton.h"
 #include "starboard/common/size.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -30,7 +33,7 @@ class StarboardBridge {
   // Returns the singleton.
   static StarboardBridge* GetInstance();
 
-  void Initialize(JNIEnv* env, jobject obj);
+  void Initialize(JNIEnv* env, const jni_zero::JavaRef<jobject>& obj);
 
   int64_t GetAppStartTimestamp(JNIEnv* env);
 
@@ -65,6 +68,7 @@ class StarboardBridge {
   double GetScreenDiagonal(JNIEnv* env);
 
   void CloseApp(JNIEnv* env);
+  void RequestStop(JNIEnv* env, jint error_level);
 
   std::string GetTimeZoneId(JNIEnv* env);
 

@@ -10,6 +10,8 @@
 
 #include "rtc_base/thread.h"
 
+#include <time.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
@@ -32,7 +34,8 @@
 #include <comdef.h>
 #elif defined(WEBRTC_POSIX)
 #include <pthread.h>
-#include <time.h>
+
+#include <ctime>
 #else
 #error "Either WEBRTC_WIN or WEBRTC_POSIX needs to be defined."
 #endif
@@ -43,8 +46,7 @@
 #pragma warning(disable : 4722)
 #endif
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <utility>
 
 #include "absl/algorithm/container.h"
@@ -906,7 +908,7 @@ AutoThread::AutoThread()
     : Thread(CreateDefaultSocketServer(), /*do_init=*/false) {
   if (!ThreadManager::Instance()->CurrentThread()) {
     // DoInit registers with ThreadManager. Do that only if we intend to
-    // be webrtc::Thread::Current(), otherwise ProcessAllMessageQueuesInternal
+    // be Thread::Current(), otherwise ProcessAllMessageQueuesInternal
     // will post a message to a queue that no running thread is serving.
     DoInit();
     ThreadManager::Instance()->SetCurrentThread(this);

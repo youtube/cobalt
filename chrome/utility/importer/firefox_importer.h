@@ -18,6 +18,7 @@
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "chrome/utility/importer/importer.h"
 #include "components/favicon_base/favicon_usage_data.h"
@@ -60,7 +61,9 @@ class FirefoxImporter : public Importer {
   ~FirefoxImporter() override;
 
   FRIEND_TEST_ALL_PREFIXES(FirefoxImporterTest, ImportBookmarksV25);
+
   void ImportBookmarks();
+
 #if !BUILDFLAG(IS_MAC)
   void ImportPasswords();
 #endif
@@ -121,6 +124,8 @@ class FirefoxImporter : public Importer {
   // Stored because we can only access it from the UI thread.
   std::string locale_;
 #endif
+
+  base::WeakPtrFactory<FirefoxImporter> weak_ptr_factory_{this};
 };
 
 #endif  // CHROME_UTILITY_IMPORTER_FIREFOX_IMPORTER_H_

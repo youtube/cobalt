@@ -269,6 +269,15 @@ struct Extensions
     // GL_EXT_frag_depth
     bool fragDepthEXT = false;
 
+    // GL_EXT_fragment_shading_rate
+    bool fragmentShadingRateEXT = false;
+
+    // GL_EXT_fragment_shading_rate_attachment
+    bool fragmentShadingRateAttachmentEXT = false;
+
+    // GL_EXT_fragment_shading_rate_primitive
+    bool fragmentShadingRatePrimitiveEXT = false;
+
     // GL_ANGLE_framebuffer_blit
     bool framebufferBlitANGLE = false;
 
@@ -781,9 +790,6 @@ struct Extensions
 
     // GL_ANGLE_stencil_texturing
     bool stencilTexturingANGLE = false;
-
-    // GL_CHROMIUM_sync_query
-    bool syncQueryCHROMIUM = false;
 
     // GL_ANGLE_texture_compression_dxt3
     bool textureCompressionDxt3ANGLE = false;

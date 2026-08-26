@@ -20,8 +20,13 @@
 #include "chrome/browser/ssl/chrome_security_state_tab_helper.h"
 #include "chrome/browser/ui/autofill/autofill_field_promo_controller.h"
 #include "chrome/browser/ui/autofill/edit_address_profile_dialog_controller_impl.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "chrome/test/user_education/mock_browser_user_education_interface.h"
 #include "components/autofill/content/browser/autofill_test_utils.h"
 #include "components/autofill/content/browser/test_autofill_client_injector.h"
 #include "components/autofill/content/browser/test_autofill_driver_injector.h"
@@ -49,7 +54,6 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/unified_consent/pref_names.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
-#include "components/user_education/test/mock_feature_promo_controller.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -64,6 +68,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/fast_checkout/fast_checkout_client_impl.h"
+#include "chrome/browser/ui/android/autofill/autofill_accessibility_utils.h"
 #include "chrome/browser/ui/android/autofill/autofill_cvc_save_message_delegate.h"
 #include "chrome/browser/ui/android/autofill/autofill_save_card_bottom_sheet_bridge.h"
 #include "chrome/browser/ui/android/autofill/autofill_save_card_delegate_android.h"
@@ -94,7 +99,6 @@ using ::testing::Ref;
 using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::UnorderedElementsAre;
-using ::user_education::test::MockFeaturePromoController;
 
 #if !BUILDFLAG(IS_ANDROID)
 class MockSaveCardBubbleController : public SaveCardBubbleControllerImpl {
@@ -111,6 +115,19 @@ class MockSaveCardBubbleController : public SaveCardBubbleControllerImpl {
            payments::PaymentsAutofillClient::OnConfirmationClosedCallback>),
       (override));
   MOCK_METHOD(void, HideSaveCardBubble, (), (override));
+};
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+class MockAutofillAccessibilityHelper : public AutofillAccessibilityHelper {
+ public:
+  MockAutofillAccessibilityHelper() = default;
+  ~MockAutofillAccessibilityHelper() override = default;
+
+  MOCK_METHOD(void,
+              AnnounceTextForA11y,
+              (const std::u16string& message),
+              (override));
 };
 #endif
 
@@ -188,6 +205,23 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
     return autofill_field_promo_controller_;
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  // Helper function to set up mock accessibility helper for Android tests.
+  MockAutofillAccessibilityHelper* SetUpMockAccessibilityHelper() {
+    mock_accessibility_helper_ =
+        std::make_unique<MockAutofillAccessibilityHelper>();
+    MockAutofillAccessibilityHelper* mock_ptr =
+        mock_accessibility_helper_.get();
+    AutofillAccessibilityHelper::SetInstanceForTesting(mock_ptr);
+    return mock_ptr;
+  }
+
+  void TearDownMockAccessibilityHelper() {
+    AutofillAccessibilityHelper::SetInstanceForTesting(nullptr);
+    mock_accessibility_helper_.reset();
+  }
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
   MockSaveCardBubbleController& save_card_bubble_controller() {
     return static_cast<MockSaveCardBubbleController&>(
@@ -224,6 +258,9 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
   base::test::ScopedFeatureList scoped_feature_list_{
       plus_addresses::features::kPlusAddressesEnabled};
   raw_ptr<MockAutofillFieldPromoController> autofill_field_promo_controller_;
+#if BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<MockAutofillAccessibilityHelper> mock_accessibility_helper_;
+#endif
   TestAutofillClientInjector<TestChromeAutofillClient>
       test_autofill_client_injector_;
   base::OnceCallback<void()> setup_flags_;
@@ -407,7 +444,7 @@ TEST_F(ChromeAutofillClientTest,
                    std::string("-1")),
               Pair(plus_addresses::hats::kLastPlusAddressFillingTime,
                    std::string("-1"))),
-          HatsService::NavigationBehaviour::ALLOW_ANY, _, _, _, _));
+          HatsService::NavigationBehavior::ALLOW_ANY, _, _, _, _));
 
   client()->TriggerPlusAddressUserPerceptionSurvey(
       plus_addresses::hats::SurveyType::kAcceptedFirstTimeCreate);
@@ -441,7 +478,7 @@ TEST_F(ChromeAutofillClientTest, TriggerPlusAddressUserPerceptionSurvey) {
                    std::string("-1")),
               Pair(plus_addresses::hats::kLastPlusAddressFillingTime,
                    std::string("-1"))),
-          HatsService::NavigationBehaviour::ALLOW_ANY, _, _, _, _));
+          HatsService::NavigationBehavior::ALLOW_ANY, _, _, _, _));
 
   client()->TriggerPlusAddressUserPerceptionSurvey(
       plus_addresses::hats::SurveyType::kAcceptedFirstTimeCreate);
@@ -577,18 +614,22 @@ TEST_F(ChromeAutofillClientTest,
 class ChromeAutofillClientTestWithWindow : public BrowserWithTestWindowTest {
  public:
   void SetUp() override {
+    user_ed_override_ =
+        BrowserWindowFeatures::GetUserDataFactoryForTesting()
+            .AddOverrideForTesting(
+                base::BindRepeating([](BrowserWindowInterface& window) {
+                  return std::make_unique<MockBrowserUserEducationInterface>(
+                      &window);
+                }));
+
     BrowserWithTestWindowTest::SetUp();
     // Create the first tab so that `web_contents()` exists.
     AddTab(browser(), GURL(chrome::kChromeUINewTabURL));
-
-    static_cast<TestBrowserWindow*>(window())->SetFeaturePromoController(
-        std::make_unique<MockFeaturePromoController>());
   }
 
-  MockFeaturePromoController* feature_promo_controller() {
-    return static_cast<MockFeaturePromoController*>(
-        static_cast<TestBrowserWindow*>(window())
-            ->GetFeaturePromoControllerForTesting());
+  MockBrowserUserEducationInterface* user_education() {
+    return static_cast<MockBrowserUserEducationInterface*>(
+        BrowserUserEducationInterface::From(browser()));
   }
 
   content::WebContents* web_contents() {
@@ -602,14 +643,75 @@ class ChromeAutofillClientTestWithWindow : public BrowserWithTestWindowTest {
  private:
   TestAutofillClientInjector<TestChromeAutofillClient>
       test_autofill_client_injector_;
+  ui::UserDataFactory::ScopedOverride user_ed_override_;
 };
 
 TEST_F(ChromeAutofillClientTestWithWindow, AutofillFieldIPH_NotifyFeatureUsed) {
-  EXPECT_CALL(*feature_promo_controller(),
-              EndPromo(Ref(feature_engagement::kIPHAutofillAiOptInFeature),
-                       user_education::EndFeaturePromoReason::kFeatureEngaged));
+  EXPECT_CALL(*user_education(),
+              NotifyFeaturePromoFeatureUsed(
+                  Ref(feature_engagement::kIPHAutofillAiOptInFeature),
+                  FeaturePromoFeatureUsedAction::kClosePromoIfPresent));
   client()->NotifyIphFeatureUsed(AutofillClient::IphFeature::kAutofillAi);
 }
 #endif
+
+#if BUILDFLAG(IS_ANDROID)
+// Test that TouchToFill credit card filling triggers accessibility
+// announcement.
+TEST_F(ChromeAutofillClientTest,
+       DidFillForm_TouchToFillCreditCard_AnnouncesAccessibility) {
+  MockAutofillAccessibilityHelper* mock_ptr = SetUpMockAccessibilityHelper();
+
+  EXPECT_CALL(*mock_ptr, AnnounceTextForA11y(testing::_)).Times(1);
+
+  client()->DidFillForm(AutofillTriggerSource::kTouchToFillCreditCard,
+                        /*is_refill=*/false);
+
+  TearDownMockAccessibilityHelper();
+}
+
+// Test that refill operations do not trigger accessibility announcements.
+TEST_F(ChromeAutofillClientTest,
+       DidFillForm_TouchToFillCreditCardRefill_NoAccessibilityAnnouncement) {
+  MockAutofillAccessibilityHelper* mock_ptr = SetUpMockAccessibilityHelper();
+
+  EXPECT_CALL(*mock_ptr, AnnounceTextForA11y(testing::_)).Times(0);
+
+  client()->DidFillForm(AutofillTriggerSource::kTouchToFillCreditCard,
+                        /*is_refill=*/true);
+
+  TearDownMockAccessibilityHelper();
+}
+
+// Test that non-TouchToFill trigger sources do not make accessibility
+// announcements.
+TEST_F(ChromeAutofillClientTest,
+       DidFillForm_OtherTriggerSource_NoAccessibilityAnnouncement) {
+  MockAutofillAccessibilityHelper* mock_ptr = SetUpMockAccessibilityHelper();
+
+  EXPECT_CALL(*mock_ptr, AnnounceTextForA11y(testing::_)).Times(0);
+
+  client()->DidFillForm(AutofillTriggerSource::kPopup,
+                        /*is_refill=*/false);
+
+  TearDownMockAccessibilityHelper();
+}
+
+// Test that the correct localized accessibility message is announced.
+TEST_F(ChromeAutofillClientTest, DidFillForm_VerifiesCorrectMessage) {
+  MockAutofillAccessibilityHelper* mock_ptr = SetUpMockAccessibilityHelper();
+
+  const std::u16string expected_message =
+      l10n_util::GetStringUTF16(IDS_AUTOFILL_A11Y_ANNOUNCE_FILLED_FORM);
+
+  EXPECT_CALL(*mock_ptr, AnnounceTextForA11y(expected_message)).Times(1);
+
+  client()->DidFillForm(AutofillTriggerSource::kTouchToFillCreditCard,
+                        /*is_refill=*/false);
+
+  TearDownMockAccessibilityHelper();
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 }  // namespace
 }  // namespace autofill

@@ -21,12 +21,14 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/with_feature_override.h"
+#include "build/branding_buildflags.h"
 #include "components/google/core/common/google_util.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/search_engines/regulatory_extension_type.h"
 #include "components/search_engines/search_engines_switches.h"
 #include "components/search_engines/search_terms_data.h"
 #include "components/search_engines/template_url_data.h"
+#include "components/search_engines/template_url_data_util.h"
 #include "components/search_engines/testing_search_terms_data.h"
 #include "net/base/url_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -40,6 +42,10 @@ using PolicyOrigin = TemplateURLData::PolicyOrigin;
 using RequestSource = SearchTermsData::RequestSource;
 
 namespace {
+
+const bool kEnableBuiltinSearchProviderAssets =
+    !!BUILDFLAG(ENABLE_BUILTIN_SEARCH_PROVIDER_ASSETS);
+
 bool IsLowerCase(const std::u16string& str) {
   return str == base::i18n::ToLower(str);
 }
@@ -2234,7 +2240,7 @@ TEST_F(TemplateURLTest, ContextualSearchParameters) {
   // event.
   TemplateURLRef::SearchTermsArgs::ContextualSearchParams params(
       2, 1, std::string(), 0, 0, false, std::string(), std::string(),
-      std::string(), std::string(), false);
+      std::string(), std::string(), false, false);
   search_terms_args.contextual_search_params = params;
   result = url.url_ref().ReplaceSearchTerms(search_terms_args,
                                             search_terms_data_);
@@ -2248,7 +2254,7 @@ TEST_F(TemplateURLTest, ContextualSearchParameters) {
   search_terms_args.contextual_search_params =
       TemplateURLRef::SearchTermsArgs::ContextualSearchParams(
           2, 2, "CH", 1657713458, 5, false, std::string(), std::string(),
-          std::string(), std::string(), false);
+          std::string(), std::string(), false, false);
   result =
       url.url_ref().ReplaceSearchTerms(search_terms_args, search_terms_data_);
 
@@ -2265,7 +2271,7 @@ TEST_F(TemplateURLTest, ContextualSearchParameters) {
   search_terms_args.contextual_search_params =
       TemplateURLRef::SearchTermsArgs::ContextualSearchParams(
           2, 1, std::string(), 0, 0, true, std::string(), std::string(),
-          std::string(), std::string(), false);
+          std::string(), std::string(), false, false);
   result =
       url.url_ref().ReplaceSearchTerms(search_terms_args, search_terms_data_);
   // Find our param.
@@ -2276,7 +2282,7 @@ TEST_F(TemplateURLTest, ContextualSearchParameters) {
   search_terms_args.contextual_search_params =
       TemplateURLRef::SearchTermsArgs::ContextualSearchParams(
           2, 1, std::string(), 0, 0, true, "es", "de", std::string(),
-          std::string(), false);
+          std::string(), false, false);
   result =
       url.url_ref().ReplaceSearchTerms(search_terms_args, search_terms_data_);
   // Find our params.
@@ -2289,7 +2295,7 @@ TEST_F(TemplateURLTest, ContextualSearchParameters) {
   search_terms_args.contextual_search_params =
       TemplateURLRef::SearchTermsArgs::ContextualSearchParams(
           2, 1, std::string(), 0, 0, true, std::string(), std::string(),
-          "es,de", std::string(), false);
+          "es,de", std::string(), false, false);
   result =
       url.url_ref().ReplaceSearchTerms(search_terms_args, search_terms_data_);
   // Find our param.  These may actually be URL encoded.
@@ -2300,7 +2306,7 @@ TEST_F(TemplateURLTest, ContextualSearchParameters) {
   search_terms_args.contextual_search_params =
       TemplateURLRef::SearchTermsArgs::ContextualSearchParams(
           2, 1, std::string(), 0, 0, true, std::string(), std::string(),
-          std::string(), "1RbCu", false);
+          std::string(), "1RbCu", false, false);
   result =
       url.url_ref().ReplaceSearchTerms(search_terms_args, search_terms_data_);
   // Find our param.
@@ -2311,12 +2317,22 @@ TEST_F(TemplateURLTest, ContextualSearchParameters) {
   search_terms_args.contextual_search_params =
       TemplateURLRef::SearchTermsArgs::ContextualSearchParams(
           2, 1, std::string(), 0, 0, true, std::string(), std::string(),
-          std::string(), std::string(), true);
+          std::string(), std::string(), true, false);
   result =
       url.url_ref().ReplaceSearchTerms(search_terms_args, search_terms_data_);
   // Find our param.
   size_t ctxsl_applylh = result.find("&ctxsl_applylh=1");
   EXPECT_NE(ctxsl_applylh, std::string::npos);
+
+  // Test use_snippet_as_subtitle.
+  search_terms_args.contextual_search_params =
+      TemplateURLRef::SearchTermsArgs::ContextualSearchParams(
+          2, 1, std::string(), 0, 0, true, std::string(), std::string(),
+          std::string(), std::string(), false, true);
+  result =
+      url.url_ref().ReplaceSearchTerms(search_terms_args, search_terms_data_);
+  size_t ctxs_usas = result.find("&ctxs_usas=1");
+  EXPECT_NE(ctxs_usas, std::string::npos);
 }
 
 TEST_F(TemplateURLTest, GenerateKeyword) {
@@ -2490,13 +2506,6 @@ TEST_F(TemplateURLTest, GenerateSearchURL) {
 }
 
 TEST_F(TemplateURLTest, GenerateURL_NoRegulatoryExtensions) {
-#if BUILDFLAG(IS_ANDROID)
-  // Disable the chrome_dse_attribution parameter from being added on Android.
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      switches::kRemoveSearchEngineChoiceAttribution);
-#endif
-
   TemplateURLData data;
   data.SetURL("https://search?q={searchTerms}");
   data.suggestions_url = "https://suggest?q={searchTerms}";
@@ -2526,13 +2535,6 @@ TEST_F(TemplateURLTest, GenerateURL_NoRegulatoryExtensions) {
 }
 
 TEST_F(TemplateURLTest, GenerateURL_WithEmptyRegulatoryExtensions) {
-#if BUILDFLAG(IS_ANDROID)
-  // Disable the chrome_dse_attribution parameter from being added on Android.
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      switches::kRemoveSearchEngineChoiceAttribution);
-#endif
-
   TemplateURLData::RegulatoryExtension default_ext{
       .variant = RegulatoryExtensionType::kDefault,
   };
@@ -2572,13 +2574,6 @@ TEST_F(TemplateURLTest, GenerateURL_WithEmptyRegulatoryExtensions) {
 }
 
 TEST_F(TemplateURLTest, GenerateURL_WithFullRegulatoryExtensions) {
-#if BUILDFLAG(IS_ANDROID)
-  // Disable the chrome_dse_attribution parameter from being added on Android.
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      switches::kRemoveSearchEngineChoiceAttribution);
-#endif
-
   TemplateURLData::RegulatoryExtension default_ext{
       .variant = RegulatoryExtensionType::kDefault,
       .search_params = "default_search_param=123",
@@ -2649,13 +2644,6 @@ TEST_F(TemplateURLTest, GenerateURL_WithFullRegulatoryExtensions) {
 
 TEST_F(TemplateURLTest,
        ReplaceSearchTerms_NoRegulatoryExpansionForUnsupportedUrls) {
-#if BUILDFLAG(IS_ANDROID)
-  // Disable the chrome_dse_attribution parameter from being added on Android.
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      switches::kRemoveSearchEngineChoiceAttribution);
-#endif
-
   TemplateURLData::RegulatoryExtension default_ext{
       .variant = RegulatoryExtensionType::kDefault,
       .search_params = "default_search_param=123",
@@ -3024,6 +3012,48 @@ TEST_F(TemplateURLTest, ImageSearchBrandingLabel) {
   data.image_search_branding_label = u"fooimages";
   TemplateURL image_branding_url(data);
   EXPECT_EQ(u"fooimages", image_branding_url.image_search_branding_label());
+}
+
+TEST_F(TemplateURLTest, GetBuiltinImageResourceId_FromPrepopulatedEngine) {
+  std::unique_ptr<TemplateURLData> t_url_data =
+      TemplateURLDataFromPrepopulatedEngine(TemplateURLPrepopulateData::google);
+  TemplateURL t_url(*t_url_data.get());
+
+  std::string expected_resource_id = kEnableBuiltinSearchProviderAssets
+                                         ? "IDR_SEARCH_ENGINE_GOOGLE_IMAGE"
+                                         : "IDR_DEFAULT_FAVICON";
+  EXPECT_EQ(t_url.GetBuiltinImageResourceId(), expected_resource_id);
+}
+
+TEST_F(TemplateURLTest,
+       GetBuiltinImageResourceId_FromPrepopulatedEngineWithoutResources) {
+  // Relies on Baidu not having built-in resources, the test would start failing
+  // if that changes.
+  std::unique_ptr<TemplateURLData> t_url_data =
+      TemplateURLDataFromPrepopulatedEngine(TemplateURLPrepopulateData::baidu);
+  TemplateURL t_url(*t_url_data.get());
+  EXPECT_EQ(t_url.GetBuiltinImageResourceId(), "IDR_DEFAULT_FAVICON");
+}
+
+TEST_F(TemplateURLTest, GetBuiltinImageResourceId_FromAssignedData) {
+  TemplateURLData data;
+  data.prepopulate_id = TemplateURLPrepopulateData::google.id;
+  TemplateURL t_url(data);
+
+  std::string expected_resource_id = kEnableBuiltinSearchProviderAssets
+                                         ? "IDR_SEARCH_ENGINE_GOOGLE_IMAGE"
+                                         : "IDR_DEFAULT_FAVICON";
+  EXPECT_EQ(t_url.GetBuiltinImageResourceId(), expected_resource_id);
+}
+
+TEST_F(TemplateURLTest, GetBuiltinImageResourceId_FromCustomEngine) {
+  TemplateURLData data;
+  data.SetShortName(TemplateURLPrepopulateData::google.name);
+  data.SetKeyword(TemplateURLPrepopulateData::google.keyword);
+  data.SetURL(TemplateURLPrepopulateData::google.search_url);
+  TemplateURL t_url(data);
+
+  EXPECT_EQ(t_url.GetBuiltinImageResourceId(), "IDR_DEFAULT_FAVICON");
 }
 
 struct IsBetterThanEngineTestEngine {

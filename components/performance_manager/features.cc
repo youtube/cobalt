@@ -116,7 +116,7 @@ BASE_FEATURE(kPerformanceInterventionDemoMode,
 
 BASE_FEATURE(kPerformanceInterventionNotificationImprovements,
              "PerformanceInterventionNotificationImprovements",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kMinimumTimeBetweenReshow,
@@ -134,19 +134,19 @@ BASE_FEATURE_PARAM(int,
                    kScaleMaxTimesPerDay,
                    &kPerformanceInterventionNotificationImprovements,
                    "scale_max_times_per_day",
-                   5);
+                   3);
 
 BASE_FEATURE_PARAM(int,
                    kScaleMaxTimesPerWeek,
                    &kPerformanceInterventionNotificationImprovements,
                    "scale_max_times_per_week",
-                   25);
+                   21);
 
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kNoAcceptanceBackOff,
                    &kPerformanceInterventionNotificationImprovements,
                    "no_acceptance_back_off",
-                   base::Days(30));
+                   base::Days(7));
 
 BASE_FEATURE(kPerformanceInterventionNotificationStringImprovements,
              "PerformanceInterventionNotificationStringImprovements",
@@ -232,7 +232,7 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 
 BASE_FEATURE(kFreezingOnBatterySaver,
              "FreezingOnBatterySaver",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFreezingOnBatterySaverForTesting,
              "FreezingOnBatterySaverForTesting",
@@ -267,6 +267,22 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kInfiniteTabsFreezing,
                    "unfreeze_duration",
                    base::Seconds(5));
+
+BASE_FEATURE(kInfiniteTabsFreezingOnMemoryPressure,
+             "InfiniteTabsFreezingOnMemoryPressure",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kInfiniteTabsFreezingOnMemoryPressureInterval,
+                   &kInfiniteTabsFreezingOnMemoryPressure,
+                   "interval",
+                   base::Seconds(5));
+
+BASE_FEATURE_PARAM(int,
+                   kInfiniteTabsFreezingOnMemoryPressurePercent,
+                   &kInfiniteTabsFreezingOnMemoryPressure,
+                   "percent_threshold",
+                   15);
 
 BASE_FEATURE(kResourceAttributionIncludeOrigins,
              "ResourceAttributionIncludeOrigins",

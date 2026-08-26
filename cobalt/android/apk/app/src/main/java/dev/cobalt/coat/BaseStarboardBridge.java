@@ -288,6 +288,7 @@ public class BaseStarboardBridge {
   }
 
   /* Immediate shutdown, used at least by StandalonePlayerActivity. */
+  @CalledByNative
   public void requestStop(int errorLevel) {
     applicationStopping();
     Activity activity = mActivityHolder.get();

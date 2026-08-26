@@ -53,6 +53,7 @@
 #include "third_party/blink/renderer/core/css/media_feature_overrides.h"
 #include "third_party/blink/renderer/core/css/media_values.h"
 #include "third_party/blink/renderer/core/css/out_of_flow_data.h"
+#include "third_party/blink/renderer/core/css/properties/computed_style_utils.h"
 #include "third_party/blink/renderer/core/css/property_registration.h"
 #include "third_party/blink/renderer/core/css/property_registry.h"
 #include "third_party/blink/renderer/core/css/resolver/media_query_result.h"
@@ -97,6 +98,7 @@
 #include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
 #include "third_party/blink/renderer/core/layout/layout_counter.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/list/layout_inline_list_item.h"
@@ -710,6 +712,9 @@ void StyleEngine::UpdateCounterStyles() {
   CounterStyleMap::MarkAllDirtyCounterStyles(GetDocument(),
                                              active_tree_scopes_);
   CounterStyleMap::ResolveAllReferences(GetDocument(), active_tree_scopes_);
+  if (LayoutView* layout_view = GetDocument().GetLayoutView()) {
+    layout_view->InvalidateLayoutForCounterStyleChanges();
+  }
   counter_styles_need_update_ = false;
 }
 
@@ -805,7 +810,7 @@ namespace {
 
 // Recursively look for potential LayoutCounters to update,
 // since in case of ::marker they can be deep child of original
-// pseudo element's layout object.
+// pseudo-element's layout object.
 void UpdateLayoutCounters(const LayoutObject& layout_object,
                           CountersAttachmentContext& context) {
   // Check out the parameter list ^^^
@@ -1269,9 +1274,6 @@ void StyleEngine::MarkFontsNeedUpdate() {
 
 void StyleEngine::MarkCounterStylesNeedUpdate() {
   counter_styles_need_update_ = true;
-  if (LayoutView* layout_view = GetDocument().GetLayoutView()) {
-    layout_view->SetNeedsMarkerOrCounterUpdate();
-  }
   GetDocument().ScheduleLayoutTreeUpdateIfNeeded();
 }
 
@@ -3292,8 +3294,8 @@ void StyleEngine::NodeWillBeRemoved(Node& node) {
           tree->RemoveScopeForElement(*element);
         }
       }
-      if (!style->ScrollMarkerContainNone()) {
-        GetDocument().SetNeedsScrollMarkerGroupRelationsUpdate();
+      if (!style->ScrollTargetGroupNone()) {
+        GetDocument().SetNeedsScrollTargetGroupRelationsUpdate();
       }
     }
     pending_invalidations_.RescheduleSiblingInvalidationsAsDescendants(
@@ -3553,8 +3555,9 @@ bool StyleEngine::RecalcHighlightStylesForContainer(Element& container) {
           container.ParentComputedStyle());
       new_style != &style) {
     container.SetComputedStyle(new_style);
-    container.GetLayoutObject()->SetStyle(new_style,
-                                          LayoutObject::ApplyStyleChanges::kNo);
+    if (LayoutObject* layout_object = container.GetLayoutObject()) {
+      layout_object->SetStyle(new_style, LayoutObject::ApplyStyleChanges::kNo);
+    }
   }
 
   return depends_on_container_queries;
@@ -3566,7 +3569,7 @@ bool ContainerStyleChangesAllowed(Element& container,
                                   const ComputedStyle* old_element_style,
                                   const ComputedStyle* old_layout_style) {
   // Generally, the size container element style is not allowed to change during
-  // layout, but for highlight pseudo elements depending on queries against
+  // layout, but for highlight pseudo-elements depending on queries against
   // their originating element, we need to update the style during layout since
   // the highlight styles hangs off the originating element's ComputedStyle.
   const ComputedStyle* new_element_style = container.GetComputedStyle();
@@ -3690,11 +3693,9 @@ void StyleEngine::PostInterleavedRecalcUpdate(
   if (StyleContainmentScopeTree* tree = GetStyleContainmentScopeTree()) {
     tree->UpdateQuotes();
   }
-  GetDocument().GetLayoutView()->UpdateCountersAfterStyleChange(
-      interleaving_root.GetLayoutObject());
   GetDocument().InvalidatePendingSVGResources();
-  GetDocument().UpdateScrollMarkerGroupRelations();
-  GetDocument().UpdateScrollMarkerGroupToScrollableAreasMap();
+  GetDocument().UpdateScrollTargetGroupRelations();
+  GetDocument().UpdateScrollTargetGroupToScrollableAreasMap();
 }
 
 void StyleEngine::UpdateStyleAndLayoutTreeForSizeContainer(
@@ -3795,14 +3796,47 @@ void StyleEngine::UpdateStyleAndLayoutTreeForSizeContainer(
   PostInterleavedRecalcUpdate(container);
 }
 
-void StyleEngine::UpdateStyleAndLayoutTreeForOutOfFlow(
+std::optional<const CSSPropertyValueSet*> StyleEngine::TrySetFromFallback(
+    const PositionTryFallback& fallback) {
+  if (!fallback.GetPositionArea().IsNone()) {
+    // This fallback is a position-area. Create a declaration block with an
+    // equivalent position-area declaration.
+    CSSPropertyValue declaration(
+        CSSPropertyName(CSSPropertyID::kPositionArea),
+        *ComputedStyleUtils::ValueForPositionArea(fallback.GetPositionArea()));
+    return ImmutableCSSPropertyValueSet::Create(
+        base::span_from_ref(declaration), kHTMLStandardMode);
+  } else if (const ScopedCSSName* name = fallback.GetPositionTryName()) {
+    if (const StyleRulePositionTry* rule = GetPositionTryRule(*name)) {
+      return &rule->Properties();
+    }
+    return std::nullopt;
+  }
+  return nullptr;
+}
+
+bool StyleEngine::UpdateStyleAndLayoutTreeForOutOfFlow(
     Element& element,
-    std::optional<wtf_size_t> try_fallback_index,
-    const CSSPropertyValueSet* try_set,
-    const TryTacticList& tactic_list,
-    AnchorEvaluator* anchor_evaluator) {
+    const PositionTryFallback* fallback,
+    AnchorEvaluator* anchor_evaluator,
+    WritingDirectionMode abs_container_writing_direction) {
+  const CSSPropertyValueSet* try_set = nullptr;
+  TryTacticList try_tactics = kNoTryTactics;
+  PositionTryFallback position_try_fallback;
+  if (fallback) {
+    try_tactics = fallback->GetTryTactic();
+    std::optional<const CSSPropertyValueSet*> try_set_opt =
+        TrySetFromFallback(*fallback);
+    if (!try_set_opt.has_value()) {
+      // @position-try fallback does not exist.
+      return false;
+    }
+    try_set = try_set_opt.value();
+    position_try_fallback = *fallback;
+  }
+
   const CSSPropertyValueSet* try_tactics_set =
-      try_value_flips_.FlipSet(tactic_list);
+      try_value_flips_.FlipSet(try_tactics);
 
   base::AutoReset<bool> pt_recalc(&in_position_try_style_recalc_, true);
 
@@ -3818,7 +3852,8 @@ void StyleEngine::UpdateStyleAndLayoutTreeForOutOfFlow(
   StyleRecalcChange change = StyleRecalcChange().ForceRecalcChildren();
   if (ContainerQueryEvaluator* evaluator =
           element.GetContainerQueryEvaluator()) {
-    change = evaluator->ApplyAnchoredChanges(change, try_fallback_index);
+    change = evaluator->ApplyAnchoredChanges(change, position_try_fallback,
+                                             abs_container_writing_direction);
   }
 
   if (auto* pseudo_element = DynamicTo<PseudoElement>(element)) {
@@ -3844,6 +3879,7 @@ void StyleEngine::UpdateStyleAndLayoutTreeForOutOfFlow(
   }
 
   PostInterleavedRecalcUpdate(element);
+  return true;
 }
 
 StyleRulePositionTry* StyleEngine::GetPositionTryRule(
@@ -3900,8 +3936,8 @@ void StyleEngine::RecalcPositionTryStyleForPseudoElement(
 
 void StyleEngine::RecalcTransitionPseudoStyle() {
   // TODO(khushalsagar) : This forces a style recalc and layout tree rebuild
-  // for the pseudo element tree each time we do a style recalc phase. See if
-  // we can optimize this to only when the pseudo element tree is dirtied.
+  // for the pseudo-element tree each time we do a style recalc phase. See if
+  // we can optimize this to only when the pseudo-element tree is dirtied.
   SelectorFilterParentScope filter_scope(
       nullptr, SelectorFilterParentScope::ScopeType::kRoot);
 
@@ -4051,8 +4087,8 @@ void StyleEngine::UpdateStyleAndLayoutTree() {
       tree->UpdateQuotes();
     }
     UpdateCounters();
-    GetDocument().UpdateScrollMarkerGroupRelations();
-    GetDocument().UpdateScrollMarkerGroupToScrollableAreasMap();
+    GetDocument().UpdateScrollTargetGroupRelations();
+    GetDocument().UpdateScrollTargetGroupToScrollableAreasMap();
   } else {
     style_recalc_root_.Clear();
   }

@@ -101,6 +101,8 @@ static_library("test_support") {
     "autoclick_test_utils.h",
     "automation_test_utils.cc",
     "automation_test_utils.h",
+    "chromevox_test_utils.cc",
+    "chromevox_test_utils.h",
     "dictation_test_utils.cc",
     "dictation_test_utils.h",
     "facegaze_test_utils.cc",
@@ -213,8 +215,8 @@ source_set("browser_tests") {
     "//chrome/browser/ui/aura/accessibility",
     "//chrome/test:test_support",
     "//chromeos/ash/components/browser_context_helper",
+    "//components/live_caption",
     "//components/live_caption:constants",
-    "//components/live_caption:live_caption",
     "//ui/base/mojom:ui_base_types",
     "//ui/events:test_support",
 
@@ -222,6 +224,10 @@ source_set("browser_tests") {
     "//chrome/browser/ash/accessibility/live_caption:browser_tests",
     "//chrome/browser/ash/accessibility/service:browser_tests",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_chromeos_device) {

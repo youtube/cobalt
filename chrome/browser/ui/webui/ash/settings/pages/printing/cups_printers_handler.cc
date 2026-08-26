@@ -52,6 +52,7 @@
 #include "chromeos/printing/printing_constants.h"
 #include "chromeos/printing/uri.h"
 #include "components/device_event_log/device_event_log.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
@@ -400,7 +401,7 @@ void CupsPrintersHandler::HandleGetCupsEnterprisePrintersList(
   AllowJavascript();
 
   CHECK_EQ(1U, args.size());
-  std::string callback_id = args[0].GetString();
+  const std::string& callback_id = args[0].GetString();
 
   std::vector<Printer> printers =
       printers_manager_->GetPrinters(PrinterClass::kEnterprise);
@@ -594,7 +595,7 @@ void CupsPrintersHandler::DisplayPpdFile(const base::FilePath& ppd_file_path) {
   }
 
   PRINTER_LOG(DEBUG) << "PPD saved to " << ppd_file_path;
-  ash::NewWindowDelegate::GetPrimary()->OpenUrl(
+  ash::NewWindowDelegate::GetInstance()->OpenUrl(
       GURL(base::StringPrintf("file://%s", ppd_file_path.value().c_str())),
       ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       ash::NewWindowDelegate::Disposition::kSwitchToTab);
@@ -832,7 +833,7 @@ void CupsPrintersHandler::HandleReconfigureCupsPrinter(
 void CupsPrintersHandler::AddOrReconfigurePrinter(const base::Value::List& args,
                                                   bool is_printer_edit) {
   CHECK_EQ(2U, args.size());
-  std::string callback_id = args[0].GetString();
+  const std::string& callback_id = args[0].GetString();
   const base::Value& printer_value = args[1];
   CHECK(printer_value.is_dict());
   const base::Value::Dict& printer_dict = printer_value.GetDict();

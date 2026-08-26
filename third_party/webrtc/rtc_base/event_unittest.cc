@@ -11,6 +11,7 @@
 #include "rtc_base/event.h"
 
 #include "api/units/time_delta.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/platform_thread.h"
 #include "system_wrappers/include/clock.h"
 #include "test/gtest.h"
@@ -102,7 +103,7 @@ TEST(EventTest, DISABLED_PerformanceMultiThread) {
 }
 
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
-// Tests that we crash if we attempt to call webrtc::Event::Wait while we're
+// Tests that we crash if we attempt to call Event::Wait while we're
 // not allowed to (as per `RTC_DISALLOW_WAIT()`).
 TEST(EventTestDeathTest, DisallowEventWait) {
   Event event;

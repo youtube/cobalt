@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/strings/utf_ostream_operators.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
@@ -39,12 +40,14 @@ const IntExpirationDate kValidCreditCardIntExpirationDate[] = {
     {2013, 5},   // Valid month in current year.
     {2014, 1},   // Any month in next year.
     {2014, 12},  // Edge condition.
+    {28, 12},    // Valid 2-digit year.
 };
 const IntExpirationDate kInvalidCreditCardIntExpirationDate[] = {
     {2013, 4},   // Previous month in current year.
     {2012, 12},  // Any month in previous year.
     {2015, 13},  // Not a real month.
     {2015, 0},   // Zero is legal in the CC class but is not a valid date.
+    {13, 4}      // Previous month in current year in 2-digit format.
 };
 const SecurityCodeCardTypePair kValidSecurityCodeCardTypePairs[] = {
     {u"323", kGenericCard},           // 3-digit CSC.
@@ -275,6 +278,33 @@ TEST_P(AutofillIsInternationalBankAccountNumber,
   EXPECT_FALSE(IsInternationalBankAccountNumber(GetParam() + u"."));
   EXPECT_FALSE(IsInternationalBankAccountNumber(
       GetParam() + u"0000000000000000000000000000000000000"));
+}
+
+TEST(AutofillValidation, IsValidNameOnCard) {
+  const char16_t* const kValidNamesOnCard[] = {
+      u"JOHN DOE",
+      u"Jane R. Doe",
+      u"Mr. John Smith-Jones",
+      u"O'Connor",
+  };
+  for (const char16_t* name : kValidNamesOnCard) {
+    SCOPED_TRACE(base::UTF16ToUTF8(name));
+    EXPECT_TRUE(IsValidNameOnCard(name));
+  }
+
+  const char16_t* const kInvalidNamesOnCard[] = {
+      u"John D0E",   u"Jane@Doe",
+      u"John#Smith", u"Maria$V",
+      u"Test^Name",  u"Name*Here",
+      u"John(Doe)",  u"Jane[Doe]",
+      u"Maria{V}",   u"Test=Name",
+      u"Name?Here",  u"|Doe",
+      u"•Name",      u"This name is way too long for a card",
+  };
+  for (const char16_t* name : kInvalidNamesOnCard) {
+    SCOPED_TRACE(base::UTF16ToUTF8(name));
+    EXPECT_FALSE(IsValidNameOnCard(name));
+  }
 }
 
 }  // namespace

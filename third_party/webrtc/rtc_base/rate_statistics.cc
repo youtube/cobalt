@@ -11,11 +11,13 @@
 #include "rtc_base/rate_statistics.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
-#include <memory>
+#include <optional>
 
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/numerics/safe_compare.h"
 #include "rtc_base/numerics/safe_conversions.h"
 
 namespace webrtc {

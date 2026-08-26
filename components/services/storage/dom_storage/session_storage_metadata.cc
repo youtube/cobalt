@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/services/storage/dom_storage/session_storage_metadata.h"
 
 #include <string_view>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -96,12 +92,11 @@ SessionStorageMetadata::SetupNewDatabase() {
 
   std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> tasks;
   tasks.push_back(base::BindOnce(
-      [](int64_t next_map_id, leveldb::WriteBatch* batch,
+      [](int64_t next_map_id, DomStorageBatchOperation& batch,
          const DomStorageDatabase& db) {
-        batch->Put(leveldb_env::MakeSlice(base::span(kDatabaseVersionBytes)),
-                   leveldb_env::MakeSlice(LatestDatabaseVersionAsVector()));
-        batch->Put(leveldb_env::MakeSlice(base::span(kNextMapIdKeyBytes)),
-                   leveldb_env::MakeSlice(NumberToValue(next_map_id)));
+        batch.Put(base::span(kDatabaseVersionBytes),
+                  LatestDatabaseVersionAsVector());
+        batch.Put(base::span(kNextMapIdKeyBytes), NumberToValue(next_map_id));
       },
       next_map_id_));
   return tasks;
@@ -129,9 +124,9 @@ bool SessionStorageMetadata::ParseDatabaseVersion(
   if (initial_database_version_from_disk_ < kMinSessionStorageSchemaVersion)
     return false;
   upgrade_tasks->push_back(base::BindOnce(
-      [](leveldb::WriteBatch* batch, const DomStorageDatabase& db) {
-        batch->Put(leveldb_env::MakeSlice(base::span(kDatabaseVersionBytes)),
-                   leveldb_env::MakeSlice(LatestDatabaseVersionAsVector()));
+      [](DomStorageBatchOperation& batch, const DomStorageDatabase& db) {
+        batch.Put(base::span(kDatabaseVersionBytes),
+                  LatestDatabaseVersionAsVector());
       }));
   return true;
 }
@@ -246,12 +241,11 @@ bool SessionStorageMetadata::ParseNamespaces(
     // Remove the dummy 'namespaces-' entry.
     upgrade_tasks->push_back(base::BindOnce(
         [](std::vector<DomStorageDatabase::Key> prefix_keys_to_delete,
-           leveldb::WriteBatch* batch, const DomStorageDatabase& db) {
-          batch->Delete(
-              leveldb_env::MakeSlice(base::span(kNamespacePrefixBytes)));
+           DomStorageBatchOperation& batch, const DomStorageDatabase& db) {
+          batch.Delete(base::span(kNamespacePrefixBytes));
           // Remove all the refcount storage.
           for (const auto& key : prefix_keys_to_delete)
-            batch->Delete(leveldb_env::MakeSlice(key));
+            batch.Delete(key);
         },
         std::move(prefix_keys_to_delete)));
   }
@@ -301,11 +295,9 @@ SessionStorageMetadata::RegisterNewMap(
   save_tasks->push_back(base::BindOnce(
       [](int64_t new_map_id, DomStorageDatabase::Key storage_key_key,
          DomStorageDatabase::Value storage_key_map_number,
-         leveldb::WriteBatch* batch, const DomStorageDatabase& db) {
-        batch->Put(leveldb_env::MakeSlice(base::span(kNextMapIdKeyBytes)),
-                   leveldb_env::MakeSlice(NumberToValue(new_map_id)));
-        batch->Put(leveldb_env::MakeSlice(storage_key_key),
-                   leveldb_env::MakeSlice(storage_key_map_number));
+         DomStorageBatchOperation& batch, const DomStorageDatabase& db) {
+        batch.Put(base::span(kNextMapIdKeyBytes), NumberToValue(new_map_id));
+        batch.Put(storage_key_key, storage_key_map_number);
       },
       next_map_id_, GetAreaKey(namespace_entry->first, storage_key),
       new_map_data->MapNumberAsBytes()));
@@ -339,10 +331,9 @@ void SessionStorageMetadata::RegisterShallowClonedNamespace(
 
   save_tasks->push_back(base::BindOnce(
       [](std::vector<DomStorageDatabase::KeyValuePair> new_entries,
-         leveldb::WriteBatch* batch, const DomStorageDatabase&) {
+         DomStorageBatchOperation& batch, const DomStorageDatabase&) {
         for (const auto& entry : new_entries)
-          batch->Put(leveldb_env::MakeSlice(entry.key),
-                     leveldb_env::MakeSlice(entry.value));
+          batch.Put(entry.key, entry.value);
       },
       std::move(new_entries)));
 }
@@ -371,9 +362,9 @@ void SessionStorageMetadata::DeleteNamespace(
 
   save_tasks->push_back(base::BindOnce(
       [](std::vector<DomStorageDatabase::Key> prefixes_to_delete,
-         leveldb::WriteBatch* batch, const DomStorageDatabase& db) {
+         DomStorageBatchOperation& batch, const DomStorageDatabase& db) {
         for (const auto& prefix : prefixes_to_delete)
-          db.DeletePrefixed(prefix, batch);
+          batch.DeletePrefixed(prefix);
       },
       std::move(prefixes_to_delete)));
 }
@@ -404,10 +395,10 @@ void SessionStorageMetadata::DeleteArea(
   save_tasks->push_back(base::BindOnce(
       [](const DomStorageDatabase::Key& area_key,
          std::vector<DomStorageDatabase::Key> prefixes_to_delete,
-         leveldb::WriteBatch* batch, const DomStorageDatabase& db) {
-        batch->Delete(leveldb_env::MakeSlice(area_key));
+         DomStorageBatchOperation& batch, const DomStorageDatabase& db) {
+        batch.Delete(area_key);
         for (const auto& prefix : prefixes_to_delete)
-          db.DeletePrefixed(prefix, batch);
+          batch.DeletePrefixed(prefix);
       },
       area_key, std::move(prefixes_to_delete)));
 }
@@ -429,8 +420,9 @@ std::vector<uint8_t> SessionStorageMetadata::GetNamespacePrefix(
   std::vector<uint8_t> namespace_prefix(
       SessionStorageMetadata::kNamespacePrefixBytes,
       std::end(SessionStorageMetadata::kNamespacePrefixBytes));
-  namespace_prefix.insert(namespace_prefix.end(), namespace_id.data(),
-                          namespace_id.data() + namespace_id.size());
+  namespace_prefix.insert(
+      namespace_prefix.end(), namespace_id.data(),
+      UNSAFE_TODO(namespace_id.data() + namespace_id.size()));
   namespace_prefix.push_back(kNamespaceStorageKeySeperatorByte);
   return namespace_prefix;
 }
@@ -446,7 +438,7 @@ std::vector<uint8_t> SessionStorageMetadata::GetAreaKey(
   area_key.push_back(kNamespaceStorageKeySeperatorByte);
   std::string storage_key_str = storage_key.Serialize();
   area_key.insert(area_key.end(), storage_key_str.data(),
-                  storage_key_str.data() + storage_key_str.size());
+                  UNSAFE_TODO(storage_key_str.data() + storage_key_str.size()));
   return area_key;
 }
 

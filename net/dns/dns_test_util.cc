@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/dns/dns_test_util.h"
 
 #include <stdint.h>
 
 #include <algorithm>
+#include <array>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -19,6 +15,7 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -50,7 +47,7 @@
 namespace net {
 namespace {
 
-const uint8_t kMalformedResponseHeader[] = {
+constexpr auto kMalformedResponseHeader = std::to_array<uint8_t>({
     // Header
     0x00, 0x14,  // Arbitrary ID
     0x81, 0x80,  // Standard query response, RA, no error
@@ -58,7 +55,7 @@ const uint8_t kMalformedResponseHeader[] = {
     0x00, 0x01,  // 1 RR (answers)
     0x00, 0x00,  // 0 authority RRs
     0x00, 0x00,  // 0 additional RRs
-};
+});
 
 // Create a response containing a valid question (as would normally be validated
 // in DnsTransaction) but completely missing a header-declared answer.
@@ -71,11 +68,11 @@ DnsResponse CreateMalformedResponse(std::string hostname, uint16_t type) {
   // Build response to simulate the barebones validation DnsResponse applies to
   // responses received from the network.
   auto buffer = base::MakeRefCounted<IOBufferWithSize>(
-      sizeof(kMalformedResponseHeader) + query.question().size());
-  memcpy(buffer->data(), kMalformedResponseHeader,
-         sizeof(kMalformedResponseHeader));
-  memcpy(buffer->data() + sizeof(kMalformedResponseHeader),
-         query.question().data(), query.question().size());
+      kMalformedResponseHeader.size() + query.question().size());
+  auto out_span = buffer->span();
+  out_span.take_first(kMalformedResponseHeader.size())
+      .copy_from(kMalformedResponseHeader);
+  out_span.copy_from(base::as_byte_span(query.question()));
 
   DnsResponse response(buffer, buffer->size());
   CHECK(response.InitParseWithoutQuery(buffer->size()));
@@ -134,10 +131,8 @@ DnsResourceRecord BuildTestCnameRecord(std::string name,
       dns_names_util::DottedNameToNetwork(canonical_name);
   CHECK(rdata.has_value());
 
-  return BuildTestDnsRecord(
-      std::move(name), dns_protocol::kTypeCNAME,
-      base::span<const uint8_t>(rdata.value().data(), rdata.value().size()),
-      ttl);
+  return BuildTestDnsRecord(std::move(name), dns_protocol::kTypeCNAME,
+                            rdata.value(), ttl);
 }
 
 DnsResourceRecord BuildTestAddressRecord(std::string name,
@@ -166,9 +161,8 @@ DnsResourceRecord BuildTestTextRecord(std::string name,
     rdata.insert(rdata.end(), text_string.begin(), text_string.end());
   }
 
-  return BuildTestDnsRecord(
-      std::move(name), dns_protocol::kTypeTXT,
-      base::span<const uint8_t>(rdata.data(), rdata.size()), ttl);
+  return BuildTestDnsRecord(std::move(name), dns_protocol::kTypeTXT, rdata,
+                            ttl);
 }
 
 DnsResourceRecord BuildTestHttpsAliasRecord(std::string name,
@@ -184,9 +178,8 @@ DnsResourceRecord BuildTestHttpsAliasRecord(std::string name,
   rdata.insert(rdata.end(), alias_domain.value().begin(),
                alias_domain.value().end());
 
-  return BuildTestDnsRecord(
-      std::move(name), dns_protocol::kTypeHttps,
-      base::span<const uint8_t>(rdata.data(), rdata.size()), ttl);
+  return BuildTestDnsRecord(std::move(name), dns_protocol::kTypeHttps, rdata,
+                            ttl);
 }
 
 std::pair<uint16_t, std::string> BuildTestHttpsServiceAlpnParam(
@@ -210,6 +203,19 @@ std::pair<uint16_t, std::string> BuildTestHttpsServiceEchConfigParam(
       dns_protocol::kHttpsServiceParamKeyEchConfig,
       std::string(reinterpret_cast<const char*>(ech_config_list.data()),
                   ech_config_list.size()));
+}
+
+std::pair<uint16_t, std::string> BuildTestHttpsServiceTrustAnchorIDsParam(
+    const std::vector<std::vector<uint8_t>>& trust_anchor_ids) {
+  std::string param_value;
+
+  for (const auto& tai : trust_anchor_ids) {
+    CHECK(!tai.empty());
+    param_value.append(1, base::checked_cast<uint8_t>(tai.size()));
+    param_value.append(tai.begin(), tai.end());
+  }
+  return std::pair(dns_protocol::kHttpsServiceParamKeyTrustAnchorIDs,
+                   std::move(param_value));
 }
 
 std::pair<uint16_t, std::string> BuildTestHttpsServiceMandatoryParam(
@@ -275,9 +281,8 @@ DnsResourceRecord BuildTestHttpsServiceRecord(
     rdata.insert(rdata.end(), param.second.begin(), param.second.end());
   }
 
-  return BuildTestDnsRecord(
-      std::move(name), dns_protocol::kTypeHttps,
-      base::span<const uint8_t>(rdata.data(), rdata.size()), ttl);
+  return BuildTestDnsRecord(std::move(name), dns_protocol::kTypeHttps, rdata,
+                            ttl);
 }
 
 DnsResponse BuildTestDnsResponse(
@@ -332,8 +337,7 @@ DnsResponse BuildTestDnsAddressResponseWithCname(std::string name,
 
   std::vector<DnsResourceRecord> answers = {
       BuildTestDnsRecord(std::move(answer_name), dns_protocol::kTypeCNAME,
-                         base::span<const uint8_t>(cname_rdata.value().data(),
-                                                   cname_rdata.value().size())),
+                         cname_rdata.value()),
       BuildTestAddressRecord(std::move(cannonname), ip)};
 
   return BuildTestDnsResponse(
@@ -368,9 +372,8 @@ DnsResponse BuildTestDnsPointerResponse(std::string name,
         dns_names_util::DottedNameToNetwork(pointer_name);
     CHECK(rdata.has_value());
 
-    answers.push_back(BuildTestDnsRecord(
-        answer_name, dns_protocol::kTypePTR,
-        base::span<const uint8_t>(rdata.value().data(), rdata.value().size())));
+    answers.push_back(
+        BuildTestDnsRecord(answer_name, dns_protocol::kTypePTR, rdata.value()));
   }
 
   return BuildTestDnsResponse(std::move(name), dns_protocol::kTypePTR, answers);
@@ -405,9 +408,8 @@ DnsResponse BuildTestDnsServiceResponse(
     CHECK(dns_name.has_value());
     rdata.insert(rdata.end(), dns_name.value().begin(), dns_name.value().end());
 
-    answers.push_back(BuildTestDnsRecord(
-        answer_name, dns_protocol::kTypeSRV,
-        base::span<const uint8_t>(rdata.data(), rdata.size()), base::Hours(5)));
+    answers.push_back(BuildTestDnsRecord(answer_name, dns_protocol::kTypeSRV,
+                                         rdata, base::Hours(5)));
   }
 
   return BuildTestDnsResponse(std::move(name), dns_protocol::kTypeSRV, answers);
@@ -575,8 +577,9 @@ class MockDnsTransactionFactory::MockTransaction final : public DnsTransaction {
       // completes.
       auto buffer_copy = base::MakeRefCounted<IOBufferWithSize>(
           result->response->io_buffer_size());
-      memcpy(buffer_copy->data(), result->response->io_buffer()->data(),
-             result->response->io_buffer_size());
+      buffer_copy->span().copy_from_nonoverlapping(
+          result->response->io_buffer()->first(
+              result->response->io_buffer_size()));
       result_.response = DnsResponse(std::move(buffer_copy),
                                      result->response->io_buffer_size());
       CHECK(result_.response->InitParseWithoutQuery(

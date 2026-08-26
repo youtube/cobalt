@@ -310,7 +310,7 @@ void CodeEventLogger::CodeCreateEvent(CodeTag tag,
 #if V8_ENABLE_WEBASSEMBLY
 void CodeEventLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                       wasm::WasmName name,
-                                      const char* source_url,
+                                      std::string_view source_url,
                                       int /*code_offset*/, int /*script_id*/) {
   DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
@@ -607,7 +607,7 @@ void ExternalLogEventListener::CodeCreateEvent(
 void ExternalLogEventListener::CodeCreateEvent(CodeTag tag,
                                                const wasm::WasmCode* code,
                                                wasm::WasmName name,
-                                               const char* source_url,
+                                               std::string_view source_url,
                                                int code_offset, int script_id) {
   // TODO(mmarchini): handle later
 }
@@ -1125,6 +1125,15 @@ class Ticker : public sampler::Sampler {
     if (IsActive()) Stop();
   }
 
+  void Start() {
+    // Check whether the sampler can be used. If this fails on test bots, the
+    // corresponding test probably needs to be disabled in the sandbox +
+    // hardware support configuration until crbug.com/429173713 is resolved.
+    CHECK(HardwareSandboxingDisabledOrSupportsSignalDeliveryInSandbox());
+
+    Sampler::Start();
+  }
+
   void SetProfiler(Profiler* profiler) {
     DCHECK_NULL(profiler_);
     profiler_ = profiler;
@@ -1144,8 +1153,13 @@ class Ticker : public sampler::Sampler {
     if (isolate->was_locker_ever_used() &&
         (!isolate->thread_manager()->IsLockedByThread(
              perThreadData_->thread_id()) ||
-         perThreadData_->thread_state() != nullptr))
+         perThreadData_->thread_state() != nullptr)) {
       return;
+    }
+    if (isolate->current_vm_state() == LOGGING) return;
+    if (!v8_flags.prof_include_idle && IsIdle(isolate->current_vm_state())) {
+      return;
+    }
     TickSample sample;
     sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
     profiler_->Insert(&sample);
@@ -1602,7 +1616,7 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
 #if V8_ENABLE_WEBASSEMBLY
 void V8FileLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                    wasm::WasmName name,
-                                   const char* /*source_url*/,
+                                   std::string_view /*source_url*/,
                                    int /*code_offset*/, int /*script_id*/) {
   if (!is_listening_to_code_events()) return;
   if (!v8_flags.log_code) return;
@@ -1966,6 +1980,10 @@ void V8FileLogger::RuntimeCallTimerEvent() {
 
 void V8FileLogger::TickEvent(TickSample* sample, bool overflow) {
   if (!v8_flags.prof_cpp) return;
+  if (sample->state == LOGGING) return;
+  if (!v8_flags.prof_include_idle && IsIdle(sample->state)) {
+    return;
+  }
   VMStateIfMainThread<LOGGING> state(isolate_);
   if (V8_UNLIKELY(TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
@@ -2118,7 +2136,7 @@ EnumerateCompiledFunctions(Heap* heap) {
         // WasmFunctionData. They are also unreachable, but since we're walking
         // the entire heap here, we may still find them if no GC has cleaned
         // them up yet.
-        if (sfi->HasWasmFunctionData() &&
+        if (sfi->HasWasmFunctionData(isolate) &&
             sfi->HasUnpublishedTrustedData(isolate)) {
           continue;
         }
@@ -2697,7 +2715,7 @@ void ExistingCodeLogger::LogExistingFunction(
       }
     }
 #if V8_ENABLE_WEBASSEMBLY
-  } else if (shared->HasWasmJSFunctionData()) {
+  } else if (shared->HasWasmJSFunctionData(isolate_)) {
     CALL_CODE_EVENT_HANDLER(
         CodeCreateEvent(CodeTag::kFunction, code, "wasm-to-js"));
 #endif  // V8_ENABLE_WEBASSEMBLY

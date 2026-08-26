@@ -11,11 +11,11 @@
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/webui_config.h"
 #include "content/public/common/url_constants.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 
 namespace content {
 class WebUI;
-class WebUIDataSource;
 }
 
 struct AccountInfo;
@@ -86,8 +86,6 @@ class BatchUploadUI : public ui::MojoWebUIController,
 
   // Handler implementing Mojo interface to communicate with the WebUI.
   std::unique_ptr<BatchUploadHandler> handler_;
-
-  raw_ptr<content::WebUIDataSource> web_ui_source_ = nullptr;
 
   mojo::Receiver<batch_upload::mojom::PageHandlerFactory>
       page_factory_receiver_{this};

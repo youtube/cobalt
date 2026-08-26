@@ -32,9 +32,13 @@ CGFloat const kSpacingBeforeAboveTitleImage = 12;
 CGFloat const kSpacingAfterAboveTitleImage = 4;
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-// Height of the Google Pay logo used as the image above the title of the
-// bottomsheet.
+//  Height of the Google Pay logo used as the image above the title of the
+//  bottomsheet for upload save.
 CGFloat const kGooglePayLogoHeight = 32;
+
+// Height of the Chrome logo used as the image above the title of the
+// bottomsheet for local save.
+CGFloat const kChromeLogoHeight = 22;
 #endif
 
 }  // namespace
@@ -53,12 +57,15 @@ CGFloat const kGooglePayLogoHeight = 32;
   NSArray<SaveCardMessageWithLinks*>* _legalMessages;
   // Image to be displayed above the title of the bottomsheet.
   UIImage* _aboveTitleImage;
+  // Accessibility label for the _aboveTitleImage.
+  NSString* _aboveTitleImageAccessibilityLabel;
 }
 
 #pragma mark - UIViewController
 
 - (void)viewDidLoad {
   self.image = [self aboveTitleImage];
+  self.imageViewAccessibilityLabel = [self aboveTitleImageAccessibilityLabel];
   self.customSpacingBeforeImageIfNoNavigationBar =
       kSpacingBeforeAboveTitleImage;
   self.customSpacingAfterImage = kSpacingAfterAboveTitleImage;
@@ -80,7 +87,7 @@ CGFloat const kGooglePayLogoHeight = 32;
 }
 
 - (void)setAboveTitleImageDescription:(NSString*)description {
-  self.imageViewAccessibilityLabel = description;
+  _aboveTitleImageAccessibilityLabel = description;
 }
 
 - (void)setTitle:(NSString*)title {
@@ -124,18 +131,26 @@ CGFloat const kGooglePayLogoHeight = 32;
 }
 
 - (void)showConfirmationState {
+  BOOL wasLoadingShown = self.isLoading;
   self.isLoading = NO;
   self.isConfirmed = YES;
   self.primaryActionButton.accessibilityLabel = l10n_util::GetNSString(
       IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_SUCCESS_ACCESSIBLE_NAME);
-  // Accessibility announcement needs to posted here since VoiceOver wouldn't
-  // announce button's accessibility label as button's state does not change.
-  // For confirmation state, the button's state is already disabled from
-  // previously showing loading state.
-  UIAccessibilityPostNotification(
-      UIAccessibilityAnnouncementNotification,
-      l10n_util::GetNSString(
-          IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_SUCCESS_ACCESSIBLE_NAME));
+
+  if (wasLoadingShown) {
+    // When transitioning from loading state to confirmation state an
+    // accessibility announcement needs to be posted since the
+    // primaryActionButton would already be in a disabled state during the
+    // loading state. As only its label changes in confirmation state, it would
+    // not be announced by VoiceOver. However, when transitioning from normal
+    // state directly to confirmation state, posting an accessibility
+    // announcement must be avoided to not interfere with the announcement from
+    // the primaryActionButton.
+    UIAccessibilityPostNotification(
+        UIAccessibilityAnnouncementNotification,
+        l10n_util::GetNSString(
+            IDS_AUTOFILL_SAVE_CARD_CONFIRMATION_SUCCESS_ACCESSIBLE_NAME));
+  }
 }
 
 #pragma mark - UITableViewDataSource
@@ -242,12 +257,31 @@ CGFloat const kGooglePayLogoHeight = 32;
 // Returns the image to be used above the title of the bottomsheet.
 - (UIImage*)aboveTitleImage {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  // iOS-specific symbol is used to get an optimized image with better
-  // resolution.
-  return MakeSymbolMulticolor(
-      CustomSymbolWithPointSize(kGooglePaySymbol, kGooglePayLogoHeight));
+  //  iOS-specific symbol is used to get an optimized image with better
+  //  resolution.
+  switch ([self.dataSource logoType]) {
+    case kChromeLogo:
+      return MakeSymbolMulticolor(CustomSymbolWithPointSize(
+          kMulticolorChromeballSymbol, kChromeLogoHeight));
+    case kGooglePayLogo:
+      return MakeSymbolMulticolor(
+          CustomSymbolWithPointSize(kGooglePaySymbol, kGooglePayLogoHeight));
+    case kNoLogo:
+    default:
+      NOTREACHED() << "Unsupported logo type for save card bottomsheet.";
+  }
 #else
   return _aboveTitleImage;
+#endif
+}
+
+// Returns the accessibility label to be used for the image to be used above the
+// title of the bottomsheet.
+- (NSString*)aboveTitleImageAccessibilityLabel {
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  return [self.dataSource logoAccessibilityLabel];
+#else
+  return _aboveTitleImageAccessibilityLabel;
 #endif
 }
 

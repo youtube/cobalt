@@ -7,11 +7,13 @@
 #include <string>
 #include <vector>
 
-#include "base/logging.h"
+#include "base/command_line.h"
 #include "base/files/scoped_file.h"
+#include "base/logging.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "build/build_config.h"
 #include "sandbox/linux/services/thread_helpers.h"
+#include "sandbox/policy/switches.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include <fcntl.h>
@@ -52,13 +54,23 @@ bool ApplyLandlock(sandbox::mojom::Sandbox sandbox_type) {
     return false;
   }
 
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          sandbox::policy::switches::kDisableLandlockSandbox)) {
+    return false;
+  }
+
+  // TODO(akhna): ideally, Landlock would be applied in a single-threaded
+  // environment. However, the variety of threads created by the Android
+  // Runtime make this non-trivial. We should eventually find a way to mitigate
+  // this, or apply Landlock TSYNC when it becomes available.
   if (!sandbox::ThreadHelpers::IsSingleThreaded()) {
-    LOG(ERROR) << "Not single threaded, skipping Landlock";
+    VLOG(1) << "Not single threaded for Landlock";
+    // Log registered threads: Android Runtime (ART) threads may not show up
+    // here, as they are not explicitly registered with ThreadIdNameManager.
     for (const auto& id : base::ThreadIdNameManager::GetInstance()->GetIds()) {
-      LOG(ERROR) << "ThreadId=" << id << " name:"
+      VLOG(1) << "ThreadId=" << id << " name:"
                  << base::ThreadIdNameManager::GetInstance()->GetName(id);
     }
-    return false;
   }
 
   struct landlock_ruleset_attr ruleset_attr = {
@@ -76,7 +88,7 @@ bool ApplyLandlock(sandbox::mojom::Sandbox sandbox_type) {
       "/data/app",
       // Allow read-only access to /proc/self. This is needed for the process
       // to introspect its own state.
-      "/proc/self", "/sys", "/var"};
+      "/proc/self", "/sys"};
   uint64_t ro_access =
       LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_READ_DIR;
   if (!AddRulesToPolicy(ruleset_fd.get(), allowed_ro_paths, ro_access)) {

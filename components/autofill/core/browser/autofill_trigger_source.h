@@ -50,7 +50,12 @@ enum class AutofillTriggerSource {
   // Autofill was triggered with devtools trigger command.
   kDevtools = 11,
   // Autofill was triggered by successfully scanning a credit card.
-  kScanCreditCard = 12
+  kScanCreditCard = 12,
+  // Autofill was triggered after Password Manager detected failed login for a
+  // password that has a recovery password.
+  kProactivePasswordRecovery = 13,
+  // Autofill was triggered by accepting the credit card Save and Fill dialog.
+  kCreditCardSaveAndFill = 14,
 };
 
 }  // namespace autofill

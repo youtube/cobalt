@@ -4,7 +4,8 @@
 
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_color_picker_view_controller.h"
 
-#import "ios/chrome/browser/home_customization/ui/home_customization_color_palette_configuration.h"
+#import "ios/chrome/browser/home_customization/model/background_customization_configuration_item.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_action_sheet_presentation_delegate.h"
 #import "ios/chrome/browser/home_customization/ui/home_cutomization_color_palette_cell.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_constants.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -13,13 +14,13 @@
 // Define constants within the namespace
 namespace {
 // The width and height of each color palette cell in the collection view.
-const CGFloat kColorCellSize = 48.0;
+const CGFloat kColorCellSize = 54.0;
 
 // The vertical spacing between rows of cells.
 const CGFloat kLineSpacing = 28.0;
 
 // The horizontal spacing between cells in the same row.
-const CGFloat kItemSpacing = 20.0;
+const CGFloat kItemSpacing = 8.0;
 
 // The top padding for the section in the collection view.
 const CGFloat kSectionInsetTop = 20.0;
@@ -32,14 +33,19 @@ const CGFloat kSectionInsetBottom = 20.0;
 }  // namespace
 
 @interface HomeCustomizationBackgroundColorPickerViewController () {
-  // An array storing the available color palette configurations,
-  // ordered by their index in the palette.
-  NSArray<HomeCustomizationColorPaletteConfiguration*>*
-      _colorPaletteConfigurations;
+  // This view controller's main collection view for displaying content.
+  UICollectionView* _collectionView;
+
+  // An array storing the available color palette, ordered by their index in the
+  // palette.
+  NSArray<NewTabPageColorPalette*>* _colorPalettes;
 
   // The `UICollectionViewCellRegistration` for registering  and configuring the
   // `HomeCustomizationColorPaletteCell` in the collection view.
   UICollectionViewCellRegistration* _colorCellRegistration;
+
+  // Currently selected color index in the palette.
+  NSNumber* _selectedColorIndex;
 }
 @end
 
@@ -48,22 +54,11 @@ const CGFloat kSectionInsetBottom = 20.0;
 - (void)viewDidLoad {
   [super viewDidLoad];
 
+  __weak __typeof(self) weakSelf = self;
   self.title = l10n_util::GetNSStringWithFixup(
       IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_COLOR_TITLE);
 
   self.view.backgroundColor = [UIColor systemBackgroundColor];
-
-  UIBarButtonItem* dismissButton = [[UIBarButtonItem alloc]
-      initWithBarButtonSystemItem:UIBarButtonSystemItemClose
-                           target:self
-                           action:@selector(dismissCustomizationMenuPage)];
-
-  dismissButton.accessibilityIdentifier = kNavigationBarDismissButtonIdentifier;
-
-  self.navigationItem.rightBarButtonItem = dismissButton;
-  self.navigationItem.backBarButtonItem.accessibilityIdentifier =
-      kNavigationBarBackButtonIdentifier;
-  [self.navigationItem setHidesBackButton:YES];
 
   UICollectionViewFlowLayout* layout =
       [[UICollectionViewFlowLayout alloc] init];
@@ -77,57 +72,71 @@ const CGFloat kSectionInsetBottom = 20.0;
 
   _colorCellRegistration = [UICollectionViewCellRegistration
       registrationWithCellClass:[HomeCustomizationColorPaletteCell class]
-           configurationHandler:^(
-               HomeCustomizationColorPaletteCell* cell, NSIndexPath* indexPath,
-               HomeCustomizationColorPaletteConfiguration* configuration) {
-             cell.configuration = configuration;
+           configurationHandler:^(HomeCustomizationColorPaletteCell* cell,
+                                  NSIndexPath* indexPath,
+                                  NewTabPageColorPalette* colorPalette) {
+             [weakSelf configureBackgroundCell:cell
+                                 configuration:colorPalette
+                                   atIndexPath:indexPath];
            }];
 
-  UICollectionView* collectionView =
-      [[UICollectionView alloc] initWithFrame:CGRectZero
-                         collectionViewLayout:layout];
-  collectionView.dataSource = self;
+  _collectionView = [[UICollectionView alloc] initWithFrame:CGRectZero
+                                       collectionViewLayout:layout];
+  _collectionView.dataSource = self;
+  _collectionView.delegate = self;
 
-  collectionView.translatesAutoresizingMaskIntoConstraints = NO;
-  [self.view addSubview:collectionView];
+  _collectionView.translatesAutoresizingMaskIntoConstraints = NO;
+  [self.view addSubview:_collectionView];
 
   [NSLayoutConstraint activateConstraints:@[
-    [collectionView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
-    [collectionView.leadingAnchor
+    [_collectionView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+    [_collectionView.leadingAnchor
         constraintEqualToAnchor:self.view.leadingAnchor],
-    [collectionView.trailingAnchor
+    [_collectionView.trailingAnchor
         constraintEqualToAnchor:self.view.trailingAnchor],
-    [collectionView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
+    [_collectionView.bottomAnchor
+        constraintEqualToAnchor:self.view.bottomAnchor]
   ]];
 }
 
 #pragma mark - HomeCustomizationBackgroundColorPickerConsumer
 
-- (void)setColorPaletteConfigurations:
-    (NSArray<HomeCustomizationColorPaletteConfiguration*>*)
-        colorPaletteConfigurations {
-  _colorPaletteConfigurations = colorPaletteConfigurations;
+- (void)setColorPalettes:(NSArray<NewTabPageColorPalette*>*)colorPalettes
+      selectedColorIndex:(NSNumber*)selectedColorIndex {
+  _colorPalettes = colorPalettes;
+  _selectedColorIndex = selectedColorIndex;
 }
 
 #pragma mark - UICollectionViewDelegate
 
 - (NSInteger)collectionView:(UICollectionView*)collectionView
      numberOfItemsInSection:(NSInteger)section {
-  return _colorPaletteConfigurations.count;
+  return _colorPalettes.count;
+}
+
+- (void)collectionView:(UICollectionView*)collectionView
+    didSelectItemAtIndexPath:(NSIndexPath*)indexPath {
+  NewTabPageColorPalette* colorPalette = _colorPalettes[indexPath.item];
+  BackgroundCustomizationConfigurationItem* backgroundConfiguration =
+      [[BackgroundCustomizationConfigurationItem alloc]
+          initWithBackgroundColor:colorPalette.seedColor
+                     colorVariant:colorPalette.variant];
+  _selectedColorIndex = @(indexPath.item);
+  [self.presentationDelegate
+      applyBackgroundForConfiguration:backgroundConfiguration];
 }
 
 - (UICollectionViewCell*)collectionView:(UICollectionView*)collectionView
                  cellForItemAtIndexPath:(NSIndexPath*)indexPath {
-  HomeCustomizationColorPaletteConfiguration* configuration =
-      _colorPaletteConfigurations[indexPath.item];
+  NewTabPageColorPalette* colorPalette = _colorPalettes[indexPath.item];
 
   if (indexPath.item >= 0) {
     std::size_t index = static_cast<std::size_t>(indexPath.item);
-    if (index < _colorPaletteConfigurations.count) {
+    if (index < _colorPalettes.count) {
       return [collectionView
           dequeueConfiguredReusableCellWithRegistration:_colorCellRegistration
                                            forIndexPath:indexPath
-                                                   item:configuration];
+                                                   item:colorPalette];
     }
   }
 
@@ -136,8 +145,19 @@ const CGFloat kSectionInsetBottom = 20.0;
 
 #pragma mark - Private
 
-- (void)dismissCustomizationMenuPage {
-  [self dismissViewControllerAnimated:YES completion:nil];
+// Configures a `HomeCustomizationColorPaletteCell` with the provided background
+// color configuration and selects it if it matches the currently selected
+// background color.
+- (void)configureBackgroundCell:(HomeCustomizationColorPaletteCell*)cell
+                  configuration:(NewTabPageColorPalette*)colorPalette
+                    atIndexPath:(NSIndexPath*)indexPath {
+  cell.colorPalette = colorPalette;
+
+  if ([_selectedColorIndex isEqualToNumber:@(indexPath.item)]) {
+    [_collectionView selectItemAtIndexPath:indexPath
+                                  animated:NO
+                            scrollPosition:UICollectionViewScrollPositionNone];
+  }
 }
 
 @end

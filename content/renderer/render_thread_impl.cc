@@ -77,6 +77,7 @@
 #include "content/common/main_frame_counter.h"
 #include "content/common/process_visibility_tracker.h"
 #include "content/common/pseudonymization_salt.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
@@ -132,7 +133,6 @@
 #include "net/base/port_util.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
@@ -198,7 +198,6 @@
 #endif
 
 #if defined(ENABLE_IPC_FUZZER)
-#include "content/common/external_ipc_dumper.h"
 #include "mojo/public/cpp/bindings/message_dumper.h"
 #endif
 
@@ -292,7 +291,6 @@ scoped_refptr<viz::ContextProviderCommandBuffer> CreateOffscreenContext(
   // This is for an offscreen context, so the default framebuffer doesn't need
   // alpha, depth, stencil, antialiasing.
   gpu::ContextCreationAttribs attributes;
-  attributes.bind_generates_resource = false;
   attributes.lose_context_when_out_of_memory = true;
   attributes.enable_gles2_interface = support_gles2_interface;
   attributes.enable_raster_interface = support_raster_interface;
@@ -337,6 +335,15 @@ bool IsBackgrounded(std::optional<base::Process::Priority> process_priority) {
       return false;
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool IsCriticalAllowedInForeground() {
+  static const bool kAllowCriticalInForeground =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "allow-critical-memory-pressure-handling-in-foreground");
+  return kAllowCriticalInForeground;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 perfetto::StaticString ProcessPriorityToString(
     std::optional<base::Process::Priority> priority) {
@@ -546,11 +553,6 @@ void RenderThreadImpl::Init() {
 
   GetContentClient()->renderer()->PostIOThreadCreated(GetIOTaskRunner().get());
 
-#if BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
-  // On Mac and Android Java UI, the select popups are rendered by the browser.
-    blink::WebView::SetUseExternalPopupMenus(true);
-#endif
-
   render_thread = this;
   g_main_task_runner.Get() = base::SingleThreadTaskRunner::GetCurrentDefault();
 
@@ -601,9 +603,6 @@ void RenderThreadImpl::Init() {
   if (command_line.HasSwitch(switches::kIpcDumpDirectory)) {
     base::FilePath dump_directory =
         command_line.GetSwitchValuePath(switches::kIpcDumpDirectory);
-    IPC::ChannelProxy::OutgoingMessageFilter* filter =
-        LoadExternalIPCDumper(dump_directory);
-    GetChannel()->set_outgoing_message_filter(filter);
     mojo::MessageDumper::SetMessageDumpDirectory(dump_directory);
   }
 #endif
@@ -762,36 +761,6 @@ void RenderThreadImpl::OnTraceLogEnabled() {
 }
 
 void RenderThreadImpl::OnTraceLogDisabled() {}
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-IPC::SyncMessageFilter* RenderThreadImpl::GetSyncMessageFilter() {
-  return sync_message_filter();
-}
-
-void RenderThreadImpl::AddRoute(int32_t routing_id, IPC::Listener* listener) {
-  ChildThreadImpl::GetRouter()->AddRoute(routing_id, listener);
-}
-
-void RenderThreadImpl::AttachTaskRunnerToRoute(
-    int32_t routing_id,
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
-  GetChannel()->AddListenerTaskRunner(routing_id, std::move(task_runner));
-}
-
-void RenderThreadImpl::RemoveRoute(int32_t routing_id) {
-  ChildThreadImpl::GetRouter()->RemoveRoute(routing_id);
-  GetChannel()->RemoveListenerTaskRunner(routing_id);
-}
-
-void RenderThreadImpl::AddFilter(IPC::MessageFilter* filter) {
-  channel()->AddFilter(filter);
-}
-
-void RenderThreadImpl::RemoveFilter(IPC::MessageFilter* filter) {
-  channel()->RemoveFilter(filter);
-}
-
-#endif
 
 mojom::RendererHost* RenderThreadImpl::GetRendererHost() {
   if (!renderer_host_) {
@@ -1369,17 +1338,6 @@ void RenderThreadImpl::OnProcessFinalRelease() {
   NOTREACHED();
 }
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-bool RenderThreadImpl::OnControlMessageReceived(const IPC::Message& msg) {
-  for (auto& observer : observers_) {
-    if (observer.OnControlMessageReceived(msg))
-      return true;
-  }
-
-  return false;
-}
-#endif
-
 void RenderThreadImpl::SetProcessState(
     base::Process::Priority process_priority,
     mojom::RenderProcessVisibleState visible_state) {
@@ -1822,9 +1780,15 @@ void RenderThreadImpl::OnSyncMemoryPressure(
 #if !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
   // In order to reduce performance impact, translate critical level to
   // moderate level for foreground renderer.
+#if BUILDFLAG(IS_COBALT)
+  if (!IsCriticalAllowedInForeground() && !RendererIsHidden() &&
+      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
+    v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+#else
   if (!RendererIsHidden() &&
       v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+#endif  // BUILDFLAG(IS_COBALT)
 #endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
 
   if (base::FeatureList::IsEnabled(

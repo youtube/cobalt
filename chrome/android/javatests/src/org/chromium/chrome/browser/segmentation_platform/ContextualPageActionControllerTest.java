@@ -21,8 +21,9 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.net.test.EmbeddedTestServer;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.ui.base.DeviceFormFactor;
 
 @RunWith(ChromeJUnit4ClassRunner.class)
@@ -38,19 +39,19 @@ public class ContextualPageActionControllerTest {
     private static final String TEST_PAGE = "/chrome/test/data/dom_distiller/simple_article.html";
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
-    private EmbeddedTestServer mTestServer;
     private String mReaderModePageUrl;
 
     @Before
     public void setUp() throws Exception {
-        mTestServer = mActivityTestRule.getTestServer();
-        mReaderModePageUrl = mTestServer.getURL(TEST_PAGE);
+        mReaderModePageUrl = mActivityTestRule.getTestServer().getURL(TEST_PAGE);
     }
 
     @Test
     @MediumTest
+    @Restriction(DeviceFormFactor.PHONE) // Flaky on larger form factors crbug.com/422817837
     public void testContextualPageModelExecution() {
         LibraryLoader.getInstance().ensureInitialized();
 
@@ -60,7 +61,7 @@ public class ContextualPageActionControllerTest {
                         CONTEXTUAL_PAGE_ACTION_DEFAULT_MODEL_HISTOGRAM, /* value= kSuccess*/ 0);
 
         // Load a blank page, model should execute for every page load.
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mActivityTestRule.startOnBlankPage();
 
         histogram.pollInstrumentationThreadUntilSatisfied();
     }
@@ -70,7 +71,7 @@ public class ContextualPageActionControllerTest {
     @Restriction(DeviceFormFactor.PHONE) // Reader mode is only available on phones.
     public void testContextualPageModelExecution_OnReaderModePage() {
         LibraryLoader.getInstance().ensureInitialized();
-        mActivityTestRule.startMainActivityFromLauncher();
+        WebPageStation page = mActivityTestRule.startOnBlankPage();
 
         var histograms =
                 HistogramWatcher.newBuilder()
@@ -83,7 +84,7 @@ public class ContextualPageActionControllerTest {
                         .allowExtraRecordsForHistogramsAbove()
                         .build();
 
-        mActivityTestRule.loadUrl(mReaderModePageUrl);
+        page = page.loadWebPageProgrammatically(mReaderModePageUrl);
 
         histograms.pollInstrumentationThreadUntilSatisfied();
     }

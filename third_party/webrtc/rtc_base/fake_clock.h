@@ -24,7 +24,7 @@ namespace webrtc {
 // Fake clock for use with unit tests, which does not tick on its own.
 // Starts at time 0.
 //
-// TODO(deadbeef): Unify with webrtc::SimulatedClock.
+// TODO(deadbeef): Unify with SimulatedClock.
 class FakeClock : public ClockInterface {
  public:
   FakeClock() = default;
@@ -80,15 +80,5 @@ class ScopedFakeClock : public ThreadProcessingFakeClock {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::FakeClock;
-using ::webrtc::ScopedBaseFakeClock;
-using ::webrtc::ScopedFakeClock;
-using ::webrtc::ThreadProcessingFakeClock;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_FAKE_CLOCK_H_

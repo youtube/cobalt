@@ -16,7 +16,6 @@
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_service.h"
 #import "ios/chrome/browser/share_kit/model/fake_share_kit_flow_view_controller.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_delete_configuration.h"
-#import "ios/chrome/browser/share_kit/model/share_kit_face_pile_configuration.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_join_configuration.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_leave_configuration.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_manage_configuration.h"
@@ -35,13 +34,19 @@ using data_sharing_pb::MemberRole;
 
 namespace {
 
+// URL used to create SavedTabGroupTab.
+constexpr char kTabURL[] = "https://google.com";
+
+// Title for the shared tab.
+constexpr char16_t kSharedTabTitle[] = u"Google";
+
 // Delay to observe when deleting a shared tab group from the server.
 constexpr base::TimeDelta kDeleteGroupDelay = base::Seconds(0.5);
 
 // Creates a saved tab belonging to `group_guid` group.
-tab_groups::SavedTabGroupTab CreateTab(const base::Uuid& group_guid) {
-  tab_groups::SavedTabGroupTab saved_tab(GURL("https://google.com"), u"Google",
-                                         group_guid,
+tab_groups::SavedTabGroupTab CreateTab(const base::Uuid& group_guid,
+                                       const GURL& url) {
+  tab_groups::SavedTabGroupTab saved_tab(url, kSharedTabTitle, group_guid,
                                          /*position=*/0);
   return saved_tab;
 }
@@ -187,11 +192,11 @@ NSString* TestShareKitService::JoinTabGroup(ShareKitJoinConfiguration* config) {
   viewController.flowCompleteBlock = config.completion;
 
   // Set the joined group completion block.
-  auto joined_group_completion_block =
-      ^(NSString* collab_id, ProceduralBlock continuation_block) {
-        CreateSharedTabGroupInFakeServer(/*owner=*/false, collab_id);
-        continuation_block();
-      };
+  auto joined_group_completion_block = ^(NSString* collab_id,
+                                         ProceduralBlock continuation_block) {
+    CreateSharedTabGroupInFakeServer(/*owner=*/false, collab_id, GURL(kTabURL));
+    continuation_block();
+  };
 
   viewController.actionAcceptedBlock = joined_group_completion_block;
 
@@ -203,19 +208,6 @@ NSString* TestShareKitService::JoinTabGroup(ShareKitJoinConfiguration* config) {
   // Keep a weak link to potentially dismiss it.
   presented_view_controller_ = navController;
   return @"joinFlow";
-}
-
-UIView* TestShareKitService::FacePileView(
-    ShareKitFacePileConfiguration* config) {
-  UIView* view = [[UIView alloc] init];
-  if (config.collabID.length) {
-    [view setBackgroundColor:UIColor.blueColor];
-  }
-  else {
-    [view setBackgroundColor:UIColor.redColor];
-  }
-
-  return view;
 }
 
 void TestShareKitService::ReadGroups(ShareKitReadGroupsConfiguration* config) {
@@ -327,15 +319,14 @@ void TestShareKitService::PrepareToShareGroup(
   syncer::CollaborationId collaboration_id(base::SysNSStringToUTF8(collab_id));
   // It is necessary to make the collab available on both the sync server and
   // the finder.
-  chrome_test_util::AddCollaboration(collaboration_id.value());
+  chrome_test_util::AddCollaboration(collaboration_id);
   tab_group_sync_service_->GetCollaborationFinderForTesting()
       ->SetCollaborationAvailableForTesting(collaboration_id);
 
   std::optional<tab_groups::SavedTabGroup> saved_group =
       tab_group_sync_service_->GetGroup(tab_group_id);
   if (saved_group && !saved_group->is_shared_tab_group()) {
-    chrome_test_util::AddCollaborationGroupToFakeServer(
-        collaboration_id.value());
+    chrome_test_util::AddCollaborationGroupToFakeServer(collaboration_id);
     chrome_test_util::TriggerSyncCycle(syncer::COLLABORATION_GROUP);
   }
 }
@@ -354,7 +345,8 @@ void TestShareKitService::SetTabGroupCollabIdFromGroupId(
       tab_group_sync_service_->GetGroup(tab_group_id);
   if (saved_group && !saved_group->is_shared_tab_group()) {
     tab_group_sync_service_->MakeTabGroupShared(
-        tab_group_id, base::SysNSStringToUTF8(collab_id),
+        tab_group_id,
+        syncer::CollaborationId(base::SysNSStringToUTF8(collab_id)),
         base::BindOnce(&TestShareKitService::ProcessTabGroupSharingResult,
                        weak_pointer_factory_.GetWeakPtr(),
                        saved_group.value().saved_guid()));
@@ -397,16 +389,16 @@ void TestShareKitService::ProcessTabGroupSharingResult(
   chrome_test_util::DeleteAllEntitiesForDataType(syncer::SAVED_TAB_GROUP);
 }
 
-void TestShareKitService::CreateSharedTabGroupInFakeServer(
-    bool owner,
-    NSString* collab_id) {
+void TestShareKitService::CreateSharedTabGroupInFakeServer(bool owner,
+                                                           NSString* collab_id,
+                                                           const GURL& url) {
   if (!tab_group_sync_service_) {
     return;
   }
 
   base::Uuid group_guid = base::Uuid::GenerateRandomV4();
   std::vector<tab_groups::SavedTabGroupTab> tabs;
-  tab_groups::SavedTabGroupTab tab = CreateTab(group_guid);
+  tab_groups::SavedTabGroupTab tab = CreateTab(group_guid, url);
   tabs.push_back(tab);
   chrome_test_util::AddTabToFakeServer(tab);
   chrome_test_util::AddGroupToFakeServer(

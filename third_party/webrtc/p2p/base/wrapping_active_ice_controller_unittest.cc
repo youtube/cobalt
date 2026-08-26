@@ -59,17 +59,15 @@ using ::webrtc::TimeDelta;
 
 using NiceMockIceController = NiceMock<MockIceController>;
 
-static const Connection* kConnection =
-    reinterpret_cast<const Connection*>(0xabcd);
-static const Connection* kConnectionTwo =
-    reinterpret_cast<const Connection*>(0xbcde);
-static const Connection* kConnectionThree =
+const Connection* kConnection = reinterpret_cast<const Connection*>(0xabcd);
+const Connection* kConnectionTwo = reinterpret_cast<const Connection*>(0xbcde);
+const Connection* kConnectionThree =
     reinterpret_cast<const Connection*>(0xcdef);
 
-static const std::vector<const Connection*> kEmptyConnsList =
+const std::vector<const Connection*> kEmptyConnsList =
     std::vector<const Connection*>();
 
-static const TimeDelta kTick = TimeDelta::Millis(1);
+constexpr TimeDelta kTick = TimeDelta::Millis(1);
 
 TEST(WrappingActiveIceControllerTest, CreateLegacyIceControllerFromFactory) {
   AutoThread main;

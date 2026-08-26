@@ -8,7 +8,7 @@
 #include "content/browser/service_worker/service_worker_fetch_dispatcher.h"
 #include "content/browser/service_worker/service_worker_version.h"
 #include "content/common/content_export.h"
-#include "content/common/service_worker/race_network_request_read_buffer_manager.h"
+#include "content/common/service_worker/race_network_request_simple_buffer_manager.h"
 #include "content/common/service_worker/race_network_request_write_buffer_manager.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_response.mojom-forward.h"
@@ -63,7 +63,6 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
                     OnCompleteCallback complete_callback);
   void StartSyntheticResponse(FetchCallback callback);
   SyntheticResponseStatus Status() const { return status_; }
-  void SetResponseHead(network::mojom::URLResponseHeadPtr response_head);
 
  private:
   class SyntheticResponseURLLoaderClient;
@@ -71,6 +70,9 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
   void OnReceiveResponse(network::mojom::URLResponseHeadPtr response_head,
                          mojo::ScopedDataPipeConsumerHandle body);
   void OnComplete(const network::URLLoaderCompletionStatus& status);
+
+  void MaybeSetResponseHead(
+      const network::mojom::URLResponseHead& response_head);
 
   // Read response data from the data pipe which has the actual response from
   // the network, and keep it in buffer.
@@ -80,6 +82,18 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
   // passed to the client side.
   void Write(MojoResult result, const mojo::HandleSignalsState& state);
 
+  // Check whether the response headers are consistent between the locally
+  // stored header and the header from the network.
+  bool CheckHeaderConsistency(scoped_refptr<net::HttpResponseHeaders> headers);
+
+  // Notify the browser to reload the page by passing the <meta> tag to the
+  // response body stream.
+  void NotifyReloading();
+
+  // Callback executed after copying data in `simple_buffer_manager_`. This
+  // calls `stream_callback_->OnCompleted()`.
+  void OnCloneCompleted();
+
   SyntheticResponseStatus status_ = SyntheticResponseStatus::kNotReady;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   mojo::PendingRemote<network::mojom::URLLoader> url_loader_;
@@ -87,9 +101,9 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
   scoped_refptr<ServiceWorkerVersion> version_;
   OnReceiveResponseCallback response_callback_;
   OnCompleteCallback complete_callback_;
-  std::optional<RaceNetworkRequestReadBufferManager> read_buffer_manager_;
   std::optional<RaceNetworkRequestWriteBufferManager> write_buffer_manager_;
   mojo::Remote<blink::mojom::ServiceWorkerStreamCallback> stream_callback_;
+  std::optional<RaceNetworkRequestSimpleBufferManager> simple_buffer_manager_;
 
   base::WeakPtrFactory<ServiceWorkerSyntheticResponseManager> weak_factory_{
       this};

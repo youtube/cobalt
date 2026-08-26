@@ -35,7 +35,6 @@ TopToolbarSceneLayer::~TopToolbarSceneLayer() = default;
 
 void TopToolbarSceneLayer::UpdateToolbarLayer(
     JNIEnv* env,
-    const JavaParamRef<jobject>& object,
     const JavaParamRef<jobject>& jresource_manager,
     jint toolbar_resource_id,
     jint toolbar_background_color,
@@ -70,7 +69,6 @@ void TopToolbarSceneLayer::UpdateToolbarLayer(
 
 void TopToolbarSceneLayer::UpdateProgressBar(
     JNIEnv* env,
-    const JavaParamRef<jobject>& object,
     jint progress_bar_x,
     jint progress_bar_y,
     jint progress_bar_width,
@@ -80,19 +78,26 @@ void TopToolbarSceneLayer::UpdateProgressBar(
     jint progress_bar_background_y,
     jint progress_bar_background_width,
     jint progress_bar_background_height,
-    jint progress_bar_background_color) {
+    jint progress_bar_background_color,
+    jint progress_bar_static_background_x,
+    jint progress_bar_static_background_width,
+    jint progress_bar_static_background_color,
+    jfloat corner_radius,
+    jboolean progress_bar_visual_update_available) {
   if (!toolbar_layer_)
     return;
   toolbar_layer_->UpdateProgressBar(
       progress_bar_x, progress_bar_y, progress_bar_width, progress_bar_height,
       progress_bar_color, progress_bar_background_x, progress_bar_background_y,
       progress_bar_background_width, progress_bar_background_height,
-      progress_bar_background_color);
+      progress_bar_background_color, progress_bar_static_background_x,
+      progress_bar_static_background_width,
+      progress_bar_static_background_color, corner_radius,
+      progress_bar_visual_update_available);
 }
 
 void TopToolbarSceneLayer::SetContentTree(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     const JavaParamRef<jobject>& jcontent_tree) {
   SceneLayer* content_tree = FromJavaObject(env, jcontent_tree);
   if (!content_tree || !content_tree->layer())

@@ -142,6 +142,10 @@ BOOL gUsingUnknownCapabilities;
   [self simulateDidTapCancel];
 }
 
+- (void)simulateDisappearingView {
+  [self dismissViewAnimated:NO];
+}
+
 #pragma mark - SystemIdentityInteractionManager
 
 - (void)startAuthActivityWithViewController:(UIViewController*)viewController
@@ -204,7 +208,10 @@ BOOL gUsingUnknownCapabilities;
   if (identity) {
     FakeSystemIdentityManager* manager = _manager.get();
     if (manager) {
-      if (gUsingUnknownCapabilities) {
+      if (manager->ContainsIdentity(identity)) {
+        manager->ClearPersistentAuthErrorForAccount(
+            CoreAccountId::FromGaiaId(GaiaId(identity.gaiaID)));
+      } else if (gUsingUnknownCapabilities) {
         manager->AddIdentityWithUnknownCapabilities(identity);
       } else {
         manager->AddIdentity(identity);
@@ -216,26 +223,31 @@ BOOL gUsingUnknownCapabilities;
     }
   }
 
-  [_authActivityViewController.presentingViewController
-      dismissViewControllerAnimated:animated
-                         completion:nil];
-  [self runCompletionCallbackWithError:error identity:identity];
-}
-
-- (void)runCompletionCallbackWithError:(NSError*)error
-                              identity:(id<SystemIdentity>)identity {
-  _authActivityViewController = nil;
+  [self dismissViewAnimated:animated];
   if (_signinCompletion) {
     SigninCompletionBlock signinCompletion = nil;
     std::swap(_signinCompletion, signinCompletion);
     signinCompletion(identity, error);
   }
-  _isActivityViewPresented = NO;
 }
 
 - (void)onActivityViewPresented {
   DCHECK(!_isActivityViewPresented);
   _isActivityViewPresented = YES;
+}
+
+- (void)onActivityViewDismissed {
+  _authActivityViewController = nil;
+  _isActivityViewPresented = NO;
+}
+
+- (void)dismissViewAnimated:(BOOL)animated {
+  __weak FakeSystemIdentityInteractionManager* weakSelf = self;
+  [_authActivityViewController.presentingViewController
+      dismissViewControllerAnimated:animated
+                         completion:^{
+                           [weakSelf onActivityViewDismissed];
+                         }];
 }
 
 @end

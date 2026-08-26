@@ -14,9 +14,24 @@ import {isVisible} from 'chrome-untrusted://webui-test/test_util.js';
 
 import {TestLensSidePanelBrowserProxy} from './test_side_panel_browser_proxy.js';
 
-suite('SearchboxBackButton', () => {
+suite('GhostLoaderState', () => {
   let testBrowserProxy: TestLensSidePanelBrowserProxy;
   let lensSidePanelElement: LensSidePanelAppElement;
+
+  function getSearchboxGhostLoaderElement(): HTMLElement {
+    const searchboxGhostLoaderElement =
+        lensSidePanelElement.shadowRoot!.querySelector<HTMLElement>(
+            'cr-searchbox-ghost-loader')!;
+    // The ghost loader loading UI can be replaced by a different UI if
+    // LensOverlayVisualSelectionUpdates is enabled. Grab the new UI if it
+    // exists, otherwise use the old UI.
+    const newLoadingState =
+        searchboxGhostLoaderElement.shadowRoot!.querySelector<HTMLElement>(
+            ':host([enable-csb-motion-tweaks]) .suggestion-loader-container');
+    return newLoadingState ??
+        searchboxGhostLoaderElement.shadowRoot!.querySelector<HTMLElement>(
+            '#loadingState')!;
+  }
 
   setup(async () => {
     testBrowserProxy = new TestLensSidePanelBrowserProxy();
@@ -62,8 +77,7 @@ suite('SearchboxBackButton', () => {
 
     await waitAfterNextRender(lensSidePanelElement);
     // Ghost loader should show on true empty input.
-    assertTrue(
-        isVisible(ghostLoader.shadowRoot!.getElementById('loadingState')));
+    assertTrue(isVisible(getSearchboxGhostLoaderElement()));
 
     lensSidePanelElement.dispatchEvent(new CustomEvent('query-autocomplete', {
       bubbles: true,
@@ -73,11 +87,10 @@ suite('SearchboxBackButton', () => {
 
     await waitAfterNextRender(lensSidePanelElement);
     // Ghost loader should not show when input is only whitespace.
-    assertFalse(
-        isVisible(ghostLoader.shadowRoot!.getElementById('loadingState')));
+    assertFalse(isVisible(getSearchboxGhostLoaderElement()));
   });
 
-  test('click resets ghost loader loading state', async () => {
+  test('query autocomplete resets ghost loader loading state', async () => {
     const ghostLoader = lensSidePanelElement.shadowRoot!
                             .querySelector<SearchboxGhostLoaderElement>(
                                 'cr-searchbox-ghost-loader')!;
@@ -87,14 +100,14 @@ suite('SearchboxBackButton', () => {
     assertTrue(isVisible(ghostLoader.shadowRoot!.getElementById('errorState')));
     // Click into the searchbox.
     lensSidePanelElement.$.searchbox.dispatchEvent(
-        new KeyboardEvent('mousedown', {
+        new CustomEvent('query-autocomplete', {
           bubbles: true,
-          cancelable: true,
+          composed: true,
+          detail: {inputValue: ''},
         }));
 
     await waitAfterNextRender(lensSidePanelElement);
     // State should be switched back to loading state clicking into searchbox.
-    assertTrue(
-        isVisible(ghostLoader.shadowRoot!.getElementById('loadingState')));
+    assertTrue(isVisible(getSearchboxGhostLoaderElement()));
   });
 });

@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "components/autofill/core/browser/data_model/addresses/autofill_feature_guarded_address_component.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
 #include "components/autofill/core/browser/field_types.h"
 
@@ -170,6 +169,8 @@ class NameLast : public AddressComponent {
 //
 class NameFull : public AddressComponent {
  public:
+  using AddressComponent::UnsetAddressComponentAndItsSubcomponents;
+
   NameFull();
   NameFull(const NameFull& other);
   ~NameFull() override;
@@ -202,7 +203,7 @@ class AlternativeNameAddressComponent : public AddressComponent {
   // Returns the value with all Katakana characters converted to Hiragana.
   std::u16string GetValueForComparison(
       const std::u16string& value,
-      const AddressComponent& other) const override;
+      const AddressCountryCode& common_country_code) const override;
 };
 
 // Atomic component that represents the first part of an alternative name(e.g.

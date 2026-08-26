@@ -16,6 +16,7 @@
 #include "api/async_dns_resolver.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
+#include "rtc_base/net_helpers.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
@@ -309,21 +310,5 @@ class SocketDispatcher : public Dispatcher, public PhysicalSocket {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::DE_ACCEPT;
-using ::webrtc::DE_CLOSE;
-using ::webrtc::DE_CONNECT;
-using ::webrtc::DE_READ;
-using ::webrtc::DE_WRITE;
-using ::webrtc::Dispatcher;
-using ::webrtc::DispatcherEvent;
-using ::webrtc::PhysicalSocket;
-using ::webrtc::PhysicalSocketServer;
-using ::webrtc::SocketDispatcher;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_PHYSICAL_SOCKET_SERVER_H_

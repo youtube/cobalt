@@ -38,11 +38,13 @@ void PreviewModeClient::DidScroll(const gfx::Vector2d& point) {
   NOTREACHED();
 }
 
-void PreviewModeClient::ScrollToX(int x_in_screen_coords) {
+void PreviewModeClient::ScrollToX(int x_in_screen_coords,
+                                  bool force_smooth_scroll) {
   NOTREACHED();
 }
 
-void PreviewModeClient::ScrollToY(int y_in_screen_coords) {
+void PreviewModeClient::ScrollToY(int y_in_screen_coords,
+                                  bool force_smooth_scroll) {
   NOTREACHED();
 }
 
@@ -172,6 +174,10 @@ bool PreviewModeClient::IsValidLink(const std::string& url) {
   NOTREACHED();
 }
 
+void PreviewModeClient::OnNewTextFragmentsSearchStarted() {
+  NOTREACHED();
+}
+
 #if BUILDFLAG(ENABLE_PDF_INK2)
 bool PreviewModeClient::IsInAnnotationMode() const {
   NOTREACHED();
@@ -184,6 +190,10 @@ void PreviewModeClient::OnSearchifyStateChange(bool busy) {
 }
 
 void PreviewModeClient::OnHasSearchifyText() {
+  NOTREACHED();
+}
+
+void PreviewModeClient::MaybeShowSearchifyInProgress() {
   NOTREACHED();
 }
 #endif

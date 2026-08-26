@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/rtp_rtcp_impl.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -99,7 +98,7 @@ ModuleRtpRtcpImpl::ModuleRtpRtcpImpl(const Environment& env,
 
   // Set default packet size limit.
   // TODO(nisse): Kind-of duplicates
-  // webrtc::VideoSendStream::Config::Rtp::kDefaultMaxPacketSize.
+  // VideoSendStream::Config::Rtp::kDefaultMaxPacketSize.
   const size_t kTcpOverIpv4HeaderSize = 40;
   SetMaxRtpPacketSize(IP_PACKET_SIZE - kTcpOverIpv4HeaderSize);
 }
@@ -593,14 +592,14 @@ int32_t ModuleRtpRtcpImpl::SendNACK(const uint16_t* nack_list,
   }
   nack_last_seq_number_sent_ = nack_list[start_id + nack_length - 1];
 
-  return rtcp_sender_.SendRTCP(GetFeedbackState(), kRtcpNack, nack_length,
-                               &nack_list[start_id]);
+  return rtcp_sender_.SendRTCP(
+      GetFeedbackState(), kRtcpNack,
+      MakeArrayView(&nack_list[start_id], nack_length));
 }
 
 void ModuleRtpRtcpImpl::SendNack(
     const std::vector<uint16_t>& sequence_numbers) {
-  rtcp_sender_.SendRTCP(GetFeedbackState(), kRtcpNack, sequence_numbers.size(),
-                        sequence_numbers.data());
+  rtcp_sender_.SendRTCP(GetFeedbackState(), kRtcpNack, sequence_numbers);
 }
 
 bool ModuleRtpRtcpImpl::TimeToSendFullNackList(int64_t now) const {

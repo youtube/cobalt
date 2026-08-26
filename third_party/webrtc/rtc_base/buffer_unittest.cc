@@ -10,11 +10,14 @@
 
 #include "rtc_base/buffer.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <utility>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "rtc_base/checks.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -25,10 +28,8 @@ namespace {
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
 
-// clang-format off
-const uint8_t kTestData[] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
-                             0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
-// clang-format on
+constexpr uint8_t kTestData[] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
+                                 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf};
 
 void TestBuf(const Buffer& b1, size_t size, size_t capacity) {
   EXPECT_EQ(b1.size(), size);

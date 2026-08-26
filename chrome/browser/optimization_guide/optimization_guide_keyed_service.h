@@ -13,15 +13,16 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
+#include "chrome/browser/optimization_guide/model_execution/optimization_guide_global_state.h"
 #include "chrome/browser/profiles/profile_observer.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_broker_client.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features_controller.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
-#include "components/optimization_guide/core/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/optimization_guide_on_device_capability_provider.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/optimization_guide/proto/model_execution.pb.h"
@@ -275,7 +276,6 @@ class OptimizationGuideKeyedService
   GetModelExecutionFeaturesController();
 
  private:
-  friend class BrowserView;
   friend class ChromeBrowserMainExtraPartsOptimizationGuide;
   friend class ChromeBrowsingDataRemoverDelegate;
   friend class contextual_cueing::ZeroStateSuggestionsPageData;
@@ -320,7 +320,7 @@ class OptimizationGuideKeyedService
 
   optimization_guide::OnDeviceModelComponentStateManager*
   GetComponentManager() {
-    return on_device_component_manager_.get();
+    return &optimization_guide_global_state_->component_state_manager();
   }
 
   optimization_guide::ModelExecutionManager* GetModelExecutionManager() {
@@ -357,10 +357,6 @@ class OptimizationGuideKeyedService
       std::optional<optimization_guide::proto::RequestContextMetadata>
           request_context_metadata = std::nullopt) override;
 
-  // Returns whether all conditions are met to show the IPH promo for
-  // experimental AI.
-  bool ShouldShowExperimentalAIPromo() const;
-
   download::BackgroundDownloadService* BackgroundDownloadServiceProvider();
 
   bool ComponentUpdatesEnabledProvider() const;
@@ -396,8 +392,8 @@ class OptimizationGuideKeyedService
   raw_ptr<OptimizationGuideLogger> optimization_guide_logger_;
 
   // Keep a reference to this so it stays alive.
-  scoped_refptr<optimization_guide::OnDeviceModelComponentStateManager>
-      on_device_component_manager_;
+  scoped_refptr<optimization_guide::OptimizationGuideGlobalState>
+      optimization_guide_global_state_;
 
   // The tab URL provider to use for fetching information for the user's active
   // tabs. Will be null if the user is off the record.

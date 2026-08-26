@@ -131,7 +131,8 @@ class MockPasswordManagerDriver : public StubPasswordManagerDriver {
               (override));
   MOCK_METHOD(void,
               FillField,
-              (const std::u16string&,
+              (autofill::FieldRendererId,
+               const std::u16string&,
                autofill::AutofillSuggestionTriggerSource),
               (override));
   MOCK_METHOD(const GURL&, GetLastCommittedURL, (), (const override));
@@ -621,7 +622,7 @@ TEST_F(PasswordManualFallbackFlowTest, AcceptUsernameFieldByFieldSuggestion) {
   EXPECT_CALL(
       driver(),
       FillField(
-          std::u16string(u"username@example.com"),
+          field_id, std::u16string(u"username@example.com"),
           autofill::AutofillSuggestionTriggerSource::kManualFallbackPasswords));
   EXPECT_CALL(
       autofill_client(),
@@ -953,7 +954,7 @@ TEST_F(PasswordManualFallbackFlowTest, FillsPasswordIfAuthNotAvailable) {
   EXPECT_CALL(
       driver(),
       FillField(
-          std::u16string(u"password"),
+          field_id, std::u16string(u"password"),
           autofill::AutofillSuggestionTriggerSource::kManualFallbackPasswords));
   ShowAndAcceptSuggestion(autofill::test::CreateAutofillSuggestion(
                               SuggestionType::kFillPassword, u"Fill password",
@@ -1072,7 +1073,51 @@ TEST_F(PasswordManualFallbackFlowTest, FillsPasswordIfAuthSucceeds) {
   EXPECT_CALL(
       driver(),
       FillField(
-          std::u16string(u"password"),
+          field_id, std::u16string(u"password"),
+          autofill::AutofillSuggestionTriggerSource::kManualFallbackPasswords));
+  base::HistogramTester histograms;
+  base::ScopedMockElapsedTimersForTest mock_elapsed_timers_;
+  ShowAndAcceptSuggestion(autofill::test::CreateAutofillSuggestion(
+                              SuggestionType::kFillPassword, u"Fill password",
+                              CreateTestPasswordDetails()),
+                          AutofillSuggestionDelegate::SuggestionMetadata{
+                              .row = 0, .sub_popup_level = 1});
+  const int64_t kMockElapsedTime =
+      base::ScopedMockElapsedTimersForTest::kMockElapsedTime.InMilliseconds();
+  histograms.ExpectUniqueSample(
+      "PasswordManager.PasswordFilling.AuthenticationResult", true, 1);
+  histograms.ExpectUniqueSample(
+      "PasswordManager.PasswordFilling.AuthenticationTime2", kMockElapsedTime,
+      1);
+}
+
+// Tests that authentication is requested when using fied-by-field filling to
+// fill a password value on a non password field.
+TEST_F(PasswordManualFallbackFlowTest,
+       RequestsAuthenticationWhenFillingdPasswordOnANonPasswordField) {
+  InitializeFlow();
+  ProcessPasswordStoreUpdates();
+
+  FieldRendererId field_id = MakeFieldRendererId();
+  flow().RunFlow(field_id, gfx::RectF{}, TextDirection::LEFT_TO_RIGHT);
+
+  auto authenticator =
+      std::make_unique<device_reauth::MockDeviceAuthenticator>();
+  EXPECT_CALL(*authenticator, AuthenticateWithMessage)
+      .WillOnce(RunOnceCallback<1>(/*auth_succeeded=*/true));
+
+  // Note that even when reauth before filling is not required, still asks for
+  // authentication when the field is not a password field but the value being
+  // filled is a password value.
+  EXPECT_CALL(password_manager_client(), IsReauthBeforeFillingRequired)
+      .WillOnce(Return(false));
+  EXPECT_CALL(password_manager_client(), GetDeviceAuthenticator)
+      .WillOnce(Return(testing::ByMove(std::move(authenticator))));
+
+  EXPECT_CALL(
+      driver(),
+      FillField(
+          field_id, std::u16string(u"password"),
           autofill::AutofillSuggestionTriggerSource::kManualFallbackPasswords));
   base::HistogramTester histograms;
   base::ScopedMockElapsedTimersForTest mock_elapsed_timers_;

@@ -21,6 +21,7 @@ class FeatureContext;
 // a single dimension.
 // When adding a new variable the string equivalent needs to be added to
 // |GetVariableName|.
+// LINT.IfChange(UADefinedVariable)
 enum class UADefinedVariable {
   // The safe area insets are four environment variables that define a
   // rectangle by its top, right, bottom, and left insets from the edge of
@@ -61,21 +62,17 @@ enum class UADefinedVariable {
   kTitlebarAreaWidth,
   kTitlebarAreaHeight,
 
-  // The context menu insets are four environment variables that define a
-  // rectangle by its top, right, bottom, and left insets from the edge of
-  // the viewport. These are used for the `interesttarget` attribute on mobile
-  // devices that display context menus, to indicate the still-unoccluded area
-  // of the screen while a context menu is visible.
-  // Explainer:
-  // https://open-ui.org/components/interest-invokers.explainer/#touchscreen
-  kContextMenuInsetTop,
-  kContextMenuInsetLeft,
-  kContextMenuInsetBottom,
-  kContextMenuInsetRight,
-
   // The text scale as chosen by the user in the OS accessibility settings.
-  kPreferredTextScale
+  kPreferredTextScale,
+
+  // Largest unprintable area inset along the four paper edges. Due to a
+  // printer's paper handling mechanism, there's usually a small region along
+  // the paper edges that the printer isn't capable of marking reliably.
+  //
+  // https://github.com/w3c/csswg-drafts/issues/11395
+  kSafePrintableInset,
 };
+// LINT.ThenChange(//third_party/blink/renderer/core/inspector/inspector_css_agent.cc:EnvironmentVariables)
 
 enum class UADefinedTwoDimensionalVariable {
   // The viewport segment variables describe logically distinct regions of the

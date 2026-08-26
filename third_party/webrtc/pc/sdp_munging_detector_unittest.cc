@@ -7,6 +7,7 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
+#include "pc/sdp_munging_detector.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -26,8 +27,6 @@
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
-#include "api/field_trials.h"
-#include "api/field_trials_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -52,6 +51,7 @@
 #include "media/base/media_constants.h"
 #include "media/base/stream_params.h"
 #include "p2p/base/transport_description.h"
+#include "pc/peer_connection.h"
 #include "pc/peer_connection_wrapper.h"
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/fake_rtc_certificate_generator.h"
@@ -60,6 +60,7 @@
 #include "rtc_base/strings/string_format.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -72,6 +73,7 @@
 
 namespace webrtc {
 
+using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::IsTrue;
 using ::testing::Pair;
@@ -116,7 +118,7 @@ class SdpMungingTest : public ::testing::Test {
   }
 
   std::unique_ptr<PeerConnectionWrapper> CreatePeerConnection(
-      std::unique_ptr<FieldTrialsView> field_trials = nullptr) {
+      absl::string_view field_trials = "") {
     RTCConfiguration config;
     config.sdp_semantics = SdpSemantics::kUnifiedPlan;
     return CreatePeerConnection(config, std::move(field_trials));
@@ -124,10 +126,10 @@ class SdpMungingTest : public ::testing::Test {
 
   std::unique_ptr<PeerConnectionWrapper> CreatePeerConnection(
       const RTCConfiguration& config,
-      std::unique_ptr<FieldTrialsView> field_trials) {
+      absl::string_view field_trials) {
     auto observer = std::make_unique<MockPeerConnectionObserver>();
     PeerConnectionDependencies pc_deps(observer.get());
-    pc_deps.trials = std::move(field_trials);
+    pc_deps.trials = CreateTestFieldTrialsPtr(field_trials);
     auto result =
         pc_factory_->CreatePeerConnectionOrError(config, std::move(pc_deps));
     EXPECT_TRUE(result.ok());
@@ -203,11 +205,143 @@ TEST_F(SdpMungingTest, DISABLED_ReportUMAMetricsWithNoMunging) {
               ElementsAre(Pair(SdpMungingType::kNoModification, 1)));
 }
 
+TEST_F(SdpMungingTest, AllowWithDenyListForRollout) {
+  // Don't munge and you are good.
+  EXPECT_TRUE(IsSdpMungingAllowed(SdpMungingType::kNoModification,
+                                  CreateTestFieldTrials()));
+  // Empty string (default) means everything is allowed from the perspective of
+  // the trial.
+  EXPECT_TRUE(IsSdpMungingAllowed(SdpMungingType::kUnknownModification,
+                                  CreateTestFieldTrials()));
+
+  // Deny list is set, modification on deny list is rejected.
+  EXPECT_FALSE(IsSdpMungingAllowed(
+      SdpMungingType::kUnknownModification /*=1*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleReject/Enabled,1/")));
+
+  // Deny list is set, modification not on deny list is allowed.
+  EXPECT_TRUE(IsSdpMungingAllowed(
+      SdpMungingType::kWithoutCreateAnswer /*=2*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleReject/Enabled,1/")));
+
+  // Split by comma.
+  EXPECT_FALSE(IsSdpMungingAllowed(
+      SdpMungingType::kUnknownModification /*=1*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleReject/Enabled,1,2/")));
+  EXPECT_FALSE(IsSdpMungingAllowed(
+      SdpMungingType::kWithoutCreateAnswer /*=2*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleReject/Enabled,1,2/")));
+  EXPECT_TRUE(IsSdpMungingAllowed(
+      SdpMungingType::kWithoutCreateOffer /*=3*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleReject/Enabled,1,2,4/")));
+}
+
+TEST_F(SdpMungingTest, DenyWithAllowListForTesting) {
+  // Don't munge and you are good.
+  EXPECT_TRUE(IsSdpMungingAllowed(SdpMungingType::kNoModification,
+                                  CreateTestFieldTrials()));
+  // Empty string (default) means everything is allowed from the perspective of
+  // the trial.
+  EXPECT_TRUE(IsSdpMungingAllowed(SdpMungingType::kUnknownModification,
+                                  CreateTestFieldTrials()));
+
+  // Allow-list is set, modification is on allow list.
+  EXPECT_TRUE(IsSdpMungingAllowed(
+      SdpMungingType::kUnknownModification /*=1*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1/")));
+
+  // Allow-list is set, modification is not on allow list.
+  EXPECT_FALSE(IsSdpMungingAllowed(
+      SdpMungingType::kWithoutCreateAnswer /*=2*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1/")));
+
+  // Split by comma.
+  EXPECT_TRUE(IsSdpMungingAllowed(
+      SdpMungingType::kUnknownModification /*=1*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1,2/")));
+  EXPECT_TRUE(IsSdpMungingAllowed(
+      SdpMungingType::kWithoutCreateAnswer /*=2*/,
+      CreateTestFieldTrials("WebRTC-NoSdpMangleAllowForTesting/Enabled,1,2/")));
+  EXPECT_FALSE(IsSdpMungingAllowed(
+      SdpMungingType::kWithoutCreateOffer /*=3*/,
+      CreateTestFieldTrials(
+          "WebRTC-NoSdpMangleAllowForTesting/Enabled,1,2,4/")));
+}
+
+TEST_F(SdpMungingTest, AllowListAcceptsUnmunged) {
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangle/Enabled/");
+  pc->AddAudioTrack("audio_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+}
+
+TEST_F(SdpMungingTest, DenyListAcceptsUnmunged) {
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangleAllowForTesting/Enabled/");
+  pc->AddAudioTrack("audio_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+}
+
+TEST_F(SdpMungingTest, DenyListThrows) {
+  // This test needs to use a feature that is not throwing by default.
+  // kAudioCodecsFmtpOpusStereo=68 is going to stay with us for quite a while.
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangleAllowForTesting/Enabled/");
+  pc->AddAudioTrack("audio_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_EQ(contents.size(), 1u);
+  auto* media_description = contents[0].media_description();
+  ASSERT_TRUE(media_description);
+  std::vector<Codec> codecs = media_description->codecs();
+  for (auto& codec : codecs) {
+    if (codec.name == kOpusCodecName) {
+      codec.SetParam(kCodecParamStereo, kParamValueTrue);
+    }
+  }
+  media_description->set_codecs(codecs);
+  RTCError error;
+  EXPECT_FALSE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kAudioCodecsFmtpOpusStereo, 1)));
+}
+
+TEST_F(SdpMungingTest, DenyListExceptionDoesNotThrow) {
+  // This test needs to use a feature that is not throwing by default.
+  // kAudioCodecsFmtpOpusStereo=68 is going to stay with us for quite a while.
+  auto pc =
+      CreatePeerConnection("WebRTC-NoSdpMangleAllowForTesting/Enabled,68/");
+  pc->AddAudioTrack("audio_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_EQ(contents.size(), 1u);
+  auto* media_description = contents[0].media_description();
+  ASSERT_TRUE(media_description);
+  std::vector<Codec> codecs = media_description->codecs();
+  for (auto& codec : codecs) {
+    if (codec.name == kOpusCodecName) {
+      codec.SetParam(kCodecParamStereo, kParamValueTrue);
+    }
+  }
+  media_description->set_codecs(codecs);
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kAudioCodecsFmtpOpusStereo, 1)));
+}
+
 TEST_F(SdpMungingTest, InitialSetLocalDescriptionWithoutCreateOffer) {
   RTCConfiguration config;
   config.certificates.push_back(
       FakeRTCCertificateGenerator::GenerateCertificate());
-  auto pc = CreatePeerConnection(config, nullptr);
+  auto pc = CreatePeerConnection(config, /*field_trials=*/"");
   std::string sdp =
       "v=0\r\n"
       "o=- 0 3 IN IP4 127.0.0.1\r\n"
@@ -218,7 +352,8 @@ TEST_F(SdpMungingTest, InitialSetLocalDescriptionWithoutCreateOffer) {
       "a=setup:actpass\r\n"
       "a=ice-ufrag:ETEn\r\n"
       "a=ice-pwd:OtSK0WpNtpUjkY4+86js7Z/l\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   RTCError error;
   EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
   EXPECT_THAT(
@@ -230,7 +365,7 @@ TEST_F(SdpMungingTest, InitialSetLocalDescriptionWithoutCreateAnswer) {
   RTCConfiguration config;
   config.certificates.push_back(
       FakeRTCCertificateGenerator::GenerateCertificate());
-  auto pc = CreatePeerConnection(config, nullptr);
+  auto pc = CreatePeerConnection(config, /*field_trials=*/"");
   std::string sdp =
       "v=0\r\n"
       "o=- 0 3 IN IP4 127.0.0.1\r\n"
@@ -247,11 +382,13 @@ TEST_F(SdpMungingTest, InitialSetLocalDescriptionWithoutCreateAnswer) {
       "a=sendrecv\r\n"
       "a=mid:0\r\n"
       "a=rtpmap:111 opus/48000/2\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
 
   RTCError error;
-  auto answer = CreateSessionDescription(SdpType::kAnswer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      CreateSessionDescription(SdpType::kAnswer, sdp);
   answer->description()->transport_infos()[0].description.connection_role =
       CONNECTIONROLE_ACTIVE;
   EXPECT_TRUE(pc->SetLocalDescription(std::move(answer), &error));
@@ -261,11 +398,10 @@ TEST_F(SdpMungingTest, InitialSetLocalDescriptionWithoutCreateAnswer) {
 }
 
 TEST_F(SdpMungingTest, IceUfrag) {
-  auto pc = CreatePeerConnection(
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfrag/Enabled/"));
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangleUfrag/Enabled/");
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
   transport_infos[0].description.ice_ufrag =
@@ -285,11 +421,10 @@ TEST_F(SdpMungingTest, IceUfrag) {
 }
 
 TEST_F(SdpMungingTest, IceUfragCheckDisabledByFieldTrial) {
-  auto pc = CreatePeerConnection(
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfrag/Disabled/"));
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangleUfrag/Disabled/");
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
   transport_infos[0].description.ice_ufrag =
@@ -313,7 +448,7 @@ TEST_F(SdpMungingTest, IceUfragWithCheckDisabledForTesting) {
   pc->GetInternalPeerConnection()->DisableSdpMungingChecksForTesting();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
   transport_infos[0].description.ice_ufrag =
@@ -326,11 +461,10 @@ TEST_F(SdpMungingTest, IceUfragWithCheckDisabledForTesting) {
 }
 
 TEST_F(SdpMungingTest, IcePwdCheckDisabledByFieldTrial) {
-  auto pc = CreatePeerConnection(
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfrag/Disabled/"));
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangleUfrag/Disabled/");
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
   transport_infos[0].description.ice_pwd = "amungedicepwdthisshouldberejected";
@@ -348,11 +482,10 @@ TEST_F(SdpMungingTest, IcePwdCheckDisabledByFieldTrial) {
 }
 
 TEST_F(SdpMungingTest, IcePwd) {
-  auto pc = CreatePeerConnection(
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfrag/Enabled/"));
+  auto pc = CreatePeerConnection("WebRTC-NoSdpMangleUfrag/Enabled/");
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
   transport_infos[0].description.ice_pwd = "amungedicepwdthisshouldberejected";
@@ -373,13 +506,13 @@ TEST_F(SdpMungingTest, IceUfragRestrictedAddresses) {
   RTCConfiguration config;
   config.certificates.push_back(
       FakeRTCCertificateGenerator::GenerateCertificate());
-  auto caller = CreatePeerConnection(
-      config,
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfragRestrictedAddresses/"
-                                  "127.0.0.1:12345|127.0.0.*:23456|*:34567/"));
+  auto caller =
+      CreatePeerConnection(config,
+                           "WebRTC-NoSdpMangleUfragRestrictedAddresses/"
+                           "127.0.0.1:12345|127.0.0.*:23456|*:34567/");
   auto callee = CreatePeerConnection();
   caller->AddAudioTrack("audio_track", {});
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
   transport_infos[0].description.ice_ufrag = "amungediceufrag";
@@ -387,7 +520,7 @@ TEST_F(SdpMungingTest, IceUfragRestrictedAddresses) {
   EXPECT_TRUE(caller->SetLocalDescription(offer->Clone()));
   EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   EXPECT_TRUE(callee->SetLocalDescription(answer->Clone()));
   EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
 
@@ -408,7 +541,7 @@ TEST_F(SdpMungingTest, IceUfragRestrictedAddresses) {
     const std::string candidate = StringFormat(
         tmpl, absl::StrReplaceAll(address_test.first, {{":", " "}}).c_str());
     caller->pc()->AddIceCandidate(
-        std::unique_ptr<IceCandidateInterface>(
+        std::unique_ptr<IceCandidate>(
             CreateIceCandidate("", 0, candidate, nullptr)),
         [&result](RTCError error) { result = error; });
 
@@ -440,14 +573,14 @@ TEST_F(SdpMungingTest, IceUfragSdpRejectedAndRestrictedAddresses) {
   RTCConfiguration config;
   config.certificates.push_back(
       FakeRTCCertificateGenerator::GenerateCertificate());
-  auto caller = CreatePeerConnection(
-      config,
-      FieldTrials::CreateNoGlobal("WebRTC-NoSdpMangleUfragRestrictedAddresses/"
-                                  "127.0.0.1:12345|127.0.0.*:23456|*:34567/"
-                                  "WebRTC-NoSdpMangleUfrag/Enabled/"));
+  auto caller =
+      CreatePeerConnection(config,
+                           "WebRTC-NoSdpMangleUfragRestrictedAddresses/"
+                           "127.0.0.1:12345|127.0.0.*:23456|*:34567/"
+                           "WebRTC-NoSdpMangleUfrag/Enabled/");
   auto callee = CreatePeerConnection();
   caller->AddAudioTrack("audio_track", {});
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
   transport_infos[0].description.ice_ufrag = "amungediceufrag";
@@ -468,7 +601,7 @@ TEST_F(SdpMungingTest, IceMode) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
   transport_infos[0].description.ice_mode = ICEMODE_LITE;
@@ -483,7 +616,7 @@ TEST_F(SdpMungingTest, IceOptions) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
   transport_infos[0].description.transport_options.push_back(
@@ -499,9 +632,11 @@ TEST_F(SdpMungingTest, IceOptionsRenomination) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
+  ASSERT_THAT(transport_infos[0].description.transport_options,
+              ElementsAre("trickle"));
   transport_infos[0].description.transport_options.push_back(
       ICE_OPTION_RENOMINATION);
   RTCError error;
@@ -511,11 +646,29 @@ TEST_F(SdpMungingTest, IceOptionsRenomination) {
       ElementsAre(Pair(SdpMungingType::kIceOptionsRenomination, 1)));
 }
 
-TEST_F(SdpMungingTest, DtlsRole) {
+TEST_F(SdpMungingTest, IceOptionsTrickle) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
   auto offer = pc->CreateOffer();
+  auto& transport_infos = offer->description()->transport_infos();
+  ASSERT_EQ(transport_infos.size(), 1u);
+  ASSERT_THAT(transport_infos[0].description.transport_options,
+              ElementsAre("trickle"));
+  transport_infos[0].description.transport_options.clear();
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kIceOptionsTrickle, 1)));
+}
+
+TEST_F(SdpMungingTest, DtlsRole) {
+  auto pc = CreatePeerConnection();
+  pc->AddAudioTrack("audio_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& transport_infos = offer->description()->transport_infos();
   ASSERT_EQ(transport_infos.size(), 1u);
   transport_infos[0].description.connection_role = CONNECTIONROLE_PASSIVE;
@@ -530,7 +683,7 @@ TEST_F(SdpMungingTest, RemoveContentDefault) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto name = contents[0].mid();
@@ -555,11 +708,11 @@ TEST_F(SdpMungingTest, RemoveContentDefault) {
 }
 
 TEST_F(SdpMungingTest, RemoveContentKillswitch) {
-  auto pc = CreatePeerConnection(FieldTrials::CreateNoGlobal(
-      "WebRTC-NoSdpMangleNumberOfContents/Disabled/"));
+  auto pc =
+      CreatePeerConnection("WebRTC-NoSdpMangleNumberOfContents/Disabled/");
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto name = contents[0].mid();
@@ -587,7 +740,7 @@ TEST_F(SdpMungingTest, TransceiverDirection) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
 
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
@@ -610,7 +763,7 @@ TEST_F(SdpMungingTest, Mid) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   std::string name(contents[0].mid());
@@ -637,7 +790,7 @@ TEST_F(SdpMungingTest, LegacySimulcast) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -669,7 +822,7 @@ TEST_F(SdpMungingTest, H264SpsPpsIdrInKeyFrame) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -695,7 +848,7 @@ TEST_F(SdpMungingTest, OpusStereo) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -718,7 +871,7 @@ TEST_F(SdpMungingTest, OpusFec) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -742,7 +895,7 @@ TEST_F(SdpMungingTest, OpusDtx) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -765,7 +918,7 @@ TEST_F(SdpMungingTest, OpusCbr) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -788,7 +941,7 @@ TEST_F(SdpMungingTest, AudioCodecsRemoved) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -807,7 +960,7 @@ TEST_F(SdpMungingTest, AudioCodecsAdded) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -828,7 +981,7 @@ TEST_F(SdpMungingTest, VideoCodecsRemoved) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -847,7 +1000,7 @@ TEST_F(SdpMungingTest, VideoCodecsAdded) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -868,7 +1021,7 @@ TEST_F(SdpMungingTest, VideoCodecsAddedWithRawPacketization) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -891,7 +1044,7 @@ TEST_F(SdpMungingTest, VideoCodecsModifiedWithRawPacketization) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -912,7 +1065,7 @@ TEST_F(SdpMungingTest, MultiOpus) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -937,7 +1090,7 @@ TEST_F(SdpMungingTest, L16) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -960,7 +1113,7 @@ TEST_F(SdpMungingTest, AudioSsrc) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -979,7 +1132,7 @@ TEST_F(SdpMungingTest, HeaderExtensionAdded) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -999,12 +1152,12 @@ TEST_F(SdpMungingTest, HeaderExtensionRemoved) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
   ASSERT_TRUE(media_description);
-  media_description->ClearRtpHeaderExtensions();
+  media_description->set_rtp_header_extensions({});
 
   RTCError error;
   EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
@@ -1017,7 +1170,7 @@ TEST_F(SdpMungingTest, HeaderExtensionModified) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -1038,7 +1191,7 @@ TEST_F(SdpMungingTest, PayloadTypeChanged) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -1059,7 +1212,7 @@ TEST_F(SdpMungingTest, AudioCodecsReordered) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -1080,7 +1233,7 @@ TEST_F(SdpMungingTest, VideoCodecsReordered) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -1101,7 +1254,7 @@ TEST_F(SdpMungingTest, AudioCodecsFmtp) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -1122,7 +1275,7 @@ TEST_F(SdpMungingTest, VideoCodecsFmtp) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -1143,7 +1296,7 @@ TEST_F(SdpMungingTest, AudioCodecsRtcpFb) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -1164,7 +1317,7 @@ TEST_F(SdpMungingTest, AudioCodecsRtcpFbNack) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -1185,7 +1338,7 @@ TEST_F(SdpMungingTest, AudioCodecsRtcpFbRrtr) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -1202,11 +1355,53 @@ TEST_F(SdpMungingTest, AudioCodecsRtcpFbRrtr) {
       ElementsAre(Pair(SdpMungingType::kAudioCodecsRtcpFbRrtr, 1)));
 }
 
+TEST_F(SdpMungingTest, RtcpMux) {
+  RTCConfiguration config;
+  config.rtcp_mux_policy = PeerConnection::kRtcpMuxPolicyNegotiate;
+  auto pc = CreatePeerConnection(config, /*field_trials=*/"");
+  // rtcp-mux is required by BUNDLE so set a remote description without BUNDLE
+  // and then remove rtcp-mux from the answer.
+  std::string sdp =
+      "v=0\r\n"
+      "o=- 0 3 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=fingerprint:sha-1 "
+      "D9:AB:00:AA:12:7B:62:54:CF:AD:3B:55:F7:60:BC:F3:40:A7:0B:5B\r\n"
+      "a=setup:actpass\r\n"
+      "a=ice-ufrag:ETEn\r\n"
+      "a=ice-pwd:OtSK0WpNtpUjkY4+86js7Z/l\r\n"
+      "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=rtcp-mux\r\n"
+      "a=sendrecv\r\n"
+      "a=mid:0\r\n"
+      "a=rtpmap:111 opus/48000/2\r\n";
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
+  EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
+
+  std::unique_ptr<SessionDescriptionInterface> answer = pc->CreateAnswer();
+  auto& contents = answer->description()->contents();
+  ASSERT_EQ(contents.size(), 1u);
+  auto* media_description = contents[0].media_description();
+  ASSERT_TRUE(media_description);
+  EXPECT_TRUE(media_description->rtcp_mux());
+  media_description->set_rtcp_mux(false);
+  // BUNDLE needs to be disabled too for this to work.
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(answer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Answer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kRtcpMux, 1)));
+}
+
 TEST_F(SdpMungingTest, VideoCodecsRtcpFb) {
   auto pc = CreatePeerConnection();
   pc->AddVideoTrack("video_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& contents = offer->description()->contents();
   ASSERT_EQ(contents.size(), 1u);
   auto* media_description = contents[0].media_description();
@@ -1221,6 +1416,44 @@ TEST_F(SdpMungingTest, VideoCodecsRtcpFb) {
   EXPECT_THAT(
       metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
       ElementsAre(Pair(SdpMungingType::kVideoCodecsRtcpFb, 1)));
+}
+
+TEST_F(SdpMungingTest, AudioCodecsRtcpReducedSize) {
+  auto pc = CreatePeerConnection();
+  pc->AddAudioTrack("audio_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_EQ(contents.size(), 1u);
+  auto* media_description = contents[0].media_description();
+  ASSERT_TRUE(media_description);
+  EXPECT_TRUE(media_description->rtcp_reduced_size());
+  media_description->set_rtcp_reduced_size(false);
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kAudioCodecsRtcpReducedSize, 1)));
+}
+
+TEST_F(SdpMungingTest, VideoCodecsRtcpReducedSize) {
+  auto pc = CreatePeerConnection();
+  pc->AddVideoTrack("video_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  auto& contents = offer->description()->contents();
+  ASSERT_EQ(contents.size(), 1u);
+  auto* media_description = contents[0].media_description();
+  ASSERT_TRUE(media_description);
+  EXPECT_TRUE(media_description->rtcp_reduced_size());
+  media_description->set_rtcp_reduced_size(false);
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kVideoCodecsRtcpReducedSize, 1)));
 }
 
 }  // namespace webrtc

@@ -32,6 +32,7 @@
 #include "chrome/browser/predictors/autocomplete_action_predictor_factory.h"
 #include "chrome/browser/preloading/chrome_preloading.h"
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_test_utils.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/task_manager/task_manager_browsertest_util.h"
 #include "chrome/browser/ui/browser.h"
@@ -482,6 +483,10 @@ class NoStatePrefetchBrowserTest
   base::SimpleTestTickClock clock_;
 
  private:
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
   base::ScopedMockElapsedTimersForTest test_timer_;
   // Disable sampling of UKM preloading logs.
   content::test::PreloadingConfigOverride preloading_config_override_;
@@ -1098,6 +1103,30 @@ IN_PROC_BROWSER_TEST_F(NoStatePrefetchBrowserTest, PurposeHeaderIsSet) {
         request->cors_exempt_headers.HasHeader(blink::kPurposeHeaderName));
     EXPECT_EQ(blink::kSecPurposePrefetchHeaderValue,
               request->cors_exempt_headers.GetHeader(blink::kPurposeHeaderName)
+                  .value_or(std::string()));
+  }
+}
+
+// Check that prefetched resources and subresources set the 'Sec-Purpose:
+// prefetch' header.
+IN_PROC_BROWSER_TEST_F(NoStatePrefetchBrowserTest, SecPurposeHeaderIsSet) {
+  GURL prefetch_page = src_server()->GetURL(kPrefetchPage);
+  GURL prefetch_script = src_server()->GetURL(kPrefetchScript);
+
+  content::URLLoaderMonitor monitor({prefetch_page, prefetch_script});
+
+  std::unique_ptr<TestPrerender> test_prerender =
+      PrefetchFromFile(kPrefetchPage, FINAL_STATUS_NOSTATE_PREFETCH_FINISHED);
+  WaitForRequestCount(prefetch_page, 1);
+  WaitForRequestCount(prefetch_script, 1);
+  monitor.WaitForUrls();
+  for (const GURL& url : {prefetch_page, prefetch_script}) {
+    std::optional<network::ResourceRequest> request =
+        monitor.GetRequestInfo(url);
+    EXPECT_TRUE(request->load_flags & net::LOAD_PREFETCH);
+    EXPECT_TRUE(request->headers.HasHeader(blink::kSecPurposeHeaderName));
+    EXPECT_EQ(blink::kSecPurposePrefetchHeaderValue,
+              request->headers.GetHeader(blink::kSecPurposeHeaderName)
                   .value_or(std::string()));
   }
 }

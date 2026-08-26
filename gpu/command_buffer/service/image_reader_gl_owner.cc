@@ -62,8 +62,6 @@ bool IsSurfaceControl(TextureOwner::Mode mode) {
       return true;
     case TextureOwner::Mode::kAImageReaderInsecure:
       return false;
-    case TextureOwner::Mode::kSurfaceTextureInsecure:
-      NOTREACHED();
   }
   NOTREACHED();
 }

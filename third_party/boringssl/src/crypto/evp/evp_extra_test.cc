@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <openssl/evp.h>
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1004,6 +1006,7 @@ static void ExpectECGroupOnly(const EVP_PKEY *pkey, int nid) {
   const EC_GROUP *group = EC_KEY_get0_group(ec);
   ASSERT_TRUE(group);
   EXPECT_EQ(nid, EC_GROUP_get_curve_name(group));
+  EXPECT_EQ(nid, EVP_PKEY_get_ec_curve_nid(pkey));
   EXPECT_FALSE(EC_KEY_get0_public_key(ec));
   EXPECT_FALSE(EC_KEY_get0_private_key(ec));
 }
@@ -1014,6 +1017,7 @@ static void ExpectECGroupAndKey(const EVP_PKEY *pkey, int nid) {
   const EC_GROUP *group = EC_KEY_get0_group(ec);
   ASSERT_TRUE(group);
   EXPECT_EQ(nid, EC_GROUP_get_curve_name(group));
+  EXPECT_EQ(nid, EVP_PKEY_get_ec_curve_nid(pkey));
   EXPECT_TRUE(EC_KEY_get0_public_key(ec));
   EXPECT_TRUE(EC_KEY_get0_private_key(ec));
 }
@@ -1306,4 +1310,18 @@ TEST(EVPExtraTest, RawKeyUnsupported) {
       EVP_PKEY_new_raw_public_key(EVP_PKEY_RSA, nullptr, kKey, sizeof(kKey)));
   EXPECT_FALSE(
       EVP_PKEY_new_raw_private_key(EVP_PKEY_RSA, nullptr, kKey, sizeof(kKey)));
+}
+
+// The default salt length for PSS should be |RSA_PSS_SALTLEN_DIGEST|.
+TEST(EVPExtraTest, PSSDefaultSaltLen) {
+  bssl::UniquePtr<EVP_PKEY> key = LoadExampleRSAKey();
+  ASSERT_TRUE(key);
+  bssl::ScopedEVP_MD_CTX ctx;
+  EVP_PKEY_CTX *pctx;
+  ASSERT_TRUE(
+      EVP_DigestSignInit(ctx.get(), &pctx, EVP_sha256(), nullptr, key.get()));
+  ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING));
+  int salt_len;
+  ASSERT_TRUE(EVP_PKEY_CTX_get_rsa_pss_saltlen(pctx, &salt_len));
+  EXPECT_EQ(salt_len, RSA_PSS_SALTLEN_DIGEST);
 }

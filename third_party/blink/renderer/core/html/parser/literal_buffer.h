@@ -16,6 +16,7 @@
 #include "base/containers/span.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partitions.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string_encoding.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
@@ -33,9 +34,9 @@
 // it avoids unnecessary register spills. See https://crbug.com/1205338.
 // Use one of the concrete implementations: LCharLiteralBuffer or
 // UCharLiteralBuffer.
-template <typename T, wtf_size_t kInlineSize>
+template <typename T, blink::wtf_size_t kInlineSize>
 class LiteralBufferBase {
-  static_assert(std::is_same<LChar, T>::value || std::is_same<UChar, T>::value,
+  static_assert(std::is_same_v<blink::LChar, T> || std::is_same_v<UChar, T>,
                 "T must be a character type");
 
  public:
@@ -43,12 +44,12 @@ class LiteralBufferBase {
 
   ~LiteralBufferBase() {
     if (!is_stored_inline())
-      WTF::Partitions::BufferFree(begin_);
+      blink::Partitions::BufferFree(begin_);
   }
 
   ALWAYS_INLINE const T* data() const { return begin_; }
-  ALWAYS_INLINE wtf_size_t size() const {
-    return base::checked_cast<wtf_size_t>(end_ - begin_);
+  ALWAYS_INLINE blink::wtf_size_t size() const {
+    return base::checked_cast<blink::wtf_size_t>(end_ - begin_);
   }
 
   // Iterators, so this type meets the requirements of
@@ -62,7 +63,7 @@ class LiteralBufferBase {
 
   ALWAYS_INLINE bool IsEmpty() const { return begin_ == end_; }
 
-  ALWAYS_INLINE const T& operator[](wtf_size_t index) const {
+  ALWAYS_INLINE const T& operator[](blink::wtf_size_t index) const {
     CHECK_GT(size(), index);
     // SAFETY: Check above.
     return UNSAFE_BUFFERS(begin_[index]);
@@ -81,7 +82,7 @@ class LiteralBufferBase {
     UNSAFE_TODO(*end_++) = val;
   }
 
-  template <typename OtherT, wtf_size_t kOtherSize>
+  template <typename OtherT, blink::wtf_size_t kOtherSize>
   void AppendLiteralImpl(const LiteralBufferBase<OtherT, kOtherSize>& val) {
     static_assert(sizeof(T) >= sizeof(OtherT),
                   "T is not big enough to contain OtherT");
@@ -93,14 +94,14 @@ class LiteralBufferBase {
     UNSAFE_TODO(end_ += count);
   }
 
-  template <wtf_size_t kOtherInlineSize>
+  template <blink::wtf_size_t kOtherInlineSize>
   void Copy(const LiteralBufferBase<T, kOtherInlineSize>& other) {
-    wtf_size_t other_size = other.size();
+    blink::wtf_size_t other_size = other.size();
     if (capacity() < other_size) {
       // Create large-enough heap-allocated storage.
       if (!is_stored_inline())
-        WTF::Partitions::BufferFree(begin_);
-      begin_ = static_cast<T*>(WTF::Partitions::BufferMalloc(
+        blink::Partitions::BufferFree(begin_);
+      begin_ = static_cast<T*>(blink::Partitions::BufferMalloc(
           AllocationSize(other_size), "LiteralBufferBase"));
       end_of_storage_ = UNSAFE_TODO(begin_ + other_size);
     }
@@ -112,7 +113,7 @@ class LiteralBufferBase {
     DCHECK_NE(this, &other);
     if (!other.is_stored_inline()) {
       if (!is_stored_inline())
-        WTF::Partitions::BufferFree(begin_);
+        blink::Partitions::BufferFree(begin_);
       begin_ = other.begin_;
       end_ = other.end_;
       end_of_storage_ = other.end_of_storage_;
@@ -122,7 +123,7 @@ class LiteralBufferBase {
           UNSAFE_TODO(other.begin_ + BUFFER_INLINE_CAPACITY);
     } else {
       DCHECK_GE(capacity(), other.size());  // Sanity check.
-      wtf_size_t other_size = other.size();
+      blink::wtf_size_t other_size = other.size();
       std::copy_n(other.data(), other_size, begin_);
       end_ = UNSAFE_TODO(begin_ + other_size);
     }
@@ -130,7 +131,7 @@ class LiteralBufferBase {
 
  private:
   size_t AllocationSize(size_t capacity) {
-    return WTF::PartitionAllocator::QuantizedSize<T>(capacity);
+    return blink::PartitionAllocator::QuantizedSize<T>(capacity);
   }
 
   ALWAYS_INLINE size_t capacity() const { return end_of_storage_ - begin_; }
@@ -159,11 +160,11 @@ class LiteralBufferBase {
     size_t in_use = end_ - begin_;
     size_t new_capacity =
         RoundUpToPowerOfTwo(std::max(min_capacity, 2 * capacity()));
-    T* new_storage = static_cast<T*>(WTF::Partitions::BufferMalloc(
+    T* new_storage = static_cast<T*>(blink::Partitions::BufferMalloc(
         AllocationSize(new_capacity), "LiteralBufferBase"));
     std::copy_n(begin_, in_use, new_storage);
     if (!is_stored_inline())
-      WTF::Partitions::BufferFree(begin_);
+      blink::Partitions::BufferFree(begin_);
     begin_ = new_storage;
     end_ = UNSAFE_TODO(new_storage + in_use);
     end_of_storage_ = UNSAFE_TODO(new_storage + new_capacity);
@@ -180,8 +181,8 @@ class LiteralBufferBase {
   T inline_storage[BUFFER_INLINE_CAPACITY];
 };
 
-template <wtf_size_t kInlineSize>
-class LCharLiteralBuffer : public LiteralBufferBase<LChar, kInlineSize> {
+template <blink::wtf_size_t kInlineSize>
+class LCharLiteralBuffer : public LiteralBufferBase<blink::LChar, kInlineSize> {
  public:
   LCharLiteralBuffer() = default;
   LCharLiteralBuffer(const LCharLiteralBuffer& other) { *this = other; }
@@ -189,7 +190,7 @@ class LCharLiteralBuffer : public LiteralBufferBase<LChar, kInlineSize> {
 
   ~LCharLiteralBuffer() = default;
 
-  template <wtf_size_t kOtherInlineSize>
+  template <blink::wtf_size_t kOtherInlineSize>
   LCharLiteralBuffer& operator=(
       const LCharLiteralBuffer<kOtherInlineSize>& other) {
     if (this->data() != other.data())
@@ -206,12 +207,12 @@ class LCharLiteralBuffer : public LiteralBufferBase<LChar, kInlineSize> {
   // Clear without freeing any storage.
   ALWAYS_INLINE void clear() { this->ClearImpl(); }
 
-  ALWAYS_INLINE void AddChar(LChar val) { this->AddCharImpl(val); }
+  ALWAYS_INLINE void AddChar(blink::LChar val) { this->AddCharImpl(val); }
 
-  String AsString() const { return String(*this); }
+  blink::String AsString() const { return blink::String(*this); }
 };
 
-template <wtf_size_t kInlineSize>
+template <blink::wtf_size_t kInlineSize>
 class UCharLiteralBuffer : public LiteralBufferBase<UChar, kInlineSize> {
  public:
   UCharLiteralBuffer() = default;
@@ -220,7 +221,7 @@ class UCharLiteralBuffer : public LiteralBufferBase<UChar, kInlineSize> {
 
   ~UCharLiteralBuffer() = default;
 
-  template <wtf_size_t kOtherInlineSize>
+  template <blink::wtf_size_t kOtherInlineSize>
   UCharLiteralBuffer& operator=(
       const UCharLiteralBuffer<kOtherInlineSize>& other) {
     if (this->data() == other.data())
@@ -258,22 +259,22 @@ class UCharLiteralBuffer : public LiteralBufferBase<UChar, kInlineSize> {
     bitwise_or_all_chars_ |= val;
   }
 
-  template <wtf_size_t kOtherSize>
+  template <blink::wtf_size_t kOtherSize>
   void AppendLiteral(const LCharLiteralBuffer<kOtherSize>& val) {
     this->AppendLiteralImpl(val);
   }
 
-  String AsString() const {
+  blink::String AsString() const {
     if (Is8Bit()) {
-      return String::Make8BitFrom16BitSource(base::span(*this));
+      return blink::String::Make8BitFrom16BitSource(base::span(*this));
     }
-    return String(*this);
+    return blink::String(*this);
   }
 
-  AtomicString AsAtomicString() const {
-    return AtomicString(*this, Is8Bit()
-                                   ? WTF::AtomicStringUCharEncoding::kIs8Bit
-                                   : WTF::AtomicStringUCharEncoding::kIs16Bit);
+  blink::AtomicString AsAtomicString() const {
+    return blink::AtomicString(
+        *this, Is8Bit() ? blink::AtomicStringUCharEncoding::kIs8Bit
+                        : blink::AtomicStringUCharEncoding::kIs16Bit);
   }
 
   ALWAYS_INLINE bool Is8Bit() const {
@@ -282,7 +283,7 @@ class UCharLiteralBuffer : public LiteralBufferBase<UChar, kInlineSize> {
 
  private:
   // Needed for operator=.
-  template <wtf_size_t kOtherInlineSize>
+  template <blink::wtf_size_t kOtherInlineSize>
   friend class UCharLiteralBuffer;
 
   // Bitwise OR of all characters in our buffer. We actually

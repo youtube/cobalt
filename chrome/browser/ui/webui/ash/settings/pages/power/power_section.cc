@@ -97,6 +97,24 @@ base::span<const SearchConcept> GetPowerWithAdaptiveChargingSearchConcepts() {
   return tags;
 }
 
+base::span<const SearchConcept> GetPowerWithOptimizedChargingSearchConcepts() {
+  static constexpr auto tags = std::to_array<SearchConcept>({
+      {IDS_OS_SETTINGS_TAG_POWER_OPTIMIZED_CHARGING,
+       mojom::kPowerSubpagePath,
+       mojom::SearchResultIcon::kPower,
+       mojom::SearchResultDefaultRank::kMedium,
+       mojom::SearchResultType::kSetting,
+       {.setting = mojom::Setting::kOptimizedCharging}},
+      {IDS_OS_SETTINGS_TAG_POWER_CHARGE_LIMIT,
+       mojom::kPowerSubpagePath,
+       mojom::SearchResultIcon::kPower,
+       mojom::SearchResultDefaultRank::kMedium,
+       mojom::SearchResultType::kSetting,
+       {.setting = mojom::Setting::kChargeLimit}},
+  });
+  return tags;
+}
+
 base::span<const SearchConcept> GetPowerWithBatterySaverModeSearchConcepts() {
   static constexpr auto tags = std::to_array<SearchConcept>({
       {IDS_OS_SETTINGS_TAG_POWER_BATTERY_SAVER,
@@ -155,6 +173,16 @@ void PowerSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_POWER_ADAPTIVE_CHARGING_LABEL},
       {"powerAdaptiveChargingSubtext",
        IDS_SETTINGS_POWER_ADAPTIVE_CHARGING_SUBTEXT},
+      {"powerOptimizedChargingLabel",
+       IDS_SETTINGS_POWER_OPTIMIZED_CHARGING_LABEL},
+      {"powerOptimizedChargingChangeLabel",
+       IDS_SETTINGS_POWER_OPTIMIZED_CHARGING_MODE_CHANGE_LABEL},
+      {"powerOptimizedChargingDialogCancelLabel", IDS_SETTINGS_CANCEL_BUTTON},
+      {"powerOptimizedChargingDialogDoneLabel", IDS_SETTINGS_DONE_BUTTON},
+      {"powerBatteryChargeLimitLabel",
+       IDS_SETTINGS_POWER_BATTERY_CHARGE_LIMIT_LABEL},
+      {"powerBatteryChargeLimitSubtext",
+       IDS_SETTINGS_POWER_BATTERY_CHARGE_LIMIT_SUBTEXT},
       {"powerIdleDisplayOff", IDS_SETTINGS_POWER_IDLE_DISPLAY_OFF},
       {"powerIdleDisplayOffSleep", IDS_SETTINGS_POWER_IDLE_DISPLAY_OFF_SLEEP},
       {"powerIdleDisplayOn", IDS_SETTINGS_POWER_IDLE_DISPLAY_ON},
@@ -190,11 +218,13 @@ void PowerSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
   html_source->AddString("powerBatterySaverLearnMoreUrl",
                          chrome::kCrosBatterySaverLearnMoreURL);
 
-  html_source->AddBoolean("isAdaptiveChargingEnabled",
-                          ash::features::IsAdaptiveChargingEnabled() &&
-                              Shell::Get()
-                                  ->adaptive_charging_controller()
-                                  ->IsAdaptiveChargingSupported());
+  html_source->AddBoolean("isAdaptiveChargingSupported",
+                          Shell::Get()
+                              ->adaptive_charging_controller()
+                              ->IsAdaptiveChargingSupported());
+
+  html_source->AddBoolean("isBatteryChargeLimitAvailable",
+                          ash::features::IsBatteryChargeLimitAvailable());
 }
 
 void PowerSection::AddHandlers(content::WebUI* web_ui) {
@@ -236,6 +266,8 @@ void PowerSection::RegisterHierarchy(HierarchyGenerator* generator) const {
       mojom::Setting::kSleepWhenLaptopLidClosed,
       mojom::Setting::kAdaptiveCharging,
       mojom::Setting::kBatterySaver,
+      mojom::Setting::kOptimizedCharging,
+      mojom::Setting::kChargeLimit,
   };
   RegisterNestedSettingBulk(mojom::Subpage::kPower, kPowerSettings, generator);
 }
@@ -254,11 +286,16 @@ void PowerSection::PowerChanged(
     // GetLastStatus, so make sure its not nullopt.
     DCHECK(chromeos::PowerManagerClient::Get()->GetLastStatus());
     if (!has_observed_power_status_) {
-      if (ash::features::IsAdaptiveChargingEnabled() &&
-          Shell::Get()
+      if (Shell::Get()
               ->adaptive_charging_controller()
               ->IsAdaptiveChargingSupported()) {
         updater.AddSearchTags(GetPowerWithAdaptiveChargingSearchConcepts());
+
+        // Assume that Adaptive Charging must be enabled and supported for
+        // charge limit to be supported.
+        if (ash::features::IsBatteryChargeLimitAvailable()) {
+          updater.AddSearchTags(GetPowerWithOptimizedChargingSearchConcepts());
+        }
       }
 
       const auto* battery_saver_controller =

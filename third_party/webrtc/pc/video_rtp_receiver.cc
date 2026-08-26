@@ -10,8 +10,7 @@
 
 #include "pc/video_rtp_receiver.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>

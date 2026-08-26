@@ -552,6 +552,7 @@ if (!is_fuchsia) {
       "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
       "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_100_percent.pak",
       "$root_gen_dir/third_party/blink/public/strings/blink_strings_en-US.pak",
+      "$root_gen_dir/ui/resources/ui_lottie_resources.pak",
       "$root_gen_dir/ui/resources/ui_resources_100_percent.pak",
       "$root_gen_dir/ui/strings/app_locale_settings_en-US.pak",
       "$root_gen_dir/ui/strings/ax_strings_en-US.pak",
@@ -716,7 +717,10 @@ if (is_android) {
   dist_aar("cast_browser_dist_aar") {
     android_manifest = "$root_gen_dir/cast_shell_manifest/AndroidManifest.xml"
 
-    native_libraries = [ "$root_build_dir/libcast_browser_android.so" ]
+    native_libraries = [
+      "$root_build_dir/libcast_browser_android.so",
+      "$root_out_dir/libchrome_crashpad_handler.so",
+    ]
 
     deps = [
       ":cast_browser_apk_assets",
@@ -749,6 +753,7 @@ if (is_android) {
 
     resource_excluded_patterns = [
       "*/third_party/android_deps/*",
+      "*/third_party/androidx/*",
       "*/third_party/java_src/*",
     ]
   }

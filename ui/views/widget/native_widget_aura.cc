@@ -14,6 +14,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
@@ -46,6 +47,7 @@
 #include "ui/events/event.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/native_theme/native_theme_aura.h"
 #include "ui/views/buildflags.h"
 #include "ui/views/drag_utils.h"
@@ -240,9 +242,9 @@ void NativeWidgetAura::InitNativeWidget(Widget::InitParams params) {
 
   RegisterNativeWidgetForWindow(this, window_);
   window_->SetType(GetAuraWindowTypeForWidgetType(params.type));
-  if (params.corner_radius) {
-    window_->SetProperty(aura::client::kWindowCornerRadiusKey,
-                         *params.corner_radius);
+  if (params.rounded_corners) {
+    window_->SetProperty(aura::client::kWindowRoundedCornersKey,
+                         params.rounded_corners.value());
   }
   window_->SetProperty(aura::client::kShowStateKey, params.show_state);
 
@@ -571,7 +573,8 @@ void NativeWidgetAura::InitModalType(ui::mojom::ModalType modal_type) {
 }
 
 void NativeWidgetAura::OnWidgetThemeChanged(
-    ui::ColorProviderKey::ColorMode color_mode) {
+    ui::ColorProviderKey::ColorMode color_mode,
+    std::optional<SkColor> background_color) {
   // Intentional no-op.
   // The window frame is drawn by views. The OS does not need to know about
   // which color mode the window is using.
@@ -1098,6 +1101,10 @@ bool NativeWidgetAura::AreScreenshotsAllowed() {
   return true;
 }
 
+bool NativeWidgetAura::IsDesktopNativeWidget() const {
+  return false;
+}
+
 std::string NativeWidgetAura::GetName() const {
   return window_ ? window_->GetName() : std::string();
 }
@@ -1547,6 +1554,17 @@ Widget::Widgets NativeWidgetPrivate::GetAllOwnedWidgets(
     }
     owned.merge(GetAllOwnedWidgets(transient_child));
   }
+
+#if BUILDFLAG(ENABLE_DESKTOP_AURA)
+  // If the aura::Window is a desktop widget, fetch any additional widgets
+  // with an ownership relationship established at the platform-window level.
+  NativeWidgetPrivate* native_widget =
+      GetNativeWidgetForNativeView(native_view);
+  if (native_widget && native_widget->IsDesktopNativeWidget()) {
+    owned.merge(static_cast<DesktopNativeWidgetAura*>(native_widget)
+                    ->GetOwnedDesktopWidgets());
+  }
+#endif  // BUILDFLAG(ENABLE_DESKTOP_AURA)
 
   // Add all child windows.
   for (aura::Window* child : native_view->children()) {

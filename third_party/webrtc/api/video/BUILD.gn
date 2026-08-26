@@ -135,18 +135,18 @@ rtc_source_set("video_frame_type") {
 
 rtc_source_set("render_resolution") {
   visibility = [ "*" ]
-  public = [ "render_resolution.h" ]
+  sources = [ "render_resolution.h" ]
 }
 
 rtc_source_set("resolution") {
   visibility = [ "*" ]
-  public = [ "resolution.h" ]
+  sources = [ "resolution.h" ]
   deps = [ "../../rtc_base/system:rtc_export" ]
 }
 
 rtc_source_set("corruption_detection_filter_settings") {
   visibility = [ "*" ]
-  public = [ "corruption_detection_filter_settings.h" ]
+  sources = [ "corruption_detection_filter_settings.h" ]
 }
 
 rtc_library("encoded_image") {
@@ -207,11 +207,11 @@ rtc_library("rtp_video_frame_assembler") {
     "..:array_view",
     "..:rtp_packet_info",
     "..:scoped_refptr",
-    "../../modules/rtp_rtcp:rtp_rtcp",
+    "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../modules/rtp_rtcp:rtp_video_header",
+    "../../modules/video_coding",
     "../../modules/video_coding:packet_buffer",
-    "../../modules/video_coding:video_coding",
     "../../rtc_base:checks",
     "../../rtc_base:logging",
     "../../rtc_base:rtc_numerics",
@@ -230,8 +230,8 @@ rtc_library("rtp_video_frame_assembler_unittests") {
     ":video_frame",
     ":video_frame_type",
     "..:array_view",
+    "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_packetizer_av1_test_helper",
-    "../../modules/rtp_rtcp:rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../modules/rtp_rtcp:rtp_video_header",
     "../../modules/video_coding:codec_globals_headers",
@@ -252,7 +252,7 @@ if (rtc_use_h265) {
       ":video_frame",
       ":video_frame_type",
       "..:array_view",
-      "../../modules/rtp_rtcp:rtp_rtcp",
+      "../../modules/rtp_rtcp",
       "../../modules/rtp_rtcp:rtp_rtcp_format",
       "../../modules/rtp_rtcp:rtp_video_header",
       "../../modules/video_coding:codec_globals_headers",
@@ -415,10 +415,10 @@ rtc_library("frame_buffer_unittest") {
 
   deps = [
     ":frame_buffer",
+    "..:field_trials",
     "../../api/video:encoded_frame",
+    "../../test:create_test_field_trials",
     "../../test:fake_encoded_frame",
-    "../../test:field_trial",
-    "../../test:scoped_key_value_config",
     "../../test:test_support",
   ]
 }
@@ -432,6 +432,6 @@ rtc_library("video_frame_metadata_unittest") {
     "../../api/video:video_frame",
     "../../modules/video_coding:codec_globals_headers",
     "../../test:test_support",
-    "../../video:video",
+    "../../video",
   ]
 }

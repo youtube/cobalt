@@ -58,8 +58,10 @@ class PDFiumEngineClient {
   // Scroll the horizontal/vertical scrollbars to a given position.
   // Values are in screen coordinates, where 0 is the top/left of the document
   // and a positive value is the distance in pixels from that line.
-  virtual void ScrollToX(int x_screen_coords) {}
-  virtual void ScrollToY(int y_screen_coords) {}
+  // `force_smooth_scroll` forces smooth scrolling regardless of the current
+  // animation settings.
+  virtual void ScrollToX(int x_screen_coords, bool force_smooth_scroll) {}
+  virtual void ScrollToY(int y_screen_coords, bool force_smooth_scroll) {}
 
   // Scroll by a given delta relative to the current position.
   virtual void ScrollBy(const gfx::Vector2d& delta) {}
@@ -199,6 +201,9 @@ class PDFiumEngineClient {
   // See https://crbug.com/312882 for an example.
   virtual bool IsValidLink(const std::string& url) = 0;
 
+  // Notifies clients that a new text fragments search has started.
+  virtual void OnNewTextFragmentsSearchStarted() = 0;
+
 #if BUILDFLAG(ENABLE_PDF_INK2)
   // Returns true if the client is in annotation mode.
   virtual bool IsInAnnotationMode() const = 0;
@@ -211,6 +216,10 @@ class PDFiumEngineClient {
   // Notifies that at least one page is searchified. This function is called at
   // most once.
   virtual void OnHasSearchifyText() = 0;
+
+  // Show searchify in progress indicator if searchify is running and the
+  // indicator is not showing.
+  virtual void MaybeShowSearchifyInProgress() = 0;
 #endif
 };
 

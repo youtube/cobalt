@@ -36,6 +36,7 @@
 #include "api/scoped_refptr.h"
 #include "modules/audio_coding/codecs/g711/audio_decoder_pcm.h"
 #include "modules/audio_coding/neteq/decision_logic.h"
+#include "modules/audio_coding/neteq/delay_manager.h"
 #include "modules/audio_coding/neteq/expand.h"
 #include "modules/audio_coding/neteq/mock/mock_decoder_database.h"
 #include "modules/audio_coding/neteq/mock/mock_dtmf_buffer.h"
@@ -141,8 +142,10 @@ class NetEqImplTest : public ::testing::Test {
       controller_config.base_min_delay_ms = config_.min_delay_ms;
       controller_config.allow_time_stretching = true;
       controller_config.max_packets_in_buffer = config_.max_packets_in_buffer;
-      deps.neteq_controller =
-          std::make_unique<DecisionLogic>(env_, std::move(controller_config));
+      auto delay_manager = std::make_unique<DelayManager>(
+          DelayManager::Config(env_.field_trials()), tick_timer_);
+      deps.neteq_controller = std::make_unique<DecisionLogic>(
+          env_, std::move(controller_config), std::move(delay_manager));
     }
     neteq_controller_ = deps.neteq_controller.get();
 
@@ -154,7 +157,7 @@ class NetEqImplTest : public ::testing::Test {
     red_payload_splitter_ = deps.red_payload_splitter.get();
 
     deps.timestamp_scaler = std::unique_ptr<TimestampScaler>(
-        new TimestampScaler(*deps.decoder_database.get()));
+        new TimestampScaler(*deps.decoder_database));
 
     neteq_.reset(new NetEqImpl(config_, std::move(deps)));
     ASSERT_TRUE(neteq_ != nullptr);
@@ -173,7 +176,7 @@ class NetEqImplTest : public ::testing::Test {
     use_mock_payload_splitter_ = false;
   }
 
-  virtual ~NetEqImplTest() {
+  ~NetEqImplTest() override {
     if (use_mock_decoder_database_) {
       EXPECT_CALL(*mock_decoder_database_, Die()).Times(1);
     }
@@ -281,6 +284,15 @@ TEST_F(NetEqImplTest, RegisterPayloadType) {
   EXPECT_CALL(*mock_decoder_database_,
               RegisterPayload(rtp_payload_type, format));
   neteq_->RegisterPayloadType(rtp_payload_type, format);
+}
+
+TEST_F(NetEqImplTest, CreateDecoder) {
+  UseNoMocks();
+  CreateInstance();
+  constexpr int rtp_payload_type = 0;
+  const SdpAudioFormat format("pcmu", 8000, 1);
+  EXPECT_TRUE(neteq_->RegisterPayloadType(rtp_payload_type, format));
+  EXPECT_TRUE(neteq_->CreateDecoder(rtp_payload_type));
 }
 
 TEST_F(NetEqImplTest, RemovePayloadType) {
@@ -1790,7 +1802,7 @@ class Decoder120ms : public AudioDecoder {
 class NetEqImplTest120ms : public NetEqImplTest {
  protected:
   NetEqImplTest120ms() : NetEqImplTest() {}
-  virtual ~NetEqImplTest120ms() {}
+  ~NetEqImplTest120ms() override {}
 
   void CreateInstanceNoMocks() {
     UseNoMocks();

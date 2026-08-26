@@ -191,7 +191,7 @@ protected:
                       size_t count,
                       const SkPoint pts[],
                       const SkPaint& paint) override {
-        fRecorder.getRecordingCanvas()->drawPoints(mode, count, pts, paint);
+        fRecorder.getRecordingCanvas()->drawPoints(mode, {pts, count}, paint);
     }
 
     void onDrawImage2(const SkImage* image,
@@ -245,10 +245,9 @@ protected:
                       const SkRect* cull,
                       const SkPaint* paint) override {
         fRecorder.getRecordingCanvas()->drawAtlas(image,
-                                                  rsxForms,
-                                                  src,
-                                                  colors,
-                                                  count,
+                                                  {rsxForms, count},
+                                                  {src, count},
+                                                  {colors, colors ? count : 0},
                                                   mode,
                                                   sampling,
                                                   cull,

@@ -291,6 +291,11 @@
     "type": "additional_compile_target",
     "skip_usage_check": True,
   },
+  "cast_browser_dist_aar": {
+    "label": "//chromecast:cast_browser_dist_aar",
+    "type": "additional_compile_target",
+    "skip_usage_check": True,
+  },
   "cast_cast_core_unittests": {
     "label": "//chromecast/cast_core:cast_cast_core_unittests",
     "type": "console_test_launcher",
@@ -462,11 +467,6 @@
   "chrome_java_test_pagecontroller_junit_tests": {
     "label": "//chrome/test/android:chrome_java_test_pagecontroller_junit_tests",
     "type": "generated_script",
-    "skip_usage_check": True,
-  },
-  "chrome_java_test_wpr_tests": {
-    "label": "//chrome/test/android:chrome_java_test_wpr_tests",
-    "type": "console_test_launcher",
     "skip_usage_check": True,
   },
   "chrome_junit_tests": {
@@ -712,6 +712,11 @@
     "type": "additional_compile_target",
     "skip_usage_check": True,
   },
+  "content_shell": {
+    "label": "//content/shell:content_shell",
+    "type": "additional_compile_target",
+    "skip_usage_check": True,
+  },
   "content_shell_crash_test": {
     "label": "//content/shell:content_shell_crash_test",
     "type": "script",
@@ -867,6 +872,11 @@
   "device_junit_tests": {
     "label": "//device:device_junit_tests",
     "type": "generated_script",
+    "skip_usage_check": True,
+  },
+  "device_realtarget_browsertests": {
+    "label": "//chrome/test:device_realtarget_browsertests",
+    "type": "console_test_launcher",
     "skip_usage_check": True,
   },
   "device_unittests": {
@@ -1194,11 +1204,6 @@
     "type": "generated_script",
     "skip_usage_check": True,
   },
-  "ipc_fuzzer": {
-    "label": "//tools/ipc_fuzzer/fuzzer:ipc_fuzzer",
-    "type": "additional_compile_target",
-    "skip_usage_check": True,
-  },
   "ipc_tests": {
     "label": "//ipc:ipc_tests",
     "type": "console_test_launcher",
@@ -1411,10 +1416,6 @@
     "type": "additional_compile_target",
     "skip_usage_check": True,
   },
-  "nacl_loader_unittests": {
-    "label": "//components/nacl/loader:nacl_loader_unittests",
-    "type": "console_test_launcher",
-  },
   "native_theme_unittests": {
     "label": "//ui/native_theme:native_theme_unittests",
     "type": "windowed_test_launcher",
@@ -1486,11 +1487,6 @@
   },
   "paint_preview_junit_tests": {
     "label": "//components/paint_preview/player/android:paint_preview_junit_tests",
-    "type": "generated_script",
-    "skip_usage_check": True,
-  },
-  "password_check_junit_tests": {
-    "label": "//chrome/browser/password_check/android:password_check_junit_tests",
     "type": "generated_script",
     "skip_usage_check": True,
   },
@@ -1586,10 +1582,6 @@
     "label": "//tools/mac/power:power_sampler_unittests",
     "type": "console_test_launcher",
     "skip_usage_check": True,
-  },
-  "ppapi_unittests": {
-    "label": "//ppapi:ppapi_unittests",
-    "type": "console_test_launcher",
   },
   "previous_version_mini_installer": {
     "label": "//chrome/installer/mini_installer:previous_version_mini_installer",
@@ -1991,7 +1983,7 @@
   },
   "video_encode_accelerator_tests": {
     "label": "//media/gpu/test:video_encode_accelerator_tests",
-    "type": "additional_compile_target",
+    "type": "console_test_launcher",
     "skip_usage_check": True,
   },
   "views_examples_unittests": {

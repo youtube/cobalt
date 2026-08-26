@@ -30,6 +30,7 @@ namespace tab_groups {
 class TabGroupSyncService;
 }  // namespace tab_groups
 
+@protocol ApplicationCommands;
 class BrowserList;
 class FaviconLoader;
 @protocol GridToolbarsMutator;
@@ -56,6 +57,9 @@ class WebStateList;
 // Tab Grid handler.
 @property(nonatomic, weak) id<TabGridCommands> tabGridHandler;
 
+// Application commands handler.
+@property(nonatomic, weak) id<ApplicationCommands> applicationHandler;
+
 // - `tabGroupSyncService`: the data source for the Tab Groups panel.
 // - `regularWebStateList`: used to configure the Done button. Must not be null.
 // - `disabled`: tells the mediator whether the Tab Groups panel is disabled, to
@@ -80,12 +84,6 @@ class WebStateList;
 
 // Deletes a synced group for `syncID`.
 - (void)deleteSyncedTabGroup:(const base::Uuid&)syncID;
-
-// Deletes a shared group for `syncID`.
-- (void)deleteSharedTabGroup:(const base::Uuid&)syncID;
-
-// Leaves a shared group for `syncID`.
-- (void)leaveSharedTabGroup:(const base::Uuid&)syncID;
 
 // Disconnects the mediator.
 - (void)disconnect;

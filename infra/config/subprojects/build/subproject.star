@@ -12,5 +12,6 @@ luci.realm(
     ],
 )
 
-exec("./build.star")
 exec("./build.fyi.star")
+exec("./build.star")
+exec("./build.test.star")

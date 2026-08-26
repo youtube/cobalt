@@ -73,14 +73,24 @@ TEST_F(PageActionModelTest, VisibilityConditions) {
   EXPECT_FALSE(model_.GetVisible());
 }
 
+TEST_F(PageActionModelTest, ShouldChipBeVisible) {
+  EXPECT_CALL(observer_, OnPageActionModelChanged).Times(2);
+
+  model_.SetShouldShowSuggestionChip(PassKey(), true);
+  EXPECT_EQ(model_.ShouldShowSuggestionChip(), true);
+
+  model_.SetShouldShowSuggestionChip(PassKey(), false);
+  EXPECT_EQ(model_.ShouldShowSuggestionChip(), false);
+}
+
 TEST_F(PageActionModelTest, ChipVisibility) {
   EXPECT_CALL(observer_, OnPageActionModelChanged).Times(2);
 
-  model_.SetShowSuggestionChip(PassKey(), true);
-  EXPECT_EQ(model_.GetShowSuggestionChip(), true);
+  model_.SetIsChipShowing(PassKey(), true);
+  EXPECT_EQ(model_.IsChipShowing(), true);
 
-  model_.SetShowSuggestionChip(PassKey(), false);
-  EXPECT_EQ(model_.GetShowSuggestionChip(), false);
+  model_.SetIsChipShowing(PassKey(), false);
+  EXPECT_EQ(model_.IsChipShowing(), false);
 }
 
 TEST_F(PageActionModelTest, ShouldAnnounceChip) {
@@ -192,6 +202,35 @@ TEST_F(PageActionModelTest, OverrideAccessibleName) {
   EXPECT_CALL(observer_, OnPageActionModelChanged).Times(1);
   model_.SetOverrideAccessibleName(PassKey(), std::nullopt);
   EXPECT_EQ(model_.GetAccessibleName(), kDefaultText);
+}
+
+TEST_F(PageActionModelTest, ActionActive) {
+  // Default state should be inactive.
+  EXPECT_FALSE(model_.GetActionActive());
+
+  // Setting active should notify and update the state.
+  EXPECT_CALL(observer_, OnPageActionModelChanged).Times(1);
+  model_.SetActionActive(PassKey(), true);
+  EXPECT_TRUE(model_.GetActionActive());
+  testing::Mock::VerifyAndClearExpectations(&observer_);
+
+  // Setting active again should not notify or change the state.
+  EXPECT_CALL(observer_, OnPageActionModelChanged).Times(0);
+  model_.SetActionActive(PassKey(), true);
+  EXPECT_TRUE(model_.GetActionActive());
+  testing::Mock::VerifyAndClearExpectations(&observer_);
+
+  // Setting inactive should notify and update the state.
+  EXPECT_CALL(observer_, OnPageActionModelChanged).Times(1);
+  model_.SetActionActive(PassKey(), false);
+  EXPECT_FALSE(model_.GetActionActive());
+  testing::Mock::VerifyAndClearExpectations(&observer_);
+
+  // Setting inactive again should not notify or change the state.
+  EXPECT_CALL(observer_, OnPageActionModelChanged).Times(0);
+  model_.SetActionActive(PassKey(), false);
+  EXPECT_FALSE(model_.GetActionActive());
+  testing::Mock::VerifyAndClearExpectations(&observer_);
 }
 
 }  // namespace

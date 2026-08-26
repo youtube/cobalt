@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_GLIC_BROWSER_UI_GLIC_BORDER_VIEW_H_
 
 #include "base/scoped_observation.h"
+#include "cc/paint/paint_shader.h"
 #include "content/public/browser/gpu_data_manager_observer.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/compositor/compositor_animation_observer.h"
@@ -14,6 +15,7 @@
 #include "ui/views/view.h"
 
 class Browser;
+class ContentsWebView;
 class ThemeService;
 
 namespace gfx {
@@ -42,7 +44,7 @@ class GlicBorderView : public views::View,
   // Allows the test to inject the tester at the border's creation.
   class Factory {
    public:
-    static std::unique_ptr<GlicBorderView> Create(Browser* browser);
+    static std::unique_ptr<GlicBorderView> Create(Browser*, ContentsWebView*);
     static void set_factory(Factory* factory) { factory_ = factory; }
 
    protected:
@@ -51,7 +53,8 @@ class GlicBorderView : public views::View,
 
     // For tests to override.
     virtual std::unique_ptr<GlicBorderView> CreateBorderView(
-        Browser* browser) = 0;
+        Browser* browser,
+        ContentsWebView* contents_web_view) = 0;
 
    private:
     static Factory* factory_;
@@ -98,7 +101,9 @@ class GlicBorderView : public views::View,
 
  protected:
   friend class Factory;
-  explicit GlicBorderView(Browser* browser, std::unique_ptr<Tester> tester);
+  explicit GlicBorderView(Browser* browser,
+                          ContentsWebView* contents_web_view,
+                          std::unique_ptr<Tester> tester);
 
  private:
   void Show();
@@ -129,6 +134,10 @@ class GlicBorderView : public views::View,
   bool ForceSimplifiedShader() const;
 
   GlicKeyedService* GetGlicService() const;
+
+  void UpdateShader();
+
+  raw_ptr<Browser> browser_ = nullptr;
 
   // A utility class that subscribe to `GlicKeyedService` for various browser UI
   // status change.
@@ -164,12 +173,21 @@ class GlicBorderView : public views::View,
                           content::GpuDataManagerObserver>
       gpu_data_manager_observer_{this};
 
+  base::ScopedObservation<ui::Compositor, ui::CompositorObserver>
+      compositor_observation_{this};
+  base::ScopedObservation<ui::Compositor, ui::CompositorAnimationObserver>
+      compositor_animation_observation_{this};
+
   // Empty in production environment.
   const std::unique_ptr<Tester> tester_;
 
+  sk_sp<cc::PaintShader> cached_paint_shader_;
+
+  const std::vector<SkColor> colors_;
+  const std::vector<float> floats_;
+
   raw_ptr<ui::Compositor> compositor_ = nullptr;
   raw_ptr<ThemeService> theme_service_ = nullptr;
-  raw_ptr<Browser> browser_ = nullptr;
 };
 
 BEGIN_VIEW_BUILDER(, GlicBorderView, views::View)

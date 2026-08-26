@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/platform/graphics/styled_stroke_data.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "ui/gfx/color_utils.h"
+#include "ui/gfx/geometry/line_f.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace blink {
@@ -165,6 +166,10 @@ gfx::Rect CalculateSideRect(const FloatRoundedRect& outer_border,
 
 ContouredRect CalculateAdjustedInnerBorder(const ContouredRect& inner_border,
                                            BoxSide side) {
+  if (!inner_border.GetCornerCurvature().IsHyperellipse()) {
+    return inner_border;
+  }
+
   // Expand the inner border as necessary to make it a rounded rect (i.e. radii
   // contained within each edge).  This function relies on the fact we only get
   // radii not contained within each edge if one of the radii for an edge is
@@ -391,6 +396,166 @@ void ClipPolygon(GraphicsContext& context,
   context.ClipPath(path, antialiased ? kAntiAliased : kNotAntiAliased);
 }
 
+void EnforceDotsAtEndpoints(GraphicsContext& context,
+                            gfx::PointF& p1,
+                            gfx::PointF& p2,
+                            const int path_length,
+                            const int width,
+                            const cc::PaintFlags& flags,
+                            const bool is_vertical_line,
+                            const AutoDarkMode& auto_dark_mode) {
+  // For narrow lines, we always want integral dot and dash sizes, and start
+  // and end points, to prevent anti-aliasing from erasing the dot effect.
+  // For 1-pixel wide lines, we must make one end a dash. Otherwise we have
+  // a little more scope to distribute the error. But we never want to reduce
+  // the size of the end dots because doing so makes corners of all-dotted
+  // paths look odd.
+  //
+  // There is no way to give custom start and end dash sizes or gaps to Skia,
+  // so if we need non-uniform gaps we need to draw the start, and maybe the
+  // end dot ourselves, and move the line start (and end) to the start/end of
+  // the second dot.
+  DCHECK_LE(width, 3);  // Width is max 3 according to StrokeIsDashed
+  int mod_4 = path_length % 4;
+  int mod_6 = path_length % 6;
+  // New start dot to be explicitly drawn, if needed, and the amount to grow the
+  // start dot and the offset for first gap.
+  bool use_start_dot = false;
+  int start_dot_growth = 0;
+  int start_line_offset = 0;
+  // New end dot to be explicitly drawn, if needed, and the amount to grow the
+  // second dot.
+  bool use_end_dot = false;
+  int end_dot_growth = 0;
+  if ((width == 1 && path_length % 2 == 0) || (width == 3 && mod_6 == 0)) {
+    // Cases where we add one pixel to the first dot.
+    use_start_dot = true;
+    start_dot_growth = 1;
+    start_line_offset = 1;
+  }
+  if ((width == 2 && (mod_4 == 0 || mod_4 == 1)) ||
+      (width == 3 && (mod_6 == 1 || mod_6 == 2))) {
+    // Cases where we drop 1 pixel from the start gap
+    use_start_dot = true;
+    start_line_offset = -1;
+  }
+  if ((width == 2 && mod_4 == 0) || (width == 3 && mod_6 == 1)) {
+    // Cases where we drop 1 pixel from the end gap
+    use_end_dot = true;
+  }
+  if ((width == 2 && mod_4 == 3) ||
+      (width == 3 && (mod_6 == 4 || mod_6 == 5))) {
+    // Cases where we add 1 pixel to the start gap
+    use_start_dot = true;
+    start_line_offset = 1;
+  }
+  if (width == 3 && mod_6 == 5) {
+    // Case where we add 1 pixel to the end gap and leave the end
+    // dot the same size.
+    use_end_dot = true;
+  } else if (width == 3 && mod_6 == 0) {
+    // Case where we add one pixel gap and one pixel to the dot at the end
+    use_end_dot = true;
+    end_dot_growth = 1;  // Moves the larger end pt for this case
+  }
+
+  if (use_start_dot || use_end_dot) {
+    cc::PaintFlags fill_flags;
+    fill_flags.setColor(flags.getColor4f());
+    if (use_start_dot) {
+      SkRect start_dot;
+      if (is_vertical_line) {
+        start_dot.setLTRB(p1.x() - width / 2, p1.y(),
+                          p1.x() + width - width / 2,
+                          p1.y() + width + start_dot_growth);
+        p1.set_y(p1.y() + (2 * width + start_line_offset));
+      } else {
+        start_dot.setLTRB(p1.x(), p1.y() - width / 2,
+                          p1.x() + width + start_dot_growth,
+                          p1.y() + width - width / 2);
+        p1.set_x(p1.x() + (2 * width + start_line_offset));
+      }
+      context.DrawRect(start_dot, fill_flags, auto_dark_mode);
+    }
+    if (use_end_dot) {
+      SkRect end_dot;
+      if (is_vertical_line) {
+        end_dot.setLTRB(p2.x() - width / 2, p2.y() - width - end_dot_growth,
+                        p2.x() + width - width / 2, p2.y());
+        // Be sure to stop drawing before we get to the last dot
+        p2.set_y(p2.y() - (width + end_dot_growth + 1));
+      } else {
+        end_dot.setLTRB(p2.x() - width - end_dot_growth, p2.y() - width / 2,
+                        p2.x(), p2.y() + width - width / 2);
+        // Be sure to stop drawing before we get to the last dot
+        p2.set_x(p2.x() - (width + end_dot_growth + 1));
+      }
+      context.DrawRect(end_dot, fill_flags, auto_dark_mode);
+    }
+  }
+}
+
+void DrawLineWithStyle(GraphicsContext& context,
+                       const gfx::Point& point1,
+                       const gfx::Point& point2,
+                       const StyledStrokeData& styled_stroke,
+                       const AutoDarkMode& auto_dark_mode) {
+  const bool is_vertical_line = (point1.x() == point2.x());
+  const int width = roundf(styled_stroke.Thickness());
+
+  // We know these are vertical or horizontal lines, so the length will just
+  // be the sum of the displacement component vectors give or take 1 -
+  // probably worth the speed up of no square root, which also won't be exact.
+  const gfx::Vector2d disp = point2 - point1;
+  const int length = disp.x() + disp.y();
+  cc::PaintFlags flags = context.StrokeFlags();
+  styled_stroke.SetupPaint(&flags, {length, width, false});
+
+  gfx::PointF p1 = gfx::PointF(point1);
+  gfx::PointF p2 = gfx::PointF(point2);
+  const StrokeStyle pen_style = styled_stroke.Style();
+  if (pen_style == kDottedStroke) {
+    if (StyledStrokeData::StrokeIsDashed(width, pen_style)) {
+      // When the length of the line is an odd multiple of the width, things
+      // work well because we get dots at each end of the line, but if the
+      // length is anything else, we get gaps or partial dots at the end of the
+      // line. Fix that by explicitly enforcing full dots at the ends of lines.
+      EnforceDotsAtEndpoints(context, p1, p2, length, width, flags,
+                             is_vertical_line, auto_dark_mode);
+    } else {
+      // We draw thick dotted lines with 0 length dash strokes and round
+      // endcaps, producing circles. The endcaps extend beyond the line's
+      // endpoints, so move the start and end in.
+      if (is_vertical_line) {
+        p1.set_y(p1.y() + width / 2.f);
+        p2.set_y(p2.y() - width / 2.f);
+      } else {
+        p1.set_x(p1.x() + width / 2.f);
+        p2.set_x(p2.x() - width / 2.f);
+      }
+    }
+  }
+
+  // For odd widths, we add in 0.5 to the appropriate x/y so that the float
+  // arithmetic works out.  For example, with a border width of 3, painting will
+  // pass us (y1+y2)/2, e.g., (50+53)/2 = 103/2 = 51 when we want 51.5.  It is
+  // always true that an even width gave us a perfect position, but an odd width
+  // gave us a position that is off by exactly 0.5.
+  if (width % 2) {  // odd
+    if (is_vertical_line) {
+      // We're a vertical line.  Adjust our x.
+      p1.set_x(p1.x() + 0.5f);
+      p2.set_x(p2.x() + 0.5f);
+    } else {
+      // We're a horizontal line. Adjust our y.
+      p1.set_y(p1.y() + 0.5f);
+      p2.set_y(p2.y() + 0.5f);
+    }
+  }
+
+  context.DrawLine(p1, p2, flags, auto_dark_mode);
+}
+
 void DrawDashedOrDottedBoxSide(GraphicsContext& context,
                                int x1,
                                int y1,
@@ -415,15 +580,15 @@ void DrawDashedOrDottedBoxSide(GraphicsContext& context,
     case BoxSide::kBottom:
     case BoxSide::kTop: {
       int mid_y = y1 + thickness / 2;
-      context.DrawLine(gfx::Point(x1, mid_y), gfx::Point(x2, mid_y),
-                       styled_stroke, auto_dark_mode);
+      DrawLineWithStyle(context, gfx::Point(x1, mid_y), gfx::Point(x2, mid_y),
+                        styled_stroke, auto_dark_mode);
       break;
     }
     case BoxSide::kRight:
     case BoxSide::kLeft: {
       int mid_x = x1 + thickness / 2;
-      context.DrawLine(gfx::Point(mid_x, y1), gfx::Point(mid_x, y2),
-                       styled_stroke, auto_dark_mode);
+      DrawLineWithStyle(context, gfx::Point(mid_x, y1), gfx::Point(mid_x, y2),
+                        styled_stroke, auto_dark_mode);
       break;
     }
   }
@@ -789,28 +954,6 @@ void DrawLineForBoxSide(GraphicsContext& context,
   }
 }
 
-void FindIntersection(const gfx::PointF& p1,
-                      const gfx::PointF& p2,
-                      const gfx::PointF& d1,
-                      const gfx::PointF& d2,
-                      gfx::PointF& intersection) {
-  float px_length = p2.x() - p1.x();
-  float py_length = p2.y() - p1.y();
-
-  float dx_length = d2.x() - d1.x();
-  float dy_length = d2.y() - d1.y();
-
-  float denom = px_length * dy_length - py_length * dx_length;
-  if (!denom)
-    return;
-
-  float param =
-      ((d1.x() - p1.x()) * dy_length - (d1.y() - p1.y()) * dx_length) / denom;
-
-  intersection.set_x(p1.x() + param * px_length);
-  intersection.set_y(p1.y() + param * py_length);
-}
-
 using Corner = ContouredRect::Corner;
 
 struct CornerInfo {
@@ -820,126 +963,175 @@ struct CornerInfo {
   gfx::PointF unadjusted_inner_edge;
 };
 
+void FindIntersection(const gfx::PointF& p1,
+                      const gfx::PointF& p2,
+                      const gfx::PointF& d1,
+                      const gfx::PointF& d2,
+                      gfx::PointF& intersection) {
+  intersection =
+      gfx::LineF(p1, p2).IntersectionWith({d1, d2}).value_or(intersection);
+}
+
 void ClipOutHalfCornerWithMiter(GraphicsContext& context,
-                                const CornerInfo& corner_info,
-                                const CornerInfo& next_corner_info,
+                                const std::array<CornerInfo, 4>& corners,
                                 AntiAliasingMode antialias_mode) {
-  // Find the relevant miter intersection. It's a point on the line that starts
-  // from the outer point of the corner and extends through the inner edge. It
-  // should generally overlap with one of the inner corners, but cannot be
-  // shorter than the edge.
-  gfx::PointF miter_intersection = corner_info.unadjusted_inner_edge;
-  gfx::PointF center_point = corner_info.inner.Center();
+  const CornerInfo& corner_to_slice = corners[0];
+  const CornerInfo& other_corner_of_same_side = corners[1];
+  const gfx::PointF& opposite_corner = corners[2].outer.Outer();
+  const gfx::PointF& adjacent_corner = corners[3].outer.Outer();
+  const gfx::LineF miter_line(corner_to_slice.outer.Outer(),
+                              corner_to_slice.unadjusted_inner_edge);
 
-  auto distance_from_outer = [&](const gfx::PointF& point) {
-    return (point - corner_info.outer.Outer()).Length();
-  };
-
-  if (!corner_info.inner.IsZero()) {
-    FindIntersection(corner_info.inner.Center(), corner_info.inner.End(),
-                     corner_info.outer.Outer(),
-                     corner_info.unadjusted_inner_edge, miter_intersection);
-    gfx::PointF other_miter_intersection;
-    FindIntersection(corner_info.inner.Center(), corner_info.inner.Start(),
-                     corner_info.outer.Outer(),
-                     corner_info.unadjusted_inner_edge,
-                     other_miter_intersection);
-    if (distance_from_outer(other_miter_intersection) >
-        distance_from_outer(miter_intersection)) {
-      miter_intersection = other_miter_intersection;
-    }
-
-    if (distance_from_outer(corner_info.unadjusted_inner_edge) >
-        distance_from_outer(miter_intersection)) {
-      miter_intersection = corner_info.unadjusted_inner_edge;
-    }
+  // When the corners intersect, we check if the intersection of the
+  // nearest tangent line of the superellipse intersects with the miter line,
+  // and whether that intersection is inside the other corner's bounding box.
+  // If so, that overlap might be visible, so we clip out a hexagon that
+  // starts from the miter incision and continues back at the tangent.
+  const gfx::LineF inner_tangent_of_other_corner(
+      other_corner_of_same_side.inner.End(),
+      other_corner_of_same_side.inner.IsConcave()
+          ? other_corner_of_same_side.inner.QuadraticControlPoint()
+          : other_corner_of_same_side.inner.Start());
+  const std::optional<gfx::PointF> intersection_between_tangent_and_miter =
+      inner_tangent_of_other_corner.IntersectionWith(miter_line);
+  if (intersection_between_tangent_and_miter.has_value() &&
+      other_corner_of_same_side.inner.BoundingBox().InclusiveContains(
+          *intersection_between_tangent_and_miter)) {
+    const std::optional<gfx::PointF>
+        intersection_between_tangent_and_opposite_edge =
+            inner_tangent_of_other_corner.IntersectionWith(
+                {other_corner_of_same_side.outer.Outer(),
+                 other_corner_of_same_side.outer.Start()});
+    // Clip out a hexagon that cuts out the part of the corner that should
+    // not be rendered with the current side's color. The hexagon cuts this
+    // corner at the miter, meets the other corner at the tangent, and
+    // continues to the opposite corners to make sure all necessary parts of
+    // this corner are cut. By meeting the other corner at the hull we ensure
+    // that no visible part of that curner are cut.
+    context.ClipPath(
+        PathBuilder()
+            .MoveTo(corner_to_slice.outer.Outer())
+            .LineTo(*intersection_between_tangent_and_miter)
+            .LineTo(intersection_between_tangent_and_opposite_edge.value_or(
+                other_corner_of_same_side.inner.Center()))
+            .LineTo(opposite_corner)
+            .LineTo(adjacent_corner)
+            .LineTo(corner_to_slice.outer.Start())
+            .Close()
+            .Finalize()
+            .GetSkPath(),
+        antialias_mode, SkClipOp::kDifference);
+    return;
   }
 
-  // When the corners intersect, the miter intersection and center point
-  // should not go beyond the non-sliced corner.
-  if (corner_info.inner.Intersects(next_corner_info.inner)) {
-    gfx::PointF next_miter_intersection;
-    FindIntersection(next_corner_info.inner.Center(),
-                     next_corner_info.inner.End(), corner_info.outer.Outer(),
-                     corner_info.unadjusted_inner_edge,
-                     next_miter_intersection);
-    if (distance_from_outer(next_miter_intersection) <
-        distance_from_outer(miter_intersection)) {
-      miter_intersection = corner_info.unadjusted_inner_edge;
-      FindIntersection(next_corner_info.inner.Center(),
-                       next_corner_info.inner.End(), corner_info.inner.Start(),
-                       corner_info.inner.Center(), center_point);
-    }
-  }
-
-  // Clip a path that cuts out the part of the corner that should not be
-  // rendered with the current side's color.
-  context.ClipPath(PathBuilder()
-                       .MoveTo(corner_info.outer.Outer())
-                       .LineTo(miter_intersection)
-                       .LineTo(center_point)
-                       .LineTo(corner_info.inner.Start())
-                       .LineTo(corner_info.outer.Start())
-                       .Close()
-                       .Finalize()
-                       .GetSkPath(),
-                   antialias_mode, SkClipOp::kDifference);
+  // When the corners of this side don't intersect, clip a triangle that goes
+  // through the miter and the opposite side.
+  const gfx::Vector2dF unadjusted_offset =
+      corner_to_slice.unadjusted_inner_edge - corner_to_slice.outer.Outer();
+  const gfx::PointF miter_hypot =
+      miter_line
+          .IntersectionWith({opposite_corner + unadjusted_offset,
+                             adjacent_corner + unadjusted_offset})
+          .value_or(opposite_corner);
+  context.ClipPath(
+      PathBuilder()
+          .MoveTo(corner_to_slice.outer.Outer() - unadjusted_offset)
+          .LineTo(miter_hypot)
+          .LineTo(adjacent_corner + unadjusted_offset)
+          .LineTo(adjacent_corner - unadjusted_offset)
+          .Close()
+          .Finalize()
+          .GetSkPath(),
+      antialias_mode, SkClipOp::kDifference);
 }
 
-bool HasIntersectingCorners(const CornerInfo& first_corner,
-                            const CornerInfo& second_corner,
-                            const CornerInfo& opposite_corner,
-                            const CornerInfo& previous_corner) {
-  return first_corner.inner.Intersects(second_corner.inner) ||
-         first_corner.inner.Intersects(opposite_corner.inner) ||
-         first_corner.inner.Intersects(previous_corner.inner) ||
-         second_corner.inner.Intersects(opposite_corner.inner) ||
-         second_corner.inner.Intersects(previous_corner.inner);
+// Make sure corners where the border-width > border-radius take the whole
+// corner into account. We do that by extending the inner corner inwards to
+// include the padding edge.
+void ExtendInnerCornerToIncludePaddingEdgeIfNeeded(CornerInfo& corner) {
+  if (corner.outer.IsZero() || corner.outer.IsStraight()) {
+    return;
+  }
+  const gfx::Vector2dF side_direction =
+      gfx::NormalizeVector2d(corner.inner.v2());
+  const gfx::Vector2dF adjusted_vector = gfx::ScaleVector2d(
+      side_direction,
+      std::max(gfx::ScaleVector2d(
+                   corner.unadjusted_inner_edge - corner.outer.Outer(),
+                   side_direction.x(), side_direction.y())
+                   .Length(),
+               corner.inner.v2().Length()));
+  corner.inner = Corner({corner.inner.Start(), corner.inner.Outer(),
+                         corner.inner.Outer() + adjusted_vector,
+                         corner.inner.Start() + adjusted_vector},
+                        corner.inner.Curvature());
 }
 
-bool ClipBorderSidePolygonFromCornersIfNeeded(
-    GraphicsContext& context,
-    const CornerInfo& first_corner,
-    const CornerInfo& second_corner,
-    const CornerInfo& opposite_corner,
-    const CornerInfo& previous_corner,
-    AntiAliasingMode first_antialias,
-    AntiAliasingMode second_antialias,
-    const gfx::Vector2dF& width_vector) {
-  // Only use this type of complex clipping if one of the corners of this side
-  // overlaps with any other corner.
-  if (!HasIntersectingCorners(first_corner, second_corner, opposite_corner,
-                              previous_corner)) {
-    return false;
+gfx::RectF UnionInnerCornersAndEdge(const CornerInfo& corner1,
+                                    const CornerInfo& corner2) {
+  return gfx::UnionRectsEvenIfEmpty(
+      gfx::UnionRects(corner1.inner.BoundingBox(), corner2.inner.BoundingBox()),
+      gfx::BoundingRect(corner1.unadjusted_inner_edge,
+                        corner2.unadjusted_inner_edge));
+}
+
+void ClipBorderSidePolygonFromCorners(GraphicsContext& context,
+                                      std::array<CornerInfo, 4> corners,
+                                      AntiAliasingMode first_antialias,
+                                      AntiAliasingMode second_antialias,
+                                      const gfx::Vector2dF& width_vector,
+                                      bool needs_miters) {
+  const gfx::RectF edge_bounding_box =
+      UnionInnerCornersAndEdge(corners[0], corners[1]);
+  const gfx::RectF opposite_edge_bounding_box =
+      UnionInnerCornersAndEdge(corners[2], corners[3]);
+  if (edge_bounding_box.Intersects(opposite_edge_bounding_box) ||
+      edge_bounding_box.Contains(corners[2].unadjusted_inner_edge) ||
+      edge_bounding_box.Contains(corners[3].unadjusted_inner_edge) ||
+      opposite_edge_bounding_box.Contains(corners[0].unadjusted_inner_edge) ||
+      opposite_edge_bounding_box.Contains(corners[1].unadjusted_inner_edge)) {
+    // Clip the full side, including the two full corners, to avoid overlapping
+    // with the other sides.
+    context.ClipPath(PathBuilder()
+                         .MoveTo(corners[0].outer.Outer())
+                         .LineTo(corners[0].outer.Start())
+                         .AddCorner(corners[0].inner)
+                         .LineTo(corners[0].outer.End() + width_vector)
+                         .LineTo(corners[1].outer.Start() + width_vector)
+                         .AddCorner(corners[1].inner)
+                         .LineTo(corners[1].outer.End())
+                         .LineTo(corners[1].outer.Outer())
+                         .Close()
+                         .MoveTo(corners[1].outer.Outer())
+                         .LineTo(corners[0].outer.Outer())
+                         .LineTo(corners[0].outer.Outer() + width_vector)
+                         .LineTo(corners[1].outer.Outer() + width_vector)
+                         .Close()
+                         .Finalize()
+                         .GetSkPath(),
+                     kAntiAliased);
+  } else {
+    context.ClipOut(opposite_edge_bounding_box);
   }
 
-  // Clip the full side, including the two full corners, to avoid overlapping
-  // with the other sides.
-  context.ClipPath(PathBuilder()
-                       .SetWindRule(WindRule::RULE_NONZERO)
-                       .MoveTo(first_corner.outer.Outer())
-                       .LineTo(first_corner.outer.Start())
-                       .AddCorner(first_corner.inner)
-                       .LineTo(first_corner.outer.End() + width_vector)
-                       .LineTo(second_corner.outer.Start() + width_vector)
-                       .AddCorner(second_corner.inner)
-                       .LineTo(second_corner.outer.End())
-                       .LineTo(second_corner.outer.Outer())
-                       .Close()
-                       .Finalize()
-                       .GetSkPath(),
-                   kAntiAliased);
+  if (!needs_miters) {
+    return;
+  }
 
+  ExtendInnerCornerToIncludePaddingEdgeIfNeeded(corners[0]);
+  ExtendInnerCornerToIncludePaddingEdgeIfNeeded(corners[1]);
   // Clip two paths, one with the first full corner and the second corner
   // clipped at the miter, and the opposite one.
-  CornerInfo second_corner_reversed{second_corner.outer.Reverse(),
-                                    second_corner.inner.Reverse(),
-                                    second_corner.unadjusted_inner_edge};
-  ClipOutHalfCornerWithMiter(context, first_corner, second_corner_reversed,
-                             first_antialias);
-  ClipOutHalfCornerWithMiter(context, second_corner_reversed, first_corner,
-                             second_antialias);
-  return true;
+  CornerInfo second_corner_reversed{corners[1].outer.Reverse(),
+                                    corners[1].inner.Reverse(),
+                                    corners[1].unadjusted_inner_edge};
+
+  ClipOutHalfCornerWithMiter(
+      context, {corners[0], second_corner_reversed, corners[2], corners[3]},
+      first_antialias);
+  ClipOutHalfCornerWithMiter(
+      context, {second_corner_reversed, corners[0], corners[3], corners[2]},
+      second_antialias);
 }
 
 }  // anonymous namespace
@@ -1233,49 +1425,12 @@ void BoxBorderPainter::ComputeBorderProperties() {
   }
 }
 
-bool BoxBorderPainter::ClipOutlineAsStrokeIfNeeded(
-    const ContouredRect& contoured_rect,
-    SkClipOp clip_op) const {
-  // We only use stroke for positive outlines with non-round curvatures.
-  // Negative or convex outlines don't require joins and can use the ordinary
-  // ContouredRect path.
-  if (!is_uniform_width_ || !outer_.IsRounded() || outer_.HasRoundCurvature() ||
-      outer_outsets_.top <= 0) {
-    return false;
-  }
-
-  CHECK(style_.HasOutline());
-
-  // When rendering a uniform outset (e.g. an outline), we use stroking instead
-  // of the normal PathBuilder ContouredRect path, so that appropriate round
-  // joins/caps are rendered.
-  const FloatRoundedRect& origin_rect = contoured_rect.GetOriginRect();
-  const Path origin_path =
-      PathBuilder()
-          .AddContouredRect(
-              ContouredRect(origin_rect, contoured_rect.GetCornerCurvature()))
-          .Close()
-          .Finalize();
-  StrokeData stroke_data;
-  stroke_data.SetThickness(
-      contoured_rect.Rect().InsetsFrom(origin_rect.Rect()).width());
-  stroke_data.SetLineJoin(LineJoin::kRoundJoin);
-  SkPath stroke_path = origin_path.StrokePath(stroke_data, AffineTransform());
-  stroke_path.addPath(origin_path.GetSkPath(), SkPath::kAppend_AddPathMode);
-  context_.ClipPath(stroke_path, kAntiAliased, clip_op);
-  return true;
-}
-
 void BoxBorderPainter::ClipContouredRect(const ContouredRect& rect) const {
-  if (!ClipOutlineAsStrokeIfNeeded(rect, SkClipOp::kIntersect)) {
-    context_.ClipContouredRect(rect);
-  }
+  context_.ClipContouredRect(rect);
 }
 
 void BoxBorderPainter::ClipOutContouredRect(const ContouredRect& rect) const {
-  if (!ClipOutlineAsStrokeIfNeeded(rect, SkClipOp::kDifference)) {
     context_.ClipOutContouredRect(rect);
-  }
 }
 
 void BoxBorderPainter::Paint() const {
@@ -1644,7 +1799,6 @@ void BoxBorderPainter::DrawCurvedDashedDottedBoxSide(
       ContouredBorderGeometry::PixelSnappedContouredBorderWithOutsets(
           style_, border_rect_, CenterOutsets(), sides_to_include_)
           .GetPath();
-
   StyledStrokeData styled_stroke;
   styled_stroke.SetStyle(border_style == EBorderStyle::kDashed ? kDashedStroke
                                                                : kDottedStroke);
@@ -1773,13 +1927,10 @@ gfx::Rect BoxBorderPainter::CalculateSideRectIncludingInner(
 // overlap each other, this might leave an ambiguous area, not explicitly part
 // of any side. By clipping out areas that are definitely part of the adjacent
 // side, those ambiguous areas would be part of both sides.
-bool BoxBorderPainter::ClipBorderSidePolygonCloseToEdgesIfNeeded(
+void BoxBorderPainter::ClipBorderSidePolygonCloseToEdges(
     BoxSide side,
     MiterType first_miter,
     MiterType second_miter) const {
-  if (!is_rounded_ || outer_.IsConvex()) {
-    return false;
-  }
   const AntiAliasingMode antialias_top_or_left =
       first_miter == MiterType::kSoftMiter ? kAntiAliased : kNotAntiAliased;
   const AntiAliasingMode antialias_right_or_bottom =
@@ -1803,31 +1954,49 @@ bool BoxBorderPainter::ClipBorderSidePolygonCloseToEdgesIfNeeded(
       .outer = outer_.BottomLeftCorner(),
       .inner = inner_.BottomLeftCorner(),
       .unadjusted_inner_edge = inner_.Rect().bottom_left()};
+
+  const EBorderStyle border_style = Edge(side).BorderStyle();
+  const bool needs_miters = !is_uniform_color_ || !is_uniform_style_ ||
+                            border_style == EBorderStyle::kGroove ||
+                            border_style == EBorderStyle::kRidge;
+
   switch (side) {
     case BoxSide::kTop:
-      return ClipBorderSidePolygonFromCornersIfNeeded(
-          context_, top_left_corner_info, top_right_corner_info,
-          bottom_right_corner_info, bottom_left_corner_info,
+      ClipBorderSidePolygonFromCorners(
+          context_,
+          {top_left_corner_info, top_right_corner_info,
+           bottom_right_corner_info, bottom_left_corner_info},
           antialias_top_or_left, antialias_right_or_bottom,
-          gfx::Vector2dF(0, inner_.Rect().y() - outer_.Rect().y()));
+          gfx::Vector2dF(0, inner_.Rect().y() - outer_.Rect().y()),
+          needs_miters);
+      break;
     case BoxSide::kRight:
-      return ClipBorderSidePolygonFromCornersIfNeeded(
-          context_, top_right_corner_info, bottom_right_corner_info,
-          bottom_left_corner_info, top_left_corner_info, antialias_top_or_left,
-          antialias_right_or_bottom,
-          gfx::Vector2dF(inner_.Rect().right() - outer_.Rect().right(), 0));
+      ClipBorderSidePolygonFromCorners(
+          context_,
+          {top_right_corner_info, bottom_right_corner_info,
+           bottom_left_corner_info, top_left_corner_info},
+          antialias_top_or_left, antialias_right_or_bottom,
+          gfx::Vector2dF(inner_.Rect().right() - outer_.Rect().right(), 0),
+          needs_miters);
+      break;
     case BoxSide::kBottom:
-      return ClipBorderSidePolygonFromCornersIfNeeded(
-          context_, bottom_right_corner_info, bottom_left_corner_info,
-          top_left_corner_info, top_right_corner_info,
+      ClipBorderSidePolygonFromCorners(
+          context_,
+          {bottom_right_corner_info, bottom_left_corner_info,
+           top_left_corner_info, top_right_corner_info},
           antialias_right_or_bottom, antialias_top_or_left,
-          gfx::Vector2dF(0, inner_.Rect().bottom() - outer_.Rect().bottom()));
+          gfx::Vector2dF(0, inner_.Rect().bottom() - outer_.Rect().bottom()),
+          needs_miters);
+      break;
     case BoxSide::kLeft:
-      return ClipBorderSidePolygonFromCornersIfNeeded(
-          context_, bottom_left_corner_info, top_left_corner_info,
-          top_right_corner_info, bottom_right_corner_info,
+      ClipBorderSidePolygonFromCorners(
+          context_,
+          {bottom_left_corner_info, top_left_corner_info, top_right_corner_info,
+           bottom_right_corner_info},
           antialias_right_or_bottom, antialias_top_or_left,
-          gfx::Vector2dF(inner_.Rect().x() - outer_.Rect().x(), 0));
+          gfx::Vector2dF(inner_.Rect().x() - outer_.Rect().x(), 0),
+          needs_miters);
+      break;
   }
 }
 
@@ -1835,9 +2004,8 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
                                              MiterType first_miter,
                                              MiterType second_miter) const {
   DCHECK(first_miter != kNoMiter || second_miter != kNoMiter);
-
-  if (ClipBorderSidePolygonCloseToEdgesIfNeeded(side, first_miter,
-                                                second_miter)) {
+  if (is_rounded_ && !outer_.GetCornerCurvature().IsHyperellipse()) {
+    ClipBorderSidePolygonCloseToEdges(side, first_miter, second_miter);
     return;
   }
 
@@ -1920,7 +2088,6 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
       extension_offset.set_y(0);
 
       if (!inner_.GetRadii().TopLeft().IsZero()) {
-        if (outer_.GetCornerCurvature().TopLeft() >= 2) {
           FindIntersection(
               edge_quad[0], edge_quad[1],
               gfx::PointF(
@@ -1930,9 +2097,6 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
                   edge_quad[1].x(),
                   edge_quad[1].y() + inner_.GetRadii().TopLeft().height()),
               edge_quad[1]);
-        } else {
-          edge_quad[1] = inner_.TopLeftCorner().Center();
-        }
         DCHECK(bound_quad1.y() <= edge_quad[1].y());
         bound_quad1.set_y(edge_quad[1].y());
         bound_quad2.set_y(edge_quad[1].y());
@@ -1954,19 +2118,14 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
       }
 
       if (!inner_.GetRadii().TopRight().IsZero()) {
-        if (inner_.GetCornerCurvature().TopRight() >= 2) {
-          FindIntersection(
-              edge_quad[3], edge_quad[2],
-              gfx::PointF(
-                  edge_quad[2].x() - inner_.GetRadii().TopRight().width(),
-                  edge_quad[2].y()),
-              gfx::PointF(
-                  edge_quad[2].x(),
-                  edge_quad[2].y() + inner_.GetRadii().TopRight().height()),
-              edge_quad[2]);
-        } else {
-          edge_quad[2] = inner_.TopRightCorner().Center();
-        }
+        FindIntersection(
+            edge_quad[3], edge_quad[2],
+            gfx::PointF(edge_quad[2].x() - inner_.GetRadii().TopRight().width(),
+                        edge_quad[2].y()),
+            gfx::PointF(
+                edge_quad[2].x(),
+                edge_quad[2].y() + inner_.GetRadii().TopRight().height()),
+            edge_quad[2]);
         if (bound_quad1.y() < edge_quad[2].y()) {
           bound_quad1.set_y(edge_quad[2].y());
           bound_quad2.set_y(edge_quad[2].y());
@@ -2007,20 +2166,15 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
       extension_offset.set_y(kExtensionLength);
 
       if (!inner_.GetRadii().TopLeft().IsZero()) {
-        if (outer_.GetCornerCurvature().TopLeft() >= 2) {
-          FindIntersection(
-              edge_quad[3], edge_quad[2],
-              gfx::PointF(
-                  edge_quad[2].x() + inner_.GetRadii().TopLeft().width(),
-                  edge_quad[2].y()),
-              gfx::PointF(
-                  edge_quad[2].x(),
-                  edge_quad[2].y() + inner_.GetRadii().TopLeft().height()),
-              edge_quad[2]);
+        FindIntersection(
+            edge_quad[3], edge_quad[2],
+            gfx::PointF(edge_quad[2].x() + inner_.GetRadii().TopLeft().width(),
+                        edge_quad[2].y()),
+            gfx::PointF(
+                edge_quad[2].x(),
+                edge_quad[2].y() + inner_.GetRadii().TopLeft().height()),
+            edge_quad[2]);
 
-        } else {
-          edge_quad[2] = inner_.TopLeftCorner().Center();
-        }
         DCHECK(bound_quad2.x() <= edge_quad[2].x());
         bound_quad1.set_x(edge_quad[2].x());
         bound_quad2.set_x(edge_quad[2].x());
@@ -2042,19 +2196,15 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
       }
 
       if (!inner_.GetRadii().BottomLeft().IsZero()) {
-        if (outer_.GetCornerCurvature().BottomLeft() >= 2) {
-          FindIntersection(
-              edge_quad[0], edge_quad[1],
-              gfx::PointF(
-                  edge_quad[1].x() + inner_.GetRadii().BottomLeft().width(),
-                  edge_quad[1].y()),
-              gfx::PointF(
-                  edge_quad[1].x(),
-                  edge_quad[1].y() - inner_.GetRadii().BottomLeft().height()),
-              edge_quad[1]);
-        } else {
-          edge_quad[1] = inner_.BottomLeftCorner().Center();
-        }
+        FindIntersection(
+            edge_quad[0], edge_quad[1],
+            gfx::PointF(
+                edge_quad[1].x() + inner_.GetRadii().BottomLeft().width(),
+                edge_quad[1].y()),
+            gfx::PointF(
+                edge_quad[1].x(),
+                edge_quad[1].y() - inner_.GetRadii().BottomLeft().height()),
+            edge_quad[1]);
         if (bound_quad1.x() < edge_quad[1].x()) {
           bound_quad1.set_x(edge_quad[1].x());
           bound_quad2.set_x(edge_quad[1].x());
@@ -2095,7 +2245,6 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
       extension_offset.set_y(0);
 
       if (!inner_.GetRadii().BottomLeft().IsZero()) {
-        if (outer_.GetCornerCurvature().BottomLeft() >= 2) {
           FindIntersection(
               edge_quad[3], edge_quad[2],
               gfx::PointF(
@@ -2105,9 +2254,6 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
                   edge_quad[2].x(),
                   edge_quad[2].y() - inner_.GetRadii().BottomLeft().height()),
               edge_quad[2]);
-        } else {
-          edge_quad[2] = inner_.BottomLeftCorner().Center();
-        }
         DCHECK(bound_quad2.y() >= edge_quad[2].y());
         bound_quad1.set_y(edge_quad[2].y());
         bound_quad2.set_y(edge_quad[2].y());
@@ -2129,19 +2275,15 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
       }
 
       if (!inner_.GetRadii().BottomRight().IsZero()) {
-        if (outer_.GetCornerCurvature().BottomRight() >= 2) {
-          FindIntersection(
-              edge_quad[0], edge_quad[1],
-              gfx::PointF(
-                  edge_quad[1].x() - inner_.GetRadii().BottomRight().width(),
-                  edge_quad[1].y()),
-              gfx::PointF(
-                  edge_quad[1].x(),
-                  edge_quad[1].y() - inner_.GetRadii().BottomRight().height()),
-              edge_quad[1]);
-        } else {
-          edge_quad[1] = inner_.BottomRightCorner().Center();
-        }
+        FindIntersection(
+            edge_quad[0], edge_quad[1],
+            gfx::PointF(
+                edge_quad[1].x() - inner_.GetRadii().BottomRight().width(),
+                edge_quad[1].y()),
+            gfx::PointF(
+                edge_quad[1].x(),
+                edge_quad[1].y() - inner_.GetRadii().BottomRight().height()),
+            edge_quad[1]);
         if (bound_quad1.y() > edge_quad[1].y()) {
           bound_quad1.set_y(edge_quad[1].y());
           bound_quad2.set_y(edge_quad[1].y());
@@ -2180,7 +2322,6 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
       extension_offset.set_y(-kExtensionLength);
 
       if (!inner_.GetRadii().TopRight().IsZero()) {
-        if (outer_.GetCornerCurvature().TopRight() >= 2) {
           FindIntersection(
               edge_quad[0], edge_quad[1],
               gfx::PointF(
@@ -2190,9 +2331,6 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
                   edge_quad[1].x(),
                   edge_quad[1].y() + inner_.GetRadii().TopRight().height()),
               edge_quad[1]);
-        } else {
-          edge_quad[1] = inner_.TopRightCorner().Center();
-        }
         DCHECK(bound_quad1.x() >= edge_quad[1].x());
         bound_quad1.set_x(edge_quad[1].x());
         bound_quad2.set_x(edge_quad[1].x());
@@ -2214,19 +2352,15 @@ void BoxBorderPainter::ClipBorderSidePolygon(BoxSide side,
       }
 
       if (!inner_.GetRadii().BottomRight().IsZero()) {
-        if (outer_.GetCornerCurvature().BottomRight() >= 2) {
-          FindIntersection(
-              edge_quad[3], edge_quad[2],
-              gfx::PointF(
-                  edge_quad[2].x() - inner_.GetRadii().BottomRight().width(),
-                  edge_quad[2].y()),
-              gfx::PointF(
-                  edge_quad[2].x(),
-                  edge_quad[2].y() - inner_.GetRadii().BottomRight().height()),
-              edge_quad[2]);
-        } else {
-          edge_quad[2] = inner_.BottomRightCorner().Center();
-        }
+        FindIntersection(
+            edge_quad[3], edge_quad[2],
+            gfx::PointF(
+                edge_quad[2].x() - inner_.GetRadii().BottomRight().width(),
+                edge_quad[2].y()),
+            gfx::PointF(
+                edge_quad[2].x(),
+                edge_quad[2].y() - inner_.GetRadii().BottomRight().height()),
+            edge_quad[2]);
         if (bound_quad1.x() > edge_quad[2].x()) {
           bound_quad1.set_x(edge_quad[2].x());
           bound_quad2.set_x(edge_quad[2].x());
@@ -2337,6 +2471,15 @@ void BoxBorderPainter::DrawBoxSide(GraphicsContext& context,
   DrawLineForBoxSide(context, snapped_edge_rect.x(), snapped_edge_rect.y(),
                      snapped_edge_rect.right(), snapped_edge_rect.bottom(),
                      side, color, style, 0, 0, auto_dark_mode);
+}
+
+void BoxBorderPainter::DrawLineWithStyle(GraphicsContext& context,
+                                         const gfx::Point& point1,
+                                         const gfx::Point& point2,
+                                         const StyledStrokeData& styled_stroke,
+                                         const AutoDarkMode& auto_dark_mode) {
+  blink::DrawLineWithStyle(context, point1, point2, styled_stroke,
+                           auto_dark_mode);
 }
 
 }  // namespace blink

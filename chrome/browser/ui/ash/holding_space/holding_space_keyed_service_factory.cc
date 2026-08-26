@@ -7,6 +7,7 @@
 #include "base/no_destructor.h"
 #include "chrome/browser/ash/arc/fileapi/arc_file_system_bridge.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
+#include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/file_manager/volume_manager_factory.h"
 #include "chrome/browser/ash/fileapi/file_change_service_factory.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
@@ -99,7 +100,7 @@ HoldingSpaceKeyedServiceFactory::BuildServiceInstanceForInternal(
     return nullptr;
   }
 
-  if (user->GetType() == user_manager::UserType::kKioskApp) {
+  if (user->GetType() == user_manager::UserType::kKioskChromeApp) {
     return nullptr;
   }
 

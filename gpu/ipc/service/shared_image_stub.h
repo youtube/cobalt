@@ -36,9 +36,9 @@ class GpuChannel;
 class GpuChannelSharedImageInterface;
 class SharedImageFactory;
 
-class GPU_IPC_SERVICE_EXPORT SharedImageStub : public MemoryTracker {
+class GPU_IPC_SERVICE_EXPORT SharedImageStub {
  public:
-  ~SharedImageStub() override;
+  ~SharedImageStub();
 
   using SharedImageDestructionCallback =
       base::OnceCallback<void(const gpu::SyncToken&)>;
@@ -49,18 +49,8 @@ class GPU_IPC_SERVICE_EXPORT SharedImageStub : public MemoryTracker {
   // Executes a DeferredRequest routed to this stub by a GpuChannel.
   void ExecuteDeferredRequest(mojom::DeferredSharedImageRequestPtr request);
 
-  bool GetGpuMemoryBufferHandleInfo(const gpu::Mailbox& mailbox,
-                                    gfx::GpuMemoryBufferHandle& handle,
-                                    viz::SharedImageFormat& format,
-                                    gfx::Size& size,
-                                    gfx::BufferUsage& buffer_usage);
-
-  // MemoryTracker implementation:
-  void TrackMemoryAllocatedChange(int64_t delta) override;
-  uint64_t GetSize() const override;
-  uint64_t ClientTracingId() const override;
-  int ClientId() const override;
-  uint64_t ContextGroupTracingId() const override;
+  // Get memory size from MemoryTracker.
+  uint64_t GetSize() const;
 
   SequenceId sequence() const { return sequence_; }
   SharedImageFactory* factory() const { return factory_.get(); }
@@ -105,6 +95,8 @@ class GPU_IPC_SERVICE_EXPORT SharedImageStub : public MemoryTracker {
   void SetGpuExtraInfo(const gfx::GpuExtraInfo& gpu_extra_info);
 
   bool MakeContextCurrent(bool needs_gl = false);
+
+  MemoryTracker* memory_tracker() { return memory_tracker_.get(); }
 
  private:
   SharedImageStub(GpuChannel* channel, int32_t route_id);
@@ -157,7 +149,8 @@ class GPU_IPC_SERVICE_EXPORT SharedImageStub : public MemoryTracker {
   const SequenceId sequence_;
   scoped_refptr<SharedContextState> context_state_;
   std::unique_ptr<SharedImageFactory> factory_;
-  uint64_t size_ = 0;
+
+  scoped_refptr<MemoryTracker> memory_tracker_;
 
   // Holds shared memory used in initial data uploads.
   base::ReadOnlySharedMemoryRegion upload_memory_;

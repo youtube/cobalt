@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/debug/alias.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
@@ -15,6 +16,8 @@
 #include "content/browser/preloading/prefetch/prefetch_streaming_url_loader.h"
 #include "content/browser/service_worker/service_worker_main_resource_handle.h"
 #include "net/http/http_cookie_indices.h"
+#include "services/metrics/public/cpp/metrics_utils.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 
@@ -97,16 +100,16 @@ bool PrefetchResponseReader::MatchesCookieIndices(
   return hash == cookie_indices_->expected_hash;
 }
 
-PrefetchResponseReader::PrefetchResponseReader(bool is_reusable)
-    : is_reusable_(is_reusable) {
+PrefetchResponseReader::PrefetchResponseReader(
+    base::OnceClosure on_determined_head_callback,
+    OnPrefetchResponseCompletedCallback on_prefetch_response_completed_callback)
+    : on_determined_head_callback_(std::move(on_determined_head_callback)),
+      on_prefetch_response_completed_callback_(
+          std::move(on_prefetch_response_completed_callback)) {
   serving_url_loader_receivers_.set_disconnect_handler(base::BindRepeating(
       &PrefetchResponseReader::OnServingURLLoaderMojoDisconnect,
       weak_ptr_factory_.GetWeakPtr()));
 }
-
-PrefetchResponseReader::PrefetchResponseReader()
-    : PrefetchResponseReader(
-          base::FeatureList::IsEnabled(features::kPrefetchReusable)) {}
 
 PrefetchResponseReader::~PrefetchResponseReader() {
   if (should_record_metrics_) {
@@ -157,12 +160,8 @@ PrefetchResponseReader::CreateRequestHandler() {
     case LoadState::kResponseReceived:
     case LoadState::kCompleted:
     case LoadState::kFailed:
-      if (is_reusable_) {
-        if (body_tee_) {
-          body = body_tee_->Clone();
-        }
-      } else {
-        body = std::move(body_);
+      if (body_tee_) {
+        body = body_tee_->Clone();
       }
       if (!body) {
         // This might be because `CreateRequestHandler()` is called for the
@@ -176,7 +175,6 @@ PrefetchResponseReader::CreateRequestHandler() {
       break;
 
     case LoadState::kRedirectHandled:
-      CHECK(!body_);
       CHECK(!body_tee_);
       break;
 
@@ -202,11 +200,6 @@ void PrefetchResponseReader::BindAndStart(
     const network::ResourceRequest& resource_request,
     mojo::PendingReceiver<network::mojom::URLLoader> receiver,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client) {
-  if (!is_reusable_) {
-    // Only one client is allowed if the feature is disabled.
-    CHECK(serving_url_loader_clients_.empty());
-  }
-
   serving_url_loader_receivers_.Add(this, std::move(receiver));
   ServingUrlLoaderClientId client_id =
       serving_url_loader_clients_.Add(std::move(client));
@@ -371,6 +364,33 @@ void PrefetchResponseReader::OnComplete(
                           base::Unretained(this)));
 }
 
+void PrefetchResponseReader::RecordOnPrefetchContainerDestroyed(
+    base::PassKey<PrefetchContainer>,
+    ukm::builders::PrefetchProxy_PrefetchedResource& builder) const {
+  CHECK(head_);
+  switch (load_state()) {
+    case LoadState::kResponseReceived:
+    case LoadState::kFailedResponseReceived:
+    case LoadState::kCompleted:
+    case LoadState::kFailed:
+      break;
+
+    case LoadState::kStarted:
+    case LoadState::kRedirectHandled:
+    case LoadState::kFailedRedirect:
+      NOTREACHED();
+  }
+
+  if (completion_status_) {
+    builder.SetDataLength(ukm::GetExponentialBucketMinForBytes(
+        completion_status_->encoded_data_length));
+
+    base::TimeDelta fetch_duration =
+        completion_status_->completion_time - head_->load_timing.request_start;
+    builder.SetFetchDurationMS(fetch_duration.InMilliseconds());
+  }
+}
+
 void PrefetchResponseReader::OnReceiveEarlyHints(
     network::mojom::EarlyHintsPtr early_hints) {
   CHECK(load_state() == LoadState::kStarted ||
@@ -435,7 +455,6 @@ void PrefetchResponseReader::OnReceiveResponse(
   CHECK_EQ(load_state(), LoadState::kStarted);
   CHECK(!head_);
   CHECK(head);
-  CHECK(!body_);
   CHECK(!body_tee_);
   CHECK(!service_worker_handle_);
   CHECK(serving_url_loader_clients_.empty());
@@ -461,12 +480,8 @@ void PrefetchResponseReader::OnReceiveResponse(
   head->request_cookies.clear();
 
   head_ = std::move(head);
-  if (is_reusable_) {
-    body_tee_ = base::MakeRefCounted<PrefetchDataPipeTee>(
-        std::move(body), GetPrefetchDataPipeTeeBodySizeLimit());
-  } else {
-    body_ = std::move(body);
-  }
+  body_tee_ = base::MakeRefCounted<PrefetchDataPipeTee>(
+      std::move(body), GetPrefetchDataPipeTeeBodySizeLimit());
 
   SetLoadStateAndAddEventToQueue(
       new_load_state,
@@ -653,10 +668,54 @@ void PrefetchResponseReader::SetLoadStateAndAddEventToQueue(
     AddEventToQueue(std::move(callback));
   }
 
-  // TODO(https://crbug.com/400761083): Notify PrefetchContainer of the state
-  // change, which can eventually trigger `PrefetchContainer::Observer` calls.
-  // This should done after every state changes are done, including
-  // `load_state_` changes and `AddEventToQueue()` above.
+  // Notify PrefetchContainer of the state change, which can eventually trigger
+  // `PrefetchContainer::Observer` calls. This should be done after every state
+  // changes are done, including `load_state_` changes and `AddEventToQueue()`
+  // above.
+
+  // At last, trigger `on_determined_head_callback_` /
+  // `on_prefetch_response_completed_callback_`. This should be after the
+  // `AddEventToQueue()` call because these callbacks can trigger complex logic
+  // like navigation, which can need the `callback` is already added to the
+  // queue.
+  // TODO(https://crbug.com/400761083): Prevent triggering such complex logic
+  // from these callbacks.
+  switch (load_state()) {
+    case LoadState::kStarted:
+      NOTREACHED();
+    case LoadState::kRedirectHandled:
+      break;
+
+    case LoadState::kResponseReceived:
+    case LoadState::kFailedResponseReceived:
+    case LoadState::kFailedRedirect:
+      CHECK(on_determined_head_callback_);
+      std::move(on_determined_head_callback_).Run();
+      break;
+
+    case LoadState::kFailed:
+      if (old_load_state == LoadState::kStarted) {
+        // Directly transitioning to `kFailed`, so
+        // `on_determined_head_callback_` hasn't been notified yet.
+        CHECK(on_determined_head_callback_);
+        std::move(on_determined_head_callback_).Run();
+      } else {
+        // Otherwise, `on_determined_head_callback_` should have already been
+        // notified.
+        CHECK(!on_determined_head_callback_);
+      }
+
+      // Continue to `on_prefetch_response_completed_callback_`.
+      [[fallthrough]];
+
+    case LoadState::kCompleted:
+      CHECK(!on_determined_head_callback_);
+      CHECK(on_prefetch_response_completed_callback_);
+      CHECK(completion_status_);
+      std::move(on_prefetch_response_completed_callback_)
+          .Run(*completion_status_);
+      break;
+  }
 }
 
 PrefetchResponseReader::CookieIndicesInfo::CookieIndicesInfo() = default;

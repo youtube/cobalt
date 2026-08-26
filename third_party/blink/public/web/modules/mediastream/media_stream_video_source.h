@@ -18,7 +18,6 @@
 #include "base/threading/thread_checker.h"
 #include "base/token.h"
 #include "build/build_config.h"
-#include "media/base/video_frame.h"
 #include "media/capture/mojom/video_capture_types.mojom-shared.h"
 #include "media/capture/video_capture_types.h"
 #include "third_party/blink/public/mojom/mediastream/media_devices.mojom-shared.h"
@@ -104,7 +103,7 @@ class BLINK_MODULES_EXPORT MediaStreamVideoSource
 #if INSIDE_BLINK
   // Returns the MediaStreamVideoSource object owned by |source|.
   static MediaStreamVideoSource* GetVideoSource(MediaStreamSource* source);
-#endif
+#endif  // INSIDE_BLINK
 
   // Puts |track| in the registered tracks list.
   // Refers to  the below |StartSourceImpl()| comments for the
@@ -191,7 +190,6 @@ class BLINK_MODULES_EXPORT MediaStreamVideoSource
   // Returns true if encoded output can be enabled in the source.
   virtual bool SupportsEncodedOutput() const;
 
-#if !BUILDFLAG(IS_ANDROID)
   // Start/stop cropping or restricting the video track.
   //
   // Non-empty |sub_capture_target_id| sets (or changes) the target.
@@ -228,7 +226,6 @@ class BLINK_MODULES_EXPORT MediaStreamVideoSource
   // implementation detail that is not exposed to the entity
   // calling ApplySubCaptureTarget().
   virtual std::optional<uint32_t> GetNextSubCaptureTargetVersion();
-#endif
 
   // Returns the current sub-capture-target version.
   // For an explanation of what a |sub_capture_target_version| is,

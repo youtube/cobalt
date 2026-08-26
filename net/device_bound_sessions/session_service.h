@@ -10,6 +10,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "net/base/net_export.h"
+#include "net/device_bound_sessions/deletion_reason.h"
 #include "net/device_bound_sessions/registration_fetcher_param.h"
 #include "net/device_bound_sessions/session.h"
 #include "net/device_bound_sessions/session_access.h"
@@ -22,6 +23,7 @@ class FirstPartySetMetadata;
 class IsolationInfo;
 class URLRequest;
 class URLRequestContext;
+class HttpRequestHeaders;
 }
 
 namespace net::device_bound_sessions {
@@ -30,8 +32,20 @@ namespace net::device_bound_sessions {
 // Full information can be found at https://github.com/WICG/dbsc
 class NET_EXPORT SessionService {
  public:
-  using RefreshCompleteCallback = base::OnceClosure;
   using OnAccessCallback = base::RepeatingCallback<void(const SessionAccess&)>;
+
+  // Records the outcome of an attempt to refresh.
+  enum class RefreshResult {
+    kRefreshed,           // Refresh was successful.
+    kInitializedService,  // Service is now initialized, refresh may still be
+                          // needed.
+    kUnreachable,         // Refresh endpoint was unreachable.
+    kServerError,         // Refresh endpoint served a transient error.
+    kQuotaExceeded,       // Refresh quota exceeded.
+    kFatalError,          // Refresh failed and session was terminated. No
+                          // further refresh needed.
+  };
+  using RefreshCompleteCallback = base::OnceCallback<void(RefreshResult)>;
 
   // Indicates the reason for deferring. Exactly one of
   // `is_pending_initialization` or `session_id` will be truthy.
@@ -95,24 +109,23 @@ class NET_EXPORT SessionService {
   // `DeferralParams` containing the session id if the request should be
   // deferred due to a session, and returns std::nullopt if the request
   // does not need to be deferred.
+  // If sessions are skipped without deferring, they will be added to
+  // the Secure-Session-Skipped header in `extra_headers`.
   virtual std::optional<DeferralParams> ShouldDefer(
       URLRequest* request,
+      HttpRequestHeaders* extra_headers,
       const FirstPartySetMetadata& first_party_set_metadata) = 0;
 
   // Defer a request and maybe refresh the corresponding session.
   // `deferral` is either the identifier of the session that is required to be
-  // refreshed, or indicates the session is not completely initialized.
+  // refreshed, or indicates the service is not completely initialized.
   // This will refresh the corresponding session if: another deferred request
   // has not already kicked off refresh, the session can be found, and the
   // associated unexportable key id is valid.
-  // Provides two callbacks, will always call one of them:
-  // - `restart_callback` queries for cookies for the requests again.
-  // - `continue_callback` sends the request without query for cookies again.
-  virtual void DeferRequestForRefresh(
-      URLRequest* request,
-      DeferralParams deferral,
-      RefreshCompleteCallback restart_callback,
-      RefreshCompleteCallback continue_callback) = 0;
+  // On completion, calls `callback`.
+  virtual void DeferRequestForRefresh(URLRequest* request,
+                                      DeferralParams deferral,
+                                      RefreshCompleteCallback callback) = 0;
 
   // Set the challenge for a bound session after getting a
   // Sec-Session-Challenge header.
@@ -126,16 +139,17 @@ class NET_EXPORT SessionService {
   virtual void GetAllSessionsAsync(
       base::OnceCallback<void(const std::vector<SessionKey>&)> callback) = 0;
 
-  // Delete the session on `site` with `id`, notifying
+  // Delete the session matching `session_key`, notifying
   // `per_request_callback` about any deletions.
   virtual void DeleteSessionAndNotify(
-      const SchemefulSite& site,
-      const Session::Id& id,
+      DeletionReason reason,
+      const SessionKey& session_key,
       SessionService::OnAccessCallback per_request_callback) = 0;
 
   // Delete all sessions that match the filtering arguments. See
   // `device_bound_sessions.mojom` for details on the filtering logic.
   virtual void DeleteAllSessions(
+      DeletionReason reason,
       std::optional<base::Time> created_after_time,
       std::optional<base::Time> created_before_time,
       base::RepeatingCallback<bool(const url::Origin&,

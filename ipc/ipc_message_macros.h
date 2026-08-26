@@ -39,9 +39,6 @@
 //     // Get basic type definitions.
 //     #define IPC_MESSAGE_IMPL
 //     #include "path/to/YYY_message_generator.h"
-//     // Generate constructors.
-//     #include "ipc/struct_constructor_macros.h"
-//     #include "path/to/YYY_message_generator.h"
 //     // Generate param traits write methods.
 //     #include "ipc/param_traits_write_macros.h"
 //     namespace IPC {
@@ -122,15 +119,6 @@
 //   - Registering existing struct and enum definitions with IPC
 //   - Defining the messages themselves
 //
-// New structs are defined with IPC_STRUCT_BEGIN(), IPC_STRUCT_MEMBER(),
-// IPC_STRUCT_END() family of macros.  These cause the XXX_messages.h
-// to proclaim equivalent struct declarations for use by callers, as well
-// as later registering the type with the message generation.  Note that
-// IPC_STRUCT_MEMBER() is only permitted inside matching calls to
-// IPC_STRUCT_BEGIN() / IPC_STRUCT_END(). There is also an
-// IPC_STRUCT_BEGIN_WITH_PARENT(), which behaves like IPC_STRUCT_BEGIN(),
-// but also accommodates structs that inherit from other structs.
-//
 // Externally-defined structs are registered with IPC_STRUCT_TRAITS_BEGIN(),
 // IPC_STRUCT_TRAITS_MEMBER(), and IPC_STRUCT_TRAITS_END() macros. These
 // cause registration of the types with message generation only.
@@ -205,23 +193,6 @@
 #include "ipc/param_traits_macros.h"
 #include "ipc/tracing_helpers.h"
 
-// Convenience macro for defining structs without inheritance. Should not need
-// to be subsequently redefined.
-#define IPC_STRUCT_BEGIN(struct_name) \
-  IPC_STRUCT_BEGIN_WITH_PARENT(struct_name, IPC::NoParams)
-
-// Macros for defining structs. Will be subsequently redefined.
-#define IPC_STRUCT_BEGIN_WITH_PARENT(struct_name, parent) \
-  struct struct_name; \
-  IPC_STRUCT_TRAITS_BEGIN(struct_name) \
-  IPC_STRUCT_TRAITS_END() \
-  struct IPC_MESSAGE_EXPORT struct_name : parent { \
-    struct_name();
-// Optional variadic parameters specify the default value for this struct
-// member. They are passed through to the constructor for |type|.
-#define IPC_STRUCT_MEMBER(type, name, ...) type name;
-#define IPC_STRUCT_END() };
-
 // Message macros collect arguments and funnel them into the common message
 // generation macro.  These should never be redefined.
 
@@ -229,8 +200,6 @@
 //     IPC_MESSAGE_CONTROL(FooMsg, int, float)
 #define IPC_MESSAGE_CONTROL(msg_class, ...) \
   IPC_MESSAGE_DECL(msg_class, CONTROL, IPC_TUPLE(__VA_ARGS__), void)
-#define IPC_MESSAGE_ROUTED(msg_class, ...) \
-  IPC_MESSAGE_DECL(msg_class, ROUTED, IPC_TUPLE(__VA_ARGS__), void)
 
 // Synchronous messages have both in and out parameters, so the lists need to
 // be parenthesized to disambiguate:
@@ -241,8 +210,6 @@
 // so "IPC_TUPLE in" and "IPC_TUPLE out" are intentional.
 #define IPC_SYNC_MESSAGE_CONTROL(msg_class, in, out) \
   IPC_MESSAGE_DECL(msg_class, CONTROL, IPC_TUPLE in, IPC_TUPLE out)
-#define IPC_SYNC_MESSAGE_ROUTED(msg_class, in, out) \
-  IPC_MESSAGE_DECL(msg_class, ROUTED, IPC_TUPLE in, IPC_TUPLE out)
 
 #define IPC_TUPLE(...) IPC::CheckedTuple<__VA_ARGS__>::Tuple
 
@@ -414,14 +381,6 @@
 #define IPC_MESSAGE_CONTROL5(msg, a, b, c, d, e) \
   IPC_MESSAGE_CONTROL(msg, a, b, c, d, e)
 
-#define IPC_MESSAGE_ROUTED0(msg) IPC_MESSAGE_ROUTED(msg)
-#define IPC_MESSAGE_ROUTED1(msg, a) IPC_MESSAGE_ROUTED(msg, a)
-#define IPC_MESSAGE_ROUTED2(msg, a, b) IPC_MESSAGE_ROUTED(msg, a, b)
-#define IPC_MESSAGE_ROUTED3(msg, a, b, c) IPC_MESSAGE_ROUTED(msg, a, b, c)
-#define IPC_MESSAGE_ROUTED4(msg, a, b, c, d) IPC_MESSAGE_ROUTED(msg, a, b, c, d)
-#define IPC_MESSAGE_ROUTED5(msg, a, b, c, d, e) \
-  IPC_MESSAGE_ROUTED(msg, a, b, c, d, e)
-
 #define IPC_SYNC_MESSAGE_CONTROL0_0(msg) IPC_SYNC_MESSAGE_CONTROL(msg, (), ())
 #define IPC_SYNC_MESSAGE_CONTROL0_1(msg, a) \
   IPC_SYNC_MESSAGE_CONTROL(msg, (), (a))
@@ -481,66 +440,6 @@
   IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d, e), (f, g, h))
 #define IPC_SYNC_MESSAGE_CONTROL5_4(msg, a, b, c, d, e, f, g, h, i) \
   IPC_SYNC_MESSAGE_CONTROL(msg, (a, b, c, d, e), (f, g, h, i))
-
-#define IPC_SYNC_MESSAGE_ROUTED0_0(msg) IPC_SYNC_MESSAGE_ROUTED(msg, (), ())
-#define IPC_SYNC_MESSAGE_ROUTED0_1(msg, a) IPC_SYNC_MESSAGE_ROUTED(msg, (), (a))
-#define IPC_SYNC_MESSAGE_ROUTED0_2(msg, a, b) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (), (a, b))
-#define IPC_SYNC_MESSAGE_ROUTED0_3(msg, a, b, c) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (), (a, b, c))
-#define IPC_SYNC_MESSAGE_ROUTED0_4(msg, a, b, c, d) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (), (a, b, c, d))
-#define IPC_SYNC_MESSAGE_ROUTED1_0(msg, a) IPC_SYNC_MESSAGE_ROUTED(msg, (a), ())
-#define IPC_SYNC_MESSAGE_ROUTED1_1(msg, a, b) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a), (b))
-#define IPC_SYNC_MESSAGE_ROUTED1_2(msg, a, b, c) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a), (b, c))
-#define IPC_SYNC_MESSAGE_ROUTED1_3(msg, a, b, c, d) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a), (b, c, d))
-#define IPC_SYNC_MESSAGE_ROUTED1_4(msg, a, b, c, d, e) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a), (b, c, d, e))
-#define IPC_SYNC_MESSAGE_ROUTED2_0(msg, a, b) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b), ())
-#define IPC_SYNC_MESSAGE_ROUTED2_1(msg, a, b, c) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b), (c))
-#define IPC_SYNC_MESSAGE_ROUTED2_2(msg, a, b, c, d) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b), (c, d))
-#define IPC_SYNC_MESSAGE_ROUTED2_3(msg, a, b, c, d, e) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b), (c, d, e))
-#define IPC_SYNC_MESSAGE_ROUTED2_4(msg, a, b, c, d, e, f) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b), (c, d, e, f))
-#define IPC_SYNC_MESSAGE_ROUTED3_0(msg, a, b, c) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), ())
-#define IPC_SYNC_MESSAGE_ROUTED3_1(msg, a, b, c, d) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), (d))
-#define IPC_SYNC_MESSAGE_ROUTED3_2(msg, a, b, c, d, e) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), (d, e))
-#define IPC_SYNC_MESSAGE_ROUTED3_3(msg, a, b, c, d, e, f) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), (d, e, f))
-#define IPC_SYNC_MESSAGE_ROUTED3_4(msg, a, b, c, d, e, f, g) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), (d, e, f, g))
-#define IPC_SYNC_MESSAGE_ROUTED3_5(msg, a, b, c, d, e, f, g, h) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c), (d, e, f, g, h))
-#define IPC_SYNC_MESSAGE_ROUTED4_0(msg, a, b, c, d) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d), ())
-#define IPC_SYNC_MESSAGE_ROUTED4_1(msg, a, b, c, d, e) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d), (e))
-#define IPC_SYNC_MESSAGE_ROUTED4_2(msg, a, b, c, d, e, f) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d), (e, f))
-#define IPC_SYNC_MESSAGE_ROUTED4_3(msg, a, b, c, d, e, f, g) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d), (e, f, g))
-#define IPC_SYNC_MESSAGE_ROUTED4_4(msg, a, b, c, d, e, f, g, h) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d), (e, f, g, h))
-#define IPC_SYNC_MESSAGE_ROUTED5_0(msg, a, b, c, d, e) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d, e), ())
-#define IPC_SYNC_MESSAGE_ROUTED5_1(msg, a, b, c, d, e, f) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d, e), (f))
-#define IPC_SYNC_MESSAGE_ROUTED5_2(msg, a, b, c, d, e, f, g) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d, e), (f, g))
-#define IPC_SYNC_MESSAGE_ROUTED5_3(msg, a, b, c, d, e, f, g, h) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d, e), (f, g, h))
-#define IPC_SYNC_MESSAGE_ROUTED5_4(msg, a, b, c, d, e, f, g, h, i) \
-  IPC_SYNC_MESSAGE_ROUTED(msg, (a, b, c, d, e), (f, g, h, i))
 
 #endif  // IPC_IPC_MESSAGE_MACROS_H_
 

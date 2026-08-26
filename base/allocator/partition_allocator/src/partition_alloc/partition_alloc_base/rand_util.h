@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_ALLOC_BASE_RAND_UTIL_H_
 #define PARTITION_ALLOC_PARTITION_ALLOC_BASE_RAND_UTIL_H_
 
@@ -15,7 +20,8 @@ namespace partition_alloc {
 class RandomGenerator;
 
 namespace internal {
-class LightweightQuarantineBranch;
+template <bool>
+class SchedulerLoopQuarantineBranch;
 }
 }  // namespace partition_alloc
 
@@ -88,7 +94,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC_BASE) InsecureRandomGenerator {
   // need a secure PRNG, as it's used for ASLR and zeroing some allocations at
   // free() time.
   friend class ::partition_alloc::RandomGenerator;
-  friend class ::partition_alloc::internal::LightweightQuarantineBranch;
+  template <bool>
+  friend class ::partition_alloc::internal::SchedulerLoopQuarantineBranch;
 };
 
 }  // namespace partition_alloc::internal::base

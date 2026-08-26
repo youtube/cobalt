@@ -76,6 +76,8 @@ String SpeculationActionAsString(mojom::blink::SpeculationAction action) {
     case mojom::blink::SpeculationAction::kPrefetch:
     case mojom::blink::SpeculationAction::kPrefetchWithSubresources:
       return "prefetch";
+    case mojom::blink::SpeculationAction::kPrerenderUntilScript:
+      return "prerender-until-script";
     case mojom::blink::SpeculationAction::kPrerender:
       return "prerender";
   }
@@ -462,6 +464,24 @@ void DocumentSpeculationRules::DocumentStyleUpdated() {
   }
 }
 
+void DocumentSpeculationRules::DisplayLockedRootsForceUpdateEnded(
+    const HeapVector<Member<Element>>& roots) {
+  if (!initialized_) {
+    return;
+  }
+  // During force update, the links under display-locked roots can by styled
+  // and removed from stale_links_. These links shall be added back to
+  // stale_links_ when the force update ends. To avoid repeatedly traverse
+  // through all the child nodes of these roots, we remove the roots from
+  // elements_blocking_child_style_recalc_ and then add them back.
+  for (Element* root : roots) {
+    elements_blocking_child_style_recalc_.erase(root);
+  }
+  for (Element* root : roots) {
+    ChildStyleRecalcBlocked(root);
+  }
+}
+
 void DocumentSpeculationRules::ChildStyleRecalcBlocked(Element* root) {
   if (!initialized_) {
     return;
@@ -656,7 +676,8 @@ void DocumentSpeculationRules::UpdateSpeculationCandidates() {
 
         // Ensured by `SpeculationRuleSet`.
         CHECK(!rule->target_browsing_context_name_hint() ||
-              action == mojom::blink::SpeculationAction::kPrerender);
+              action == mojom::blink::SpeculationAction::kPrerender ||
+              action == mojom::blink::SpeculationAction::kPrerenderUntilScript);
         CHECK(!rule->requires_anonymous_client_ip_when_cross_origin() ||
               action == mojom::blink::SpeculationAction::kPrefetch);
 
@@ -702,6 +723,10 @@ void DocumentSpeculationRules::UpdateSpeculationCandidates() {
     push_candidates(mojom::blink::SpeculationAction::kPrerender, rule_set,
                     rule_set->prerender_rules());
 
+    if (RuntimeEnabledFeatures::PrerenderUntilScriptEnabled()) {
+      push_candidates(mojom::blink::SpeculationAction::kPrerenderUntilScript,
+                      rule_set, rule_set->prerender_until_script_rules());
+    }
     // Set the flag to evict the cached data of Session Storage when the
     // document is frozen or unload to avoid reusing old data in the cache
     // after the session storage has been modified by another renderer process.
@@ -757,6 +782,10 @@ void DocumentSpeculationRules::UpdateSpeculationCandidates() {
   }
   if (eagerness_set.Has(SpeculationEagerness::kEager)) {
     UseCounter::Count(document, WebFeature::kSpeculationRulesEagernessEager);
+  }
+  if (eagerness_set.Has(SpeculationEagerness::kImmediate)) {
+    UseCounter::Count(document,
+                      WebFeature::kSpeculationRulesEagernessImmediate);
   }
 
   base::UmaHistogramEnumeration(
@@ -821,7 +850,9 @@ void DocumentSpeculationRules::AddLinkBasedSpeculationCandidates(
                 mojom::blink::SpeculationTargetHint::kNoHint;
             if (RuntimeEnabledFeatures::SpeculationRulesTargetHintEnabled(
                     execution_context) &&
-                action == mojom::blink::SpeculationAction::kPrerender) {
+                (action == mojom::blink::SpeculationAction::kPrerender ||
+                 action ==
+                     mojom::blink::SpeculationAction::kPrerenderUntilScript)) {
               if (rule->target_browsing_context_name_hint()) {
                 target_hint = rule->target_browsing_context_name_hint().value();
               } else {
@@ -870,6 +901,12 @@ void DocumentSpeculationRules::AddLinkBasedSpeculationCandidates(
 
       push_link_candidates(mojom::blink::SpeculationAction::kPrerender,
                            rule_set, rule_set->prerender_rules());
+
+      if (RuntimeEnabledFeatures::PrerenderUntilScriptEnabled()) {
+        push_link_candidates(
+            mojom::blink::SpeculationAction::kPrerenderUntilScript, rule_set,
+            rule_set->prerender_until_script_rules());
+      }
     }
 
     if (!link_candidates->empty()) {
@@ -1023,6 +1060,10 @@ void DocumentSpeculationRules::SetPendingUpdateState(
   }
 #endif
   pending_update_state_ = new_state;
+}
+
+void DocumentSpeculationRules::FlushMojoMessageForTesting() {
+  host_.FlushForTesting();
 }
 
 }  // namespace blink

@@ -41,13 +41,14 @@
 #include "modules/audio_coding/include/audio_coding_module.h"
 #include "modules/audio_coding/test/Channel.h"
 #include "rtc_base/strings/string_builder.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 
 TestRedFec::TestRedFec()
-    : env_(CreateEnvironment(&field_trials_)),
+    : env_(CreateEnvironment(CreateTestFieldTrialsPtr())),
       encoder_factory_(CreateAudioEncoderFactory<AudioEncoderG711,
                                                  AudioEncoderG722,
                                                  AudioEncoderL16,
@@ -171,7 +172,7 @@ void TestRedFec::RegisterSendCodec(
       config.payload_type = red_payload_type;
       config.speech_encoder = std::move(encoder);
       encoder = std::make_unique<AudioEncoderCopyRed>(std::move(config),
-                                                      field_trials_);
+                                                      env_.field_trials());
       receive_codecs.emplace(
           std::make_pair(red_payload_type,
                          SdpAudioFormat("red", codec_format.clockrate_hz, 1)));

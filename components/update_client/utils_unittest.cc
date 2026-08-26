@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/base_paths.h"
+#include "base/containers/to_vector.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -27,6 +28,36 @@
 
 namespace update_client {
 
+#if defined(IN_MEMORY_UPDATES)
+TEST(UpdateClientUtils, VerifyHash256) {
+  std::string content;
+  EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &content));
+  EXPECT_TRUE(VerifyHash256(
+      &content,
+      std::string(
+          "7ab32f071cd9b5ef8e0d7913be161f532d98b3e9fa284a7cd8059c3409ce0498")));
+
+  std::string empty_content;
+  EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("empty_file"), &empty_content));
+  EXPECT_TRUE(VerifyHash256(
+      &empty_content,
+      std::string(
+          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")));
+
+  EXPECT_FALSE(
+      VerifyHash256(&content,
+                        std::string("")));
+
+  EXPECT_FALSE(
+      VerifyHash256(&content,
+                        std::string("abcd")));
+
+  EXPECT_FALSE(VerifyHash256(
+      &content,
+      std::string(
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")));
+}
+#else
 TEST(UpdateClientUtils, VerifyFileHash256) {
   EXPECT_TRUE(VerifyFileHash256(
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
@@ -51,6 +82,7 @@ TEST(UpdateClientUtils, VerifyFileHash256) {
       std::string(
           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")));
 }
+#endif
 
 // Tests that the brand matches ^[a-zA-Z]{4}?$
 TEST(UpdateClientUtils, IsValidBrand) {
@@ -81,7 +113,7 @@ TEST(UpdateClientUtils, GetCrxComponentId) {
       0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
   };
   CrxComponent component;
-  component.pk_hash.assign(std::begin(kHash), std::end(kHash));
+  component.pk_hash = base::ToVector(kHash);
 
   EXPECT_EQ(std::string("abcdefghijklmnopabcdefghijklmnop"),
             GetCrxComponentID(component));
@@ -152,32 +184,27 @@ TEST(UpdateClientUtils, IsValidInstallerAttributeValue) {
 }
 
 TEST(UpdateClientUtils, RemoveUnsecureUrls) {
-  const GURL test1[] = {GURL("http://foo"), GURL("https://foo")};
-  std::vector<GURL> urls(std::begin(test1), std::end(test1));
+  std::vector<GURL> urls = {GURL("http://foo"), GURL("https://foo")};
   RemoveUnsecureUrls(&urls);
   EXPECT_EQ(1u, urls.size());
   EXPECT_EQ(urls[0], GURL("https://foo"));
 
-  const GURL test2[] = {GURL("https://foo"), GURL("http://foo")};
-  urls.assign(std::begin(test2), std::end(test2));
+  urls = {GURL("https://foo"), GURL("http://foo")};
   RemoveUnsecureUrls(&urls);
   EXPECT_EQ(1u, urls.size());
   EXPECT_EQ(urls[0], GURL("https://foo"));
 
-  const GURL test3[] = {GURL("https://foo"), GURL("https://bar")};
-  urls.assign(std::begin(test3), std::end(test3));
+  urls = {GURL("https://foo"), GURL("https://bar")};
   RemoveUnsecureUrls(&urls);
   EXPECT_EQ(2u, urls.size());
   EXPECT_EQ(urls[0], GURL("https://foo"));
   EXPECT_EQ(urls[1], GURL("https://bar"));
 
-  const GURL test4[] = {GURL("http://foo")};
-  urls.assign(std::begin(test4), std::end(test4));
+  urls = {GURL("http://foo")};
   RemoveUnsecureUrls(&urls);
   EXPECT_EQ(0u, urls.size());
 
-  const GURL test5[] = {GURL("http://foo"), GURL("http://bar")};
-  urls.assign(std::begin(test5), std::end(test5));
+  urls = {GURL("http://foo"), GURL("http://bar")};
   RemoveUnsecureUrls(&urls);
   EXPECT_EQ(0u, urls.size());
 }

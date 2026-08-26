@@ -15,8 +15,6 @@
     "P/PaintOpSerializationTest.SmokeTest/21",
     "PaintOpBufferTest.BoundingRect_DrawSkottieOp",
     "PixelResourceTest/LayerTreeHost*",
-    "PixelResourceTest/LayerTreeHostMaskPixelTestWithLayerList.*",
-    "PixelResourceTest/LayerTreeHostMasksPixelTest.*",
     "SkottieWrapperTest.LoadsTextNodes",
     "SkottieWrapperTest.LoadsTransformNodes",
     "SkottieWrapperTest.SetsTextNodesWithDraw",

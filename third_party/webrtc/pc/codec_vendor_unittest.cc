@@ -10,9 +10,7 @@
 
 #include "pc/codec_vendor.h"
 
-#include <stddef.h>
-
-#include <memory>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -34,6 +32,7 @@
 #include "pc/rtp_parameters_conversion.h"
 #include "pc/session_description.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -70,8 +69,8 @@ const Codec kAudioCodecsAnswer[] = {
 };
 
 TEST(CodecVendorTest, TestSetAudioCodecs) {
-  std::unique_ptr<FieldTrials> trials = FieldTrials::CreateNoGlobal("");
-  CodecVendor codec_vendor(nullptr, false, *trials);
+  FieldTrials trials = CreateTestFieldTrials();
+  CodecVendor codec_vendor(nullptr, false, trials);
   std::vector<Codec> send_codecs = MAKE_VECTOR(kAudioCodecs1);
   std::vector<Codec> recv_codecs = MAKE_VECTOR(kAudioCodecs2);
 

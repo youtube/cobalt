@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/paint/cull_rect_updater.h"
 
+#include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
@@ -206,9 +207,13 @@ void CullRectUpdater::UpdateForTesting(const CullRect& input_cull_rect) {
 
 void CullRectUpdater::UpdateInternal(const CullRect& input_cull_rect) {
   const auto& object = starting_layer_.GetLayoutObject();
-  if (object.GetFrameView()->ShouldThrottleRendering())
+  if (object.GetFrameView()->ShouldThrottleRendering()) {
     return;
+  }
   if (object.IsFragmentLessBox()) {
+    return;
+  }
+  if (!object.View()->FirstFragment().HasLocalBorderBoxProperties()) {
     return;
   }
 

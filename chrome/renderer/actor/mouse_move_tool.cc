@@ -38,9 +38,18 @@ blink::WebMouseEvent CreateMouseEvent(blink::WebInputEvent::Type event_type,
 
 namespace actor {
 
-MouseMoveTool::MouseMoveTool(mojom::MouseMoveActionPtr action,
-                             content::RenderFrame& frame)
-    : frame_(frame), action_(std::move(action)) {}
+MouseMoveTool::MouseMoveTool(content::RenderFrame& frame,
+                             Journal::TaskId task_id,
+                             Journal& journal,
+                             mojom::MouseMoveActionPtr action,
+                             mojom::ToolTargetPtr target,
+                             mojom::ObservedToolTargetPtr observed_target)
+    : ToolBase(frame,
+               task_id,
+               journal,
+               std::move(target),
+               std::move(observed_target)),
+      action_(std::move(action)) {}
 
 MouseMoveTool::~MouseMoveTool() = default;
 
@@ -72,40 +81,19 @@ void MouseMoveTool::Execute(ToolFinishedCallback callback) {
 }
 
 std::string MouseMoveTool::DebugString() const {
-  return absl::StrFormat("MouseMoveTool[%s]", ToDebugString(action_->target));
+  return absl::StrFormat("MouseMoveTool[%s]", ToDebugString(target_));
 }
 
 MouseMoveTool::ValidatedResult MouseMoveTool::Validate() const {
-  if (!frame_->GetWebFrame() || !frame_->GetWebFrame()->FrameWidget()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kFrameWentAway));
+  CHECK(frame_->GetWebFrame());
+  CHECK(frame_->GetWebFrame()->FrameWidget());
+
+  auto resolved_target = ValidateAndResolveTarget();
+  if (!resolved_target.has_value()) {
+    return base::unexpected(std::move(resolved_target.error()));
   }
 
-  if (action_->target->is_coordinate()) {
-    gfx::PointF move_point = gfx::PointF(action_->target->get_coordinate());
-    if (!IsPointWithinViewport(move_point, frame_.get())) {
-      return base::unexpected(
-          MakeResult(mojom::ActionResultCode::kCoordinatesOutOfBounds,
-                     absl::StrFormat("Point [%s]", move_point.ToString())));
-    }
-
-    return move_point;
-  }
-
-  blink::WebNode node =
-      GetNodeFromId(frame_.get(), action_->target->get_dom_node_id());
-  if (node.IsNull()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kInvalidDomNodeId));
-  }
-
-  std::optional<gfx::PointF> move_point = InteractionPointFromWebNode(node);
-  if (!move_point.has_value()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kElementOffscreen));
-  }
-
-  return *move_point;
+  return resolved_target->point;
 }
 
 }  // namespace actor

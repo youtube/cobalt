@@ -25,8 +25,8 @@
 #include "third_party/blink/renderer/core/loader/back_forward_cache_loader_helper_impl.h"
 #include "third_party/blink/renderer/core/script/modulator.h"
 #include "third_party/blink/renderer/core/workers/worker_clients.h"
-#include "third_party/blink/renderer/core/workers/worker_navigator.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
+#include "third_party/blink/renderer/platform/heap/cross_thread_persistent.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_load_scheduler.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_loader_options.h"
 #include "third_party/blink/renderer/platform/scheduler/public/worker_scheduler.h"
@@ -43,6 +43,7 @@ class WorkerResourceTimingNotifier;
 class SubresourceFilter;
 class WebContentSettingsClient;
 class WebWorkerFetchContext;
+class WorkerNavigator;
 class WorkerOrWorkletScriptController;
 class WorkerReportingProxy;
 class WorkerThread;
@@ -92,9 +93,8 @@ class CORE_EXPORT WorkerOrWorkletGlobalScope
       BlockingDetails details) override {}
 
   // BackForwardCacheLoaderHelperImpl::Delegate
-  void EvictFromBackForwardCache(
-      mojom::blink::RendererEvictionReason reason,
-      std::unique_ptr<SourceLocation> source_location) override {}
+  void EvictFromBackForwardCache(mojom::blink::RendererEvictionReason reason,
+                                 SourceLocation* source_location) override {}
   void DidBufferLoadWhileInBackForwardCache(bool update_process_wide_count,
                                             size_t num_bytes) override {}
 

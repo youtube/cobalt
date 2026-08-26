@@ -31,8 +31,10 @@ rtc_library("av1_svc_config") {
 rtc_library("dav1d_decoder") {
   visibility = [ "*" ]
   poisonous = [ "software_video_codecs" ]
-  public = [ "dav1d_decoder.h" ]
-  sources = [ "dav1d_decoder.cc" ]
+  sources = [
+    "dav1d_decoder.cc",
+    "dav1d_decoder.h",
+  ]
 
   deps = [
     "../..:video_codec_interface",
@@ -52,8 +54,10 @@ rtc_library("dav1d_decoder") {
 rtc_library("libaom_av1_encoder") {
   visibility = [ "*" ]
   poisonous = [ "software_video_codecs" ]
-  public = [ "libaom_av1_encoder.h" ]
-  sources = [ "libaom_av1_encoder.cc" ]
+  sources = [
+    "libaom_av1_encoder.cc",
+    "libaom_av1_encoder.h",
+  ]
   deps = [
     "../..:video_codec_interface",
     "../../../../api:field_trials_view",
@@ -99,6 +103,7 @@ if (rtc_include_tests) {
       ":dav1d_decoder",
       "../..:video_codec_interface",
       "../../../../api:array_view",
+      "../../../../api:field_trials",
       "../../../../api/environment",
       "../../../../api/environment:environment_factory",
       "../../../../api/transport/rtp:dependency_descriptor",
@@ -112,7 +117,7 @@ if (rtc_include_tests) {
       "../../../../api/video_codecs:scalability_mode",
       "../../../../api/video_codecs:video_codecs_api",
       "../../../../rtc_base:checks",
-      "../../../../test:explicit_key_value_config",
+      "../../../../test:create_test_field_trials",
       "../../../../test:test_support",
     ]
 
@@ -131,7 +136,6 @@ if (rtc_include_tests) {
         "../../../../api/units:time_delta",
         "../../../../modules/rtp_rtcp:rtp_rtcp_format",
         "../../../../test:fileutils",
-        "../../../../test:scoped_key_value_config",
         "../../../../test:video_test_support",
         "../../svc:scalability_mode_util",
         "../../svc:scalability_structures",

@@ -53,7 +53,7 @@ UlpfecReceiver::~UlpfecReceiver() {
   if (packet_counter_.first_packet_time != Timestamp::MinusInfinity()) {
     const Timestamp now = clock_->CurrentTime();
     TimeDelta elapsed = (now - packet_counter_.first_packet_time);
-    if (elapsed.seconds() >= metrics::kMinRunTimeInSeconds) {
+    if (elapsed >= metrics::kMinRunTime) {
       if (packet_counter_.num_packets > 0) {
         RTC_HISTOGRAM_PERCENTAGE(
             "WebRTC.Video.ReceivedFecPacketsInPercent",

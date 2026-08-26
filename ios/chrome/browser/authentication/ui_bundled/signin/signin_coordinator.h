@@ -88,21 +88,6 @@ class PrefRegistrySyncable;
                                   (const ChangeProfileContinuationProvider&)
                                       continuationProvider;
 
-// Returns a coordinator for fullscreen sign-in workflow.
-// `viewController` presents the sign-in.
-+ (SigninCoordinator*)
-    fullscreenSigninCoordinatorWithBaseViewController:
-        (UIViewController*)viewController
-                                              browser:(Browser*)browser
-                                         contextStyle:
-                                             (SigninContextStyle)contextStyle
-                                          accessPoint:
-                                              (signin_metrics::AccessPoint)
-                                                  accessPoint
-                    changeProfileContinuationProvider:
-                        (const ChangeProfileContinuationProvider&)
-                            changeProfileContinuationProvider;
-
 // Returns a coordinator for upgrade sign-in workflow.
 // `viewController` presents the sign-in.
 // `contextStyle` is used to customize content on screens.
@@ -120,6 +105,9 @@ class PrefRegistrySyncable;
 // `viewController` presents the sign-in.
 // `contextStyle` is used to customize content on screens.
 // `accessPoint` access point from the sign-in where is started.
+// Note that, up to iOS 18, the view may disappear if the user turn off their
+// screen, without calling the completion block, due to a bug in UIKit. See
+// crbug.com/395959814.
 + (SigninCoordinator*)
     addAccountCoordinatorWithBaseViewController:
         (UIViewController*)viewController
@@ -137,6 +125,9 @@ class PrefRegistrySyncable;
 // `contextStyle` is used to customize content on screens.
 // `accessPoint` access point from the sign-in where is started.
 // `promoAction` is promo button used to trigger the sign-in.
+// Note that, up to iOS 18, the view may disappear if the user turn off their
+// screen, without calling the completion block, due to a bug in UIKit. See
+// crbug.com/395959814.
 + (SigninCoordinator*)
     primaryAccountReauthCoordinatorWithBaseViewController:
         (UIViewController*)viewController
@@ -159,6 +150,9 @@ class PrefRegistrySyncable;
 // `contextStyle` is used to customize content on screens.
 // `accessPoint` access point from the sign-in where is started.
 // `promoAction` is promo button used to trigger the sign-in.
+// Note that, up to iOS 18, the view may disappear if the user turn off their
+// screen, without calling the completion block, due to a bug in UIKit. See
+// crbug.com/395959814.
 + (SigninCoordinator*)
     signinAndSyncReauthCoordinatorWithBaseViewController:
         (UIViewController*)viewController
@@ -231,7 +225,8 @@ class PrefRegistrySyncable;
                                      accessPoint:(signin_metrics::AccessPoint)
                                                      accessPoint
                                      promoAction:(signin_metrics::PromoAction)
-                                                     promoAction;
+                                                     promoAction
+                                    showSnackbar:(BOOL)showSnackbar;
 
 // ChromeCoordinator.
 - (void)start NS_REQUIRES_SUPER;

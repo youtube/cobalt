@@ -256,7 +256,8 @@ void ProfileOAuth2TokenServiceDelegateChromeOS::LoadCredentialsInternal(
 
 void ProfileOAuth2TokenServiceDelegateChromeOS::UpdateCredentialsInternal(
     const CoreAccountId& account_id,
-    const std::string& refresh_token) {
+    const std::string& refresh_token,
+    const std::vector<uint8_t>& wrapped_binding_key) {
   // UpdateCredentials should not be called on Chrome OS. Credentials should be
   // updated through Chrome OS Account Manager.
   NOTREACHED();
@@ -363,18 +364,14 @@ void ProfileOAuth2TokenServiceDelegateChromeOS::FinishAddingPendingAccount(
 
   // Call the parent method - which will not report the error back to
   // `AccountManagerFacade` and result in this instance getting notified again -
-  // unlike `ProfileOAuth2TokenServiceDelegateChromeOS::UpdateAuthError`.
+  // unlike `ProfileOAuth2TokenServiceDelegateChromeOS::UpdateAuthError()`.
   // Additionally, don't call `FireAuthErrorChanged`
-  // (/*fire_auth_error_changed=*/false), since we call it at the end of this
-  // function.
+  // (/*fire_auth_error_changed=*/false), since `FireRefreshTokenAvailable()` is
+  // going to call it at the end of this function.
   ProfileOAuth2TokenServiceDelegate::UpdateAuthError(
       account_id, error, /*fire_auth_error_changed=*/false);
 
   FireRefreshTokenAvailable(account_id);
-  // See |ProfileOAuth2TokenServiceObserver::OnAuthErrorChanged|.
-  // |OnAuthErrorChanged| must be always called after
-  // |OnRefreshTokenAvailable|, when refresh token is updated.
-  FireAuthErrorChanged(account_id, error);
 }
 
 void ProfileOAuth2TokenServiceDelegateChromeOS::OnAccountUpserted(

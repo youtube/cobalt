@@ -136,39 +136,6 @@ bool IsThrottlableRequestContext(mojom::blink::RequestContextType context) {
          context != mojom::blink::RequestContextType::AUDIO;
 }
 
-void LogMixedAutoupgradeMetrics(blink::MixedContentAutoupgradeStatus status,
-                                std::optional<int> response_or_error_code,
-                                ukm::SourceId source_id,
-                                ukm::UkmRecorder* recorder,
-                                Resource* resource) {
-  UMA_HISTOGRAM_ENUMERATION("MixedAutoupgrade.ResourceRequest.Status", status);
-  switch (status) {
-    case MixedContentAutoupgradeStatus::kStarted:
-      UMA_HISTOGRAM_ENUMERATION("MixedAutoupgrade.ResourceRequest.Start.Type",
-                                resource->GetType());
-      break;
-    case MixedContentAutoupgradeStatus::kFailed:
-      UMA_HISTOGRAM_ENUMERATION("MixedAutoupgrade.ResourceRequest.Failure.Type",
-                                resource->GetType());
-      UMA_HISTOGRAM_BOOLEAN("MixedAutoupgrade.ResourceRequest.Failure.IsAd",
-                            resource->GetResourceRequest().IsAdResource());
-      break;
-    case MixedContentAutoupgradeStatus::kResponseReceived:
-      UMA_HISTOGRAM_ENUMERATION(
-          "MixedAutoupgrade.ResourceRequest.Response.Type",
-          resource->GetType());
-  };
-  ukm::builders::MixedContentAutoupgrade_ResourceRequest builder(source_id);
-  builder.SetStatus(static_cast<int64_t>(status));
-  if (response_or_error_code.has_value()) {
-    base::UmaHistogramSparse(
-        "MixedAutoupgrade.ResourceRequest.ErrorOrResponseCode",
-        response_or_error_code.value());
-    builder.SetCode(response_or_error_code.value());
-  }
-  builder.Record(recorder);
-}
-
 bool RequestContextObserveResponse(mojom::blink::RequestContextType type) {
   switch (type) {
     case mojom::blink::RequestContextType::PING:
@@ -270,7 +237,7 @@ ResourceLoader::ResourceLoader(ResourceFetcher* fetcher,
       is_cache_aware_loading_activated_(
           ShouldActivateCacheAwareLoading(fetcher, resource)),
       progress_receiver_(this, context),
-      cancel_timer_(fetcher_->GetTaskRunner(),
+      cancel_timer_(fetcher_->GetUnfreezableTaskRunner(),
                     this,
                     &ResourceLoader::CancelTimerFired) {
   DCHECK(resource_);
@@ -365,11 +332,6 @@ void ResourceLoader::Start() {
     throttle_option = ResourceLoadScheduler::ThrottleOption::kStoppable;
   }
 
-  if (request.IsAutomaticUpgrade()) {
-    LogMixedAutoupgradeMetrics(MixedContentAutoupgradeStatus::kStarted,
-                               std::nullopt, request.GetUkmSourceId(),
-                               fetcher_->UkmRecorder(), resource_);
-  }
   if (resource_->GetResourceRequest().IsDownloadToNetworkCacheOnly()) {
     // The download-to-cache requests are throttled in net/, they are fire-and
     // forget, and cannot unregister properly from the scheduler once they are
@@ -377,6 +339,14 @@ void ResourceLoader::Start() {
     throttle_option =
         ResourceLoadScheduler::ThrottleOption::kCanNotBeStoppedOrThrottled;
   }
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltBypassResourceLoadScheduler)) {
+    scheduler_client_id_ = 1;
+    StartFetch();
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   scheduler_->Request(this, throttle_option, request.Priority(),
                       request.IntraPriorityValue(), &scheduler_client_id_);
 }
@@ -452,6 +422,14 @@ void ResourceLoader::StartFetch() {
 void ResourceLoader::Release(
     ResourceLoadScheduler::ReleaseOption option,
     const ResourceLoadScheduler::TrafficReportHints& hints) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltBypassResourceLoadScheduler)) {
+    scheduler_client_id_ = ResourceLoadScheduler::kInvalidClientId;
+    feature_handle_for_scheduler_.reset();
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   DCHECK_NE(ResourceLoadScheduler::kInvalidClientId, scheduler_client_id_);
   bool released = scheduler_->Release(scheduler_client_id_, option, hints);
   DCHECK(released);
@@ -514,6 +492,17 @@ void ResourceLoader::SetDefersLoading(LoaderFreezeMode mode) {
 
 void ResourceLoader::DidChangePriority(ResourceLoadPriority load_priority,
                                        int intra_priority_value) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltBypassResourceLoadScheduler)) {
+    if (loader_) {
+      loader_->DidChangePriority(
+          static_cast<WebURLRequest::Priority>(load_priority),
+          intra_priority_value);
+    }
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   if (scheduler_->IsRunning(scheduler_client_id_)) {
     DCHECK_NE(ResourceLoadScheduler::kInvalidClientId, scheduler_client_id_);
     if (loader_) {
@@ -677,8 +666,8 @@ bool ResourceLoader::WillFollowRedirect(
                              new_request->GetRedirectInfo());
 
     if (Context().CalculateIfAdSubresource(
-            *new_request, std::nullopt /* alias_url */, resource_type,
-            options.initiator_info)) {
+            *new_request, /*alias_url=*/std::nullopt, resource_type,
+            options.initiator_info, /*out_rule=*/nullptr)) {
       new_request->SetIsAdResource();
     }
 
@@ -914,13 +903,6 @@ void ResourceLoader::DidReceiveResponseInternal(
 
   CountPrivateNetworkAccessPreflightResult(
       response.PrivateNetworkAccessPreflightResult());
-
-  if (request.IsAutomaticUpgrade()) {
-    LogMixedAutoupgradeMetrics(MixedContentAutoupgradeStatus::kResponseReceived,
-                               response.HttpStatusCode(),
-                               request.GetUkmSourceId(),
-                               fetcher_->UkmRecorder(), resource_);
-  }
 
   ResourceType resource_type = resource_->GetType();
 
@@ -1193,14 +1175,7 @@ void ResourceLoader::DidFail(const WebURLError& error,
                              int64_t encoded_data_length,
                              uint64_t encoded_body_length,
                              int64_t decoded_body_length) {
-  const ResourceRequestHead& request = resource_->GetResourceRequest();
   response_end_time_for_error_cases_ = response_end_time;
-
-  if (request.IsAutomaticUpgrade()) {
-    LogMixedAutoupgradeMetrics(MixedContentAutoupgradeStatus::kFailed,
-                               error.reason(), request.GetUkmSourceId(),
-                               fetcher_->UkmRecorder(), resource_);
-  }
 
   CountPrivateNetworkAccessPreflightResult(
       error.private_network_access_preflight_result());
@@ -1512,11 +1487,11 @@ ResourceLoader::CheckResponseNosniff(
     fetcher_->GetConsoleLogger().AddConsoleMessage(
         mojom::ConsoleMessageSource::kSecurity,
         mojom::ConsoleMessageLevel::kError,
-        WTF::StrCat({"Refused to apply style from '",
-                     response.CurrentRequestUrl().ElidedString(),
-                     "' because its MIME type ('", mime_type,
-                     "') is not a supported stylesheet MIME type, and strict "
-                     "MIME checking is enabled."}));
+        StrCat({"Refused to apply style from '",
+                response.CurrentRequestUrl().ElidedString(),
+                "' because its MIME type ('", mime_type,
+                "') is not a supported stylesheet MIME type, and strict "
+                "MIME checking is enabled."}));
     return ResourceRequestBlockedReason::kContentType;
   }
   // TODO(mkwst): Move the 'nosniff' bit of 'AllowedByNosniff::MimeTypeAsScript'
@@ -1623,9 +1598,9 @@ bool ResourceLoader::ShouldBlockRequestBasedOnSubresourceFilterDnsAliasCheck(
     }
 
     if (!resource_->GetResourceRequest().IsAdResource() &&
-        Context().CalculateIfAdSubresource(resource_->GetResourceRequest(),
-                                           alias_url, resource_type,
-                                           options.initiator_info)) {
+        Context().CalculateIfAdSubresource(
+            resource_->GetResourceRequest(), alias_url, resource_type,
+            options.initiator_info, /*out_rule=*/nullptr)) {
       resource_->SetIsAdResource();
       cname_alias_info_for_testing_.was_ad_tagged_based_on_alias = true;
     }

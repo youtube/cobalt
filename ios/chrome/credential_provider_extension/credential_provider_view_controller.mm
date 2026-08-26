@@ -314,8 +314,7 @@ enum class PasskeyCreationEligibility {
 }
 
 - (void)prepareInterfaceForExtensionConfiguration {
-  if (HasSavedPasskeys(self.credentialStore.credentials) &&
-      IsPasskeysM2Enabled()) {
+  if (HasSavedPasskeys(self.credentialStore.credentials)) {
     __weak __typeof__(self) weakSelf = self;
     auto completion = ^(NSArray<NSData*>* securityDomainSecrets) {
       [weakSelf completeSecurityDomainSecretFetchForExtensionConfiguration];
@@ -421,6 +420,31 @@ enum class PasskeyCreationEligibility {
 
   [self validateUserAndCreatePasskeyWithDetails:passkeyRequestDetails
                                            gaia:gaia];
+}
+
+- (void)reportUnknownPublicKeyCredentialForRelyingParty:(NSString*)relyingParty
+                                           credentialID:(NSData*)credentialID {
+  // TODO(crbug.com/432260316): Implement.
+}
+
+- (void)reportPublicKeyCredentialUpdateForRelyingParty:(NSString*)relyingParty
+                                            userHandle:(NSData*)userHandle
+                                               newName:(NSString*)newName {
+  // TODO(crbug.com/432260316): Implement.
+}
+
+- (void)reportAllAcceptedPublicKeyCredentialsForRelyingParty:
+            (NSString*)relyingParty
+                                                  userHandle:(NSData*)userHandle
+                                       acceptedCredentialIDs:
+                                           (NSArray<NSData*>*)
+                                               acceptedCredentialIDs {
+  // TODO(crbug.com/432260316): Implement.
+}
+
+- (void)reportUnusedPasswordCredentialForDomain:(NSString*)domain
+                                       userName:(NSString*)userName {
+  // Password credential updates are currently not handled.
 }
 
 #pragma mark - Properties

@@ -35,7 +35,6 @@
 #include "content/public/test/test_utils.h"
 #include "content/shell/browser/shell.h"
 #include "content/test/content_browser_test_utils_internal.h"
-#include "ipc/ipc_security_test_util.h"
 #include "net/base/features.h"
 #include "net/base/filename_util.h"
 #include "net/cookies/canonical_cookie.h"
@@ -77,7 +76,7 @@ void EnableDevtoolsThirdPartyCookieRestriction(
 
 void SetCookieFromJS(RenderFrameHost* frame, std::string cookie) {
   EvalJsResult result = EvalJs(frame, "document.cookie = '" + cookie + "'");
-  EXPECT_TRUE(result.error.empty()) << result.error;
+  EXPECT_TRUE(result.is_ok()) << result;
 }
 
 std::string GetCookieFromJS(RenderFrameHost* frame) {
@@ -198,7 +197,7 @@ IN_PROC_BROWSER_TEST_P(CookieBrowserTest, Cookies) {
       static_cast<WebContentsImpl*>(shell2->web_contents());
   WebContentsImpl* web_contents_http =
       static_cast<WebContentsImpl*>(shell()->web_contents());
-  if (AreAllSitesIsolatedForTesting()) {
+  if (AreStrictSiteInstancesEnabled()) {
     EXPECT_EQ("http://a.test/",
               web_contents_http->GetSiteInstance()->GetSiteURL().spec());
     // Create expected site url, including port if origin isolation is enabled.

@@ -42,6 +42,10 @@ if (enable_av1_decoder &&
     if (use_v4l2_codec) {
       deps += [ "//media/gpu/v4l2" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   test("video_decode_accelerator_perf_tests") {
@@ -60,6 +64,10 @@ if (enable_av1_decoder &&
     if (use_v4l2_codec || use_vaapi) {
       deps += [ "//sandbox/linux:sandbox_services" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   test("video_encode_accelerator_tests") {
@@ -121,7 +129,7 @@ source_set("helpers") {
     "video_frame_helpers.h",
   ]
   deps = [
-    "//base:base",
+    "//base",
     "//base/test:test_config",
     "//base/test:test_support",
     "//gpu:test_support",
@@ -132,6 +140,10 @@ source_set("helpers") {
     "//third_party/libyuv",
   ]
   public_deps = [ "//testing/gtest" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("frame_validator") {
@@ -143,10 +155,15 @@ source_set("frame_validator") {
   deps = [
     ":helpers",
     ":test_helpers",
+    "//crypto",
     "//gpu:test_support",
     "//media/gpu",
     "//testing/gmock",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("frame_file_writer") {
@@ -158,7 +175,7 @@ source_set("frame_file_writer") {
   deps = [
     ":helpers",
     "//media/gpu",
-    "//ui/gfx/codec:codec",
+    "//ui/gfx/codec",
   ]
 }
 
@@ -199,7 +216,7 @@ static_library("video_player") {
     "//gpu:test_support",
     "//media/gpu",
     "//testing/gmock",
-    "//testing/gtest:gtest",
+    "//testing/gtest",
   ]
 
   if (use_vaapi || use_v4l2_codec) {
@@ -220,11 +237,11 @@ static_library("video_test_environment") {
 
   deps = [
     ":helpers",
-    "//base:base",
+    "//base",
     "//base/test:test_support",
     "//media:test_support",
     "//media/gpu",
-    "//mojo/core/embedder:embedder",
+    "//mojo/core/embedder",
   ]
 
   public_deps = [
@@ -271,7 +288,7 @@ static_library("video_encoder") {
     "//gpu:test_support",
     "//media/gpu",
     "//testing/gmock",
-    "//testing/gtest:gtest",
+    "//testing/gtest",
   ]
 }
 
@@ -315,13 +332,14 @@ if (is_chromeos) {
   static_library("local_gpu_memory_buffer_manager") {
     testonly = true
     sources = [
-      "local_gpu_memory_buffer_manager.cc",
-      "local_gpu_memory_buffer_manager.h",
+      "test_gbm_buffer_manager.cc",
+      "test_gbm_buffer_manager.h",
     ]
     deps = [
       "//base",
       "//build/config/linux/libdrm",
       "//gpu/command_buffer/client",
+      "//gpu/ipc/common:surface_handle_type",
       "//third_party/minigbm",
       "//ui/gfx:memory_buffer",
       "//ui/gfx/geometry",

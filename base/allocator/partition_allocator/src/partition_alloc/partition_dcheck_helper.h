@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_DCHECK_HELPER_H_
 #define PARTITION_ALLOC_PARTITION_DCHECK_HELPER_H_
 
@@ -12,7 +17,6 @@
 
 namespace partition_alloc::internal {
 
-template <MetadataKind kind>
 struct PartitionSuperPageExtentEntry;
 
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
@@ -36,20 +40,20 @@ struct PartitionSuperPageExtentEntry;
 
 PA_EXPORT_IF_DCHECK_IS_ON()
 void DCheckNumberOfPartitionPagesInSuperPagePayload(
-    PartitionSuperPageExtentEntry<MetadataKind::kWritable>* entry,
+    const PartitionSuperPageExtentEntry* entry,
     const PartitionRoot* root,
     size_t number_of_nonempty_slot_spans) PA_EMPTY_BODY_IF_DCHECK_IS_OFF();
 
 PA_EXPORT_IF_DCHECK_IS_ON()
-void DCheckIsValidShiftFromSlotStart(
-    const SlotSpanMetadata<MetadataKind::kReadOnly>* slot_span,
-    size_t shift_from_slot_start) PA_EMPTY_BODY_IF_DCHECK_IS_OFF();
+void DCheckIsValidShiftFromSlotStart(const SlotSpanMetadata* slot_span,
+                                     size_t shift_from_slot_start)
+    PA_EMPTY_BODY_IF_DCHECK_IS_OFF();
 
 // Checks that the object is a multiple of slot size (i.e. at a slot start).
 PA_EXPORT_IF_DCHECK_IS_ON()
-void DCheckIsValidObjectAddress(
-    const SlotSpanMetadata<MetadataKind::kReadOnly>* slot_span,
-    uintptr_t object_addr) PA_EMPTY_BODY_IF_DCHECK_IS_OFF();
+void DCheckIsValidObjectAddress(const SlotSpanMetadata* slot_span,
+                                uintptr_t object_addr)
+    PA_EMPTY_BODY_IF_DCHECK_IS_OFF();
 
 PA_EXPORT_IF_DCHECK_IS_ON()
 void DCheckRootLockIsAcquired(PartitionRoot* root)
@@ -60,7 +64,7 @@ void DCheckRootLockIsAcquired(PartitionRoot* root)
 // `partition_page.h`, and so can't be moved into the latter (layering
 // violation).
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-bool DeducedRootIsValid(SlotSpanMetadata<MetadataKind::kReadOnly>* slot_span);
+bool DeducedRootIsValid(const SlotSpanMetadata* slot_span);
 
 }  // namespace partition_alloc::internal
 

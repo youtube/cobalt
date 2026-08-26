@@ -1285,10 +1285,6 @@ void SPIRVBuilder::getImageTypeParameters(TBasicType type,
         case EbtImageRect:
             *dimOut = spv::DimRect;
             break;
-        case EbtSampler2DRectShadow:
-            *dimOut = spv::DimRect;
-            isDepth = true;
-            break;
         case EbtISampler2DRect:
         case EbtIImageRect:
             sampledType = EbtInt;
@@ -2454,6 +2450,9 @@ void SPIRVBuilder::writeExtensions(spirv::Blob *blob)
             case SPIRVExtensions::FragmentShaderInterlockARB:
                 spirv::WriteExtension(blob, "SPV_EXT_fragment_shader_interlock");
                 break;
+            case SPIRVExtensions::FragmentShadingRate:
+                spirv::WriteExtension(blob, "SPV_KHR_fragment_shading_rate");
+                break;
             default:
                 UNREACHABLE();
         }
@@ -2471,6 +2470,9 @@ void SPIRVBuilder::writeSourceExtensions(spirv::Blob *blob)
                 break;
             case SPIRVExtensions::FragmentShaderInterlockARB:
                 spirv::WriteSourceExtension(blob, "GL_ARB_fragment_shader_interlock");
+                break;
+            case SPIRVExtensions::FragmentShadingRate:
+                spirv::WriteSourceExtension(blob, "GL_EXT_fragment_shading_rate");
                 break;
             default:
                 UNREACHABLE();

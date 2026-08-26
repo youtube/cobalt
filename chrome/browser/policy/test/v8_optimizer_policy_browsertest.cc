@@ -13,6 +13,7 @@
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/policy_constants.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
@@ -44,6 +45,9 @@ class V8OptimizerPolicyTest
     // This is needed for this test to run properly on platforms where
     //  --site-per-process isn't the default, such as Android.
     content::IsolateAllSitesForTesting(command_line);
+
+    embedded_test_server()->SetCertHostnames(
+        {"foo.com", "bar.com", "unrelated.com"});
   }
 
   void SetPolicyValue(PolicyMap* map, const char* key, const char* value) {
@@ -72,9 +76,15 @@ class V8OptimizerPolicyTest
   void NavigateAndExpectPolicyResult(const char* hostname,
                                      bool expect_disabled) {
     ASSERT_TRUE(NavigateToUrl(
-        embedded_test_server()->GetURL(hostname, "/title1.html"), this));
+        embedded_https_test_server().GetURL(hostname, "/title1.html"), this));
     EXPECT_EQ(expect_disabled,
               current_frame_host()->GetProcess()->AreV8OptimizationsDisabled());
+  }
+
+  void NavigateToFreshBrowsingInstance() {
+    // Navigate to different origin so that the next navigation is in a
+    // different BrowsingInstance.
+    ASSERT_TRUE(NavigateToUrl(GURL("https://unrelated.com"), this));
   }
 
   content::RenderFrameHost* current_frame_host() {
@@ -109,6 +119,8 @@ class V8OptimizerPolicyTest
 };
 
 IN_PROC_BROWSER_TEST_P(V8OptimizerPolicyTest, V8OptimizerAllowedAndDisallowed) {
+  // This test uses the non-https server so that URL names can be more
+  // descriptive of their use case.
   ASSERT_TRUE(embedded_test_server()->Start());
 
   ConfigurePolicy("optimizer-enabled.com", "optimizer-disabled.com");
@@ -140,26 +152,48 @@ IN_PROC_BROWSER_TEST_P(V8OptimizerPolicyTest, V8OptimizerAllowedAndDisallowed) {
 IN_PROC_BROWSER_TEST_P(V8OptimizerPolicyTest, V8OptimizerHostnameMatching) {
   // For brevity, this test only tests Deny rules, because Allow rules are
   // tested above.
-  ASSERT_TRUE(embedded_test_server()->Start());
+  //
+  // The https-server is used in this test so that we can verify behavior under
+  // OriginKeyedProcessesByDefault.
+  ASSERT_TRUE(embedded_https_test_server().Start());
+
+  const bool expected_for_default = DetermineExpectedResultForDefault();
 
   // Check subdomains work.
   ConfigurePolicy(nullptr, "foo.com");
   NavigateAndExpectPolicyResult("foo.com", true);
-  NavigateAndExpectPolicyResult("subdomain.foo.com", true);
-  ConfigurePolicy(nullptr, "[*.]foo.com");
-  NavigateAndExpectPolicyResult("subdomain.foo.com", true);
 
-  const bool expected = DetermineExpectedResultForDefault();
+  NavigateToFreshBrowsingInstance();
+  if (content::SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault()) {
+    // Under origin isolation, the origin is passed into
+    // AreV8OptimizationsDisabledForSite(), and the origin does not match the
+    // site-level policy.
+    NavigateAndExpectPolicyResult("subdomain.foo.com", expected_for_default);
+  } else {
+    // Under site isolation, the site is passed in to
+    // AreV8OptimizationsDisabledForSite() and so this navigation will match the
+    // policy.
+    NavigateAndExpectPolicyResult("subdomain.foo.com", true);
+  }
+
+  ConfigurePolicy(nullptr, "[*.]foo.com");
+  NavigateToFreshBrowsingInstance();
+  NavigateAndExpectPolicyResult("subdomain.foo.com", true);
 
   // Policy applies to different domain.
   ConfigurePolicy(nullptr, "foo.com");
-  NavigateAndExpectPolicyResult("bar.com", expected);
+  NavigateToFreshBrowsingInstance();
+  NavigateAndExpectPolicyResult("bar.com", expected_for_default);
 
-  // Here there is an invalid policy as the V8 optimizer policies only support
-  // eTLD+1 as origin.
+  // Policy applies to a subdomain.
   ConfigurePolicy(nullptr, "subdomain.foo.com");
-  NavigateAndExpectPolicyResult("foo.com", expected);
-  NavigateAndExpectPolicyResult("subdomain.foo.com", expected);
+  NavigateToFreshBrowsingInstance();
+  NavigateAndExpectPolicyResult("foo.com", expected_for_default);
+  // Since there is a specific rule for subdomain.foo.com that differs from the
+  // default policy, subdomain.foo.com will have origin isolation applied and
+  // will match the policy defined above.
+  NavigateToFreshBrowsingInstance();
+  NavigateAndExpectPolicyResult("subdomain.foo.com", true);
 }
 
 INSTANTIATE_TEST_SUITE_P(DefaultDisabled,

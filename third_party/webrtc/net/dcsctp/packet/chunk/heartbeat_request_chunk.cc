@@ -9,9 +9,9 @@
  */
 #include "net/dcsctp/packet/chunk/heartbeat_request_chunk.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -19,7 +19,6 @@
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
 #include "net/dcsctp/packet/parameter/parameter.h"
-#include "net/dcsctp/packet/tlv_trait.h"
 
 namespace dcsctp {
 

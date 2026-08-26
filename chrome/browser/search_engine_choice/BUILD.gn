@@ -61,7 +61,11 @@ source_set("impl") {
     deps += [
       "//build:branding_buildflags",
       "//chrome/browser/search_engines",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/profiles",
       "//chrome/browser/ui/search_engine_choice",
+      "//chrome/browser/ui/signin",
+      "//chrome/browser/ui/web_applications",
       "//chrome/common:non_code_constants",
       "//components/country_codes",
     ]
@@ -99,6 +103,8 @@ if (!is_android) {
         "//chrome/browser/profiles/keep_alive",
         "//chrome/browser/search_engines",
         "//chrome/browser/ui",
+        "//chrome/browser/ui/browser_window",
+        "//chrome/browser/ui/signin",
         "//chrome/browser/web_applications",
         "//chrome/browser/web_applications:web_applications_test_support",
         "//chrome/common",
@@ -120,6 +126,10 @@ if (!is_android) {
         "//testing/gtest",
         "//ui/base:types",
       ]
+
+      # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+      # enable the diagnostic by removing this line.
+      configs += [ "//build/config/compiler:no_exit_time_destructors" ]
     }
 
     if (!is_chromeos_device) {
@@ -148,6 +158,10 @@ if (!is_android) {
           "//testing/gtest",
           "//ui/base",
         ]
+
+        # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+        # enable the diagnostic by removing this line.
+        configs += [ "//build/config/compiler:no_exit_time_destructors" ]
       }
     }
   }
@@ -170,5 +184,9 @@ if (!is_android) {
       "//components/web_modal:test_support",
       "//testing/gtest",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }

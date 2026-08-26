@@ -58,5 +58,8 @@ void RTCInitFieldTrialDictionary(
     RTCLogError(@"Failed to convert field trial string.");
     return;
   }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   webrtc::field_trial::InitFieldTrialsFromString(gFieldTrialInitString);
+#pragma clang diagnostic pop
 }

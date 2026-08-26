@@ -54,8 +54,7 @@ class WebContentsImpl;
 // process via SpeculationHostImpl or will directly be created for
 // browser-initiated prerendering (this code path is not implemented yet). This
 // is owned by PrerenderHostRegistry.
-class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
-                                     public NavigationControllerDelegate {
+class CONTENT_EXPORT PrerenderHost {
  public:
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
@@ -119,7 +118,10 @@ class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
     kNoVarySearchHeaderReceivedButNotMatched = 7,
     kNoVarySearchHeaderReceivedButDefaultValue = 8,
 
-    kMaxValue = kNoVarySearchHeaderReceivedButDefaultValue,
+    kUnknownFailure = 9,
+    kPrerenderNavigationFailed = 10,
+
+    kMaxValue = kPrerenderNavigationFailed,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/navigation/enums.xml:PrerenderWaitingForHeadersFinishedReason)
 
@@ -132,7 +134,7 @@ class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
 
     // Called from PrerenderHost::ReadyToCommitNavigation when headers are
     // received for the initial navigation.
-    virtual void OnHeadersReceived() {}
+    virtual void OnHeadersReceived(NavigationHandle& navigation_handle) {}
 
     // Called from PrerenderHost::OnWaitingForHeadersStarted when we start
     // blocking navigation waiting for headers.
@@ -154,6 +156,10 @@ class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
     // Called from the PrerenderHost's destructor. The observer should drop any
     // reference to the host.
     virtual void OnHostDestroyed(PrerenderFinalStatus status) {}
+
+    // Called when the PrerenderHost is reused for another prerender. The
+    // observer shall not cancel the host if OnHostReused is called.
+    virtual void OnHostReused() {}
   };
 
   // Returns the PrerenderHost that the given `frame_tree_node` is in, if it is
@@ -163,6 +169,7 @@ class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
   // Similar to GetPrerenderHostFromFrameTreeNode() but `frame_tree_node` must
   // be in prerendering.
   static PrerenderHost& GetFromFrameTreeNode(FrameTreeNode& frame_tree_node);
+  static PrerenderHost& GetFromFrameTree(FrameTree* frame_tree);
 
   // Checks whether two headers are the same in a case-insensitive and
   // order-insensitive way.
@@ -188,54 +195,20 @@ class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
   static void SetHostCreationCallbackForTesting(
       base::OnceCallback<void(FrameTreeNodeId host_id)> callback);
 
-  PrerenderHost(const PrerenderAttributes& attributes,
+  PrerenderHost(std::unique_ptr<PrerenderHost> reuse_host,
+                const PrerenderAttributes& attributes,
                 WebContentsImpl& web_contents,
                 base::WeakPtr<PreloadingAttempt> attempt,
                 std::unique_ptr<DevToolsPrerenderAttempt> devtools_attempt);
-  ~PrerenderHost() override;
+  ~PrerenderHost();
 
   PrerenderHost(const PrerenderHost&) = delete;
   PrerenderHost& operator=(const PrerenderHost&) = delete;
   PrerenderHost(PrerenderHost&&) = delete;
   PrerenderHost& operator=(PrerenderHost&&) = delete;
 
-  // FrameTree::Delegate
-
-  // TODO(crbug.com/40177943): Correctly handle load events. Ignored for
-  // now as it confuses WebContentsObserver instances because they can not
-  // distinguish between the different FrameTrees.
-
-  void LoadingStateChanged(LoadingState new_state) override {}
-  void DidStartLoading(FrameTreeNode* frame_tree_node) override {}
-  void DidStopLoading() override;
-  bool IsHidden() override;
-  FrameTree* LoadingTree() override;
-  FrameTreeNodeId GetOuterDelegateFrameTreeNodeId() override;
-  RenderFrameHostImpl* GetProspectiveOuterDocument() override;
-  void SetFocusedFrame(FrameTreeNode* node, SiteInstanceGroup* source) override;
-  FrameTree* GetOwnedPictureInPictureFrameTree() override;
-  FrameTree* GetPictureInPictureOpenerFrameTree() override;
-  bool OnRenderFrameProxyVisibilityChanged(
-      RenderFrameProxyHost* render_frame_proxy_host,
-      blink::mojom::FrameVisibility visibility) override;
-
-  // NavigationControllerDelegate
-  void NotifyNavigationStateChangedFromController(
-      InvalidateTypes changed_flags) override {}
-  void NotifyBeforeFormRepostWarningShow() override {}
-  void NotifyNavigationEntryCommitted(
-      const LoadCommittedDetails& load_details) override {}
-  void NotifyNavigationEntryChanged(
-      const EntryChangedDetails& change_details) override {}
-  void NotifyNavigationListPruned(
-      const PrunedDetails& pruned_details) override {}
-  void NotifyNavigationEntriesDeleted() override {}
-  void ActivateAndShowRepostFormWarningDialog() override;
-  bool ShouldPreserveAbortedURLs() override;
-  void UpdateOverridingUserAgent() override {}
-
   NavigationControllerImpl& GetNavigationController() {
-    return frame_tree_->controller();
+    return GetFrameTree()->controller();
   }
 
   // Returns false if prerendering hasn't been started.
@@ -338,6 +311,14 @@ class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
   // already received. These cases should be checked by `IsUrlMatch()`.
   bool IsNoVarySearchHintUrlMatch(const GURL& url) const;
 
+  // Returns true if the given `url` is the same origin as the initial_url.
+  bool IsUrlSameOrigin(const GURL& url) const;
+
+  // Returns true if the given `url` is the same site as the initial_url.
+  bool IsUrlSameSite(const GURL& url) const;
+
+  bool IsReusable() const { return attributes_.allow_reuse; }
+
   // Called when the prerender pages asks the client to change the Accept Client
   // Hints. The instruction applies to the prerendering page before activation,
   // and will be persisted to the global setting upon activation.
@@ -411,9 +392,15 @@ class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
     return attributes_.should_prepare_paint_tree;
   }
 
+  bool should_pause_javascript_execution() const {
+    return attributes_.should_pause_javascript_execution;
+  }
+
   bool IsInitialNavigation(const NavigationRequest& navigation_request) const;
 
   bool were_headers_received() const { return were_headers_received_; }
+
+  bool host_reused() const { return host_reused_; }
 
   // Gets the timeout configured for waiting on head.
   base::TimeDelta WaitUntilHeadTimeout();
@@ -438,7 +425,74 @@ class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
   void AddAdditionalRequestHeaders(net::HttpRequestHeaders& headers,
                                    FrameTreeNode& navigating_frame_tree_node);
 
+  void NotifyReused();
+
  private:
+  // The helper class to make the frame tree movable among different
+  // PrerenderHosts. When moving the prerender host to the new owner, we need to
+  // redirect the function calls to the delegates.
+  class PrerenderFrameTreeDelegate : public FrameTree::Delegate,
+                                     public NavigationControllerDelegate {
+   public:
+    // TODO(crbug.com/40177943): Correctly handle load events. Ignored for
+    // now as it confuses WebContentsObserver instances because they can not
+    // distinguish between the different FrameTrees.
+    PrerenderFrameTreeDelegate(BrowserContext* browser_context,
+                               WebContentsImpl& web_contents,
+                               PrerenderHost& prerender_host);
+
+    // FrameTree::Delegate
+    void LoadingStateChanged(LoadingState new_state) override {}
+    void DidStartLoading(FrameTreeNode* frame_tree_node) override {}
+    void DidStopLoading() override;
+    bool IsHidden() override;
+    FrameTree* LoadingTree() override;
+    FrameTreeNodeId GetOuterDelegateFrameTreeNodeId() override;
+    RenderFrameHostImpl* GetProspectiveOuterDocument() override;
+    void SetFocusedFrame(FrameTreeNode* node,
+                         SiteInstanceGroup* source) override;
+    FrameTree* GetOwnedPictureInPictureFrameTree() override;
+    FrameTree* GetPictureInPictureOpenerFrameTree() override;
+    bool OnRenderFrameProxyVisibilityChanged(
+        RenderFrameProxyHost* render_frame_proxy_host,
+        blink::mojom::FrameVisibility visibility) override;
+
+    // NavigationControllerDelegate
+    void NotifyNavigationStateChangedFromController(
+        InvalidateTypes changed_flags) override {}
+    void NotifyBeforeFormRepostWarningShow() override {}
+    void NotifyNavigationEntryCommitted(
+        const LoadCommittedDetails& load_details) override {}
+    void NotifyNavigationEntryChanged(
+        const EntryChangedDetails& change_details) override {}
+    void NotifyNavigationListPruned(
+        const PrunedDetails& pruned_details) override {}
+    void NotifyNavigationEntriesDeleted() override {}
+    void ActivateAndShowRepostFormWarningDialog() override;
+    bool ShouldPreserveAbortedURLs() override;
+    void UpdateOverridingUserAgent() override {}
+
+    LoadingOutcome WaitForLoadStopForTesting();
+
+    ~PrerenderFrameTreeDelegate() override;
+
+   private:
+    friend class PrerenderHost;
+
+    // The PrerenderHost owns a 1:1 relationship to the
+    // PrerenderFrameTreeDelegate so it is safe to store a raw_ptr.
+    raw_ref<PrerenderHost> prerender_host_;
+    std::unique_ptr<FrameTree> frame_tree_;
+
+    // Used for testing, this closure is only set when waiting a page to be
+    // either loaded for prerendering. |frame_tree_| provides us with a trigger
+    // for when the page is loaded.
+    base::OnceCallback<void(PrerenderHost::LoadingOutcome)>
+        on_wait_loading_finished_;
+  };
+
+  FrameTree* GetFrameTree() { return frame_tree_delegate_->frame_tree_.get(); }
+
   void RecordFailedFinalStatusImpl(const PrerenderCancellationReason& reason);
 
   // Asks the registry to cancel prerendering.
@@ -508,17 +562,12 @@ class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
   // PrerenderHost.
   const raw_ref<WebContentsImpl> web_contents_;
 
-  // Used for testing, this closure is only set when waiting a page to be either
-  // loaded for prerendering. |frame_tree_| provides us with a trigger for when
-  // the page is loaded.
-  base::OnceCallback<void(PrerenderHost::LoadingOutcome)>
-      on_wait_loading_finished_;
-
   // Frame tree created for the prerenderer to load the page and prepare it for
   // a future activation. During activation, the prerendered page will be taken
-  // out from |frame_tree_| and moved over to |web_contents_|'s primary frame
-  // tree, while |frame_tree_| will be deleted.
-  std::unique_ptr<FrameTree> frame_tree_;
+  // out from |frame_tree_delegate_.frame_tree_| and moved over to
+  // |web_contents_|'s primary frame tree, while |frame_tree_delegate_| will be
+  // deleted.
+  std::unique_ptr<PrerenderFrameTreeDelegate> frame_tree_delegate_;
 
   // No-Vary-Search header information for the main frame of the prerendered
   // page.
@@ -528,6 +577,8 @@ class CONTENT_EXPORT PrerenderHost : public FrameTree::Delegate,
 
   // True if headers were received.
   bool were_headers_received_ = false;
+
+  const bool host_reused_ = false;
 };
 
 }  // namespace content

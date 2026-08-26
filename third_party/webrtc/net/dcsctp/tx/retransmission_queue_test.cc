@@ -17,8 +17,9 @@
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/task_queue/task_queue_base.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "net/dcsctp/common/handover_testing.h"
 #include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/common/math.h"
@@ -28,7 +29,9 @@
 #include "net/dcsctp/packet/chunk/iforward_tsn_chunk.h"
 #include "net/dcsctp/packet/chunk/sack_chunk.h"
 #include "net/dcsctp/packet/data.h"
+#include "net/dcsctp/public/dcsctp_handover_state.h"
 #include "net/dcsctp/public/dcsctp_options.h"
+#include "net/dcsctp/public/types.h"
 #include "net/dcsctp/socket/mock_dcsctp_socket_callbacks.h"
 #include "net/dcsctp/testing/data_generator.h"
 #include "net/dcsctp/testing/testing_macros.h"
@@ -36,8 +39,8 @@
 #include "net/dcsctp/timer/timer.h"
 #include "net/dcsctp/tx/mock_send_queue.h"
 #include "net/dcsctp/tx/send_queue.h"
-#include "rtc_base/gunit.h"
 #include "test/gmock.h"
+#include "test/gtest.h"
 
 namespace dcsctp {
 namespace {

@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/spdy/spdy_session.h"
 
 #include <algorithm>
@@ -18,6 +13,7 @@
 
 #include "base/base64.h"
 #include "base/containers/contains.h"
+#include "base/containers/heap_array.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -30,6 +26,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "net/base/features.h"
+#include "net/base/hash_value.h"
 #include "net/base/hex_utils.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
@@ -109,10 +106,11 @@ base::TimeTicks InstantaneousReads() {
 
 class MockRequireCTDelegate : public RequireCTDelegate {
  public:
-  MOCK_CONST_METHOD3(IsCTRequiredForHost,
-                     CTRequirementLevel(std::string_view host,
-                                        const X509Certificate* chain,
-                                        const HashValueVector& hashes));
+  MOCK_CONST_METHOD3(
+      IsCTRequiredForHost,
+      CTRequirementLevel(std::string_view host,
+                         const X509Certificate* chain,
+                         const std::vector<SHA256HashValue>& hashes));
 
  protected:
   ~MockRequireCTDelegate() override = default;
@@ -530,10 +528,10 @@ TEST_F(SpdySessionTest, GoAwayWithActiveStreams) {
       MockRead(ASYNC, ERR_IO_PENDING, 2), CreateMockRead(goaway, 3),
       MockRead(ASYNC, ERR_IO_PENDING, 4), MockRead(ASYNC, 0, 5)  // EOF
   };
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
-  spdy::SpdySerializedFrame req2(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 3, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
+  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 3, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0), CreateMockWrite(req2, 1),
   };
@@ -601,8 +599,8 @@ TEST_F(SpdySessionTest, GoAwayWithActiveAndCreatedStream) {
   };
 
   // No |req2|, because the second stream will never get activated.
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0),
   };
@@ -659,10 +657,10 @@ TEST_F(SpdySessionTest, GoAwayTwice) {
       MockRead(ASYNC, ERR_IO_PENDING, 4), CreateMockRead(goaway2, 5),
       MockRead(ASYNC, ERR_IO_PENDING, 6), MockRead(ASYNC, 0, 7)  // EOF
   };
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
-  spdy::SpdySerializedFrame req2(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 3, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
+  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 3, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0), CreateMockWrite(req2, 1),
   };
@@ -727,10 +725,10 @@ TEST_F(SpdySessionTest, GoAwayWithActiveStreamsThenClose) {
       MockRead(ASYNC, ERR_IO_PENDING, 2), CreateMockRead(goaway, 3),
       MockRead(ASYNC, ERR_IO_PENDING, 4), MockRead(ASYNC, 0, 5)  // EOF
   };
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
-  spdy::SpdySerializedFrame req2(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 3, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
+  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 3, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0), CreateMockWrite(req2, 1),
   };
@@ -791,32 +789,29 @@ TEST_F(SpdySessionTest, GoAwayWithActiveStreamsThenClose) {
 // then processes a GOAWAY. The session should gracefully drain. Regression test
 // for crbug.com/379469
 TEST_F(SpdySessionTest, GoAwayWhileDraining) {
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req, 0),
   };
 
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame goaway(spdy_util_.ConstructSpdyGoAway(1));
   spdy::SpdySerializedFrame body(spdy_util_.ConstructSpdyDataFrame(1, true));
   size_t joint_size = goaway.size() * 2 + body.size();
 
   // Compose interleaved |goaway| and |body| frames into a single read.
-  auto buffer = std::make_unique<char[]>(joint_size);
+  auto buffer = base::HeapArray<char>::Uninit(joint_size);
   {
-    size_t out = 0;
-    memcpy(&buffer[out], goaway.data(), goaway.size());
-    out += goaway.size();
-    memcpy(&buffer[out], body.data(), body.size());
-    out += body.size();
-    memcpy(&buffer[out], goaway.data(), goaway.size());
-    out += goaway.size();
-    ASSERT_EQ(out, joint_size);
+    base::span<char> out_span = buffer.as_span();
+    out_span.take_first(goaway.size()).copy_from(goaway);
+    out_span.take_first(body.size()).copy_from(body);
+    out_span.take_first(goaway.size()).copy_from(goaway);
+    ASSERT_EQ(out_span.size(), 0u);
   }
   spdy::SpdySerializedFrame joint_frames(
-      spdy::test::MakeSerializedFrame(buffer.get(), joint_size));
+      spdy::test::MakeSerializedFrame(buffer.data(), buffer.size()));
 
   MockRead reads[] = {
       CreateMockRead(resp, 1), CreateMockRead(joint_frames, 2),
@@ -858,19 +853,19 @@ TEST_F(SpdySessionTest, GoAwayWithActiveStreamsThenEndStreams) {
   const int kStreamId1 = 1;
   const int kStreamId2 = 3;
 
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, kStreamId1, MEDIUM));
-  spdy::SpdySerializedFrame req2(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, kStreamId2, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), kStreamId1, MEDIUM));
+  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), kStreamId2, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0),
       CreateMockWrite(req2, 1),
   };
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, kStreamId1));
-  spdy::SpdySerializedFrame resp2(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, kStreamId2));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), kStreamId1));
+  spdy::SpdySerializedFrame resp2(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), kStreamId2));
 
   spdy::SpdySerializedFrame body1(
       spdy_util_.ConstructSpdyDataFrame(kStreamId1, true));
@@ -945,8 +940,8 @@ TEST_F(SpdySessionTest, CreateStreamAfterGoAway) {
       MockRead(ASYNC, ERR_IO_PENDING, 1), CreateMockRead(goaway, 2),
       MockRead(ASYNC, ERR_IO_PENDING, 3), MockRead(ASYNC, 0, 4)  // EOF
   };
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req, 0),
   };
@@ -1004,8 +999,8 @@ TEST_F(SpdySessionTest, HeadersAfterGoAway) {
       MockRead(ASYNC, ERR_IO_PENDING, 3), CreateMockRead(push, 4),
       MockRead(ASYNC, 0, 6)  // EOF
   };
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   spdy::SpdySerializedFrame goaway_sent(spdy_util_.ConstructSpdyGoAway(
       0, spdy::ERROR_CODE_PROTOCOL_ERROR, "PUSH_PROMISE received"));
   MockWrite writes[] = {CreateMockWrite(req, 0),
@@ -1054,8 +1049,8 @@ TEST_F(SpdySessionTest, NetworkChangeWithActiveStreams) {
   MockRead reads[] = {
       MockRead(ASYNC, ERR_IO_PENDING, 1), MockRead(ASYNC, 0, 2)  // EOF
   };
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0),
   };
@@ -1227,8 +1222,8 @@ TEST_F(SpdySessionTest, PingAndWriteLoop) {
   session_deps_.time_func = TheNearFuture;
 
   spdy::SpdySerializedFrame write_ping(spdy_util_.ConstructSpdyPing(1, false));
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, LOWEST));
   MockWrite writes[] = {
       CreateMockWrite(req, 0), CreateMockWrite(write_ping, 1),
   };
@@ -1367,19 +1362,19 @@ TEST_F(SpdySessionTest, StreamIdSpaceExhausted) {
   // stalled streams are aborted. Also verify the activated streams complete,
   // at which point the session closes.
 
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, kLastStreamId - 2, MEDIUM));
-  spdy::SpdySerializedFrame req2(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, kLastStreamId, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), kLastStreamId - 2, MEDIUM));
+  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), kLastStreamId, MEDIUM));
 
   MockWrite writes[] = {
       CreateMockWrite(req1, 0), CreateMockWrite(req2, 1),
   };
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, kLastStreamId - 2));
-  spdy::SpdySerializedFrame resp2(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, kLastStreamId));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), kLastStreamId - 2));
+  spdy::SpdySerializedFrame resp2(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), kLastStreamId));
 
   spdy::SpdySerializedFrame body1(
       spdy_util_.ConstructSpdyDataFrame(kLastStreamId - 2, true));
@@ -1499,11 +1494,11 @@ TEST_F(SpdySessionTest, MaxConcurrentStreamsZero) {
       spdy_util_.ConstructSpdySettingsAck());
 
   // Request and response.
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
 
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
 
   spdy::SpdySerializedFrame body(spdy_util_.ConstructSpdyDataFrame(1, true));
 
@@ -2071,8 +2066,8 @@ TEST_F(SpdySessionTest, NetLogOnSessionEOF) {
 }
 
 TEST_F(SpdySessionTest, HeadersCompressionHistograms) {
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req, 0),
   };
@@ -2117,20 +2112,20 @@ TEST_F(SpdySessionTest, HeadersCompressionHistograms) {
 // first.
 TEST_F(SpdySessionTest, OutOfOrderHeaders) {
   // Construct the request.
-  spdy::SpdySerializedFrame req_highest(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, HIGHEST));
-  spdy::SpdySerializedFrame req_lowest(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 3, LOWEST));
+  spdy::SpdySerializedFrame req_highest(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, HIGHEST));
+  spdy::SpdySerializedFrame req_lowest(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 3, LOWEST));
   MockWrite writes[] = {
       CreateMockWrite(req_highest, 0), CreateMockWrite(req_lowest, 1),
   };
 
-  spdy::SpdySerializedFrame resp_highest(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp_highest(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame body_highest(
       spdy_util_.ConstructSpdyDataFrame(1, true));
-  spdy::SpdySerializedFrame resp_lowest(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 3));
+  spdy::SpdySerializedFrame resp_lowest(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 3));
   spdy::SpdySerializedFrame body_lowest(
       spdy_util_.ConstructSpdyDataFrame(3, true));
   MockRead reads[] = {
@@ -2186,14 +2181,14 @@ TEST_F(SpdySessionTest, OutOfOrderHeaders) {
 TEST_F(SpdySessionTest, CancelStream) {
   // Request 1, at HIGHEST priority, will be cancelled before it writes data.
   // Request 2, at LOWEST priority, will be a full request and will be id 1.
-  spdy::SpdySerializedFrame req2(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
+  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, LOWEST));
   MockWrite writes[] = {
       CreateMockWrite(req2, 0),
   };
 
-  spdy::SpdySerializedFrame resp2(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp2(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame body2(spdy_util_.ConstructSpdyDataFrame(1, true));
   MockRead reads[] = {
       CreateMockRead(resp2, 1), MockRead(ASYNC, ERR_IO_PENDING, 2),
@@ -2370,10 +2365,10 @@ TEST_F(SpdySessionTest, CloseSessionWithTwoCreatedMutuallyClosingStreams) {
 // Create two streams that are set to re-close themselves on close,
 // activate them, and then close the session. Nothing should blow up.
 TEST_F(SpdySessionTest, CloseSessionWithTwoActivatedSelfClosingStreams) {
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
-  spdy::SpdySerializedFrame req2(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 3, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
+  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 3, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0), CreateMockWrite(req2, 1),
   };
@@ -2443,10 +2438,10 @@ TEST_F(SpdySessionTest, CloseSessionWithTwoActivatedSelfClosingStreams) {
 // Create two streams that are set to close each other on close,
 // activate them, and then close the session. Nothing should blow up.
 TEST_F(SpdySessionTest, CloseSessionWithTwoActivatedMutuallyClosingStreams) {
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
-  spdy::SpdySerializedFrame req2(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 3, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
+  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 3, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0), CreateMockWrite(req2, 1),
   };
@@ -2536,8 +2531,8 @@ class SessionClosingDelegate : public test::StreamDelegateDoNothing {
 // Close an activated stream that closes its session. Nothing should
 // blow up. This is a regression test for https://crbug.com/263691.
 TEST_F(SpdySessionTest, CloseActivatedStreamThatClosesSession) {
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   spdy::SpdySerializedFrame rst(
       spdy_util_.ConstructSpdyRstStream(1, spdy::ERROR_CODE_CANCEL));
   spdy::SpdySerializedFrame goaway(spdy_util_.ConstructSpdyGoAway(
@@ -2617,14 +2612,14 @@ TEST_F(SpdySessionTest, CloseTwoStalledCreateStream) {
   new_settings[kSpdySettingsId1] = max_concurrent_streams;
 
   spdy::SpdySerializedFrame settings_ack(spdy_util_.ConstructSpdySettingsAck());
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, LOWEST));
   spdy_util_.UpdateWithStreamDestruction(1);
-  spdy::SpdySerializedFrame req2(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 3, LOWEST));
+  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 3, LOWEST));
   spdy_util_.UpdateWithStreamDestruction(3);
-  spdy::SpdySerializedFrame req3(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 5, LOWEST));
+  spdy::SpdySerializedFrame req3(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 5, LOWEST));
   MockWrite writes[] = {
       CreateMockWrite(settings_ack, 1), CreateMockWrite(req1, 2),
       CreateMockWrite(req2, 5), CreateMockWrite(req3, 8),
@@ -2635,16 +2630,16 @@ TEST_F(SpdySessionTest, CloseTwoStalledCreateStream) {
   spdy::SpdySerializedFrame settings_frame(
       spdy_util_.ConstructSpdySettings(new_settings));
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame body1(spdy_util_.ConstructSpdyDataFrame(1, true));
 
-  spdy::SpdySerializedFrame resp2(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 3));
+  spdy::SpdySerializedFrame resp2(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 3));
   spdy::SpdySerializedFrame body2(spdy_util_.ConstructSpdyDataFrame(3, true));
 
-  spdy::SpdySerializedFrame resp3(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 5));
+  spdy::SpdySerializedFrame resp3(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 5));
   spdy::SpdySerializedFrame body3(spdy_util_.ConstructSpdyDataFrame(5, true));
 
   MockRead reads[] = {
@@ -2847,8 +2842,8 @@ TEST_F(SpdySessionTest, CancelTwoStalledCreateStream) {
 TEST_F(SpdySessionTest, ReadDataWithoutYielding) {
   session_deps_.time_func = InstantaneousReads;
 
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0),
   };
@@ -2864,8 +2859,8 @@ TEST_F(SpdySessionTest, ReadDataWithoutYielding) {
   spdy::SpdySerializedFrame finish_data_frame(spdy_util_.ConstructSpdyDataFrame(
       1, std::string_view(payload).substr(kPayloadSize - 1), /*fin=*/true));
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
 
   // Write 1 byte less than kMaxReadBytes to check that DoRead reads up to 32k
   // bytes.
@@ -2929,14 +2924,14 @@ TEST_F(SpdySessionTest, ReadDataWithoutYielding) {
 TEST_F(SpdySessionTest, TestYieldingSlowReads) {
   session_deps_.time_func = SlowReads;
 
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0),
   };
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
 
   MockRead reads[] = {
       CreateMockRead(resp1, 1), MockRead(ASYNC, 0, 2)  // EOF
@@ -2989,8 +2984,8 @@ TEST_F(SpdySessionTest, TestYieldingSlowReads) {
 TEST_F(SpdySessionTest, TestYieldingSlowSynchronousReads) {
   session_deps_.time_func = SlowReads;
 
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0),
   };
@@ -3000,8 +2995,8 @@ TEST_F(SpdySessionTest, TestYieldingSlowSynchronousReads) {
   spdy::SpdySerializedFrame finish_data_frame(
       spdy_util_.ConstructSpdyDataFrame(1, "bar", /*fin=*/true));
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
 
   MockRead reads[] = {
       CreateMockRead(resp1, 1),
@@ -3057,8 +3052,8 @@ TEST_F(SpdySessionTest, TestYieldingSlowSynchronousReads) {
 TEST_F(SpdySessionTest, TestYieldingDuringReadData) {
   session_deps_.time_func = InstantaneousReads;
 
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0),
   };
@@ -3074,8 +3069,8 @@ TEST_F(SpdySessionTest, TestYieldingDuringReadData) {
   spdy::SpdySerializedFrame finish_data_frame(
       spdy_util_.ConstructSpdyDataFrame(1, "h", /*fin=*/true));
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
 
   // Write 1 byte more than kMaxReadBytes to check that DoRead yields.
   MockRead reads[] = {
@@ -3146,8 +3141,8 @@ TEST_F(SpdySessionTest, TestYieldingDuringReadData) {
 TEST_F(SpdySessionTest, TestYieldingDuringAsyncReadData) {
   session_deps_.time_func = InstantaneousReads;
 
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0),
   };
@@ -3170,8 +3165,8 @@ TEST_F(SpdySessionTest, TestYieldingDuringAsyncReadData) {
   spdy::SpdySerializedFrame finish_data_frame(
       spdy_util_.ConstructSpdyDataFrame(1, "h", /*fin=*/true));
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
 
   MockRead reads[] = {
       CreateMockRead(resp1, 1),
@@ -3237,14 +3232,14 @@ TEST_F(SpdySessionTest, TestYieldingDuringAsyncReadData) {
 // Send a GoAway frame when SpdySession is in DoReadLoop. Make sure
 // nothing blows up.
 TEST_F(SpdySessionTest, GoAwayWhileInDoReadLoop) {
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0),
   };
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame body1(spdy_util_.ConstructSpdyDataFrame(1, true));
   spdy::SpdySerializedFrame goaway(spdy_util_.ConstructSpdyGoAway(0));
 
@@ -3401,18 +3396,18 @@ TEST_F(SpdySessionTest, CloseOneIdleConnectionWithAlias) {
       ::net::CreateSpdySession(http_session_.get(), key1, NetLogWithSource());
   EXPECT_FALSE(pool->IsStalled());
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasAvailableSession(
-      key1, /*enable_ip_based_pooling=*/true, /*is_websocket=*/false));
+      key1, /*enable_ip_based_pooling_for_h2=*/true, /*is_websocket=*/false));
   EXPECT_FALSE(http_session_->spdy_session_pool()->HasAvailableSession(
-      key2, /*enable_ip_based_pooling=*/true, /*is_websocket=*/false));
+      key2, /*enable_ip_based_pooling_for_h2=*/true, /*is_websocket=*/false));
   EXPECT_FALSE(http_session_->spdy_session_pool()->HasAvailableSession(
-      key2, /*enable_ip_based_pooling=*/false, /*is_websocket=*/false));
+      key2, /*enable_ip_based_pooling_for_h2=*/false, /*is_websocket=*/false));
 
   // Set up an alias for the idle SPDY session, increasing its ref count to 2.
   std::unique_ptr<SpdySessionPool::SpdySessionRequest> request;
   bool is_blocking_request_for_session = false;
   SpdySessionRequestDelegate request_delegate;
   EXPECT_FALSE(spdy_session_pool_->RequestSession(
-      key2, /* enable_ip_based_pooling = */ true,
+      key2, /* enable_ip_based_pooling_for_h2 = */ true,
       /* is_websocket = */ false, NetLogWithSource(),
       /* on_blocking_request_destroyed_callback = */ base::RepeatingClosure(),
       &request_delegate, &request, &is_blocking_request_for_session));
@@ -3429,17 +3424,17 @@ TEST_F(SpdySessionTest, CloseOneIdleConnectionWithAlias) {
   // Get a session for |key2|, which should return the session created earlier.
   base::WeakPtr<SpdySession> session2 =
       spdy_session_pool_->FindAvailableSession(
-          key2, /* enable_ip_based_pooling = */ true,
+          key2, /* enable_ip_based_pooling_for_h2 = */ true,
           /* is_websocket = */ false, NetLogWithSource());
   EXPECT_TRUE(session2);
   ASSERT_EQ(session1.get(), session2.get());
   EXPECT_FALSE(pool->IsStalled());
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasAvailableSession(
-      key1, /*enable_ip_based_pooling=*/true, /*is_websocket=*/false));
+      key1, /*enable_ip_based_pooling_for_h2=*/true, /*is_websocket=*/false));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasAvailableSession(
-      key2, /*enable_ip_based_pooling=*/true, /*is_websocket=*/false));
+      key2, /*enable_ip_based_pooling_for_h2=*/true, /*is_websocket=*/false));
   EXPECT_FALSE(http_session_->spdy_session_pool()->HasAvailableSession(
-      key2, /*enable_ip_based_pooling=*/false, /*is_websocket=*/false));
+      key2, /*enable_ip_based_pooling_for_h2=*/false, /*is_websocket=*/false));
 
   // Trying to create a new connection should cause the pool to be stalled, and
   // post a task asynchronously to try and close the session.
@@ -3467,11 +3462,11 @@ TEST_F(SpdySessionTest, CloseOneIdleConnectionWithAlias) {
   EXPECT_FALSE(session1);
   EXPECT_FALSE(session2);
   EXPECT_FALSE(http_session_->spdy_session_pool()->HasAvailableSession(
-      key1, /*enable_ip_based_pooling=*/true, /*is_websocket=*/false));
+      key1, /*enable_ip_based_pooling_for_h2=*/true, /*is_websocket=*/false));
   EXPECT_FALSE(http_session_->spdy_session_pool()->HasAvailableSession(
-      key2, /*enable_ip_based_pooling=*/true, /*is_websocket=*/false));
+      key2, /*enable_ip_based_pooling_for_h2=*/true, /*is_websocket=*/false));
   EXPECT_FALSE(http_session_->spdy_session_pool()->HasAvailableSession(
-      key2, /*enable_ip_based_pooling=*/false, /*is_websocket=*/false));
+      key2, /*enable_ip_based_pooling_for_h2=*/false, /*is_websocket=*/false));
 }
 
 // Tests that when a SPDY session becomes idle, it closes itself if there is
@@ -3485,8 +3480,8 @@ TEST_F(SpdySessionTest, CloseSessionOnIdleWhenPoolStalled) {
   MockRead reads[] = {
     MockRead(SYNCHRONOUS, ERR_IO_PENDING)  // Stall forever.
   };
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, LOWEST));
   spdy::SpdySerializedFrame cancel1(
       spdy_util_.ConstructSpdyRstStream(1, spdy::ERROR_CODE_CANCEL));
   MockWrite writes[] = {
@@ -3632,8 +3627,8 @@ class StreamCreatingDelegate : public test::StreamDelegateDoNothing {
 // should blow up. This is a regression test for
 // http://crbug.com/263690 .
 TEST_F(SpdySessionTest, CreateStreamOnStreamReset) {
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req, 0),
   };
@@ -3946,16 +3941,16 @@ TEST_F(SpdySessionTest, StreamFlowControlTooMuchData) {
   const int32_t stream_max_recv_window_size = 1024;
   const int32_t data_frame_size = 2 * stream_max_recv_window_size;
 
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, LOWEST));
   spdy::SpdySerializedFrame rst(spdy_util_.ConstructSpdyRstStream(
       1, spdy::ERROR_CODE_FLOW_CONTROL_ERROR));
   MockWrite writes[] = {
       CreateMockWrite(req, 0), CreateMockWrite(rst, 4),
   };
 
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   const std::string payload(data_frame_size, 'a');
   spdy::SpdySerializedFrame data_frame(
       spdy_util_.ConstructSpdyDataFrame(1, payload, false));
@@ -4079,16 +4074,16 @@ TEST_F(SpdySessionTest, StreamFlowControlTooMuchDataTwoDataFrames) {
   ASSERT_LT(stream_max_recv_window_size,
             first_data_frame_size + second_data_frame_size);
 
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, LOWEST));
   spdy::SpdySerializedFrame rst(spdy_util_.ConstructSpdyRstStream(
       1, spdy::ERROR_CODE_FLOW_CONTROL_ERROR));
   MockWrite writes[] = {
       CreateMockWrite(req, 0), CreateMockWrite(rst, 6),
   };
 
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   const std::string first_data_frame(first_data_frame_size, 'a');
   spdy::SpdySerializedFrame first(
       spdy_util_.ConstructSpdyDataFrame(1, first_data_frame, false));
@@ -4173,16 +4168,17 @@ TEST_F(SpdySessionTest, SessionFlowControlNoReceiveLeaks) {
   const int32_t kMsgDataSize = 100;
   const std::string msg_data(kMsgDataSize, 'a');
 
-  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 1, kMsgDataSize, MEDIUM, nullptr, 0));
+  spdy::SpdySerializedFrame req(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 1, kMsgDataSize, MEDIUM,
+                                   base::span<const std::string_view>()));
   spdy::SpdySerializedFrame msg(
       spdy_util_.ConstructSpdyDataFrame(1, msg_data, false));
   MockWrite writes[] = {
       CreateMockWrite(req, 0), CreateMockWrite(msg, 2),
   };
 
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame echo(
       spdy_util_.ConstructSpdyDataFrame(1, msg_data, false));
   spdy::SpdySerializedFrame window_update(spdy_util_.ConstructSpdyWindowUpdate(
@@ -4244,14 +4240,15 @@ TEST_F(SpdySessionTest, SessionFlowControlNoSendLeaks) {
   const int32_t kMsgDataSize = 100;
   const std::string msg_data(kMsgDataSize, 'a');
 
-  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 1, kMsgDataSize, MEDIUM, nullptr, 0));
+  spdy::SpdySerializedFrame req(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 1, kMsgDataSize, MEDIUM,
+                                   base::span<const std::string_view>()));
   MockWrite writes[] = {
       CreateMockWrite(req, 0),
   };
 
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   MockRead reads[] = {
       MockRead(ASYNC, ERR_IO_PENDING, 1), CreateMockRead(resp, 2),
       MockRead(ASYNC, 0, 3)  // EOF
@@ -4315,16 +4312,17 @@ TEST_F(SpdySessionTest, SessionFlowControlEndToEnd) {
   const int32_t kMsgDataSize = 100;
   const std::string msg_data(kMsgDataSize, 'a');
 
-  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 1, kMsgDataSize, MEDIUM, nullptr, 0));
+  spdy::SpdySerializedFrame req(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 1, kMsgDataSize, MEDIUM,
+                                   base::span<const std::string_view>()));
   spdy::SpdySerializedFrame msg(
       spdy_util_.ConstructSpdyDataFrame(1, msg_data, false));
   MockWrite writes[] = {
       CreateMockWrite(req, 0), CreateMockWrite(msg, 2),
   };
 
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame echo(
       spdy_util_.ConstructSpdyDataFrame(1, msg_data, false));
   spdy::SpdySerializedFrame window_update(spdy_util_.ConstructSpdyWindowUpdate(
@@ -4417,16 +4415,17 @@ TEST_F(SpdySessionTest, SessionFlowControlEndToEnd) {
 void SpdySessionTest::RunResumeAfterUnstallTest(
     base::OnceCallback<void(SpdyStream*)> stall_function,
     base::OnceCallback<void(SpdyStream*, int32_t)> unstall_function) {
-  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 1, kBodyDataSize, LOWEST, nullptr, 0));
+  spdy::SpdySerializedFrame req(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 1, kBodyDataSize, LOWEST,
+                                   base::span<const std::string_view>()));
   spdy::SpdySerializedFrame body(
       spdy_util_.ConstructSpdyDataFrame(1, kBodyDataStringPiece, true));
   MockWrite writes[] = {
       CreateMockWrite(req, 0), CreateMockWrite(body, 1),
   };
 
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame echo(
       spdy_util_.ConstructSpdyDataFrame(1, kBodyDataStringPiece, false));
   MockRead reads[] = {
@@ -4535,10 +4534,12 @@ TEST_F(SpdySessionTest, StallSessionStreamResumeAfterUnstallStreamSession) {
 // streams should resume in priority order when that window is then
 // increased.
 TEST_F(SpdySessionTest, ResumeByPriorityAfterSendWindowSizeIncrease) {
-  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 1, kBodyDataSize, LOWEST, nullptr, 0));
-  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 3, kBodyDataSize, MEDIUM, nullptr, 0));
+  spdy::SpdySerializedFrame req1(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 1, kBodyDataSize, LOWEST,
+                                   base::span<const std::string_view>()));
+  spdy::SpdySerializedFrame req2(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 3, kBodyDataSize, MEDIUM,
+                                   base::span<const std::string_view>()));
   spdy::SpdySerializedFrame body1(
       spdy_util_.ConstructSpdyDataFrame(1, kBodyDataStringPiece, true));
   spdy::SpdySerializedFrame body2(
@@ -4548,10 +4549,10 @@ TEST_F(SpdySessionTest, ResumeByPriorityAfterSendWindowSizeIncrease) {
       CreateMockWrite(body2, 2), CreateMockWrite(body1, 3),
   };
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
-  spdy::SpdySerializedFrame resp2(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 3));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
+  spdy::SpdySerializedFrame resp2(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 3));
   MockRead reads[] = {
       CreateMockRead(resp1, 4), CreateMockRead(resp2, 5),
       MockRead(ASYNC, 0, 6)  // EOF
@@ -4645,10 +4646,12 @@ TEST_F(SpdySessionTest, ResumeByPriorityAfterSendWindowSizeIncrease) {
 // is stalled again when the stream gets unstalled.  The stream should not fail.
 // Regression test for https://crbug.com/761919.
 TEST_F(SpdySessionTest, ResumeSessionWithStalledStream) {
-  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 1, kBodyDataSize, LOWEST, nullptr, 0));
-  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 3, kBodyDataSize, LOWEST, nullptr, 0));
+  spdy::SpdySerializedFrame req1(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 1, kBodyDataSize, LOWEST,
+                                   base::span<const std::string_view>()));
+  spdy::SpdySerializedFrame req2(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 3, kBodyDataSize, LOWEST,
+                                   base::span<const std::string_view>()));
   spdy::SpdySerializedFrame body1(
       spdy_util_.ConstructSpdyDataFrame(3, kBodyDataStringPiece, true));
   spdy::SpdySerializedFrame body2(
@@ -4656,10 +4659,10 @@ TEST_F(SpdySessionTest, ResumeSessionWithStalledStream) {
   MockWrite writes[] = {CreateMockWrite(req1, 0), CreateMockWrite(req2, 1),
                         CreateMockWrite(body1, 2), CreateMockWrite(body2, 3)};
 
-  spdy::SpdySerializedFrame resp1(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
-  spdy::SpdySerializedFrame resp2(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 3));
+  spdy::SpdySerializedFrame resp1(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
+  spdy::SpdySerializedFrame resp2(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 3));
   MockRead reads[] = {CreateMockRead(resp1, 4), CreateMockRead(resp2, 5),
                       MockRead(ASYNC, 0, 6)};
 
@@ -4908,10 +4911,10 @@ TEST_F(SpdySessionTest, BrokenConnectionDetectionMultipleRequests) {
       MockRead(ASYNC, ERR_IO_PENDING, 2), CreateMockRead(goaway, 3),
       MockRead(ASYNC, ERR_IO_PENDING, 4), MockRead(ASYNC, 0, 5)  // EOF
   };
-  spdy::SpdySerializedFrame req1(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, MEDIUM));
-  spdy::SpdySerializedFrame req2(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 3, MEDIUM));
+  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, MEDIUM));
+  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 3, MEDIUM));
   MockWrite writes[] = {
       CreateMockWrite(req1, 0),
       CreateMockWrite(req2, 1),
@@ -5005,12 +5008,15 @@ class StreamClosingDelegate : public test::StreamDelegateWithBody {
 // Cause a stall by reducing the flow control send window to
 // 0. Unstalling the session should properly handle deleted streams.
 TEST_F(SpdySessionTest, SendWindowSizeIncreaseWithDeletedStreams) {
-  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 1, kBodyDataSize, LOWEST, nullptr, 0));
-  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 3, kBodyDataSize, LOWEST, nullptr, 0));
-  spdy::SpdySerializedFrame req3(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 5, kBodyDataSize, LOWEST, nullptr, 0));
+  spdy::SpdySerializedFrame req1(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 1, kBodyDataSize, LOWEST,
+                                   base::span<const std::string_view>()));
+  spdy::SpdySerializedFrame req2(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 3, kBodyDataSize, LOWEST,
+                                   base::span<const std::string_view>()));
+  spdy::SpdySerializedFrame req3(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 5, kBodyDataSize, LOWEST,
+                                   base::span<const std::string_view>()));
   spdy::SpdySerializedFrame body2(
       spdy_util_.ConstructSpdyDataFrame(3, kBodyDataStringPiece, true));
   MockWrite writes[] = {
@@ -5018,8 +5024,8 @@ TEST_F(SpdySessionTest, SendWindowSizeIncreaseWithDeletedStreams) {
       CreateMockWrite(req3, 2), CreateMockWrite(body2, 3),
   };
 
-  spdy::SpdySerializedFrame resp2(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 3));
+  spdy::SpdySerializedFrame resp2(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 3));
   MockRead reads[] = {
       CreateMockRead(resp2, 4), MockRead(ASYNC, ERR_IO_PENDING, 5),
       MockRead(ASYNC, 0, 6)  // EOF
@@ -5143,10 +5149,12 @@ TEST_F(SpdySessionTest, SendWindowSizeIncreaseWithDeletedStreams) {
 // 0. Unstalling the session should properly handle the session itself
 // being closed.
 TEST_F(SpdySessionTest, SendWindowSizeIncreaseWithDeletedSession) {
-  spdy::SpdySerializedFrame req1(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 1, kBodyDataSize, LOWEST, nullptr, 0));
-  spdy::SpdySerializedFrame req2(spdy_util_.ConstructSpdyPost(
-      kDefaultUrl, 3, kBodyDataSize, LOWEST, nullptr, 0));
+  spdy::SpdySerializedFrame req1(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 1, kBodyDataSize, LOWEST,
+                                   base::span<const std::string_view>()));
+  spdy::SpdySerializedFrame req2(
+      spdy_util_.ConstructSpdyPost(kDefaultUrl, 3, kBodyDataSize, LOWEST,
+                                   base::span<const std::string_view>()));
   spdy::SpdySerializedFrame body1(
       spdy_util_.ConstructSpdyDataFrame(1, kBodyDataStringPiece, false));
   MockWrite writes[] = {
@@ -5233,8 +5241,8 @@ TEST_F(SpdySessionTest, SendWindowSizeIncreaseWithDeletedSession) {
 }
 
 TEST_F(SpdySessionTest, GoAwayOnSessionFlowControlError) {
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, LOWEST));
   spdy::SpdySerializedFrame goaway(spdy_util_.ConstructSpdyGoAway(
       0, spdy::ERROR_CODE_FLOW_CONTROL_ERROR,
       "delta_window_size is 6 in DecreaseRecvWindowSize, which is larger than "
@@ -5243,8 +5251,8 @@ TEST_F(SpdySessionTest, GoAwayOnSessionFlowControlError) {
       CreateMockWrite(req, 0), CreateMockWrite(goaway, 4),
   };
 
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame body(spdy_util_.ConstructSpdyDataFrame(1, true));
   MockRead reads[] = {
       MockRead(ASYNC, ERR_IO_PENDING, 1), CreateMockRead(resp, 2),
@@ -5507,14 +5515,14 @@ INSTANTIATE_TEST_SUITE_P(All,
 
 // Tests basic functionality of ReadIfReady() when it is enabled or disabled.
 TEST_P(SpdySessionReadIfReadyTest, ReadIfReady) {
-  spdy::SpdySerializedFrame req(
-      spdy_util_.ConstructSpdyGet(nullptr, 0, 1, HIGHEST));
+  spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyGet(
+      base::span<const std::string_view>(), 1, HIGHEST));
   MockWrite writes[] = {
       CreateMockWrite(req, 0),
   };
 
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame body(spdy_util_.ConstructSpdyDataFrame(1, true));
   MockRead reads[] = {
       CreateMockRead(resp, 1), CreateMockRead(body, 2),
@@ -6331,11 +6339,11 @@ TEST(CanPoolTest, CanPoolWithAcceptablePins) {
   ssl_info.cert = ImportCertFromFile(GetTestCertsDirectory(),
                                      "spdy_pooling.pem");
   ssl_info.is_issued_by_known_root = true;
-  HashValue hash;
+  HashValue hash_value;
   // The expected value of GoodPin1 used by |scoped_security_state_source|.
-  ASSERT_TRUE(
-      hash.FromString("sha256/Nn8jk5By4Vkq6BeOVZ7R7AC6XUUBZsWmUbJR1f1Y5FY="));
-  ssl_info.public_key_hashes.push_back(hash);
+  ASSERT_TRUE(hash_value.FromString(
+      "sha256/Nn8jk5By4Vkq6BeOVZ7R7AC6XUUBZsWmUbJR1f1Y5FY="));
+  ssl_info.public_key_hashes.push_back(hash_value.sha256hashvalue());
 
   EXPECT_TRUE(SpdySession::CanPool(&tss, ssl_info, ssl_config_service,
                                    "www.example.org", "mail.example.org"));

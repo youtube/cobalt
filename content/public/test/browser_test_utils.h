@@ -5,11 +5,13 @@
 #ifndef CONTENT_PUBLIC_TEST_BROWSER_TEST_UTILS_H_
 #define CONTENT_PUBLIC_TEST_BROWSER_TEST_UTILS_H_
 
+#include <compare>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/containers/flat_set.h"
@@ -30,6 +32,7 @@
 #include "base/types/optional_ref.h"
 #include "base/types/strong_alias.h"
 #include "base/types/to_address.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "cc/test/pixel_test_utils.h"
 #include "content/public/browser/commit_deferring_condition.h"
@@ -47,7 +50,6 @@
 #include "content/public/common/isolated_world_ids.h"
 #include "content/public/common/page_type.h"
 #include "content/public/test/test_utils.h"
-#include "ipc/message_filter.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/self_owned_associated_receiver.h"
@@ -66,9 +68,12 @@
 #include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
 #include "third_party/blink/public/mojom/blob/blob_url_store.mojom-test-utils.h"
 #include "third_party/blink/public/mojom/blob/blob_url_store.mojom.h"
+#include "third_party/blink/public/mojom/frame/frame.mojom-test-utils.h"
 #include "third_party/blink/public/mojom/frame/user_activation_update_types.mojom.h"
 #include "third_party/blink/public/mojom/keyboard_lock/keyboard_lock.mojom-shared.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom-shared.h"
+#include "third_party/blink/public/mojom/page/widget.mojom-test-utils.h"
+#include "third_party/blink/public/mojom/page/widget.mojom.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/accessibility/ax_tree_update.h"
@@ -160,6 +165,7 @@ class RenderWidgetHost;
 class RenderWidgetHostImpl;
 class RenderWidgetHostView;
 class ScopedAllowRendererCrashes;
+class ScreenOrientationDelegate;
 class ToRenderFrameHost;
 class WebContents;
 
@@ -319,6 +325,16 @@ void NotifyCopyableViewInWebContents(WebContents* web_contents,
                                      base::OnceClosure done_callback);
 void NotifyCopyableViewInFrame(RenderFrameHost* render_frame_host,
                                base::OnceClosure done_callback);
+
+// Blocks the current execution until the renderer main thread in the main frame
+// is in a steady state, so the caller can issue an `viz::CopyOutputRequest`
+// against the current `WebContents`.
+void WaitForCopyableViewInWebContents(WebContents* web_contents);
+
+// Blocks the current execution until the renderer main thread in the subframe
+// is in a steady state, so the caller can issue an `viz::CopyOutputRequest`
+// against its view.
+void WaitForCopyableViewInFrame(RenderFrameHost* render_frame_host);
 
 // Allows tests to set the last committed origin of |render_frame_host|, to
 // simulate a scenario that might happen with a compromised renderer or might
@@ -729,6 +745,12 @@ struct JsLiteralHelper {
   }
 
   static base::Value Convert(const base::Value& value) { return value.Clone(); }
+  static base::Value Convert(const base::Value::List& value) {
+    return base::Value(value.Clone());
+  }
+  static base::Value Convert(const base::Value::Dict& value) {
+    return base::Value(value.Clone());
+  }
 };
 
 // Specialization allowing GURL to be passed to StringifyJsLiteral.
@@ -825,108 +847,102 @@ std::string JsReplace(std::string_view script_template, Args&&... args) {
 //      by calling ExtractString(), ExtractInt(), etc. This will produce a
 //      CHECK failure if the execution didn't result in the appropriate type
 //      of result, or if an exception was thrown.
-struct EvalJsResult {
-  const base::Value value;  // Value; if things went well.
-  const std::string error;  // Error; if things went badly.
-
+class EvalJsResult {
+ public:
   // Creates an EvalJs result. If |error| is non-empty, |value| will be
   // ignored.
   EvalJsResult(base::Value value, std::string_view error);
 
-  // Copy ctor.
   EvalJsResult(const EvalJsResult& value);
+  EvalJsResult& operator=(const EvalJsResult&);
+  EvalJsResult(EvalJsResult&&);
+  EvalJsResult& operator=(EvalJsResult&&);
+
+  ~EvalJsResult();
 
   // Matchers for successful & unsuccessful runs.
-  static auto IsOk() {
-    return testing::Field(&EvalJsResult::error, testing::Eq(""));
+  static auto IsOk() { return testing::Property(&EvalJsResult::is_ok, true); }
+  template <typename M>
+  static auto IsOkAndHolds(M m) {
+    return testing::Field("data_", &EvalJsResult::data_,
+                          testing::VariantWith<base::Value>(m));
   }
   static auto IsError() { return testing::Not(IsOk()); }
+  template <typename M>
+  static auto ErrorIs(M m) {
+    return testing::Field("data_", &EvalJsResult::data_,
+                          testing::VariantWith<std::string>(m));
+  }
 
-  // Extract a result value of the requested type, or die trying.
+  // Extract a result value of the requested type, or die trying. Note that
+  // non-trivial values are not copied; use `TakeValue()` or
+  // `ExtractFoo().Clone()` if you need ownership of the result value.
   //
   // If there was an error, or if returned value is of a different type, these
   // will fail with a CHECK. Use Extract methods only when accessing the
   // result value is necessary; prefer operator== and EXPECT_EQ() instead:
   // they don't CHECK, and give better error messages.
-  [[nodiscard]] const std::string& ExtractString() const;
+  [[nodiscard]] const std::string& ExtractString() const LIFETIME_BOUND;
   [[nodiscard]] int ExtractInt() const;
   [[nodiscard]] bool ExtractBool() const;
   [[nodiscard]] double ExtractDouble() const;
-  [[nodiscard]] base::Value::List ExtractList() const;
+  [[nodiscard]] const base::Value::List& ExtractList() const LIFETIME_BOUND;
+  [[nodiscard]] const base::Value::Dict& ExtractDict() const LIFETIME_BOUND;
+  [[nodiscard]] const std::string& ExtractError() const LIFETIME_BOUND;
+
+  [[nodiscard]] bool is_ok() const {
+    return std::holds_alternative<base::Value>(data_);
+  }
+
+  [[nodiscard]] bool is_string() const {
+    return is_ok() && value()->is_string();
+  }
+  [[nodiscard]] bool is_bool() const { return is_ok() && value()->is_bool(); }
+  [[nodiscard]] bool is_list() const { return is_ok() && value()->is_list(); }
+  [[nodiscard]] bool is_dict() const { return is_ok() && value()->is_dict(); }
+
+  // Enables EvalJsResult to be used directly in ASSERT/EXPECT macros:
+  //
+  //    ASSERT_EQ("ab", EvalJs(rfh, "'a' + 'b'"))
+  //    ASSERT_EQ(2, EvalJs(rfh, "1 + 1"))
+  //    ASSERT_EQ(base::Value(), EvalJs(rfh, "var a = 1 + 1"))
+  //
+  // Error values are incomparable to other values (including other errors).
+  template <typename T>
+  bool operator==(const T& t) const {
+    return JsLiteralHelper<T>::Convert(t) == value();
+  }
+
+  template <typename T>
+  std::partial_ordering operator<=>(const T& t) const {
+    if (!is_ok()) {
+      return std::partial_ordering::unordered;
+    }
+    return value() <=> JsLiteralHelper<T>::Convert(t);
+  }
+
+  // Takes the underlying `base::Value`, presuming no error occurred.
+  [[nodiscard]] base::Value TakeValue() && {
+    CHECK(is_ok());
+    return std::get<base::Value>(std::move(data_));
+  }
+
+ private:
+  base::optional_ref<const base::Value> value() const {
+    return std::get_if<base::Value>(&data_);
+  }
+
+  base::optional_ref<const std::string> error() const {
+    return std::get_if<std::string>(&data_);
+  }
+
+  // Provides informative failure messages when the result of EvalJs() is
+  // used in a failing ASSERT_EQ or EXPECT_EQ.
+  friend std::ostream& operator<<(std::ostream& os, const EvalJsResult& bar);
+
+  // Either the error that occurred, or the result value of the script.
+  std::variant<std::string, base::Value> data_;
 };
-
-// Enables EvalJsResult to be used directly in ASSERT/EXPECT macros:
-//
-//    ASSERT_EQ("ab", EvalJs(rfh, "'a' + 'b'"))
-//    ASSERT_EQ(2, EvalJs(rfh, "1 + 1"))
-//    ASSERT_EQ(nullptr, EvalJs(rfh, "var a = 1 + 1"))
-//
-// Error values never return true for any comparison operator.
-template <typename T>
-bool operator==(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) == b.value);
-}
-template <typename T>
-bool operator==(const EvalJsResult& a, const T& b) {
-  return b == a;
-}
-
-template <typename T>
-bool operator!=(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) != b.value);
-}
-template <typename T>
-bool operator!=(const EvalJsResult& a, const T& b) {
-  return b != a;
-}
-
-template <typename T>
-bool operator>=(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) >= b.value);
-}
-template <typename T>
-bool operator>=(const EvalJsResult& a, const T& b) {
-  return b < a;
-}
-
-template <typename T>
-bool operator<=(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) <= b.value);
-}
-template <typename T>
-bool operator<=(const EvalJsResult& a, const T& b) {
-  return b > a;
-}
-
-template <typename T>
-bool operator<(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) < b.value);
-}
-template <typename T>
-bool operator<(const EvalJsResult& a, const T& b) {
-  return b >= a;
-}
-
-template <typename T>
-bool operator>(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) > b.value);
-}
-template <typename T>
-bool operator>(const EvalJsResult& a, const T& b) {
-  return b <= a;
-}
-
-inline bool operator==(std::nullptr_t a, const EvalJsResult& b) {
-  return b.error.empty() && (base::Value() == b.value);
-}
-template <typename T>
-inline bool operator==(const EvalJsResult& a, std::nullptr_t b) {
-  return nullptr == a;
-}
-
-// Provides informative failure messages when the result of EvalJs() is
-// used in a failing ASSERT_EQ or EXPECT_EQ.
-std::ostream& operator<<(std::ostream& os, const EvalJsResult& bar);
 
 enum EvalJsOptions {
   EXECUTE_SCRIPT_DEFAULT_OPTIONS = 0,
@@ -1252,10 +1268,13 @@ WebContents* GetFocusedWebContents(WebContents* web_contents);
 // set.
 class TitleWatcher : public WebContentsObserver {
  public:
-  // |web_contents| must be non-NULL and needs to stay alive for the
-  // entire lifetime of |this|. |expected_title| is the title that |this|
-  // will wait for.
-  TitleWatcher(WebContents* web_contents, std::u16string_view expected_title);
+  // `web_contents` must be non-NULL and needs to stay alive for the
+  // entire lifetime of |this|. `expected_title` is the title that |this|
+  // will wait for. `include_nestable_tasks` allows processing of
+  // application tasks while waiting for a title change.
+  TitleWatcher(WebContents* web_contents,
+               std::u16string_view expected_title,
+               bool include_nestable_tasks = false);
 
   TitleWatcher(const TitleWatcher&) = delete;
   TitleWatcher& operator=(const TitleWatcher&) = delete;
@@ -1790,7 +1809,7 @@ class TestNavigationManager : public WebContentsObserver {
   // don't use ResumeNavigation() after this call since it assumes we paused
   // from the TestNavigationManagerThrottle. Returns false if the waiting was
   // terminated before reaching DidStartNavigation (e.g. timeout).
-  bool WaitForFirstYieldAfterDidStartNavigation();
+  [[nodiscard]] bool WaitForFirstYieldAfterDidStartNavigation();
 
   // Waits until the navigation request is ready to be sent to the network
   // stack. This will wait until all NavigationThrottles have proceeded through
@@ -2240,9 +2259,6 @@ class BlobURLStoreInterceptor
   void Register(
       mojo::PendingRemote<blink::mojom::Blob> blob,
       const GURL& url,
-      // TODO(crbug.com/40775506): Remove these once experiment is over.
-      const base::UnguessableToken& unsafe_agent_cluster_id,
-      const std::optional<net::SchemefulSite>& unsafe_top_level_site,
       RegisterCallback callback) override;
 
  private:
@@ -2585,6 +2601,123 @@ void InitAndEnableRenderDocumentForAllFrames(
 // protocol) and waits for a result (an IPC back from the renderer) each time.
 std::optional<int> GetDOMNodeId(content::RenderFrameHost& rfh,
                                 std::string_view query_selector);
+
+// Returns the DOMNodeId of the node matched by the given CSS query selector
+// inside the iframe (must be a direct child of main frame, i.e. no nested
+// iframes) identified by subframe_query_selector or std::nullopt if no node
+// matches. Note: This method makes multiple renderer IPC calls (via the
+// devtools protocol) and waits for a result (an IPC back from the renderer)
+// each time.
+std::optional<int> GetDOMNodeIdFromSubframe(
+    RenderFrameHost& rfh,
+    std::string_view subframe_query_selector,
+    std::string_view query_selector);
+
+// Suspends execution in the current thread until the DOMContentLoaded event
+// fires in the given RenderFrameHost. Note, this will only observe the
+// Document associated with the given RenderFrameHost at the time of the
+// call.
+[[nodiscard]] bool WaitForDOMContentLoaded(RenderFrameHost* rfh);
+
+// One-shot helper that listens for creation of a new popup widget.
+class CreateNewPopupWidgetInterceptor
+    : public blink::mojom::LocalFrameHostInterceptorForTesting {
+ public:
+  explicit CreateNewPopupWidgetInterceptor(
+      RenderFrameHost* rfh,
+      base::OnceCallback<void(RenderWidgetHost*)> did_create_callback);
+
+  ~CreateNewPopupWidgetInterceptor() override;
+
+  // LocalFrameHost overrides:
+  void CreateNewPopupWidget(
+      mojo::PendingAssociatedReceiver<blink::mojom::PopupWidgetHost>
+          blink_popup_widget_host,
+      mojo::PendingAssociatedReceiver<blink::mojom::WidgetHost>
+          blink_widget_host,
+      mojo::PendingAssociatedRemote<blink::mojom::Widget> blink_widget)
+      override;
+
+  // LocalFrameHostInterceptorForTesting overrides:
+  blink::mojom::LocalFrameHost* GetForwardingInterface() override;
+
+ private:
+  mojo::test::ScopedSwapImplForTesting<blink::mojom::LocalFrameHost>
+      swapped_impl_;
+  base::OnceCallback<void(RenderWidgetHost*)> did_create_callback_;
+};
+
+class ShowPopupWidgetWaiter
+    : public blink::mojom::PopupWidgetHostInterceptorForTesting {
+ public:
+  ShowPopupWidgetWaiter(WebContents* web_contents, RenderFrameHost* frame_host);
+
+  ShowPopupWidgetWaiter(const ShowPopupWidgetWaiter&) = delete;
+  ShowPopupWidgetWaiter& operator=(const ShowPopupWidgetWaiter&) = delete;
+
+  ~ShowPopupWidgetWaiter() override;
+
+  gfx::Rect last_initial_rect() const { return initial_rect_; }
+
+  int last_routing_id() const { return routing_id_; }
+
+  // Waits until a popup request is received.
+  void Wait();
+
+ private:
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
+  // Helper that waits for a `ShowPopupMenu()` call and then invokes the
+  // observer callback with the requested bounds.  The actual call to show the
+  // popup menu is treated as if it were cancelled.
+  class ShowPopupMenuInterceptor
+      : public blink::mojom::LocalFrameHostInterceptorForTesting {
+   public:
+    explicit ShowPopupMenuInterceptor(RenderFrameHost* rfh,
+                                      base::OnceCallback<void(const gfx::Rect&)>
+                                          did_show_popup_menu_callback);
+    ~ShowPopupMenuInterceptor() override;
+
+    // LocalFrameHost overrides:
+    void ShowPopupMenu(
+        mojo::PendingRemote<blink::mojom::PopupMenuClient> popup_client,
+        const gfx::Rect& bounds,
+        double font_size,
+        int32_t selected_item,
+        std::vector<blink::mojom::MenuItemPtr> menu_items,
+        bool right_aligned,
+        bool allow_multiple_selection) override;
+
+    // LocalFrameHostInterceptorForTesting overrides:
+    blink::mojom::LocalFrameHost* GetForwardingInterface() override;
+
+   private:
+    mojo::test::ScopedSwapImplForTesting<blink::mojom::LocalFrameHost>
+        swapped_impl_;
+    base::OnceCallback<void(const gfx::Rect&)> did_show_popup_menu_callback_;
+  };
+
+  void DidShowPopupMenu(const gfx::Rect& bounds);
+#endif
+
+  // Callback bound for creating a popup widget.
+  void DidCreatePopupWidget(RenderWidgetHost* render_widget_host);
+
+  // blink::mojom::PopupWidgetHostInterceptorForTesting:
+  blink::mojom::PopupWidgetHost* GetForwardingInterface() override;
+  void ShowPopup(const gfx::Rect& initial_rect,
+                 const gfx::Rect& initial_anchor_rect,
+                 ShowPopupCallback callback) override;
+
+  CreateNewPopupWidgetInterceptor create_new_popup_widget_interceptor_;
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
+  ShowPopupMenuInterceptor show_popup_menu_interceptor_;
+#endif
+  base::RunLoop run_loop_;
+  gfx::Rect initial_rect_;
+  int32_t routing_id_ = IPC::mojom::kRoutingIdNone;
+  int32_t process_id_ = 0;
+  const raw_ptr<RenderFrameHost> frame_host_;
+};
 
 }  // namespace content
 

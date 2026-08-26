@@ -55,7 +55,6 @@ class UI_ANDROID_EXPORT ResourceManagerImpl
   // Called from Java
   // ----------------------------------------------------------
   void OnResourceReady(JNIEnv* env,
-                       const base::android::JavaRef<jobject>& jobj,
                        jint res_type,
                        jint res_id,
                        const base::android::JavaRef<jobject>& bitmap,
@@ -64,15 +63,10 @@ class UI_ANDROID_EXPORT ResourceManagerImpl
                        jlong native_resource);
   void RemoveResource(
       JNIEnv* env,
-      const base::android::JavaRef<jobject>& jobj,
       jint res_type,
       jint res_id);
-  void ClearTintedResourceCache(JNIEnv* env,
-      const base::android::JavaRef<jobject>& jobj);
-  void DumpIfNoResource(JNIEnv* env,
-                        const base::android::JavaRef<jobject>& jobj,
-                        jint res_type,
-                        jint res_id);
+  void ClearTintedResourceCache(JNIEnv* env);
+  void AssertResourceExists(JNIEnv* env, jint res_type, jint res_id);
 
   // base::trace_event::MemoryDumpProvider implementation.
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,

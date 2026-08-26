@@ -33,12 +33,19 @@ jboolean JNI_InputUtils_IsTransferInputToVizSupported(JNIEnv* env) {
 // Check whether the fix for `CVE-2025-0097` is present, which went in Feb 2025
 // security update: https://source.android.com/docs/security/bulletin/2025-02-01
 // static
-bool InputUtils::HasSecurityUpdate(const std::string& security_patch) {
+bool InputUtils::HasSecurityUpdate(const std::string& security_patch,
+                                   int sdk_int) {
+  if (sdk_int >= base::android::android_info::SdkVersion::SDK_VERSION_BAKLAVA) {
+    // Security patch is present on Android 16+.
+    return true;
+  }
   base::Time min_security_patch_date;
   CHECK(base::Time::FromString("2025-02-05", &min_security_patch_date));
 
   base::Time security_patch_date;
-  CHECK(base::Time::FromString(security_patch.c_str(), &security_patch_date));
+  if (!base::Time::FromString(security_patch.c_str(), &security_patch_date)) {
+    return false;
+  }
 
   return security_patch_date >= min_security_patch_date;
 }
@@ -47,6 +54,12 @@ bool InputUtils::HasSecurityUpdate(const std::string& security_patch) {
 // static
 bool InputUtils::IsTransferInputToVizSupported() {
 #if BUILDFLAG(IS_ANDROID)
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SdkVersion::SDK_VERSION_V) {
+    // InputOnViz does not work on < Android V, since the touch transfer APIs
+    // were introduced in Android V.
+    return false;
+  }
   // Thread safety: In normal operation (GPU out of process) only a single
   // thread per process calls this function. In the --in-process-gpu or
   // --single-process case two threads technically could race to initialize
@@ -55,15 +68,12 @@ bool InputUtils::IsTransferInputToVizSupported() {
   // potentially wasted effort).
   if (!initialized_) {
     has_security_update_ =
-        HasSecurityUpdate(base::android::android_info::security_patch());
+        HasSecurityUpdate(base::android::android_info::security_patch(),
+                          base::android::android_info::sdk_int());
     initialized_ = true;
   }
-  const bool is_at_least_v =
-      base::android::android_info::sdk_int() >=
-      base::android::android_info::SdkVersion::SDK_VERSION_V;
   // Enable on user debug builds to have test coverage on older Android 15 bots.
-  return is_at_least_v &&
-         (has_security_update_ ||
+  return (has_security_update_ ||
           base::android::android_info::is_debug_android()) &&
          base::FeatureList::IsEnabled(input::features::kInputOnViz);
 #else

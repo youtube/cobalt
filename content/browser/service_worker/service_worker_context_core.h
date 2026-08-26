@@ -6,6 +6,7 @@
 #define CONTENT_BROWSER_SERVICE_WORKER_SERVICE_WORKER_CONTEXT_CORE_H_
 
 #include <stdint.h>
+
 #include <map>
 #include <memory>
 #include <optional>
@@ -23,6 +24,7 @@
 #include "components/services/storage/public/mojom/service_worker_storage_control.mojom.h"
 #include "content/browser/service_worker/service_worker_info.h"
 #include "content/browser/service_worker/service_worker_process_manager.h"
+#include "content/browser/service_worker/service_worker_registration.h"
 #include "content/browser/service_worker/service_worker_registration_status.h"
 #include "content/browser/service_worker/service_worker_registry.h"
 #include "content/common/content_export.h"
@@ -386,7 +388,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
                               const GURL& source_url) override;
 
   ServiceWorkerContextWrapper* wrapper() const { return wrapper_; }
-  ServiceWorkerRegistry* registry() const { return registry_.get(); }
+  ServiceWorkerRegistry& registry() { return registry_; }
   mojo::Remote<storage::mojom::ServiceWorkerStorageControl>&
   GetStorageControl();
   ServiceWorkerProcessManager* process_manager();
@@ -406,10 +408,12 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   // If `is_immediate` is true, unregister clears the active worker from the
   // registration without waiting for the controlled clients to unload.
-  void UnregisterServiceWorker(const GURL& scope,
-                               const blink::StorageKey& key,
-                               bool is_immediate,
-                               UnregistrationCallback callback);
+  void UnregisterServiceWorker(
+      const GURL& scope,
+      const blink::StorageKey& key,
+      bool is_immediate,
+      ServiceWorkerRegistration::DeleteInitiator initiator,
+      UnregistrationCallback callback);
 
   // Callback is called after all deletions occurred. The status code is
   // blink::ServiceWorkerStatusCode::kOk if all succeed, or
@@ -474,7 +478,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
   void ProtectVersion(const scoped_refptr<ServiceWorkerVersion>& version);
   void UnprotectVersion(int64_t version_id);
 
-  void ScheduleDeleteAndStartOver() const;
+  void ScheduleDeleteAndStartOver();
 
   // Deletes all files on disk and restarts the system. This leaves the system
   // in a disabled state until it's done.
@@ -522,13 +526,6 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   void NotifyClientIsExecutionReady(
       const ServiceWorkerClient& service_worker_client);
-
-  bool MaybeHasRegistrationForStorageKey(const blink::StorageKey& key);
-
-  // This method waits for service worker registrations to be initialized, and
-  // depends on |on_registrations_initialized_| and |registrations_initialized_|
-  // which are called in InitializeRegisteredOrigins().
-  void WaitForRegistrationsInitializedForTest();
 
   // Enqueue a warm-up request that consists of a tuple of (document_url, key,
   // callback). The added request will be consumed in LIFO order. If the
@@ -625,12 +622,6 @@ class CONTENT_EXPORT ServiceWorkerContextCore
       ServiceWorkerContext::CheckHasServiceWorkerCallback callback,
       scoped_refptr<ServiceWorkerRegistration> registration);
 
-  // This is used as a callback of GetRegisteredStorageKeys when initialising to
-  // store a list of storage keys that have registered service workers.
-  void DidGetRegisteredStorageKeys(
-      base::TimeTicks start_time,
-      const std::vector<blink::StorageKey>& storage_keys);
-
   // It's safe to store a raw pointer instead of a scoped_refptr to |wrapper_|
   // because the Wrapper::Shutdown call that hops threads to destroy |this| uses
   // Bind() to hold a reference to |wrapper_| until |this| is fully destroyed.
@@ -638,7 +629,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   std::unique_ptr<ServiceWorkerClientOwner> service_worker_client_owner_;
 
-  std::unique_ptr<ServiceWorkerRegistry> registry_;
+  ServiceWorkerRegistry registry_;
   std::unique_ptr<ServiceWorkerJobCoordinator> job_coordinator_;
   // TODO(bashi): Move |live_registrations_| to ServiceWorkerRegistry as
   // ServiceWorkerRegistry is a better place to manage in-memory representation
@@ -686,13 +677,6 @@ class CONTENT_EXPORT ServiceWorkerContextCore
   // kicked off from ServiceWorkerRegistry::ScheduleDeleteAndStartOver().
   std::unique_ptr<mojo::Receiver<storage::mojom::QuotaClient>>
       quota_client_receiver_;
-
-  // A set of StorageKeys that have at least one registration.
-  // TODO(http://crbug.com/824858): This can be removed when service workers are
-  // fully converted to running on the UI thread.
-  std::set<blink::StorageKey> registered_storage_keys_;
-  bool registrations_initialized_ = false;
-  base::OnceClosure on_registrations_initialized_for_test_;
 
   std::deque<WarmUpRequest> warm_up_requests_;
 

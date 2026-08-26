@@ -16,7 +16,6 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
 
 import org.chromium.base.Promise;
 import org.chromium.base.metrics.RecordHistogram;
@@ -24,7 +23,6 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManager;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
@@ -77,7 +75,7 @@ public final class FullscreenSigninAndHistorySyncCoordinator
          * use {@link Promise#isFulfilled()} to check whether the native has already been
          * initialized.
          */
-        Promise<Void> getNativeInitializationPromise();
+        Promise<@Nullable Void> getNativeInitializationPromise();
 
         void onFlowComplete(@SigninAndHistorySyncCoordinator.Result int result);
     }
@@ -184,7 +182,7 @@ public final class FullscreenSigninAndHistorySyncCoordinator
 
     /** Implements {@link SigninAndHistorySyncCoordinator}. */
     @Override
-    public void onAccountAdded(@NonNull String accountName) {
+    public void onAccountAdded(String accountName) {
         assertNonNull(mSigninCoordinator);
         mSigninCoordinator.onAccountAdded(accountName);
     }
@@ -243,11 +241,6 @@ public final class FullscreenSigninAndHistorySyncCoordinator
     public void advanceToNextPage() {
         if (!isSignedIn() || mCurrentView == ChildView.HISTORY_SYNC) {
             mDelegate.onFlowComplete(SigninAndHistorySyncCoordinator.Result.INTERRUPTED);
-            return;
-        }
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.FORCE_STARTUP_SIGNIN_PROMO)) {
-            // Always show history sync when the upgrade promo was forced on by a flag.
-            showChildView(ChildView.HISTORY_SYNC);
             return;
         }
         Profile profile = mProfileSupplier.get().getOriginalProfile();
@@ -334,7 +327,7 @@ public final class FullscreenSigninAndHistorySyncCoordinator
     }
 
     @Override
-    public Promise<Void> getNativeInitializationPromise() {
+    public Promise<@Nullable Void> getNativeInitializationPromise() {
         return mDelegate.getNativeInitializationPromise();
     }
 

@@ -26,7 +26,10 @@ static_library("app_service") {
     "app_service_promise_app_model_builder.h",
   ]
 
-  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+  public_deps = [
+    "//chrome/browser:browser_public_dependencies",
+    "//components/app_icon_loader",
+  ]
 
   deps = [
     "//ash/constants",
@@ -182,4 +185,8 @@ source_set("browser_tests") {
     "//ui/views",
     "//url",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

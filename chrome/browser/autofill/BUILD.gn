@@ -53,7 +53,7 @@ static_library("autofill") {
     "//components/autofill/core/common",
     "//components/keyed_service/content",
     "//components/keyed_service/core",
-    "//components/signin/public/identity_manager:identity_manager",
+    "//components/signin/public/identity_manager",
     "//content/public/browser",
     "//services/network/public/cpp",
     "//ui/gfx",
@@ -64,6 +64,7 @@ static_library("autofill") {
     "//chrome/browser:browser_process",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/profiles",
+    "//chrome/browser/signin",
     "//chrome/browser/sync:factories",
     "//chrome/common:constants",
     "//components/autofill/content/browser",
@@ -126,6 +127,8 @@ static_library("autofill") {
     sources += [
       "autofill_field_classification_model_service_factory.cc",
       "autofill_field_classification_model_service_factory.h",
+      "ml_log_router_factory.cc",
+      "ml_log_router_factory.h",
     ]
   }
 }
@@ -141,10 +144,10 @@ static_library("test_support") {
   ]
 
   deps = [
-    "//chrome/browser/autofill:autofill",
+    "//chrome/browser/autofill",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/autofill",
-    "//components/autofill/content/browser:browser",
+    "//components/autofill/content/browser",
     "//components/autofill/content/common/mojom",
     "//components/autofill/core/browser:test_support",
     "//content/test:test_support",
@@ -199,6 +202,10 @@ if (!is_android) {
       "//components/ukm:test_support",
       "//testing/data_driven_testing",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }
 
@@ -220,11 +227,17 @@ if (!is_android) {
       "//chrome/browser/ui/autofill",
       "//chrome/browser/ui/autofill:test_support",
       "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/browser/ui/translate",
+      "//chrome/browser/ui/translate:test_support",
       "//chrome/test:test_support",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
       "//components/javascript_dialogs",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   source_set("interactive_ui_tests") {
@@ -245,6 +258,8 @@ if (!is_android) {
       "//chrome/browser/ui",
       "//chrome/browser/ui/autofill",
       "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/browser/ui/translate",
+      "//chrome/browser/ui/translate:test_support",
       "//chrome/common:chrome_features",
       "//chrome/common:non_code_constants",
       "//chrome/test:test_support",
@@ -284,6 +299,10 @@ if (!is_android) {
     if (use_aura) {
       deps += [ "//chrome/browser/ui/aura/accessibility" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }
 
@@ -299,6 +318,7 @@ if (!is_android) {
       "//chrome/browser/autofill:test_support_ui",
       "//chrome/browser/ui/autofill",
       "//chrome/browser/ui/autofill:test_support",
+      "//chrome/browser/ui/translate:test_support",
       "//chrome/test:test_support",
       "//components/autofill/core/common:autofill_regex",
     ]

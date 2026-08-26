@@ -13,6 +13,27 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
+cc_component("layer_selection_bound") {
+  # Without this separates from :cc, there will be a circular dependency:
+  # :cc -> cc/mojom:mojo_layer_trees -> :cc.
+  sources = [
+    "input/layer_selection_bound.cc",
+    "input/layer_selection_bound.h",
+  ]
+
+  public_deps = [
+    "//cc/base",
+    "//components/viz/common",
+  ]
+  deps = [
+    "//base",
+    "//ui/gfx",
+    "//ui/gfx/geometry",
+  ]
+
+  defines = [ "CC_IMPLEMENTATION=1" ]
+}
+
 cc_component("cc") {
   sources = [
     "benchmarks/benchmark_instrumentation.cc",
@@ -47,8 +68,6 @@ cc_component("cc") {
     "input/hit_test_opaqueness.h",
     "input/input_handler.cc",
     "input/input_handler.h",
-    "input/layer_selection_bound.cc",
-    "input/layer_selection_bound.h",
     "input/main_thread_scrolling_reason.cc",
     "input/main_thread_scrolling_reason.h",
     "input/overscroll_behavior.h",
@@ -186,8 +205,6 @@ cc_component("cc") {
     "metrics/compositor_timing_history.h",
     "metrics/custom_metrics_recorder.cc",
     "metrics/custom_metrics_recorder.h",
-    "metrics/dropped_frame_counter.cc",
-    "metrics/dropped_frame_counter.h",
     "metrics/event_latency_tracing_recorder.cc",
     "metrics/event_latency_tracing_recorder.h",
     "metrics/event_latency_tracker.cc",
@@ -219,14 +236,10 @@ cc_component("cc") {
     "metrics/shared_metrics_buffer.h",
     "metrics/submit_info.cc",
     "metrics/submit_info.h",
-    "metrics/total_frame_counter.cc",
-    "metrics/total_frame_counter.h",
     "metrics/ukm_dropped_frames_data.cc",
     "metrics/ukm_dropped_frames_data.h",
     "metrics/ukm_manager.cc",
     "metrics/ukm_manager.h",
-    "metrics/ukm_smoothness_data.cc",
-    "metrics/ukm_smoothness_data.h",
     "metrics/video_playback_roughness_reporter.cc",
     "metrics/video_playback_roughness_reporter.h",
     "raster/categorized_worker_pool.cc",
@@ -372,8 +385,6 @@ cc_component("cc") {
     "trees/draw_property_utils.h",
     "trees/effect_node.cc",
     "trees/effect_node.h",
-    "trees/frame_rate_estimator.cc",
-    "trees/frame_rate_estimator.h",
     "trees/image_animation_controller.cc",
     "trees/image_animation_controller.h",
     "trees/latency_info_swap_promise.cc",
@@ -467,8 +478,10 @@ cc_component("cc") {
   ]
 
   public_deps = [
+    ":layer_selection_bound",
     "//cc/base",
-    "//cc/mojom:layer_trees",
+    "//cc/mojom:mojom_browser_controls",
+    "//cc/mojom:mojom_layer_trees",
     "//cc/paint",
     "//components/viz/common",
     "//skia",
@@ -481,17 +494,16 @@ cc_component("cc") {
     "//components/miracle_parameter/common",
     "//components/viz/client",
     "//device/base/synchronization",
-    "//gpu",
     "//gpu/command_buffer/client:gles2_interface",
     "//gpu/command_buffer/client:raster_interface",
     "//gpu/ipc/client",
-    "//gpu/skia_bindings:skia_bindings",
+    "//gpu/skia_bindings",
     "//gpu/vulkan:buildflags",
     "//media",  # For VideoLayerImpl.
     "//mojo/public/cpp/bindings:struct_traits",
     "//services/metrics/public/cpp:ukm_builders",
     "//services/metrics/public/mojom",
-    "//services/tracing/public/cpp:cpp",
+    "//services/tracing/public/cpp",
     "//skia:skcms",
     "//third_party/blink/public/common/tokens:tokens_headers",
     "//ui/base:features",
@@ -694,6 +706,7 @@ cc_test_static_library("test_support") {
     "//gpu/command_buffer/client:raster",
     "//gpu/command_buffer/common",
     "//gpu/ipc:gl_in_process_context",
+    "//gpu/ipc/client",
     "//gpu/ipc/common:test_support",
     "//gpu/ipc/service",
     "//gpu/skia_bindings",
@@ -787,6 +800,7 @@ cc_test("cc_unittests") {
     "layers/surface_layer_unittest.cc",
     "layers/texture_layer_impl_unittest.cc",
     "layers/texture_layer_unittest.cc",
+    "layers/tile_display_layer_impl_unittest.cc",
     "layers/touch_action_region_unittest.cc",
     "layers/ui_resource_layer_impl_unittest.cc",
     "layers/ui_resource_layer_unittest.cc",
@@ -798,7 +812,6 @@ cc_test("cc_unittests") {
     "metrics/compositor_frame_reporter_unittest.cc",
     "metrics/compositor_frame_reporting_controller_unittest.cc",
     "metrics/compositor_timing_history_unittest.cc",
-    "metrics/dropped_frame_counter_unittest.cc",
     "metrics/event_metrics_unittest.cc",
     "metrics/events_metrics_manager_unittest.cc",
     "metrics/frame_info_unittest.cc",
@@ -808,7 +821,6 @@ cc_test("cc_unittests") {
     "metrics/predictor_jank_tracker_unittest.cc",
     "metrics/scroll_jank_dropped_frame_tracker_unittest.cc",
     "metrics/scroll_jank_ukm_reporter_unittest.cc",
-    "metrics/total_frame_counter_unittest.cc",
     "metrics/ukm_manager_unittest.cc",
     "metrics/video_playback_roughness_reporter_unittest.cc",
     "mojo_embedder/async_layer_tree_frame_sink_unittest.cc",
@@ -865,7 +877,6 @@ cc_test("cc_unittests") {
     "tiles/tile_priority_unittest.cc",
     "trees/damage_tracker_unittest.cc",
     "trees/draw_properties_unittest.cc",
-    "trees/frame_rate_estimator_unittest.cc",
     "trees/image_animation_controller_unittest.cc",
     "trees/layer_tree_frame_sink_unittest.cc",
     "trees/layer_tree_host_impl_unittest.cc",
@@ -944,13 +955,13 @@ cc_test("cc_unittests") {
     "//components/viz/common",
     "//components/viz/service",
     "//components/viz/test:test_support",
-    "//gpu",
     "//gpu:test_support",
     "//gpu/command_buffer/client:gles2_implementation",
     "//gpu/command_buffer/client:gles2_interface",
     "//gpu/command_buffer/client:raster",
     "//gpu/command_buffer/client:raster_interface",
     "//gpu/ipc:gl_in_process_context",
+    "//gpu/ipc/client",
     "//gpu/skia_bindings",
     "//media",
     "//mojo/core/embedder",
@@ -1046,7 +1057,6 @@ cc_test("cc_perftests") {
     "//components/viz/client",
     "//components/viz/common",
     "//components/viz/test:test_support",
-    "//gpu",
     "//gpu:test_support",
     "//gpu/command_buffer/client:gles2_implementation",
     "//gpu/command_buffer/client:raster",

@@ -23,13 +23,15 @@
 #include "api/audio/audio_view.h"
 #include "api/task_queue/task_queue_base.h"
 #include "modules/audio_processing/aec_dump/aec_dump_factory.h"
-#include "modules/audio_processing/debug.pb.h"
 #include "modules/audio_processing/include/aec_dump.h"
 #include "modules/audio_processing/include/audio_frame_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/race_checker.h"
 #include "rtc_base/system/file_wrapper.h"
+
+// Generated at build-time by the protobuf compiler.
+#include "modules/audio_processing/debug.pb.h"
 
 namespace webrtc {
 

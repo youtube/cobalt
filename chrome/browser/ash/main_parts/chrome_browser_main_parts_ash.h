@@ -19,7 +19,6 @@
 
 class AmbientClientImpl;
 class AssistantBrowserDelegateImpl;
-class AssistantStateClient;
 class ChromeKeyboardControllerClient;
 class ImageDownloaderImpl;
 class LobsterClientFactoryImpl;
@@ -49,6 +48,7 @@ class CrostiniUnsupportedActionNotifier;
 
 namespace policy {
 class LockToSingleUserManager;
+class QuirksPolicyController;
 }  // namespace policy
 
 namespace video_conference {
@@ -62,6 +62,7 @@ class ApnMigrator;
 class AudioSurveyHandler;
 class BluetoothLogController;
 class BluetoothPrefStateObserver;
+class BrowserControllerImpl;
 class BulkPrintersCalculatorFactory;
 class CameraGeneralSurveyHandler;
 class ChromeAuthParts;
@@ -215,8 +216,6 @@ class ChromeBrowserMainPartsAsh : public ChromeBrowserMainPartsLinux {
 
   std::unique_ptr<ImageDownloaderImpl> image_downloader_;
 
-  std::unique_ptr<AssistantStateClient> assistant_state_client_;
-
   std::unique_ptr<AssistantBrowserDelegateImpl> assistant_delegate_;
 
   std::unique_ptr<LowDiskNotification> low_disk_notification_;
@@ -262,6 +261,8 @@ class ChromeBrowserMainPartsAsh : public ChromeBrowserMainPartsLinux {
   std::unique_ptr<cros_healthd::internal::DataCollector>
       cros_healthd_data_collector_;
 
+  std::unique_ptr<ash::BrowserControllerImpl> browser_controller_;
+
   std::unique_ptr<chromeos::MahiWebContentsManager> mahi_web_contents_manager_;
 
   // Set when PreProfileInit() is called. If PreMainMessageLoopRun() exits
@@ -273,6 +274,8 @@ class ChromeBrowserMainPartsAsh : public ChromeBrowserMainPartsLinux {
   std::unique_ptr<policy::LockToSingleUserManager> lock_to_single_user_manager_;
   std::unique_ptr<LoginScreenExtensionsStorageCleaner>
       login_screen_extensions_storage_cleaner_;
+
+  std::unique_ptr<policy::QuirksPolicyController> quirks_policy_controller_;
 
   std::unique_ptr<GnubbyNotification> gnubby_notification_;
 

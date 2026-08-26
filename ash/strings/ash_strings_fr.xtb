@@ -21,7 +21,6 @@ Pour commencer, voici des exemples de ce que vous pouvez me demander.</translati
 <translation id="1056898198331236512">Avertissement</translation>
 <translation id="1058009965971887428">Envoyer des commentaires</translation>
 <translation id="1059120031266247284">Partagé avec vous</translation>
-<translation id="1059194134494239015"><ph name="DISPLAY_NAME" /> : <ph name="RESOLUTION" /></translation>
 <translation id="1060847216467038176"><ph name="ITEM_LABEL" /> avec bouton de suppression</translation>
 <translation id="1062407476771304334">Remplacer</translation>
 <translation id="1073899992769346247">Remplacez ou rechargez la batterie</translation>
@@ -300,7 +299,7 @@ Pour commencer, voici des exemples de ce que vous pouvez me demander.</translati
 <translation id="1957958912175573503">Définir la langue</translation>
 <translation id="1961239773406905488">Aperçu de la caméra masqué</translation>
 <translation id="1961832440516943645"><ph name="DATE" />, <ph name="TIME" /></translation>
-<translation id="1962969542251276847">Verrouiller l'écran</translation>
+<translation id="1962969542251276847">Écran de verrouillage</translation>
 <translation id="1967970931040389207">Activer le point d'accès</translation>
 <translation id="1969011864782743497"><ph name="DEVICE_NAME" /> (USB)</translation>
 <translation id="1971815855639997522">Le bureau et les fenêtres ont été supprimés. Appuyez sur Ctrl+Z pour annuler l'action.</translation>
@@ -540,7 +539,6 @@ Sinon, le pavé tactile intégré sera réactivé dans <ph name="TIMEOUT_SECONDS
 <translation id="2814448776515246190">Capture partielle</translation>
 <translation id="2819276065543622893">Vous allez être déconnecté maintenant.</translation>
 <translation id="2822551631199737692">Caméra utilisée</translation>
-<translation id="2825224105325558319"><ph name="DISPLAY_NAME" /> n'est pas compatible avec la résolution <ph name="SPECIFIED_RESOLUTION" />. La résolution <ph name="FALLBACK_RESOLUTION" /> sera utilisée à la place.</translation>
 <translation id="2825619548187458965">Étagère</translation>
 <translation id="2831035692318564937">Activé jusqu'au lever du soleil</translation>
 <translation id="2834813915651407382">Ouvert récemment</translation>
@@ -605,8 +603,6 @@ Sinon, le pavé tactile intégré sera réactivé dans <ph name="TIMEOUT_SECONDS
 <translation id="3026897869154397692">Ajouté à Agenda</translation>
 <translation id="3033545621352269033">Activé</translation>
 <translation id="3033912566804961911">Associer à <ph name="DESK_NAME" /></translation>
-<translation id="3036649622769666520">Ouvrir les fichiers</translation>
-<translation id="3038571455154067151">Pour vous connecter, saisissez le code d'accès parental Family Link</translation>
 <translation id="3039939407102840004">Le stylet est chargé à <ph name="PERCENTAGE" /> %.</translation>
 <translation id="304097922505898963">Ouvrir l'appli Raccourcis clavier</translation>
 <translation id="304417730895741346">Vos applis épinglées et ouvertes se trouvent sur l'étagère. Pour épingler une appli à l'étagère, effectuez un clic droit sur l'appli ou appuyez sur le pavé tactile avec deux doigts.</translation>
@@ -761,6 +757,7 @@ Sinon, le pavé tactile intégré sera réactivé dans <ph name="TIMEOUT_SECONDS
 <translation id="3552189655002856821">Le Wi-Fi est désactivé</translation>
 <translation id="3554215588514239132">Afficher ou masquer le panneau des outils pour les développeurs</translation>
 <translation id="3554637740840164787"><ph name="ITEM_TITLE" /> a été épinglé</translation>
+<translation id="3554928024630051016">Pour ajouter des appareils USB supplémentaires, essayez d'en retirer un avant d'en brancher un autre</translation>
 <translation id="3558768885091059911">Activer l'accès à la caméra et au micro ?</translation>
 <translation id="3560174576767922131">Enregistrer une vidéo</translation>
 <translation id="3563775809269155755">Activer le point d'accès</translation>
@@ -868,6 +865,7 @@ Branchez votre appareil sur une source d'alimentation.</translation>
 <translation id="3861651314799684201">Appuyez sur Entrée pour enregistrer tout l'écran</translation>
 <translation id="3870197372373144624">Essayez d'éteindre votre appareil.</translation>
 <translation id="3879748587602334249">Gestionnaire de téléchargement</translation>
+<translation id="3884007280698606545">Limite USB atteinte</translation>
 <translation id="3886872229787704059">Ouvert aujourd'hui</translation>
 <translation id="3891340733213178823">Appuyez deux fois sur Ctrl + Maj + Q pour vous déconnecter.</translation>
 <translation id="3892148308691398805">Copier le texte</translation>
@@ -1012,6 +1010,7 @@ Certaines fonctionnalités sont limitées afin d'augmenter l'autonomie de la bat
 <translation id="4305817255990598646">Changer</translation>
 <translation id="4307713728991152670">Configurer l'affichage des photos, applis et contenus multimédias récents de votre téléphone</translation>
 <translation id="4312840429157639164">Appareil photo aligné sur l'angle supérieur droit. Conflit avec la surface du système.</translation>
+<translation id="4312935606722154789">Regrouper ou dégrouper deux fenêtres côte à côte</translation>
 <translation id="4316910396681052118">TOUTES LES APPLICATIONS</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Masquer toutes les suggestions du navigateur Chrome</translation>
@@ -1451,7 +1450,6 @@ Aucun appareil connecté.</translation>
 <translation id="5691772641933328258">Empreinte digitale non reconnue</translation>
 <translation id="5693255400847650006">Micro utilisé</translation>
 <translation id="5699366815052349604">Associer la fenêtre active à tous les bureaux</translation>
-<translation id="5701785125601597013">Envoyer des messages ou répondre rapidement à ceux de votre téléphone avec Phone Hub</translation>
 <translation id="570390244361237317">Toutes les applis : utiliser les touches fléchées pour accéder à toutes les applis</translation>
 <translation id="5705197514573687092">Afficher les paramètres du mode Sans distractions. Minuteur défini sur <ph name="FOCUS_DURATION" />.</translation>
 <translation id="5707775774148071965">Votre appareil accepte un débit de données supérieur à celui de votre câble. Cela peut limiter les performances de l'appareil.</translation>
@@ -1581,7 +1579,6 @@ Aucun appareil connecté.</translation>
 <translation id="6095425951508823973">Ajouter une connexion à <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">Modifié le mois dernier</translation>
 <translation id="6103838137565245112">système</translation>
-<translation id="610395411842312282">Regrouper deux fenêtres côte à côte</translation>
 <translation id="6108952804512516814">Créer avec l'IA</translation>
 <translation id="6114505516289286752">Fichiers vocaux en <ph name="LANGUAGE" /> téléchargés</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>
@@ -1605,7 +1602,6 @@ Aucun appareil connecté.</translation>
 <translation id="6166852626429024716">Faire des recherches sur votre appareil, dans vos applications et paramètres, sur le Web, etc.</translation>
 <translation id="6168318496333165060">Ouvrir l'application Diagnostic</translation>
 <translation id="6168622430237609329">Vos applis installées</translation>
-<translation id="6179832488876878285">Vous pouvez épingler vos fichiers importants ici. Pour commencer, ouvrez l'application Fichiers.</translation>
 <translation id="6180193585172850042">Bouton Retour</translation>
 <translation id="6180651297859206670">Bouton Suivant</translation>
 <translation id="6182592640011875895">Ouvrir le bureau</translation>
@@ -1638,7 +1634,6 @@ Aucun appareil connecté.</translation>
 <translation id="6267036997247669271"><ph name="NAME" /> : activation en cours…</translation>
 <translation id="6274202259872570803">Screencast</translation>
 <translation id="6276708887952587684">Afficher le code source de la page</translation>
-<translation id="6284232397434400372">Résolution modifiée</translation>
 <translation id="6285871695023807425">Ajouter à Agenda</translation>
 <translation id="6288235558961782912"><ph name="USER_EMAIL_ADDRESS" /> pourra être ajouté à nouveau ultérieurement avec l'autorisation d'un des parents.</translation>
 <translation id="6291221004442998378">N'est pas en charge</translation>
@@ -1686,7 +1681,6 @@ Aucun appareil connecté.</translation>
 <translation id="6452181791372256707">Refuser</translation>
 <translation id="6453179446719226835">La langue a été modifiée</translation>
 <translation id="6456096448804832585">Seul le format portrait est disponible</translation>
-<translation id="6459472438155181876">Extension de l'écran pour <ph name="DISPLAY_NAME" /></translation>
 <translation id="6464094930452079790">images</translation>
 <translation id="6467290994038932560">Activées pour <ph name="GAME_APP_NAME" /></translation>
 <translation id="6468406072297048412">{0,plural, =1{Rétablir une version antérieure de l'appareil d'ici 1 minute}one{Rétablir une version antérieure de l'appareil d'ici # minute}other{Rétablir une version antérieure de l'appareil d'ici # minutes}}</translation>
@@ -1920,6 +1914,7 @@ Nouvelle installation</translation>
 <translation id="7244725679040769470">Il reste <ph name="PERCENTAGE" /> % de batterie.
 Branchez votre appareil sur une source d'alimentation.</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />. Ce Chromebook doit redémarrer pour installer une mise à jour. Ceci peut prendre jusqu'à une minute.</translation>
+<translation id="7248100343060254997">Rechercher sur l'écran</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">Micro arrière</translation>
 <translation id="7258828758145722155">Modifié hier</translation>
@@ -2418,7 +2413,6 @@ Pour éteindre l'appareil, appuyez à nouveau de manière prolongée sur le bout
 <translation id="8876148469852588625">Événement <ph name="EVENT_POSITION" /> sur <ph name="EVENT_TOTAL_COUNT" /></translation>
 <translation id="8876661425082386199">Vérifier votre connexion</translation>
 <translation id="8877788021141246043">Définis un rappel</translation>
-<translation id="8878886163241303700">Extension de l'écran</translation>
 <translation id="8885424115080869847">Impossible de se connecter à YouTube Music</translation>
 <translation id="888982883502837004">Des mises à jour du micrologiciel sont disponibles pour votre appareil. Cliquez pour les consulter et les appliquer.</translation>
 <translation id="8896630965521842259"><ph name="DESK_TEMPLATE_NAME" /> sera définitivement supprimé</translation>

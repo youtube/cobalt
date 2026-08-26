@@ -13,7 +13,6 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
 #include "base/task/thread_pool.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/buildflags.h"
@@ -41,6 +40,7 @@
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
+#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/component_updater/component_updater_service.h"
 #include "components/component_updater/installer_policies/autofill_states_component_installer.h"
 #include "components/component_updater/installer_policies/history_search_strings_component_installer.h"
@@ -48,19 +48,11 @@
 #include "components/component_updater/installer_policies/optimization_hints_component_installer.h"
 #include "components/component_updater/installer_policies/plus_address_blocklist_component_installer.h"
 #include "components/component_updater/installer_policies/safety_tips_component_installer.h"
-#include "components/nacl/common/buildflags.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/services/on_device_translation/buildflags/buildflags.h"
 #include "device/vr/buildflags/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "third_party/widevine/cdm/buildflags.h"
 #include "ui/accessibility/accessibility_features.h"
-
-#if BUILDFLAG(IS_WIN)
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-#include "chrome/browser/component_updater/third_party_module_list_component_installer_win.h"
-#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
-#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_MAC)
 #include "chrome/browser/component_updater/recovery_component_installer.h"
@@ -84,7 +76,7 @@
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/apps/app_service/publishers/chrome_app_deprecation.h"
+#include "chrome/browser/apps/app_service/chrome_app_deprecation/chrome_app_deprecation.h"
 #include "chrome/browser/component_updater/smart_dim_component_installer.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -102,10 +94,10 @@
 #endif  // BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #include "components/component_updater/installer_policies/amount_extraction_heuristic_regexes_component_installer.h"
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
 #if defined(USE_AURA)
 #include "ui/aura/env.h"
@@ -145,19 +137,6 @@ void RegisterComponentsForUpdate() {
   RegisterWidevineCdmComponent(cus);
 #endif  // BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT)
 
-#if BUILDFLAG(ENABLE_NACL) && !BUILDFLAG(IS_ANDROID)
-#if BUILDFLAG(IS_CHROMEOS)
-  // PNaCl on Chrome OS is on rootfs and there is no need to download it. But
-  // Chrome4ChromeOS on Linux doesn't contain PNaCl so enable component
-  // installer when running on Linux. See crbug.com/422121 for more details.
-  if (!base::SysInfo::IsRunningOnChromeOS()) {
-#endif  // BUILDFLAG(IS_CHROMEOS)
-    RegisterPnaclComponent(cus);
-#if BUILDFLAG(IS_CHROMEOS)
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS)
-#endif  // BUILDFLAG(ENABLE_NACL) && !BUILDFLAG(IS_ANDROID)
-
   RegisterSubresourceFilterComponent(cus);
   RegisterOnDeviceHeadSuggestComponent(
       cus, g_browser_process->GetApplicationLocale());
@@ -187,11 +166,18 @@ void RegisterComponentsForUpdate() {
     component_updater::DeleteStatefulLacros(path);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-    // NaCl and PNaCl are no longer supported on Windows and Mac, clean up
-    // remaining component.
-    DeletePnaclComponent(path);
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+    // NaCl and PNaCl are no longer supported, clean up remaining component.
+    // PNaCl on Chrome OS is on rootfs and there is no need to clean it up. But
+    // Chrome4ChromeOS on Linux doesn't contain PNaCl so clean up component
+    // installer when running on Linux. See crbug.com/422121 for more details.
+    // Win and Mac were cleaned up previously.
+#if BUILDFLAG(IS_CHROMEOS)
+    if (!base::SysInfo::IsRunningOnChromeOS()) {
+#endif  // BUILDFLAG(IS_CHROMEOS)
+      DeletePnaclComponent(path);
+#if BUILDFLAG(IS_CHROMEOS)
+    }
+#endif  // BUILDFLAG(IS_CHROMEOS)
   }
   RegisterSSLErrorAssistantComponent(cus);
 
@@ -208,10 +194,6 @@ void RegisterComponentsForUpdate() {
 
   RegisterOriginTrialsComponent(cus);
   RegisterMediaEngagementPreloadComponent(cus, base::OnceClosure());
-
-#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  RegisterThirdPartyModuleListComponent(cus);
-#endif  // BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
   MaybeRegisterPKIMetadataComponent(cus);
 
@@ -268,10 +250,15 @@ void RegisterComponentsForUpdate() {
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-  if (features::IsWasmTtsComponentUpdaterEnabled()) {
-    RegisterWasmTtsEngineComponent(cus);
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableAmountExtractionTesting)) {
+    RegisterAmountExtractionHeuristicRegexesComponent(cus);
   }
+#endif  // BUIDLFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  RegisterWasmTtsEngineComponent(cus, g_browser_process->local_state());
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
   RegisterProbabilisticRevealTokenComponent(cus);

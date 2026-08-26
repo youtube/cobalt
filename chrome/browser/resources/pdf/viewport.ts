@@ -8,7 +8,7 @@ import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {hasKeyModifiers, isRTL} from 'chrome://resources/js/util.js';
 
-import type {ExtendedKeyEvent, Point, Rect} from './constants.js';
+import type {ExtendedKeyEvent, Point, Rect, ScrollData} from './constants.js';
 import {FittingType} from './constants.js';
 import type {Gesture, PinchEventDetail} from './gesture_detector.js';
 import {GestureDetector} from './gesture_detector.js';
@@ -934,6 +934,20 @@ export class Viewport {
   }
 
   /**
+   * @return Whether `location` is on a scrollbar.
+   */
+  isPointOnScrollbar(location: Point) {
+    const hasScrollbars = this.documentHasScrollbars();
+    if (hasScrollbars.vertical &&
+        ((isRTL() && location.x <= this.scrollbarWidth) ||
+         (!isRTL() && location.x >= this.size.width - this.scrollbarWidth))) {
+      return true;
+    }
+    return hasScrollbars.horizontal &&
+        location.y >= (this.size.height - this.scrollbarWidth);
+  }
+
+  /**
    * @return The index of the page with the greatest proportion of its area in
    *     the current viewport.
    */
@@ -1448,12 +1462,11 @@ export class Viewport {
       const MIN_FRACTION_TO_STEP_WHEN_PAGING = 0.875;
       const scrollOffset = (isDown ? 1 : -1) * this.size.height *
           MIN_FRACTION_TO_STEP_WHEN_PAGING;
-      this.setPosition(
-          {
-            x: this.position.x,
-            y: this.position.y + scrollOffset,
-          },
-          this.smoothScrolling_);
+      // TODO(crbug.com/40218278): Re-enable smooth scrolling for all codepaths.
+      this.setPosition({
+        x: this.position.x,
+        y: this.position.y + scrollOffset,
+      });
     }
 
     this.window_.dispatchEvent(new CustomEvent('scroll-proceeded-for-testing'));
@@ -1677,9 +1690,11 @@ export class Viewport {
 
     // Compute the x-coordinate of the page within the document.
     // TODO(raymes): This should really be set when the PDF plugin passes the
-    // page coordinates, but it isn't yet.
-    const x = (this.documentDimensions_.width - pageDimensions.width) / 2 +
-        PAGE_SHADOW.left;
+    // page coordinates, but it isn't yet except for in two-up view.
+    const x = this.twoUpViewEnabled() ?
+        pageDimensions.x + PAGE_SHADOW.left :
+        (this.documentDimensions_.width - pageDimensions.width) / 2 +
+            PAGE_SHADOW.left;
     // Compute the space on the left of the document if the document fits
     // completely in the screen.
     const zoom = this.getZoom();
@@ -1743,21 +1758,30 @@ export class Viewport {
     this.smoothScrolling_ = isSmooth;
   }
 
-  /** @param point The position to which to scroll the viewport. */
-  scrollTo(point: Partial<Point>) {
+  /**
+   * @param scrollData The position to scroll the viewport to, and the smooth
+   *     scrolling option.
+   */
+  scrollTo(scrollData: Partial<ScrollData>) {
     let changed = false;
     const newPosition = this.position;
-    if (point.x !== undefined && point.x !== newPosition.x) {
-      newPosition.x = point.x;
+    if (scrollData.x !== undefined && scrollData.x !== newPosition.x) {
+      newPosition.x = scrollData.x;
       changed = true;
     }
-    if (point.y !== undefined && point.y !== newPosition.y) {
-      newPosition.y = point.y;
+    if (scrollData.y !== undefined && scrollData.y !== newPosition.y) {
+      newPosition.y = scrollData.y;
       changed = true;
     }
 
     if (changed) {
-      this.setPosition(newPosition);
+      // TODO(crbug.com/40218278): Re-enable smooth scrolling for all codepaths.
+      //
+      // {@link smoothScrolling_} is bypassed entirely unless certain caller
+      // explicitly forces smooth scrolling
+      // (e.g., `PdfViewWebPlugin::ScrollTextFragmentIntoView()`).
+      // Also see crbug.com/40218278 and crbug.com/40218245 for more context.
+      this.setPosition(newPosition, scrollData.forceSmoothScroll ?? false);
     }
   }
 
@@ -1766,7 +1790,7 @@ export class Viewport {
     const newPosition = this.position;
     newPosition.x += delta.x;
     newPosition.y += delta.y;
-    this.scrollTo(newPosition);
+    this.scrollTo({...newPosition, forceSmoothScroll: false});
   }
 
   /** Removes all events being tracked from the tracker. */
@@ -1934,8 +1958,8 @@ export class Viewport {
 
 /**
  * Enumeration of pinch states.
- * This should match PinchPhase enum in pdf/pdf_view_web_plugin.cc.
  */
+// LINT.IfChange(PinchPhase)
 export enum PinchPhase {
   NONE = 0,
   START = 1,
@@ -1943,6 +1967,7 @@ export enum PinchPhase {
   UPDATE_ZOOM_IN = 3,
   END = 4,
 }
+// LINT.ThenChange(//pdf/pdf_view_web_plugin.cc:PinchPhase)
 
 /**
  * The increment to scroll a page by in pixels when up/down/left/right arrow

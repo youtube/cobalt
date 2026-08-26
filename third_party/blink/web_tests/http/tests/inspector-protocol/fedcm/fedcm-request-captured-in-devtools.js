@@ -27,13 +27,14 @@
     const params = event.params;
     const loaderId = event.params.loaderId;
     const frameId = event.params.frameId;
+    const initiatorType = params.initiator.type;
 
     if ((cachedLoaderId === "") && (cachedFramedId === "")) {
       cachedLoaderId = loaderId;
       cachedFramedId = frameId;
     }
 
-    if ((cachedLoaderId === loaderId) && (cachedFramedId === frameId)) {
+    if ((cachedLoaderId === loaderId) && (cachedFramedId === frameId) && (initiatorType === "FedCM")) {
       // Insert into the Map with key as params.requestId and value as params.request.url
       urlByRequestId.set(params.requestId, params.request.url);
     }
@@ -47,7 +48,8 @@
     const status = params.response.status + '::' + statusText;
     const loaderId = event.params.loaderId;
     const frameId = event.params.frameId;
-    if ((cachedLoaderId === loaderId) && (cachedFramedId === frameId)) {
+    const type = event.params.type;
+    if ((cachedLoaderId === loaderId) && (cachedFramedId === frameId) && (type === "FedCM")) {
       // Insert into the Map with key as params.response.url, and value as status
       responseStatusByUrl.set(params.response.url, status);
     }
@@ -63,7 +65,10 @@
   dp.Network.onLoadingFailed(event => {
     const requestId = event.params.requestId;
     const errorText = event.params.errorText;
-    networkLoadingFailedUrlsWithStatus.set(urlByRequestId.get(requestId), errorText);
+    const type = event.params.type;
+    if (type === "FedCM") {
+      networkLoadingFailedUrlsWithStatus.set(urlByRequestId.get(requestId), errorText);
+    }
   });
 
   // Enable FedCM domain

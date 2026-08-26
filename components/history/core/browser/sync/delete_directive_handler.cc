@@ -20,6 +20,7 @@
 #include "components/history/core/browser/history_backend.h"
 #include "components/history/core/browser/history_db_task.h"
 #include "components/sync/model/sync_change.h"
+#include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/history_delete_directive_specifics.pb.h"
 #include "components/sync/protocol/proto_value_conversions.h"
@@ -436,8 +437,9 @@ DeleteDirectiveHandler::ProcessLocalDeleteDirective(
     const sync_pb::HistoryDeleteDirectiveSpecifics& delete_directive) {
   DCHECK(thread_checker_.CalledOnValidThread());
   if (!sync_processor_) {
-    return syncer::ModelError(FROM_HERE,
-                              "Cannot send local delete directive to sync");
+    return syncer::ModelError(
+        FROM_HERE, syncer::ModelError::Type::
+                       kHistoryDeleteDirectiveSyncDisabledOnLocalCreation);
   }
 #if !defined(NDEBUG)
   CheckDeleteDirectiveValid(delete_directive);
@@ -500,7 +502,9 @@ std::optional<syncer::ModelError> DeleteDirectiveHandler::ProcessSyncChanges(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   if (!sync_processor_) {
-    return syncer::ModelError(FROM_HERE, "Sync is disabled.");
+    return syncer::ModelError(
+        FROM_HERE, syncer::ModelError::Type::
+                       kHistoryDeleteDirectiveSyncDisabledOnRemoteChange);
   }
 
   syncer::SyncDataList delete_directives;
@@ -533,6 +537,16 @@ std::optional<syncer::ModelError> DeleteDirectiveHandler::ProcessSyncChanges(
 
 base::WeakPtr<syncer::SyncableService> DeleteDirectiveHandler::AsWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
+}
+
+std::string DeleteDirectiveHandler::GetClientTag(
+    const syncer::EntityData& entity_data) const {
+  // Client tags of delete directives are not computed from the specifics.
+  NOTREACHED();
+}
+
+bool DeleteDirectiveHandler::SupportsGetClientTag() const {
+  return false;
 }
 
 void DeleteDirectiveHandler::FinishProcessing(

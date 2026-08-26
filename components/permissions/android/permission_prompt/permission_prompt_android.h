@@ -6,6 +6,7 @@
 #define COMPONENTS_PERMISSIONS_ANDROID_PERMISSION_PROMPT_PERMISSION_PROMPT_ANDROID_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -74,9 +75,6 @@ class PermissionPromptAndroid : public PermissionPrompt {
       bool is_one_time) const;
   virtual base::android::ScopedJavaLocalRef<jstring>
   GetPositiveEphemeralButtonText(JNIEnv* env, bool is_one_time) const;
-  virtual base::android::ScopedJavaLocalRef<jobjectArray> GetRadioButtonTexts(
-      JNIEnv* env,
-      bool is_one_time) const;
 
   // We show one permission at a time except for grouped mic+camera, for which
   // we still have a single icon and message text.
@@ -100,6 +98,8 @@ class PermissionPromptAndroid : public PermissionPrompt {
   base::android::ScopedJavaLocalRef<jintArray> GetBoldRanges(JNIEnv* env) const;
 
   bool IsShowing() const { return this == delegate()->GetCurrentPrompt(); }
+
+  void SetPromptOptions(PromptOptions prompt_options);
 
  protected:
   Delegate* delegate() const { return delegate_; }

@@ -31,6 +31,7 @@
 #include "chrome/browser/ui/views/commerce/price_tracking_icon_view.h"
 #include "chrome/browser/ui/views/commerce/product_specifications_icon_view.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_icon_view.h"
+#include "chrome/browser/ui/views/location_bar/ai_mode_page_action_icon_view.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_icon_view.h"
 #include "chrome/browser/ui/views/location_bar/find_bar_icon.h"
 #include "chrome/browser/ui/views/location_bar/intent_picker_view.h"
@@ -45,7 +46,6 @@
 #include "chrome/browser/ui/views/page_action/pwa_install_view.h"
 #include "chrome/browser/ui/views/page_action/zoom_view.h"
 #include "chrome/browser/ui/views/passwords/manage_passwords_icon_views.h"
-#include "chrome/browser/ui/views/passwords/password_change/password_change_icon_views.h"
 #include "chrome/browser/ui/views/performance_controls/memory_saver_chip_view.h"
 #include "chrome/browser/ui/views/sharing/sharing_dialog_view.h"
 #include "chrome/browser/ui/views/sharing/sharing_icon_view.h"
@@ -172,13 +172,6 @@ void PageActionIconController::Init(const PageActionIconParams& params,
                       params.command_updater, params.icon_label_bubble_delegate,
                       params.page_action_icon_delegate, params.browser));
         break;
-      case PageActionIconType::kChangePassword:
-        DCHECK(params.command_updater);
-        add_page_action_icon(
-            type, std::make_unique<PasswordChangeIconViews>(
-                      params.command_updater, params.icon_label_bubble_delegate,
-                      params.page_action_icon_delegate, params.browser));
-        break;
       case PageActionIconType::kMandatoryReauth:
         add_page_action_icon(
             type, std::make_unique<autofill::MandatoryReauthIconView>(
@@ -283,6 +276,12 @@ void PageActionIconController::Init(const PageActionIconParams& params,
             type, std::make_unique<LensOverlayPageActionIconView>(
                       params.browser, params.icon_label_bubble_delegate,
                       params.page_action_icon_delegate));
+        break;
+      case PageActionIconType::kAiMode:
+        add_page_action_icon(
+            type, std::make_unique<AiModePageActionIconView>(
+                      params.icon_label_bubble_delegate,
+                      params.page_action_icon_delegate, params.browser));
         break;
       case PageActionIconType::kLensOverlayHomework:
         add_page_action_icon(

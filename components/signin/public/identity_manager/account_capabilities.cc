@@ -36,8 +36,14 @@ AccountCapabilities& AccountCapabilities::operator=(
 base::span<const std::string_view>
 AccountCapabilities::GetSupportedAccountCapabilityNames() {
   static constexpr auto kCapabilityNames = std::to_array<std::string_view>({
+#if BUILDFLAG(IS_IOS)
+#define ACCOUNT_CAPABILITY_TEMPORARY_NOT_IOS(cpp_label, java_label, name)
+#else
+#define ACCOUNT_CAPABILITY_TEMPORARY_NOT_IOS ACCOUNT_CAPABILITY
+#endif
 #define ACCOUNT_CAPABILITY(cpp_label, java_label, value) cpp_label,
 #include "components/signin/internal/identity_manager/account_capabilities_list.h"
+#undef ACCOUNT_CAPABILITY_TEMPORARY_NOT_IOS
 #undef ACCOUNT_CAPABILITY
   });
   return kCapabilityNames;
@@ -72,6 +78,9 @@ signin::Tribool AccountCapabilities::GetCapabilityByName(
   return iterator->second ? signin::Tribool::kTrue : signin::Tribool::kFalse;
 }
 
+// clang-format off
+// keep-sorted start newline_separated=yes sticky_prefixes=#if group_prefixes=#endif,can,has,is,must block=yes
+// clang-format on
 signin::Tribool AccountCapabilities::can_fetch_family_member_info() const {
   return GetCapabilityByName(kCanFetchFamilyMemberInfoCapabilityName);
 }
@@ -80,20 +89,15 @@ signin::Tribool AccountCapabilities::can_have_email_address_displayed() const {
   return GetCapabilityByName(kCanHaveEmailAddressDisplayedCapabilityName);
 }
 
-signin::Tribool AccountCapabilities::
-    can_show_history_sync_opt_ins_without_minor_mode_restrictions() const {
-  return GetCapabilityByName(
-      kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName);
-}
-
 signin::Tribool AccountCapabilities::can_run_chrome_privacy_sandbox_trials()
     const {
   return GetCapabilityByName(kCanRunChromePrivacySandboxTrialsCapabilityName);
 }
 
-signin::Tribool AccountCapabilities::is_opted_in_to_parental_supervision()
-    const {
-  return GetCapabilityByName(kIsOptedInToParentalSupervisionCapabilityName);
+signin::Tribool AccountCapabilities::
+    can_show_history_sync_opt_ins_without_minor_mode_restrictions() const {
+  return GetCapabilityByName(
+      kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName);
 }
 
 signin::Tribool AccountCapabilities::can_toggle_auto_updates() const {
@@ -104,6 +108,16 @@ signin::Tribool AccountCapabilities::can_use_chrome_ip_protection() const {
   return GetCapabilityByName(kCanUseChromeIpProtectionName);
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
+signin::Tribool AccountCapabilities::can_use_chromeos_generative_ai() const {
+  return GetCapabilityByName(kCanUseChromeOSGenerativeAi);
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+signin::Tribool AccountCapabilities::can_use_copyeditor_feature() const {
+  return GetCapabilityByName(kCanUseCopyEditorFeatureName);
+}
+
 signin::Tribool AccountCapabilities::can_use_devtools_generative_ai_features()
     const {
   return GetCapabilityByName(kCanUseDevToolsGenerativeAiFeaturesCapabilityName);
@@ -111,41 +125,6 @@ signin::Tribool AccountCapabilities::can_use_devtools_generative_ai_features()
 
 signin::Tribool AccountCapabilities::can_use_edu_features() const {
   return GetCapabilityByName(kCanUseEduFeaturesCapabilityName);
-}
-
-signin::Tribool AccountCapabilities::can_use_manta_service() const {
-  return GetCapabilityByName(kCanUseMantaServiceName);
-}
-
-signin::Tribool AccountCapabilities::can_use_copyeditor_feature() const {
-  return GetCapabilityByName(kCanUseCopyEditorFeatureName);
-}
-
-signin::Tribool AccountCapabilities::can_use_model_execution_features() const {
-  return GetCapabilityByName(kCanUseModelExecutionFeaturesName);
-}
-
-signin::Tribool AccountCapabilities::is_allowed_for_machine_learning() const {
-  return GetCapabilityByName(kIsAllowedForMachineLearningCapabilityName);
-}
-
-signin::Tribool AccountCapabilities::
-    is_subject_to_chrome_privacy_sandbox_restricted_measurement_notice() const {
-  return GetCapabilityByName(
-      kIsSubjectToChromePrivacySandboxRestrictedMeasurementNotice);
-}
-
-signin::Tribool AccountCapabilities::is_subject_to_enterprise_policies() const {
-  return GetCapabilityByName(kIsSubjectToEnterprisePoliciesCapabilityName);
-}
-
-signin::Tribool AccountCapabilities::is_subject_to_parental_controls() const {
-  return GetCapabilityByName(kIsSubjectToParentalControlsCapabilityName);
-}
-
-signin::Tribool AccountCapabilities::can_use_speaker_label_in_recorder_app()
-    const {
-  return GetCapabilityByName(kCanUseSpeakerLabelInRecorderApp);
 }
 
 signin::Tribool AccountCapabilities::can_use_generative_ai_in_recorder_app()
@@ -158,11 +137,53 @@ signin::Tribool AccountCapabilities::can_use_generative_ai_photo_editing()
   return GetCapabilityByName(kCanUseGenerativeAiPhotoEditing);
 }
 
-#if BUILDFLAG(IS_CHROMEOS)
-signin::Tribool AccountCapabilities::can_use_chromeos_generative_ai() const {
-  return GetCapabilityByName(kCanUseChromeOSGenerativeAi);
+signin::Tribool AccountCapabilities::can_use_manta_service() const {
+  return GetCapabilityByName(kCanUseMantaServiceName);
 }
-#endif  // BUILDFLAG(IS_CHROMEOS)
+
+signin::Tribool AccountCapabilities::can_use_model_execution_features() const {
+  return GetCapabilityByName(kCanUseModelExecutionFeaturesName);
+}
+
+signin::Tribool AccountCapabilities::can_use_speaker_label_in_recorder_app()
+    const {
+  return GetCapabilityByName(kCanUseSpeakerLabelInRecorderApp);
+}
+
+signin::Tribool AccountCapabilities::is_allowed_for_machine_learning() const {
+  return GetCapabilityByName(kIsAllowedForMachineLearningCapabilityName);
+}
+
+signin::Tribool AccountCapabilities::is_opted_in_to_parental_supervision()
+    const {
+  return GetCapabilityByName(kIsOptedInToParentalSupervisionCapabilityName);
+}
+
+signin::Tribool AccountCapabilities::
+    is_subject_to_account_level_enterprise_policies() const {
+#if BUILDFLAG(IS_IOS)
+  return signin::Tribool::kUnknown;
+#else
+  return GetCapabilityByName(
+      kIsSubjectToAccountLevelEnterprisePoliciesCapabilityName);
+#endif
+}
+
+signin::Tribool AccountCapabilities::
+    is_subject_to_chrome_privacy_sandbox_restricted_measurement_notice() const {
+  return GetCapabilityByName(
+      kIsSubjectToChromePrivacySandboxRestrictedMeasurementNotice);
+}
+
+signin::Tribool AccountCapabilities::is_subject_to_enterprise_features() const {
+  return GetCapabilityByName(kIsSubjectToEnterprisePoliciesCapabilityName);
+}
+
+signin::Tribool AccountCapabilities::is_subject_to_parental_controls() const {
+  return GetCapabilityByName(kIsSubjectToParentalControlsCapabilityName);
+}
+
+// keep-sorted end
 
 bool AccountCapabilities::UpdateWith(const AccountCapabilities& other) {
   bool modified = false;

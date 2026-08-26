@@ -84,11 +84,10 @@ class FifoBuffer final : public StreamInterface {
  private:
   void PostEvent(int events, int err) {
     RTC_DCHECK_RUN_ON(owner_);
-    owner_->PostTask(
-        webrtc::SafeTask(task_safety_.flag(), [this, events, err]() {
-          RTC_DCHECK_RUN_ON(&callback_sequence_);
-          FireEvent(events, err);
-        }));
+    owner_->PostTask(SafeTask(task_safety_.flag(), [this, events, err]() {
+      RTC_DCHECK_RUN_ON(&callback_sequence_);
+      FireEvent(events, err);
+    }));
   }
 
   // Helper method that implements Read. Caller must acquire a lock
@@ -121,12 +120,5 @@ class FifoBuffer final : public StreamInterface {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::FifoBuffer;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_MEMORY_FIFO_BUFFER_H_

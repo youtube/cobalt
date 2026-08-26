@@ -241,7 +241,7 @@ const char kUmaSelectDefaultSearchEngine[] =
   if (_firstList.size() > 0) {
     [model addSectionWithIdentifier:SectionIdentifierFirstList];
 
-    if (_regionalCapabilitiesService->IsInEeaCountry()) {
+    if (_regionalCapabilitiesService->IsInSearchEngineChoiceScreenRegion()) {
       TableViewTextHeaderFooterItem* header =
           [[TableViewTextHeaderFooterItem alloc] initWithType:ItemTypeHeader];
       header.subtitle =
@@ -474,6 +474,11 @@ const char kUmaSelectDefaultSearchEngine[] =
   _secondList.reserve(urls.size());
   // Classify TemplateURLs.
   for (TemplateURL* url : urls) {
+    // Starter pack is not supported on iOS.
+    if (url->starter_pack_id() != 0) {
+      continue;
+    }
+
     if ([self isPrepopulatedOrDefaultSearchEngine:url]) {
       _firstList.push_back(url);
     } else {

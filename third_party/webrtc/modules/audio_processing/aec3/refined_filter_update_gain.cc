@@ -11,9 +11,12 @@
 #include "modules/audio_processing/aec3/refined_filter_update_gain.h"
 
 #include <algorithm>
-#include <functional>
+#include <array>
+#include <atomic>
+#include <cstddef>
 
-#include "modules/audio_processing/aec3/adaptive_fir_filter.h"
+#include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/echo_path_variability.h"
 #include "modules/audio_processing/aec3/fft_data.h"

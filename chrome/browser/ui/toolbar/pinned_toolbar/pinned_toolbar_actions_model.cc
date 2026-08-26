@@ -17,7 +17,6 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model_factory.h"
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -245,8 +244,7 @@ void PinnedToolbarActionsModel::MaybeMigrateExistingPinnedStates() {
     UpdatePinnedState(kActionTabSearch, true);
     pref_service_->SetBoolean(prefs::kTabSearchMigrationComplete, true);
   }
-  if (base::FeatureList::IsEnabled(features::kPinnedCastButton) &&
-      !pref_service_->GetBoolean(prefs::kPinnedCastMigrationComplete)) {
+  if (!pref_service_->GetBoolean(prefs::kPinnedCastMigrationComplete)) {
     bool previously_pinned =
         pref_service_->GetBoolean(prefs::kShowCastIconInToolbar);
     UpdatePinnedState(kActionRouteMedia, previously_pinned);

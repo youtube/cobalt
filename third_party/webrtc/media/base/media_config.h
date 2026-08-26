@@ -25,9 +25,9 @@ struct MediaConfig {
   // If true, RTCStats timestamps are sourced from the monotonically increasing
   // environment Clock, where the epoch is unspecified (i.e. up to the Clock
   // implementation). If false, RTCStats timestamps are either sourced from
-  // system clock via webrtc::TimeUTCMicros() which is relative to 1970 but not
+  // system clock via TimeUTCMicros() which is relative to 1970 but not
   // necessarily monotonically increasing, or from a monotonic clock that is
-  // set to webrtc::TimeUTCMicros() at first call, and then procceeds to
+  // set to TimeUTCMicros() at first call, and then procceeds to
   // increase monotonically.
   // TODO: bugs.webrtc.org/370535296 - Change default value to true and delete
   // this flag once downstream projects have migrated.
@@ -106,12 +106,5 @@ struct MediaConfig {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::MediaConfig;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_MEDIA_CONFIG_H_

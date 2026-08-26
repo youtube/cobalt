@@ -8,6 +8,7 @@
 #ifndef skgpu_graphite_Recorder_DEFINED
 #define skgpu_graphite_Recorder_DEFINED
 
+#include "include/core/SkCPURecorder.h"
 #include "include/core/SkRecorder.h"
 #include "include/core/SkRefCnt.h"
 #include "include/gpu/graphite/GraphiteTypes.h"
@@ -57,15 +58,11 @@ class ResourceProvider;
 class RuntimeEffectDictionary;
 class SharedContext;
 class TaskList;
-class TextureDataBlock;
 class TextureInfo;
 class UploadBufferManager;
 class UploadList;
 
 struct RecorderOptionsPriv;
-
-template<typename T> class PipelineDataCache;
-using TextureDataCache = PipelineDataCache<TextureDataBlock>;
 
 struct SK_API RecorderOptions final {
     RecorderOptions();
@@ -98,6 +95,7 @@ public:
     BackendApi backend() const;
 
     Type type() const override { return SkRecorder::Type::kGraphite; }
+    skcpu::Recorder* cpuRecorder() override;
 
     std::unique_ptr<Recording> snap();
 
@@ -273,6 +271,8 @@ private:
     void registerDevice(sk_sp<Device>);
     void deregisterDevice(const Device*);
 
+    SkCanvas* makeCaptureCanvas(SkCanvas*) override;
+
     sk_sp<SharedContext> fSharedContext;
     ResourceProvider* fResourceProvider; // May point to the Context's resource provider
     std::unique_ptr<ResourceProvider> fOwnedResourceProvider; // May be null
@@ -283,7 +283,6 @@ private:
     // Aggregated one-time uploads that preceed all tasks in the root task list.
     std::unique_ptr<UploadList> fRootUploads;
 
-    std::unique_ptr<TextureDataCache> fTextureDataCache;
     std::unique_ptr<DrawBufferManager> fDrawBufferManager;
     std::unique_ptr<UploadBufferManager> fUploadBufferManager;
     std::unique_ptr<ProxyReadCountMap> fProxyReadCounts;

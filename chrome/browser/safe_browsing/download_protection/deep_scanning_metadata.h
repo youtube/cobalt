@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_SAFE_BROWSING_DOWNLOAD_PROTECTION_DEEP_SCANNING_METADATA_H_
 
 #include "base/files/file_path.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "chrome/browser/download/download_item_warning_data.h"
 #include "chrome/browser/safe_browsing/download_protection/download_protection_util.h"
@@ -15,6 +16,10 @@
 #include "components/enterprise/connectors/core/common.h"
 #include "content/public/browser/browser_context.h"
 #include "url/gurl.h"
+
+namespace content {
+class WebContents;
+}  // namespace content
 
 namespace safe_browsing {
 
@@ -44,6 +49,7 @@ class DeepScanningMetadata {
 
   // File metadata accessor methods used in deep scanning.
   virtual content::BrowserContext* GetBrowserContext() const = 0;
+  virtual safe_browsing::ReferrerChain GetReferrerChain() const = 0;
   virtual const base::FilePath& GetFullPath() const = 0;
   virtual const base::FilePath& GetTargetFilePath() const = 0;
   virtual const std::string& GetHash() const = 0;
@@ -101,6 +107,17 @@ class DeepScanningMetadata {
   // Runs download callback with appropriate deep scan result.
   virtual void ProcessScanResult(DownloadCheckResultReason reason,
                                  DownloadCheckResult deep_scan_result) = 0;
+
+  // Returns the list of URLs ordered from the frame that initiated the download
+  // up to the top-level frame. The first element is the URL of the frame
+  // containing the download link, not the URL of the file itself.
+  virtual google::protobuf::RepeatedPtrField<std::string> CollectFrameUrls()
+      const = 0;
+
+  // Returns the web contents the download originated from. This can return
+  // nullptr, for example in cases when the tab that opened the download was
+  // closed.
+  virtual content::WebContents* web_contents() const = 0;
 
  protected:
   // Potentially overrides the deep scan result based on verdict reason and

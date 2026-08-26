@@ -25,6 +25,10 @@
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_script_runner.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/command_line.h"
+#endif
+
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
@@ -374,12 +378,12 @@ v8::MaybeLocal<v8::Module> V8ScriptRunner::CompileModule(
   v8::ScriptOrigin origin(
       V8String(isolate, file_name), start_position.line_.ZeroBasedInt(),
       start_position.column_.ZeroBasedInt(),
-      true,                        // resource_is_shared_cross_origin
-      -1,                          // script id
-      v8::String::Empty(isolate),  // source_map_url
-      false,                       // resource_is_opaque
-      false,                       // is_wasm
-      true,                        // is_module
+      true,  // resource_is_shared_cross_origin
+      -1,    // script id
+      V8String(isolate, params.SourceMapURL()),
+      false,  // resource_is_opaque
+      false,  // is_wasm
+      true,   // is_module
       referrer_info.ToV8HostDefinedOptions(isolate, params.SourceURL()));
 
   v8::Local<v8::String> code = V8String(isolate, params.GetSourceText());
@@ -649,9 +653,19 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
           cache_handler) {
         cache_handler->WillProduceCodeCache();
       }
+#if BUILDFLAG(IS_COBALT)
+      static const bool defer_v8_code_cache_write =
+          base::CommandLine::ForCurrentProcess()->HasSwitch(
+              "defer-v8-code-cache-write");
+      if (produce_cache_options ==
+              V8CodeCache::ProduceCacheOptions::kProduceCodeCache &&
+          (execution_context->IsServiceWorkerGlobalScope() ||
+           defer_v8_code_cache_write)) {
+#else
       if (produce_cache_options ==
               V8CodeCache::ProduceCacheOptions::kProduceCodeCache &&
           execution_context->IsServiceWorkerGlobalScope()) {
+#endif
         static constexpr base::TimeDelta kCacheCodeOnIdleDelay =
             base::Milliseconds(1);
         // TODO(crbug.com/40202028): Consider scheduling idle tasks via

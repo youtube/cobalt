@@ -20,6 +20,7 @@
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
+#include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_registration.h"
@@ -741,9 +742,10 @@ void ServiceWorkerInternalsHandler::UnregisterWithScope(
 
   // ServiceWorkerContextWrapper::UnregisterServiceWorker doesn't work here
   // because that reduces a status code to boolean.
-  context->context()->UnregisterServiceWorker(scope, storage_key,
-                                              /*is_immediate=*/false,
-                                              std::move(callback));
+  context->context()->UnregisterServiceWorker(
+      scope, storage_key,
+      /*is_immediate=*/false,
+      ServiceWorkerRegistration::DeleteInitiator::kWebUI, std::move(callback));
 }
 
 }  // namespace content

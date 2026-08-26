@@ -85,18 +85,5 @@ RTC_EXPORT void ShutdownInternalTracer();
 
 }  // namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-namespace tracing {
-using ::webrtc::tracing::SetupInternalTracer;
-using ::webrtc::tracing::ShutdownInternalTracer;
-using ::webrtc::tracing::StartInternalCapture;
-using ::webrtc::tracing::StartInternalCaptureToFile;
-using ::webrtc::tracing::StopInternalCapture;
-}  // namespace tracing
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_EVENT_TRACER_H_

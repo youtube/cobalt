@@ -4,6 +4,8 @@
 
 package org.chromium.components.payments;
 
+import static java.util.Collections.unmodifiableList;
+
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Handler;
@@ -42,8 +44,7 @@ public class JniPaymentApp extends PaymentApp {
 
     private @Nullable AbortCallback mAbortCallback;
     private @Nullable InstrumentDetailsCallback mInvokeCallback;
-    private @Nullable final Bitmap mIssuerIcon;
-    private @Nullable final Bitmap mNetworkIcon;
+    private final List<PaymentEntityLogoImpl> mPaymentEntitiesLogos;
 
     @CalledByNative
     private JniPaymentApp(
@@ -53,13 +54,34 @@ public class JniPaymentApp extends PaymentApp {
             @JniType("const SkBitmap*") @Nullable final Bitmap icon,
             @PaymentAppType int paymentAppType,
             long nativeObject,
-            @JniType("const SkBitmap*") @Nullable final Bitmap issuerIcon,
-            @JniType("const SkBitmap*") @Nullable final Bitmap networkIcon) {
+            @JniType("std::vector<PaymentApp::PaymentEntityLogo*>")
+                    List<PaymentEntityLogoImpl> paymentEntitiesLogos) {
         super(id, label, sublabel, new BitmapDrawable(icon));
         mPaymentAppType = paymentAppType;
         mNativeObject = nativeObject;
-        mIssuerIcon = issuerIcon;
-        mNetworkIcon = networkIcon;
+        mPaymentEntitiesLogos = paymentEntitiesLogos;
+    }
+
+    public static class PaymentEntityLogoImpl implements PaymentApp.PaymentEntityLogo {
+        private final String mLabel;
+        private final Bitmap mIcon;
+
+        @CalledByNative("PaymentEntityLogoImpl")
+        PaymentEntityLogoImpl(
+                @JniType("std::u16string") String label, @JniType("const SkBitmap*") Bitmap icon) {
+            mLabel = label;
+            mIcon = icon;
+        }
+
+        @Override
+        public String getLabel() {
+            return mLabel;
+        }
+
+        @Override
+        public Bitmap getIcon() {
+            return mIcon;
+        }
     }
 
     @CalledByNative
@@ -263,13 +285,8 @@ public class JniPaymentApp extends PaymentApp {
     }
 
     @Override
-    public @Nullable Bitmap getIssuerIcon() {
-        return mIssuerIcon;
-    }
-
-    @Override
-    public @Nullable Bitmap getNetworkIcon() {
-        return mNetworkIcon;
+    public List<PaymentEntityLogo> getPaymentEntitiesLogos() {
+        return unmodifiableList(mPaymentEntitiesLogos);
     }
 
     @NativeMethods

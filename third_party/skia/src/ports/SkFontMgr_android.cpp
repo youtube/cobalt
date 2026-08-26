@@ -9,13 +9,13 @@
 
 #include "include/core/SkData.h"
 #include "include/core/SkFontMgr.h"
+#include "include/core/SkFontScanner.h"
 #include "include/core/SkFontStyle.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
 #include "include/ports/SkFontMgr_android.h"
-#include "include/ports/SkFontScanner_FreeType.h"
 #include "include/private/base/SkFixed.h"
 #include "include/private/base/SkTArray.h"
 #include "include/private/base/SkTDArray.h"
@@ -51,7 +51,6 @@ public:
     }
 
     const SkString fFamilyName;
-    const STArray<4, SkFixed, true> fAxes;
     const STArray<4, SkLanguage, true> fLang;
     const FontVariant fVariantStyle;
 
@@ -486,10 +485,6 @@ static char const * const gSystemFontUseStrings[] = {
 #endif
 
 }  // namespace
-
-sk_sp<SkFontMgr> SkFontMgr_New_Android(const SkFontMgr_Android_CustomFonts* custom) {
-    return SkFontMgr_New_Android(custom, SkFontScanner_Make_FreeType());
-}
 
 sk_sp<SkFontMgr> SkFontMgr_New_Android(const SkFontMgr_Android_CustomFonts* custom, std::unique_ptr<SkFontScanner> scanner) {
     if (custom) {

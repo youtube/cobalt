@@ -4,7 +4,7 @@
 
 #include "ui/base/ime/dummy_text_input_client.h"
 
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "ui/events/event.h"
@@ -222,11 +222,9 @@ bool DummyTextInputClient::AddGrammarFragments(
 }
 #endif
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 void DummyTextInputClient::GetActiveTextInputControlLayoutBounds(
     std::optional<gfx::Rect>* control_bounds,
     std::optional<gfx::Rect>* selection_bounds) {}
-#endif
 
 #if BUILDFLAG(IS_WIN)
 void DummyTextInputClient::SetActiveCompositionForAccessibility(

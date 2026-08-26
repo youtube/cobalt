@@ -63,7 +63,7 @@ void PrintIfAllowedByPolicy(scoped_refptr<base::RefCountedMemory> print_data,
                             base::OnceCallback<void(bool)> on_verdict,
                             base::OnceClosure hide_preview) {
   // In some cases like the web contents closing or the render process crashing,
-  // tt's possible for `initiator` to be null. In that case, printing can simply
+  // it's possible for `initiator` to be null. In that case, printing can simply
   // be aborted.
   if (!initiator) {
     std::move(on_verdict).Run(/*allowed=*/false);
@@ -139,7 +139,7 @@ void PrintIfAllowedByPolicy(
 
   enterprise_connectors::ContentAnalysisDelegate::CreateForWebContents(
       web_contents, std::move(scanning_data), std::move(on_scan_result),
-      safe_browsing::DeepScanAccessPoint::PRINT);
+      enterprise_connectors::DeepScanAccessPoint::PRINT);
 }
 
 std::optional<enterprise_connectors::ContentAnalysisDelegate::Data>

@@ -132,7 +132,7 @@ WebString WebElement::TextContentAbridged(const unsigned int max_length) const {
 }
 
 WebString WebElement::InnerHTML() const {
-  return ConstUnwrap<Element>()->innerHTML();
+  return ConstUnwrap<Element>()->GetInnerHTMLString();
 }
 
 void WebElement::Focus() {
@@ -383,10 +383,14 @@ gfx::Vector2dF WebElement::GetScrollOffset() const {
   return gfx::Vector2dF(element->scrollLeft(), element->scrollTop());
 }
 
-void WebElement::SetScrollOffset(const gfx::Vector2dF& offset) {
+bool WebElement::SetScrollOffset(const gfx::Vector2dF& offset) {
   Element* element = Unwrap<Element>();
-  element->setScrollLeft(offset.x());
-  element->setScrollTop(offset.y());
+  return element->SetScrollOffset(offset);
+}
+
+bool WebElement::HasScrollBehaviorSmooth() const {
+  return GetScrollingBox()->StyleRef().GetScrollBehavior() ==
+         mojom::blink::ScrollBehavior::kSmooth;
 }
 
 bool WebElement::IsUserScrollableX() const {

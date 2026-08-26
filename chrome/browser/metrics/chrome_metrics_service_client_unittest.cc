@@ -96,7 +96,6 @@ class ChromeMetricsServiceClientTest : public testing::Test {
 #if BUILDFLAG(IS_CHROMEOS)
     scoped_feature_list_.InitWithFeatures(
         {features::kUmaStorageDimensions,
-         features::kK12AgeClassificationMetricsProvider,
          features::kClassManagementEnabledMetricsProvider,
          metrics::dwa::kDwaFeature},
         {});
@@ -269,6 +268,13 @@ TEST_F(ChromeMetricsServiceClientTest, TestRegisterMetricsServiceProviders) {
   // DesktopSessionMetricsProvider
   expected_providers += 1;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || (BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+  // TabMetricsProvider
+  expected_providers += 1;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // BluetoothMetricsProvider

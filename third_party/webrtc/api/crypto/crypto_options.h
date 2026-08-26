@@ -72,7 +72,7 @@ struct RTC_EXPORT CryptoOptions {
 
   // Cipher groups used by DTLS when establishing an ephemeral key during
   // handshake.
-  class EphemeralKeyExchangeCipherGroups {
+  class RTC_EXPORT EphemeralKeyExchangeCipherGroups {
    public:
     // Which cipher groups are supported by this binary,
     // - ssl.h: SSL_GROUP_{}
@@ -86,7 +86,7 @@ struct RTC_EXPORT CryptoOptions {
     static constexpr uint16_t kX25519_MLKEM768 = 0x11ec;
 
     static std::set<uint16_t> GetSupported();
-    static std::optional<std::string> GetName(uint16_t);
+    static std::optional<std::string> GetName(uint16_t group_id);
 
     EphemeralKeyExchangeCipherGroups();
 

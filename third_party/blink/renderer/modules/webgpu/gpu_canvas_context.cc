@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/modules/webgpu/gpu_canvas_context.h"
 
+#include "base/metrics/histogram_functions.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/client/raster_interface.h"
 #include "gpu/config/gpu_finch_features.h"
@@ -27,6 +28,7 @@
 #include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_mailbox_texture.h"
@@ -162,6 +164,11 @@ void GPUCanvasContext::Reshape(int width, int height) {
   Host()->SetNeedsCompositingUpdate();
 }
 
+void GPUCanvasContext::Dispose() {
+  resource_provider_.reset();
+  CanvasRenderingContext::Dispose();
+}
+
 scoped_refptr<StaticBitmapImage> GPUCanvasContext::GetImage(FlushReason) {
   if (!swap_buffers_) {
     return nullptr;
@@ -188,19 +195,44 @@ scoped_refptr<StaticBitmapImage> GPUCanvasContext::GetImage(FlushReason) {
   return SnapshotInternal(front_buffer_texture->GetTexture());
 }
 
+CanvasResourceProvider* GPUCanvasContext::GetOrCreateCanvasResourceProvider() {
+  auto* provider = resource_provider_.get();
+  if (!provider && !did_fail_to_create_resource_provider_) {
+    if (Host()->IsValidImageSize()) {
+      if (SharedGpuContext::IsGpuCompositingEnabled()) {
+        resource_provider_ = CanvasResourceProvider::CreateWebGPUImageProvider(
+            Host()->Size(), GetSharedImageFormat(), GetAlphaType(),
+            GetColorSpace(), gpu::SharedImageUsageSet(), Host());
+      }
+      Host()->UpdateMemoryUsage();
+      provider = resource_provider_.get();
+    }
+    if (!provider) {
+      did_fail_to_create_resource_provider_ = true;
+    } else if (provider->IsValid()) {
+      base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
+                                provider->IsAccelerated());
+      base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
+                                    provider->GetType());
+    }
+  }
+  return provider;
+}
+
 CanvasResourceProvider* GPUCanvasContext::PaintRenderingResultsToCanvas(
     SourceDrawingBuffer source_buffer) {
   if (!swap_buffers_) {
-    return Host()->ResourceProvider();
+    return resource_provider_.get();
   }
 
-  if (Host()->ResourceProvider() &&
-      Host()->ResourceProvider()->Size() != swap_buffers_->Size()) {
-    Host()->DiscardResourceProvider();
+  if (resource_provider_.get() &&
+      resource_provider_.get()->Size() != swap_buffers_->Size()) {
+    resource_provider_.reset();
+    Host()->DiscardResources();
   }
 
   CanvasResourceProvider* resource_provider =
-      Host()->GetOrCreateCanvasResourceProvider();
+      GetOrCreateCanvasResourceProvider();
   if (!resource_provider) {
     return nullptr;
   }
@@ -244,6 +276,16 @@ CanvasResourceProvider* GPUCanvasContext::PaintRenderingResultsToCanvas(
   return resource_provider;
 }
 
+scoped_refptr<StaticBitmapImage>
+GPUCanvasContext::PaintRenderingResultsToSnapshot(
+    SourceDrawingBuffer source_buffer,
+    FlushReason reason) {
+  CanvasResourceProvider* provider =
+      PaintRenderingResultsToCanvas(source_buffer);
+
+  return provider ? provider->Snapshot(reason) : nullptr;
+}
+
 bool GPUCanvasContext::CopyRenderingResultsToVideoFrame(
     WebGraphicsContext3DVideoFramePool* frame_pool,
     SourceDrawingBuffer src_buffer,
@@ -255,6 +297,11 @@ bool GPUCanvasContext::CopyRenderingResultsToVideoFrame(
 
   return swap_buffers_->CopyToVideoFrame(frame_pool, src_buffer,
                                          dst_color_space, std::move(callback));
+}
+
+void GPUCanvasContext::SizeChanged() {
+  did_fail_to_create_resource_provider_ = false;
+  resource_provider_.reset();
 }
 
 bool GPUCanvasContext::PushFrame() {
@@ -277,8 +324,7 @@ bool GPUCanvasContext::PushFrame() {
       std::move(client_si), sync_token,
       viz::TransferableResource::ResourceSource::kWebGPUSwapBuffer,
       swap_buffers_->GetHDRMetadata(), std::move(release_callback),
-      GetContextProviderWeakPtr(),
-      /*resource_provider=*/nullptr);
+      GetContextProviderWeakPtr());
   if (!canvas_resource)
     return false;
 
@@ -317,15 +363,11 @@ ImageBitmap* GPUCanvasContext::TransferToImageBitmap(
   }
   DCHECK(release_callback);
 
-  auto format = client_si->format();
-  auto size = client_si->size();
-
   return MakeGarbageCollected<ImageBitmap>(
       AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
           std::move(client_si), sk_image_sync_token,
-          /* shared_image_texture_id = */ 0, size, format, kPremul_SkAlphaType,
-          gfx::ColorSpace::CreateSRGB(), GetContextProviderWeakPtr(),
-          base::PlatformThread::CurrentRef(),
+          /*shared_image_texture_id=*/0, kPremul_SkAlphaType,
+          GetContextProviderWeakPtr(), base::PlatformThread::CurrentRef(),
           ThreadScheduler::Current()->CleanupTaskRunner(),
           std::move(release_callback)));
 }
@@ -544,7 +586,8 @@ void GPUCanvasContext::configure(const GPUCanvasConfiguration* descriptor,
   swap_buffers_ = base::AdoptRef(new WebGPUSwapBufferProvider(
       this, device_->GetDawnControlClient(), device_->GetHandle(),
       swap_texture_descriptor_.usage, internal_usage,
-      swap_texture_descriptor_.format, color_space_, hdr_metadata));
+      swap_texture_descriptor_.format, color_space_, hdr_metadata,
+      kTopLeft_GrSurfaceOrigin));
 
   // Note: SetContentsOpaque is only an optimization hint. It doesn't
   // actually make the contents opaque.
@@ -722,8 +765,7 @@ GPUCanvasContext::GetFrontBufferMailboxTexture() {
 }
 
 void GPUCanvasContext::ReplaceDrawingBuffer(bool destroy_swap_buffers) {
-  if (swap_texture_) {
-    DCHECK(swap_buffers_);
+  if (swap_buffers_) {
     swap_buffers_->DiscardCurrentSwapBuffer();
     swap_texture_ = nullptr;
   }

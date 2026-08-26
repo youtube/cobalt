@@ -11,7 +11,9 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "content/browser/webid/flags.h"
+#include "content/public/browser/webid/constants.h"
 #include "content/public/common/content_features.h"
+#include "content/public/common/content_switches.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "third_party/blink/public/common/webid/login_status_account.h"
 #include "third_party/blink/public/common/webid/login_status_options.h"
@@ -55,7 +57,11 @@ void InMemoryFederatedPermissionContext::RecordIgnoreAndEmbargo(
 
 bool InMemoryFederatedPermissionContext::ShouldCompleteRequestImmediately()
     const {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch("run-web-tests");
+  const base::CommandLine* current_command_line =
+      base::CommandLine::ForCurrentProcess();
+  return current_command_line->HasSwitch("run-web-tests") ||
+         current_command_line->HasSwitch(switches::kBrowserTest) ||
+         current_command_line->HasSwitch(switches::kTestType);
 }
 
 bool InMemoryFederatedPermissionContext::HasThirdPartyCookiesAccess(
@@ -252,17 +258,19 @@ base::Value::List InMemoryFederatedPermissionContext::GetAccounts(
   }
 
   for (const auto& account : options->second.accounts) {
-    base::Value::Dict new_account = base::Value::Dict()
-                                        .Set("id", account.id)
-                                        .Set("email", account.email)
-                                        .Set("name", account.name);
+    base::Value::Dict new_account =
+        base::Value::Dict()
+            .Set(webid::kAccountIdKey, account.id)
+            .Set(webid::kAccountEmailKey, account.email)
+            .Set(webid::kAccountNameKey, account.name);
 
     if (account.given_name.has_value()) {
-      new_account.Set("given_name", account.given_name.value());
+      new_account.Set(webid::kAccountGivenNameKey, account.given_name.value());
     }
 
     if (account.picture.has_value()) {
-      new_account.Set("picture", account.picture.value().spec());
+      new_account.Set(webid::kAccountPictureKey,
+                      account.picture.value().spec());
     }
     result.Append(std::move(new_account));
   }

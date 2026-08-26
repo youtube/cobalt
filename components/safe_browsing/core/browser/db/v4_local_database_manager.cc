@@ -356,13 +356,16 @@ V4LocalDatabaseManager::~V4LocalDatabaseManager() {
 //
 
 void V4LocalDatabaseManager::CancelCheck(Client* client) {
+  if (is_shutdown_) {
+    // In the shutdown case, we have already dropped queued and pending checks
+    // in `DropQueuedAndPendingChecks()`, so there is no work needed here.
+    return;
+  }
   DCHECK(ui_task_runner()->RunsTasksInCurrentSequence());
-  // If we've stopped responding due to browser shutdown, it's possible that a
-  // client will call CancelCheck even though we're disabled. Note that we can't
-  // use IsDatabaseReady() here because there's several expected cases where a
-  // client could cancel while the request is still queued (e.g. timeouts, tab
-  // being closed).
-  DCHECK(enabled_ || is_shutdown_);
+  // We can't use IsDatabaseReady() here because there's several expected cases
+  // where a client could cancel while the request is still queued (e.g.
+  // timeouts, tab being closed).
+  DCHECK(enabled_);
   auto pending_it =
       std::ranges::find(pending_checks_, client, &PendingCheck::client);
   if (pending_it != pending_checks_.end()) {
@@ -1099,8 +1102,11 @@ void V4LocalDatabaseManager::DropQueuedAndPendingChecks() {
   DCHECK(ui_task_runner()->RunsTasksInCurrentSequence());
 
   queued_checks_.clear();
-  // Intentionally ignore the checks this method returns
-  CopyAndRemoveAllPendingChecks();
+  // Abandon all checks this method returns to avoid dangling raw pointers.
+  PendingChecks pending_checks = CopyAndRemoveAllPendingChecks();
+  for (PendingCheck* check : pending_checks) {
+    check->Abandon();
+  }
 }
 
 void V4LocalDatabaseManager::RespondToClient(

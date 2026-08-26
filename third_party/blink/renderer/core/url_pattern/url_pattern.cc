@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/types/expected.h"
 #include "third_party/abseil-cpp/absl/status/status.h"
@@ -79,11 +80,11 @@ bool IsProtocolDefaultPort(const String& protocol, const String& port) {
     return false;
 
   bool port_ok = false;
-  int port_number = port.Impl()->ToInt(WTF::NumberParsingOptions(), &port_ok);
+  int port_number = port.Impl()->ToInt(NumberParsingOptions(), &port_ok);
   if (!port_ok)
     return false;
 
-  StringUTF8Adaptor protocol_utf8(protocol);
+  StringUtf8Adaptor protocol_utf8(protocol);
   int default_port = url::DefaultPortForScheme(protocol_utf8.AsStringView());
   return default_port != url::PORT_UNSPECIFIED && default_port == port_number;
 }
@@ -103,7 +104,7 @@ String EscapeBaseURLString(const StringView& input, ValueType type) {
   std::string result;
   result.reserve(input.length());
 
-  StringUTF8Adaptor utf8(input);
+  StringUtf8Adaptor utf8(input);
   liburlpattern::EscapePatternStringAndAppend(utf8.AsStringView(), result);
 
   return String::FromUTF8(result);
@@ -384,7 +385,7 @@ URLPattern* URLPattern::Create(v8::Isolate* isolate,
   }
 
   const auto& input_string = input->GetAsUSVString();
-  const StringUTF8Adaptor utf8_string(input_string);
+  const StringUtf8Adaptor utf8_string(input_string);
   liburlpattern::ConstructorStringParser constructor_string_parser(
       utf8_string.AsStringView());
 
@@ -605,6 +606,23 @@ URLPatternResult* URLPattern::exec(ScriptState* script_state,
   return exec(script_state, input, /*base_url=*/String(), exception_state);
 }
 
+String URLPattern::generate(const V8URLPatternComponent& component,
+                            const VectorOfPairs<String, String>& groups,
+                            ExceptionState& exception_state) const {
+  for (auto&& [value, name] : ComponentsWithNames()) {
+    if (component == name) {
+      std::optional<String> result =
+          value->Generate(groups, ShouldTreatAsStandardURL(), exception_state);
+      if (!result) {
+        return g_empty_string;
+      } else {
+        return *result;
+      }
+    }
+  }
+  NOTREACHED();
+}
+
 String URLPattern::protocol() const {
   return protocol_->GeneratePatternString();
 }
@@ -677,14 +695,8 @@ int URLPattern::compareComponent(const V8URLPatternComponent& component,
 
 std::optional<SafeUrlPattern> URLPattern::ToSafeUrlPattern(
     ExceptionState& exception_state) const {
-  const std::pair<const url_pattern::Component*, const char*>
-      components_with_names[] = {
-          {protocol_, "protocol"}, {username_, "username"},
-          {password_, "password"}, {hostname_, "hostname"},
-          {port_, "port"},         {pathname_, "pathname"},
-          {search_, "search"},     {hash_, "hash"}};
   String components_with_regexp;
-  for (auto [component, name] : components_with_names) {
+  for (auto&& [component, name] : ComponentsWithNames()) {
     if (component->HasRegExpGroups()) {
       components_with_regexp = components_with_regexp +
                                (components_with_regexp.IsNull() ? "" : ", ") +

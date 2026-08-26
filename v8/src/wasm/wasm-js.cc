@@ -502,7 +502,7 @@ constexpr char AsyncInstantiateCompileResultResolver::kGlobalImportsHandle[];
 std::string ToString(const char* name) { return std::string(name); }
 
 std::string ToString(const i::DirectHandle<i::String> name) {
-  return std::string("Property '") + name->ToCString().get() + "'";
+  return std::string("Property '") + name->ToStdString() + "'";
 }
 
 // Web IDL: '[EnforceRange] unsigned long'
@@ -617,9 +617,6 @@ CompileTimeImports ArgumentToCompileOptions(
                                        i::Object::GetProperty(&it), {});
       if (i::IsString(*value)) {
         i::Tagged<i::String> builtin = i::Cast<i::String>(*value);
-        // TODO(jkummerow): We could make other string comparisons to known
-        // constants in this file more efficient by migrating them to this
-        // style (rather than `...->StringEquals(v8_str(...))`).
         if (builtin->IsEqualTo(base::CStrVector("js-string"))) {
           result.Add(CompileTimeImport::kJsString);
           continue;
@@ -631,6 +628,12 @@ CompileTimeImports ArgumentToCompileOptions(
           }
           if (builtin->IsEqualTo(base::CStrVector("text-decoder"))) {
             result.Add(CompileTimeImport::kTextDecoder);
+            continue;
+          }
+        }
+        if (enabled_features.has_custom_descriptors()) {
+          if (builtin->IsEqualTo(base::CStrVector("js-prototypes"))) {
+            result.Add(CompileTimeImport::kJsPrototypes);
             continue;
           }
         }
@@ -1828,6 +1831,10 @@ void WebAssemblyGlobalImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       return js_api_scope.AssertException();
     }
     is_mutable = value->BooleanValue(isolate);
+    if (is_mutable) {
+      i_isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kWasmMutableGlobals);
+    }
   }
 
   // The descriptor's type, called 'value'. It is called 'value' because this
@@ -2418,7 +2425,7 @@ void WebAssemblyPromising(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::DirectHandle<i::WasmExportedFunctionData> data(
       wasm_exported_function->shared()->wasm_exported_function_data(),
       i_isolate);
-  if (data->instance_data()->module_object()->is_asm_js()) {
+  if (i::wasm::is_asmjs_module(data->instance_data()->module())) {
     thrower.TypeError("Argument 0 must be a WebAssembly exported function");
     return;
   }

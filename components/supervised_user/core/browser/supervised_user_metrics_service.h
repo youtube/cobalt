@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/timer/timer.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/supervised_user/core/browser/supervised_user_service_observer.h"
@@ -39,6 +40,18 @@ class SupervisedUserMetricsService : public KeyedService,
     virtual bool RecordExtensionsMetrics() = 0;
   };
 
+  // Delegate for registering synthetic field trials for supervised users.
+  class MetricsServiceAccessorDelegate {
+   public:
+    virtual ~MetricsServiceAccessorDelegate() = default;
+    // Registers a synthetic field trial for the given trial and group in
+    // "current" annotation mode.
+    // Note: all new calls to this method should get a review from
+    // chromium-metrics-reviews@google.com
+    virtual void RegisterSyntheticFieldTrial(std::string_view trial_name,
+                                             std::string_view group_name) = 0;
+  };
+
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
   // Returns the day id for a given time for testing.
   static int GetDayIdForTesting(base::Time time);
@@ -47,7 +60,9 @@ class SupervisedUserMetricsService : public KeyedService,
       PrefService* pref_service,
       SupervisedUserService& supervised_user_service,
       std::unique_ptr<SupervisedUserMetricsServiceExtensionDelegate>
-          extensions_metrics_delegate);
+          extensions_metrics_delegate,
+      std::unique_ptr<MetricsServiceAccessorDelegate>
+          metrics_service_accessor_delegate);
   SupervisedUserMetricsService(const SupervisedUserMetricsService&) = delete;
   SupervisedUserMetricsService& operator=(const SupervisedUserMetricsService&) =
       delete;
@@ -56,29 +71,42 @@ class SupervisedUserMetricsService : public KeyedService,
   // KeyedService:
   void Shutdown() override;
 
+ private:
   // SupervisedUserServiceObserver:
   void OnURLFilterChanged() override;
+  void OnSearchContentFiltersChanged() override;
+  void OnBrowserContentFiltersChanged() override;
 
- private:
   // Helper function to check if a new day has arrived.
   void CheckForNewDay();
+  // Returns true if metrics were emitted. Dispatches to one of the below
+  // functions depending on the user type.
+  bool TryEmittingMetricsAndRecordCurrentDay();
+  bool TryEmittingFamilyLinkMetrics();
+  bool TryEmittingSupervisedUserMetrics();
 
-  void EmitMetrics();
-  // Clears cache of last recorded metrics. Subsequent `::EmitMetrics` will emit
-  // all metrics.
+  // Clears cache of last recorded metrics. Subsequent `::TryEmittingMetrics` will emit
+  // all metrics (for eligible users)
   void ClearMetricsCache();
+
+  // Records the current day's metrics, to avoid repetitions.
+  void RecordCurrentDay();
 
   const raw_ptr<PrefService> pref_service_;
   raw_ref<SupervisedUserService> supervised_user_service_;
   std::unique_ptr<SupervisedUserMetricsServiceExtensionDelegate>
       extensions_metrics_delegate_;
+  std::unique_ptr<MetricsServiceAccessorDelegate>
+      metrics_service_accessor_delegate_;
+
   // A periodic timer that checks if a new day has arrived.
   base::RepeatingTimer timer_;
 
   // Cache of last recorded values of SupervisedUserURLFilter to avoid
   // duplicated emissions.
-  std::optional<WebFilterType> last_recorded_web_filter_type_;
+  std::optional<WebFilterType> last_recorded_family_link_web_filter_type_;
   std::optional<SupervisedUserURLFilter::Statistics> last_recorded_statistics_;
+  std::optional<WebFilterType> last_recorded_supervised_user_web_filter_type_;
 
   base::ScopedObservation<SupervisedUserService, SupervisedUserServiceObserver>
       supervised_user_service_observation_{this};

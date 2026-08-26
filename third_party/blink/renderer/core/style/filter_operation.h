@@ -26,6 +26,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_FILTER_OPERATION_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_FILTER_OPERATION_H_
 
+#include <iosfwd>
+#include <sstream>
+
 #include "base/notreached.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/style/shadow_data.h"
@@ -38,10 +41,10 @@
 #include "third_party/blink/renderer/platform/graphics/filters/fe_turbulence.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "ui/gfx/geometry/rect_f.h"
-
-#include <iosfwd>
 
 namespace blink {
 
@@ -171,7 +174,7 @@ class CORE_EXPORT ReferenceFilterOperation : public FilterOperation {
 
   void Trace(Visitor*) const override;
 
-  String DebugString() const override { return "<ref: " + url_ + ">"; }
+  String DebugString() const override { return StrCat({"<ref: ", url_, ">"}); }
 
  protected:
   bool IsEqualAssumingSameType(const FilterOperation&) const override;

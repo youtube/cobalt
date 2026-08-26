@@ -5,8 +5,11 @@
 #ifndef UI_ANDROID_FAKE_MODAL_DIALOG_MANAGER_BRIDGE_H_
 #define UI_ANDROID_FAKE_MODAL_DIALOG_MANAGER_BRIDGE_H_
 
+#include <vector>
+
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/android/modal_dialog_manager_bridge.h"
 #include "ui/android/ui_android_export.h"
 
@@ -30,6 +33,15 @@ class UI_ANDROID_EXPORT FakeModalDialogManagerBridge {
   ~FakeModalDialogManagerBridge();
 
   void ClickPositiveButton();
+  void ClickNegativeButton();
+
+  void ToggleCheckbox();
+  bool IsCheckboxChecked();
+
+  int GetButtonStyles();
+  std::vector<std::u16string> GetMessageParagraphs();
+
+  SkBitmap GetTitleIcon();
 
   bool IsSuspend(ModalDialogManagerBridge::ModalDialogType dialog_type);
 

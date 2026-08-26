@@ -14,6 +14,7 @@ import '//resources/cr_elements/cr_toast/cr_toast.js';
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import {HelpBubbleMixin} from '//resources/cr_components/help_bubble/help_bubble_mixin.js';
 import type {SearchboxElement} from '//resources/cr_components/searchbox/searchbox.js';
+import type {CrButtonElement} from '//resources/cr_elements/cr_button/cr_button.js';
 import type {CrToastElement} from '//resources/cr_elements/cr_toast/cr_toast.js';
 import {I18nMixin} from '//resources/cr_elements/i18n_mixin.js';
 import {assert} from '//resources/js/assert.js';
@@ -29,7 +30,6 @@ import {PageContentType} from '../page_content_type.mojom-webui.js';
 import {handleEscapeSearchbox} from '../searchbox_utils.js';
 
 import type {FeedbackToastElement} from './feedback_toast.js';
-
 import {PostMessageReceiver} from './post_message_communication.js';
 import {getTemplate} from './side_panel_app.html.js';
 import {SidePanelBrowserProxyImpl} from './side_panel_browser_proxy.js';
@@ -41,11 +41,17 @@ import type {SidePanelGhostLoaderElement} from './side_panel_ghost_loader.js';
 const VIEWPORT_HEIGHT_KEY = 'bih';
 const VIEWPORT_WIDTH_KEY = 'biw';
 
+// The delay in milliseconds to reshow the feedback toast after it was hidden by
+// another toast. This is only used if the feedback toast was not already
+// dismissed.
+const RESHOW_FEEDBACK_TOAST_DELAY_MS = 4100;
+
 export interface LensSidePanelAppElement {
   $: {
     feedbackToast: FeedbackToastElement,
     ghostLoader: SidePanelGhostLoaderElement,
     messageToast: CrToastElement,
+    messageToastDismissButton: CrButtonElement,
     errorPage: SidePanelErrorPageElement,
     results: HTMLIFrameElement,
     searchbox: SearchboxElement,
@@ -71,6 +77,21 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
       autocompleteRequestStarted: {
         type: Boolean,
         value: false,
+      },
+      enableAimSearchbox: {
+        reflectToAttribute: true,
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableAimSearchbox'),
+      },
+      enableCsbMotionTweaks: {
+        reflectToAttribute: true,
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableCsbMotionTweaks'),
+      },
+      enableVisualSelectionUpdates: {
+        reflectToAttribute: true,
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableVisualSelectionUpdates'),
       },
       isBackArrowVisible: {
         type: Boolean,
@@ -161,9 +182,17 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
         type: String,
         value: '',
       },
+      searchboxSuggestionCount: {
+        type: Number,
+        value: 0,
+      },
     };
   }
 
+  // Whether CSB motion tweaks are enabled via feature flag.
+  declare private enableCsbMotionTweaks: boolean;
+  // Whether the visual selection updates are enabled via feature flag.
+  declare private enableVisualSelectionUpdates: boolean;
   // Public for use in browser tests.
   declare isBackArrowVisible: boolean;
   // Whether the user is currently focused into the searchbox.
@@ -185,6 +214,8 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   declare private pageContentType: PageContentType;
   // Whether this is an in flight request to autocomplete.
   declare private autocompleteRequestStarted: boolean;
+  // Whether the AIM searchbox is enabled via feature flag.
+  declare private enableAimSearchbox: boolean;
   declare private isErrorPageVisible: boolean;
   // Whether the results iframe is currently loading. This needs to be done via
   // browser because the iframe is cross-origin. Default true since the side
@@ -202,6 +233,10 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   // window.
   private postMessageReceiver: PostMessageReceiver =
       new PostMessageReceiver(SidePanelBrowserProxyImpl.getInstance());
+  // Whether the feedback toast has been explicitly dismissed by the user.
+  private feedbackToastDismissed = false;
+  // The timeout ID for reshowing the feedback toast.
+  private feedbackToastReshowTimeoutId = -1;
 
   private browserProxy: SidePanelBrowserProxy =
       SidePanelBrowserProxyImpl.getInstance();
@@ -210,7 +245,12 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   private pageHandler: LensSidePanelPageHandlerInterface;
   declare private wasBackArrowAvailable: boolean;
   declare private toastMessage: string;
+  // The number of suggestions currently being shown to the user.
+  declare private searchboxSuggestionCount: number;
   private eventTracker_: EventTracker = new EventTracker();
+
+  private searchboxBoundingClientRectObserver: ResizeObserver =
+      new ResizeObserver(this.onSearchboxBoundsChanged.bind(this));
 
   constructor() {
     super();
@@ -255,11 +295,13 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
     ];
     this.eventTracker_.add(this.$.searchbox, 'mousedown', () => {
       this.suppressGhostLoader = false;
-      this.showErrorState = false;
     });
     this.eventTracker_.add(
         document, 'query-autocomplete',
         this.handleQueryAutocomplete.bind(this));
+    this.eventTracker_.add(
+        this.$.feedbackToast, 'feedback-toast-dismissed',
+        () => this.feedbackToastDismissed = true);
 
     // Start listening to postMessages on the window.
     this.postMessageReceiver.listen();
@@ -290,7 +332,9 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
       // focused.
       this.blurSearchbox();
 
+      clearTimeout(this.feedbackToastReshowTimeoutId);
       this.$.feedbackToast.hide();
+      this.$.messageToast.hide();
     } else {
       // Animate away the progress bar once the results are loaded.
       this.progressBarHideAnimation = this.$.uploadProgressBarContainer.animate(
@@ -307,6 +351,7 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
 
       // Show the feedback on every result load by showing it as soon as the
       // result load animation is complete.
+      this.feedbackToastDismissed = false;
       this.showFeedbackToast();
     }
   }
@@ -376,13 +421,18 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
 
   // Called when the searchbox requests autocomplete suggestions.
   private handleQueryAutocomplete(e: CustomEvent) {
-    this.autocompleteRequestStarted = true;
-    if (!e.detail.inputValue.trim()) {
-      // If there is an input of only whitespace, don't show ghost loader since
-      // no results will ever be returned for these inputs.
-      this.suppressGhostLoader = e.detail.inputValue;
-      this.showErrorState = false;
+    // A request is only started for zero suggest, which is when the input value
+    // is empty.
+    this.autocompleteRequestStarted = !e.detail.inputValue;
+
+    if (this.autocompleteRequestStarted && !window.navigator.onLine) {
+      // If the user doesn't have an internet connection, the suggest request
+      // will fail, so immediately show the error state.
+      this.showErrorState = true;
+      return;
     }
+
+    this.showErrorState = false;
   }
 
   private setShowErrorPage(
@@ -400,6 +450,11 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
     this.notifyHelpBubbleAnchorCustomEvent(
         'kLensSidePanelSearchBoxElementId',
         'kLensSidePanelSearchBoxFocusedEventId');
+
+    // Setup a listener on the suggestions container to adjust the ghost loader
+    // number of suggestions.
+    this.searchboxBoundingClientRectObserver.observe(
+        this.$.searchbox.getSuggestionsElement());
   }
 
   private onSearchboxFocusOut_(event: FocusEvent) {
@@ -416,6 +471,14 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
     this.isSearchboxFocused = false;
     this.autocompleteRequestStarted = false;
     this.showErrorState = false;
+
+    // Disconnect the ResizeObserver.
+    this.searchboxBoundingClientRectObserver.disconnect();
+  }
+
+  private onSearchboxBoundsChanged() {
+    this.searchboxSuggestionCount =
+        this.$.searchbox.getSuggestionsElement().selectableMatchElements.length;
   }
 
   private computeShowGhostLoader(): boolean {
@@ -458,6 +521,10 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
 
   private pageContentTypeChanged(newPageContentType: PageContentType) {
     this.pageContentType = newPageContentType;
+    this.browserProxy.handler.getIsContextualSearchbox().then(
+        ({isContextualSearchbox}) => {
+          this.isContextualSearchbox = isContextualSearchbox;
+        });
   }
 
   // Show the toast that asks the user to share their feedback.
@@ -474,6 +541,12 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   private async showMessageToast(message: string) {
     this.$.feedbackToast.hide();
     await this.showToast(this.$.messageToast, message);
+    if (!this.feedbackToastDismissed) {
+      clearTimeout(this.feedbackToastReshowTimeoutId);
+      this.feedbackToastReshowTimeoutId = setTimeout(() => {
+        this.showFeedbackToast();
+      }, RESHOW_FEEDBACK_TOAST_DELAY_MS);
+    }
   }
 
   private async showToast(toast: CrToastElement, message?: string) {
@@ -494,6 +567,10 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
 
   private onHideMessageToastClick() {
     this.$.messageToast.hide();
+    if (!this.feedbackToastDismissed) {
+      clearTimeout(this.feedbackToastReshowTimeoutId);
+      this.showFeedbackToast();
+    }
   }
 
   makeGhostLoaderVisibleForTesting() {

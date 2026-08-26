@@ -231,6 +231,7 @@ def run_info_extras(logger, default_prefs=None, **kwargs):
           "swgl": bool_pref("gfx.webrender.software"),
           "privateBrowsing": bool_pref("browser.privatebrowsing.autostart"),
           "remoteAsyncEvents": bool_pref("remote.events.async.wheel.enabled"),
+          "remoteCNM": not bool_pref("remote.parent-navigation.enabled"),
           "incOriginInit": os.environ.get("MOZ_ENABLE_INC_ORIGIN_INIT") == "1",
           }
     rv.update(run_info_browser_version(**kwargs))
@@ -256,12 +257,15 @@ def update_properties():
     return ([
         "os",
         "debug",
+        "display",
         "fission",
+        "isolated_process",
         "processor",
         "swgl",
         "asan",
         "tsan",
         "remoteAsyncEvents",
+        "remoteCNM",
         "sessionHistoryInParent",
         "subsuite"], {
         "os": ["version"],
@@ -765,6 +769,9 @@ class ProfileCreator:
             profile.set_preferences({
                 "geo.provider.network.url": "https://web-platform.test:8444/webdriver/tests/support/http_handlers/geolocation_override.py"
             })
+        else:
+            # Except for wdspec dispatch wheel scroll as widget event by default.
+            profile.set_preferences({"remote.events.async.wheel.enabled": True})
 
         if self.debug_test:
             profile.set_preferences({"devtools.console.stdout.content": True})

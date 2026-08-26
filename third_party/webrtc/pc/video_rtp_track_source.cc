@@ -10,9 +10,8 @@
 
 #include "pc/video_rtp_track_source.h"
 
-#include <stddef.h>
-
 #include <algorithm>
+#include <cstddef>
 
 #include "api/sequence_checker.h"
 #include "api/video/recordable_encoded_frame.h"

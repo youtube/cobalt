@@ -10,6 +10,7 @@
 #include "base/strings/to_string.h"
 #include "build/build_config.h"
 #include "media/audio/audio_device_description.h"
+#include "base/trace_event/trace_event.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
@@ -54,6 +55,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 #if DEBUG_AUDIONODE_REFERENCES
@@ -76,7 +78,7 @@ unsigned hardware_context_count = 0;
 
 // A context ID that is incremented for each context that is created.
 // This initializes the internal id for the context.
-unsigned context_id = 0;
+uint32_t context_id = 0;
 
 // When the client does not have enough permission, the outputLatency property
 // is quantized by 8ms to reduce the precision for privacy concerns.
@@ -274,9 +276,15 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
   audio_context->MaybeAllowAutoplayWithUnlockType(
       AutoplayUnlockType::kContextConstructor);
   if (audio_context->IsAllowedToStart(/*should_suppress_warning=*/true)) {
+    TRACE_EVENT1("webaudio", "AudioContext::Create - allowed to start",
+                 "UUID", audio_context->Uuid());
     audio_context->StartRendering();
     audio_context->SetContextState(V8AudioContextState::Enum::kRunning);
+  } else {
+    TRACE_EVENT1("webaudio", "AudioContext::Create - NOT allowed to start",
+                 "UUID", audio_context->Uuid());
   }
+
 #if DEBUG_AUDIONODE_REFERENCES
   fprintf(stderr, "[%16p]: AudioContext::AudioContext(): %u #%u\n",
           audio_context, audio_context->context_id_, hardware_context_count);
@@ -306,9 +314,7 @@ AudioContext::AudioContext(LocalDOMWindow& window,
           MakeGarbageCollected<V8UnionAudioSinkInfoOrString>(g_empty_string)),
       media_device_service_(&window),
       media_device_service_receiver_(this, &window),
-      should_interrupt_when_frame_is_hidden_(
-          RuntimeEnabledFeatures::AudioContextInterruptedStateEnabled() &&
-          !CanPlayWhileHidden()),
+      should_interrupt_when_frame_is_hidden_(!CanPlayWhileHidden()),
       player_id_(GetNextMediaPlayerId()),
       media_player_host_(&window),
       media_player_receiver_(this, &window),
@@ -330,6 +336,9 @@ AudioContext::AudioContext(LocalDOMWindow& window,
   destination_node_ = RealtimeAudioDestinationNode::Create(
       this, sink_descriptor_, latency_hint, sample_rate,
       update_echo_cancellation_on_first_start);
+
+  TRACE_EVENT2("webaudio", "AudioContext::AudioContext", "UUID", Uuid(),
+               "AutoplayPolicy", static_cast<int>(GetAutoplayPolicy()));
 
   switch (GetAutoplayPolicy()) {
     case AutoplayPolicy::Type::kNoUserGestureRequired:
@@ -398,6 +407,11 @@ AudioContext::AudioContext(LocalDOMWindow& window,
 
   // Initializes `v8_sink_id_` with the given `sink_descriptor_`.
   UpdateV8SinkId();
+
+  EnsureAudioContextManagerService();
+  if (audio_context_manager_.is_bound()) {
+    audio_context_manager_->AudioContextCreated(context_id_);
+  }
 }
 
 void AudioContext::Uninitialize() {
@@ -416,6 +430,18 @@ AudioContext::~AudioContext() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
 
   RecordAudioContextOperation(AudioContextOperation::kDelete);
+
+  // If the context is destroyed while still audible, account for the
+  // remaining audible time until destruction.
+  if (!audible_start_timestamp_.is_null()) {
+    total_audible_duration_ +=
+        base::TimeTicks::Now() - audible_start_timestamp_;
+  }
+  UMA_HISTOGRAM_EXACT_LINEAR("WebAudio.AudioContext.AudibleTime",
+                             total_audible_duration_.InSeconds(),
+                             /*exclusive_max=*/8);
+  UMA_HISTOGRAM_BOOLEAN("WebAudio.AudioContext.DestroyedWithoutClose",
+                        !is_closed_);
 
   // TODO(crbug.com/945379) Disable this DCHECK for now.  It's not terrible if
   // the autoplay metrics aren't recorded in some odd situations.  haraken@ said
@@ -619,6 +645,11 @@ ScriptPromise<IDLUndefined> AudioContext::closeContext(
 }
 
 void AudioContext::DidClose() {
+  EnsureAudioContextManagerService();
+  if (audio_context_manager_.is_bound()) {
+    audio_context_manager_->AudioContextClosed(context_id_);
+  }
+
   SetContextState(V8AudioContextState::Enum::kClosed);
 
   if (close_resolver_) {
@@ -633,6 +664,7 @@ void AudioContext::DidClose() {
         "going away"));
   }
   set_sink_id_resolvers_.clear();
+  is_closed_ = true;
 }
 
 bool AudioContext::IsContextCleared() const {
@@ -642,6 +674,7 @@ bool AudioContext::IsContextCleared() const {
 void AudioContext::StartRendering() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
   SendLogMessage(__func__, "");
+  TRACE_EVENT1("webaudio", __func__, "UUID", Uuid());
 
   if (!keep_alive_) {
     keep_alive_ = this;
@@ -652,6 +685,7 @@ void AudioContext::StartRendering() {
 void AudioContext::StopRendering() {
   DCHECK(destination());
   SendLogMessage(__func__, "");
+  TRACE_EVENT1("webaudio", __func__, "UUID", Uuid());
 
   // It is okay to perform the following on a suspended AudioContext because
   // this method gets called from ExecutionContext::ContextDestroyed() meaning
@@ -667,6 +701,8 @@ void AudioContext::StopRendering() {
 void AudioContext::SuspendRendering() {
   DCHECK(destination());
   SendLogMessage(__func__, "");
+  TRACE_EVENT2("webaudio", __func__, "UUID", Uuid(),
+               "state", static_cast<int>(ContextState()));
 
   if (ContextState() == V8AudioContextState::Enum::kRunning ||
       ContextState() == V8AudioContextState::Enum::kInterrupted) {
@@ -978,6 +1014,9 @@ bool AudioContext::HandlePreRenderTasks(
 }
 
 void AudioContext::NotifyAudibleAudioStarted() {
+  DCHECK(audible_start_timestamp_.is_null());
+  audible_start_timestamp_ = base::TimeTicks::Now();
+
   EnsureAudioContextManagerService();
   if (audio_context_manager_.is_bound()) {
     audio_context_manager_->AudioContextAudiblePlaybackStarted(context_id_);
@@ -1066,6 +1105,10 @@ AudioIOPosition AudioContext::OutputPosition() const {
 }
 
 void AudioContext::NotifyAudibleAudioStopped() {
+  DCHECK(!audible_start_timestamp_.is_null());
+  total_audible_duration_ += base::TimeTicks::Now() - audible_start_timestamp_;
+  audible_start_timestamp_ = base::TimeTicks();
+
   EnsureAudioContextManagerService();
   if (audio_context_manager_.is_bound()) {
     audio_context_manager_->AudioContextAudiblePlaybackStopped(context_id_);
@@ -1294,13 +1337,14 @@ void AudioContext::OnDevicesChanged(mojom::blink::MediaDeviceType device_type,
                      "=> sink was not explicitly specified, falling back to "
                      "default sink.");
       DispatchEvent(*Event::Create(event_type_names::kError));
-      GetExecutionContext()->AddConsoleMessage(
-          MakeGarbageCollected<ConsoleMessage>(
-              mojom::ConsoleMessageSource::kOther,
-              mojom::ConsoleMessageLevel::kInfo,
-              "[AudioContext] Fallback to the default device due to an invalid"
-              " audio device change. (" +
-                  String(sink_descriptor_.SinkId().Utf8()) + ")"));
+      GetExecutionContext()->AddConsoleMessage(MakeGarbageCollected<
+                                               ConsoleMessage>(
+          mojom::ConsoleMessageSource::kOther,
+          mojom::ConsoleMessageLevel::kInfo,
+          StrCat(
+              {"[AudioContext] Fallback to the default device due to an invalid"
+               " audio device change. (",
+               String(sink_descriptor_.SinkId().Utf8()), ")"})));
       sink_descriptor_ = WebAudioSinkDescriptor(
           g_empty_string,
           To<LocalDOMWindow>(GetExecutionContext())->GetLocalFrameToken());
@@ -1317,6 +1361,8 @@ void AudioContext::OnDevicesChanged(mojom::blink::MediaDeviceType device_type,
 void AudioContext::FrameVisibilityChanged(
     mojom::blink::FrameVisibility frame_visibility) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
+  TRACE_EVENT2("webaudio", __func__, "UUID", Uuid(),
+               "frame_visibility", static_cast<int>(frame_visibility));
 
   bool is_frame_hidden =
       (frame_visibility == mojom::blink::FrameVisibility::kNotRendered);
@@ -1384,6 +1430,8 @@ void AudioContext::OnRenderError() {
 
 void AudioContext::ResumeOnPrerenderActivation() {
   CHECK(blocked_by_prerendering_);
+  TRACE_EVENT2("webaudio", __func__, "UUID", Uuid(),
+               "state", static_cast<int>(ContextState()));
   blocked_by_prerendering_ = false;
   switch (ContextState()) {
     case V8AudioContextState::Enum::kSuspended:
@@ -1415,10 +1463,8 @@ int AudioContext::PendingDeviceListUpdates() {
 
 void AudioContext::StartContextInterruption() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
-  if (!RuntimeEnabledFeatures::AudioContextInterruptedStateEnabled()) {
-    return;
-  }
-
+  TRACE_EVENT2("webaudio", __func__, "UUID", Uuid(),
+               "state", static_cast<int>(ContextState()));
   SendLogMessage(__func__, "");
   V8AudioContextState::Enum context_state = ContextState();
   if (context_state == V8AudioContextState::Enum::kClosed ||
@@ -1441,10 +1487,8 @@ void AudioContext::StartContextInterruption() {
 
 void AudioContext::EndContextInterruption() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
-  if (!RuntimeEnabledFeatures::AudioContextInterruptedStateEnabled()) {
-    return;
-  }
-
+  TRACE_EVENT2("webaudio", __func__, "UUID", Uuid(),
+               "state", static_cast<int>(ContextState()));
   SendLogMessage(__func__, "");
   is_interrupted_while_suspended_ = false;
   if (ContextState() == V8AudioContextState::Enum::kClosed) {

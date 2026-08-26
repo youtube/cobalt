@@ -11,6 +11,7 @@ import android.graphics.drawable.Drawable;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import androidx.browser.auth.AuthTabIntent;
 import androidx.browser.auth.AuthTabSessionToken;
 import androidx.browser.customtabs.CustomTabsIntent;
@@ -244,8 +245,8 @@ public class AuthTabIntentDataProvider extends BrowserServicesIntentDataProvider
         return new TintedDrawable(context, scaledBitmap);
     }
 
-    private static boolean isEphemeralTab(Intent intent) {
-        if (!ChromeFeatureList.sCctEphemeralMode.isEnabled()) return false;
+    @VisibleForTesting
+    static boolean isEphemeralTab(Intent intent) {
         return IntentUtils.safeGetBooleanExtra(
                 intent, CustomTabsIntent.EXTRA_ENABLE_EPHEMERAL_BROWSING, false);
     }

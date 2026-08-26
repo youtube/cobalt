@@ -12,36 +12,61 @@
 namespace mojo {
 
 template <>
+struct StructTraits<ax::mojom::AXBitsetDataDataView,
+                    ui::AXBitset<ax::mojom::BoolAttribute>> {
+  static uint32_t set_bits(const ui::AXBitset<ax::mojom::BoolAttribute>& p) {
+    return p.GetSetBits();
+  }
+
+  static uint32_t values(const ui::AXBitset<ax::mojom::BoolAttribute>& p) {
+    return p.GetValues();
+  }
+
+  static bool Read(ax::mojom::AXBitsetDataDataView data,
+                   ui::AXBitset<ax::mojom::BoolAttribute>* out);
+};
+
+template <>
 struct StructTraits<ax::mojom::AXNodeDataDataView, ui::AXNodeData> {
   static int32_t id(const ui::AXNodeData& p) { return p.id; }
   static ax::mojom::Role role(const ui::AXNodeData& p) { return p.role; }
-  static uint32_t state(const ui::AXNodeData& p) { return p.state; }
+  static uint32_t state(const ui::AXNodeData& p) { return p.state.value(); }
   static uint64_t actions(const ui::AXNodeData& p) { return p.actions; }
-  static const std::vector<std::pair<ax::mojom::StringAttribute, std::string>>&
+  static const base::flat_map<ax::mojom::StringAttribute, std::string>&
   string_attributes(const ui::AXNodeData& p) {
-    return p.string_attributes;
+    return p.string_attributes.container();
   }
-  static const std::vector<std::pair<ax::mojom::IntAttribute, int32_t>>&
-  int_attributes(const ui::AXNodeData& p) {
-    return p.int_attributes;
+  static const base::flat_map<ax::mojom::IntAttribute, int32_t>& int_attributes(
+      const ui::AXNodeData& p) {
+    return p.int_attributes.container();
   }
-  static const std::vector<std::pair<ax::mojom::FloatAttribute, float>>&
+  static const base::flat_map<ax::mojom::FloatAttribute, float>&
   float_attributes(const ui::AXNodeData& p) {
-    return p.float_attributes;
+    return p.float_attributes.container();
   }
-  static const std::vector<std::pair<ax::mojom::BoolAttribute, bool>>&
+  static std::optional<base::flat_map<ax::mojom::BoolAttribute, bool>>
   bool_attributes(const ui::AXNodeData& p) {
-    return p.bool_attributes;
+    if (p.bool_attributes->IsBitset()) {
+      return std::nullopt;
+    }
+    return p.bool_attributes->GetVectorStore().container();
   }
-  static const std::vector<
-      std::pair<ax::mojom::IntListAttribute, std::vector<int32_t>>>&
+  static std::optional<ui::AXBitset<ax::mojom::BoolAttribute>>
+  bool_attributes_data(const ui::AXNodeData& p) {
+    if (p.bool_attributes->IsBitset()) {
+      return p.bool_attributes->GetBitsetStore();
+    }
+    return std::nullopt;
+  }
+  static const base::flat_map<ax::mojom::IntListAttribute,
+                              std::vector<int32_t>>&
   intlist_attributes(const ui::AXNodeData& p) {
-    return p.intlist_attributes;
+    return p.intlist_attributes.container();
   }
-  static const std::vector<
-      std::pair<ax::mojom::StringListAttribute, std::vector<std::string>>>&
+  static const base::flat_map<ax::mojom::StringListAttribute,
+                              std::vector<std::string>>&
   stringlist_attributes(const ui::AXNodeData& p) {
-    return p.stringlist_attributes;
+    return p.stringlist_attributes.container();
   }
   static const std::vector<std::pair<std::string, std::string>>&
   html_attributes(const ui::AXNodeData& p) {

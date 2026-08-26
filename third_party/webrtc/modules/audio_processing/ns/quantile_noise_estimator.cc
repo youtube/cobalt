@@ -11,8 +11,13 @@
 #include "modules/audio_processing/ns/quantile_noise_estimator.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
 
+#include "api/array_view.h"
 #include "modules/audio_processing/ns/fast_math.h"
+#include "modules/audio_processing/ns/ns_common.h"
 
 namespace webrtc {
 

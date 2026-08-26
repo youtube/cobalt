@@ -8,21 +8,27 @@ assert(!is_android)
 
 source_set("new_tab_footer") {
   sources = [
+    "footer_context_menu.h",
     "new_tab_footer_handler.h",
     "new_tab_footer_helper.h",
     "new_tab_footer_ui.h",
   ]
   public_deps = [
     ":mojo_bindings",
+    "//chrome/browser/search/background",
+    "//chrome/browser/ui/webui/customize_buttons:mojo_bindings",
     "//chrome/browser/ui/webui/top_chrome",
+    "//components/policy/core/browser",
     "//components/prefs",
-    "//extensions/browser:browser",
+    "//extensions/browser",
+    "//ui/menus",
     "//ui/webui",
   ]
 }
 
 source_set("impl") {
   sources = [
+    "footer_context_menu.cc",
     "new_tab_footer_handler.cc",
     "new_tab_footer_helper.cc",
     "new_tab_footer_ui.cc",
@@ -34,11 +40,14 @@ source_set("impl") {
     "//chrome/browser/extensions",
     "//chrome/browser/profiles",
     "//chrome/browser/resources/new_tab_footer:resources_grit",
+    "//chrome/browser/resources/new_tab_shared:resources_grit",
     "//chrome/browser/search",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/views/side_panel",
     "//chrome/browser/ui/webui:webui_util",
+    "//chrome/browser/ui/webui/customize_buttons",
     "//chrome/common",
-    "//components/search:search",
+    "//components/search",
     "//content/public/browser",
     "//ui/base",
   ]
@@ -53,6 +62,7 @@ source_set("test_support") {
   public_deps = [
     ":new_tab_footer",
     "//base/test:test_support",
+    "//chrome/browser/ui:ui_features",
     "//chrome/test:test_support",
   ]
 }
@@ -60,22 +70,28 @@ source_set("test_support") {
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-  sources = [ "new_tab_footer_handler_browsertest.cc" ]
-  deps = [ ":test_support" ]
+  sources = [
+    "footer_context_menu_browsertest.cc",
+    "new_tab_footer_handler_browsertest.cc",
+  ]
+  deps = [
+    ":test_support",
+    "//chrome/browser/ui/webui:webui_util",
+  ]
 }
 
 source_set("unit_tests") {
   testonly = true
   sources = [ "new_tab_footer_handler_unittest.cc" ]
-  deps = [
-    ":test_support",
-    "//chrome/browser/ui:ui_features",
-  ]
+  deps = [ ":test_support" ]
 }
 
 mojom("mojo_bindings") {
   sources = [ "new_tab_footer.mojom" ]
   webui_module_path = "/"
 
-  public_deps = [ "//url/mojom:url_mojom_gurl" ]
+  public_deps = [
+    "//ui/gfx/geometry/mojom",
+    "//url/mojom:url_mojom_gurl",
+  ]
 }

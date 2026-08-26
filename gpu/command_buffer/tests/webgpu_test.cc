@@ -117,7 +117,6 @@ void WebGPUTest::Initialize(const Options& options) {
       std::make_unique<viz::TestGpuServiceHolder>(gpu_preferences);
 
   ContextCreationAttribs attributes;
-  attributes.bind_generates_resource = false;
   attributes.enable_gles2_interface = false;
   attributes.context_type = CONTEXT_TYPE_WEBGPU;
 
@@ -198,7 +197,8 @@ void WebGPUTest::WaitForCompletion(wgpu::Device device) {
   // Dawn are that all previous operations will have been completed and more
   // importantly the callbacks will have been called.
   wgpu::FutureWaitInfo wait_info = {device.GetQueue().OnSubmittedWorkDone(
-      wgpu::CallbackMode::WaitAnyOnly, [](wgpu::QueueWorkDoneStatus) {})};
+      wgpu::CallbackMode::WaitAnyOnly,
+      [](wgpu::QueueWorkDoneStatus, wgpu::StringView) {})};
 
   while (!wait_info.completed) {
     instance_.WaitAny(1, &wait_info, 0);

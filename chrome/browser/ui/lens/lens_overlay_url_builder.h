@@ -61,11 +61,11 @@ GURL BuildLensSearchURL(
 
 // Returns the value of the text query parameter value from the provided search
 // URL if any. Empty string otherwise.
-const std::string GetTextQueryParameterValue(const GURL& url);
+const std::string ExtractTextQueryParameterValue(const GURL& url);
 
 // Returns the value of the lens mode parameter value from the provided search
 // URL if any. Empty string otherwise.
-const std::string GetLensModeParameterValue(const GURL& url);
+const std::string ExtractLensModeParameterValue(const GURL& url);
 
 // Returns true if the two URLs have the same base url, and the same query
 // parameters. This differs from comparing two GURLs using == since this method
@@ -111,7 +111,8 @@ GURL GetSidePanelNewTabUrl(const GURL& side_panel_url, std::string vsrid);
 
 // Builds the appropriate translate service URL for fetching supported
 // languages.
-GURL BuildTranslateLanguagesURL(std::string country, std::string language);
+GURL BuildTranslateLanguagesURL(std::string_view country,
+                                std::string_view language);
 
 // Returns whether |lens_selection_type| should be considered as a text-only
 // selection type.
@@ -131,6 +132,11 @@ GURL AddPDFScrollToParametersToUrl(
     const GURL& url,
     const std::vector<std::string>& text_fragments,
     int pdf_page_number);
+
+// Returns a key-value map of all parameters in `url` except the query
+// parameter.
+std::map<std::string, std::string> GetParametersMapWithoutQuery(
+    const GURL& url);
 
 }  // namespace lens
 

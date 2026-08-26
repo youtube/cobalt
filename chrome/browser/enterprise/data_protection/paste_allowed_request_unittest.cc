@@ -73,14 +73,16 @@ class TestClipboardRequestHandler
       Profile* profile,
       GURL url,
       Type type,
-      safe_browsing::DeepScanAccessPoint access_point,
+      enterprise_connectors::DeepScanAccessPoint access_point,
       enterprise_connectors::ContentMetaData::CopiedTextSource clipboard_source,
+      std::string source_content_area_email,
       std::string content_transfer_method,
       std::string data,
       CompletionCallback callback) {
     return base::WrapUnique(new TestClipboardRequestHandler(
         content_analysis_info, upload_service, profile, std::move(url), type,
         access_point, std::move(clipboard_source),
+        std::move(source_content_area_email),
         std::move(content_transfer_method), std::move(data),
         std::move(callback)));
   }
@@ -570,6 +572,8 @@ TEST_F(PasteAllowedRequestScanningTest, DifferentDestinationSource) {
       base::BindRepeating(TestClipboardRequestHandler::Create));
 
   auto validator = helper_->CreateValidator();
+  base::RunLoop run_loop;
+  validator.SetDoneClosure(run_loop.QuitClosure());
   validator.ExpectSensitiveDataEvent(
       /*url*/
       "",
@@ -613,6 +617,7 @@ TEST_F(PasteAllowedRequestScanningTest, DifferentDestinationSource) {
   ASSERT_FALSE(future.Get().has_value());
 
   EXPECT_EQ(1u, PasteAllowedRequest::requests_count_for_testing());
+  run_loop.Run();
 }
 
 }  // namespace enterprise_data_protection

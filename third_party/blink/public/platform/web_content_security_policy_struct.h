@@ -34,8 +34,8 @@
 #include <optional>
 #include <vector>
 
+#include "services/network/public/cpp/integrity_metadata.h"
 #include "services/network/public/mojom/content_security_policy.mojom-shared.h"
-#include "services/network/public/mojom/integrity_algorithm.mojom-shared.h"
 #include "third_party/blink/public/platform/web_string.h"
 
 namespace blink {
@@ -49,17 +49,12 @@ struct WebCSPSource {
   bool is_port_wildcard;
 };
 
-struct WebCSPHashSource {
-  network::mojom::IntegrityAlgorithm algorithm;
-  std::vector<uint8_t> value;
-};
-
 struct WebCSPSourceList {
   std::vector<WebCSPSource> sources;
   std::vector<WebString> nonces;
-  std::vector<WebCSPHashSource> hashes;
-  std::vector<WebCSPHashSource> url_hashes;
-  std::vector<WebCSPHashSource> eval_hashes;
+  std::vector<network::IntegrityMetadata> hashes;
+  std::vector<network::IntegrityMetadata> url_hashes;
+  std::vector<network::IntegrityMetadata> eval_hashes;
   bool allow_self;
   bool allow_star;
   bool allow_inline;
@@ -68,6 +63,7 @@ struct WebCSPSourceList {
   bool allow_wasm_eval;
   bool allow_wasm_unsafe_eval;
   bool allow_dynamic;
+  bool allow_dynamic_url;
   bool allow_unsafe_hashes;
   bool report_sample;
   std::optional<network::mojom::IntegrityAlgorithm> report_hash_algorithm;

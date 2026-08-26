@@ -32,7 +32,6 @@
 #include "chrome/browser/ash/arc/tracing/arc_app_performance_tracing_session.h"
 #include "chrome/browser/ash/arc/tracing/test/arc_app_performance_tracing_test_helper.h"
 #include "chrome/browser/ash/extensions/autotest_private/autotest_private_api.h"
-#include "chrome/browser/ash/settings/scoped_testing_cros_settings.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_installation.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/extension_apitest.h"
@@ -164,7 +163,6 @@ class AutotestPrivateApiTest : public ExtensionApiTest {
         {.load_as_component = true, .context_type = context_type_});
   }
 
-  ash::ScopedTestingCrosSettings scoped_testing_cros_settings_;
   base::test::ScopedFeatureList feature_list_;
   ContextType context_type_;
 };
@@ -339,7 +337,6 @@ IN_PROC_BROWSER_TEST_P(AutotestPrivateHoldingSpaceApiTest,
   ash::holding_space_prefs::MarkTimeOfFirstAdd(prefs);
   ash::holding_space_prefs::MarkTimeOfFirstAvailability(prefs);
   ash::holding_space_prefs::MarkTimeOfFirstEntry(prefs);
-  ash::holding_space_prefs::MarkTimeOfFirstFilesAppChipPress(prefs);
   ash::holding_space_prefs::MarkTimeOfFirstPin(prefs);
 
   const bool mark_time_of_first_add = GetParam().mark_time_of_first_add;
@@ -362,8 +359,6 @@ IN_PROC_BROWSER_TEST_P(AutotestPrivateHoldingSpaceApiTest,
   ASSERT_EQ(timeOfFirstAdd.has_value(), mark_time_of_first_add);
   ASSERT_NE(timeOfFirstAvailability, std::nullopt);
   ASSERT_EQ(ash::holding_space_prefs::GetTimeOfFirstEntry(prefs), std::nullopt);
-  ASSERT_EQ(ash::holding_space_prefs::GetTimeOfFirstFilesAppChipPress(prefs),
-            std::nullopt);
   ASSERT_EQ(ash::holding_space_prefs::GetTimeOfFirstPin(prefs), std::nullopt);
 
   if (timeOfFirstAdd) {

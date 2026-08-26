@@ -16,7 +16,9 @@
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_failed_fetch.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -36,10 +38,12 @@ constexpr quic::QuicTimeDelta kMaxSubscribeDoneTimeout =
 }  // namespace
 
 bool RemoteTrack::CheckDataStreamType(MoqtDataStreamType type) {
-  if (data_stream_type_.has_value()) {
-    return data_stream_type_.value() == type;
+  if (is_fetch() && !type.IsFetch()) {
+    return false;
   }
-  data_stream_type_ = type;
+  if (!is_fetch() && !type.IsSubgroup()) {
+    return false;
+  }
   return true;
 }
 
@@ -98,8 +102,7 @@ void SubscribeRemoteTrack::FetchObjects() {
     PublishedObject object;
     switch (fetch_task_->GetNextObject(object)) {
       case MoqtFetchTask::GetNextObjectResult::kSuccess:
-        visitor_->OnObjectFragment(full_track_name(), object.sequence,
-                                   object.publisher_priority, object.status,
+        visitor_->OnObjectFragment(full_track_name(), object.metadata,
                                    object.payload.AsStringView(), true);
         break;
       case MoqtFetchTask::GetNextObjectResult::kError:
@@ -121,8 +124,30 @@ UpstreamFetch::~UpstreamFetch() {
 }
 
 void UpstreamFetch::OnFetchResult(Location largest_location,
+                                  MoqtDeliveryOrder group_order,
                                   absl::Status status,
                                   TaskDestroyedCallback callback) {
+  if (group_order_.has_value()) {
+    // Data stream already implied a group order.
+    if (*group_order_ != group_order) {
+      // The track is malformed. Tell the application it failed.
+      std::move(ok_callback_)(
+          std::make_unique<MoqtFailedFetch>(MoqtStreamErrorToStatus(
+              kResetCodeMalformedTrack, "Group order violation")));
+      // Tell the session this failed, so it can cancel the FETCH.
+      std::move(callback)();
+      return;
+    }
+  } else {
+    group_order_ = group_order;
+  }
+  if (!status.ok()) {
+    std::move(ok_callback_)(std::make_unique<MoqtFailedFetch>(status));
+    // This is called from OnFetchError, which will delete UpstreamFetch. So
+    // there is no need to call |callback|, which would inappropriately send a
+    // FETCH_CANCEL.
+    return;
+  }
   auto task = std::make_unique<UpstreamFetchTask>(largest_location, status,
                                                   std::move(callback));
   task_ = task->weak_ptr();
@@ -140,6 +165,38 @@ void UpstreamFetch::OnStreamOpened(CanReadCallback can_read_callback) {
   } else {
     can_read_callback_ = std::move(can_read_callback);
   }
+}
+
+bool UpstreamFetch::LocationIsValid(Location location, MoqtObjectStatus status,
+                                    bool end_of_message) {
+  if (no_more_objects_) {
+    return false;
+  }
+  if (end_of_message && status == MoqtObjectStatus::kEndOfTrack) {
+    no_more_objects_ = true;
+  }
+  bool last_group_is_finished = last_group_is_finished_;
+  last_group_is_finished_ =
+      status == MoqtObjectStatus::kEndOfGroup && end_of_message;
+  std::optional<Location> last_location = last_location_;
+  if (end_of_message) {
+    last_location_ = location;
+  }
+  if (!last_location.has_value()) {
+    return true;
+  }
+  if (last_location->group == location.group) {
+    return (!last_group_is_finished && location.object > last_location->object);
+  }
+  // Group ID has changed.
+  if (!group_order_.has_value()) {
+    group_order_ = location.group > last_location->group
+                       ? MoqtDeliveryOrder::kAscending
+                       : MoqtDeliveryOrder::kDescending;
+    return true;
+  }
+  return ((location.group > last_location->group) ==
+          (*group_order_ == MoqtDeliveryOrder::kAscending));
 }
 
 UpstreamFetch::UpstreamFetchTask::~UpstreamFetchTask() {
@@ -164,13 +221,14 @@ UpstreamFetch::UpstreamFetchTask::GetNextObject(PublishedObject& output) {
     quiche::QuicheMemSlice message_slice(std::move(payload_));
     output.payload = std::move(message_slice);
   }
-  output.sequence =
-      Location(next_object_->group_id, next_object_->subgroup_id.value_or(0),
-               next_object_->object_id);
-  output.status = next_object_->object_status;
-  output.publisher_priority = next_object_->publisher_priority;
+  output.metadata.location =
+      Location(next_object_->group_id, next_object_->object_id);
+  output.metadata.subgroup = next_object_->subgroup_id;
+  output.metadata.status = next_object_->object_status;
+  output.metadata.publisher_priority = next_object_->publisher_priority;
   output.fin_after_this = false;
-  if (output.sequence == largest_location_) {  // This is the last object.
+  if (output.metadata.location ==
+      largest_location_) {  // This is the last object.
     eof_ = true;
   }
   next_object_.reset();
@@ -210,7 +268,7 @@ void UpstreamFetch::UpstreamFetchTask::NotifyNewObject() {
 void UpstreamFetch::UpstreamFetchTask::OnStreamAndFetchClosed(
     std::optional<webtransport::StreamErrorCode> error,
     absl::string_view reason_phrase) {
-  if (eof_ || error.has_value()) {
+  if (eof_ || !status_.ok()) {
     return;
   }
   // Delete callbacks, because IncomingDataStream and UpstreamFetch are gone.

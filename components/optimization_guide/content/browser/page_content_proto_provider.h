@@ -5,17 +5,17 @@
 #ifndef COMPONENTS_OPTIMIZATION_GUIDE_CONTENT_BROWSER_PAGE_CONTENT_PROTO_PROVIDER_H_
 #define COMPONENTS_OPTIMIZATION_GUIDE_CONTENT_BROWSER_PAGE_CONTENT_PROTO_PROVIDER_H_
 
+#include <optional>
 #include <string>
-#include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
-#include "components/optimization_guide/proto/features/model_prototyping.pb.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/document_user_data.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
-#include "components/optimization_guide/content/mojom/ai_page_content_metadata.mojom.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content_metadata.mojom.h"
 
 namespace content {
 class WebContents;
@@ -23,6 +23,7 @@ class WebContents;
 
 namespace optimization_guide {
 blink::mojom::AIPageContentOptionsPtr DefaultAIPageContentOptions();
+blink::mojom::AIPageContentOptionsPtr ActionableAIPageContentOptions();
 
 // A DocumentUserData that stores a serialized unguessable token for a given
 // RenderFrameHost.
@@ -57,7 +58,7 @@ struct AIPageContentResult {
   ~AIPageContentResult();
 
   optimization_guide::proto::AnnotatedPageContent proto;
-  optimization_guide::mojom::PageMetadataPtr metadata;
+  blink::mojom::PageMetadataPtr metadata;
   // A map from a serialized unguessable token to the document pointer.
   // Callers should use this to map the frame identifiers in the proto to the
   // right frame host.

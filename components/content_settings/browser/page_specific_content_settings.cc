@@ -11,7 +11,6 @@
 #include "base/auto_reset.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
-#include "base/functional/overloaded.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
@@ -50,6 +49,7 @@
 #include "content/public/common/content_constants.h"
 #include "net/base/schemeful_site.h"
 #include "services/network/public/mojom/shared_dictionary_access_observer.mojom.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/navigation/navigation_params.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -708,7 +708,7 @@ void PageSpecificContentSettings::StorageAccessed(
     bool blocked_by_policy) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   content::RenderFrameHost* rfh = std::visit(
-      base::Overloaded{
+      absl::Overload{
           [](const content::GlobalRenderFrameHostToken& frame_token) {
             return content::RenderFrameHost::FromFrameToken(frame_token);
           },
@@ -875,6 +875,9 @@ bool PageSpecificContentSettings::IsContentBlocked(
       content_type == ContentSettingsType::CLIPBOARD_READ_WRITE ||
       content_type == ContentSettingsType::SENSORS ||
       content_type == ContentSettingsType::GEOLOCATION ||
+#if BUILDFLAG(IS_WIN)
+      content_type == ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER ||
+#endif
       content_type == ContentSettingsType::NOTIFICATIONS) {
     const auto& it = content_settings_status_.find(content_type);
     if (it != content_settings_status_.end()) {
@@ -901,6 +904,9 @@ bool PageSpecificContentSettings::IsContentAllowed(
       content_type != ContentSettingsType::CLIPBOARD_READ_WRITE &&
       content_type != ContentSettingsType::SENSORS &&
       content_type != ContentSettingsType::GEOLOCATION &&
+#if BUILDFLAG(IS_WIN)
+      content_type != ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER &&
+#endif
       content_type != ContentSettingsType::NOTIFICATIONS) {
     return false;
   }
@@ -1303,6 +1309,9 @@ void PageSpecificContentSettings::OnMediaStreamPermissionSet(
     MaybeUpdateLocationBar();
   }
 
+  // The PiP window does not support blocked indicators, hence there is no need
+  // to start a timer to display it.
+  if (!delegate_->IsPiPWindow(GetWebContents())) {
     // Camera and/or Mic is blocked, start a blocked indicator's dismiss timer.
     if (microphone_camera_state_.Has(kMicrophoneBlocked)) {
       StartBlockedIndicatorTimer(ContentSettingsType::MEDIASTREAM_MIC);
@@ -1310,6 +1319,7 @@ void PageSpecificContentSettings::OnMediaStreamPermissionSet(
     if (microphone_camera_state_.Has(kCameraBlocked)) {
       StartBlockedIndicatorTimer(ContentSettingsType::MEDIASTREAM_CAMERA);
     }
+  }
 }
 
 void PageSpecificContentSettings::AddPermissionUsageObserver(
@@ -1411,6 +1421,9 @@ void PageSpecificContentSettings::OnContentSettingChanged(
     case ContentSettingsType::ADS:
     case ContentSettingsType::SOUND:
     case ContentSettingsType::CLIPBOARD_READ_WRITE:
+#if BUILDFLAG(IS_WIN)
+    case ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER:
+#endif
     case ContentSettingsType::SENSORS: {
       ContentSetting setting =
           map_->GetContentSetting(current_url, current_url, content_type);

@@ -9,6 +9,7 @@
 #include "base/hash/hash.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "v8/include/v8-inspector.h"
 
 namespace blink {
@@ -20,7 +21,9 @@ struct CORE_EXPORT AdScriptIdentifier {
   // Creates an empty/unspecified identifier.
   AdScriptIdentifier();
 
-  AdScriptIdentifier(const v8_inspector::V8DebuggerId& context_id, int id);
+  AdScriptIdentifier(const v8_inspector::V8DebuggerId& context_id,
+                     int id,
+                     String name);
 
   bool operator==(const AdScriptIdentifier& other) const;
 
@@ -29,30 +32,31 @@ struct CORE_EXPORT AdScriptIdentifier {
 
   // The script's v8 identifier.
   int id;
+
+  // The script's url (or generated name based on id if inline script). This is
+  // a convenience field useful for intervention messages and debugging, as only
+  // `context_id` and `id` are needed to identify the script. This field is not
+  // used for equality and hash comparisons.
+  String name;
 };
 
-}  // namespace blink
-
-namespace WTF {
-
 template <>
-struct HashTraits<blink::AdScriptIdentifier>
-    : GenericHashTraits<blink::AdScriptIdentifier> {
-  static unsigned GetHash(const blink::AdScriptIdentifier& script_id) {
+struct HashTraits<AdScriptIdentifier> : GenericHashTraits<AdScriptIdentifier> {
+  static unsigned GetHash(const AdScriptIdentifier& script_id) {
     std::pair<int64_t, int64_t> p = script_id.context_id.pair();
     int64_t arr[] = {p.first, p.second, script_id.id};
     return base::FastHash(base::as_byte_span(arr));
   }
 
-  static void ConstructDeletedValue(blink::AdScriptIdentifier& script_id) {
-    script_id = blink::AdScriptIdentifier();
+  static void ConstructDeletedValue(AdScriptIdentifier& script_id) {
+    script_id = AdScriptIdentifier();
   }
 
-  static bool IsDeletedValue(const blink::AdScriptIdentifier& script_id) {
-    return script_id.id == blink::AdScriptIdentifier::kEmptyId;
+  static bool IsDeletedValue(const AdScriptIdentifier& script_id) {
+    return script_id.id == AdScriptIdentifier::kEmptyId;
   }
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_AD_SCRIPT_IDENTIFIER_H_

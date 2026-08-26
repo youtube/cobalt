@@ -42,8 +42,10 @@ class ExceptionState;
 class GetHTMLOptions;
 class HTMLCollection;
 class RadioNodeList;
+class ScriptState;
 class StyleRecalcContext;
 class WhitespaceAttacher;
+class WritableStream;
 
 using StaticElementList = StaticNodeTypeList<Element>;
 
@@ -71,11 +73,6 @@ enum class DynamicRestyleFlags {
       kChildrenAffectedByIndirectAdjacentRules |
       kChildrenAffectedByForwardPositionalRules |
       kChildrenAffectedByBackwardPositionalRules
-};
-
-enum SubtreeModificationAction {
-  kDispatchSubtreeModifiedEvent,
-  kOmitSubtreeModifiedEvent
 };
 
 // This constant controls how much buffer is initially allocated
@@ -165,7 +162,7 @@ class CORE_EXPORT ContainerNode : public Node {
   StaticNodeList* FindAllTextNodesMatchingRegex(const String& regex) const;
 
   // These methods are only used during parsing.
-  // They don't send DOM mutation events or accept DocumentFragments.
+  // They don't accept DocumentFragments.
   void ParserAppendChild(Node*);
 
   // Called when the parser adds a child to a DocumentFragment as the result
@@ -183,8 +180,7 @@ class CORE_EXPORT ContainerNode : public Node {
   void ParserInsertBefore(Node* new_child, Node& ref_child);
   void ParserTakeAllChildrenFrom(ContainerNode&);
 
-  void RemoveChildren(
-      SubtreeModificationAction = kDispatchSubtreeModifiedEvent);
+  void RemoveChildren();
 
   void CloneChildNodesFrom(const ContainerNode&, NodeCloningData&);
 
@@ -476,6 +472,12 @@ class CORE_EXPORT ContainerNode : public Node {
   // only.
   String getHTML(const GetHTMLOptions*, ExceptionState&) const;
 
+  WritableStream* patchSelf(ScriptState*);
+  WritableStream* patchAfter(ScriptState*, Node* a, ExceptionState&);
+  WritableStream* patchBefore(ScriptState*, Node* b, ExceptionState&);
+  WritableStream* patchBetween(ScriptState*, Node* a, Node* b, ExceptionState&);
+  WritableStream* patchAll(ScriptState*);
+
   // DocumentOrElementEventHandlers:
   // These event listeners are only actually web-exposed on interfaces that
   // include the DocumentOrElementEventHandlers mixin in their idl.
@@ -577,9 +579,6 @@ class CORE_EXPORT ContainerNode : public Node {
   inline bool CheckParserAcceptChild(const Node& new_child) const;
   inline bool IsHostIncludingInclusiveAncestorOfThis(const Node&,
                                                      ExceptionState&) const;
-
-  void CheckSoftNavigationHeuristicsTracking(const Document& document,
-                                             Node& inserted_node);
 
   Member<Node> first_child_;
   Member<Node> last_child_;

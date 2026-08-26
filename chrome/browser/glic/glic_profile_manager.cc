@@ -10,7 +10,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_enabling.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/nuke_profile_directory_utils.h"
@@ -18,7 +18,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
 #include "chrome/common/chrome_features.h"
@@ -85,9 +85,10 @@ Profile* GlicProfileManager::GetProfileForLaunch() const {
   }
 
   // Look for a profile to based on most recently used browser windows
-  for (Browser* browser : BrowserList::GetInstance()->OrderedByActivation()) {
-    if (GlicEnabling::IsEnabledAndConsentForProfile(browser->profile())) {
-      return browser->profile();
+  for (BrowserWindowInterface* browser :
+       GetBrowserWindowInterfacesOrderedByActivation()) {
+    if (GlicEnabling::IsEnabledAndConsentForProfile(browser->GetProfile())) {
+      return browser->GetProfile();
     }
   }
 
@@ -158,29 +159,59 @@ void GlicProfileManager::OnUnloadingClientForService(GlicKeyedService* glic) {
 void GlicProfileManager::ShouldPreloadForProfile(
     Profile* profile,
     ShouldPreloadCallback callback) {
-  if (IsProfileDirectoryMarkedForDeletion(profile->GetPath())) {
-    return;
-  }
-  if (!base::FeatureList::IsEnabled(features::kGlicWarming) ||
-      !GlicEnabling::IsReadyForProfile(profile)) {
+  if (!profile || IsProfileDirectoryMarkedForDeletion(profile->GetPath())) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), profile, false));
+        FROM_HERE, base::BindOnce(std::move(callback),
+                                  GlicPrewarmingChecksResult::kProfileGone));
     return;
   }
-  CanPreloadForProfile(profile, std::move(callback));
+  if (!base::FeatureList::IsEnabled(features::kGlicWarming)) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback),
+                       GlicPrewarmingChecksResult::kWarmingDisabled));
+    return;
+  }
+  GlicPrewarmingChecksResult result;
+  switch (GlicEnabling::GetProfileReadyState(profile)) {
+    case mojom::ProfileReadyState::kReady:
+      CanPreloadForProfile(profile, std::move(callback));
+      return;
+    case mojom::ProfileReadyState::kUnknownError:
+      result = GlicPrewarmingChecksResult::kProfileNotReadyUnknown;
+      break;
+    case mojom::ProfileReadyState::kSignInRequired:
+      result = GlicPrewarmingChecksResult::kProfileRequiresSignIn;
+      break;
+    case mojom::ProfileReadyState::kIneligible:
+      result = GlicPrewarmingChecksResult::kProfileNotEligible;
+      break;
+    case mojom::ProfileReadyState::kDisabledByAdmin:
+      result = GlicPrewarmingChecksResult::kProfileDisallowedByAdmin;
+      break;
+  }
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), result));
 }
 
 void GlicProfileManager::ShouldPreloadFreForProfile(
     Profile* profile,
-    ShouldPreloadCallback callback) {
+    base::OnceCallback<void(bool)> callback) {
   if (!base::FeatureList::IsEnabled(features::kGlicFreWarming) ||
       // We only want to preload the FRE if it has not been completed.
       GlicEnabling::IsEnabledAndConsentForProfile(profile)) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), profile, false));
+        FROM_HERE, base::BindOnce(std::move(callback), false));
     return;
   }
-  CanPreloadForProfile(profile, std::move(callback));
+  CanPreloadForProfile(
+      profile, base::BindOnce(
+                   [](base::OnceCallback<void(bool)> callback,
+                      GlicPrewarmingChecksResult reason) {
+                     std::move(callback).Run(
+                         reason == GlicPrewarmingChecksResult::kSuccess);
+                   },
+                   std::move(callback)));
 }
 
 GlicKeyedService* GlicProfileManager::GetLastActiveGlic() const {
@@ -223,7 +254,8 @@ void GlicProfileManager::DidSelectProfile(Profile* profile) {
   if (!GlicEnabling::HasConsentedForProfile(profile)) {
     // Open a browser and show the FRE in a new tab.
     chrome::ScopedTabbedBrowserDisplayer displayer(profile);
-    service->OpenFreDialogInNewTab(displayer.browser());
+    service->OpenFreDialogInNewTab(displayer.browser(),
+                                   mojom::InvocationSource::kProfilePicker);
   } else {
     // Toggle glic but prevent close if it is already open for the selected
     // profile.
@@ -289,27 +321,46 @@ bool GlicProfileManager::IsUnderMemoryPressure() const {
 
 void GlicProfileManager::CanPreloadForProfile(Profile* profile,
                                               ShouldPreloadCallback callback) {
-  const bool is_last_active =
-      last_active_glic_ && last_active_glic_->profile() == profile;
-  const bool is_last_loaded =
-      last_loaded_glic_ && last_loaded_glic_->profile() == profile;
-  const bool blocked_by_shown_glic =
-      !base::FeatureList::IsEnabled(features::kGlicWarmMultiple) && IsShowing();
-
-  if (!profile || !GlicEnabling::IsEnabledForProfile(profile) ||
-      is_last_loaded || is_last_active || blocked_by_shown_glic ||
-      profile->ShutdownStarted() || IsUnderMemoryPressure()) {
+  auto produce_result = [&callback](GlicPrewarmingChecksResult result,
+                                    base::Location from_here =
+                                        base::Location::Current()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), profile, false));
-    return;
+        from_here, base::BindOnce(std::move(callback), result));
+  };
+  if (!profile || profile->ShutdownStarted()) {
+    return produce_result(GlicPrewarmingChecksResult::kProfileGone);
+  }
+  auto enablement = GlicEnabling::EnablementForProfile(profile);
+  if (!enablement.IsProfileEligible()) {
+    return produce_result(GlicPrewarmingChecksResult::kProfileNotEligible);
+  }
+  if (enablement.DisallowedByAdmin()) {
+    return produce_result(
+        GlicPrewarmingChecksResult::kProfileDisallowedByAdmin);
+  }
+  if (!enablement.IsEnabled()) {
+    return produce_result(GlicPrewarmingChecksResult::kProfileNotEnabledOther);
+  }
+  if (last_loaded_glic_ && last_loaded_glic_->profile() == profile) {
+    return produce_result(GlicPrewarmingChecksResult::kProfileIsLastLoaded);
+  }
+  if (last_active_glic_ && last_active_glic_->profile() == profile) {
+    return produce_result(GlicPrewarmingChecksResult::kProfileIsLastActive);
+  }
+  if (!base::FeatureList::IsEnabled(features::kGlicWarmMultiple) &&
+      IsShowing()) {
+    return produce_result(GlicPrewarmingChecksResult::kBlockedByShownGlic);
+  }
+  if (IsUnderMemoryPressure()) {
+    return produce_result(GlicPrewarmingChecksResult::kUnderMemoryPressure);
   }
 
-  auto on_got_connection_type = [](Profile* profile,
-                                   ShouldPreloadCallback callback,
+  auto on_got_connection_type = [](ShouldPreloadCallback callback,
                                    network::mojom::ConnectionType type) {
     std::move(callback).Run(
-        profile,
-        !network::NetworkConnectionTracker::IsConnectionCellular(type));
+        network::NetworkConnectionTracker::IsConnectionCellular(type)
+            ? GlicPrewarmingChecksResult::kCellularConnection
+            : GlicPrewarmingChecksResult::kSuccess);
   };
   auto callbacks = base::SplitOnceCallback(std::move(callback));
 
@@ -322,15 +373,15 @@ void GlicProfileManager::CanPreloadForProfile(Profile* profile,
   } else {
     synchronously_got_connection_type =
         content::GetNetworkConnectionTracker()->GetConnectionType(
-            &connection_type, base::BindOnce(on_got_connection_type, profile,
-                                             std::move(callbacks.first)));
+            &connection_type,
+            base::BindOnce(on_got_connection_type, std::move(callbacks.first)));
   }
 
   if (synchronously_got_connection_type) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
-        base::BindOnce(on_got_connection_type, profile,
-                       std::move(callbacks.second), connection_type));
+        base::BindOnce(on_got_connection_type, std::move(callbacks.second),
+                       connection_type));
   }
 }
 

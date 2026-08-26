@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/deprecated/session_info.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame_type.h"
@@ -23,7 +22,7 @@ namespace webrtc {
 
 class TestSessionInfo : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     memset(packet_buffer_, 0, sizeof(packet_buffer_));
     memset(frame_buffer_, 0, sizeof(frame_buffer_));
     session_.Reset();
@@ -66,7 +65,7 @@ class TestSessionInfo : public ::testing::Test {
 
 class TestNalUnits : public TestSessionInfo {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     TestSessionInfo::SetUp();
     packet_.video_header.codec = kVideoCodecVP8;
   }
@@ -86,7 +85,7 @@ class TestNackList : public TestSessionInfo {
  protected:
   static const size_t kMaxSeqNumListLength = 30;
 
-  virtual void SetUp() {
+  void SetUp() override {
     TestSessionInfo::SetUp();
     seq_num_list_length_ = 0;
     memset(seq_num_list_, 0, sizeof(seq_num_list_));

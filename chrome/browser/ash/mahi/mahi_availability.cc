@@ -7,14 +7,13 @@
 #include "ash/constants/generative_ai_country_restrictions.h"
 #include "base/command_line.h"
 #include "base/containers/fixed_flat_set.h"
-#include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/manta/manta_service_factory.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile_manager.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/constants/chromeos_switches.h"
-#include "components/manta/features.h"
 #include "components/manta/manta_service.h"
 #include "components/user_manager/user_manager.h"
 #include "components/variations/service/variations_service.h"
@@ -22,16 +21,12 @@
 namespace ash::mahi_availability {
 
 std::optional<bool> CanUseMahiService() {
-  if (!manta::features::IsMantaServiceEnabled()) {
-    return false;
-  }
-
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           chromeos::switches::kMahiRestrictionsOverride)) {
     return true;
   }
 
-  if (!ash::DemoSession::IsDeviceInDemoMode()) {
+  if (!ash::demo_mode::IsDeviceInDemoMode()) {
     if (!user_manager::UserManager::IsInitialized() ||
         !user_manager::UserManager::Get()->IsUserLoggedIn()) {
       return false;

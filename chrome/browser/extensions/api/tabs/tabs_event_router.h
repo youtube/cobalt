@@ -55,7 +55,7 @@ class TabsEventRouter : public TabStripModelObserver,
   ~TabsEventRouter() override;
 
   // BrowserTabStripTrackerDelegate:
-  bool ShouldTrackBrowser(Browser* browser) override;
+  bool ShouldTrackBrowser(BrowserWindowInterface* browser) override;
 
   // BrowserListObserver:
   void OnBrowserSetLastActive(Browser* browser) override;
@@ -78,6 +78,7 @@ class TabsEventRouter : public TabStripModelObserver,
                               tabs::TabInterface* tab,
                               int index) override;
   void OnTabGroupChanged(const TabGroupChange& change) override;
+  void OnSplitTabChanged(const SplitTabChange& change) override;
 
   // ZoomObserver:
   void OnZoomControllerDestroyed(

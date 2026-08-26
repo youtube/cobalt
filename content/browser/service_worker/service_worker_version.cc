@@ -14,6 +14,7 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -63,7 +64,6 @@
 #include "content/public/common/result_codes.h"
 #include "crypto/secure_hash.h"
 #include "crypto/sha2.h"
-#include "ipc/ipc_message.h"
 #include "mojo/public/c/system/types.h"
 #include "net/base/net_errors.h"
 #include "net/cookies/site_for_cookies.h"
@@ -595,7 +595,7 @@ void ServiceWorkerVersion::StartWorker(ServiceWorkerMetrics::EventType purpose,
   // Ensure the live registration during starting worker so that the worker can
   // get associated with it in
   // ServiceWorkerHost::CompleteStartWorkerPreparation.
-  context_->registry()->FindRegistrationForId(
+  context_->registry().FindRegistrationForId(
       registration_id_, key_,
       base::BindOnce(
           &ServiceWorkerVersion::DidEnsureLiveRegistrationForStartWorker,
@@ -717,7 +717,7 @@ void ServiceWorkerVersion::StartUpdate() {
   if (!context_) {
     return;
   }
-  context_->registry()->FindRegistrationForId(
+  context_->registry().FindRegistrationForId(
       registration_id_, key_,
       base::BindOnce(&ServiceWorkerVersion::FoundRegistrationForUpdate,
                      weak_factory_.GetWeakPtr()));
@@ -1493,7 +1493,7 @@ void ServiceWorkerVersion::OnStarted(
 
   if (status == blink::ServiceWorkerStatusCode::kOk) {
     if (fetch_handler_type_ && fetch_handler_type_ != new_fetch_handler_type) {
-      context_->registry()->UpdateFetchHandlerType(
+      context_->registry().UpdateFetchHandlerType(
           registration_id_, key_, new_fetch_handler_type,
           // Ignore errors; bumping the update fetch handler type is
           // just best-effort.
@@ -1843,8 +1843,8 @@ void ServiceWorkerVersion::PostMessageToClient(
     return;
   }
   // As we don't track tasks between workers and renderers, we can nullify the
-  // message's parent task ID.
-  message.parent_task_id = std::nullopt;
+  // message's task state ID.
+  message.task_state_id = std::nullopt;
   service_worker_client->container_host()->PostMessageToClient(
       *this, std::move(message));
 }
@@ -2154,12 +2154,15 @@ ServiceWorkerVersion::BuildClientSecurityState() const {
   }
 
   const PolicyContainerPolicies& policies = policy_container_host_->policies();
+  // TODO(crbug.com/395895368): try replacing the below with
+  // DeriveClientSecurityState
   return network::mojom::ClientSecurityState::New(
       policies.cross_origin_embedder_policy, policies.is_web_secure_context,
       policies.ip_address_space,
-      DerivePrivateNetworkRequestPolicy(policies.ip_address_space,
-                                        policies.is_web_secure_context,
-                                        PrivateNetworkRequestContext::kWorker),
+      DerivePrivateNetworkRequestPolicy(
+          policies.ip_address_space, policies.is_web_secure_context,
+          policies.allow_non_secure_local_network_access,
+          PrivateNetworkRequestContext::kWorker),
       policies.document_isolation_policy);
 }
 

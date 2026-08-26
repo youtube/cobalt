@@ -8,6 +8,7 @@
 #include "src/baseline/baseline.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
+#include "src/builtins/js-trampoline-assembler.h"
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -1643,11 +1644,10 @@ TF_BUILTIN(CreateDataProperty, CodeStubAssembler) {
                                                  key, value);
 }
 
-TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
+TF_BUILTIN(InstantiateAsmJs, JSTrampolineAssembler) {
   Label tailcall_to_function(this);
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto arg_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
@@ -1680,10 +1680,7 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
   BIND(&tailcall_to_function);
   // On failure, tail call back to regular JavaScript by re-calling the given
   // function which has been reset to the compile lazy builtin.
-
-  TNode<Code> code = LoadJSFunctionCode(function);
-  TailCallJSCode(code, context, function, new_target, arg_count,
-                 dispatch_handle);
+  TailCallJSFunction(function);
 }
 
 TF_BUILTIN(FindNonDefaultConstructorOrConstruct, CodeStubAssembler) {

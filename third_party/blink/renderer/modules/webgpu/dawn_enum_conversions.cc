@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_buffer_binding_type.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_buffer_map_state.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_compare_function.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_component_swizzle.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_cull_mode.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_error_filter.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_feature_name.h"
@@ -722,6 +723,8 @@ wgpu::FeatureName AsDawnEnum(const V8GPUFeatureName& webgpu_enum) {
       return wgpu::FeatureName::DualSourceBlending;
     case V8GPUFeatureName::Enum::kSubgroups:
       return wgpu::FeatureName::Subgroups;
+    case V8GPUFeatureName::Enum::kTextureComponentSwizzle:
+      return wgpu::FeatureName::TextureComponentSwizzle;
     case V8GPUFeatureName::Enum::kCoreFeaturesAndLimits:
       return wgpu::FeatureName::CoreFeaturesAndLimits;
     case V8GPUFeatureName::Enum::kClipDistances:
@@ -734,6 +737,8 @@ wgpu::FeatureName AsDawnEnum(const V8GPUFeatureName& webgpu_enum) {
       return wgpu::FeatureName::Snorm16TextureFormats;
     case V8GPUFeatureName::Enum::kChromiumExperimentalSubgroupMatrix:
       return wgpu::FeatureName::ChromiumExperimentalSubgroupMatrix;
+    case V8GPUFeatureName::Enum::kChromiumExperimentalPrimitiveId:
+      return wgpu::FeatureName::ChromiumExperimentalPrimitiveId;
   }
 }
 
@@ -980,6 +985,24 @@ wgpu::ErrorFilter AsDawnEnum(const V8GPUErrorFilter& webgpu_enum) {
       return wgpu::ErrorFilter::Validation;
     case V8GPUErrorFilter::Enum::kInternal:
       return wgpu::ErrorFilter::Internal;
+  }
+  NOTREACHED();
+}
+
+wgpu::ComponentSwizzle AsDawnEnum(const V8GPUComponentSwizzle& webgpu_enum) {
+  switch (webgpu_enum.AsEnum()) {
+    case V8GPUComponentSwizzle::Enum::kZero:
+      return wgpu::ComponentSwizzle::Zero;
+    case V8GPUComponentSwizzle::Enum::kOne:
+      return wgpu::ComponentSwizzle::One;
+    case V8GPUComponentSwizzle::Enum::kR:
+      return wgpu::ComponentSwizzle::R;
+    case V8GPUComponentSwizzle::Enum::kG:
+      return wgpu::ComponentSwizzle::G;
+    case V8GPUComponentSwizzle::Enum::kB:
+      return wgpu::ComponentSwizzle::B;
+    case V8GPUComponentSwizzle::Enum::kA:
+      return wgpu::ComponentSwizzle::A;
   }
   NOTREACHED();
 }

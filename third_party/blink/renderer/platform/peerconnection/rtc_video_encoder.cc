@@ -26,6 +26,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
@@ -180,7 +181,8 @@ class ScopedSignaledValue {
 
 // TODO(https://crbug.com/1448809): Move to base/memory/ref_counted_memory.h
 class RefCountedWritableSharedMemoryMapping
-    : public ThreadSafeRefCounted<RefCountedWritableSharedMemoryMapping> {
+    : public blink::ThreadSafeRefCounted<
+          RefCountedWritableSharedMemoryMapping> {
  public:
   explicit RefCountedWritableSharedMemoryMapping(
       base::WritableSharedMemoryMapping mapping)
@@ -200,7 +202,8 @@ class RefCountedWritableSharedMemoryMapping
   size_t size() const { return mapping_.size(); }
 
  private:
-  friend class ThreadSafeRefCounted<RefCountedWritableSharedMemoryMapping>;
+  friend class blink::ThreadSafeRefCounted<
+      RefCountedWritableSharedMemoryMapping>;
   ~RefCountedWritableSharedMemoryMapping() = default;
 
   base::WritableSharedMemoryMapping mapping_;
@@ -345,7 +348,7 @@ bool IsValidTemporalSVC(
 
 }  // namespace
 
-namespace WTF {
+namespace blink {
 
 template <>
 struct CrossThreadCopier<webrtc::VideoEncoder::RateControlParameters>
@@ -381,9 +384,6 @@ struct CrossThreadCopier<SignaledValue> {
     return sv;  // this is a move in fact.
   }
 };
-}  // namespace WTF
-
-namespace blink {
 
 namespace features {
 
@@ -718,8 +718,7 @@ bool UseSoftwareForLowResolution(const webrtc::VideoCodecType codec,
 scoped_refptr<gpu::ClientSharedImage> CreateClientSharedImage(
     media::GpuVideoAcceleratorFactories* gpu_factories,
     gfx::Size size) {
-  const auto buffer_format = gfx::BufferFormat::YUV_420_BIPLANAR;
-  const auto si_format = viz::GetSharedImageFormat(buffer_format);
+  const auto si_format = viz::MultiPlaneFormat::kNV12;
   const auto buffer_usage =
       gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE;
 
@@ -964,7 +963,7 @@ class RTCVideoEncoder::Impl : public media::VideoEncodeAccelerator::Client {
 
   // Metadata for frames passed to Encode(), matched to encoded frames using
   // timestamps.
-  WTF::Deque<FrameInfo> submitted_frames_;
+  Deque<FrameInfo> submitted_frames_;
 
   // Indicates that timestamp match failed and we should no longer attempt
   // matching.
@@ -972,7 +971,7 @@ class RTCVideoEncoder::Impl : public media::VideoEncodeAccelerator::Client {
 
   // The pending frames to be encoded with the boolean representing whether the
   // frame must be encoded keyframe.
-  WTF::Deque<FrameChunk> pending_frames_;
+  Deque<FrameChunk> pending_frames_;
 
   // Frame sizes.
   gfx::Size input_frame_coded_size_;
@@ -1224,10 +1223,11 @@ void RTCVideoEncoder::Impl::Enqueue(FrameChunk frame_chunk) {
 // is not a black frame.
 #if BUILDFLAG(IS_WIN)
   {
-    // Check if the incoming frame is backed by unowned memory. This could
-    // happen when: 1. Zero-copy capture feature is turned on but device does
-    // not support MediaFoundation; 2. The video track gets disabled so black
-    // frames are sent.
+    // Check if the incoming frame is backed by owned or unowned memory type.
+    // This could happen when: 1. Zero-copy capture feature is turned on but
+    // device does not support MediaFoundation; 2. Zero-copy is enabled and
+    // video frame is backed up by an ArrayBuffer; 3. The video track gets
+    // disabled so black frames are sent.
     scoped_refptr<media::VideoFrame> frame;
     webrtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
         frame_chunk.video_frame_buffer;
@@ -1237,7 +1237,8 @@ void RTCVideoEncoder::Impl::Enqueue(FrameChunk frame_chunk) {
     if (frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative) {
       frame = static_cast<WebRtcVideoFrameAdapterInterface*>(frame_buffer.get())
                   ->getMediaVideoFrame();
-      if (frame->storage_type() == media::VideoFrame::STORAGE_UNOWNED_MEMORY) {
+      if (frame->storage_type() == media::VideoFrame::STORAGE_UNOWNED_MEMORY ||
+          frame->storage_type() == media::VideoFrame::STORAGE_OWNED_MEMORY) {
         if (use_native_input_) {
           use_native_input_ = false;
         }
@@ -2111,8 +2112,7 @@ RTCVideoEncoder::Impl::CreateI420SharedMemoryFrameByLibyuv(
   // The timestamp is set later in EncodeOneFrame().
   auto frame = media::VideoFrame::WrapExternalData(
       media::PIXEL_FORMAT_I420, input_frame_coded_size_,
-      gfx::Rect(input_visible_size_), input_visible_size_,
-      static_cast<uint8_t*>(mapping.memory()), mapping.size(),
+      gfx::Rect(input_visible_size_), input_visible_size_, mapping,
       base::TimeDelta());
   if (!frame) {
     NotifyErrorStatus({media::EncoderStatus::Codes::kEncoderFailedEncode,

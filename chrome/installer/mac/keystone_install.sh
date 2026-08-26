@@ -19,6 +19,9 @@
 #   When set to a non-empty value, the product at this path will be updated.
 #   ksadmin will not be consulted to locate the installed product, nor will it
 #   be called to update any tickets.
+# GOOGLE_CHROME_UPDATER_TEST_ENROLLMENT_PATH
+#   When set to a non-empty value, the installer will search for an enrollment
+#   ticket at this path. Otherwise, the default path will be used.
 #
 # Exit codes:
 #  0  Happiness
@@ -76,6 +79,7 @@ readonly KS_CHANNEL_KEY="KSChannelID"
 # system /bin/sh with a newer bash, probably all before SIP became a thing.)
 : ${GOOGLE_CHROME_UPDATER_DEBUG:=}
 : ${GOOGLE_CHROME_UPDATER_TEST_PATH:=}
+: ${GOOGLE_CHROME_UPDATER_TEST_ENROLLMENT_PATH:=}
 
 err() {
   local error="${1}"
@@ -1254,23 +1258,32 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
   # running for a system or user ticket.
   note "handling brand code"
 
+  local cbcm_path
+  if [[ -n "${GOOGLE_CHROME_UPDATER_TEST_ENROLLMENT_PATH}" ]]; then
+    cbcm_path="${GOOGLE_CHROME_UPDATER_TEST_ENROLLMENT_PATH}"
+  else
+    if [[ -n "${system_ticket}" ]]; then
+      cbcm_path="/Library/Application Support/Google/CloudManagement"
+    else
+      cbcm_path=~/"Library/Application Support/Google/Chrome/Cloud Enrollment"
+    fi
+  fi
+
   local set_brand_file_access=
   local brand_plist
-  local cbcm_path
   if [[ -n "${system_ticket}" ]]; then
     # System ticket.
     set_brand_file_access="y"
     brand_plist="/${UNROOTED_BRAND_PLIST}"
-    cbcm_path="/Library/Application Support/Google/CloudManagement"
   else
     # User ticket.
     brand_plist=~/"${UNROOTED_BRAND_PLIST}"
-    cbcm_path=~"/Library/Application Support/Google/Chrome/Cloud Enrollment"
   fi
   local brand_plist_path="${brand_plist}.plist"
   note "set_brand_file_access = ${set_brand_file_access}"
   note "brand_plist = ${brand_plist}"
   note "brand_plist_path = ${brand_plist_path}"
+  note "cbcm_path = ${cbcm_path}"
 
   # If there is no brand plist in the old browser installation, read the brand
   # from the keystone file.
@@ -1280,25 +1293,19 @@ framework_${update_version_app_old}_${update_version_app}.dirpatch"
   fi
 
   # Rewrite the brand code according to CBCM enrollment.
-  local new_brand
-  if [[ "${old_brand}" == "GCEA" && -e "${cbcm_path}" ]]; then
-    new_brand="GCCA"
-  elif [[ "${old_brand}" == "GCCA" && ! -e "${cbcm_path}" ]]; then
-    new_brand="GCEA"
-  elif [[ "${old_brand}" == "GCEM" && -e "${cbcm_path}" ]]; then
-    new_brand="GCCM"
-  elif [[ "${old_brand}" == "GCCM" && ! -e "${cbcm_path}" ]]; then
-    new_brand="GCEM"
-  elif [[ "${old_brand}" == "FPAB" && -e "${cbcm_path}" ]]; then
-    new_brand="FPJB"
-  elif [[ "${old_brand}" == "FPJB" && ! -e "${cbcm_path}" ]]; then
-    new_brand="FPAB"
-  elif [[ "${old_brand}" == "FPAC" && -e "${cbcm_path}" ]]; then
-    new_brand="FPJC"
-  elif [[ "${old_brand}" == "FPJC" && ! -e "${cbcm_path}" ]]; then
-    new_brand="FPAC"
+  local new_brand="${old_brand}"
+  if [[ -e "$cbcm_path" ]]; then
+    if [[ "${old_brand}" == GCE? ]]; then
+      new_brand="GCC${old_brand:3}"
+    elif [[ "${old_brand}" == FPA? ]]; then
+      new_brand="FPJ${old_brand:3}"
+    fi
   else
-    new_brand="${old_brand}"
+    if [[ "${old_brand}" == GCC? ]]; then
+      new_brand="GCE${old_brand:3}"
+    elif [[ "${old_brand}" == FPJ? ]]; then
+      new_brand="FPA${old_brand:3}"
+    fi
   fi
   note "new_brand = ${new_brand}"
 

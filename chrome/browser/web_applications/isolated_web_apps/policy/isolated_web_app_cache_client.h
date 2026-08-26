@@ -13,14 +13,17 @@
 #include "base/path_service.h"
 #include "base/types/expected.h"
 #include "base/version.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_downloader.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
+#include "components/webapps/isolated_web_apps/download/bundle_downloader.h"
 
 namespace web_app {
 
 // Cache is enabled only for Managed Guest Session (MGS) and for kiosk sessions
 // and only when the feature flag is enabled.
-bool IsIwaBundleCacheEnabled();
+bool IsIwaBundleCacheEnabledInCurrentSession();
+
+// Checks that the feature flag is enabled.
+bool IsIwaBundleCacheFeatureEnabled();
 
 // This class should be used only when `IsIwaBundleCacheEnabled()` returns
 // true. This is checked in the constructor. This class can be created

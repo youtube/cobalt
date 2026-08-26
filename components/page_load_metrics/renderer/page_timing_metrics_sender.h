@@ -6,6 +6,7 @@
 #define COMPONENTS_PAGE_LOAD_METRICS_RENDERER_PAGE_TIMING_METRICS_SENDER_H_
 
 #include <memory>
+#include <vector>
 
 #include "base/containers/flat_set.h"
 #include "base/containers/small_map.h"
@@ -35,7 +36,7 @@ struct URLLoaderCompletionStatus;
 }  // namespace network
 
 namespace blink {
-struct SoftNavigationMetrics;
+struct SoftNavigationMetricsForReporting;
 }  // namespace blink
 
 namespace page_load_metrics {
@@ -66,7 +67,8 @@ class PageTimingMetricsSender {
   void DidObserveSubresourceLoad(
       const blink::SubresourceLoadMetrics& subresource_load_metrics);
   void DidObserveNewFeatureUsage(const blink::UseCounterFeature& feature);
-  void DidObserveSoftNavigation(blink::SoftNavigationMetrics metrics);
+  void DidObserveSoftNavigation(
+      blink::SoftNavigationMetricsForReporting metrics);
   void DidObserveLayoutShift(double score, bool after_input_or_scroll);
 
   void DidStartResponse(const url::SchemeHostPort& final_response_url,
@@ -108,8 +110,7 @@ class PageTimingMetricsSender {
 
   void UpdateResourceMetadata(int resource_id, bool is_main_frame_resource);
 
-  void SetUpUkmReporting(
-      base::ReadOnlySharedMemoryRegion shared_memory_smoothness,
+  void SetUpDroppedFramesReporting(
       base::ReadOnlySharedMemoryRegion shared_memory_dropped_frames);
 
   void InitiateUserInteractionTiming();

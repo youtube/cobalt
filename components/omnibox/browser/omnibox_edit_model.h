@@ -321,13 +321,6 @@ class OmniboxEditModel {
   // entering keyword mode on a match somewhere down the list.
   bool OnSpacePressed();
 
-  // Checks for special input conditions to accelerate keyword mode entry
-  // for starter pack '@' keywords. Returns true if keyword mode was
-  // entered; returns false if feature is disabled or special input
-  // conditions were not detected, in which case this is a no-op.
-  bool MaybeAccelerateKeywordSelection(std::u16string_view input_text,
-                                       char16_t ch);
-
   // Called when any relevant data changes.  This rolls together several
   // separate pieces of data into one call so we can update all the UI
   // efficiently. Specifically, it's invoked for temporary text, autocompletion,
@@ -500,6 +493,16 @@ class OmniboxEditModel {
   void OnNavigationLikely(
       size_t line,
       omnibox::mojom::NavigationPredictor navigation_predictor);
+
+  // These sentinel values are used to prevent the omnibox view from doing the
+  // usual bookkeeping when it loses or gains focus. This is necessary because
+  // when focus is transferred to the AIM button, we want to still consider the
+  // omnibox view to have focus for purposes of keeping the popup open and
+  // tracking the `OmniboxPopupSelection`.
+  bool FocusIsGoingToAimButton() const;
+  void SetFocusIsGoingToAimButton(bool value);
+  bool FocusIsReturningFromAimButton() const;
+  void SetFocusIsReturningFromAimButton(bool value);
 
   // This calls `OpenMatch` directly for the few remaining `OmniboxEditModel`
   // test cases that require explicit control over match content. For new
@@ -841,6 +844,9 @@ class OmniboxEditModel {
   // suggestion whose tab switch button was focused, so that we may compare
   // if equal.
   GURL old_focused_url_;
+
+  bool focus_is_going_to_aim_button_ = false;
+  bool focus_is_returning_from_aim_button_ = false;
 
   base::WeakPtrFactory<OmniboxEditModel> weak_factory_{this};
 };

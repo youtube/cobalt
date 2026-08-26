@@ -59,7 +59,7 @@ class DcSctpTransport : public SctpTransportInternal,
                   std::unique_ptr<dcsctp::DcSctpSocketFactory> socket_factory);
   ~DcSctpTransport() override;
 
-  // webrtc::SctpTransportInternal
+  // SctpTransportInternal
   void SetOnConnectedCallback(std::function<void()> callback) override;
   void SetDataChannelSink(DataChannelSink* sink) override;
   void SetDtlsTransport(DtlsTransportInternal* transport) override;
@@ -108,7 +108,7 @@ class DcSctpTransport : public SctpTransportInternal,
   void OnTransportReadPacket(PacketTransportInternal* transport,
                              const ReceivedIpPacket& packet);
   void OnDtlsTransportState(DtlsTransportInternal* transport,
-                            webrtc::DtlsTransportState);
+                            DtlsTransportState);
   void MaybeConnectSocket();
 
   Thread* network_thread_;
@@ -137,7 +137,7 @@ class DcSctpTransport : public SctpTransportInternal,
     bool outgoing_reset_done = false;
     // Priority of the stream according to RFC 8831, section 6.4
     dcsctp::StreamPriority priority =
-        dcsctp::StreamPriority(PriorityValue(webrtc::Priority::kLow).value());
+        dcsctp::StreamPriority(PriorityValue(Priority::kLow).value());
   };
 
   // Map of all currently open or closing data channels

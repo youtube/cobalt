@@ -11,6 +11,7 @@
 #include "base/scoped_observation.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/plus_addresses/plus_address_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/test/integration/status_change_checker.h"
@@ -95,13 +96,22 @@ class SingleClientPlusAddressSyncTest
 
   // Sets up the sync client in sync-the-feature or sync-the-transport mode,
   // depending on `GetParam()`. Returns true if setup succeeded.
-  bool SetupSync() {
+  bool SetupSync(SyncTestAccount account = SyncTestAccount::kDefaultAccount) {
     const bool should_run_in_transport_mode = GetParam();
     if (should_run_in_transport_mode) {
-      return SetupClients() && GetClient(0)->SignInPrimaryAccount() &&
+      if (!SetupClients()) {
+        return false;
+      }
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+      auto enable_disclaimer_on_primary_account_change_resetter =
+          enterprise_util::DisableAutomaticManagementDisclaimerUntilReset(
+              GetProfile(0));
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+      return GetClient(0)->SignInPrimaryAccount(account) &&
              GetClient(0)->AwaitSyncTransportActive();
     }
-    return SyncTest::SetupSync();
+    return SyncTest::SetupSync(account);
   }
 
   PlusAddressService* GetPlusAddressService() {
@@ -213,40 +223,13 @@ IN_PROC_BROWSER_TEST_P(SingleClientPlusAddressSyncTest, Signout_DataCleared) {
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
-// Overwrites the Sync test account with a non-gmail account to treat it as a
-// Dasher account.
-// On Android, `switches::kSyncUserForTest` isn't supported, so it's currently
-// not possible to simulate a non-gmail account.
-#if !BUILDFLAG(IS_ANDROID)
-class SingleClientPlusAddressManagedAccountTest
-    : public SingleClientPlusAddressSyncTest {
- public:
-  SingleClientPlusAddressManagedAccountTest() {
-    // This can't be done in `SetUpCommandLine()` because `SyncTest::SetUp()`
-    // already consumes the parameter.
-    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-        switches::kSyncUserForTest, "user@managed-domain.com");
-  }
-};
-
-IN_PROC_BROWSER_TEST_F(SingleClientPlusAddressManagedAccountTest,
+IN_PROC_BROWSER_TEST_P(SingleClientPlusAddressSyncTest,
                        DisabledForManagedAccounts) {
-  ASSERT_TRUE(SetupClients());
   // Sign in with a managed account.
-  ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount(signin::ConsentLevel::kSync));
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(GetProfile(0));
-  const CoreAccountInfo account =
-      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSync);
-  signin::SimulateSuccessfulFetchOfAccountInfo(
-      identity_manager, account.account_id, account.email, account.gaia,
-      "managed-domain.com", "Full name", "Given name", "en-US",
-      /*picture_url=*/"");
-  ASSERT_TRUE(SyncTest::SetupSync());
+  ASSERT_TRUE(SetupSync(SyncTestAccount::kEnterpriseAccount1));
 
   EXPECT_FALSE(GetSyncService(0)->GetActiveDataTypes().HasAny(
       {syncer::PLUS_ADDRESS, syncer::PLUS_ADDRESS_SETTING}));
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace

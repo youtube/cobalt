@@ -24,6 +24,7 @@
 #include "net/base/network_delegate.h"
 #include "net/base/proxy_chain.h"
 #include "net/base/schemeful_site.h"
+#include "net/base/task/task_runner.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "net/cookies/cookie_util.h"
@@ -48,6 +49,14 @@ base::Value::Dict SourceStreamSetParams(SourceStream* source_stream) {
   base::Value::Dict event_params;
   event_params.Set("filters", source_stream->Description());
   return event_params;
+}
+
+const scoped_refptr<base::SingleThreadTaskRunner>& TaskRunner(
+    net::RequestPriority priority) {
+  if (features::kNetTaskSchedulerURLRequestJob.Get()) {
+    return net::GetTaskRunner(priority);
+  }
+  return base::SingleThreadTaskRunner::GetCurrentDefault();
 }
 
 }  // namespace
@@ -468,7 +477,8 @@ void URLRequestJob::NotifyHeadersComplete() {
     RedirectInfo redirect_info = RedirectInfo::ComputeRedirectInfo(
         request_->method(), request_->url(), request_->site_for_cookies(),
         request_->first_party_url_policy(), request_->referrer_policy(),
-        request_->referrer(), http_status_code, new_location,
+        request_->referrer(), request_->initiator(), http_status_code,
+        new_location,
         net::RedirectUtil::GetReferrerPolicyHeader(
             request_->response_headers()),
         insecure_scheme_was_upgraded, CopyFragmentOnRedirect(new_location));
@@ -591,9 +601,9 @@ void URLRequestJob::OnDone(int net_error, bool notify_done) {
   if (notify_done) {
     // Complete this notification later.  This prevents us from re-entering the
     // delegate if we're done because of a synchronous call.
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&URLRequestJob::NotifyDone, weak_factory_.GetWeakPtr()));
+    TaskRunner(request_->priority())
+        ->PostTask(FROM_HERE, base::BindOnce(&URLRequestJob::NotifyDone,
+                                             weak_factory_.GetWeakPtr()));
   }
 }
 

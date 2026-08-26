@@ -210,7 +210,7 @@ int32_t Dav1dDecoder::Decode(const EncodedImage& encoded_image,
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
 
-  if (!wrapped_buffer.get()) {
+  if (!wrapped_buffer) {
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
 

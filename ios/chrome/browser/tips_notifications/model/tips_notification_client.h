@@ -13,8 +13,6 @@
 #import "components/prefs/pref_change_registrar.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_client.h"
 
-class Browser;
-@class CommandDispatcher;
 class PrefRegistrySimple;
 enum class TipsNotificationType;
 enum class TipsNotificationUserType;
@@ -30,6 +28,8 @@ class TipsNotificationClient : public PushNotificationClient {
 
   // Override PushNotificationClient::
   bool CanHandleNotification(UNNotification* notification) override;
+  std::optional<NotificationType> GetNotificationType(
+      UNNotification* notification) override;
   bool HandleNotificationInteraction(
       UNNotificationResponse* notification_response) override;
   std::optional<UIBackgroundFetchResult> HandleNotificationReception(
@@ -82,51 +82,8 @@ class TipsNotificationClient : public PushNotificationClient {
                            base::OnceClosure completion);
   void OnNotificationRequested(TipsNotificationType type, NSError* error);
 
-  // Returns true if a notification of the given `type` should be sent.
-  bool ShouldSendNotification(TipsNotificationType type, ProfileIOS* profile);
-
-  // Returns true if a Default Browser notification should be sent.
-  bool ShouldSendDefaultBrowser();
-
-  // Returns true if a Signin notification should be sent.
-  bool ShouldSendSignin(ProfileIOS* profile);
-
-  // Returns true if a WhatsNew notification should be sent.
-  bool ShouldSendWhatsNew(ProfileIOS* profile);
-
-  // Returns true if a SetUpList continuation notification should be sent.
-  bool ShouldSendSetUpListContinuation(ProfileIOS* profile);
-
-  // Returns true if a Docking promo notification should be sent.
-  bool ShouldSendDocking(ProfileIOS* profile);
-
-  // Returns true if an Omnibox Position promo notification should be sent.
-  bool ShouldSendOmniboxPosition();
-
-  // Returns true if a Lens promo notification should be sent.
-  bool ShouldSendLens(ProfileIOS* profile);
-
-  // Returns true if an Enhanced Safe Browsing promo notification should be
-  // sent.
-  bool ShouldSendEnhancedSafeBrowsing(ProfileIOS* profile);
-
-  // Returns true if the CPE notification should be sent.
-  bool ShouldSendCPE(ProfileIOS* profile);
-
   // Returns `true` if there is foreground active browser.
-  bool IsSceneLevelForegroundActive();
-
-  // Helpers to handle notification interactions.
-  void ShowUIForNotificationType(TipsNotificationType type, Browser* browser);
-  void ShowDefaultBrowserPromo(Browser* browser);
-  void ShowWhatsNew(Browser* browser);
-  void ShowSignin(Browser* browser);
-  void ShowSetUpListContinuation(Browser* browser);
-  void ShowDocking(Browser* browser);
-  void ShowOmniboxPosition(Browser* browser);
-  void ShowLensPromo(Browser* browser);
-  void ShowEnhancedSafeBrowsingPromo(Browser* browser);
-  void ShowCPEPromo(Browser* browser);
+  bool IsSceneLevelForegroundActive() const;
 
   // Helpers to store state in local state prefs.
   void MarkNotificationTypeSent(TipsNotificationType type);
@@ -142,11 +99,11 @@ class TipsNotificationClient : public PushNotificationClient {
   void OnGetDeliveredNotifications(NSArray<UNNotification*>* notifications);
 
   // Returns true if Tips notifications are permitted.
-  bool IsPermitted();
+  bool IsPermitted() const;
 
   // Returns true if the app has provisional notification authorization and the
   // IOSReactivationNotifications feature is enabled.
-  bool CanSendReactivation();
+  bool CanSendReactivation() const;
 
   // Updates the instance variable that stores whether provisional
   // notifications are allowed by policy.
@@ -163,8 +120,8 @@ class TipsNotificationClient : public PushNotificationClient {
   // Classifies the user and sets the `user_type`, if possible.
   void ClassifyUser();
 
-  // Returns whether any identities/accounts exist on the device.
-  bool HasIdentitiesOnDevice(ProfileIOS* profile) const;
+  // Returns the profile for an active foreground Browser, if there is one.
+  ProfileIOS* GetActiveForegroundProfile() const;
 
   // Stores whether Tips notifications are permitted.
   bool permitted_ = false;
@@ -186,6 +143,11 @@ class TipsNotificationClient : public PushNotificationClient {
   // Stores the type of notification that is forced to be sent by experimental
   // settings.
   std::optional<TipsNotificationType> forced_type_;
+
+  // If set, previous notification request(s) will be cleared and the given
+  // type will be sent one time with a 24 hour trigger. This will be used in
+  // conjunction with the kIOSOneTimeDefaultBrowserNotification feature.
+  std::optional<TipsNotificationType> one_time_type_;
 
   // Observes changes to permitted pref.
   PrefChangeRegistrar pref_change_registrar_;

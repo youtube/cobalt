@@ -16,7 +16,6 @@
 
 #include "api/function_view.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/system/assume.h"
 #include "rtc_base/system/inline.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/untyped_function.h"

@@ -4,7 +4,10 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
+#include <array>
 #include <memory>
+
 #include "third_party/icu/fuzzers/fuzzer_utils.h"
 #include "third_party/icu/source/common/unicode/ustring.h"
 

@@ -255,7 +255,7 @@ base::FilePath SaveFile(scoped_refptr<base::RefCountedMemory> data,
 // Called when the "Share to YouTube" button is pressed to
 // open the YouTube share video page.
 void OnShareToYouTubeButtonPressed() {
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       GURL(kShareToYouTubeURL),
       NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kNewForegroundTab);
@@ -718,6 +718,15 @@ CaptureModeController::~CaptureModeController() {
 }
 
 // static
+bool CaptureModeController::HasInstance() {
+  if (g_instance) {
+    return true;
+  }
+
+  return false;
+}
+
+// static
 CaptureModeController* CaptureModeController::Get() {
   DCHECK(g_instance);
   return g_instance;
@@ -1048,9 +1057,10 @@ bool CaptureModeController::CanShowSunfishRegionNudge() const {
       break;
     case user_manager::UserType::kGuest:
     case user_manager::UserType::kPublicAccount:
-    case user_manager::UserType::kKioskApp:
-    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskChromeApp:
+    case user_manager::UserType::kKioskWebApp:
     case user_manager::UserType::kKioskIWA:
+    case user_manager::UserType::kKioskArcvmApp:
       return false;
   }
 

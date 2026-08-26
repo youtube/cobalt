@@ -11,12 +11,12 @@
 #ifndef MODULES_AUDIO_PROCESSING_TEST_TEST_UTILS_H_
 #define MODULES_AUDIO_PROCESSING_TEST_TEST_UTILS_H_
 
-#include <math.h>
-
-#include <iterator>
-#include <limits>
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"

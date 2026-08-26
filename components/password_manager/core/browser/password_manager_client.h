@@ -24,10 +24,10 @@
 #include "components/password_manager/core/browser/password_cross_domain_confirmation_popup_controller.h"
 #include "components/password_manager/core/browser/password_manager.h"
 #include "components/password_manager/core/browser/password_store/password_store_backend_error.h"
+#include "components/password_manager/core/browser/undo_password_change_controller.h"
 #include "components/password_manager/core/browser/webauthn_credentials_delegate.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/safe_browsing/buildflags.h"
-#include "components/sync/service/sync_service.h"
 #include "net/cert/cert_status_flags.h"
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
@@ -69,6 +69,10 @@ namespace signin_metrics {
 enum class AccessPoint;
 }  // namespace signin_metrics
 
+namespace syncer {
+class SyncService;
+}  // namespace syncer
+
 namespace url {
 class Origin;
 }
@@ -102,6 +106,7 @@ class FieldInfoManager;
 class FirstCctPageLoadPasswordsUkmRecorder;
 #endif  // BUILDFLAG(IS_ANDROID)
 class HttpAuthManager;
+class OtpManager;
 class PasswordChangeServiceInterface;
 class PasswordFeatureManager;
 class PasswordFormManagerForUI;
@@ -287,7 +292,8 @@ class PasswordManagerClient {
   virtual void UpdateCredentialCache(
       const url::Origin& origin,
       base::span<const PasswordForm> best_matches,
-      bool is_blocklisted);
+      bool is_blocklisted,
+      std::optional<PasswordStoreBackendError> backend_error);
 
   // Called when a password is saved in an automated fashion. Embedder may
   // inform the user that this save has occurred.
@@ -371,6 +377,9 @@ class PasswordManagerClient {
 
   // Returns the HttpAuthManager associated with this client.
   virtual HttpAuthManager* GetHttpAuthManager();
+
+  // Returns the OtpManager associated with this client.
+  virtual OtpManager* GetOtpManager();
 
   // Returns the AutofillCrowdsourcingManager for votes uploading.
   virtual autofill::AutofillCrowdsourcingManager*
@@ -502,10 +511,6 @@ class PasswordManagerClient {
   virtual void NavigateToManagePasswordsPage(ManagePasswordsReferrer referrer) {
   }
 
-  // If PasswordChangeService exists, notifies it of presence of OTP field on
-  // the page.
-  virtual void InformPasswordChangeServiceOfOtpPresent() {}
-
 #if BUILDFLAG(IS_ANDROID)
   virtual void NavigateToManagePasskeysPage(ManagePasswordsReferrer referrer) {}
 #endif
@@ -564,6 +569,8 @@ class PasswordManagerClient {
 #endif  // !BUILDFLAG(IS_IOS)
 
   virtual password_manager::LeakDetectionInitiator GetLeakDetectionInitiator();
+
+  virtual UndoPasswordChangeController* GetUndoPasswordChangeController();
 };
 
 }  // namespace password_manager

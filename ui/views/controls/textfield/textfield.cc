@@ -16,6 +16,7 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -304,7 +305,7 @@ void Textfield::SetReadOnly(bool read_only) {
 
   // Update read-only without changing the focusable state (or active, etc.).
   read_only_ = read_only;
-  if (GetEnabled()) {
+  if (GetEnabledInViewsSubtree()) {
     GetViewAccessibility().SetReadOnly(read_only_);
   }
   if (GetInputMethod()) {
@@ -434,9 +435,10 @@ void Textfield::SetTextColor(SkColor color) {
 }
 
 SkColor Textfield::GetBackgroundColor() const {
-  return background_color_.value_or(GetColorProvider()->GetColor(
-      GetReadOnly() || !GetEnabled() ? ui::kColorTextfieldBackgroundDisabled
-                                     : ui::kColorTextfieldBackground));
+  return background_color_.value_or(
+      GetColorProvider()->GetColor(GetReadOnly() || !GetEnabledInViewsSubtree()
+                                       ? ui::kColorTextfieldBackgroundDisabled
+                                       : ui::kColorTextfieldBackground));
 }
 
 void Textfield::SetBackgroundColor(SkColor color) {
@@ -538,7 +540,7 @@ void Textfield::SetHorizontalAlignment(gfx::HorizontalAlignment alignment) {
 
 void Textfield::ShowVirtualKeyboardIfEnabled() {
   // GetInputMethod() may return nullptr in tests.
-  if (GetEnabled() && !GetReadOnly() && GetInputMethod()) {
+  if (GetEnabledInViewsSubtree() && !GetReadOnly() && GetInputMethod()) {
     GetInputMethod()->SetVirtualKeyboardVisibilityIfEnabled(true);
   }
 }
@@ -993,7 +995,7 @@ bool Textfield::SkipDefaultKeyEventProcessing(const ui::KeyEvent& event) {
 bool Textfield::GetDropFormats(
     int* formats,
     std::set<ui::ClipboardFormatType>* format_types) {
-  if (!GetEnabled() || GetReadOnly()) {
+  if (!GetEnabledInViewsSubtree() || GetReadOnly()) {
     return false;
   }
   // TODO(msw): Can we support URL, FILENAME, etc.?
@@ -1008,7 +1010,7 @@ bool Textfield::CanDrop(const OSExchangeData& data) {
   int formats;
   std::set<ui::ClipboardFormatType> format_types;
   GetDropFormats(&formats, &format_types);
-  return GetEnabled() && !GetReadOnly() &&
+  return GetEnabledInViewsSubtree() && !GetReadOnly() &&
          data.HasAnyFormat(formats, format_types);
 }
 
@@ -1298,7 +1300,8 @@ void Textfield::WriteDragDataForView(View* sender,
 
 int Textfield::GetDragOperationsForView(View* sender, const gfx::Point& p) {
   int drag_operations = ui::DragDropTypes::DRAG_COPY;
-  if (!GetEnabled() || text_input_type_ == ui::TEXT_INPUT_TYPE_PASSWORD ||
+  if (!GetEnabledInViewsSubtree() ||
+      text_input_type_ == ui::TEXT_INPUT_TYPE_PASSWORD ||
       !GetRenderText()->IsPointInSelection(p)) {
     drag_operations = ui::DragDropTypes::DRAG_NONE;
   } else if (sender == this && !GetReadOnly()) {
@@ -1729,7 +1732,7 @@ void Textfield::InsertChar(const ui::KeyEvent& event) {
 }
 
 ui::TextInputType Textfield::GetTextInputType() const {
-  if (GetReadOnly() || !GetEnabled()) {
+  if (GetReadOnly() || !GetEnabledInViewsSubtree()) {
     return ui::TEXT_INPUT_TYPE_NONE;
   }
   return text_input_type_;
@@ -2114,7 +2117,6 @@ bool Textfield::AddGrammarFragments(
 
 #endif
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 void Textfield::GetActiveTextInputControlLayoutBounds(
     std::optional<gfx::Rect>* control_bounds,
     std::optional<gfx::Rect>* selection_bounds) {
@@ -2122,7 +2124,6 @@ void Textfield::GetActiveTextInputControlLayoutBounds(
   ConvertRectToScreen(this, &origin);
   *control_bounds = origin;
 }
-#endif
 
 #if BUILDFLAG(IS_WIN)
 // TODO(crbug.com/41452689): Implement this method once TSF supports
@@ -2741,7 +2742,7 @@ void Textfield::UpdateDefaultBorder() {
   auto border_color_id = ui::kColorTextfieldOutline;
   if (invalid_) {
     border_color_id = ui::kColorTextfieldOutlineInvalid;
-  } else if (!GetEnabled() || GetReadOnly()) {
+  } else if (!GetEnabledInViewsSubtree() || GetReadOnly()) {
     border_color_id = ui::kColorTextfieldOutlineDisabled;
   }
 
@@ -2860,7 +2861,7 @@ void Textfield::UpdateCursorViewPosition() {
 }
 
 int Textfield::GetTextStyle() const {
-  if (GetReadOnly() || !GetEnabled()) {
+  if (GetReadOnly() || !GetEnabledInViewsSubtree()) {
     return style::STYLE_DISABLED;
   } else if (GetInvalid()) {
     return style::STYLE_INVALID;
@@ -3066,9 +3067,9 @@ void Textfield::OnEditFailed() {
 bool Textfield::ShouldShowCursor() const {
   // Show the cursor when the primary selected range is empty; secondary
   // selections do not affect cursor visibility.
-  return HasFocus() && !HasSelection(true) && GetEnabled() && !GetReadOnly() &&
-         !drop_cursor_visible_ && GetRenderText()->cursor_enabled() &&
-         !cursor_view_->bounds().IsEmpty();
+  return HasFocus() && !HasSelection(true) && GetEnabledInViewsSubtree() &&
+         !GetReadOnly() && !drop_cursor_visible_ &&
+         GetRenderText()->cursor_enabled() && !cursor_view_->bounds().IsEmpty();
 }
 
 int Textfield::CharsToDips(int width_in_chars) const {
@@ -3138,7 +3139,7 @@ void Textfield::OnEnabledChanged() {
   // However, if we re-enable a textfield that was already set to readonly,
   // we need to update the readonly state, since the disabled restriction would
   // have overwritten it.
-  if (GetEnabled() && GetReadOnly()) {
+  if (GetEnabledInViewsSubtree() && GetReadOnly()) {
     GetViewAccessibility().SetReadOnly(true);
   }
   UpdateAccessibleDefaultActionVerb();
@@ -3350,7 +3351,7 @@ void Textfield::StopSelectionDragging() {
 }
 
 void Textfield::UpdateAccessibleDefaultActionVerb() {
-  if (GetEnabled()) {
+  if (GetEnabledInViewsSubtree()) {
     GetViewAccessibility().SetDefaultActionVerb(
         ax::mojom::DefaultActionVerb::kActivate);
   } else {

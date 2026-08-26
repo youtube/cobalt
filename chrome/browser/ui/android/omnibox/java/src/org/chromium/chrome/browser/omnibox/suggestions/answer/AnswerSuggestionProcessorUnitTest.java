@@ -9,7 +9,6 @@ import static org.robolectric.Shadows.shadowOf;
 
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.text.Spannable;
 
@@ -73,7 +72,6 @@ public class AnswerSuggestionProcessorUnitTest {
         AnswerType.ANSWER_TYPE_SUNRISE_SUNSET,
         AnswerType.ANSWER_TYPE_TRANSLATION,
         AnswerType.ANSWER_TYPE_WEATHER,
-        AnswerType.ANSWER_TYPE_WHEN_IS,
         AnswerType.ANSWER_TYPE_CURRENCY
     };
 
@@ -82,7 +80,6 @@ public class AnswerSuggestionProcessorUnitTest {
     private @Mock SuggestionHost mSuggestionHost;
     private @Mock UrlBarEditingTextStateProvider mUrlStateProvider;
     private @Mock OmniboxImageSupplier mImageSupplier;
-    private @Mock Bitmap mBitmap;
     private @Mock AutocompleteInput mInput;
 
     private AnswerSuggestionProcessor mProcessor;
@@ -207,7 +204,7 @@ public class AnswerSuggestionProcessorUnitTest {
     public void setUp() {
         mDefaultLocale = Locale.getDefault();
         mContext = Robolectric.buildActivity(Activity.class).setup().get();
-        mContext.setTheme(org.chromium.chrome.R.style.Theme_BrowserUI_DayNight);
+        mContext.setTheme(R.style.Theme_BrowserUI_DayNight);
         mProcessor =
                 new AnswerSuggestionProcessor(
                         mContext, mSuggestionHost, mUrlStateProvider, Optional.of(mImageSupplier));

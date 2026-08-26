@@ -12,6 +12,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_service.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -61,6 +62,11 @@ class ProcessManagementTest : public ExtensionBrowserTest {
     ExtensionBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
   }
+
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList scoped_prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
 
   base::test::ScopedFeatureList disabled_feature_list_;
 };
@@ -621,7 +627,7 @@ IN_PROC_BROWSER_TEST_F(ProcessManagementTest,
 
   WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  GURL blocked_url(extension->GetResourceURL("/blocked.html"));
+  GURL blocked_url(extension->GetResourceURL("blocked.html"));
 
   // Navigating to the blocked extension URL should be done through a redirect,
   // otherwise it will result in an OpenURL IPC from the renderer process, which
@@ -632,7 +638,7 @@ IN_PROC_BROWSER_TEST_F(ProcessManagementTest,
   // Navigate the current tab to the test page in the extension, which will
   // create the extension process and register the webRequest blocking listener.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), extension->GetResourceURL("/test.html")));
+      browser(), extension->GetResourceURL("test.html")));
 
   // Open a new tab to about:blank, which will result in a new SiteInstance
   // without an explicit site URL set.
@@ -666,7 +672,7 @@ IN_PROC_BROWSER_TEST_F(ProcessManagementTest,
   // the process of the |blocked_url|.
   scoped_refptr<content::SiteInstance> new_site_instance =
       content::SiteInstance::CreateForURL(web_contents->GetBrowserContext(),
-                                          extension->GetResourceURL(""));
+                                          extension->url());
   EXPECT_TRUE(new_site_instance->HasProcess());
   EXPECT_EQ(new_site_instance->GetProcess(),
             web_contents->GetSiteInstance()->GetProcess());

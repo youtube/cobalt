@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/files/file_path.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/values_test_util.h"
 #include "base/values.h"
@@ -15,9 +16,11 @@
 #include "extensions/common/error_utils.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/features/feature_channel.h"
+#include "extensions/common/file_util.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace extensions {
 
@@ -42,11 +45,13 @@ TEST_F(ExtensionManifestBackgroundTest, BackgroundScripts) {
   scoped_refptr<Extension> extension(
       LoadAndExpectSuccess(ManifestData(manifest->Clone(), "")));
   ASSERT_TRUE(extension.get());
-  const std::vector<std::string>& background_scripts =
+  const std::vector<ExtensionResource>& background_scripts =
       BackgroundInfo::GetBackgroundScripts(extension.get());
   ASSERT_EQ(2u, background_scripts.size());
-  EXPECT_EQ("foo.js", background_scripts[0u]);
-  EXPECT_EQ("bar/baz.js", background_scripts[1u]);
+  EXPECT_EQ(FILE_PATH_LITERAL("foo.js"),
+            background_scripts[0u].relative_path().value());
+  EXPECT_EQ(FILE_PATH_LITERAL("bar/baz.js"),
+            background_scripts[1u].relative_path().value());
 
   EXPECT_TRUE(BackgroundInfo::HasBackgroundPage(extension.get()));
   EXPECT_EQ(
@@ -68,9 +73,12 @@ TEST_F(ExtensionManifestBackgroundTest, BackgroundServiceWorkerScript) {
       LoadAndExpectSuccess(ManifestData(manifest->Clone(), "")));
   ASSERT_TRUE(extension.get());
   ASSERT_TRUE(BackgroundInfo::IsServiceWorkerBased(extension.get()));
-  const std::string& service_worker_script =
-      BackgroundInfo::GetBackgroundServiceWorkerScript(extension.get());
-  EXPECT_EQ("service_worker.js", service_worker_script);
+  const GURL background_service_worker_script_url =
+      BackgroundInfo::GetBackgroundServiceWorkerScriptURL(extension.get());
+  const base::FilePath service_worker_script =
+      file_util::ExtensionURLToRelativeFilePath(
+          background_service_worker_script_url);
+  EXPECT_EQ("service_worker.js", service_worker_script.AsUTF8Unsafe());
 
   manifest->SetByDottedPath("background.page", "monkey.html");
   LoadAndExpectError(ManifestData(std::move(*manifest), ""),

@@ -11,10 +11,17 @@
 #include "modules/audio_processing/agc2/rnn_vad/spectral_features.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <numeric>
 
+#include "api/array_view.h"
+#include "modules/audio_processing/agc2/rnn_vad/common.h"
+#include "modules/audio_processing/agc2/rnn_vad/ring_buffer.h"
+#include "modules/audio_processing/agc2/rnn_vad/spectral_features_internal.h"
+#include "modules/audio_processing/agc2/rnn_vad/symmetric_matrix_buffer.h"
+#include "modules/audio_processing/utility/pffft_wrapper.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_compare.h"
 

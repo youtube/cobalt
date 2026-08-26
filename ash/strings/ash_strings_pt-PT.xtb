@@ -21,7 +21,6 @@ Eis alguns exemplos do que pode experimentar para começar.</translation>
 <translation id="1056898198331236512">Aviso</translation>
 <translation id="1058009965971887428">Enviar feedback</translation>
 <translation id="1059120031266247284">Partilhados consigo</translation>
-<translation id="1059194134494239015"><ph name="DISPLAY_NAME" />: <ph name="RESOLUTION" /></translation>
 <translation id="1060847216467038176"><ph name="ITEM_LABEL" /> com botão Remover</translation>
 <translation id="1062407476771304334">Substituir</translation>
 <translation id="1073899992769346247">Substitua ou recarregue a bateria</translation>
@@ -540,7 +539,6 @@ Caso contrário, o touchpad incorporado é reativado dentro de <ph name="TIMEOUT
 <translation id="2814448776515246190">Captura parcial</translation>
 <translation id="2819276065543622893">A sessão será terminada agora.</translation>
 <translation id="2822551631199737692">A câmara está a ser usada</translation>
-<translation id="2825224105325558319"><ph name="DISPLAY_NAME" /> não suporta <ph name="SPECIFIED_RESOLUTION" />. A resolução foi alterada para <ph name="FALLBACK_RESOLUTION" />.</translation>
 <translation id="2825619548187458965">Prateleira</translation>
 <translation id="2831035692318564937">Ativado até ao nascer do sol</translation>
 <translation id="2834813915651407382">Aberto recentemente</translation>
@@ -605,8 +603,6 @@ Caso contrário, o touchpad incorporado é reativado dentro de <ph name="TIMEOUT
 <translation id="3026897869154397692">Adicionado ao Calendário</translation>
 <translation id="3033545621352269033">Ativada</translation>
 <translation id="3033912566804961911">Combinar com <ph name="DESK_NAME" /></translation>
-<translation id="3036649622769666520">Abrir ficheiros</translation>
-<translation id="3038571455154067151">Para iniciar sessão, introduza o código de acesso parental do Family Link</translation>
 <translation id="3039939407102840004">A bateria da caneta stylus está a <ph name="PERCENTAGE" /> por cento.</translation>
 <translation id="304097922505898963">Abrir a app Atalhos de teclas</translation>
 <translation id="304417730895741346">As suas apps fixadas e abertas estão na prateleira. Para fixar uma app à prateleira, clique com o botão direito do rato numa app ou toque no touchpad com dois dedos.</translation>
@@ -761,6 +757,7 @@ Caso contrário, o touchpad incorporado é reativado dentro de <ph name="TIMEOUT
 <translation id="3552189655002856821">O Wi-Fi está desativado</translation>
 <translation id="3554215588514239132">Mostrar ou ocultar o painel Ferramentas para programadores</translation>
 <translation id="3554637740840164787">O item <ph name="ITEM_TITLE" /> foi fixado.</translation>
+<translation id="3554928024630051016">Para adicionar mais dispositivos USB, experimente remover um e, em seguida, ligar um novo</translation>
 <translation id="3558768885091059911">Ativar o acesso à câmara e ao microfone?</translation>
 <translation id="3560174576767922131">Gravar vídeo</translation>
 <translation id="3563775809269155755">Ativar zona Wi-Fi</translation>
@@ -868,6 +865,7 @@ Ligue o dispositivo à corrente.</translation>
 <translation id="3861651314799684201">Prima Enter para gravar o ecrã inteiro</translation>
 <translation id="3870197372373144624">Experimente encerrar o seu dispositivo.</translation>
 <translation id="3879748587602334249">Gestor de transferências</translation>
+<translation id="3884007280698606545">Limite de dispositivos USB atingido</translation>
 <translation id="3886872229787704059">Aberto hoje</translation>
 <translation id="3891340733213178823">Prima Ctrl+Shift+Q duas vezes para terminar sessão.</translation>
 <translation id="3892148308691398805">Copiar texto</translation>
@@ -1012,6 +1010,7 @@ Algumas funcionalidades são limitadas para aumentar a autonomia da bateria.</tr
 <translation id="4305817255990598646">Mudar</translation>
 <translation id="4307713728991152670">Configurar visualização das fotos, dos conteúdos multimédia e das apps recentes do telemóvel</translation>
 <translation id="4312840429157639164">Câmara ajustada ao canto superior direito. Há um conflito com a superfície do sistema.</translation>
+<translation id="4312935606722154789">Agrupar ou desagrupar duas janelas lado a lado</translation>
 <translation id="4316910396681052118">TODAS AS APLICAÇÕES</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Ocultar todas as sugestões do navegador Chrome</translation>
@@ -1451,7 +1450,6 @@ Nenhum dispositivo ligado.</translation>
 <translation id="5691772641933328258">Impressão digital não reconhecida</translation>
 <translation id="5693255400847650006">O microfone está a ser usado</translation>
 <translation id="5699366815052349604">Atribua a janela ativa a todos os espaços de trabalho</translation>
-<translation id="5701785125601597013">Envie ou responda rapidamente às mensagens do seu telemóvel através do Phone Hub</translation>
 <translation id="570390244361237317">Todas as apps, navegue com as teclas de seta para aceder a todas as apps</translation>
 <translation id="5705197514573687092">Mostre as definições do Modo sem distrações. Temporizador definido para <ph name="FOCUS_DURATION" />.</translation>
 <translation id="5707775774148071965">O dispositivo suporta uma taxa de dados mais elevada do que o cabo. O desempenho do dispositivo pode estar limitado.</translation>
@@ -1581,7 +1579,6 @@ Nenhum dispositivo ligado.</translation>
 <translation id="6095425951508823973">Adicionar ligação a <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">Editado no mês passado</translation>
 <translation id="6103838137565245112">sistema</translation>
-<translation id="610395411842312282">Agrupar duas janelas lado a lado</translation>
 <translation id="6108952804512516814">Criar com IA</translation>
 <translation id="6114505516289286752">Ficheiros de voz em <ph name="LANGUAGE" /> transferidos</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>
@@ -1605,7 +1602,6 @@ Nenhum dispositivo ligado.</translation>
 <translation id="6166852626429024716">Pesquise no dispositivo, nas apps, nas definições, na Web…</translation>
 <translation id="6168318496333165060">Abrir a app Diagnósticos</translation>
 <translation id="6168622430237609329">As suas apps instaladas</translation>
-<translation id="6179832488876878285">Pode fixar os seus ficheiros importantes aqui. Abra a app Files para começar.</translation>
 <translation id="6180193585172850042">Botão Retroceder</translation>
 <translation id="6180651297859206670">Botão Avançar</translation>
 <translation id="6182592640011875895">Abrir espaço de trabalho</translation>
@@ -1638,7 +1634,6 @@ Nenhum dispositivo ligado.</translation>
 <translation id="6267036997247669271"><ph name="NAME" />: a ativar...</translation>
 <translation id="6274202259872570803">Gravação de ecrã</translation>
 <translation id="6276708887952587684">Ver código-fonte da página</translation>
-<translation id="6284232397434400372">Resolução alterada</translation>
 <translation id="6285871695023807425">Adicionar ao Calendário</translation>
 <translation id="6288235558961782912">É possível adicionar <ph name="USER_EMAIL_ADDRESS" /> novamente mais tarde com a autorização dos pais.</translation>
 <translation id="6291221004442998378">Não está a carregar.</translation>
@@ -1686,7 +1681,6 @@ Nenhum dispositivo ligado.</translation>
 <translation id="6452181791372256707">Rejeitar</translation>
 <translation id="6453179446719226835">O idioma foi alterado</translation>
 <translation id="6456096448804832585">Apenas vertical disponível</translation>
-<translation id="6459472438155181876">A prolongar ecrã para <ph name="DISPLAY_NAME" /></translation>
 <translation id="6464094930452079790">imagens</translation>
 <translation id="6467290994038932560">Ativado para <ph name="GAME_APP_NAME" /></translation>
 <translation id="6468406072297048412">{0,plural, =1{Atualize o dispositivo para a versão anterior dentro de 1 minuto}other{Atualize o dispositivo para a versão anterior dentro de # minutos}}</translation>
@@ -1919,6 +1913,7 @@ Nova instalação</translation>
 <translation id="7240636904654154599">Folha de cálculo do Google Sheets criada</translation>
 <translation id="7244725679040769470"><ph name="PERCENTAGE" />% de bateria restante. Ligue o dispositivo à alimentação.</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />. É necessário reiniciar o Chromebook para aplicar uma atualização. Esta ação pode demorar até 1 minuto.</translation>
+<translation id="7248100343060254997">Pesquisar o meu ecrã</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">Microfone posterior</translation>
 <translation id="7258828758145722155">Editado ontem</translation>
@@ -2418,7 +2413,6 @@ Para encerrar o dispositivo, prima sem soltar o botão ligar/desligar novamente 
 <translation id="8876148469852588625">Evento <ph name="EVENT_POSITION" /> de <ph name="EVENT_TOTAL_COUNT" /></translation>
 <translation id="8876661425082386199">Verifique a sua ligação</translation>
 <translation id="8877788021141246043">Definir um lembrete</translation>
-<translation id="8878886163241303700">Ecrã alargado</translation>
 <translation id="8885424115080869847">Não foi possível ligar ao YouTube Music</translation>
 <translation id="888982883502837004">Estão disponíveis atualizações de firmware para o seu dispositivo. Clique para rever e atualizar.</translation>
 <translation id="8896630965521842259"><ph name="DESK_TEMPLATE_NAME" /> será eliminado permanentemente</translation>

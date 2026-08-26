@@ -22,7 +22,6 @@
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_install_command_helper.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_install_source.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/jobs/prepare_install_info_job.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
@@ -30,6 +29,7 @@
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/webapps/common/web_app_id.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-forward.h"
 
 class Profile;
@@ -44,6 +44,7 @@ class WebContents;
 
 namespace web_app {
 
+// Represents a successful preparation and storage of a pending IWA update.
 struct IsolatedWebAppUpdatePrepareAndStoreCommandSuccess {
   IsolatedWebAppUpdatePrepareAndStoreCommandSuccess(
       base::Version update_version,
@@ -60,6 +61,8 @@ std::ostream& operator<<(
     std::ostream& os,
     const IsolatedWebAppUpdatePrepareAndStoreCommandSuccess& success);
 
+// Represents an error during the preparation and storage of a pending IWA
+// update.
 struct IsolatedWebAppUpdatePrepareAndStoreCommandError {
   std::string message;
 };
@@ -148,6 +151,10 @@ class IsolatedWebAppUpdatePrepareAndStoreCommand
   void ReportSuccess(const base::Version& update_version);
 
   Profile& profile();
+
+  void ReportVersionValidationFailure(
+      VersionChangeValidationResult validation_result,
+      const base::Version& expected_version);
 
   void CheckIfUpdateIsStillApplicable(base::OnceClosure next_step_callback);
 

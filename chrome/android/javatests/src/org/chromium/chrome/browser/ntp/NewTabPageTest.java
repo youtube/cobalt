@@ -67,7 +67,6 @@ import org.chromium.base.test.util.UrlUtils;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.feed.FeedActionDelegate;
 import org.chromium.chrome.browser.feed.FeedReliabilityLogger;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.logo.LogoBridge;
 import org.chromium.chrome.browser.logo.LogoBridgeJni;
@@ -133,7 +132,7 @@ import java.util.concurrent.TimeUnit;
 public class NewTabPageTest {
     private static final int ARTICLE_SECTION_HEADER_POSITION = 1;
 
-    private static final int RENDER_TEST_REVISION = 7;
+    private static final int RENDER_TEST_REVISION = 8;
 
     private static final String HISTOGRAM_NTP_MODULE_CLICK = "NewTabPage.Module.Click";
     private static final String HISTOGRAM_NTP_MODULE_LONGCLICK = "NewTabPage.Module.LongClick";
@@ -203,7 +202,7 @@ public class NewTabPageTest {
         mSuggestionsDeps.getFactory().mostVisitedSites = mMostVisitedSites;
 
         mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
-        mTab = mActivityTestRule.getActivity().getActivityTab();
+        mTab = mActivityTestRule.getActivityTab();
         NewTabPageTestUtils.waitForNtpLoaded(mTab);
 
         Assert.assertTrue(mTab.getNativePage() instanceof NewTabPage);
@@ -225,7 +224,7 @@ public class NewTabPageTest {
         onView(withId(R.id.search_box)).perform(click());
         View view = mNtp.getView().findViewById(R.id.search_box);
         ChromeRenderTestRule.sanitize(view);
-        mRenderTestRule.render(view, "focus_fake_box");
+        mRenderTestRule.render(view, "focus_fake_box_v3");
         scrimManager.disableAnimationForTesting(false);
     }
 
@@ -258,6 +257,7 @@ public class NewTabPageTest {
     @Test
     @MediumTest
     @Feature({"NewTabPage", "FeedNewTabPage", "RenderTest"})
+    @DisableFeatures({"FeedHeaderRemoval", "WebFeedKillSwitch"})
     public void testRender_ArticleSectionHeader() throws Exception {
         // Scroll to the article section header in case it is not visible.
         onView(withId(R.id.feed_stream_recycler_view))
@@ -283,7 +283,6 @@ public class NewTabPageTest {
     @Test
     @SmallTest
     @Feature({"NewTabPage", "FeedNewTabPage"})
-    @DisableIf.Build(sdk_equals = Build.VERSION_CODES.P, message = "http://crbug.com/40664848")
     @DisableIf.Build(sdk_equals = Build.VERSION_CODES.R, message = "http://crbug.com/40664848")
     public void testFocusFakebox() {
         int initialFakeboxTop = getFakeboxTop(mNtp);
@@ -354,25 +353,6 @@ public class NewTabPageTest {
                 ContextMenuManager.ContextMenuItemId.OPEN_IN_NEW_TAB,
                 false,
                 mSiteSuggestions.get(0).url.getSpec());
-    }
-
-    /** Tests opening a most visited item in a new incognito tab. */
-    @Test
-    @SmallTest
-    @Feature({"NewTabPage", "FeedNewTabPage"})
-    @DisableFeatures(ChromeFeatureList.TILE_CONTEXT_MENU_REFACTOR)
-    public void testOpenMostVisitedItemInIncognitoTab() throws ExecutionException {
-        Assert.assertNotNull(mMvTilesLayout);
-        HistogramWatcher histogramWatcher = expectMostVisitedTilesRecordForNtpModuleClick();
-
-        ChromeTabUtils.invokeContextMenuAndOpenInANewTab(
-                mActivityTestRule.getActivity(),
-                mMvTilesLayout.getTileAt(0),
-                ContextMenuManager.ContextMenuItemId.OPEN_IN_INCOGNITO_TAB,
-                true,
-                mSiteSuggestions.get(0).url.getSpec());
-
-        histogramWatcher.assertExpected();
     }
 
     /** Tests deleting a most visited item. */
@@ -519,86 +499,6 @@ public class NewTabPageTest {
                                 .onTemplateURLServiceChangedForTesting();
                         Assert.assertEquals(View.VISIBLE, logoView.getVisibility());
                     }
-                });
-    }
-
-    /**
-     * Verifies that the placeholder is only shown when there are no tile suggestions and the search
-     * provider has no logo.
-     */
-    @Test
-    @SmallTest
-    @Feature({"NewTabPage", "FeedNewTabPage"})
-    public void testPlaceholder() {
-        when(mTemplateUrlService.doesDefaultSearchEngineHaveLogo()).thenReturn(true);
-
-        final NewTabPageLayout ntpLayout = mNtp.getNewTabPageLayout();
-        final View logoView = ntpLayout.findViewById(R.id.search_provider_logo);
-        final View searchBoxView = ntpLayout.findViewById(R.id.search_box);
-
-        // Initially, the logo is visible, the search box is visible, there is one tile suggestion,
-        // and the placeholder has not been inflated yet.
-        Assert.assertEquals(View.VISIBLE, logoView.getVisibility());
-        Assert.assertEquals(View.VISIBLE, searchBoxView.getVisibility());
-        Assert.assertEquals(8, mMvTilesLayout.getTileCount());
-        Assert.assertNull(mNtp.getView().findViewById(R.id.tile_grid_placeholder));
-
-        // When the search provider has no logo and there are no tile suggestions, the placeholder
-        // is shown.
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    when(mTemplateUrlService.doesDefaultSearchEngineHaveLogo()).thenReturn(false);
-                    when(mTemplateUrlService.isDefaultSearchEngineGoogle()).thenReturn(true);
-                    ntpLayout.setSearchProviderInfo(/* hasLogo= */ false, /* isGoogle= */ true);
-                    // Mock to notify the template URL service observer.
-                    ntpLayout
-                            .getLogoCoordinatorForTesting()
-                            .onTemplateURLServiceChangedForTesting();
-
-                    Assert.assertEquals(View.GONE, logoView.getVisibility());
-                    Assert.assertEquals(View.GONE, searchBoxView.getVisibility());
-
-                    mMostVisitedSites.setTileSuggestions(new String[] {});
-                    ntpLayout.onSwitchToForeground(); // Force tile refresh.
-                    // Mock to notify the template URL service observer.
-                    ntpLayout
-                            .getMostVisitedTilesCoordinatorForTesting()
-                            .onTemplateURLServiceChangedForTesting();
-                });
-        CriteriaHelper.pollUiThread(
-                () -> {
-                    Criteria.checkThat(
-                            "The tile grid was not updated.", mMvTilesLayout.getTileCount(), is(0));
-                });
-        Assert.assertNotNull(mNtp.getView().findViewById(R.id.tile_grid_placeholder));
-        Assert.assertEquals(
-                View.VISIBLE,
-                mNtp.getView().findViewById(R.id.tile_grid_placeholder).getVisibility());
-
-        // Once the search provider has a logo again, the logo and search box are shown again and
-        // the placeholder is hidden.
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    when(mTemplateUrlService.doesDefaultSearchEngineHaveLogo()).thenReturn(true);
-                    when(mTemplateUrlService.isDefaultSearchEngineGoogle()).thenReturn(true);
-                    ntpLayout.setSearchProviderInfo(/* hasLogo= */ true, /* isGoogle= */ true);
-                    // Mock to notify the template URL service observer.
-                    ntpLayout
-                            .getLogoCoordinatorForTesting()
-                            .onTemplateURLServiceChangedForTesting();
-
-                    Assert.assertEquals(View.VISIBLE, logoView.getVisibility());
-                    Assert.assertEquals(View.VISIBLE, searchBoxView.getVisibility());
-
-                    // Mock to notify the template URL service observer.
-                    ntpLayout
-                            .getMostVisitedTilesCoordinatorForTesting()
-                            .onTemplateURLServiceChangedForTesting();
-                    Assert.assertEquals(
-                            View.GONE,
-                            mNtp.getView()
-                                    .findViewById(R.id.tile_grid_placeholder)
-                                    .getVisibility());
                 });
     }
 
@@ -955,11 +855,11 @@ public class NewTabPageTest {
         int expectedTitleTopMargin =
                 res.getDimensionPixelSize(R.dimen.tile_view_title_margin_top_modern);
         TileView suggestionsTileElement = mvTilesLayout.getTileAt(0);
+        View tileTextContainer = suggestionsTileElement.findViewById(R.id.tile_text_container);
         Assert.assertEquals(
-                "The top margin of the tile element's title is wrong.",
+                "The top margin of the tile element's title container is wrong.",
                 expectedTitleTopMargin,
-                ((MarginLayoutParams) suggestionsTileElement.getTitleView().getLayoutParams())
-                        .topMargin);
+                ((MarginLayoutParams) tileTextContainer.getLayoutParams()).topMargin);
     }
 
     /**
@@ -1037,7 +937,7 @@ public class NewTabPageTest {
 
     private boolean getUrlFocusAnimationsDisabled() {
         return ThreadUtils.runOnUiThreadBlocking(
-                new Callable<Boolean>() {
+                new Callable<>() {
                     @Override
                     public Boolean call() {
                         return mNtp.getNewTabPageLayout().urlFocusAnimationsDisabled();
@@ -1080,7 +980,7 @@ public class NewTabPageTest {
      */
     private int getFakeboxTop(final NewTabPage ntp) {
         return ThreadUtils.runOnUiThreadBlocking(
-                new Callable<Integer>() {
+                new Callable<>() {
                     @Override
                     public Integer call() {
                         final View fakebox = ntp.getView().findViewById(R.id.search_box);

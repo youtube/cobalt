@@ -4,8 +4,6 @@
 
 #include "quiche/quic/core/quic_connection.h"
 
-#include <errno.h>
-
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -534,7 +532,6 @@ class TestConnection : public QuicConnection {
 
   using QuicConnection::active_effective_peer_migration_type;
   using QuicConnection::IsCurrentPacketConnectivityProbing;
-  using QuicConnection::SelectMutualVersion;
   using QuicConnection::set_defer_send_in_response_to_packets;
 
  protected:
@@ -656,8 +653,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       peer_creator_.SetEncrypter(level,
                                  std::make_unique<TaggingEncrypter>(level));
     }
-    QuicFramerPeer::SetLastSerializedServerConnectionId(
-        QuicConnectionPeer::GetFramer(&connection_), connection_id_);
     QuicFramerPeer::SetLastWrittenPacketNumberLength(
         QuicConnectionPeer::GetFramer(&connection_), packet_number_length_);
     QuicStreamId stream_id;
@@ -887,7 +882,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       if (connection_.version().KnowsWhichDecrypterToUse()) {
         connection_.InstallDecrypter(
             level, std::make_unique<StrictTaggingDecrypter>(level));
-      } else {
+      } else if (level != connection_.last_decrypted_level()) {
         connection_.SetAlternativeDecrypter(
             level, std::make_unique<StrictTaggingDecrypter>(level), false);
       }
@@ -3592,7 +3587,7 @@ TEST_P(QuicConnectionTest, AckFrequencyUpdatedFromAckFrequencyFrame) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   QuicAckFrequencyFrame ack_frequency_frame;
-  ack_frequency_frame.packet_tolerance = 3;
+  ack_frequency_frame.ack_eliciting_threshold = 2;
   ProcessFramePacketAtLevel(1, QuicFrame(&ack_frequency_frame),
                             ENCRYPTION_FORWARD_SECURE);
 
@@ -7066,32 +7061,6 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
               IsError(QUIC_PEER_GOING_AWAY));
 }
 
-TEST_P(QuicConnectionTest, SelectMutualVersion) {
-  connection_.SetSupportedVersions(AllSupportedVersions());
-  // Set the connection to speak the lowest quic version.
-  connection_.set_version(QuicVersionMin());
-  EXPECT_EQ(QuicVersionMin(), connection_.version());
-
-  // Pass in available versions which includes a higher mutually supported
-  // version.  The higher mutually supported version should be selected.
-  ParsedQuicVersionVector supported_versions = AllSupportedVersions();
-  EXPECT_TRUE(connection_.SelectMutualVersion(supported_versions));
-  EXPECT_EQ(QuicVersionMax(), connection_.version());
-
-  // Expect that the lowest version is selected.
-  // Ensure the lowest supported version is less than the max, unless they're
-  // the same.
-  ParsedQuicVersionVector lowest_version_vector;
-  lowest_version_vector.push_back(QuicVersionMin());
-  EXPECT_TRUE(connection_.SelectMutualVersion(lowest_version_vector));
-  EXPECT_EQ(QuicVersionMin(), connection_.version());
-
-  // Shouldn't be able to find a mutually supported version.
-  ParsedQuicVersionVector unsupported_version;
-  unsupported_version.push_back(UnsupportedQuicVersion());
-  EXPECT_FALSE(connection_.SelectMutualVersion(unsupported_version));
-}
-
 TEST_P(QuicConnectionTest, ConnectionCloseWhenWritable) {
   EXPECT_FALSE(writer_->IsWriteBlocked());
 
@@ -8629,6 +8598,40 @@ TEST_P(QuicConnectionTest, RetransmittableOnWirePingLimit) {
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+}
+
+// Make sure when enabled, the retransmittable on wire timeout is based on the
+// PTO.
+TEST_P(QuicConnectionTest, PtoBasedRetransmittableOnWireTimeout) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
+    return;
+  }
+
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+
+  // Enable the retransmittable on wire timeout for 3 different PTOs.
+  struct TestCase {
+    QuicTag timeout_tag;
+    uint8_t expected_pto_count;
+  };
+  static constexpr TestCase kTestCases[] = {
+      {kROW1, 1},
+      {kROW2, 2},
+      {kROW3, 3},
+  };
+
+  for (const auto& test_case : kTestCases) {
+    QuicConfig config;
+    QuicTagVector connection_options;
+    EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+    connection_options.push_back(test_case.timeout_tag);
+    config.SetClientConnectionOptions(connection_options);
+    connection_.SetFromConfig(config);
+    EXPECT_EQ(QuicConnectionPeer::GetNumPtosForRetransmittableOnWireTimeout(
+                  &connection_),
+              test_case.expected_pto_count);
+  }
 }
 
 TEST_P(QuicConnectionTest, ValidStatelessResetToken) {
@@ -13277,11 +13280,13 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAcrossKeyPhases) {
   TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
 }
 
+// TODO(b/389762349): Re-enable these tests when sending AckFrequency is
+// restored.
+#if 0
 TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   set_perspective(Perspective::IS_SERVER);
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _, _, _))
       .Times(AnyNumber());
@@ -13313,11 +13318,12 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
   SendStreamDataToPeer(/*id=*/1, "bar", /*offset=*/3, NO_FIN, nullptr);
 
 #if BUILDFLAG(IS_COBALT)
-  EXPECT_EQ(captured_frame.packet_tolerance, kMaxRetransmittablePacketsBeforeAck);
+  EXPECT_EQ(captured_frame.ack_eliciting_threshold,
+            kMaxRetransmittablePacketsBeforeAck);
 #else
-  EXPECT_EQ(captured_frame.packet_tolerance, 10u);
+  EXPECT_EQ(captured_frame.ack_eliciting_threshold, 10u);
 #endif
-  EXPECT_EQ(captured_frame.max_ack_delay,
+  EXPECT_EQ(captured_frame.requested_max_ack_delay,
             QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 
   // Sending packet 102 does not trigger sending another AckFrequencyFrame.
@@ -13328,7 +13334,6 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrameUponHandshakeCompletion) {
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   set_perspective(Perspective::IS_SERVER);
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _, _, _))
       .Times(AnyNumber());
@@ -13356,10 +13361,11 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrameUponHandshakeCompletion) {
 
   connection_.OnHandshakeComplete();
 
-  EXPECT_EQ(captured_frame.packet_tolerance, 2u);
-  EXPECT_EQ(captured_frame.max_ack_delay,
+  EXPECT_EQ(captured_frame.ack_eliciting_threshold, 2u);
+  EXPECT_EQ(captured_frame.requested_max_ack_delay,
             QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 }
+#endif
 
 TEST_P(QuicConnectionTest, FastRecoveryOfLostServerHello) {
   if (!connection_.SupportsMultiplePacketNumberSpaces()) {
@@ -14336,12 +14342,14 @@ TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
   EXPECT_FALSE(connection_.connected());
 }
 
-// Regresstion test for b/175685916
+// TODO(b/389762349): Re-enable these tests when sending AckFrequency is
+// restored.
+#if 0
+// Regression test for b/175685916
 TEST_P(QuicConnectionTest, TryToFlushAckWithAckQueued) {
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   set_perspective(Perspective::IS_SERVER);
 
   QuicConfig config;
@@ -14363,6 +14371,7 @@ TEST_P(QuicConnectionTest, TryToFlushAckWithAckQueued) {
                        &SimpleSessionNotifier::WriteOrBufferAckFrequency));
   QuicConnectionPeer::SendPing(&connection_);
 }
+#endif
 
 TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
@@ -17965,6 +17974,50 @@ TEST_P(QuicConnectionTest, ConfigEnablesAckFrequency) {
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
   connection_.SetFromConfig(config);
   EXPECT_TRUE(QuicConnectionPeer::CanReceiveAckFrequencyFrames(&connection_));
+}
+
+// Regression test for b/424538505.
+TEST_P(QuicConnectionTest, LeastUnackedOffByOne) {
+  QuicPacketNumber largest_packet_sent;
+  EXPECT_CALL(connection_, OnSerializedPacket)
+      .WillOnce(Invoke([&](SerializedPacket packet) {
+        largest_packet_sent = packet.packet_number;
+        connection_.QuicConnection::OnSerializedPacket(std::move(packet));
+      }));
+  ProcessPacket(1);
+  ProcessPacket(2);
+  EXPECT_TRUE(largest_packet_sent.IsInitialized());
+  const QuicAckFrame& local_ack_frame_1 = writer_->ack_frames()[0];
+  EXPECT_EQ(local_ack_frame_1.largest_acked, QuicPacketNumber(2));
+  EXPECT_EQ(local_ack_frame_1.packets.NumIntervals(), 1);
+
+  QuicAckFrame peer_ack_frame;
+  peer_ack_frame.largest_acked = largest_packet_sent;
+  peer_ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  peer_ack_frame.packets.Add(largest_packet_sent);
+  QuicFrames peer_frames;
+  // Add a PING frame to make it ack-eliciting.
+  peer_frames.push_back(QuicFrame(QuicPingFrame()));
+  peer_frames.push_back(QuicFrame(&peer_ack_frame));
+  // When connection_ receives packet 4, it includes an ACK of (locally-sent)
+  // packet 1. Packet 1 included an ACK of (locally-received) packets 1 and 2.
+  // When packet 4 is received, the local connection is therefore confident that
+  // the peer knows that both packets 1 & 2 have been ACK'd and so it can stop
+  // ACK'ing them.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent);
+  EXPECT_CALL(connection_, OnSerializedPacket);
+  // Create a packet number gap so that there will be two ranges if the first
+  // range is not removed.
+  ProcessFramesPacketAtLevel(4, peer_frames, ENCRYPTION_FORWARD_SECURE);
+  const QuicAckFrame& local_ack_frame_2 = writer_->ack_frames()[0];
+  EXPECT_EQ(local_ack_frame_2.largest_acked, QuicPacketNumber(4));
+  if (GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
+    EXPECT_EQ(local_ack_frame_2.packets.NumIntervals(), 1);
+    EXPECT_EQ(local_ack_frame_2.packets.Min(), QuicPacketNumber(4));
+  } else {
+    EXPECT_EQ(local_ack_frame_2.packets.NumIntervals(), 2);
+    EXPECT_EQ(local_ack_frame_2.packets.Min(), QuicPacketNumber(2));
+  }
 }
 
 }  // namespace

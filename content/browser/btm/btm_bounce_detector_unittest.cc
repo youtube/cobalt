@@ -12,6 +12,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -71,7 +72,7 @@ void AppendRedirect(std::vector<std::string>* redirects,
   redirects->push_back(base::StringPrintf(
       "[%zu/%zu] %s -> %s (%s) -> %s", redirect.chain_index.value() + 1,
       chain.length, FormatURL(chain.initial_url.url).c_str(),
-      FormatURL(redirect.redirecting_url.url).c_str(),
+      FormatURL(redirect.redirector.url).c_str(),
       BtmDataAccessTypeToString(redirect.access_type).data(),
       FormatURL(chain.final_url.url).c_str()));
 }
@@ -97,7 +98,9 @@ class TestBounceDetectorDelegate : public BtmBounceDetectorDelegate {
 
     for (auto& redirect : redirects) {
       redirect->site_had_user_activation =
-          GetSiteHasUserActivation(redirect->redirecting_url.url);
+          GetSiteHasUserActivation(redirect->redirector.url);
+      redirect->site_had_webauthn_assertion =
+          GetSiteHasWebAuthnAssertion(redirect->redirector.url);
       redirect->chain_id = chain->chain_id;
       redirect->chain_index = redirect_index;
       redirect->has_3pc_exception = false;
@@ -139,11 +142,19 @@ class TestBounceDetectorDelegate : public BtmBounceDetectorDelegate {
   }
 
   bool GetSiteHasUserActivation(const GURL& url) {
-    return site_has_user_activation_[GetSiteForBtm(url)];
+    return sites_with_user_activation_.contains(GetSiteForBtm(url));
   }
 
   void SetSiteHasUserActivation(const GURL& url) {
-    site_has_user_activation_[GetSiteForBtm(url)] = true;
+    sites_with_user_activation_.insert(GetSiteForBtm(url));
+  }
+
+  bool GetSiteHasWebAuthnAssertion(const GURL& url) {
+    return sites_with_webauthn_assertion_.contains(GetSiteForBtm(url));
+  }
+
+  void SetSiteHasWebAuthnAssertion(const GURL& url) {
+    sites_with_webauthn_assertion_.insert(GetSiteForBtm(url));
   }
 
   void SetCommittedURL(PassKey<FakeNavigation>,
@@ -167,14 +178,12 @@ class TestBounceDetectorDelegate : public BtmBounceDetectorDelegate {
   int stateful_bounce_count() const { return stateful_bounce_count_; }
 
  private:
-  void RecordBounce(
-      const BtmRedirectInfo& redirect,
-      const BtmRedirectChainInfo& chain,
-      base::RepeatingCallback<void(const GURL&)> increment_bounce_callback) {
+  void RecordBounce(const BtmRedirectInfo& redirect,
+                    const BtmRedirectChainInfo& chain) {
     bool stateful = redirect.access_type > BtmDataAccessType::kRead;
 
     recorded_bounces_.insert(
-        std::make_tuple(redirect.redirecting_url.url, redirect.time, stateful));
+        std::make_tuple(redirect.redirector.url, redirect.time, stateful));
     if (stateful) {
       stateful_bounce_count_++;
     }
@@ -183,7 +192,8 @@ class TestBounceDetectorDelegate : public BtmBounceDetectorDelegate {
   GURL committed_url_;
   ukm::SourceId source_id_;
   std::map<ukm::SourceId, std::string> url_by_source_id_;
-  std::map<std::string, bool> site_has_user_activation_;
+  std::set<std::string> sites_with_user_activation_;
+  std::set<std::string> sites_with_webauthn_assertion_;
   std::vector<std::string> redirects_;
   std::set<BounceTuple> recorded_bounces_;
   std::vector<std::string> reported_sites_;
@@ -910,6 +920,8 @@ const std::vector<std::string>& GetAllRedirectMetrics() {
       "RedirectType",
       "SiteEngagementLevel",
       "WebAuthnAssertionRequestSucceeded",
+      "SiteHadUserActivation",
+      "SiteHadWebAuthnAssertion",
       // clang-format on
   };
   return kAllRedirectMetrics;
@@ -989,7 +1001,8 @@ TEST_F(BtmBounceDetectorTest, Histograms_UKM) {
                   Pair("RedirectAndInitialSiteSame", false),
                   Pair("RedirectChainIndex", 0), Pair("RedirectChainLength", 2),
                   Pair("RedirectType", (int)BtmRedirectType::kClient),
-                  Pair("SiteEngagementLevel", 0),
+                  Pair("SiteHadUserActivation", false),
+                  Pair("SiteHadWebAuthnAssertion", false),
                   Pair("WebAuthnAssertionRequestSucceeded", true)));
 
   EXPECT_THAT(URLForRedirectSourceId(&ukm_recorder, ukm_entries[1].source_id),
@@ -1004,7 +1017,8 @@ TEST_F(BtmBounceDetectorTest, Histograms_UKM) {
                   Pair("RedirectAndInitialSiteSame", false),
                   Pair("RedirectChainIndex", 1), Pair("RedirectChainLength", 2),
                   Pair("RedirectType", (int)BtmRedirectType::kServer),
-                  Pair("SiteEngagementLevel", 1),
+                  Pair("SiteHadUserActivation", true),
+                  Pair("SiteHadWebAuthnAssertion", false),
                   Pair("WebAuthnAssertionRequestSucceeded", false)));
 }
 
@@ -1127,8 +1141,8 @@ Btm3PcSettingsCallback GetAre3pcsAllowedCallback() {
 }
 
 MATCHER_P(HasUrl, url, "") {
-  *result_listener << "whose url is " << arg->redirecting_url.url;
-  return ExplainMatchResult(Eq(url), arg->redirecting_url.url, result_listener);
+  *result_listener << "whose url is " << arg->redirector.url;
+  return ExplainMatchResult(Eq(url), arg->redirector.url, result_listener);
 }
 
 MATCHER_P(HasRedirectType, redirect_type, "") {
@@ -1567,9 +1581,9 @@ TEST(BtmRedirectContextTest,
       context.GetServerRedirectsSinceLastPrimaryPageChange();
 
   EXPECT_EQ(server_redirects.size(), 2u);
-  EXPECT_EQ(server_redirects[0]->redirecting_url.url, "http://b.test/");
+  EXPECT_EQ(server_redirects[0]->redirector.url, "http://b.test/");
   EXPECT_EQ(server_redirects[0]->redirect_type, BtmRedirectType::kServer);
-  EXPECT_EQ(server_redirects[1]->redirecting_url.url, "http://c.test/");
+  EXPECT_EQ(server_redirects[1]->redirector.url, "http://c.test/");
   EXPECT_EQ(server_redirects[1]->redirect_type, BtmRedirectType::kServer);
 }
 
@@ -1621,7 +1635,7 @@ TEST(
       context.GetServerRedirectsSinceLastPrimaryPageChange();
 
   EXPECT_EQ(server_redirects.size(), 1u);
-  EXPECT_EQ(server_redirects[0]->redirecting_url.url,
+  EXPECT_EQ(server_redirects[0]->redirector.url,
             "http://a.test/server-redirect/");
   EXPECT_EQ(server_redirects[0]->redirect_type, BtmRedirectType::kServer);
 }

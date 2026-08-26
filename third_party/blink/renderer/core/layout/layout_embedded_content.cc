@@ -105,16 +105,6 @@ const std::optional<PhysicalSize> LayoutEmbeddedContent::FrozenFrameSize()
 
 PhysicalNaturalSizingInfo LayoutEmbeddedContent::GetNaturalDimensions() const {
   NOT_DESTROYED();
-  if (RuntimeEnabledFeatures::
-          LayoutReplacedReturnExplicitDefaultNaturalSizeEnabled()) {
-    // 300x150, no aspect ratio. (Should probably be none.)
-    PhysicalSize natural_size{LayoutUnit(kDefaultWidth),
-                              LayoutUnit(kDefaultHeight)};
-    natural_size.Scale(StyleRef().EffectiveZoom());
-    PhysicalNaturalSizingInfo sizing_info;
-    sizing_info.size = natural_size;
-    return sizing_info;
-  }
   return PhysicalNaturalSizingInfo::None();
 }
 
@@ -133,6 +123,11 @@ AffineTransform LayoutEmbeddedContent::EmbeddedContentTransform() const {
   translate_and_scale.Scale(replaced_rect.Width() / frozen_size->width,
                             replaced_rect.Height() / frozen_size->height);
   return translate_and_scale;
+}
+
+bool LayoutEmbeddedContent::ShowsUnavailablePluginIndicator() const {
+  NOT_DESTROYED();
+  return false;
 }
 
 PhysicalOffset LayoutEmbeddedContent::EmbeddedContentFromBorderBox(

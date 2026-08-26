@@ -214,18 +214,16 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it, bool is_with_context) {
   if (!is_with_context || found.IsNothing() || !found.FromJust()) return found;
 
   DirectHandle<Object> unscopables;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, unscopables,
       JSReceiver::GetProperty(isolate, Cast<JSReceiver>(it->GetReceiver()),
-                              isolate->factory()->unscopables_symbol()),
-      Nothing<bool>());
+                              isolate->factory()->unscopables_symbol()));
   if (!IsJSReceiver(*unscopables)) return Just(true);
   DirectHandle<Object> blocklist;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, blocklist,
       JSReceiver::GetProperty(isolate, Cast<JSReceiver>(unscopables),
-                              it->name()),
-      Nothing<bool>());
+                              it->name()));
   return Just(!Object::BooleanValue(*blocklist, isolate));
 }
 
@@ -537,6 +535,9 @@ DirectHandle<Object> Context::Get(DirectHandle<Context> context, int index,
     case ContextCell::kSmi:
       return handle(cell->tagged_value(), isolate);
     case ContextCell::kInt32:
+      if (Smi::IsValid(cell->int32_value())) {
+        return handle(Smi::FromInt(cell->int32_value()), isolate);
+      }
       return isolate->factory()->NewHeapNumber(
           static_cast<double>(cell->int32_value()));
     case ContextCell::kFloat64:

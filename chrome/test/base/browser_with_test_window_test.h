@@ -146,12 +146,14 @@ class BrowserWithTestWindowTest : public testing::Test, public ProfileObserver {
   BrowserWindow* window() const { return window_.get(); }
 
   Browser* browser() const { return browser_.get(); }
-  void set_browser(Browser* browser) { browser_.reset(browser); }
+  void set_browser(std::unique_ptr<Browser> browser) {
+    browser_ = std::move(browser);
+  }
   std::unique_ptr<Browser> release_browser() { return std::move(browser_); }
 
-  TestingProfile* profile() const { return profile_; }
+  TestingProfile* profile() const { return profile_.get(); }
 
-  TestingProfile* GetProfile() { return profile_; }
+  TestingProfile* GetProfile() { return profile_.get(); }
 
   TestingProfileManager* profile_manager() { return profile_manager_.get(); }
 
@@ -168,7 +170,7 @@ class BrowserWithTestWindowTest : public testing::Test, public ProfileObserver {
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
-  ash::AshTestHelper* ash_test_helper() { return &ash_test_helper_; }
+  ash::AshTestHelper* ash_test_helper() { return &ash_test_helper_.value(); }
   user_manager::FakeUserManager* user_manager() { return user_manager_.Get(); }
 #endif
 
@@ -291,7 +293,7 @@ class BrowserWithTestWindowTest : public testing::Test, public ProfileObserver {
   std::unique_ptr<ash::KioskChromeAppManager> kiosk_chrome_app_manager_;
 #endif
 
-  raw_ptr<TestingProfile, AcrossTasksDanglingUntriaged> profile_ = nullptr;
+  base::WeakPtr<TestingProfile> profile_ = nullptr;
 
   // test_url_loader_factory_ is declared before profile_manager_
   // to guarantee it outlives any profiles that might use it.
@@ -302,7 +304,7 @@ class BrowserWithTestWindowTest : public testing::Test, public ProfileObserver {
   std::unique_ptr<Browser> browser_;
 
 #if BUILDFLAG(IS_CHROMEOS)
-  ash::AshTestHelper ash_test_helper_;
+  std::optional<ash::AshTestHelper> ash_test_helper_;
   std::unique_ptr<views::TestViewsDelegate> test_views_delegate_ =
       std::make_unique<ChromeTestViewsDelegate<ash::AshTestViewsDelegate>>();
 #elif defined(TOOLKIT_VIEWS)

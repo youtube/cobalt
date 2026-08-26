@@ -36,6 +36,7 @@ ShellContentGpuTestClient::ShellContentGpuTestClient()
 ShellContentGpuTestClient::~ShellContentGpuTestClient() = default;
 
 void ShellContentGpuTestClient::ExposeInterfacesToBrowser(
+    viz::GpuServiceImpl* gpu_service,
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
     mojo::BinderMap* binders) {

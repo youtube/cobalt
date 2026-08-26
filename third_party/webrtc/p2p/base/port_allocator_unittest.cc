@@ -30,13 +30,19 @@
 using ::webrtc::CreateEnvironment;
 using ::webrtc::IceCandidateType;
 
-static const char kContentName[] = "test content";
+namespace {
+constexpr char kContentName[] = "test content";
 // Based on ICE_UFRAG_LENGTH
-static const char kIceUfrag[] = "UF00";
+constexpr char kIceUfrag[] = "UF00";
 // Based on ICE_PWD_LENGTH
-static const char kIcePwd[] = "TESTICEPWD00000000000000";
-static const char kTurnUsername[] = "test";
-static const char kTurnPassword[] = "test";
+constexpr char kIcePwd[] = "TESTICEPWD00000000000000";
+constexpr char kTurnUsername[] = "test";
+constexpr char kTurnPassword[] = "test";
+
+// Constants for testing candidates
+constexpr char kIpv4Address[] = "12.34.56.78";
+constexpr char kIpv4AddressWithPort[] = "12.34.56.78:443";
+}  // namespace
 
 class PortAllocatorTest : public ::testing::Test, public sigslot::has_slots<> {
  public:
@@ -287,10 +293,6 @@ TEST_F(PortAllocatorTest, RestrictIceCredentialsChange) {
                                           credentials[0].pwd));
   allocator_->DiscardCandidatePool();
 }
-
-// Constants for testing candidates
-const char kIpv4Address[] = "12.34.56.78";
-const char kIpv4AddressWithPort[] = "12.34.56.78:443";
 
 TEST_F(PortAllocatorTest, SanitizeEmptyCandidateDefaultConfig) {
   webrtc::Candidate input;

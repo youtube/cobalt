@@ -11,12 +11,17 @@
 #include "video/corruption_detection/halton_frame_sampler.h"
 
 #include <cstdint>
+#include <cstring>
+#include <memory>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/video_frame.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "video/corruption_detection/video_frame_sampler.h"
 
 namespace webrtc {
 namespace {
@@ -33,23 +38,18 @@ using ::testing::Not;
 using Coordinates = HaltonFrameSampler::Coordinates;
 
 // Defaults for sampling tests.
-const int kDefaultScaledWidth = 4;
-const int kDefaultScaledHeight = 4;
-const double kDefaultStdDevGaussianBlur = 0.02;
+constexpr int kDefaultScaledWidth = 4;
+constexpr int kDefaultScaledHeight = 4;
+constexpr double kDefaultStdDevGaussianBlur = 0.02;
 
 #if GTEST_HAS_DEATH_TEST
 // Defaults for blurring tests.
-const int kDefaultWidth = 4;
-const int kDefaultHeight = 4;
-const int kDefaultStride = 4;
-const uint8_t kDefaultData[kDefaultWidth * kDefaultHeight] = {
-    20, 196, 250, 115, 139, 39, 99, 197, 21, 166, 254, 28, 227, 54, 64, 46};
-const int kDefaultRow = 3;
-const int kDefaultColumn = 2;
-const double kDefaultStdDev = 1.12;
+constexpr int kDefaultRow = 3;
+constexpr int kDefaultColumn = 2;
+constexpr double kDefaultStdDev = 1.12;
 #endif  // GTEST_HAS_DEATH_TEST
 
-scoped_refptr<I420Buffer> MakeDefaultI420FrameBuffer() {
+VideoFrame MakeDefaultFrame() {
   // Create an I420 frame of size 4x4.
   const int kDefaultLumaWidth = 4;
   const int kDefaultLumaHeight = 4;
@@ -59,10 +59,20 @@ scoped_refptr<I420Buffer> MakeDefaultI420FrameBuffer() {
   const uint8_t kDefaultUContent[4] = {156, 203, 36, 128};
   const uint8_t kDefaultVContent[4] = {112, 2, 0, 24};
 
-  return I420Buffer::Copy(kDefaultLumaWidth, kDefaultLumaHeight,
-                          kDefaultYContent, kDefaultLumaWidth, kDefaultUContent,
-                          kDefaultChromaWidth, kDefaultVContent,
-                          kDefaultChromaWidth);
+  return VideoFrame::Builder()
+      .set_video_frame_buffer(I420Buffer::Copy(
+          kDefaultLumaWidth, kDefaultLumaHeight, kDefaultYContent,
+          kDefaultLumaWidth, kDefaultUContent, kDefaultChromaWidth,
+          kDefaultVContent, kDefaultChromaWidth))
+      .build();
+}
+
+VideoFrame MakeFrame(int width,
+                     int height,
+                     webrtc::ArrayView<const uint8_t> data) {
+  scoped_refptr<I420Buffer> buffer = I420Buffer::Create(width, height);
+  memcpy(buffer->MutableDataY(), data.data(), width * height);
+  return VideoFrame::Builder().set_video_frame_buffer(buffer).build();
 }
 
 std::vector<Coordinates> MakeDefaultSampleCoordinates() {
@@ -76,7 +86,6 @@ std::vector<Coordinates> MakeDefaultSampleCoordinates() {
 TEST(GaussianFilteringTest, ShouldReturnFilteredValueWhenInputIsValid) {
   const int kWidth = 8;
   const int kHeight = 8;
-  const int kStride = 8;
   const uint8_t kData[kWidth * kHeight] = {
       219, 38,  75,  13,  77,  22,  108, 5,    //
       199, 105, 237, 3,   194, 63,  200, 95,   //
@@ -92,50 +101,51 @@ TEST(GaussianFilteringTest, ShouldReturnFilteredValueWhenInputIsValid) {
   // Resulting in a filter size of 3 pixels.
   const double kStdDev = 1;
 
-  EXPECT_THAT(GetFilteredElement(kWidth, kHeight, kStride, kData, kRow, kColumn,
-                                 kStdDev),
+  std::unique_ptr<VideoFrameSampler> sampler =
+      VideoFrameSampler::Create(MakeFrame(kWidth, kHeight, kData));
+  EXPECT_THAT(GetFilteredElement(*sampler, VideoFrameSampler::ChannelType::Y,
+                                 kRow, kColumn, kStdDev),
               DoubleEq(126.45897447350468));
 }
 
 #if GTEST_HAS_DEATH_TEST
+std::unique_ptr<VideoFrameSampler> MakeDefaultSampler() {
+  return VideoFrameSampler::Create(MakeDefaultFrame());
+}
+
 TEST(GaussianFilteringTest, ShouldCrashWhenRowIsNegative) {
-  EXPECT_DEATH(
-      GetFilteredElement(kDefaultWidth, kDefaultHeight, kDefaultStride,
-                         kDefaultData, -1, kDefaultColumn, kDefaultStdDev),
-      _);
-}
-
-TEST(GaussianFilteringTest, ShouldCrashWhenRowIsOutOfRange) {
-  EXPECT_DEATH(
-      GetFilteredElement(kDefaultWidth, 4, kDefaultStride, kDefaultData, 4,
-                         kDefaultColumn, kDefaultStdDev),
-      _);
-}
-
-TEST(GaussianFilteringTest, ShouldCrashWhenColumnIsNegative) {
-  EXPECT_DEATH(
-      GetFilteredElement(kDefaultWidth, kDefaultHeight, kDefaultStride,
-                         kDefaultData, kDefaultRow, -1, kDefaultStdDev),
-      _);
-}
-
-TEST(GaussianFilteringTest, ShouldCrashWhenColumnIsOutOfRange) {
-  EXPECT_DEATH(GetFilteredElement(4, kDefaultHeight, kDefaultStride,
-                                  kDefaultData, kDefaultRow, 4, kDefaultStdDev),
+  EXPECT_DEATH(GetFilteredElement(*MakeDefaultSampler(),
+                                  VideoFrameSampler::ChannelType::Y, -1,
+                                  kDefaultColumn, kDefaultStdDev),
                _);
 }
 
-TEST(GaussianFilteringTest, ShouldCrashWhenStrideIsSmallerThanWidth) {
-  EXPECT_DEATH(GetFilteredElement(4, kDefaultHeight, 3, kDefaultData,
-                                  kDefaultRow, kDefaultColumn, kDefaultStdDev),
+TEST(GaussianFilteringTest, ShouldCrashWhenRowIsOutOfRange) {
+  EXPECT_DEATH(GetFilteredElement(*MakeDefaultSampler(),
+                                  VideoFrameSampler::ChannelType::Y, 4,
+                                  kDefaultColumn, kDefaultStdDev),
+               _);
+}
+
+TEST(GaussianFilteringTest, ShouldCrashWhenColumnIsNegative) {
+  EXPECT_DEATH(GetFilteredElement(*MakeDefaultSampler(),
+                                  VideoFrameSampler::ChannelType::Y,
+                                  kDefaultRow, -1, kDefaultStdDev),
+               _);
+}
+
+TEST(GaussianFilteringTest, ShouldCrashWhenColumnIsOutOfRange) {
+  EXPECT_DEATH(GetFilteredElement(*MakeDefaultSampler(),
+                                  VideoFrameSampler::ChannelType::Y,
+                                  kDefaultRow, 4, kDefaultStdDev),
                _);
 }
 
 TEST(GaussianFilteringTest, ShouldCrashWhenStdDevIsNegative) {
-  EXPECT_DEATH(
-      GetFilteredElement(kDefaultWidth, kDefaultHeight, kDefaultStride,
-                         kDefaultData, kDefaultRow, kDefaultColumn, -1.0),
-      _);
+  EXPECT_DEATH(GetFilteredElement(*MakeDefaultSampler(),
+                                  VideoFrameSampler::ChannelType::Y,
+                                  kDefaultRow, kDefaultColumn, -1.0),
+               _);
 }
 
 TEST(GaussianFilteringTest, RoundingErrorsShouldNotHappen) {
@@ -144,8 +154,10 @@ TEST(GaussianFilteringTest, RoundingErrorsShouldNotHappen) {
   constexpr int kHeight = 128;
   constexpr double kStdDev = 40;
   const std::vector<uint8_t> data(kWidth * kHeight, 255);
+  std::unique_ptr<VideoFrameSampler> sampler =
+      VideoFrameSampler::Create(MakeFrame(kWidth, kHeight, data));
 
-  EXPECT_THAT(GetFilteredElement(kWidth, kHeight, kHeight, data.data(),
+  EXPECT_THAT(GetFilteredElement(*sampler, VideoFrameSampler::ChannelType::Y,
                                  kWidth / 2, kHeight / 2, kStdDev),
               255);
 }
@@ -166,38 +178,22 @@ TEST(HaltonFrameSamplerTest, FrameIsNotSampledWhenTimestampsAreEqual) {
 #endif  // GTEST_HAS_DEATH_TEST
 
 TEST(HaltonFrameSamplerGaussianFilteringTest,
-     ShouldReturnEmptyListGivenInvalidInputNoFrameBuffer) {
-  const std::vector<Coordinates> kDefaultSampleCoordinates =
-      MakeDefaultSampleCoordinates();
-
-  EXPECT_THAT(GetSampleValuesForFrame(nullptr, kDefaultSampleCoordinates,
-                                      kDefaultScaledWidth, kDefaultScaledHeight,
-                                      kDefaultStdDevGaussianBlur),
-              IsEmpty());
-}
-
-TEST(HaltonFrameSamplerGaussianFilteringTest,
      ShouldReturnEmptyListGivenInvalidInputNoCoordinates) {
-  const scoped_refptr<I420Buffer> kDefaultI420Buffer =
-      MakeDefaultI420FrameBuffer();
-
   EXPECT_THAT(
-      GetSampleValuesForFrame(kDefaultI420Buffer, {}, kDefaultScaledWidth,
+      GetSampleValuesForFrame(MakeDefaultFrame(), {}, kDefaultScaledWidth,
                               kDefaultScaledHeight, kDefaultStdDevGaussianBlur),
       IsEmpty());
 }
 
 TEST(HaltonFrameSamplerGaussianFilteringTest,
      ShouldReturnEmptyListGivenInvalidInputOutOfRangeCoordinates) {
-  const scoped_refptr<I420Buffer> kDefaultI420Buffer =
-      MakeDefaultI420FrameBuffer();
   const std::vector<Coordinates> kSampleCoordinates = {
       {.row = 0.2, .column = 0.7},
       {.row = 0.5, .column = 1.0},
       {.row = 0.3, .column = 0.7},
       {.row = 0.8, .column = 0.4}};
 
-  EXPECT_THAT(GetSampleValuesForFrame(kDefaultI420Buffer, kSampleCoordinates,
+  EXPECT_THAT(GetSampleValuesForFrame(MakeDefaultFrame(), kSampleCoordinates,
                                       kDefaultScaledWidth, kDefaultScaledHeight,
                                       kDefaultStdDevGaussianBlur),
               IsEmpty());
@@ -205,49 +201,40 @@ TEST(HaltonFrameSamplerGaussianFilteringTest,
 
 TEST(HaltonFrameSamplerGaussianFilteringTest,
      ShouldReturnEmptyListGivenInvalidInputWidthZero) {
-  const scoped_refptr<I420Buffer> kDefaultI420Buffer =
-      MakeDefaultI420FrameBuffer();
   const std::vector<Coordinates> kDefaultSampleCoordinates =
       MakeDefaultSampleCoordinates();
 
   EXPECT_THAT(
-      GetSampleValuesForFrame(kDefaultI420Buffer, kDefaultSampleCoordinates, 0,
+      GetSampleValuesForFrame(MakeDefaultFrame(), kDefaultSampleCoordinates, 0,
                               kDefaultScaledHeight, kDefaultStdDevGaussianBlur),
       IsEmpty());
 }
 
 TEST(HaltonFrameSamplerGaussianFilteringTest,
      ShouldReturnEmptyListGivenInvalidInputHeightZero) {
-  const scoped_refptr<I420Buffer> kDefaultI420Buffer =
-      MakeDefaultI420FrameBuffer();
   const std::vector<Coordinates> kDefaultSampleCoordinates =
       MakeDefaultSampleCoordinates();
 
   EXPECT_THAT(GetSampleValuesForFrame(
-                  kDefaultI420Buffer, kDefaultSampleCoordinates,
+                  MakeDefaultFrame(), kDefaultSampleCoordinates,
                   kDefaultScaledWidth, 0, kDefaultStdDevGaussianBlur),
               IsEmpty());
 }
 
 TEST(HaltonFrameSamplerGaussianFilteringTest,
      ShouldReturnEmptyListGivenInvalidInputStdDevNegative) {
-  const scoped_refptr<I420Buffer> kDefaultI420Buffer =
-      MakeDefaultI420FrameBuffer();
   const std::vector<Coordinates> kDefaultSampleCoordinates =
       MakeDefaultSampleCoordinates();
 
   EXPECT_THAT(
-      GetSampleValuesForFrame(kDefaultI420Buffer, kDefaultSampleCoordinates,
+      GetSampleValuesForFrame(MakeDefaultFrame(), kDefaultSampleCoordinates,
                               kDefaultScaledWidth, kDefaultScaledHeight, -1.0),
       IsEmpty());
 }
 
 TEST(HaltonFrameSamplerGaussianFilteringTest,
      ShouldReturnEmptyListWhenUpscaling) {
-  const scoped_refptr<I420Buffer> kDefaultI420Buffer =
-      MakeDefaultI420FrameBuffer();
-
-  EXPECT_THAT(GetSampleValuesForFrame(kDefaultI420Buffer,
+  EXPECT_THAT(GetSampleValuesForFrame(MakeDefaultFrame(),
                                       MakeDefaultSampleCoordinates(),
                                       /*scaled_width=*/8, /*scaled_height=*/8,
                                       kDefaultStdDevGaussianBlur),
@@ -267,6 +254,8 @@ TEST(HaltonFrameSamplerGaussianFilteringTest,
   const scoped_refptr<I420Buffer> kI420Buffer =
       I420Buffer::Copy(kLumaWidth, kLumaHeight, kYContent, kLumaWidth,
                        kUContent, kChromaWidth, kVContent, kChromaWidth);
+  VideoFrame frame =
+      VideoFrame::Builder().set_video_frame_buffer(kI420Buffer).build();
 
   // Coordinates in all planes.
   const std::vector<Coordinates> kSampleCoordinates = {
@@ -283,7 +272,7 @@ TEST(HaltonFrameSamplerGaussianFilteringTest,
   const double kStdDevGaussianBlur = 0.02;
 
   EXPECT_THAT(
-      GetSampleValuesForFrame(kI420Buffer, kSampleCoordinates, kScaledWidth,
+      GetSampleValuesForFrame(frame, kSampleCoordinates, kScaledWidth,
                               kScaledHeight, kStdDevGaussianBlur),
       ElementsAre(AllOf(Field(&FilteredSample::value, DoubleEq(156.0)),
                         Field(&FilteredSample::plane, ImagePlane::kChroma)),
@@ -308,6 +297,8 @@ TEST(HaltonFrameSamplerGaussianFilteringTest,
   const scoped_refptr<I420Buffer> kI420Buffer =
       I420Buffer::Copy(kLumaWidth, kLumaHeight, kYContent, kLumaWidth,
                        kUContent, kChromaWidth, kVContent, kChromaWidth);
+  VideoFrame frame =
+      VideoFrame::Builder().set_video_frame_buffer(kI420Buffer).build();
 
   // Coordinates in all planes.
   const std::vector<Coordinates> kSampleCoordinates = {
@@ -324,7 +315,7 @@ TEST(HaltonFrameSamplerGaussianFilteringTest,
   const double kStdDevGaussianBlur = 0.02;
 
   EXPECT_THAT(
-      GetSampleValuesForFrame(kI420Buffer, kSampleCoordinates, kScaledWidth,
+      GetSampleValuesForFrame(frame, kSampleCoordinates, kScaledWidth,
                               kScaledHeight, kStdDevGaussianBlur),
       ElementsAre(AllOf(Field(&FilteredSample::value, DoubleEq(131.0)),
                         Field(&FilteredSample::plane, ImagePlane::kChroma)),
@@ -362,6 +353,8 @@ TEST(HaltonFrameSamplerGaussianFilteringTest,
   const scoped_refptr<I420Buffer> kI420Buffer =
       I420Buffer::Copy(kLumaWidth, kLumaHeight, kYContent, kLumaWidth,
                        kUContent, kChromaWidth, kVContent, kChromaWidth);
+  VideoFrame frame =
+      VideoFrame::Builder().set_video_frame_buffer(kI420Buffer).build();
 
   // Coordinates in all (YUV) planes.
   const std::vector<Coordinates> kSampleCoordinates = {
@@ -378,7 +371,7 @@ TEST(HaltonFrameSamplerGaussianFilteringTest,
   const double kStdDevGaussianBlur = 1;
 
   EXPECT_THAT(
-      GetSampleValuesForFrame(kI420Buffer, kSampleCoordinates, kScaledWidth,
+      GetSampleValuesForFrame(frame, kSampleCoordinates, kScaledWidth,
                               kScaledHeight, kStdDevGaussianBlur),
       ElementsAre(
           AllOf(Field(&FilteredSample::value, DoubleEq(114.6804322931639)),

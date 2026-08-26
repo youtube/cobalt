@@ -117,7 +117,7 @@ class DocumentTest : public PageTestBase {
     PageTestBase::TearDown();
   }
 
-  void SetHtmlInnerHTML(const char*);
+  void SetHtmlInnerHTML(std::string_view html_content);
 
   // Note: callers must mock any urls that are referred to in `html_content`,
   // with the exception of foo.html, which can be assumed to be defined by this
@@ -188,8 +188,9 @@ class DocumentTest : public PageTestBase {
   }
 };
 
-void DocumentTest::SetHtmlInnerHTML(const char* html_content) {
-  GetDocument().documentElement()->setInnerHTML(String::FromUTF8(html_content));
+void DocumentTest::SetHtmlInnerHTML(std::string_view html_content) {
+  GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(
+      String::FromUTF8(html_content));
   UpdateAllLifecyclePhasesForTest();
 }
 
@@ -256,7 +257,8 @@ bool IsDOMException(ScriptState* script_state,
 }  // anonymous namespace
 
 TEST_F(DocumentTest, CreateRangeAdjustedToTreeScopeWithPositionInShadowTree) {
-  GetDocument().body()->setInnerHTML("<div><select><option>012</option></div>");
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
+      "<div><select><option>012</option></div>");
   Element* const select_element =
       GetDocument().QuerySelector(AtomicString("select"));
   const Position& position =
@@ -528,7 +530,7 @@ TEST_F(DocumentTest, ValidationMessageCleanup) {
 // as it is more expensive than just doing layout.
 TEST_F(DocumentTest,
        EnsurePaintLocationDataValidForNodeCompositingInputsOnlyWhenNecessary) {
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id='ancestor'>
       <div id='sticky' style='position:sticky;'>
         <div id='stickyChild'></div>
@@ -1376,7 +1378,8 @@ class ParameterizedViewportFitDocumentTest
       html.Append("'>");
     }
 
-    GetDocument().documentElement()->setInnerHTML(html.ReleaseString());
+    GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(
+        html.ReleaseString());
     UpdateAllLifecyclePhasesForTest();
   }
 };
@@ -1765,7 +1768,7 @@ TEST_F(TopLevelFormsListTest, FormsInLightDomInsertionAndRemoval) {
 // Tests that top level forms inside shadow DOM are listed correctly and
 // insertion and removal updates the cache.
 TEST_F(TopLevelFormsListTest, FormsInShadowDomInsertionAndRemoval) {
-  GetDocument().body()->setHTMLUnsafe(R"HTML(
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
     <form id="f1">
       <input type="text">
     </form>
@@ -1793,7 +1796,7 @@ TEST_F(TopLevelFormsListTest, FormsInShadowDomInsertionAndRemoval) {
 
 // Tests that nested forms across shadow DOM are ignored by `GetTopLevelForms`.
 TEST_F(TopLevelFormsListTest, GetTopLevelFormsIgnoresNestedChildren) {
-  GetDocument().body()->setHTMLUnsafe(R"HTML(
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
     <form id="f1">
       <input type="text">
       <div id="d">
@@ -2075,6 +2078,180 @@ TEST_F(DocumentTest, LifecycleState_DirtyStyle_NoBody) {
   EXPECT_EQ(GetDocument().Lifecycle().GetState(),
             DocumentLifecycle::kVisualUpdatePending);
 }
+
+class SyntheticSelectTest : public DocumentTest {
+  base::test::ScopedFeatureList feature_list_{
+      features::kAutofillEnableSyntheticSelectMetricsLogging};
+};
+
+TEST_F(SyntheticSelectTest,
+       MetricsAreReported_WhenPotentialSyntheticSelectIsInNestedForm) {
+  SetHtmlInnerHTML(R"HTML(
+    <form id="f1">
+      <form id="nested-form">
+        <custom-element aria-haspopup="not-listbox"></custom-element>
+      </form>
+    </form>
+  )HTML");
+  Document& document = GetDocument();
+
+  document.GetTopLevelForms();
+
+  EXPECT_TRUE(document.IsUseCounted(
+      blink::mojom::WebFeature::kAutofillMaybeSyntheticSelect));
+  EXPECT_FALSE(document.IsUseCounted(
+      blink::mojom::WebFeature::kAutofillSyntheticSelect));
+}
+
+TEST_F(SyntheticSelectTest,
+       MetricsAreReported_WhenSyntheticSelectIsInNestedForm) {
+  SetHtmlInnerHTML(R"HTML(
+    <form id="f1">
+      <form id="nested-form">
+        <custom-select aria-haspopup="listbox"></custom-select>
+      </form>
+    </form>
+  )HTML");
+  Document& document = GetDocument();
+
+  document.GetTopLevelForms();
+
+  EXPECT_FALSE(document.IsUseCounted(
+      blink::mojom::WebFeature::kAutofillMaybeSyntheticSelect));
+  EXPECT_TRUE(document.IsUseCounted(
+      blink::mojom::WebFeature::kAutofillSyntheticSelect));
+}
+
+struct SyntheticSelectTestCase {
+  std::string_view html;
+  bool has_synthetic_select;
+  bool has_potential_synthetic_select;
+  std::string test_name;
+};
+
+class ParametrizedSyntheticSelectTest
+    : public SyntheticSelectTest,
+      public testing::WithParamInterface<SyntheticSelectTestCase> {};
+
+TEST_P(ParametrizedSyntheticSelectTest, MetricsAreReported_WhenSelectIsInForm) {
+  SyntheticSelectTestCase test_case = GetParam();
+  std::string html = R"HTML(<form id="f1">)HTML";
+  html += test_case.html;
+  html += "</form>";
+  SetHtmlInnerHTML(html);
+  Document& document = GetDocument();
+
+  document.GetTopLevelForms();
+
+  EXPECT_EQ(document.IsUseCounted(
+                blink::mojom::WebFeature::kAutofillMaybeSyntheticSelect),
+            test_case.has_potential_synthetic_select);
+  EXPECT_EQ(
+      document.IsUseCounted(blink::mojom::WebFeature::kAutofillSyntheticSelect),
+      test_case.has_synthetic_select);
+}
+
+TEST_P(ParametrizedSyntheticSelectTest,
+       MetricsAreNotReported_WhenSelectIsNotInForm) {
+  SyntheticSelectTestCase test_case = GetParam();
+  SetHtmlInnerHTML(test_case.html);
+  Document& document = GetDocument();
+
+  document.GetTopLevelForms();
+
+  EXPECT_FALSE(document.IsUseCounted(
+      blink::mojom::WebFeature::kAutofillMaybeSyntheticSelect));
+  EXPECT_FALSE(document.IsUseCounted(
+      blink::mojom::WebFeature::kAutofillSyntheticSelect));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    NotSyntheticSelect,
+    ParametrizedSyntheticSelectTest,
+    testing::Values(
+        SyntheticSelectTestCase{
+            R"HTML(
+            <select aria-haspopup="abcd"></select>
+            )HTML",
+            false, false, "SelectWithAriaHaspopup"},
+        SyntheticSelectTestCase{
+            R"HTML(
+            <select aria-expanded="abcd"></select>
+            )HTML",
+            false, false, "SelectWithAriaExpanded"}),
+    [](const testing::TestParamInfo<ParametrizedSyntheticSelectTest::ParamType>&
+           info) { return info.param.test_name; });
+
+INSTANTIATE_TEST_SUITE_P(
+    MaybeSyntheticSelect,
+    ParametrizedSyntheticSelectTest,
+    testing::Values(
+        SyntheticSelectTestCase{
+            R"HTML(
+              <custom-element aria-haspopup="abcd"></custom-element>
+            )HTML",
+            false, true, "AriaHaspopup"},
+        SyntheticSelectTestCase{
+            R"HTML(
+              <custom-element aria-expanded="abcd"></custom-element>
+            )HTML",
+            false, true, "AriaExpanded"}),
+    [](const testing::TestParamInfo<ParametrizedSyntheticSelectTest::ParamType>&
+           info) { return info.param.test_name; });
+
+INSTANTIATE_TEST_SUITE_P(
+    IsSyntheticSelect,
+    ParametrizedSyntheticSelectTest,
+    testing::Values(
+        SyntheticSelectTestCase{
+            R"HTML(
+              <mat-select aria-expanded="abcd"></mat-select>
+            )HTML",
+            true, false, "SelectInTagName"},
+        SyntheticSelectTestCase{
+            R"HTML(
+              <mat-SeLeCT aria-expanded="abcd"></mat-SeLeCT>
+            )HTML",
+            true, false, "MixedCaseSelectInTagName"},
+        SyntheticSelectTestCase{
+            R"HTML(
+              <custom-element class="mat-select" aria-expanded="abcd"></custom-element>
+            )HTML",
+            true, false, "SelectInClassAttribute"},
+        SyntheticSelectTestCase{
+            R"HTML(
+              <custom-element class="MaT-SELECT" aria-expanded="abcd"></custom-element>
+            )HTML",
+            true, false, "MixedCaseSelectInClassAttribute"},
+        SyntheticSelectTestCase{
+            R"HTML(
+              <custom-element name="mat-select" aria-expanded="abcd"></custom-element>
+            )HTML",
+            true, false, "SelectInNameAttribute"},
+        SyntheticSelectTestCase{
+            R"HTML(
+              <custom-element name="MaT-SELECT" aria-expanded="abcd"></custom-element>
+            )HTML",
+            true, false, "MixedCaseSelectInNameAttribute"},
+        SyntheticSelectTestCase{
+            R"HTML(
+              <custom-element role="combobox" aria-expanded="abcd"></custom-element>
+            )HTML",
+            true, false, "RoleIsCombobox"},
+        SyntheticSelectTestCase{
+            R"HTML(
+              <custom-element aria-haspopup="listbox"></custom-element>
+            )HTML",
+            true, false, "AriaHaspopupIsListbox"},
+        SyntheticSelectTestCase{
+            R"HTML(
+            <div>
+              <custom-element aria-haspopup="listbox"></custom-element>
+            </div>
+            )HTML",
+            true, false, "ElementInDiv"}),
+    [](const testing::TestParamInfo<ParametrizedSyntheticSelectTest::ParamType>&
+           info) { return info.param.test_name; });
 
 #if BUILDFLAG(IS_ANDROID)
 class TestPaymentLinkHandler

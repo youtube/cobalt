@@ -76,7 +76,7 @@ FragmentItem::FragmentItem(const LayoutObject& layout_object,
                            const String& text_content,
                            const PhysicalSize& size,
                            bool is_hidden_for_paint)
-    : generated_text_({shape_result, text_content}),
+    : generated_text_({shape_result, nullptr, text_content}),
       rect_({PhysicalOffset(), size}),
       layout_object_(&layout_object),
       const_type_(kGeneratedText),
@@ -170,6 +170,7 @@ FragmentItem::FragmentItem(LogicalLineItem&& line_item,
           line_item.is_hidden_for_paint);
       has_over_annotation_ = line_item.has_over_annotation;
       has_under_annotation_ = line_item.has_under_annotation;
+      SetFitTextScale(line_item.fit_text_scale);
       return;
     }
 
@@ -180,6 +181,7 @@ FragmentItem::FragmentItem(LogicalLineItem&& line_item,
                      line_item.is_hidden_for_paint);
     has_over_annotation_ = line_item.has_over_annotation;
     has_under_annotation_ = line_item.has_under_annotation;
+    SetFitTextScale(line_item.fit_text_scale);
     return;
   }
 
@@ -198,6 +200,7 @@ FragmentItem::FragmentItem(LogicalLineItem&& line_item,
                      std::move(line_item.shape_result), line_item.text_content,
                      ToPhysicalSize(line_item.MarginSize(), writing_mode),
                      line_item.is_hidden_for_paint);
+    SetFitTextScale(line_item.fit_text_scale);
     return;
   }
 
@@ -469,13 +472,6 @@ bool FragmentItem::HasNonVisibleOverflow() const {
   return false;
 }
 
-bool FragmentItem::IsScrollContainer() const {
-  if (const PhysicalBoxFragment* fragment = BoxFragment()) {
-    return fragment->IsScrollContainer();
-  }
-  return false;
-}
-
 bool FragmentItem::HasSelfPaintingLayer() const {
   if (const PhysicalBoxFragment* fragment = BoxFragment()) {
     return fragment->HasSelfPaintingLayer();
@@ -519,12 +515,6 @@ const PhysicalOffset FragmentItem::ContentOffsetInContainerFragment() const {
     offset += box->ContentOffset();
   }
   return offset;
-}
-
-inline const LayoutBox* FragmentItem::InkOverflowOwnerBox() const {
-  if (Type() == kBox)
-    return DynamicTo<LayoutBox>(GetLayoutObject());
-  return nullptr;
 }
 
 inline LayoutBox* FragmentItem::MutableInkOverflowOwnerBox() {
@@ -778,7 +768,53 @@ const Font& FragmentItem::ScaledFont() const {
   if (const auto* svg_inline_text =
           DynamicTo<LayoutSVGInlineText>(GetLayoutObject()))
     return svg_inline_text->ScaledFont();
-  return *Style().GetFont();
+  const SvgFragmentData* data = nullptr;
+  if (Type() == kText) {
+    data = text_.svg_data.Get();
+  } else if (Type() == kGeneratedText) {
+    data = generated_text_.extra_data.Get();
+  }
+  return data && data->scaled_font ? *data->scaled_font : *Style().GetFont();
+}
+
+void FragmentItem::SetFitTextScale(const FitTextScale* scale) {
+  if (!scale || (scale->scale == 1.0f && !scale->font)) {
+    return;
+  }
+  auto* data = MakeGarbageCollected<SvgFragmentData>();
+  data->scale_type = scale->is_scaled_inline_only
+                         ? TextScaleType::kFitTextInline
+                         : TextScaleType::kFitText;
+  data->length_adjust_scale = scale->scale;
+  data->scaled_font = scale->font;
+  if (Type() == kText) {
+    text_.svg_data = data;
+  } else if (Type() == kGeneratedText) {
+    generated_text_.extra_data = data;
+  } else {
+    // Do not call this function for this Type().
+    NOTREACHED();
+  }
+  DCHECK_EQ(scale->scale, GetFitTextScale().first);
+}
+
+std::pair<float, bool> FragmentItem::GetFitTextScale() const {
+  if (Type() == kText) {
+    if (const auto* data = text_.svg_data.Get()) {
+      auto type = data->scale_type;
+      if (type != TextScaleType::kLengthAdjust) {
+        return {data->length_adjust_scale,
+                type == TextScaleType::kFitTextInline};
+      }
+    }
+  } else if (Type() == kGeneratedText) {
+    if (const auto* data = generated_text_.extra_data.Get()) {
+      auto type = data->scale_type;
+      DCHECK(!data->IsSvg());
+      return {data->length_adjust_scale, type == TextScaleType::kFitTextInline};
+    }
+  }
+  return {1.0f, false};
 }
 
 String FragmentItem::ToString() const {
@@ -1204,7 +1240,7 @@ unsigned FragmentItem::TextOffsetForPoint(const PhysicalOffset& point,
     // TODO(layout-dev): Move caret logic out of ShapeResult into separate
     // support class for code health and to avoid this copy.
     return shape_result->CreateShapeResult()->CaretOffsetForHitTest(
-               scaled_offset, Text(items), BreakGlyphsOption(true)) +
+               scaled_offset, Text(items)) +
            StartOffset();
   }
 

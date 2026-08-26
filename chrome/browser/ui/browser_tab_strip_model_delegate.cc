@@ -28,6 +28,7 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_keyed_service.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_service_factory.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_menu_model_delegate.h"
@@ -51,7 +52,6 @@
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
-#include "ipc/ipc_message.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/gfx/range/range.h"
 
@@ -65,6 +65,41 @@ BrowserTabStripModelDelegate::BrowserTabStripModelDelegate(Browser* browser)
 
 BrowserTabStripModelDelegate::~BrowserTabStripModelDelegate() = default;
 
+#if BUILDFLAG(ENABLE_GLIC)
+bool BrowserTabStripModelDelegate::IsTabGlicPinned(tabs::TabHandle tab_handle) {
+  auto* service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_->profile());
+
+  return service->sharing_manager().IsTabPinned(tab_handle);
+}
+
+bool BrowserTabStripModelDelegate::GlicPinTabs(
+    base::span<const tabs::TabHandle> tab_handles) {
+  auto* service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_->profile());
+
+  return service->sharing_manager().PinTabs(tab_handles);
+}
+
+bool BrowserTabStripModelDelegate::GlicUnpinTabs(
+    base::span<const tabs::TabHandle> tab_handles) {
+  auto* service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_->profile());
+
+  return service->sharing_manager().UnpinTabs(tab_handles);
+}
+
+void BrowserTabStripModelDelegate::OpenGlicWindowFromSharedTab() {
+  auto* service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_->profile());
+
+  if (!service->IsWindowOrFreShowing()) {
+    service->ToggleUI(/*bwi=*/nullptr, /*prevent_close=*/true,
+                      glic::mojom::InvocationSource::kSharedTab);
+  }
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 // BrowserTabStripModelDelegate, TabStripModelDelegate implementation:
 
@@ -72,8 +107,9 @@ void BrowserTabStripModelDelegate::AddTabAt(
     const GURL& url,
     int index,
     bool foreground,
-    std::optional<tab_groups::TabGroupId> group) {
-  chrome::AddTabAt(browser_, url, index, foreground, group);
+    std::optional<tab_groups::TabGroupId> group,
+    bool pinned) {
+  chrome::AddTabAt(browser_, url, index, foreground, group, pinned);
 }
 
 Browser* BrowserTabStripModelDelegate::CreateNewStripWithTabs(
@@ -333,12 +369,14 @@ BrowserTabStripModelDelegate::GetBrowserWindowInterface() {
   return browser_;
 }
 
-void BrowserTabStripModelDelegate::NewSplitTab(std::vector<int> indices) {
+void BrowserTabStripModelDelegate::NewSplitTab(
+    std::vector<int> indices,
+    split_tabs::SplitTabCreatedSource source) {
   if (indices.empty()) {
-    chrome::NewSplitTab(browser_);
+    chrome::NewSplitTab(browser_, source);
   } else {
     browser_->tab_strip_model()->AddToNewSplit(
-        indices, split_tabs::SplitTabVisualData());
+        indices, split_tabs::SplitTabVisualData(), source);
   }
 }
 

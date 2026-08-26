@@ -12,16 +12,17 @@
 
 #include <optional>
 
+#include "api/field_trials.h"
 #include "api/video/video_codec_type.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 namespace {
 constexpr int kVp8DefaultStaticQpThreshold = 15;
 
 TEST(QualityConvergenceController, Singlecast) {
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   QualityConvergenceController controller;
   controller.Initialize(1, /*encoder_min_qp=*/std::nullopt, kVideoCodecVP8,
                         field_trials);
@@ -35,7 +36,7 @@ TEST(QualityConvergenceController, Singlecast) {
 }
 
 TEST(QualityConvergenceController, Simulcast) {
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   QualityConvergenceController controller;
   controller.Initialize(2, /*encoder_min_qp=*/std::nullopt, kVideoCodecVP8,
                         field_trials);
@@ -65,7 +66,7 @@ TEST(QualityConvergenceController, Simulcast) {
 }
 
 TEST(QualityConvergenceController, InvalidLayerIndex) {
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   QualityConvergenceController controller;
   controller.Initialize(2, /*encoder_min_qp=*/std::nullopt, kVideoCodecVP8,
                         field_trials);
@@ -79,7 +80,7 @@ TEST(QualityConvergenceController, InvalidLayerIndex) {
 }
 
 TEST(QualityConvergenceController, UseMaxOfEncoderMinAndDefaultQpThresholds) {
-  test::ScopedKeyValueConfig field_trials;
+  FieldTrials field_trials = CreateTestFieldTrials();
   QualityConvergenceController controller;
   controller.Initialize(1, kVp8DefaultStaticQpThreshold + 1, kVideoCodecVP8,
                         field_trials);
@@ -93,8 +94,8 @@ TEST(QualityConvergenceController, UseMaxOfEncoderMinAndDefaultQpThresholds) {
 }
 
 TEST(QualityConvergenceController, OverrideVp8StaticThreshold) {
-  test::ScopedKeyValueConfig field_trials(
-      "WebRTC-QCM-Static-VP8/static_qp_threshold:22/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-QCM-Static-VP8/static_qp_threshold:22/");
   QualityConvergenceController controller;
   controller.Initialize(1, /*encoder_min_qp=*/std::nullopt, kVideoCodecVP8,
                         field_trials);
@@ -106,8 +107,8 @@ TEST(QualityConvergenceController, OverrideVp8StaticThreshold) {
 }
 
 TEST(QualityConvergenceMonitorSetup, OverrideVp9StaticThreshold) {
-  test::ScopedKeyValueConfig field_trials(
-      "WebRTC-QCM-Static-VP9/static_qp_threshold:44/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-QCM-Static-VP9/static_qp_threshold:44/");
   QualityConvergenceController controller;
   controller.Initialize(1, /*encoder_min_qp=*/std::nullopt, kVideoCodecVP9,
                         field_trials);
@@ -119,8 +120,8 @@ TEST(QualityConvergenceMonitorSetup, OverrideVp9StaticThreshold) {
 }
 
 TEST(QualityConvergenceMonitorSetup, OverrideAv1StaticThreshold) {
-  test::ScopedKeyValueConfig field_trials(
-      "WebRTC-QCM-Static-AV1/static_qp_threshold:46/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-QCM-Static-AV1/static_qp_threshold:46/");
   QualityConvergenceController controller;
   controller.Initialize(1, /*encoder_min_qp=*/std::nullopt, kVideoCodecAV1,
                         field_trials);

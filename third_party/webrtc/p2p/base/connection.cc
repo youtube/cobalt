@@ -10,9 +10,8 @@
 
 #include "p2p/base/connection.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -41,6 +40,7 @@
 #include "p2p/base/stun_request.h"
 #include "p2p/base/transport_description.h"
 #include "p2p/dtls/dtls_stun_piggyback_callbacks.h"
+#include "p2p/dtls/dtls_utils.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/byte_buffer.h"
 #include "rtc_base/checks.h"
@@ -607,7 +607,8 @@ void Connection::MaybeAddDtlsPiggybackingAttributes(StunMessage* msg) {
 
   if (ack) {
     size_t msg_length = msg->length();
-    size_t need_length = ack->length() + kStunAttributeHeaderSize;
+    size_t need_length =
+        kStunAttributeHeaderSize + ack->size() * sizeof(uint32_t);
     if (msg_length + need_length <= kMaxStunBindingLength) {
       msg->AddAttribute(std::make_unique<StunByteStringAttribute>(
           STUN_ATTR_META_DTLS_IN_STUN_ACK, *ack));
@@ -628,6 +629,41 @@ void Connection::MaybeAddDtlsPiggybackingAttributes(StunMessage* msg) {
           STUN_ATTR_META_DTLS_IN_STUN, *attr));
     }
   }
+}
+
+void Connection::MaybeHandleDtlsPiggybackingAttributes(
+    const StunMessage* msg,
+    const StunRequest* original_request) {
+  if (dtls_stun_piggyback_callbacks_.empty()) {
+    return;
+  }
+  const StunByteStringAttribute* dtls_piggyback_attr =
+      msg->GetByteString(STUN_ATTR_META_DTLS_IN_STUN);
+  const StunByteStringAttribute* dtls_piggyback_ack =
+      msg->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK);
+  std::optional<ArrayView<uint8_t>> piggyback_data;
+  if (dtls_piggyback_attr != nullptr) {
+    piggyback_data = dtls_piggyback_attr->array_view();
+  }
+  std::optional<std::vector<uint32_t>> piggyback_acks;
+  if (dtls_piggyback_ack != nullptr) {
+    piggyback_acks = dtls_piggyback_ack->GetUInt32Vector();
+  }
+  // A response implicitly acknowledges the original embedded packet
+  // when the ack attribute is included.
+  if (dtls_piggyback_ack != nullptr && original_request != nullptr) {
+    const StunByteStringAttribute* request_dtls_piggyback =
+        original_request->msg()->GetByteString(STUN_ATTR_META_DTLS_IN_STUN);
+    if (request_dtls_piggyback) {
+      uint32_t sent_hash =
+          ComputeDtlsPacketHash(request_dtls_piggyback->array_view());
+      if (!piggyback_acks) {
+        piggyback_acks = {};
+      }
+      piggyback_acks->push_back(sent_hash);
+    }
+  }
+  dtls_stun_piggyback_callbacks_.recv_data(piggyback_data, piggyback_acks);
 }
 
 void Connection::HandleStunBindingOrGoogPingRequest(IceMessage* msg) {
@@ -672,14 +708,7 @@ void Connection::HandleStunBindingOrGoogPingRequest(IceMessage* msg) {
 
   // This is a validated stun request from remote peer.
   if (msg->type() == STUN_BINDING_REQUEST) {
-    if (!dtls_stun_piggyback_callbacks_.empty()) {
-      const StunByteStringAttribute* dtls_piggyback_attribute =
-          msg->GetByteString(STUN_ATTR_META_DTLS_IN_STUN);
-      const StunByteStringAttribute* dtls_piggyback_ack =
-          msg->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK);
-      dtls_stun_piggyback_callbacks_.recv_data(dtls_piggyback_attribute,
-                                               dtls_piggyback_ack);
-    }
+    MaybeHandleDtlsPiggybackingAttributes(msg, /*original_request=*/nullptr);
     SendStunBindingResponse(msg);
   } else {
     RTC_DCHECK(msg->type() == GOOG_PING_REQUEST);
@@ -1542,20 +1571,12 @@ void Connection::OnConnectionRequestResponse(StunRequest* request,
     RTC_LOG(LS_ERROR) << "Discard GOOG_DELTA_ACK, no consumer";
   }
 
-  if (!dtls_stun_piggyback_callbacks_.empty()) {
-    const bool sent_dtls_piggyback =
-        request->msg()->GetByteString(STUN_ATTR_META_DTLS_IN_STUN) != nullptr;
-    const bool sent_dtls_piggyback_ack =
-        request->msg()->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK) !=
-        nullptr;
-    const StunByteStringAttribute* dtls_piggyback_attr =
-        response->GetByteString(STUN_ATTR_META_DTLS_IN_STUN);
-    const StunByteStringAttribute* dtls_piggyback_ack =
-        response->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK);
-    if (sent_dtls_piggyback || sent_dtls_piggyback_ack) {
-      dtls_stun_piggyback_callbacks_.recv_data(dtls_piggyback_attr,
-                                               dtls_piggyback_ack);
-    }
+  const bool sent_dtls_piggyback =
+      request->msg()->GetByteString(STUN_ATTR_META_DTLS_IN_STUN) != nullptr;
+  const bool sent_dtls_piggyback_ack =
+      request->msg()->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK) != nullptr;
+  if (sent_dtls_piggyback || sent_dtls_piggyback_ack) {
+    MaybeHandleDtlsPiggybackingAttributes(response, request);
   }
 }
 

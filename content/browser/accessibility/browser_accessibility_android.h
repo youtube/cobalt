@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,8 @@
 #include "ui/accessibility/platform/browser_accessibility.h"
 
 namespace content {
+
+struct AXStyleData;
 
 class CONTENT_EXPORT BrowserAccessibilityAndroid
     : public ui::BrowserAccessibility {
@@ -81,8 +84,9 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid
   // focusable or clickable aren't interesting.
   bool IsInterestingOnAndroid() const;
 
-  // Is a heading whose only child is a link.
-  bool IsHeadingLink() const;
+  // If it's a heading whose only child is a link, or a heading that is inside
+  // a link, returns the link node if it exists; otherwise nullptr.
+  BrowserAccessibilityAndroid* GetHeadingLinkOrLinkHeading() const;
 
   // If this node is interesting (IsInterestingOnAndroid() returns true),
   // returns |this|. If not, it recursively checks all of the
@@ -133,8 +137,11 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid
 
   typedef base::RepeatingCallback<bool(const std::u16string& partial)>
       EarlyExitPredicate;
+  // Gets the text content of this node, up to at least `min_length` if given.
+  // If `style_data` is provided, it's populated with styling information.
   std::u16string GetSubstringTextContentUTF16(
-      std::optional<size_t> min_length) const;
+      std::optional<size_t> min_length,
+      AXStyleData* style_data = nullptr) const;
   static EarlyExitPredicate NonEmptyPredicate();
   static EarlyExitPredicate LengthAtLeast(size_t length);
 
@@ -178,6 +185,7 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid
   // superscript from the methods above.
   float GetTextSize() const;
   int GetTextStyle() const;
+  int GetTextPosition() const;
   int GetTextColor() const;
   int GetTextBackgroundColor() const;
   std::string GetFontFamily() const;
@@ -262,6 +270,10 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid
   // manager to the web_contents_accessibility_android JNI.
   std::u16string GenerateAccessibilityNodeInfoString() const;
 
+  // Used to determine paint order to see in what order nodes are drawn.
+  // Used by Android XR.
+  int GetPaintOrder() const;
+
  protected:
   BrowserAccessibilityAndroid(ui::BrowserAccessibilityManager* manager,
                               ui::AXNode* node);
@@ -308,10 +320,13 @@ class CONTENT_EXPORT BrowserAccessibilityAndroid
   // Returns tree if any child has kSelect action verb.
   bool HasSelectActionVerbChildren() const;
 
-  std::u16string cached_text_;
+  // Helper function that accumulates the text content for the node.
+  void AccumulateSubstringTextContentUTF16(std::u16string* accumulated_text,
+                                           std::optional<size_t> min_length,
+                                           AXStyleData* style_data) const;
+
   std::u16string old_value_;
   std::u16string new_value_;
-  int32_t unique_id_;
 };
 
 }  // namespace content

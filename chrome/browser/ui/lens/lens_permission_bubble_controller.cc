@@ -16,6 +16,8 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/lens/lens_overlay_theme_utils.h"
+#include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
+#include "chrome/browser/ui/lens/lens_string_utils.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/grit/branded_strings.h"
@@ -83,7 +85,7 @@ void LensPermissionBubbleController::RequestPermission(
   // several times in succession.
   pref_observer_.Reset();
   pref_observer_.Init(pref_service_);
-  if (lens::features::IsLensOverlayContextualSearchboxEnabled()) {
+  if (lens::IsLensOverlayContextualSearchboxEnabled()) {
     pref_observer_.Add(
         prefs::kLensSharingPageContentEnabled,
         base::BindRepeating(
@@ -119,10 +121,11 @@ std::unique_ptr<views::Widget> LensPermissionBubbleController::ShowDialogWidget(
   model_host->SetOwnershipOfNewWidget(
       views::Widget::InitParams::CLIENT_OWNS_WIDGET);
 
-  std::unique_ptr<views::Widget> widget =
+  auto widget =
       tab_interface_->GetTabFeatures()
           ->tab_dialog_manager()
-          ->CreateShowDialogAndBlockTabInteraction(model_host);
+          ->CreateAndShowDialog(
+              model_host, std::make_unique<tabs::TabDialogManager::Params>());
   widget->MakeCloseSynchronous(
       base::BindOnce(&LensPermissionBubbleController::CloseDialogWidget,
                      base::Unretained(this)));
@@ -167,7 +170,7 @@ LensPermissionBubbleController::CreateLensPermissionDialogModel(
           weak_ptr_factory_.GetWeakPtr()));
 
   auto description_text =
-      lens::features::IsLensOverlayContextualSearchboxEnabled()
+      lens::IsLensOverlayContextualSearchboxEnabled()
           ? ui::DialogModelLabel::CreateWithReplacement(
                 IDS_LENS_PERMISSION_BUBBLE_DIALOG_CSB_DESCRIPTION, link)
           : ui::DialogModelLabel::CreateWithReplacement(
@@ -176,13 +179,17 @@ LensPermissionBubbleController::CreateLensPermissionDialogModel(
   return ui::DialogModel::Builder()
       .SetInternalName(kLensPermissionDialogName)
       .SetTitle(
-          l10n_util::GetStringUTF16(IDS_LENS_PERMISSION_BUBBLE_DIALOG_TITLE))
+          l10n_util::GetStringUTF16(lens::GetLensOverlayEntrypointLabelAltIds(
+              IDS_LENS_PERMISSION_BUBBLE_DIALOG_TITLE)))
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-      .SetIcon(ui::ImageModel::FromVectorIcon(vector_icons::kGoogleColorIcon,
-                                              ui::kColorIcon, 20))
+      .SetIcon(ui::ImageModel::FromImageSkia(
+          *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
+              IDR_GOOGLE_G_GRADIENT_20)))
       .SetBannerImage(ui::ImageModel::FromImageSkia(
           *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-              IDR_LENS_PERMISSION_MODAL_IMAGE)))
+              lens::features::IsLensOverlayPermissionBubbleAltEnabled()
+                  ? IDR_LENS_PERMISSION_MODAL_IMAGE_ALT
+                  : IDR_LENS_PERMISSION_MODAL_IMAGE)))
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
       .AddParagraph(description_text)
       .AddOkButton(
@@ -223,7 +230,7 @@ void LensPermissionBubbleController::OnPermissionDialogAccept(
   // the prefs is no longer necessary when the dialog is being closed because
   // the user accepted the dialog.
   pref_observer_.Reset();
-  if (lens::features::IsLensOverlayContextualSearchboxEnabled()) {
+  if (lens::IsLensOverlayContextualSearchboxEnabled()) {
     pref_service_->SetBoolean(prefs::kLensSharingPageContentEnabled, true);
   }
   pref_service_->SetBoolean(prefs::kLensSharingPageScreenshotEnabled, true);

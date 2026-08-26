@@ -24,7 +24,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_browser_agent.h"
 #import "ios/chrome/browser/supervised_user/model/family_link_user_capabilities_observer_bridge.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/base_grid_mediator.h"
+#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator/base_grid_mediator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_consumer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_toolbars_mutator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/incognito/incognito_grid_mediator_delegate.h"
@@ -72,7 +72,8 @@
   base::RecordAction(
       base::UserMetricsAction("MobileTabGridCloseAllIncognitoTabs"));
   // This is a no-op if `webStateList` is already empty.
-  CloseAllWebStates(*self.webStateList, WebStateList::CLOSE_USER_ACTION);
+  CloseAllWebStates(*self.webStateList,
+                    WebStateList::ClosingReason::kUserAction);
   SnapshotBrowserAgent::FromBrowser(self.browser)->RemoveAllSnapshots();
 }
 

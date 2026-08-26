@@ -14,8 +14,8 @@ import org.chromium.components.tab_groups.TabGroupColorId;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.List;
 
+// TODO(crbug.com/434015906): Remove all references to RootId after TabCollections is launched.
 /** An interface to be notified about changes to a {@link TabGroupModelFilter}. */
 @NullMarked
 public interface TabGroupModelFilterObserver {
@@ -38,6 +38,9 @@ public interface TabGroupModelFilterObserver {
          * or closing of individual tabs.
          */
         int CLOSE = 2;
+
+        /** The last tab in the group became pinned. */
+        int PIN = 3;
     }
 
     /**
@@ -53,10 +56,10 @@ public interface TabGroupModelFilterObserver {
     /**
      * This method is called before a group is moved.
      *
-     * @param tabModelOldIndex The old index of the {@code movedTab} in the {@link TabModel}.
-     * @param tabModelNewIndex The new index of the {@code movedTab} in the {@link TabModel}.
+     * @param tabGroupId The tab group id of the group being moved.
+     * @param currentIndex The current index of the group in the {@link TabModel}.
      */
-    default void willMoveTabGroup(int tabModelOldIndex, int tabModelNewIndex) {}
+    default void willMoveTabGroup(Token tabGroupId, int currentIndex) {}
 
     /**
      * This method is called before a tab within a group is moved out of the group.
@@ -68,13 +71,16 @@ public interface TabGroupModelFilterObserver {
     default void willMoveTabOutOfGroup(Tab movedTab, @Nullable Token destinationTabGroupId) {}
 
     /**
-     * This method is called after a tab is moved to form a group or moved into an existed group.
+     * This method is called after a tab is moved to a group.
      *
-     * @param movedTab The {@link Tab} which has been moved. If a group is merged to a tab or
-     *     another group, this is the last tab of the merged group.
+     * @param movedTab The {@link Tab} which has been moved into the group.
+     * @param isDestinationTab Whether the tab is the destination tab of a merge operation. The
+     *     destination tab is the tab that all the other tabs in the merge operation will be grouped
+     *     into.
      */
-    default void didMergeTabToGroup(Tab movedTab) {}
+    default void didMergeTabToGroup(Tab movedTab, boolean isDestinationTab) {}
 
+    // TODO(crbug.com/434015906): Passing the last tab here is a limitation of the current TabGroupModelFilterImpl, we should fix this once tab collections is launched.
     /**
      * This method is called after a group is moved.
      *
@@ -103,25 +109,11 @@ public interface TabGroupModelFilterObserver {
     default void didMoveTabOutOfGroup(Tab movedTab, int prevFilterIndex) {}
 
     /**
-     * This method is called after a group is created manually by user. Either using the
-     * TabListEditor (Group tab menu item) or using drag and drop.
+     * This method is called after a group is created and an undo group snackbar should be shown.
      *
-     * @param tabs The list of modified {@link Tab}s.
-     * @param tabOriginalIndex The original tab index for each modified tab.
-     * @param tabOriginalRootId The original root id for each modified tab.
-     * @param tabOriginalTabGroupId The original tab group id for each modified tab.
-     * @param destinationGroupTitle The original destination group title.
-     * @param destinationGroupColorId The original destination group color id.
-     * @param destinationGroupTitleCollapsed Whether the destination group was originally collapsed.
+     * @param undoGroupMetadata Metadata to undo the group operation.
      */
-    default void didCreateGroup(
-            List<Tab> tabs,
-            List<Integer> tabOriginalIndex,
-            List<Integer> tabOriginalRootId,
-            List<Token> tabOriginalTabGroupId,
-            @Nullable String destinationGroupTitle,
-            int destinationGroupColorId,
-            boolean destinationGroupTitleCollapsed) {}
+    default void showUndoGroupSnackbar(UndoGroupMetadata undoGroupMetadata) {}
 
     /**
      * This method is called after a new tab group is created, either through drag and drop, the tab
@@ -135,27 +127,28 @@ public interface TabGroupModelFilterObserver {
     /**
      * This method is called after a new title is set on a tab group.
      *
-     * @param rootId The current rootId of the tab group.
+     * @param tabGroupId The tab group id.
      * @param newTitle The new title.
      */
-    default void didChangeTabGroupTitle(int rootId, @Nullable String newTitle) {}
+    default void didChangeTabGroupTitle(Token tabGroupId, @Nullable String newTitle) {}
 
     /**
      * This method is called after a new color is set on a tab group.
      *
-     * @param rootId The current rootId of the tab group.
+     * @param tabGroupId The tab group id.
      * @param newColor The new color.
      */
-    default void didChangeTabGroupColor(int rootId, @TabGroupColorId int newColor) {}
+    default void didChangeTabGroupColor(Token tabGroupId, @TabGroupColorId int newColor) {}
 
     /**
      * This method is called when a tab group is collapsed or expanded on the tab strip.
      *
-     * @param rootId The current rootId of the tab group.
+     * @param tabGroupId The tab group id.
      * @param isCollapsed Whether or not the tab group is now collapsed.
      * @param animate Whether the collapse or expand should be animated.
      */
-    default void didChangeTabGroupCollapsed(int rootId, boolean isCollapsed, boolean animate) {}
+    default void didChangeTabGroupCollapsed(
+            Token tabGroupId, boolean isCollapsed, boolean animate) {}
 
     /**
      * When a tab group's root id needs to change because the tab whose id was previously being used

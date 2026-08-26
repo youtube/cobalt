@@ -102,6 +102,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="USER_CONFIRMED"/>
   <int value="1" label="USER_CANCELED"/>
   <int value="2" label="DUPLICATE_DIALOG"/>
+  <int value="3" label="CONFIRMED_WITHOUT_USER_INPUT"/>
 </enum>
 
 <enum name="DownloadLocationDialogType">
@@ -563,6 +564,7 @@ chromium-metrics-reviews@google.com.
   <int value="38" label="Report as safe notification button"/>
   <int value="39" label="Report warned notification as spam button."/>
   <int value="40" label="Report unwarned notification as spam button."/>
+  <int value="41" label="Download removed from history"/>
 </enum>
 
 <enum name="SystemNotificationType">

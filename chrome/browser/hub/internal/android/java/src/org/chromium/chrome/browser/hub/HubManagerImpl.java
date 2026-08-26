@@ -51,7 +51,7 @@ public class HubManagerImpl implements HubManager, HubController {
     private final BackPressManager mBackPressManager;
     private final MenuOrKeyboardActionController mMenuOrKeyboardActionController;
     private final SnackbarManager mSnackbarManager;
-    private final ObservableSupplier<Tab> mTabSupplier;
+    private final ObservableSupplier<@Nullable Tab> mTabSupplier;
     private final MenuButtonCoordinator mMenuButtonCoordinator;
     private final HubShowPaneHelper mHubShowPaneHelper;
     private final ObservableSupplier<EdgeToEdgeController> mEdgeToEdgeSupplier;
@@ -64,6 +64,7 @@ public class HubManagerImpl implements HubManager, HubController {
     private int mSnackbarOverrideToken;
     private int mStatusIndicatorHeight;
     private int mAppHeaderHeight;
+    private final @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     /** See {@link HubManagerFactory#createHubManager}. */
     public HubManagerImpl(
@@ -73,11 +74,12 @@ public class HubManagerImpl implements HubManager, HubController {
             BackPressManager backPressManager,
             MenuOrKeyboardActionController menuOrKeyboardActionController,
             SnackbarManager snackbarManager,
-            ObservableSupplier<Tab> tabSupplier,
+            ObservableSupplier<@Nullable Tab> tabSupplier,
             MenuButtonCoordinator menuButtonCoordinator,
             HubShowPaneHelper hubShowPaneHelper,
             ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
-            SearchActivityClient searchActivityClient) {
+            SearchActivityClient searchActivityClient,
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         mActivity = activity;
         mProfileProviderSupplier = profileProviderSupplier;
         mPaneManager = new PaneManagerImpl(paneListBuilder, mHubVisibilitySupplier);
@@ -101,6 +103,7 @@ public class HubManagerImpl implements HubManager, HubController {
         mHubColorMixer =
                 new HubColorMixerImpl(
                         mActivity, mHubVisibilitySupplier, mPaneManager.getFocusedPaneSupplier());
+        mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
     }
 
     @Override
@@ -169,6 +172,11 @@ public class HubManagerImpl implements HubManager, HubController {
     }
 
     @Override
+    public HubContainerView getContainerViewUnchecked() {
+        return mHubContainerView;
+    }
+
+    @Override
     public @Nullable View getPaneHostView() {
         assert mHubCoordinator != null : "Access of a Hub pane host view that doesn't exist";
         return mHubContainerView.findViewById(R.id.hub_pane_host);
@@ -231,7 +239,8 @@ public class HubManagerImpl implements HubManager, HubController {
                         mMenuButtonCoordinator,
                         mSearchActivityClient,
                         mEdgeToEdgeSupplier,
-                        mHubColorMixer);
+                        mHubColorMixer,
+                        mXrSpaceModeObservableSupplier);
         mBackPressManager.addHandler(mHubCoordinator, BackPressHandler.Type.HUB);
         Pane pane = mPaneManager.getFocusedPaneSupplier().get();
         attachPaneDependencies(pane);

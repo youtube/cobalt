@@ -53,7 +53,6 @@
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
 #include "third_party/skia/include/core/SkBitmap.h"
-#include "ui/gfx/skbitmap_operations.h"
 #endif
 
 using printing::ConvertUnitFloat;
@@ -317,8 +316,8 @@ bool AreTextStyleEqual(FPDF_PAGEOBJECT text_object,
   // has upper case or tall letters or not.
   // Comparing the font size is done heuristically, as the smaller value should
   // not be less than half the larger one.
-  // TODO(crbug.com/360803943): Add unittests with OCRed PDF data.
-  // TODO(crbug.com/360803943): Add block information from OCR results to
+  // TODO(crbug.com/398064843): Add unittests with OCRed PDF data.
+  // TODO(crbug.com/398064843): Add block information from OCR results to
   // objects and create text runs based on them.
   bool font_size_match =
       is_searchified ? FloatAtLeastHalf(char_style.font_size, style.font_size)
@@ -947,35 +946,17 @@ std::vector<int> PDFiumPage::GetImageObjectIndices() {
 }
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+bool PDFiumPage::HasImages() {
+  CalculateImages();
+  return images_.size();
+}
+
 SkBitmap PDFiumPage::GetImageForOcr(int page_object_index,
                                     int max_image_dimension) {
   FPDF_PAGE page = GetPage();
   FPDF_PAGEOBJECT page_object = FPDFPage_GetObject(page, page_object_index);
-  bool rotate_image_to_upright =
-      !base::FeatureList::IsEnabled(chrome_pdf::features::kPdfSearchify);
-  SkBitmap bitmap = ::chrome_pdf::GetImageForOcr(
-      engine_->doc(), page, page_object, max_image_dimension,
-      rotate_image_to_upright);
-
-  if (!rotate_image_to_upright) {
-    return bitmap;
-  }
-  SkBitmapOperations::RotationAmount rotation;
-  switch (FPDFPage_GetRotation(page)) {
-    case 0:
-      return bitmap;
-    case 1:
-      rotation = SkBitmapOperations::RotationAmount::ROTATION_90_CW;
-      break;
-    case 2:
-      rotation = SkBitmapOperations::RotationAmount::ROTATION_180_CW;
-      break;
-    case 3:
-      rotation = SkBitmapOperations::RotationAmount::ROTATION_270_CW;
-      break;
-  }
-
-  return SkBitmapOperations::Rotate(bitmap, rotation);
+  return ::chrome_pdf::GetImageForOcr(engine_->doc(), page, page_object,
+                                      max_image_dimension);
 }
 
 void PDFiumPage::OnSearchifyGotOcrResult(bool added_text) {
@@ -988,6 +969,10 @@ void PDFiumPage::OnSearchifyGotOcrResult(bool added_text) {
 
 bool PDFiumPage::IsPageSearchified() const {
   return has_searchify_added_text_.has_value();
+}
+
+bool PDFiumPage::PageCanBeUnloaded() const {
+  return preventing_unload_count_ == 0;
 }
 #endif  // BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
 

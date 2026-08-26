@@ -34,6 +34,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
@@ -47,6 +48,7 @@
 #include "services/network/public/mojom/cookie_manager.mojom-blink.h"
 #include "services/network/public/mojom/cross_origin_embedder_policy.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-blink.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/notifications/notification.mojom-blink.h"
 #include "third_party/blink/public/mojom/push_messaging/push_messaging.mojom-blink.h"
@@ -88,6 +90,7 @@
 #include "third_party/blink/renderer/core/workers/worker_backing_thread.h"
 #include "third_party/blink/renderer/core/workers/worker_classic_script_loader.h"
 #include "third_party/blink/renderer/core/workers/worker_clients.h"
+#include "third_party/blink/renderer/core/workers/worker_navigator.h"
 #include "third_party/blink/renderer/core/workers/worker_reporting_proxy.h"
 #include "third_party/blink/renderer/modules/background_fetch/background_fetch_event.h"
 #include "third_party/blink/renderer/modules/background_fetch/background_fetch_registration.h"
@@ -148,6 +151,7 @@
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_policy.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -519,7 +523,9 @@ void ServiceWorkerGlobalScope::Initialize(
 
   // This should be called after OriginTrialContext::AddTokens() to install
   // origin trial features in JavaScript's global object.
-  ScriptController()->PrepareForEvaluation();
+  if (!defer_prepare_for_evaluation_) {
+    ScriptController()->PrepareForEvaluation();
+  }
 }
 
 void ServiceWorkerGlobalScope::LoadAndRunInstalledClassicScript(
@@ -859,9 +865,9 @@ void ServiceWorkerGlobalScope::importScripts(
       DCHECK(installed_scripts_manager_->IsScriptInstalled(Url()));
       exception_state.ThrowDOMException(
           DOMExceptionCode::kNetworkError,
-          "Failed to import '" + completed_url.ElidedString() +
-              "'. importScripts() of new scripts after service worker "
-              "installation is not allowed.");
+          StrCat({"Failed to import '", completed_url.ElidedString(),
+                  "'. importScripts() of new scripts after service worker "
+                  "installation is not allowed."}));
       return;
     }
   }
@@ -1735,6 +1741,21 @@ void ServiceWorkerGlobalScope::ResumeEvaluation() {
   pause_evaluation_ = false;
   if (global_scope_initialized_)
     ReadyToRunWorkerScript();
+}
+
+void ServiceWorkerGlobalScope::DeferPrepareForEvaluation() {
+  DCHECK(IsContextThread());
+  CHECK(!defer_prepare_for_evaluation_);
+
+  defer_prepare_for_evaluation_ = true;
+}
+
+void ServiceWorkerGlobalScope::RunDeferredPrepareForEvaluation() {
+  DCHECK(IsContextThread());
+  CHECK(defer_prepare_for_evaluation_);
+
+  defer_prepare_for_evaluation_ = false;
+  ScriptController()->PrepareForEvaluation();
 }
 
 void ServiceWorkerGlobalScope::DispatchInstallEvent(

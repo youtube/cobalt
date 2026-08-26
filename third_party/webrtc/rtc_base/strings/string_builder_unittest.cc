@@ -10,7 +10,8 @@
 
 #include "rtc_base/strings/string_builder.h"
 
-#include <string.h>
+#include <cstring>
+#include <string>
 
 #include "rtc_base/checks.h"
 #include "test/gmock.h"

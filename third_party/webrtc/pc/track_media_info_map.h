@@ -11,13 +11,9 @@
 #ifndef PC_TRACK_MEDIA_INFO_MAP_H_
 #define PC_TRACK_MEDIA_INFO_MAP_H_
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <map>
-#include <memory>
 #include <optional>
-#include <string>
-#include <vector>
 
 #include "api/array_view.h"
 #include "api/media_stream_interface.h"
@@ -25,7 +21,7 @@
 #include "media/base/media_channel.h"
 #include "pc/rtp_receiver.h"
 #include "pc/rtp_sender.h"
-#include "rtc_base/ref_count.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 

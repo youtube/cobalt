@@ -16,7 +16,7 @@ CallbackFunctionBase::CallbackFunctionBase(
     v8::Local<v8::Object> callback_function) {
   DCHECK(!callback_function.IsEmpty());
 
-  v8::Isolate* isolate = callback_function->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   callback_function_.Reset(isolate, callback_function);
 
   incumbent_script_state_ =
@@ -105,7 +105,7 @@ void CallbackFunctionBase::EvaluateAsPartOfCallback(
 
 void CallbackFunctionWithTaskAttributionBase::Trace(Visitor* visitor) const {
   CallbackFunctionBase::Trace(visitor);
-  visitor->Trace(parent_task_);
+  visitor->Trace(task_state_);
 }
 
 }  // namespace blink

@@ -233,15 +233,25 @@ TEST_F(InlineNodeTest, CollectInlinesFloat) {
             "</div>");
   InlineNodeForTest node = CreateInlineNode();
   node.CollectInlines();
-  EXPECT_EQ("abc\uFFFCghi\uFFFCmno", node.Text())
+  EXPECT_EQ(RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled()
+                ? "abcghimno"
+                : "abc\uFFFCghi\uFFFCmno",
+            node.Text())
       << "floats are appeared as an object replacement character";
   InlineItems& items = node.Items();
   ASSERT_EQ(5u, items.size());
   TEST_ITEM_TYPE_OFFSET(items[0], kText, 0u, 3u);
-  TEST_ITEM_TYPE_OFFSET(items[1], kFloating, 3u, 4u);
-  TEST_ITEM_TYPE_OFFSET(items[2], kText, 4u, 7u);
-  TEST_ITEM_TYPE_OFFSET(items[3], kFloating, 7u, 8u);
-  TEST_ITEM_TYPE_OFFSET(items[4], kText, 8u, 11u);
+  if (RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled()) {
+    TEST_ITEM_TYPE_OFFSET(items[1], kFloating, 3u, 3u);
+    TEST_ITEM_TYPE_OFFSET(items[2], kText, 3u, 6u);
+    TEST_ITEM_TYPE_OFFSET(items[3], kFloating, 6u, 6u);
+    TEST_ITEM_TYPE_OFFSET(items[4], kText, 6u, 9u);
+  } else {
+    TEST_ITEM_TYPE_OFFSET(items[1], kFloating, 3u, 4u);
+    TEST_ITEM_TYPE_OFFSET(items[2], kText, 4u, 7u);
+    TEST_ITEM_TYPE_OFFSET(items[3], kFloating, 7u, 8u);
+    TEST_ITEM_TYPE_OFFSET(items[4], kText, 8u, 11u);
+  }
 }
 
 TEST_F(InlineNodeTest, CollectInlinesInlineBlock) {
@@ -359,7 +369,7 @@ TEST_F(InlineNodeTest, CollectInlinesTextCombineBR) {
 TEST_F(InlineNodeTest, CollectInlinesTextCombineListItemMarker) {
   InsertStyleElement(
       "#t { text-combine-upright: all; writing-mode: vertical-rl; }");
-  SetupHtml("t", u"<li id=t>ab</li>");
+  SetupHtml("t", u"<ul><li id=t>ab</li></ul>");
   // LayoutListItem {LI}
   //   LayoutOutsideListMarker {::marker}
   //      LayoutTextCombine (anonymous)
@@ -369,10 +379,10 @@ TEST_F(InlineNodeTest, CollectInlinesTextCombineListItemMarker) {
   InlineNodeForTest node =
       CreateInlineNode(To<LayoutTextCombine>(layout_object_->SlowFirstChild()));
   node.CollectInlines();
-  EXPECT_EQ("\u2022", node.Text());
+  EXPECT_EQ("\u2022 ", node.Text());
   InlineItems& items = node.Items();
   ASSERT_EQ(1u, items.size());
-  TEST_ITEM_TYPE_OFFSET(items[0], kText, 0u, 1u);
+  TEST_ITEM_TYPE_OFFSET(items[0], kText, 0u, 2u);
   EXPECT_TRUE(items[0]->IsSymbolMarker());
 }
 
@@ -452,9 +462,9 @@ TEST_F(InlineNodeTest, SegmentSplit3To4) {
 TEST_F(InlineNodeTest, SegmentBidiOverride) {
   InlineNodeForTest node = CreateInlineNode();
   node.Append("Hello ", layout_object_);
-  node.Append(kRightToLeftOverrideCharacter);
+  node.Append(uchar::kRightToLeftOverride);
   node.Append("ABC", layout_object_);
-  node.Append(kPopDirectionalFormattingCharacter);
+  node.Append(uchar::kPopDirectionalFormatting);
   node.SegmentText();
   InlineItems& items = node.Items();
   ASSERT_EQ(4u, items.size());
@@ -467,13 +477,13 @@ TEST_F(InlineNodeTest, SegmentBidiOverride) {
 static InlineNodeForTest CreateBidiIsolateNode(InlineNodeForTest node,
                                                LayoutObject* layout_object) {
   node.Append("Hello ", layout_object);
-  node.Append(kRightToLeftIsolateCharacter);
+  node.Append(uchar::kRightToLeftIsolate);
   node.Append(u"\u05E2\u05D1\u05E8\u05D9\u05EA ", layout_object);
-  node.Append(kLeftToRightIsolateCharacter);
+  node.Append(uchar::kLeftToRightIsolate);
   node.Append("A", layout_object);
-  node.Append(kPopDirectionalIsolateCharacter);
+  node.Append(uchar::kPopDirectionalIsolate);
   node.Append(u"\u05E2\u05D1\u05E8\u05D9\u05EA", layout_object);
-  node.Append(kPopDirectionalIsolateCharacter);
+  node.Append(uchar::kPopDirectionalIsolate);
   node.Append(" World", layout_object);
   node.SegmentText();
   return node;
@@ -1182,7 +1192,7 @@ TEST_F(InlineNodeTest, RemoveInlineNodeDataIfBlockBecomesEmpty2) {
   SetupHtml("container", "<div id=container><b><i>foo</i></b></div>");
   ASSERT_TRUE(layout_block_flow_->GetInlineNodeData());
 
-  GetElementById("container")->setInnerHTML("");
+  GetElementById("container")->SetInnerHTMLWithoutTrustedTypes("");
   UpdateAllLifecyclePhasesForTest();
 
   EXPECT_FALSE(layout_block_flow_->GetInlineNodeData());
@@ -1476,7 +1486,11 @@ TEST_F(InlineNodeTest, ReusingWithCollapsed) {
             "</div>");
   GetElementById("remove")->remove();
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(String(u"abc \uFFFCx"), GetText());
+  if (RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled()) {
+    EXPECT_EQ(String(u"abc x"), GetText());
+  } else {
+    EXPECT_EQ(String(u"abc \uFFFCx"), GetText());
+  }
 }
 
 // https://crbug.com/109654

@@ -6,10 +6,20 @@
 
 #include <string_view>
 
+#include "base/check_op.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/strings/strcat.h"
+#include "chrome/browser/on_device_translation/component_manager.h"
 
 namespace on_device_translation {
+
+LanguagePackRequirements::LanguagePackRequirements() = default;
+LanguagePackRequirements::~LanguagePackRequirements() = default;
+LanguagePackRequirements::LanguagePackRequirements(
+    LanguagePackRequirements&&) noexcept = default;
+LanguagePackRequirements& LanguagePackRequirements::operator=(
+    LanguagePackRequirements&&) noexcept = default;
+
 namespace {
 
 constexpr char kPrefNamePrefix[] =
@@ -24,7 +34,7 @@ static_assert(static_cast<unsigned>(SupportedLanguage::kMaxValue) ==
                   static_cast<unsigned>(LanguagePackKey::kMaxValue) + 1,
               "Missmatching SupportedLanguage size and LanguagePackKey size");
 
-// The supported languages for on-device translation.
+// Map from `SupportedLanguage` to the language code.
 inline constexpr auto kSupportedLanguageCodeMap = base::MakeFixedFlatMap<
     SupportedLanguage,
     std::string_view>(
@@ -102,24 +112,6 @@ LanguagePackKey LanguagePackKeyFromNonEnglishSupportedLanguage(
 
 }  // namespace
 
-bool IsPopularLanguage(SupportedLanguage supported_language) {
-  return supported_language == SupportedLanguage::kEn ||
-         supported_language == SupportedLanguage::kZh ||
-         supported_language == SupportedLanguage::kZhHant ||
-         supported_language == SupportedLanguage::kJa ||
-         supported_language == SupportedLanguage::kPt ||
-         supported_language == SupportedLanguage::kRu ||
-         supported_language == SupportedLanguage::kEs ||
-         supported_language == SupportedLanguage::kTr ||
-         supported_language == SupportedLanguage::kHi ||
-         supported_language == SupportedLanguage::kVi ||
-         supported_language == SupportedLanguage::kBn ||
-         supported_language == SupportedLanguage::kKn ||
-         supported_language == SupportedLanguage::kTa ||
-         supported_language == SupportedLanguage::kTe ||
-         supported_language == SupportedLanguage::kMr;
-}
-
 // Converts a SupportedLanguage to a language code.
 std::string_view ToLanguageCode(SupportedLanguage supported_language) {
   return kSupportedLanguageCodeMap.at(supported_language);
@@ -184,6 +176,31 @@ std::set<LanguagePackKey> CalculateRequiredLanguagePacks(
   }
   return {LanguagePackKeyFromNonEnglishSupportedLanguage(*source_lang_code),
           LanguagePackKeyFromNonEnglishSupportedLanguage(*target_lang_code)};
+}
+
+LanguagePackRequirements CalculateLanguagePackRequirements(
+    const std::string& source_lang,
+    const std::string& target_lang) {
+  LanguagePackRequirements language_pack_requirements;
+
+  // Calculate required language packs.
+  language_pack_requirements.required_packs =
+      CalculateRequiredLanguagePacks(source_lang, target_lang);
+
+  // Calculate required, not installed language packs.
+  const auto installed_packs = ComponentManager::GetInstalledLanguagePacks();
+  std::ranges::set_difference(
+      language_pack_requirements.required_packs, installed_packs,
+      std::back_inserter(
+          language_pack_requirements.required_not_installed_packs));
+
+  // Calculate to be registered language packs.
+  const auto registered_packs = ComponentManager::GetRegisteredLanguagePacks();
+  std::ranges::set_difference(
+      language_pack_requirements.required_not_installed_packs, registered_packs,
+      std::back_inserter(language_pack_requirements.to_be_registered_packs));
+
+  return language_pack_requirements;
 }
 
 std::string GetPackageInstallDirName(LanguagePackKey language_pack_key) {

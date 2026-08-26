@@ -97,7 +97,6 @@ ShoppingService* ShoppingServiceAndroid::GetShoppingService() {
 
 void ShoppingServiceAndroid::GetProductInfoForUrl(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& j_gurl,
     const JavaParamRef<jobject>& j_callback) {
   CHECK(shopping_service_);
@@ -113,7 +112,6 @@ void ShoppingServiceAndroid::GetProductInfoForUrl(
 ScopedJavaLocalRef<jobject>
 ShoppingServiceAndroid::GetAvailableProductInfoForUrl(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& j_gurl) {
   CHECK(shopping_service_);
 
@@ -165,7 +163,6 @@ void ShoppingServiceAndroid::HandleProductInfoCallback(
 
 void ShoppingServiceAndroid::GetMerchantInfoForUrl(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& j_gurl,
     const JavaParamRef<jobject>& j_callback) {
   CHECK(shopping_service_);
@@ -199,7 +196,6 @@ void ShoppingServiceAndroid::HandleMerchantInfoCallback(
 
 void ShoppingServiceAndroid::GetPriceInsightsInfoForUrl(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& j_gurl,
     const JavaParamRef<jobject>& j_callback) {
   CHECK(shopping_service_);
@@ -250,7 +246,6 @@ void ShoppingServiceAndroid::HandlePriceInsightsInfoCallback(
 
 void ShoppingServiceAndroid::GetDiscountInfoForUrl(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& j_gurl,
     const JavaParamRef<jobject>& j_callback) {
   CHECK(shopping_service_);
@@ -275,17 +270,27 @@ void ShoppingServiceAndroid::HandleDiscountInfoCallback(
       discount_info_array_obj);
 }
 
-void ShoppingServiceAndroid::FetchPriceEmailPref(
+void ShoppingServiceAndroid::GetAvailableDiscountInfoForUrl(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+    const JavaParamRef<jobject>& j_gurl,
+    const JavaParamRef<jobject>& j_callback) {
+  CHECK(shopping_service_);
+
+  GURL url = url::GURLAndroid::ToNativeGURL(env, j_gurl);
+
+  shopping_service_->GetAvailableDiscountInfoForUrl(
+      {url}, base::BindOnce(&ShoppingServiceAndroid::HandleDiscountInfoCallback,
+                            weak_ptr_factory_.GetWeakPtr(), env,
+                            ScopedJavaGlobalRef<jobject>(j_callback)));
+}
+
+void ShoppingServiceAndroid::FetchPriceEmailPref(JNIEnv* env) {
   CHECK(shopping_service_);
 
   shopping_service_->FetchPriceEmailPref();
 }
 
-void ShoppingServiceAndroid::ScheduleSavedProductUpdate(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+void ShoppingServiceAndroid::ScheduleSavedProductUpdate(JNIEnv* env) {
   CHECK(shopping_service_);
 
   shopping_service_->ScheduleSavedProductUpdate();
@@ -293,7 +298,6 @@ void ShoppingServiceAndroid::ScheduleSavedProductUpdate(
 
 void ShoppingServiceAndroid::Subscribe(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     jint j_type,
     jint j_id_type,
     jint j_management_type,
@@ -327,7 +331,6 @@ void ShoppingServiceAndroid::Subscribe(
 
 void ShoppingServiceAndroid::Unsubscribe(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     jint j_type,
     jint j_id_type,
     jint j_management_type,
@@ -351,7 +354,6 @@ void ShoppingServiceAndroid::Unsubscribe(
 
 void ShoppingServiceAndroid::IsSubscribed(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     jint j_type,
     jint j_id_type,
     jint j_management_type,
@@ -375,7 +377,6 @@ void ShoppingServiceAndroid::IsSubscribed(
 
 bool ShoppingServiceAndroid::IsSubscribedFromCache(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     jint j_type,
     jint j_id_type,
     jint j_management_type,
@@ -392,7 +393,6 @@ bool ShoppingServiceAndroid::IsSubscribedFromCache(
 
 void ShoppingServiceAndroid::GetAllPriceTrackedBookmarks(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& j_callback) {
   shopping_service_->GetAllPriceTrackedBookmarks(base::BindOnce(
       [](JNIEnv* env, const ScopedJavaGlobalRef<jobject>& callback,
@@ -421,35 +421,27 @@ void ShoppingServiceAndroid::OnUnsubscribe(const CommerceSubscription& sub,
                                      succeeded);
 }
 
-bool ShoppingServiceAndroid::IsShoppingListEligible(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+bool ShoppingServiceAndroid::IsShoppingListEligible(JNIEnv* env) {
   CHECK(shopping_service_);
 
   return shopping_service_->IsShoppingListEligible();
 }
 
-bool ShoppingServiceAndroid::IsMerchantViewerEnabled(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+bool ShoppingServiceAndroid::IsMerchantViewerEnabled(JNIEnv* env) {
   CHECK(shopping_service_);
 
   return commerce::IsMerchantViewerEnabled(
       shopping_service_->GetAccountChecker());
 }
 
-bool ShoppingServiceAndroid::IsPriceInsightsEligible(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+bool ShoppingServiceAndroid::IsPriceInsightsEligible(JNIEnv* env) {
   CHECK(shopping_service_);
 
   return commerce::IsPriceInsightsEligible(
       shopping_service_->GetAccountChecker());
 }
 
-bool ShoppingServiceAndroid::IsDiscountEligibleToShowOnNavigation(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+bool ShoppingServiceAndroid::IsDiscountEligibleToShowOnNavigation(JNIEnv* env) {
   CHECK(shopping_service_);
 
   return commerce::IsDiscountEligibleToShowOnNavigation(

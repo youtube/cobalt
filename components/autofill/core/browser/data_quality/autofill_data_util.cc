@@ -161,7 +161,7 @@ size_t StartsWithAny(std::u16string_view name,
   return 0;
 }
 
-// Returns true if |c| is a CJK (Chinese, Japanese, Korean) character, for any
+// Returns true if `c` is a CJK (Chinese, Japanese, Korean) character, for any
 // of the CJK alphabets.
 bool IsCJKCharacter(UChar32 c) {
   UErrorCode error = U_ZERO_ERROR;
@@ -177,15 +177,15 @@ bool IsCJKCharacter(UChar32 c) {
   }
 }
 
-// Returns true if |c| is a Korean Hangul character.
+// Returns true if `c` is a Korean Hangul character.
 bool IsHangulCharacter(UChar32 c) {
   UErrorCode error = U_ZERO_ERROR;
   return uscript_getScript(c, &error) == USCRIPT_HANGUL;
 }
 
-// Returns true if |name| looks like a Korean name, made up entirely of Hangul
-// characters or spaces. |name| should already be confirmed to be a CJK name, as
-// per |IsCJKName()|.
+// Returns true if `name` looks like a Korean name, made up entirely of Hangul
+// characters or spaces. `name` should already be confirmed to be a CJK name, as
+// per `IsCJKName()`.
 bool IsHangulName(std::u16string_view name) {
   for (base::i18n::UTF16CharIterator iter(name); !iter.end(); iter.Advance()) {
     UChar32 c = iter.get();
@@ -197,7 +197,7 @@ bool IsHangulName(std::u16string_view name) {
 }
 
 // Tries to split a Chinese, Japanese, or Korean name into its given name &
-// surname parts, and puts the result in |parts|. If splitting did not work for
+// surname parts, and puts the result in `parts`. If splitting did not work for
 // whatever reason, returns false.
 bool SplitCJKName(const std::vector<std::u16string_view>& name_tokens,
                   NameParts* parts) {
@@ -287,8 +287,9 @@ bool ContainsPhone(uint32_t groups) {
 uint32_t DetermineGroups(const FormStructure& form) {
   uint32_t group_bitmask = 0;
   for (const auto& field : form) {
-    FieldType type = field->Type().GetStorableType();
-    AddGroupToBitmask(&group_bitmask, type);
+    for (FieldType type : field->Type().GetTypes()) {
+      AddGroupToBitmask(&group_bitmask, type);
+    }
   }
   return group_bitmask;
 }
@@ -333,10 +334,9 @@ std::string GetSuffixForProfileFormType(uint32_t bitmask) {
   }
 }
 
-std::string TruncateUTF8(const std::string& data) {
-  std::string trimmed_value;
-  base::TruncateUTF8ToByteSize(data, kMaxDataLengthForDatabase, &trimmed_value);
-  return trimmed_value;
+std::string TruncateUTF8(std::string_view data) {
+  return std::string(
+      base::TruncateUTF8ToByteSize(data, kMaxDataLengthForDatabase));
 }
 
 bool IsCreditCardExpirationType(FieldType type) {
@@ -377,6 +377,22 @@ bool IsCJKName(std::u16string_view name) {
     previous_was_cjk = is_cjk;
   }
   return word_count > 0 && word_count < 3;
+}
+
+bool HasKatakanaCharacter(std::u16string_view text) {
+  UErrorCode error = U_ZERO_ERROR;
+  for (base::i18n::UTF16CharIterator iter(text); !iter.end(); iter.Advance()) {
+    UScriptCode character = uscript_getScript(iter.get(), &error);
+    if (U_FAILURE(error)) {
+      DLOG(ERROR) << "uscript_getScript failed, error code: "
+                  << u_errorName(error);
+      return false;
+    }
+    if (character == USCRIPT_KATAKANA) {
+      return true;
+    }
+  }
+  return false;
 }
 
 NameParts SplitName(std::u16string_view name) {
@@ -475,7 +491,7 @@ std::u16string JoinNameParts(std::u16string_view given,
 }
 
 const PaymentRequestData& GetPaymentRequestData(
-    const std::string& issuer_network) {
+    std::string_view issuer_network) {
   for (const PaymentRequestData& data : kPaymentRequestData) {
     if (issuer_network == data.issuer_network) {
       return data;
@@ -485,7 +501,7 @@ const PaymentRequestData& GetPaymentRequestData(
 }
 
 const char* GetIssuerNetworkForBasicCardIssuerNetwork(
-    const std::string& basic_card_issuer_network) {
+    std::string_view basic_card_issuer_network) {
   for (const PaymentRequestData& data : kPaymentRequestData) {
     if (basic_card_issuer_network == data.basic_card_issuer_network) {
       return data.issuer_network;
@@ -494,25 +510,24 @@ const char* GetIssuerNetworkForBasicCardIssuerNetwork(
   return kGenericPaymentRequestData.issuer_network;
 }
 
-bool IsValidBasicCardIssuerNetwork(
-    const std::string& basic_card_issuer_network) {
+bool IsValidBasicCardIssuerNetwork(std::string_view basic_card_issuer_network) {
   return base::Contains(kPaymentRequestData, basic_card_issuer_network,
                         &PaymentRequestData::basic_card_issuer_network);
 }
 
-bool IsValidCountryCode(const std::string& country_code) {
+bool IsValidCountryCode(std::string_view country_code) {
   if (country_code.size() != 2) {
     return false;
   }
   return std::ranges::all_of(country_code, base::IsAsciiUpper<char>);
 }
 
-bool IsValidCountryCode(const std::u16string& country_code) {
+bool IsValidCountryCode(std::u16string_view country_code) {
   return IsValidCountryCode(base::UTF16ToUTF8(country_code));
 }
 
 std::string GetCountryCodeWithFallback(const autofill::AutofillProfile& profile,
-                                       const std::string& app_locale) {
+                                       std::string_view app_locale) {
   std::string country_code =
       base::UTF16ToUTF8(profile.GetRawInfo(autofill::ADDRESS_HOME_COUNTRY));
   if (!IsValidCountryCode(country_code)) {

@@ -6,7 +6,6 @@
 
 namespace set_up_list {
 
-constexpr NSString* const kSignInItemID = @"set_up_list::kSignInItemID";
 constexpr NSString* const kDefaultBrowserItemID =
     @"set_up_list::kDefaultBrowserItemID";
 constexpr NSString* const kAutofillItemID = @"set_up_list::kAutofillItemID";
@@ -21,6 +20,3 @@ constexpr NSString* const kAllSetID = @"set_up_list::kAllSetID";
 constexpr NSString* const kSetUpListContainerID = @"kSetUpListContainerID";
 
 }  // namespace set_up_list
-
-const char kSetUpListDefaultBrowserPromoAction[] =
-    "IOS.SetUpList.DefaultBrowserPromo.Action";

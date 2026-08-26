@@ -28,10 +28,8 @@
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/events/simulated_click_options.h"
 #include "third_party/blink/renderer/core/svg/animation/smil_time_container.h"
-#include "third_party/blink/renderer/core/svg/properties/svg_property_info.h"
 #include "third_party/blink/renderer/core/svg/svg_parsing_error.h"
 #include "third_party/blink/renderer/core/svg_names.h"
-#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -74,7 +72,6 @@ class CORE_EXPORT SVGElement : public Element {
   }
 
   String title() const override;
-  static bool IsAnimatableCSSProperty(const QualifiedName&);
 
   bool HasMotionTransform() const { return HasSVGRareData(); }
   // Apply any "motion transform" contribution (if existing.)
@@ -132,8 +129,6 @@ class CORE_EXPORT SVGElement : public Element {
 
   virtual SVGAnimatedPropertyBase* PropertyFromAttribute(
       const QualifiedName& attribute_name) const;
-  static AnimatedPropertyType AnimatedPropertyTypeForCSSAttribute(
-      const QualifiedName& attribute_name);
 
   void SendSVGLoadEventToSelfAndAncestorChainIfPossible();
   bool SendSVGLoadEventIfPossible();
@@ -284,6 +279,9 @@ class CORE_EXPORT SVGElement : public Element {
 
   SMILTimeContainer* GetTimeContainer() const;
 
+  void SynchronizeAttributeInShadowInstances(const QualifiedName& name,
+                                             const AtomicString& value);
+
   Member<SVGElementRareData> svg_rare_data_;
   Member<SVGAnimatedString> class_name_;
 };
@@ -321,7 +319,7 @@ struct SVGAttributeHashTranslator {
                                             key.NamespaceURI().Impl()};
       return HashComponents(components);
     }
-    return WTF::GetHash(key);
+    return blink::GetHash(key);
   }
   static bool Equal(const QualifiedName& a, const QualifiedName& b) {
     return a.Matches(b);

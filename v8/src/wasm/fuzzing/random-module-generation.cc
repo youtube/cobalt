@@ -1067,7 +1067,13 @@ class BodyGen {
 
   template <ValueKind wanted_kind>
   void call(DataRange* data) {
-    call(data, ValueType::Primitive(wanted_kind), kCallDirect);
+    bool use_imported_call = module_imports_ != nullptr &&
+                             !module_imports_->empty() && data->get<bool>();
+    if (use_imported_call) {
+      call_import(data, ValueType::Primitive(wanted_kind));
+    } else {
+      call(data, ValueType::Primitive(wanted_kind), kCallDirect);
+    }
   }
 
   template <ValueKind wanted_kind>
@@ -1121,6 +1127,43 @@ class BodyGen {
     FATAL("No funcref table found; table index 0 is expected to be funcref");
   }
 
+  void call_import(DataRange* data, ValueType wanted_kind) {
+    if (module_imports_ == nullptr || module_imports_->empty()) {
+      FATAL("Cannot call random imported function without module imports.");
+    }
+    uint8_t random_byte = data->get<uint8_t>();
+    int func_index = random_byte % module_imports_->size();
+    const ExportData& export_data = (*module_imports_)[func_index];
+    const FunctionSig* sig = export_data.sig;
+    // Generate arguments.
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      Generate(sig->GetParam(i), data);
+    }
+    // Emit call.
+    // If the return types of the callee happen to match the return types of the
+    // caller, generate a tail call.
+    bool use_return_call = random_byte > 127;
+    if (use_return_call && sig->returns() == builder_->signature()->returns()) {
+      builder_->EmitWithU32V(kExprReturnCall, export_data.index);
+    } else {
+      builder_->EmitWithU32V(kExprCallFunction, export_data.index);
+    }
+    if (sig->return_count() == 0 && wanted_kind != kWasmVoid) {
+      // The call did not generate a value. Thus just generate it here.
+      Generate(wanted_kind, data);
+      return;
+    }
+    if (wanted_kind == kWasmVoid) {
+      // The call did generate values, but we did not want one.
+      for (size_t i = 0; i < sig->return_count(); ++i) {
+        builder_->Emit(kExprDrop);
+      }
+      return;
+    }
+    auto wanted_types = base::VectorOf(&wanted_kind, 1);
+    ConsumeAndGenerate(sig->returns(), wanted_types, data);
+  }
+
   void call(DataRange* data, ValueType wanted_kind, CallKind call_kind) {
     uint8_t random_byte = data->get<uint8_t>();
     int func_index = random_byte % functions_.size();
@@ -1134,10 +1177,7 @@ class BodyGen {
     // If the return types of the callee happen to match the return types of the
     // caller, generate a tail call.
     bool use_return_call = random_byte > 127;
-    if (use_return_call &&
-        std::equal(sig->returns().begin(), sig->returns().end(),
-                   builder_->signature()->returns().begin(),
-                   builder_->signature()->returns().end())) {
+    if (use_return_call && sig->returns() == builder_->signature()->returns()) {
       if (call_kind == kCallDirect) {
         builder_->EmitWithU32V(kExprReturnCall,
                                NumImportedFunctions() + func_index);
@@ -1189,8 +1229,7 @@ class BodyGen {
       }
       return;
     }
-    auto wanted_types =
-        base::VectorOf(&wanted_kind, wanted_kind == kWasmVoid ? 0 : 1);
+    auto wanted_types = base::VectorOf(&wanted_kind, 1);
     ConsumeAndGenerate(sig->returns(), wanted_types, data);
   }
 
@@ -1436,16 +1475,27 @@ class BodyGen {
           struct_gen->fields().begin(), struct_gen->fields().end(),
           [](ValueType type) -> bool { return type.is_defaultable(); });
 
+      WasmOpcode opcode;
       if (new_default && can_be_defaultable) {
-        builder_->EmitWithPrefix(kExprStructNewDefault);
-        builder_->EmitU32V(index);
+        opcode = kExprStructNewDefault;
       } else {
+        opcode = kExprStructNew;
         for (int i = 0; i < field_count; i++) {
           Generate(struct_gen->field(i).Unpacked(), data);
         }
-        builder_->EmitWithPrefix(kExprStructNew);
-        builder_->EmitU32V(index);
       }
+      {
+        const TypeDefinition& struct_def =
+            builder_->builder()->GetType_Unsafe(index);
+        if (struct_def.has_descriptor()) {
+          GenerateRef(HeapType::Index(struct_def.descriptor, false,
+                                      RefTypeKind::kStruct)
+                          .AsExact(),
+                      data, kNonNullable);
+        }
+      }
+      builder_->EmitWithPrefix(opcode);
+      builder_->EmitU32V(index);
     } else if (builder_->builder()->IsArrayType(index)) {
       ValueType element_type =
           builder_->builder()->GetArrayType(index)->element_type();
@@ -1662,37 +1712,53 @@ class BodyGen {
     builder_->EmitU32V(table[second_index]);
   }
 
-  bool array_get_helper(ValueType value_type, DataRange* data) {
+  std::optional<ModuleTypeIndex> find_suitable_array(ValueType value_type,
+                                                     bool allow_packed,
+                                                     DataRange* data) {
     WasmModuleBuilder* builder = builder_->builder();
     ZoneVector<ModuleTypeIndex> array_indices(builder->zone());
 
     for (ModuleTypeIndex i : arrays_) {
       DCHECK(builder->IsArrayType(i));
-      if (builder->GetArrayType(i)->element_type().Unpacked() == value_type) {
+      ValueType result_type =
+          allow_packed ? builder->GetArrayType(i)->element_type().Unpacked()
+                       : builder->GetArrayType(i)->element_type();
+      if (result_type == value_type) {
         array_indices.push_back(i);
       }
     }
 
-    if (!array_indices.empty()) {
-      int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
-      GenerateRef(HeapType::Index(array_indices[index], kNotShared,
-                                  RefTypeKind::kArray),
-                  data, kNullable);
-      Generate(kWasmI32, data);
-      if (builder->GetArrayType(array_indices[index])
-              ->element_type()
-              .is_packed()) {
-        builder_->EmitWithPrefix(data->get<bool>() ? kExprArrayGetS
-                                                   : kExprArrayGetU);
-
-      } else {
-        builder_->EmitWithPrefix(kExprArrayGet);
-      }
-      builder_->EmitU32V(array_indices[index]);
-      return true;
+    if (array_indices.empty()) {
+      return std::nullopt;
     }
 
-    return false;
+    int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
+    return array_indices[index];
+  }
+
+  bool array_get_helper(ValueType value_type, DataRange* data) {
+    WasmModuleBuilder* builder = builder_->builder();
+
+    std::optional<ModuleTypeIndex> matching_array =
+        find_suitable_array(value_type, true, data);
+    if (!matching_array) {
+      return false;
+    }
+
+    ModuleTypeIndex array_index = *matching_array;
+
+    GenerateRef(HeapType::Index(array_index, kNotShared, RefTypeKind::kArray),
+                data, kNullable);
+    Generate(kWasmI32, data);
+    if (builder->GetArrayType(array_index)->element_type().is_packed()) {
+      builder_->EmitWithPrefix(data->get<bool>() ? kExprArrayGetS
+                                                 : kExprArrayGetU);
+
+    } else {
+      builder_->EmitWithPrefix(kExprArrayGet);
+    }
+    builder_->EmitU32V(array_index);
+    return true;
   }
 
   template <ValueKind wanted_kind>
@@ -1706,6 +1772,115 @@ class BodyGen {
   bool array_get_ref(HeapType type, DataRange* data, Nullability nullable) {
     ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
     return array_get_helper(needed_type, data);
+  }
+
+  bool array_atomic_get_helper(ValueType value_type, DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return false;
+    }
+
+    WasmModuleBuilder* builder = builder_->builder();
+
+    std::optional<ModuleTypeIndex> matching_array =
+        find_suitable_array(value_type, true, data);
+    if (!matching_array) {
+      return false;
+    }
+
+    ModuleTypeIndex array_index = *matching_array;
+
+    GenerateRef(HeapType::Index(array_index, kNotShared, RefTypeKind::kArray),
+                data, kNullable);
+    Generate(kWasmI32, data);
+    if (builder->GetArrayType(array_index)->element_type().is_packed()) {
+      builder_->EmitWithPrefix(data->get<bool>() ? kExprArrayAtomicGetS
+                                                 : kExprArrayAtomicGetU);
+
+    } else {
+      builder_->EmitWithPrefix(kExprArrayAtomicGet);
+    }
+    builder_->EmitByte(data->get<bool>() ? kAtomicSeqCst : kAtomicAcqRel);
+    builder_->EmitU32V(array_index);
+    return true;
+  }
+
+  template <ValueKind wanted_kind>
+  void array_atomic_get(DataRange* data) {
+    bool got_array_value =
+        array_atomic_get_helper(ValueType::Primitive(wanted_kind), data);
+    if (!got_array_value) {
+      Generate<wanted_kind>(data);
+    }
+  }
+
+  bool array_atomic_get_ref(HeapType type, DataRange* data,
+                            Nullability nullable) {
+    if (top_type(type) != kWasmAnyRef) {
+      // array.atomic.get is only valid on subtypes of anyref.
+      return false;
+    }
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
+    return array_atomic_get_helper(needed_type, data);
+  }
+
+  bool array_atomic_rmw_helper(WasmOpcode opcode, ValueType value_type,
+                               DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return false;
+    }
+
+    std::optional<ModuleTypeIndex> matching_array =
+        find_suitable_array(value_type, false, data);
+    if (!matching_array) {
+      return false;
+    }
+
+    ModuleTypeIndex array_index = *matching_array;
+    GenerateRef(HeapType::Index(array_index, kNotShared, RefTypeKind::kArray),
+                data, kNullable);
+    Generate(kWasmI32, data);
+    Generate(value_type, data);
+    if (opcode == kExprArrayAtomicCompareExchange) {
+      Generate(value_type, data);
+    }
+
+    builder_->EmitWithPrefix(opcode);
+    builder_->EmitByte(data->get<bool>() ? kAtomicSeqCst : kAtomicAcqRel);
+    builder_->EmitU32V(array_index);
+
+    return true;
+  }
+
+  template <WasmOpcode opcode, ValueKind wanted_kind>
+  void array_atomic_rmw_op(DataRange* data) {
+    bool got_value = array_atomic_rmw_helper(
+        opcode, ValueType::Primitive(wanted_kind), data);
+    if (!got_value) {
+      Generate<wanted_kind>(data);
+    }
+  }
+
+  bool array_atomic_rmw_xchg_ref(HeapType type, DataRange* data,
+                                 Nullability nullable) {
+    if (top_type(type) != kWasmAnyRef) {
+      // array.atomic.rmw.xchg is only valid on subtypes of anyref.
+      return false;
+    }
+
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
+    return array_atomic_rmw_helper(kExprArrayAtomicExchange, needed_type, data);
+  }
+
+  bool array_atomic_rmw_cmpxchg_ref(HeapType type, DataRange* data,
+                                    Nullability nullable) {
+    if (top_type(type) != kWasmEqRef) {
+      // array.atomic.rmw.cmpxchg is only valid on subtypes of eqref.
+      return false;
+    }
+
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
+    return array_atomic_rmw_helper(kExprArrayAtomicCompareExchange, needed_type,
+                                   data);
   }
 
   void i31_get(DataRange* data) {
@@ -1845,39 +2020,110 @@ class BodyGen {
     builder_->EmitU32V(array_indices[index]);
   }
 
-  bool struct_get_helper(ValueType value_type, DataRange* data) {
+  void array_atomic_set(DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return;
+    }
+
     WasmModuleBuilder* builder = builder_->builder();
-    ZoneVector<uint32_t> field_index(builder->zone());
-    ZoneVector<ModuleTypeIndex> struct_index(builder->zone());
-    for (ModuleTypeIndex i : structs_) {
-      DCHECK(builder->IsStructType(i));
-      int field_count = builder->GetStructType(i)->field_count();
-      for (int index = 0; index < field_count; index++) {
-        // TODO(14034): This should be a subtype check!
-        if (builder->GetStructType(i)->field(index) == value_type) {
-          field_index.push_back(index);
-          struct_index.push_back(i);
+    ZoneVector<ModuleTypeIndex> array_indices(builder->zone());
+    for (ModuleTypeIndex i : arrays_) {
+      DCHECK(builder->IsArrayType(i));
+      const ArrayType* type = builder->GetArrayType(i);
+      ValueType element_type = type->element_type();
+      if (type->mutability()) {
+        switch (element_type.kind()) {
+          case kI8:
+          case kI16:
+          case kI32:
+          case kI64:
+            array_indices.push_back(i);
+            break;
+          case kRef:
+          case kRefNull:
+            if (top_type(element_type.heap_type()) == kWasmAnyRef) {
+              array_indices.push_back(i);
+            }
+            break;
+          default:
+            break;
         }
       }
     }
-    if (!field_index.empty()) {
-      int index = data->get<uint8_t>() % static_cast<int>(field_index.size());
-      GenerateRef(HeapType::Index(struct_index[index], kNotShared,
-                                  RefTypeKind::kStruct),
-                  data, kNullable);
-      if (builder->GetStructType(struct_index[index])
-              ->field(field_index[index])
-              .is_packed()) {
-        builder_->EmitWithPrefix(data->get<bool>() ? kExprStructGetS
-                                                   : kExprStructGetU);
-      } else {
-        builder_->EmitWithPrefix(kExprStructGet);
-      }
-      builder_->EmitU32V(struct_index[index]);
-      builder_->EmitU32V(field_index[index]);
-      return true;
+
+    if (array_indices.empty()) {
+      return;
     }
-    return false;
+
+    int index = data->get<uint8_t>() % static_cast<int>(array_indices.size());
+    GenerateRef(
+        HeapType::Index(array_indices[index], kNotShared, RefTypeKind::kArray),
+        data);
+    Generate(kWasmI32, data);
+    Generate(
+        builder->GetArrayType(array_indices[index])->element_type().Unpacked(),
+        data);
+    builder_->EmitWithPrefix(kExprArrayAtomicSet);
+    builder_->EmitByte(data->get<bool>() ? kAtomicSeqCst : kAtomicAcqRel);
+    builder_->EmitU32V(array_indices[index]);
+  }
+
+  std::optional<std::pair<ModuleTypeIndex, uint32_t>>
+  find_suitable_struct_and_field(ValueType value_type, bool require_mutable,
+                                 DataRange* data) {
+    WasmModuleBuilder* builder = builder_->builder();
+
+    ZoneVector<std::pair<ModuleTypeIndex, uint32_t>> matching_fields(
+        builder->zone());
+
+    for (ModuleTypeIndex i : structs_) {
+      DCHECK(builder->IsStructType(i));
+      const StructType* struct_type = builder->GetStructType(i);
+      int field_count = struct_type->field_count();
+      for (int index = 0; index < field_count; index++) {
+        // TODO(14034): This should be a subtype check!
+        if (struct_type->field(index) != value_type) {
+          continue;
+        }
+
+        if (require_mutable && !struct_type->mutability(index)) {
+          continue;
+        }
+
+        matching_fields.emplace_back(i, index);
+      }
+    }
+
+    if (matching_fields.empty()) {
+      return std::nullopt;
+    }
+
+    int index = data->get<uint8_t>() % static_cast<int>(matching_fields.size());
+    return matching_fields[index];
+  }
+
+  bool struct_get_helper(ValueType value_type, DataRange* data) {
+    WasmModuleBuilder* builder = builder_->builder();
+
+    std::optional<std::pair<ModuleTypeIndex, uint32_t>> field =
+        find_suitable_struct_and_field(value_type, false, data);
+
+    if (!field) {
+      return false;
+    }
+
+    const auto& [struct_index, field_index] = *field;
+    GenerateRef(HeapType::Index(struct_index, kNotShared, RefTypeKind::kStruct),
+                data, kNullable);
+    if (builder->GetStructType(struct_index)->field(field_index).is_packed()) {
+      builder_->EmitWithPrefix(data->get<bool>() ? kExprStructGetS
+                                                 : kExprStructGetU);
+    } else {
+      builder_->EmitWithPrefix(kExprStructGet);
+    }
+    builder_->EmitU32V(struct_index);
+    builder_->EmitU32V(field_index);
+    return true;
   }
 
   template <ValueKind wanted_kind>
@@ -1894,12 +2140,155 @@ class BodyGen {
     return struct_get_helper(needed_type, data);
   }
 
+  bool struct_atomic_get_helper(ValueType value_type, DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return false;
+    }
+
+    WasmModuleBuilder* builder = builder_->builder();
+
+    std::optional<std::pair<ModuleTypeIndex, uint32_t>> field =
+        find_suitable_struct_and_field(value_type, false, data);
+
+    if (!field) {
+      return false;
+    }
+
+    const auto& [struct_index, field_index] = *field;
+    GenerateRef(HeapType::Index(struct_index, kNotShared, RefTypeKind::kStruct),
+                data, kNullable);
+    if (builder->GetStructType(struct_index)->field(field_index).is_packed()) {
+      builder_->EmitWithPrefix(data->get<bool>() ? kExprStructAtomicGetS
+                                                 : kExprStructAtomicGetU);
+    } else {
+      builder_->EmitWithPrefix(kExprStructAtomicGet);
+    }
+    builder_->EmitByte(data->get<bool>() ? kAtomicSeqCst : kAtomicAcqRel);
+    builder_->EmitU32V(struct_index);
+    builder_->EmitU32V(field_index);
+    return true;
+  }
+
+  template <ValueKind wanted_kind>
+  void struct_atomic_get(DataRange* data) {
+    bool got_struct_value =
+        struct_atomic_get_helper(ValueType::Primitive(wanted_kind), data);
+    if (!got_struct_value) {
+      Generate<wanted_kind>(data);
+    }
+  }
+
+  bool struct_atomic_get_ref(HeapType type, DataRange* data,
+                             Nullability nullable) {
+    if (top_type(type) != kWasmAnyRef) {
+      // struct.atomic.get is only valid on subtypes of anyref.
+      return false;
+    }
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
+    return struct_atomic_get_helper(needed_type, data);
+  }
+
+  bool struct_atomic_rmw_helper(WasmOpcode opcode, ValueType value_type,
+                                DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return false;
+    }
+    std::optional<std::pair<ModuleTypeIndex, uint32_t>> field =
+        find_suitable_struct_and_field(value_type, true, data);
+
+    if (!field) {
+      return false;
+    }
+
+    const auto& [struct_index, field_index] = *field;
+    GenerateRef(HeapType::Index(struct_index, kNotShared, RefTypeKind::kStruct),
+                data, kNullable);
+    Generate(value_type, data);
+    if (opcode == kExprStructAtomicCompareExchange) {
+      Generate(value_type, data);
+    }
+    builder_->EmitWithPrefix(opcode);
+    builder_->EmitByte(data->get<bool>() ? kAtomicSeqCst : kAtomicAcqRel);
+    builder_->EmitU32V(struct_index);
+    builder_->EmitU32V(field_index);
+    return true;
+  }
+
+  template <WasmOpcode opcode, ValueKind wanted_kind>
+  void struct_atomic_rmw_op(DataRange* data) {
+    bool got_value = struct_atomic_rmw_helper(
+        opcode, ValueType::Primitive(wanted_kind), data);
+    if (!got_value) {
+      Generate<wanted_kind>(data);
+    }
+  }
+
+  bool struct_atomic_rmw_xchg_ref(HeapType type, DataRange* data,
+                                  Nullability nullable) {
+    if (top_type(type) != kWasmAnyRef) {
+      // struct.atomic.rmw.xchg is only valid on subtypes of anyref.
+      return false;
+    }
+
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
+    return struct_atomic_rmw_helper(kExprStructAtomicExchange, needed_type,
+                                    data);
+  }
+
+  bool struct_atomic_rmw_cmpxchg_ref(HeapType type, DataRange* data,
+                                     Nullability nullable) {
+    if (top_type(type) != kWasmEqRef) {
+      // struct.atomic.rmw.cmpxchg is only valid on subtypes of eqref.
+      return false;
+    }
+
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
+    return struct_atomic_rmw_helper(kExprStructAtomicCompareExchange,
+                                    needed_type, data);
+  }
+
   bool ref_cast(HeapType type, DataRange* data, Nullability nullable) {
     HeapType input_type = top_type(type);
     GenerateRef(input_type, data);
     builder_->EmitWithPrefix(nullable ? kExprRefCastNull : kExprRefCast);
     builder_->EmitHeapType(type);
     return true;  // It always produces the desired result type.
+  }
+
+  bool ref_cast_desc(HeapType type, DataRange* data, Nullability nullable) {
+    if (!builder_->builder()
+             ->GetType_Unsafe(type.ref_index())
+             .has_descriptor()) {
+      return false;
+    }
+    HeapType input_type = top_type(type);
+    GenerateRef(input_type, data);
+    HeapType desc_type =
+        HeapType::Index(
+            builder_->builder()->GetType_Unsafe(type.ref_index()).descriptor,
+            false, RefTypeKind::kStruct)
+            .AsExact(type.exactness());
+    GenerateRef(desc_type, data, kNonNullable);
+    builder_->EmitWithPrefix(nullable ? kExprRefCastDescNull
+                                      : kExprRefCastDesc);
+    builder_->EmitHeapType(type);
+    return true;
+  }
+
+  bool ref_get_desc(HeapType type, DataRange* data, Nullability nullable) {
+    HeapType source;
+    {
+      const TypeDefinition& target_def =
+          builder_->builder()->GetType_Unsafe(type.ref_index());
+      if (!target_def.is_descriptor()) return false;
+      source =
+          HeapType::Index(target_def.describes, false, RefTypeKind::kStruct)
+              .AsExact(type.exactness());
+    }
+    GenerateRef(source, data);
+    builder_->EmitWithPrefix(kExprRefGetDesc);
+    builder_->EmitU32V(source.ref_index());
+    return true;
   }
 
   HeapType top_type(HeapType type) {
@@ -2056,52 +2445,59 @@ class BodyGen {
     }
 
     Generate(break_types.SubVector(0, break_types.size() - 1), data);
-    if (data->get<bool>()) {
-      // br_on_cast
-      HeapType source_type = top_type(break_type.heap_type());
-      const bool source_is_nullable = data->get<bool>();
-      GenerateRef(source_type, data,
-                  source_is_nullable ? kNullable : kNonNullable);
-      const bool target_is_nullable =
-          source_is_nullable && break_type.is_nullable() && data->get<bool>();
-      builder_->EmitWithPrefix(kExprBrOnCast);
-      builder_->EmitU32V(source_is_nullable + (target_is_nullable << 1));
-      builder_->EmitU32V(block_index);
-      builder_->EmitHeapType(source_type);             // source type
-      builder_->EmitHeapType(break_type.heap_type());  // target type
+    uint8_t config = data->get<uint8_t>();
+    bool br_on_success = config & 1;
+    bool use_descriptor = config & 2;
+    bool source_is_nullable = config & 4;
+    bool target_is_nullable = config & 8;
+
+    WasmOpcode opcode;
+    HeapType source_type;
+    HeapType target_type;
+    base::SmallVector<ValueType, 32> fallthrough_types(break_types);
+    if (br_on_success) {
+      opcode = kExprBrOnCast;
+      source_type = top_type(break_type.heap_type());
+      target_type = break_type.heap_type();
+      target_is_nullable =
+          source_is_nullable && break_type.is_nullable() && target_is_nullable;
       // Fallthrough: The type has been up-cast to the source type of the
       // br_on_cast instruction! (If the type on the stack was more specific,
       // this loses type information.)
-      base::SmallVector<ValueType, 32> fallthrough_types(break_types);
       fallthrough_types.back() = ValueType::RefMaybeNull(
           source_type, source_is_nullable ? kNullable : kNonNullable);
-      ConsumeAndGenerate(base::VectorOf(fallthrough_types), {}, data);
-      // Generate the actually desired ref type.
-      GenerateRef(type, data, nullable);
     } else {
-      // br_on_cast_fail
-      HeapType source_type = break_type.heap_type();
-      const bool source_is_nullable = data->get<bool>();
-      GenerateRef(source_type, data,
-                  source_is_nullable ? kNullable : kNonNullable);
-      const bool target_is_nullable =
-          source_is_nullable &&
-          (!break_type.is_nullable() || data->get<bool>());
-      HeapType target_type = choose_sub_type(source_type, data);
-
-      builder_->EmitWithPrefix(kExprBrOnCastFail);
-      builder_->EmitU32V(source_is_nullable + (target_is_nullable << 1));
-      builder_->EmitU32V(block_index);
-      builder_->EmitHeapType(source_type);
-      builder_->EmitHeapType(target_type);
+      opcode = kExprBrOnCastFail;
+      source_type = break_type.heap_type();
+      target_is_nullable = source_is_nullable &&
+                           (!break_type.is_nullable() || target_is_nullable);
+      target_type = choose_sub_type(source_type, data);
       // Fallthrough: The type has been cast to the target type.
-      base::SmallVector<ValueType, 32> fallthrough_types(break_types);
       fallthrough_types.back() = ValueType::RefMaybeNull(
           target_type, target_is_nullable ? kNullable : kNonNullable);
-      ConsumeAndGenerate(base::VectorOf(fallthrough_types), {}, data);
-      // Generate the actually desired ref type.
-      GenerateRef(type, data, nullable);
     }
+    GenerateRef(source_type, data,
+                source_is_nullable ? kNullable : kNonNullable);
+    if (use_descriptor && target_type.has_index()) {
+      const TypeDefinition& target_type_def =
+          builder_->builder()->GetType_Unsafe(target_type.ref_index());
+      if (target_type_def.has_descriptor()) {
+        HeapType desc_type = HeapType::Index(target_type_def.descriptor, false,
+                                             RefTypeKind::kStruct)
+                                 .AsExact(target_type.exactness());
+        GenerateRef(desc_type, data, kNonNullable);
+        if (opcode == kExprBrOnCast) opcode = kExprBrOnCastDesc;
+        if (opcode == kExprBrOnCastFail) opcode = kExprBrOnCastDescFail;
+      }
+    }
+    builder_->EmitWithPrefix(opcode);
+    builder_->EmitU32V(source_is_nullable + (target_is_nullable << 1));
+    builder_->EmitU32V(block_index);
+    builder_->EmitHeapType(source_type);
+    builder_->EmitHeapType(target_type);
+    ConsumeAndGenerate(base::VectorOf(fallthrough_types), {}, data);
+    // Generate the actually desired ref type.
+    GenerateRef(type, data, nullable);
     return true;
   }
 
@@ -2146,6 +2542,53 @@ class BodyGen {
                 data);
     Generate(struct_type->field(field_index).Unpacked(), data);
     builder_->EmitWithPrefix(kExprStructSet);
+    builder_->EmitU32V(struct_index);
+    builder_->EmitU32V(field_index);
+  }
+
+  void struct_atomic_set(DataRange* data) {
+    if (!v8_flags.experimental_wasm_shared) {
+      return;
+    }
+
+    WasmModuleBuilder* builder = builder_->builder();
+    DCHECK_NE(0, structs_.size());  // We always emit at least one struct type.
+    ModuleTypeIndex struct_index =
+        structs_[data->get<uint8_t>() % structs_.size()];
+    DCHECK(builder->IsStructType(struct_index));
+    const StructType* struct_type = builder->GetStructType(struct_index);
+    ZoneVector<uint32_t> field_indices(builder->zone());
+    for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+      if (struct_type->mutability(i)) {
+        ValueType field_type = struct_type->field(i);
+        switch (field_type.kind()) {
+          case kI8:
+          case kI16:
+          case kI32:
+          case kI64: {
+            field_indices.push_back(i);
+          } break;
+          case kRef:
+          case kRefNull: {
+            if (top_type(field_type.heap_type()) == kWasmAnyRef) {
+              field_indices.push_back(i);
+            }
+          } break;
+          default: {
+          }
+        }
+      }
+    }
+    if (field_indices.empty()) {
+      return;
+    }
+    int field_index =
+        field_indices[data->get<uint8_t>() % field_indices.size()];
+    GenerateRef(HeapType::Index(struct_index, kNotShared, RefTypeKind::kStruct),
+                data);
+    Generate(struct_type->field(field_index).Unpacked(), data);
+    builder_->EmitWithPrefix(kExprStructAtomicSet);
+    builder_->EmitByte(data->get<bool>() ? kAtomicSeqCst : kAtomicAcqRel);
     builder_->EmitU32V(struct_index);
     builder_->EmitU32V(field_index);
   }
@@ -2373,7 +2816,8 @@ class BodyGen {
           const std::vector<uint8_t>& mutable_globals,
           const std::vector<ModuleTypeIndex>& structs,
           const std::vector<ModuleTypeIndex>& arrays,
-          const StringImports& strings, DataRange* data)
+          const StringImports& strings, std::vector<ExportData>* module_imports,
+          DataRange* data)
       : options_(options),
         builder_(fn),
         functions_(functions),
@@ -2381,7 +2825,8 @@ class BodyGen {
         mutable_globals_(mutable_globals),
         structs_(structs),
         arrays_(arrays),
-        string_imports_(strings) {
+        string_imports_(strings),
+        module_imports_(module_imports) {
     const FunctionSig* sig = fn->signature();
     blocks_.emplace_back();
     for (size_t i = 0; i < sig->return_count(); ++i) {
@@ -2485,11 +2930,13 @@ class BodyGen {
                     &BodyGen::simd_lane_memop<kExprS128Store64Lane, 2, kS128>);
 
     static constexpr auto kWasmGCAlternatives =
-        CreateArray(&BodyGen::struct_set,       //
-                    &BodyGen::array_set,        //
-                    &BodyGen::array_copy,       //
-                    &BodyGen::array_fill,       //
-                    &BodyGen::array_init_data,  //
+        CreateArray(&BodyGen::struct_set,         //
+                    &BodyGen::struct_atomic_set,  //
+                    &BodyGen::array_set,          //
+                    &BodyGen::array_atomic_set,   //
+                    &BodyGen::array_copy,         //
+                    &BodyGen::array_fill,         //
+                    &BodyGen::array_init_data,    //
                     &BodyGen::array_init_elem);
 
     static constexpr GeneratorAlternativesPerOption kAlternativesPerOptions{
@@ -2655,27 +3102,45 @@ class BodyGen {
                     &BodyGen::simd_lane_op<kExprI16x8ExtractLaneU, 8, kS128>,
                     &BodyGen::simd_lane_op<kExprI32x4ExtractLane, 4, kS128>);
 
-    static constexpr auto kWasmGCAlternatives =
-        CreateArray(&BodyGen::i31_get,                     //
-                                                           //
-                    &BodyGen::struct_get<kI32>,            //
-                    &BodyGen::array_get<kI32>,             //
-                    &BodyGen::array_len,                   //
-                                                           //
-                    &BodyGen::ref_is_null,                 //
-                    &BodyGen::ref_eq,                      //
-                    &BodyGen::ref_test<kExprRefTest>,      //
-                    &BodyGen::ref_test<kExprRefTestNull>,  //
-                                                           //
-                    &BodyGen::string_test,                 //
-                    &BodyGen::string_charcodeat,           //
-                    &BodyGen::string_codepointat,          //
-                    &BodyGen::string_length,               //
-                    &BodyGen::string_equals,               //
-                    &BodyGen::string_compare,              //
-                    &BodyGen::string_intocharcodearray,    //
-                    &BodyGen::string_intoutf8array,        //
-                    &BodyGen::string_measureutf8);
+    static constexpr auto kWasmGCAlternatives = CreateArray(
+        &BodyGen::i31_get,                                                //
+                                                                          //
+        &BodyGen::struct_get<kI32>,                                       //
+        &BodyGen::struct_atomic_get<kI32>,                                //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicAdd, kI32>,       //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicSub, kI32>,       //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicAnd, kI32>,       //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicOr, kI32>,        //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicXor, kI32>,       //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicExchange, kI32>,  //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicCompareExchange,
+                                       kI32>,                           //
+                                                                        //
+        &BodyGen::array_get<kI32>,                                      //
+        &BodyGen::array_len,                                            //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicAdd, kI32>,       //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicSub, kI32>,       //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicAnd, kI32>,       //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicOr, kI32>,        //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicXor, kI32>,       //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicExchange, kI32>,  //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicCompareExchange,
+                                      kI32>,   //
+                                               //
+        &BodyGen::ref_is_null,                 //
+        &BodyGen::ref_eq,                      //
+        &BodyGen::ref_test<kExprRefTest>,      //
+        &BodyGen::ref_test<kExprRefTestNull>,  //
+                                               //
+        &BodyGen::string_test,                 //
+        &BodyGen::string_charcodeat,           //
+        &BodyGen::string_codepointat,          //
+        &BodyGen::string_length,               //
+        &BodyGen::string_equals,               //
+        &BodyGen::string_compare,              //
+        &BodyGen::string_intocharcodearray,    //
+        &BodyGen::string_intoutf8array,        //
+        &BodyGen::string_measureutf8);
 
     static constexpr GeneratorAlternativesPerOption kAlternativesPerOptions{
         kMvpAlternatives, kSimdAlternatives, kWasmGCAlternatives};
@@ -2796,9 +3261,28 @@ class BodyGen {
     static constexpr auto kSimdAlternatives =
         CreateArray(&BodyGen::simd_lane_op<kExprI64x2ExtractLane, 2, kS128>);
 
-    static constexpr auto kWasmGCAlternatives =
-        CreateArray(&BodyGen::struct_get<kI64>,  //
-                    &BodyGen::array_get<kI64>);
+    static constexpr auto kWasmGCAlternatives = CreateArray(
+        &BodyGen::array_get<kI64>,                                      //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicAdd, kI64>,       //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicSub, kI64>,       //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicAnd, kI64>,       //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicOr, kI64>,        //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicXor, kI64>,       //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicExchange, kI64>,  //
+        &BodyGen::array_atomic_rmw_op<kExprArrayAtomicCompareExchange,
+                                      kI64>,  //
+                                              //
+        &BodyGen::struct_get<kI64>,           //
+        &BodyGen::struct_atomic_get<kI64>,
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicAdd, kI64>,       //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicSub, kI64>,       //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicAnd, kI64>,       //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicOr, kI64>,        //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicXor, kI64>,       //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicExchange, kI64>,  //
+        &BodyGen::struct_atomic_rmw_op<kExprStructAtomicCompareExchange,
+                                       kI64>  //
+    );
 
     static constexpr GeneratorAlternativesPerOption kAlternativesPerOptions{
         kMvpAlternatives, kSimdAlternatives, kWasmGCAlternatives};
@@ -3283,31 +3767,49 @@ class BodyGen {
     }
 
     constexpr auto alternatives_indexed_type =
-        CreateArray(&BodyGen::new_object,       //
-                    &BodyGen::get_local_ref,    //
-                    &BodyGen::array_get_ref,    //
-                    &BodyGen::struct_get_ref,   //
-                    &BodyGen::ref_cast,         //
-                    &BodyGen::ref_as_non_null,  //
-                    &BodyGen::br_on_cast);      //
+        CreateArray(&BodyGen::new_object,                     //
+                    &BodyGen::get_local_ref,                  //
+                    &BodyGen::array_get_ref,                  //
+                    &BodyGen::array_atomic_get_ref,           //
+                    &BodyGen::array_atomic_rmw_xchg_ref,      //
+                    &BodyGen::array_atomic_rmw_cmpxchg_ref,   //
+                    &BodyGen::struct_get_ref,                 //
+                    &BodyGen::struct_atomic_get_ref,          //
+                    &BodyGen::struct_atomic_rmw_xchg_ref,     //
+                    &BodyGen::struct_atomic_rmw_cmpxchg_ref,  //
+                    &BodyGen::ref_cast,                       //
+                    &BodyGen::ref_cast_desc,                  //
+                    &BodyGen::ref_get_desc,                   //
+                    &BodyGen::ref_as_non_null,                //
+                    &BodyGen::br_on_cast);                    //
 
     constexpr auto alternatives_func_any =
-        CreateArray(&BodyGen::table_get,           //
-                    &BodyGen::get_local_ref,       //
-                    &BodyGen::array_get_ref,       //
-                    &BodyGen::struct_get_ref,      //
-                    &BodyGen::ref_cast,            //
-                    &BodyGen::any_convert_extern,  //
-                    &BodyGen::ref_as_non_null,     //
-                    &BodyGen::br_on_cast);         //
+        CreateArray(&BodyGen::table_get,                   //
+                    &BodyGen::get_local_ref,               //
+                    &BodyGen::array_get_ref,               //
+                    &BodyGen::array_atomic_get_ref,        //
+                    &BodyGen::array_atomic_rmw_xchg_ref,   //
+                    &BodyGen::struct_get_ref,              //
+                    &BodyGen::struct_atomic_get_ref,       //
+                    &BodyGen::struct_atomic_rmw_xchg_ref,  //
+                    &BodyGen::ref_cast,                    //
+                    &BodyGen::any_convert_extern,          //
+                    &BodyGen::ref_as_non_null,             //
+                    &BodyGen::br_on_cast);                 //
 
     constexpr auto alternatives_other =
-        CreateArray(&BodyGen::array_get_ref,    //
-                    &BodyGen::get_local_ref,    //
-                    &BodyGen::struct_get_ref,   //
-                    &BodyGen::ref_cast,         //
-                    &BodyGen::ref_as_non_null,  //
-                    &BodyGen::br_on_cast);      //
+        CreateArray(&BodyGen::array_get_ref,                  //
+                    &BodyGen::array_atomic_get_ref,           //
+                    &BodyGen::array_atomic_rmw_xchg_ref,      //
+                    &BodyGen::array_atomic_rmw_cmpxchg_ref,   //
+                    &BodyGen::get_local_ref,                  //
+                    &BodyGen::struct_get_ref,                 //
+                    &BodyGen::struct_atomic_get_ref,          //
+                    &BodyGen::struct_atomic_rmw_xchg_ref,     //
+                    &BodyGen::struct_atomic_rmw_cmpxchg_ref,  //
+                    &BodyGen::ref_cast,                       //
+                    &BodyGen::ref_as_non_null,                //
+                    &BodyGen::br_on_cast);                    //
 
     switch (type.representation()) {
       // For abstract types, sometimes generate one of their subtypes.
@@ -3494,8 +3996,9 @@ class BodyGen {
         DCHECK(type.is_index());
         if (options_.generate_wasm_gc() &&
             type.ref_index() == string_imports_.array_i8 &&
-            data->get<uint8_t>() < 32) {
-          // 1/8th chance, fits the number of remaining alternatives (7) well.
+            data->get<uint8_t>() < 18) {
+          // ~1/14th chance, fits the number of remaining alternatives (13)
+          // quite well.
           return string_toutf8array(data);
         }
         GenerateOneOf(alternatives_indexed_type, type, data, nullability);
@@ -3670,6 +4173,7 @@ class BodyGen {
   const std::vector<ModuleTypeIndex>& structs_;
   const std::vector<ModuleTypeIndex>& arrays_;
   const StringImports& string_imports_;
+  std::vector<ExportData>* const module_imports_;
   bool locals_initialized_ = false;
 };
 
@@ -3741,15 +4245,30 @@ class ModuleGen {
     while (current_type_index < num_types_) {
       // First, pick a random start for the next group. We allow it to be
       // beyond the end of types (i.e., we add no further recursive groups).
-      uint8_t group_start = module_range_->get<uint8_t>() %
-                                (num_types_ - current_type_index + 1) +
-                            current_type_index;
+      // Recgroups are more interesting than non-recgroups, so in 50% of cases
+      // we want a recgroup to start right away.
+      uint8_t diceroll = module_range_->get<uint8_t>();
+      uint8_t group_start;
+      if (diceroll < 128) {
+        group_start = current_type_index;
+      } else {
+        group_start = diceroll % (num_types_ - current_type_index + 1) +
+                      current_type_index;
+      }
       DCHECK_GE(group_start, current_type_index);
       current_type_index = group_start;
       if (group_start < num_types_) {
         // If we did not reach the end of the types, pick a random group size.
-        uint8_t group_size =
-            module_range_->get<uint8_t>() % (num_types_ - group_start) + 1;
+        // We generate rather few types, and recgroups with some number of
+        // types in them are more interesting, so in 50% of cases we want the
+        // recgroup to extend all the way to the end.
+        diceroll = module_range_->get<uint8_t>();
+        uint8_t group_size;
+        if (diceroll < 128) {
+          group_size = num_types_ - group_start;
+        } else {
+          group_size = diceroll % (num_types_ - group_start) + 1;
+        }
         DCHECK_LE(group_start + group_size, num_types_);
         for (uint8_t i = group_start; i < group_start + group_size; i++) {
           explicit_rec_groups.emplace(i, group_start + group_size - 1);
@@ -3767,27 +4286,96 @@ class ModuleGen {
       std::vector<ModuleTypeIndex>& struct_types, uint8_t& current_type_index,
       uint8_t kNumDefaultArrayTypes) {
     uint8_t last_struct_type_index = current_type_index + num_structs_;
+    ModuleTypeIndex is_descriptor_for = kNoType;
+    ModuleTypeIndex parent_descriptor = kNoType;
     for (; current_type_index < last_struct_type_index; current_type_index++) {
+      bool is_descriptor = is_descriptor_for != kNoType;
+      ModuleTypeIndex next_parent_descriptor = kNoType;
       auto rec_group = explicit_rec_groups.find(current_type_index);
       uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
                                           ? rec_group->second
                                           : current_type_index;
 
+      // Be frugal: only consume one byte of randomness for multiple decisions.
+      // We only use two bits for the number of fields (so technically we
+      // won't even reach 4 fields in one go, but subtypes will).
+      static_assert(kMaxStructFields <= 4);
+      uint8_t config = module_range_->get<uint8_t>();
+      bool is_final = (config & 3) == 0;            // Bits 0-1
+      bool have_supertype = config & 4;             // Bit 2
+      bool have_descriptor = config & 8;            // Bit 3
+      uint8_t num_fields = (config >> 4) & 3;       // Bits 4-5
+      uint8_t maybe_supertype = (config >> 6) & 3;  // Bits 6-7
       ModuleTypeIndex supertype = kNoSuperType;
-      uint8_t num_fields =
-          module_range_->get<uint8_t>() % (kMaxStructFields + 1);
+
+      // Can't have a descriptor if this is the last type in the recgroup or
+      // the last struct type.
+      bool can_have_descriptor =
+          v8_flags.experimental_wasm_custom_descriptors &&
+          current_type_index != current_rec_group_end &&
+          current_type_index < last_struct_type_index - 1;
+      if (have_descriptor && !can_have_descriptor) {
+        have_descriptor = false;
+      }
 
       uint32_t existing_struct_types =
-          current_type_index - kNumDefaultArrayTypes;
-      if (existing_struct_types > 0 && module_range_->get<bool>()) {
-        supertype = ModuleTypeIndex{module_range_->get<uint8_t>() %
-                                        existing_struct_types +
-                                    kNumDefaultArrayTypes};
-        num_fields += builder_->GetStructType(supertype)->field_count();
+          static_cast<uint32_t>(struct_types.size());
+      if (is_descriptor) {
+        // Supertypes of descriptors must be descriptors themselves. We ensure
+        // that by passing it along instead of picking it randomly.
+        supertype = parent_descriptor;
+        // It'd be nice to support descriptors that have descriptors themselves,
+        // but this fuzzer is currently too limited for that: in particular,
+        // {can_have_descriptor} would need to look more than one type ahead,
+        // or the pre-selected number of structs would need to be allowed to
+        // be exceeded.
+        have_descriptor = false;
+        // If the described type isn't final, we won't make the descriptor
+        // final either -- any subtypes wouldn't know how to deal with that.
+        if (!builder_->GetType_Unsafe(is_descriptor_for).is_final) {
+          is_final = false;
+        }
+      } else if (existing_struct_types > 0 && have_supertype) {
+        supertype = ModuleTypeIndex{
+            struct_types[maybe_supertype % existing_struct_types]};
+        // A non-descriptor type can't inherit from a descriptor. Fix that
+        // if necessary by going back. Due to the way we generate descriptor
+        // types here, we know that there's always a non-descriptor right
+        // before a descriptor.
+        if (builder_->GetType_Unsafe(supertype).is_descriptor()) {
+          DCHECK_GT(maybe_supertype, 0);
+          maybe_supertype--;
+          supertype = ModuleTypeIndex{
+              struct_types[maybe_supertype % existing_struct_types]};
+        }
       }
-      // TODO(403372470): Add support for custom descriptors.
+      do {
+        if (supertype == kNoSuperType) break;
+        const TypeDefinition& supertype_def =
+            builder_->GetType_Unsafe(supertype);
+        // If the chosen supertype is final, it can't be a supertype.
+        if (supertype_def.is_final) {
+          supertype = kNoSuperType;
+          break;
+        }
+        // If the chosen supertype has a descriptor, this type must have one
+        // too, otherwise that can't be the supertype.
+        if (supertype_def.has_descriptor()) {
+          if (can_have_descriptor) {
+            have_descriptor = true;
+            // We'll generate the descriptor in the next loop iteration.
+            next_parent_descriptor = supertype_def.descriptor;
+          } else {
+            supertype = kNoSuperType;
+            break;
+          }
+        }
+        num_fields += builder_->GetStructType(supertype)->field_count();
+      } while (false);
+
       // TODO(42204563): Add support for shared structs.
-      StructType::Builder struct_builder(zone_, num_fields, false, false);
+      StructType::Builder struct_builder(zone_, num_fields, is_descriptor,
+                                         false);
 
       // Add all fields from super type.
       uint32_t field_index = 0;
@@ -3805,6 +4393,8 @@ class ModuleGen {
         // - We allow a type to only have non-nullable fields of types that
         //   are defined earlier. This way we avoid infinite non-nullable
         //   constructions. Also relevant for arrays and functions.
+        //   If the current type is a descriptor, "defined earlier" means
+        //   "defined before the type being described".
         // - On the other hand, nullable fields can be picked up to the end of
         //   the current recursive group.
         // - We exclude the non-nullable generic types arrayref, anyref,
@@ -3812,19 +4402,33 @@ class ModuleGen {
         //   arrays. This is so that GenerateInitExpr has a way to break a
         //   recursion between a struct/array field and those types
         //   ((ref extern) gets materialized through (ref any)).
+        uint8_t max_non_nullable_type = current_type_index;
+        if (is_descriptor) max_non_nullable_type--;
         ValueType type = GetValueTypeHelper(
             options_, module_range_, current_rec_group_end + 1,
-            current_type_index, kIncludeNumericTypes, kIncludePackedTypes,
+            max_non_nullable_type, kIncludeNumericTypes, kIncludePackedTypes,
             kExcludeSomeGenerics);
 
         bool mutability = module_range_->get<bool>();
         struct_builder.AddField(type, mutability);
       }
       StructType* struct_fuz = struct_builder.Build();
-      // TODO(14034): Generate some final types too.
       ModuleTypeIndex index =
-          builder_->AddStructType(struct_fuz, false, supertype);
+          builder_->AddStructType(struct_fuz, is_final, supertype);
+      DCHECK_EQ(index.index, current_type_index);
       struct_types.push_back(index);
+      if (have_descriptor) {
+        builder_->GetType_Unsafe(index).descriptor =
+            ModuleTypeIndex{index.index + 1};
+      }
+      if (is_descriptor) {
+        builder_->GetType_Unsafe(index).describes = is_descriptor_for;
+      }
+
+      // Pass along required information to the next iteration, which will
+      // generate the descriptor if we decided to have one.
+      is_descriptor_for = have_descriptor ? index : kNoType;
+      parent_descriptor = next_parent_descriptor;
     }
   }
 
@@ -3888,7 +4492,8 @@ class ModuleGen {
   void GenerateRandomFunctionSigs(
       const std::map<uint8_t, uint8_t>& explicit_rec_groups,
       std::vector<ModuleTypeIndex>& function_signatures,
-      uint8_t& current_type_index, bool kIsFinal) {
+      uint8_t& current_type_index, bool kIsFinal,
+      bool reference_existing_types) {
     // Recursive groups consist of recursive types that came with the WasmGC
     // proposal.
     DCHECK_IMPLIES(!options_.generate_wasm_gc(), explicit_rec_groups.empty());
@@ -3898,7 +4503,9 @@ class ModuleGen {
       uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
                                           ? rec_group->second
                                           : current_type_index;
-      FunctionSig* sig = GenerateSig(kFunctionSig, current_rec_group_end + 1);
+      FunctionSig* sig =
+          GenerateSig(kFunctionSig,
+                      reference_existing_types ? current_rec_group_end + 1 : 0);
       ModuleTypeIndex signature_index =
           builder_->ForceAddSignature(sig, kIsFinal);
       function_signatures.push_back(signature_index);
@@ -3910,6 +4517,18 @@ class ModuleGen {
       FunctionSig* sig = GenerateSig(kExceptionSig, num_types_);
       builder_->AddTag(sig);
     }
+  }
+
+  void AddImportedFunctions(std::vector<ExportData>* imports) {
+    const bool kIsFinal = true;
+    for (auto& import : *imports) {
+      import.sig_index = builder_->ForceAddSignature(import.sig, kIsFinal);
+      uint32_t index =
+          builder_->AddImport(base::VectorOf(import.name), import.sig,
+                              base::VectorOf(import.module_name));
+      import.index = index;
+    }
+    imports_ = imports;
   }
 
   // Adds the "wasm:js-string" imports to the module.
@@ -4092,6 +4711,7 @@ class ModuleGen {
   const uint8_t num_structs_;
   const uint8_t num_arrays_;
   const uint16_t num_types_;
+  std::vector<ExportData>* imports_ = nullptr;
 };
 
 WasmInitExpr GenerateStructNewInitExpr(
@@ -4105,7 +4725,17 @@ WasmInitExpr GenerateStructNewInitExpr(
       range.get<bool>();
 
   if (use_new_default) {
-    return WasmInitExpr::StructNewDefault(index);
+    ZoneVector<WasmInitExpr>* descriptor = nullptr;
+    const TypeDefinition& struct_def = builder->GetType_Unsafe(index);
+    if (struct_def.has_descriptor()) {
+      descriptor = zone->New<ZoneVector<WasmInitExpr>>(zone);
+      ValueType type =
+          ValueType::Ref(struct_def.descriptor, false, RefTypeKind::kStruct)
+              .AsExact();
+      descriptor->push_back(GenerateInitExpr(
+          zone, range, builder, type, structs, arrays, recursion_depth + 1));
+    }
+    return WasmInitExpr::StructNewDefault(index, descriptor);
   } else {
     ZoneVector<WasmInitExpr>* elements =
         zone->New<ZoneVector<WasmInitExpr>>(zone);
@@ -4114,6 +4744,14 @@ WasmInitExpr GenerateStructNewInitExpr(
       elements->push_back(GenerateInitExpr(
           zone, range, builder, struct_type->field(field_index), structs,
           arrays, recursion_depth + 1));
+    }
+    const TypeDefinition& struct_def = builder->GetType_Unsafe(index);
+    if (struct_def.has_descriptor()) {
+      ValueType type =
+          ValueType::Ref(struct_def.descriptor, false, RefTypeKind::kStruct)
+              .AsExact();
+      elements->push_back(GenerateInitExpr(zone, range, builder, type, structs,
+                                           arrays, recursion_depth + 1));
     }
     return WasmInitExpr::StructNew(index, elements);
   }
@@ -4344,7 +4982,8 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
 
 base::Vector<uint8_t> GenerateRandomWasmModule(
     Zone* zone, WasmModuleGenerationOptions options,
-    base::Vector<const uint8_t> data) {
+    base::Vector<const uint8_t> data, std::vector<ExportData>* module_exports,
+    std::vector<ExportData>* module_imports) {
   WasmModuleBuilder builder(zone);
 
   // Split input data in two parts:
@@ -4430,15 +5069,20 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
 
   // We keep the signature for the first (main) function constant.
   constexpr bool kIsFinal = true;
-  auto kMainFnSig = FixedSizeSignature<ValueType>::Returns(kWasmI32).Params(
-      kWasmI32, kWasmI32, kWasmI32);
-  function_signatures.push_back(
-      builder.ForceAddSignature(&kMainFnSig, kIsFinal));
+  const FunctionSig* main_sig =
+      CreateSignature(zone,
+                      base::VectorOf({ValueType{kWasmI32}, ValueType{kWasmI32},
+                                      ValueType{kWasmI32}}),
+                      base::VectorOf({ValueType{kWasmI32}}));
+  function_signatures.push_back(builder.ForceAddSignature(main_sig, kIsFinal));
   current_type_index++;
 
   // Add randomly generated signatures.
-  gen_module.GenerateRandomFunctionSigs(
-      explicit_rec_groups, function_signatures, current_type_index, kIsFinal);
+  bool reference_existing_types =
+      (module_exports == nullptr || !module_exports->empty());
+  gen_module.GenerateRandomFunctionSigs(explicit_rec_groups,
+                                        function_signatures, current_type_index,
+                                        kIsFinal, reference_existing_types);
   DCHECK_EQ(current_type_index, num_functions + num_structs + num_arrays);
 
   // Add exceptions.
@@ -4452,6 +5096,10 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
                               ? gen_module.AddImportedStringImports()
                               : StringImports();
 
+  if (module_imports) {
+    gen_module.AddImportedFunctions(module_imports);
+  }
+
   // Generate function declarations before tables. This will be needed once we
   // have typed-function tables.
   std::vector<WasmFunctionBuilder*> functions;
@@ -4464,6 +5112,11 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
     // TODO(14034): Relax this when we implement proper recursive-group
     // support.
     functions.push_back(builder.AddFunction(function_signatures[i]));
+    if (module_exports) {
+      module_exports->push_back(
+          ExportData(std::string("fuzzer_exported_") + std::to_string(i),
+                     functions.back()->signature(), "fuzzer_module"));
+    }
   }
 
   // Generate tables before function bodies, so they are available for table
@@ -4491,14 +5144,19 @@ base::Vector<uint8_t> GenerateRandomWasmModule(
                                    ? functions_range.split()
                                    : std::move(functions_range);
     BodyGen gen_body(options, f, function_signatures, globals, mutable_globals,
-                     struct_types, array_types, strings, &function_range);
+                     struct_types, array_types, strings, module_imports,
+                     &function_range);
     const FunctionSig* sig = f->signature();
     base::Vector<const ValueType> return_types(sig->returns().begin(),
                                                sig->return_count());
     gen_body.InitializeNonDefaultableLocals(&function_range);
     gen_body.Generate(return_types, &function_range);
     f->Emit(kExprEnd);
-    if (i == 0) builder.AddExport(base::CStrVector("main"), f);
+    if (module_exports) {
+      builder.AddExport(base::CStrVector((*module_exports)[i].name.c_str()), f);
+    } else if (i == 0) {
+      builder.AddExport(base::CStrVector("main"), f);
+    }
   }
 
   ZoneBuffer buffer{zone};
@@ -4928,7 +5586,7 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     WasmFunctionBuilder* f = functions[declared_func_index];
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
-                     array_types, strings, &function_range);
+                     array_types, strings, nullptr, &function_range);
     gen_body.InitializeNonDefaultableLocals(&function_range);
     if (i == 0) {
       // For the inner-most inlinee, emit the deopt point (e.g. a call_ref).
@@ -4954,7 +5612,7 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     WasmFunctionBuilder* f = functions[declared_func_index];
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
-                     array_types, strings, &function_range);
+                     array_types, strings, nullptr, &function_range);
     gen_body.InitializeNonDefaultableLocals(&function_range);
     // Store the call target
     f->EmitWithU32V(kExprLocalGet, 0);
@@ -4984,7 +5642,7 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     WasmFunctionBuilder* f = functions[i];
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
-                     array_types, strings, &function_range);
+                     array_types, strings, nullptr, &function_range);
     const FunctionSig* sig = f->signature();
     base::Vector<const ValueType> target_return_types(sig->returns().begin(),
                                                       sig->return_count());
@@ -5092,7 +5750,8 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
                                    ? functions_range.split()
                                    : std::move(functions_range);
     BodyGen gen_body(options, f, function_signatures, globals, mutable_globals,
-                     struct_types, array_types, strings, &function_range);
+                     struct_types, array_types, strings, nullptr,
+                     &function_range);
     const FunctionSig* sig = f->signature();
     base::Vector<const ValueType> return_types(sig->returns().begin(),
                                                sig->return_count());

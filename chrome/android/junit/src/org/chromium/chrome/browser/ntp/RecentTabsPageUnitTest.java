@@ -61,16 +61,14 @@ public class RecentTabsPageUnitTest {
                 new RecentTabsPage(
                         mActivity,
                         mRecentTabsManager,
+                        /* navigationDelegate */ null,
                         mBrowserControlsStateProvider,
                         new ObservableSupplierImpl<>(0),
                         mEdgeToEdgeSupplier);
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN,
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE
-    })
+    @EnableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testEdgeToEdge() {
         assertTrue("Recent tabs do support E2E.", mRecentTabsPage.supportsEdgeToEdge());
 
@@ -90,14 +88,5 @@ public class RecentTabsPageUnitTest {
 
         mRecentTabsPage.destroy();
         verify(mEdgeToEdgeController).unregisterAdjuster(padAdjuster);
-    }
-
-    @Test
-    @EnableFeatures({
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN,
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE + ":disable_recent_tabs_e2e/true"
-    })
-    public void testDisableEdgeToEdge() {
-        assertFalse("Recent tabs E2E should be turned off.", mRecentTabsPage.supportsEdgeToEdge());
     }
 }

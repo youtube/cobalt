@@ -13,7 +13,7 @@ import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
+import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import '../controls/settings_toggle_button.js';
 import '../icons.html.js';
 import '../privacy_icons.html.js';
@@ -31,6 +31,7 @@ import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import type {PrivacyPageBrowserProxy} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
 import {PrivacyPageBrowserProxyImpl} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
 import type {CrLinkRowElement} from 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
+import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
@@ -104,13 +105,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         type: Boolean,
         value() {
           return loadTimeData.getBoolean('enableBlockAutoplayContentSetting');
-        },
-      },
-
-      enableManagePhones_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('enableSecurityKeysManagePhones');
         },
       },
 
@@ -331,6 +325,18 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         value: () => loadTimeData.getBoolean('enableBundledSecuritySettings'),
       },
 
+      // The label of the confirmation toast that is displayed after deletion
+      // from 'Delete Browsing data' is completed.
+      dbdDeletionConfirmationToastLabel_: {
+        type: String,
+        value: '',
+      },
+
+      shouldShowDbdDeletionConfirmationToast_: {
+        type: Boolean,
+        value: false,
+      },
+
       allSitesPageTitle_: String,
     };
   }
@@ -341,7 +347,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   declare private showPrivacyGuideDialog_: boolean;
   declare private enableSafeBrowsingSubresourceFilter_: boolean;
   declare private enableBlockAutoplayContentSetting_: boolean;
-  declare private enableManagePhones_: boolean;
   declare private blockAutoplayStatus_: BlockAutoplayStatus;
   declare private enableDeleteBrowsingDataRevamp_: boolean;
   declare private enableFederatedIdentityApiContentSetting_: boolean;
@@ -378,6 +383,8 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   declare private allSitesPageTitle_: string;
   declare private enableIncognitoTrackingProtections_: boolean;
   declare private enableBundledSecuritySettings_: boolean;
+  declare private dbdDeletionConfirmationToastLabel_: string;
+  declare private shouldShowDbdDeletionConfirmationToast_: boolean;
 
   override ready() {
     super.ready();
@@ -436,6 +443,16 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
 
   private onCbdDialogClosed_() {
     Router.getInstance().navigateTo(routes.CLEAR_BROWSER_DATA.parent!);
+
+    if (this.shouldShowDbdDeletionConfirmationToast_) {
+      assert(this.dbdDeletionConfirmationToastLabel_);
+      const toast = this.shadowRoot!.querySelector<CrToastElement>(
+          '#deleteBrowsingDataToast');
+      assert(toast);
+      toast.show();
+      this.shouldShowDbdDeletionConfirmationToast_ = false;
+    }
+
     setTimeout(() => {
       // Focus after a timeout to ensure any a11y messages get read before
       // screen readers read out the newly focused element.
@@ -476,7 +493,8 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
 
   private onIncognitoTrackingProtectionsClick_() {
     this.interactedWithPage_();
-    // TODO(crbug.com/408036586): Add user action for Incognito tracking protections row click.
+    this.metricsBrowserProxy_.recordAction(
+        'Settings.TrackingProtections.OpenedFromPrivacyPage');
     Router.getInstance().navigateTo(routes.INCOGNITO_TRACKING_PROTECTIONS);
   }
 
@@ -545,6 +563,12 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   private shouldShowAdPrivacy_(): boolean {
     return !this.isPrivacySandboxRestricted_ ||
         this.isPrivacySandboxRestrictedNoticeEnabled_;
+  }
+
+  private onBrowsingDataDeleted_(
+      e: CustomEvent<{deletionConfirmationText: string}>) {
+    this.dbdDeletionConfirmationToastLabel_ = e.detail.deletionConfirmationText;
+    this.shouldShowDbdDeletionConfirmationToast_ = true;
   }
 }
 

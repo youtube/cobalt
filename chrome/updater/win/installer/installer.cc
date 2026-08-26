@@ -48,9 +48,9 @@
 #include "chrome/updater/constants.h"
 #include "chrome/updater/ping_configurator.h"
 #include "chrome/updater/tag.h"
-#include "chrome/updater/update_usage_stats_task.h"
 #include "chrome/updater/updater_branding.h"
 #include "chrome/updater/updater_scope.h"
+#include "chrome/updater/usage_stats_permissions.h"
 #include "chrome/updater/util/util.h"
 #include "chrome/updater/util/win_util.h"
 #include "chrome/updater/win/installer/configuration.h"
@@ -412,14 +412,19 @@ ProcessExitResult HandleRunDeElevated(const base::CommandLine& command_line) {
   CHECK(com_initializer.Succeeded());
 
   // De-elevate the metainstaller.
-  const base::Process process = base::win::RunDeElevated([&] {
-    base::CommandLine de_elevate_command_line = command_line;
-    de_elevate_command_line.AppendSwitch(kCmdLineExpectDeElevated);
-    return de_elevate_command_line;
-  }());
+  ASSIGN_OR_RETURN(
+      const base::Process process, base::win::RunDeElevated([&] {
+        base::CommandLine de_elevate_command_line = command_line;
+        de_elevate_command_line.AppendSwitch(kCmdLineExpectDeElevated);
+        return de_elevate_command_line;
+      }()),
+      [](DWORD error_code) {
+        return ProcessExitResult(FAILED_TO_DE_ELEVATE_METAINSTALLER,
+                                 HRESULT_FROM_WIN32(error_code));
+      });
 
   int result = 0;
-  return process.IsValid() && process.WaitForExit(&result)
+  return process.WaitForExit(&result)
              ? ProcessExitResult(UPDATER_EXIT_CODE, result)
              : ProcessExitResult(FAILED_TO_DE_ELEVATE_METAINSTALLER,
                                  HRESULTFromLastError());
@@ -456,8 +461,7 @@ ProcessExitResult InstallerMain(HMODULE module,
            L" ", cmd_line_args.get()}));
 
   const UpdaterScope scope = GetUpdaterScopeForCommandLine(command_line);
-  usage_stats_enable =
-      UsageStatsProvider::Create(scope)->AnyAppEnablesUsageStats();
+  usage_stats_enable = AnyAppEnablesUsageStats(scope);
   const std::optional<tagging::TagArgs> tag_args =
       GetTagArgsForCommandLine(command_line).tag_args;
   if (tag_args) {

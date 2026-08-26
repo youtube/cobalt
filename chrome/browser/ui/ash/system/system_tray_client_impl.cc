@@ -31,12 +31,12 @@
 #include "base/notreached.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
-#include "chrome/browser/ash/eol/eol_incentive_util.h"
 #include "chrome/browser/ash/login/help_app_launcher.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_manager_ash.h"
@@ -372,7 +372,6 @@ void SystemTrayClientImpl::SetLocaleList(
 
 void SystemTrayClientImpl::SetShowEolNotice(bool show,
                                             bool eol_passed_recently) {
-  eol_incentive_recently_passed_ = eol_passed_recently;
   system_tray_->SetShowEolNotice(show);
 }
 ////////////////////////////////////////////////////////////////////////////////
@@ -434,7 +433,7 @@ void SystemTrayClientImpl::ShowDarkModeSettings() {
   // Settings/System Tray.
   ash::personalization_app::LogPersonalizationEntryPoint(
       ash::PersonalizationEntryPoint::kSystemTray);
-  ash::NewWindowDelegate::GetPrimary()->OpenPersonalizationHub();
+  ash::NewWindowDelegate::GetInstance()->OpenPersonalizationHub();
 }
 
 void SystemTrayClientImpl::ShowStorageSettings() {
@@ -840,7 +839,6 @@ void SystemTrayClientImpl::ShowKeyboardSettings() {
 }
 
 void SystemTrayClientImpl::ShowTouchpadSettings() {
-  DCHECK(ash::features::IsInputDeviceSettingsSplitEnabled());
   base::RecordAction(base::UserMetricsAction("ShowTouchpadSettingsPage"));
   ShowSettingsSubPageForActiveUser(
       chromeos::settings::mojom::kPerDeviceTouchpadSubpagePath);
@@ -859,7 +857,6 @@ void SystemTrayClientImpl::ShowNearbyShareSettings() {
 }
 
 void SystemTrayClientImpl::ShowRemapKeysSubpage(int device_id) {
-  DCHECK(ash::features::IsInputDeviceSettingsSplitEnabled());
   base::RecordAction(base::UserMetricsAction("ShowRemapKeysSettingsSubpage"));
   ShowSettingsSubPageForActiveUser(base::StrCat({
       chromeos::settings::mojom::kPerDeviceKeyboardRemapKeysSubpagePath,
@@ -905,33 +902,10 @@ void SystemTrayClientImpl::ShowChromebookPerksYouTubePage() {
 }
 
 void SystemTrayClientImpl::ShowEolInfoPage() {
-  const bool use_offer_url = ash::features::kEolIncentiveParam.Get() !=
-                                 ash::features::EolIncentiveParam::kNoOffer &&
-                             eol_incentive_recently_passed_;
-
-  if (eol_incentive_recently_passed_) {
-    ash::eol_incentive_util::RecordButtonClicked(
-        use_offer_url ? ash::eol_incentive_util::EolIncentiveButtonType::
-                            kQuickSettings_Offer_RecentlyPassed
-                      : ash::eol_incentive_util::EolIncentiveButtonType::
-                            kQuickSettings_NoOffer_RecentlyPassed);
-  } else {
-    DCHECK(!use_offer_url);
-    ash::eol_incentive_util::RecordButtonClicked(
-        ash::eol_incentive_util::EolIncentiveButtonType::
-            kQuickSettings_NoOffer_Passed);
-  }
-
-  ash::NewWindowDelegate::GetPrimary()->OpenUrl(
-      GURL(use_offer_url ? chrome::kEolIncentiveNotificationOfferURL
-                         : chrome::kEolIncentiveNotificationNoOfferURL),
+  ash::NewWindowDelegate::GetInstance()->OpenUrl(
+      GURL(chrome::kEolNotificationURL),
       ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       ash::NewWindowDelegate::Disposition::kNewForegroundTab);
-}
-
-void SystemTrayClientImpl::RecordEolNoticeShown() {
-  ash::eol_incentive_util::RecordShowSourceHistogram(
-      ash::eol_incentive_util::EolIncentiveShowSource::kQuickSettings);
 }
 
 bool SystemTrayClientImpl::IsUserFeedbackEnabled() {

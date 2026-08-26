@@ -13,8 +13,8 @@
 #include "content/public/browser/render_frame_host_receiver_set.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
+#include "content/public/common/buildflags.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "ppapi/buildflags/buildflags.h"
 
 #if !BUILDFLAG(ENABLE_PLUGINS)
 #error "Plugins should be enabled"
@@ -40,10 +40,6 @@ class PluginObserver : public content::WebContentsObserver,
   PluginObserver& operator=(const PluginObserver&) = delete;
 
   ~PluginObserver() override;
-
-  // content::WebContentsObserver implementation.
-  void PluginCrashed(const base::FilePath& plugin_path,
-                     base::ProcessId plugin_pid) override;
 
   // Public for tests only.
   static void CreatePluginObserverInfoBar(

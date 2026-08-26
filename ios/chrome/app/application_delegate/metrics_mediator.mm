@@ -52,6 +52,7 @@
 #import "ios/chrome/common/app_group/app_group_metrics.h"
 #import "ios/chrome/common/app_group/app_group_metrics_mainapp.h"
 #import "ios/chrome/common/credential_provider/constants.h"
+#import "ios/components/ui_util/dynamic_type_util.h"
 #import "ios/public/provider/chrome/browser/app_distribution/app_distribution_api.h"
 #import "ios/web/public/thread/web_task_traits.h"
 #import "ios/web/public/thread/web_thread.h"
@@ -237,10 +238,6 @@ void RecordWidgetUsage(base::span<const HistogramNameCountPair> histograms) {
 
   // Dictionary containing the respective metric for each NSUserDefault's key.
   NSDictionary<NSString*, NSString*>* keyMetric = @{
-    app_group::
-    kContentExtensionDisplayCount : @"IOS.ContentExtension.DisplayCount",
-    app_group::
-    kSearchExtensionDisplayCount : @"IOS.SearchExtension.DisplayCount",
     app_group::
     kCredentialExtensionDisplayCount : @"IOS.CredentialExtension.DisplayCount",
     app_group::
@@ -532,6 +529,7 @@ BOOL _credentialExtensionWasUsed = NO;
     [self recordStartupDuplicatedTabCount:duplicatedTabCount];
     [self recordTabsAgeAtStartup:timesSinceCreation];
     [self recordAndResetWarmStartCount];
+    ui_util::RecordSystemFontSizeMetrics();
   } else {
     [[PreviousSessionInfo sharedInstance] incrementWarmStartCount];
     [self recordResumeTabCount:tabCount];

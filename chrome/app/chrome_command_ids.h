@@ -88,7 +88,8 @@
 #define IDC_COPY_URL                    34060
 #define IDC_OPEN_IN_CHROME              34061
 #define IDC_WEB_APP_SETTINGS            34062
-#define IDC_WEB_APP_MENU_APP_INFO    34063
+#define IDC_WEB_APP_MENU_APP_INFO       34063
+#define IDC_WEB_APP_UPGRADE_DIALOG      34064
 
 #if BUILDFLAG(IS_CHROMEOS)
 // Move window to other user commands
@@ -290,6 +291,8 @@
 #define IDC_SHOW_HISTORY_SIDE_PANEL     40293
 #define IDC_OPEN_GLIC                   40294
 #define IDC_FIND_EXTENSIONS  40295
+#define IDC_SHOW_SEARCH_TOOLS  40296
+#define IDC_SHOW_COMMENTS_SIDE_PANEL  40297
 
 // Spell-check
 // Insert any additional suggestions before _LAST; these have to be consecutive.

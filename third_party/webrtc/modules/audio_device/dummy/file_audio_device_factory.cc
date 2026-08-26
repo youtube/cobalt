@@ -10,8 +10,7 @@
 
 #include "modules/audio_device/dummy/file_audio_device_factory.h"
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <cstdlib>
 
 #include "absl/strings/string_view.h"

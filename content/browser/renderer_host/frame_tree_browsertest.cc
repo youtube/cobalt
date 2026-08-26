@@ -728,7 +728,7 @@ IN_PROC_BROWSER_TEST_P(DedicatedWorkerFrameTreeBrowserTest,
                                               ->GetStoragePartition()
                                               ->GetDedicatedWorkerService());
   EXPECT_TRUE(EvalJs(shell(), "const worker = new Worker('/workers/empty.js');")
-                  .error.empty());
+                  .is_ok());
   worker_observer.WaitForCreated();
 
   // Discard the rfh, the associated worker should be cleared.
@@ -740,7 +740,7 @@ IN_PROC_BROWSER_TEST_P(DedicatedWorkerFrameTreeBrowserTest,
 
   if (KeepAliveDiscardedProcess()) {
     // Trigger GC to cleanup the worker in the renderer if persisted.
-    EXPECT_TRUE(EvalJs(shell(), "window.gc();").error.empty());
+    EXPECT_TRUE(EvalJs(shell(), "window.gc();").is_ok());
   }
 
   worker_observer.WaitForDestroyed();
@@ -767,7 +767,7 @@ IN_PROC_BROWSER_TEST_P(FrameTreeBrowserWithDiscardTest,
 
   // Assert the opened window is able to script its opener.
   EXPECT_EQ("foo", EvalJs(new_shell, "window.name;"));
-  EXPECT_TRUE(EvalJs(new_shell, "window.opener.name = 'bar';").error.empty());
+  EXPECT_TRUE(EvalJs(new_shell, "window.opener.name = 'bar';").is_ok());
   EXPECT_EQ("bar", EvalJs(shell(), "window.name;"));
 
   frame_tree.Discard();
@@ -775,13 +775,13 @@ IN_PROC_BROWSER_TEST_P(FrameTreeBrowserWithDiscardTest,
 
   // After a discard operation the opened window should should still be able to
   // script its opener.
-  EXPECT_TRUE(EvalJs(new_shell, "window.opener.name = 'bar2';").error.empty());
+  EXPECT_TRUE(EvalJs(new_shell, "window.opener.name = 'bar2';").is_ok());
   EXPECT_EQ("bar2", EvalJs(shell(), "window.name;"));
 
   // After a reload the opened window should still be able to script its opener.
   wc->GetController().LoadIfNecessary();
   EXPECT_TRUE(WaitForLoadStop(wc));
-  EXPECT_TRUE(EvalJs(new_shell, "window.opener.name = 'bar3';").error.empty());
+  EXPECT_TRUE(EvalJs(new_shell, "window.opener.name = 'bar3';").is_ok());
   EXPECT_EQ("bar3", EvalJs(shell(), "window.name;"));
 }
 
@@ -2047,8 +2047,14 @@ class IsolateIcelandFrameTreeBrowserTest : public ContentBrowserTest {
 };
 
 // Regression test for https://crbug.com/644966
+// TODO(crbug.com/432164517): The test is flaky on all platforms.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
+#define MAYBE_ProcessSwitchForIsolatedBlob DISABLED_ProcessSwitchForIsolatedBlob
+#else
+#define MAYBE_ProcessSwitchForIsolatedBlob ProcessSwitchForIsolatedBlob
+#endif
 IN_PROC_BROWSER_TEST_F(IsolateIcelandFrameTreeBrowserTest,
-                       ProcessSwitchForIsolatedBlob) {
+                       MAYBE_ProcessSwitchForIsolatedBlob) {
   // Set up an iframe.
   WebContents* contents = shell()->web_contents();
   FrameTreeNode* root =

@@ -42,6 +42,7 @@
 #include "base/process/process.h"
 #include "base/process/process_iterator.h"
 #include "base/scoped_native_library.h"
+#include "base/strings/cstring_view.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -80,6 +81,14 @@
 namespace updater {
 
 namespace {
+
+// Undocumented interface used to get the COM client handle.
+MIDL_INTERFACE("68C6A1B9-DE39-42C3-8D28-BF40A5126541")
+ICallingProcessInfo : public IUnknown {
+ public:
+  virtual IFACEMETHODIMP OpenCallerProcessHandle(DWORD desired_access,
+                                                 HANDLE * handle) = 0;
+};
 
 HResultOr<bool> IsUserRunningSplitToken() {
   HANDLE token = NULL;
@@ -238,6 +247,41 @@ std::optional<std::vector<std::wstring>> CommandLineToArgv(
   // SAFETY: `num_args` describes the valid portion of `argv`.
   return UNSAFE_BUFFERS(
       std::vector<std::wstring>(argv.get(), argv.get() + num_args));
+}
+
+[[nodiscard]] bool IsServicePresentNonAdmin(const std::wstring& service_name) {
+  ScopedScHandle scm(
+      ::OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT | GENERIC_READ));
+  if (!scm.IsValid()) {
+    return false;
+  }
+
+  ScopedScHandle service(
+      ::OpenService(scm.Get(), service_name.c_str(), SERVICE_QUERY_CONFIG));
+  return service.IsValid() || (::GetLastError() == ERROR_ACCESS_DENIED);
+}
+
+[[nodiscard]] bool IsServicePresentAdmin(const std::wstring& service_name) {
+  ScopedScHandle scm(::OpenSCManager(
+      nullptr, nullptr, SC_MANAGER_CONNECT | SC_MANAGER_CREATE_SERVICE));
+  if (!scm.IsValid()) {
+    return false;
+  }
+
+  ScopedScHandle service(
+      ::OpenService(scm.Get(), service_name.c_str(),
+                    SERVICE_QUERY_CONFIG | SERVICE_CHANGE_CONFIG));
+  if (!service.IsValid()) {
+    return ::GetLastError() == ERROR_ACCESS_DENIED;
+  }
+
+  // Detects the specific case where a service shows as present, but is marked
+  // for deletion.
+  return ::ChangeServiceConfig(service.Get(), SERVICE_NO_CHANGE,
+                               SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, nullptr,
+                               nullptr, nullptr, nullptr, nullptr, nullptr,
+                               nullptr) ||
+         (::GetLastError() != ERROR_SERVICE_MARKED_FOR_DELETE);
 }
 
 }  // namespace
@@ -1484,24 +1528,8 @@ std::optional<base::FilePath> GetBundledEnterpriseCompanionExecutablePath(
 }
 
 [[nodiscard]] bool IsServicePresent(const std::wstring& service_name) {
-  ScopedScHandle scm(::OpenSCManager(
-      nullptr, nullptr, SC_MANAGER_CONNECT | SC_MANAGER_CREATE_SERVICE));
-  if (!scm.IsValid()) {
-    return false;
-  }
-
-  ScopedScHandle service(
-      ::OpenService(scm.Get(), service_name.c_str(),
-                    SERVICE_QUERY_CONFIG | SERVICE_CHANGE_CONFIG));
-  if (!service.IsValid()) {
-    return false;
-  }
-
-  return ::ChangeServiceConfig(service.Get(), SERVICE_NO_CHANGE,
-                               SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, nullptr,
-                               nullptr, nullptr, nullptr, nullptr, nullptr,
-                               nullptr) ||
-         (::GetLastError() != ERROR_SERVICE_MARKED_FOR_DELETE);
+  return ::IsUserAnAdmin() ? IsServicePresentAdmin(service_name)
+                           : IsServicePresentNonAdmin(service_name);
 }
 
 [[nodiscard]] bool IsServiceEnabled(const std::wstring& service_name) {
@@ -1526,6 +1554,39 @@ std::optional<base::FilePath> GetBundledEnterpriseCompanionExecutablePath(
                               kMaxQueryConfigBufferBytes,
                               &bytes_needed_ignored) &&
          (service_config->dwStartType != SERVICE_DISABLED);
+}
+
+void LogComCaller(base::cstring_view caller_func) {
+  Microsoft::WRL::ComPtr<ICallingProcessInfo> calling_proc_info;
+  HRESULT hr = ::CoGetCallContext(IID_PPV_ARGS(&calling_proc_info));
+  if (FAILED(hr)) {
+    VLOG(2) << caller_func
+            << ": Unable to get ICallingProcessInfo interface: " << std::hex
+            << hr;
+    return;
+  }
+
+  ScopedKernelHANDLE handle;
+  hr = calling_proc_info->OpenCallerProcessHandle(
+      PROCESS_QUERY_LIMITED_INFORMATION,
+      ScopedKernelHANDLE::Receiver(handle).get());
+  if (FAILED(hr)) {
+    VLOG(2) << caller_func
+            << ": ICallingProcessInfo::OpenCallerProcessHandle failed: "
+            << std::hex << hr;
+    return;
+  }
+
+  const base::Process process(handle.release());
+  if (!process.IsValid()) {
+    VLOG(2) << caller_func
+            << ": ICallingProcessInfo::OpenCallerProcessHandle returned an "
+               "invalid handle";
+    return;
+  }
+
+  VLOG(2) << caller_func
+          << ": COM client pid for this COM server: " << process.Pid();
 }
 
 }  // namespace updater

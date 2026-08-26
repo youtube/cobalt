@@ -14,7 +14,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/process/process_handle.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -280,8 +280,6 @@ bool MockRenderProcessHost::IsReady() {
 }
 
 bool MockRenderProcessHost::Send(IPC::Message* msg) {
-  // Save the message in the sink.
-  sink_.OnMessageReceived(*msg);
   delete msg;
   return true;
 }
@@ -412,10 +410,6 @@ bool MockRenderProcessHost::InSameStoragePartition(
 IPC::ChannelProxy* MockRenderProcessHost::GetChannel() {
   return nullptr;
 }
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-void MockRenderProcessHost::AddFilter(BrowserMessageFilter* filter) {}
-#endif
 
 base::TimeDelta MockRenderProcessHost::GetChildProcessIdleTime() {
   return base::Milliseconds(0);

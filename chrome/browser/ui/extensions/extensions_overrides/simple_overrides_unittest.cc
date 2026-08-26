@@ -73,7 +73,6 @@ const char* kDisallowedFeatures[] = {
     extensions::manifest_keys::kLinkedAppIcons,
     extensions::manifest_keys::kMIMETypes,
     extensions::manifest_keys::kMimeTypesHandler,
-    extensions::manifest_keys::kNaClModules,
     extensions::manifest_keys::kNativelyConnectable,
     extensions::manifest_keys::kOptionalHostPermissions,
     extensions::manifest_keys::kOptionalPermissions,
@@ -81,6 +80,7 @@ const char* kDisallowedFeatures[] = {
     extensions::manifest_keys::kPermissions,
     extensions::manifest_keys::kPlatformAppBackground,
     extensions::manifest_keys::kPlatformAppContentSecurityPolicy,
+    extensions::manifest_keys::kProtocolHandlers,
     extensions::manifest_keys::kReplacementWebApp,
     extensions::manifest_keys::kSockets,
     extensions::manifest_keys::kTheme,
@@ -126,6 +126,7 @@ const char* kDisallowedFeatures[] = {
     // and thus not exposed in a .h).
     "chrome_url_overrides.activationmessage",
     "chrome_url_overrides.keyboard",
+    "nacl_modules",
     "oauth2.auto_approve",
     "platforms",
     "sandbox",

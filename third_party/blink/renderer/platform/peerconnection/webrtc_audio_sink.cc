@@ -16,6 +16,7 @@
 #include "base/strings/to_string.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#include "media/base/audio_sample_types.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
@@ -32,7 +33,7 @@ void SendLogMessage(const std::string& message) {
 
 }  // namespace
 
-namespace WTF {
+namespace blink {
 
 template <>
 struct CrossThreadCopier<scoped_refptr<webrtc::AudioProcessorInterface>>
@@ -42,15 +43,11 @@ struct CrossThreadCopier<scoped_refptr<webrtc::AudioProcessorInterface>>
 };
 
 template <>
-struct CrossThreadCopier<scoped_refptr<blink::WebRtcAudioSink::Adapter>>
+struct CrossThreadCopier<scoped_refptr<WebRtcAudioSink::Adapter>>
     : public CrossThreadCopierPassThrough<
-          scoped_refptr<blink::WebRtcAudioSink::Adapter>> {
+          scoped_refptr<WebRtcAudioSink::Adapter>> {
   STATIC_ONLY(CrossThreadCopier);
 };
-
-}  // namespace WTF
-
-namespace blink {
 
 WebRtcAudioSink::WebRtcAudioSink(
     const std::string& label,

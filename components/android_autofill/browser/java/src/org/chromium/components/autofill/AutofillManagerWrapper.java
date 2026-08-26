@@ -21,7 +21,9 @@ import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.CollectionUtil;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
+import org.chromium.build.annotations.DoNotInline;
 import org.chromium.build.annotations.DoNotStripLogs;
 import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.NullMarked;
@@ -107,6 +109,9 @@ public class AutofillManagerWrapper {
     public AutofillManagerWrapper(Context context) {
         updateLogStat();
         if (isLoggable()) log("constructor");
+        if (isLoggable() && context == ContextUtils.getApplicationContext()) {
+            log("Created with application context.");
+        }
         AutofillManager autofillManager = context.getSystemService(AutofillManager.class);
         if (!AndroidAutofillFeatures.ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT
                         .isEnabled()
@@ -320,9 +325,9 @@ public class AutofillManagerWrapper {
     public void addInputUiObserver(InputUiObserver observer) {
         if (observer == null) return;
         if (mInputUiObservers == null) {
-            mInputUiObservers = new ArrayList<WeakReference<InputUiObserver>>();
+            mInputUiObservers = new ArrayList<>();
         }
-        mInputUiObservers.add(new WeakReference<InputUiObserver>(observer));
+        mInputUiObservers.add(new WeakReference<>(observer));
     }
 
     @VisibleForTesting
@@ -344,7 +349,7 @@ public class AutofillManagerWrapper {
 
     /** Always check isLoggable() before call this method. */
     public static void log(String log) {
-        // Log.i() instead of Log.d() is used here because log.d() is stripped out in release build.
+        // Log.i() instead of Log.d() is used here because Log.d() is stripped out in release build.
         Log.i(TAG, log);
     }
 
@@ -353,6 +358,7 @@ public class AutofillManagerWrapper {
     }
 
     @DoNotStripLogs
+    @DoNotInline
     private static void updateLogStat() {
         // Use 'setprop log.tag.AwAutofillManager DEBUG' to enable the log at runtime.
         // NOTE: See the comment on TAG above for why this is still AwAutofillManager.

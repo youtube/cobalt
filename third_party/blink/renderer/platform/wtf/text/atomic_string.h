@@ -29,6 +29,7 @@
 #include "base/containers/span.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_table_deleted_value_type.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string_encoding.h"
@@ -38,22 +39,14 @@
 #include "third_party/blink/renderer/platform/wtf/wtf_export.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 
-#ifdef __OBJC__
-#include "base/apple/bridging.h"
-#endif
-
-namespace WTF {
-class WTF_EXPORT AtomicString;
-}
-
 // `AtomicString` is interned, so it's safe to hash; allow conversion to a byte
 // span to facilitate this.
 namespace base {
 template <>
-inline constexpr bool kCanSafelyConvertToByteSpan<::WTF::AtomicString> = true;
+inline constexpr bool kCanSafelyConvertToByteSpan<::blink::AtomicString> = true;
 }
 
-namespace WTF {
+namespace blink {
 
 // An AtomicString instance represents a string, and multiple AtomicString
 // instances can share their string storage if the strings are
@@ -207,7 +200,6 @@ class WTF_EXPORT AtomicString {
   unsigned Hash() const { return string_.Impl()->ExistingHash(); }
 
 #ifdef __OBJC__
-  AtomicString(NSString* s) : string_(Add(base::apple::NSToCFPtrCast(s))) {}
   operator NSString*() const { return string_; }
 #endif
   // AtomicString::fromUTF8 will return a null string if
@@ -252,9 +244,6 @@ class WTF_EXPORT AtomicString {
   }
   static scoped_refptr<StringImpl> AddSlowCase(scoped_refptr<StringImpl>&&);
   static scoped_refptr<StringImpl> AddSlowCase(StringImpl*);
-#if BUILDFLAG(IS_APPLE)
-  static scoped_refptr<StringImpl> Add(CFStringRef);
-#endif
 };
 
 inline bool operator==(const AtomicString& a, const AtomicString& b) {
@@ -302,12 +291,6 @@ WTF_EXPORT extern const AtomicString& g_xlink_atom;
 WTF_EXPORT extern const AtomicString& g_http_atom;
 WTF_EXPORT extern const AtomicString& g_https_atom;
 
-template <typename T>
-struct HashTraits;
-// Defined in atomic_string_hash.h.
-template <>
-struct HashTraits<AtomicString>;
-
 // Pretty printer for gtest and base/logging.*.  It prepends and appends
 // double-quotes, and escapes characters other than ASCII printables.
 WTF_EXPORT std::ostream& operator<<(std::ostream&, const AtomicString&);
@@ -322,7 +305,13 @@ inline StringView::StringView(const AtomicString& string LIFETIME_BOUND,
 inline StringView::StringView(const AtomicString& string LIFETIME_BOUND)
     : StringView(string.Impl()) {}
 
-}  // namespace WTF
+template <typename T>
+struct HashTraits;
+// Defined in atomic_string_hash.h.
+template <>
+struct HashTraits<AtomicString>;
+
+}  // namespace blink
 
 // Mark `AtomicString` and `const char*` as having a common reference type (the
 // type to which both can be converted or bound) of `String`. This makes them
@@ -335,24 +324,16 @@ inline StringView::StringView(const AtomicString& string LIFETIME_BOUND)
 // Without this, the `find()` call above would fail to compile with a cryptic
 // error about being unable to invoke `std::ranges::equal_to()`.
 template <template <typename> typename TQ, template <typename> typename UQ>
-struct std::basic_common_reference<WTF::AtomicString, const char*, TQ, UQ> {
-  using type = WTF::String;
+struct std::basic_common_reference<blink::AtomicString, const char*, TQ, UQ> {
+  using type = blink::String;
 };
 
 template <template <typename> typename TQ, template <typename> typename UQ>
-struct std::basic_common_reference<const char*, WTF::AtomicString, TQ, UQ> {
-  using type = WTF::String;
+struct std::basic_common_reference<const char*, blink::AtomicString, TQ, UQ> {
+  using type = blink::String;
 };
 
-WTF_ALLOW_MOVE_INIT_AND_COMPARE_WITH_MEM_FUNCTIONS(AtomicString)
+WTF_ALLOW_MOVE_INIT_AND_COMPARE_WITH_MEM_FUNCTIONS(blink::AtomicString)
 
-using WTF::AtomicString;
-using WTF::g_null_atom;
-using WTF::g_empty_atom;
-using WTF::g_star_atom;
-using WTF::g_xml_atom;
-using WTF::g_xmlns_atom;
-using WTF::g_xlink_atom;
-
-#include "third_party/blink/renderer/platform/wtf/text/string_concatenate.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_operators_atomic.h"
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_ATOMIC_STRING_H_

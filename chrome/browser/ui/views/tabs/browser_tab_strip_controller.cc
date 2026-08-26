@@ -18,6 +18,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
+#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/autocomplete/autocomplete_classifier_factory.h"
@@ -61,6 +62,7 @@
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/performance_manager/public/user_tuning/prefs.h"
+#include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/saved_tab_group.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
@@ -77,7 +79,6 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/peak_gpu_memory_tracker_factory.h"
 #include "content/public/browser/web_contents.h"
-#include "ipc/ipc_message.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/list_selection_model.h"
@@ -496,8 +497,9 @@ void BrowserTabStripController::CloseTab(int model_index) {
 
   // Try to show reading list IPH if needed.
   if (tabstrip_->GetTabCount() >= 7) {
-    browser_view_->MaybeShowFeaturePromo(
-        feature_engagement::kIPHReadingListEntryPointFeature);
+    BrowserUserEducationInterface::From(browser_view_->browser())
+        ->MaybeShowFeaturePromo(
+            feature_engagement::kIPHReadingListEntryPointFeature);
   }
 }
 
@@ -793,8 +795,8 @@ BrowserWindowInterface* BrowserTabStripController::GetBrowserWindowInterface() {
   return browser_view_->browser();
 }
 
-const Browser* BrowserTabStripController::GetBrowser() const {
-  return browser();
+Browser* BrowserTabStripController::GetBrowser() {
+  return browser_view_->browser();
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1033,6 +1035,7 @@ void BrowserTabStripController::OnSplitTabChanged(
         std::back_inserter(split_indices),
         [](const std::pair<tabs::TabInterface*, int>& p) { return p.second; });
     tabstrip_->OnSplitContentsChanged(split_indices);
+    tabstrip_->StopAnimating(true);
   }
 }
 
@@ -1072,8 +1075,8 @@ void BrowserTabStripController::AddTabs(
   // Try to show tab search IPH if needed.
   constexpr int kTabSearchIPHTriggerThreshold = 8;
   if (tabstrip_->GetTabCount() >= kTabSearchIPHTriggerThreshold) {
-    browser_view_->MaybeShowFeaturePromo(
-        feature_engagement::kIPHTabSearchFeature);
+    BrowserUserEducationInterface::From(browser_view_->browser())
+        ->MaybeShowFeaturePromo(feature_engagement::kIPHTabSearchFeature);
   }
 }
 

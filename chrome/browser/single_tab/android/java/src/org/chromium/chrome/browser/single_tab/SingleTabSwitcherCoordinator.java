@@ -142,7 +142,7 @@ public class SingleTabSwitcherCoordinator implements ModuleProvider {
      *
      * @param mostRecentTab The most recent Tab to track.
      */
-    public void show(Tab mostRecentTab) {
+    public void show(@Nullable Tab mostRecentTab) {
         show(true, mostRecentTab);
     }
 
@@ -219,8 +219,7 @@ public class SingleTabSwitcherCoordinator implements ModuleProvider {
 
     @Override
     public String getModuleContextMenuHideText(Context context) {
-        return context.getResources()
-                .getQuantityString(R.plurals.home_modules_context_menu_hide_tab, 1);
+        return context.getString(R.string.home_modules_context_menu_hide_tab);
     }
 
     @VisibleForTesting

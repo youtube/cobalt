@@ -7,6 +7,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "components/dbus/xdg/systemd.h"
 #include "dbus/mock_bus.h"
 #include "dbus/mock_object_proxy.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -65,11 +66,8 @@ ACTION_P2(RegisterSignalCallback, signal_callback, connected_callback) {
   *connected_callback = std::move(*arg3);
 }
 
-ACTION_P(MethodCallback,
-         color_scheme_response_callback,
-         color_scheme_error_callback) {
-  *color_scheme_response_callback = std::move(*arg2);
-  *color_scheme_error_callback = std::move(*arg3);
+ACTION_P(MoveCallback, callback) {
+  *callback = std::move(*arg2);
 }
 
 // Matches a method call to the specified dbus target.
@@ -80,7 +78,9 @@ MATCHER_P2(Calls, interface, member, "") {
 }  // namespace
 
 using testing::_;
+using testing::AtLeast;
 using testing::ByMove;
+using testing::Invoke;
 using testing::Return;
 using testing::StrictMock;
 
@@ -97,17 +97,11 @@ class DarkModeManagerLinuxTest : public testing::Test {
   dbus::ObjectProxy::OnConnectedCallback& signal_connected_callback() {
     return signal_connected_callback_;
   }
-  dbus::MockObjectProxy::ResponseCallback& color_scheme_response_callback() {
-    return color_scheme_response_callback_;
+  dbus::ObjectProxy::ResponseOrErrorCallback& color_scheme_callback() {
+    return color_scheme_callback_;
   }
-  dbus::MockObjectProxy::ErrorCallback& color_scheme_error_callback() {
-    return color_scheme_error_callback_;
-  }
-  dbus::MockObjectProxy::ResponseCallback& accent_color_response_callback() {
-    return accent_color_response_callback_;
-  }
-  dbus::MockObjectProxy::ErrorCallback& accent_color_error_callback() {
-    return accent_color_error_callback_;
+  dbus::ObjectProxy::ResponseOrErrorCallback& accent_color_callback() {
+    return accent_color_callback_;
   }
   MockNativeTheme* mock_native_theme() { return mock_native_theme_.get(); }
   MockLinuxUi* mock_linux_ui() { return mock_linux_ui_.get(); }
@@ -115,11 +109,49 @@ class DarkModeManagerLinuxTest : public testing::Test {
  private:
   void SetUp() override {
     mock_bus_ = base::MakeRefCounted<dbus::MockBus>(dbus::Bus::Options());
+    mock_dbus_proxy_ = base::MakeRefCounted<dbus::MockObjectProxy>(
+        mock_bus_.get(), DBUS_SERVICE_DBUS, dbus::ObjectPath(DBUS_PATH_DBUS));
+    mock_systemd_proxy_ = base::MakeRefCounted<dbus::MockObjectProxy>(
+        mock_bus_.get(), "org.freedesktop.systemd1",
+        dbus::ObjectPath("/org/freedesktop/systemd1"));
     mock_portal_proxy_ =
         base::MakeRefCounted<StrictMock<dbus::MockObjectProxy>>(
             mock_bus_.get(), DarkModeManagerLinux::kFreedesktopSettingsService,
             dbus::ObjectPath(
                 DarkModeManagerLinux::kFreedesktopSettingsObjectPath));
+
+    EXPECT_CALL(*mock_bus_, GetObjectProxy(DBUS_SERVICE_DBUS,
+                                           dbus::ObjectPath(DBUS_PATH_DBUS)))
+        .WillRepeatedly(Return(mock_dbus_proxy_.get()));
+
+    EXPECT_CALL(*mock_bus_,
+                GetObjectProxy("org.freedesktop.systemd1",
+                               dbus::ObjectPath("/org/freedesktop/systemd1")))
+        .Times(AtLeast(0))
+        .WillRepeatedly(Return(mock_systemd_proxy_.get()));
+
+    EXPECT_CALL(*mock_systemd_proxy_, DoCallMethod(_, _, _))
+        .Times(AtLeast(0))
+        .WillRepeatedly(
+            Invoke([](dbus::MethodCall*, int,
+                      dbus::ObjectProxy::ResponseCallback* callback) {
+              std::move(*callback).Run(nullptr);
+            }));
+
+    EXPECT_CALL(*mock_dbus_proxy_,
+                DoCallMethod(Calls(DBUS_INTERFACE_DBUS, "NameHasOwner"), _, _))
+        .WillOnce(Invoke([](dbus::MethodCall* method_call, int timeout_ms,
+                            dbus::ObjectProxy::ResponseCallback* callback) {
+          dbus::MessageReader reader(method_call);
+          std::string service_name;
+          EXPECT_TRUE(reader.PopString(&service_name));
+          EXPECT_EQ(service_name, "org.freedesktop.systemd1");
+
+          auto response = dbus::Response::CreateEmpty();
+          dbus::MessageWriter writer(response.get());
+          writer.AppendBool(true);
+          std::move(*callback).Run(response.get());
+        }));
 
     EXPECT_CALL(*mock_bus_,
                 GetObjectProxy(
@@ -136,14 +168,12 @@ class DarkModeManagerLinuxTest : public testing::Test {
                                          &signal_connected_callback_));
 
     EXPECT_CALL(*mock_portal_proxy_,
-                DoCallMethodWithErrorCallback(
+                DoCallMethodWithErrorResponse(
                     Calls(DarkModeManagerLinux::kFreedesktopSettingsInterface,
                           DarkModeManagerLinux::kReadMethod),
-                    _, _, _))
-        .WillOnce(MethodCallback(&color_scheme_response_callback_,
-                                 &color_scheme_error_callback_))
-        .WillOnce(MethodCallback(&accent_color_response_callback_,
-                                 &accent_color_error_callback_));
+                    _, _))
+        .WillOnce(MoveCallback(&color_scheme_callback_))
+        .WillOnce(MoveCallback(&accent_color_callback_));
 
     mock_linux_ui_ = std::make_unique<MockLinuxUi>();
     linux_ui_themes_ = std::vector<raw_ptr<LinuxUiTheme, VectorExperimental>>{
@@ -155,6 +185,8 @@ class DarkModeManagerLinuxTest : public testing::Test {
 
     enable_portal_accent_color_.InitAndEnableFeature(
         features::kUsePortalAccentColor);
+
+    dbus_xdg::ResetCachedStateForTesting();
 
     manager_ = std::make_unique<DarkModeManagerLinux>(
         mock_bus_, mock_linux_ui_.get(), &linux_ui_themes_,
@@ -175,15 +207,15 @@ class DarkModeManagerLinuxTest : public testing::Test {
   std::unique_ptr<MockNativeTheme> mock_native_theme_;
 
   scoped_refptr<dbus::MockBus> mock_bus_;
+  scoped_refptr<dbus::MockObjectProxy> mock_dbus_proxy_;
+  scoped_refptr<dbus::MockObjectProxy> mock_systemd_proxy_;
   scoped_refptr<dbus::MockObjectProxy> mock_portal_proxy_;
 
   dbus::ObjectProxy::SignalCallback setting_changed_callback_;
   dbus::ObjectProxy::OnConnectedCallback signal_connected_callback_;
 
-  dbus::MockObjectProxy::ResponseCallback color_scheme_response_callback_;
-  dbus::MockObjectProxy::ErrorCallback color_scheme_error_callback_;
-  dbus::MockObjectProxy::ResponseCallback accent_color_response_callback_;
-  dbus::MockObjectProxy::ErrorCallback accent_color_error_callback_;
+  dbus::ObjectProxy::ResponseOrErrorCallback color_scheme_callback_;
+  dbus::ObjectProxy::ResponseOrErrorCallback accent_color_callback_;
 
   base::test::ScopedFeatureList enable_portal_accent_color_;
 
@@ -204,7 +236,7 @@ TEST_F(DarkModeManagerLinuxTest, UseNativeThemeSetting) {
   method_call.SetSerial(123);
   auto error = dbus::ErrorResponse::FromMethodCall(
       &method_call, "org.freedesktop.DBus.Error.Failed", "");
-  std::move(color_scheme_error_callback()).Run(error.get());
+  std::move(color_scheme_callback()).Run(nullptr, error.get());
   std::move(signal_connected_callback())
       .Run(DarkModeManagerLinux::kFreedesktopSettingsInterface,
            DarkModeManagerLinux::kSettingChangedSignal, false);
@@ -230,7 +262,7 @@ TEST_F(DarkModeManagerLinuxTest, UsePortalSetting) {
       DarkModeManagerLinux::kFreedesktopColorSchemeDark);
   writer.CloseContainer(&variant_writer);
   EXPECT_CALL(*mock_linux_ui(), SetDarkTheme(true));
-  std::move(color_scheme_response_callback()).Run(response.get());
+  std::move(color_scheme_callback()).Run(response.get(), nullptr);
   EXPECT_TRUE(ManagerPrefersDarkTheme());
   EXPECT_TRUE(mock_native_theme()->ShouldUseDarkColors());
   EXPECT_EQ(mock_native_theme()->GetPreferredColorScheme(),
@@ -281,7 +313,7 @@ TEST_F(DarkModeManagerLinuxTest, UsePortalAccentColor) {
   writer.CloseContainer(&outer_variant_writer);
   std::optional<SkColor> expected_color = SkColorSetRGB(0, 127, 255);
   EXPECT_CALL(*mock_linux_ui(), SetAccentColor(expected_color));
-  std::move(accent_color_response_callback()).Run(response.get());
+  std::move(accent_color_callback()).Run(response.get(), nullptr);
 
   // Changes in the portal accent color should be processed by the manager and
   // the native theme should be updated.

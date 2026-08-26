@@ -12,8 +12,8 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
-#include "third_party/blink/renderer/core/scheduler/script_wrappable_task_state.h"
 #include "third_party/blink/renderer/core/scheduler/task_attribution_info_impl.h"
+#include "third_party/blink/renderer/core/scheduler/task_attribution_task_state.h"
 #include "third_party/blink/renderer/core/scheduler/web_scheduling_task_state.h"
 #include "third_party/blink/renderer/platform/bindings/dom_wrapper_world.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
@@ -48,6 +48,8 @@ perfetto::protos::pbzero::BlinkTaskScope::TaskScopeType ToProtoEnum(
       return ProtoType::TASK_SCOPE_XML_HTTP_REQUEST;
     case TaskAttributionTracker::TaskScopeType::kSoftNavigation:
       return ProtoType::TASK_SCOPE_SOFT_NAVIGATION;
+    case TaskAttributionTracker::TaskScopeType::kMiscEvent:
+      return ProtoType::TASK_SCOPE_MISC_EVENT;
   }
 }
 
@@ -64,11 +66,11 @@ TaskAttributionTrackerImpl::TaskAttributionTrackerImpl(v8::Isolate* isolate)
   CHECK(isolate_);
 }
 
-scheduler::TaskAttributionInfo* TaskAttributionTrackerImpl::RunningTask()
+scheduler::TaskAttributionInfo* TaskAttributionTrackerImpl::CurrentTaskState()
     const {
-  if (ScriptWrappableTaskStateBase* task_state =
-          ScriptWrappableTaskState::GetCurrent(isolate_)) {
-    return task_state->WrappedState()->GetTaskAttributionInfo();
+  if (TaskAttributionTaskState* task_state =
+          TaskAttributionTaskState::GetCurrent(isolate_)) {
+    return task_state->GetTaskAttributionInfo();
   }
   // There won't be a running task outside of a `TaskScope` or microtask
   // checkpoint.
@@ -76,38 +78,28 @@ scheduler::TaskAttributionInfo* TaskAttributionTrackerImpl::RunningTask()
 }
 
 TaskAttributionTracker::TaskScope TaskAttributionTrackerImpl::CreateTaskScope(
-    ScriptState* script_state,
     TaskAttributionInfo* task_state,
     TaskScopeType type) {
-  return CreateTaskScope(script_state, task_state, type,
+  return CreateTaskScope(task_state, type,
                          /*continuation_context=*/nullptr);
 }
 
 TaskAttributionTracker::TaskScope TaskAttributionTrackerImpl::CreateTaskScope(
-    ScriptState* script_state,
     SoftNavigationContext* soft_navigation_context) {
   next_task_id_ = next_task_id_.NextId();
   auto* task_state = MakeGarbageCollected<TaskAttributionInfoImpl>(
       next_task_id_, soft_navigation_context);
-  return CreateTaskScope(script_state, task_state,
-                         TaskScopeType::kSoftNavigation,
+  return CreateTaskScope(task_state, TaskScopeType::kSoftNavigation,
                          /*continuation_context=*/nullptr);
 }
 
 TaskAttributionTracker::TaskScope TaskAttributionTrackerImpl::CreateTaskScope(
-    ScriptState* script_state,
     TaskAttributionInfo* task_state,
     TaskScopeType type,
     SchedulerTaskContext* continuation_context) {
-  CHECK(script_state);
-  CHECK_EQ(script_state->GetIsolate(), isolate_);
-
-  ScriptWrappableTaskStateBase* previous_task_state =
-      ScriptWrappableTaskState::GetCurrent(isolate_);
-  WrappableTaskState* previous_unwrapped_task_state =
-      previous_task_state ? previous_task_state->WrappedState() : nullptr;
-
-  WrappableTaskState* running_task_state = nullptr;
+  TaskAttributionTaskState* previous_task_state =
+      TaskAttributionTaskState::GetCurrent(isolate_);
+  TaskAttributionTaskState* running_task_state = nullptr;
   if (continuation_context) {
     running_task_state = MakeGarbageCollected<WebSchedulingTaskState>(
         task_state, continuation_context);
@@ -117,20 +109,19 @@ TaskAttributionTracker::TaskScope TaskAttributionTrackerImpl::CreateTaskScope(
     running_task_state = To<TaskAttributionInfoImpl>(task_state);
   }
 
-  if (running_task_state != previous_unwrapped_task_state) {
-    ScriptWrappableTaskState::SetCurrent(script_state, running_task_state);
+  if (running_task_state != previous_task_state) {
+    TaskAttributionTaskState::SetCurrent(isolate_, running_task_state);
   }
 
   TaskAttributionInfo* current =
       running_task_state ? running_task_state->GetTaskAttributionInfo()
                          : nullptr;
   TaskAttributionInfo* previous =
-      previous_unwrapped_task_state
-          ? previous_unwrapped_task_state->GetTaskAttributionInfo()
-          : nullptr;
+      previous_task_state ? previous_task_state->GetTaskAttributionInfo()
+                          : nullptr;
 
-  // Fire observer callbacks after updating the CPED to keep `RunningTask()` in
-  // sync with what is passed to the observer.
+  // Fire observer callbacks after updating the CPED to keep
+  // `CurrentTaskState()` in sync with what is passed to the observer.
   //
   // TODO(crbug.com/40942324): The purpose of the `Observer` mechanism is so the
   // soft navigation layer can learn if an event ran while the scope is active,
@@ -151,25 +142,22 @@ TaskAttributionTracker::TaskScope TaskAttributionTrackerImpl::CreateTaskScope(
             previous ? previous->Id().value() : 0);
       });
 
-  return TaskScope(this, script_state, previous_task_state);
+  return TaskScope(this, previous_task_state);
 }
 
 std::optional<TaskAttributionTracker::TaskScope>
 TaskAttributionTrackerImpl::MaybeCreateTaskScopeForCallback(
-    ScriptState* script_state,
     TaskAttributionInfo* task_state) {
-  CHECK(script_state);
-
   // Always create a `TaskScope` if there's `task_state` to propagate.
   if (task_state) {
-    return CreateTaskScope(script_state, task_state, TaskScopeType::kCallback);
+    return CreateTaskScope(task_state, TaskScopeType::kCallback);
   }
 
   // Even though we don't need to create a `TaskScope`, we still need to notify
   // the `observer_` since it relies on the callback to set up internal state.
   // And the `observer_` might not have been notified previously, e.g. if
   // the outermost `TaskScope` is for propagating soft navigation state.
-  TaskAttributionInfo* current_task_state = RunningTask();
+  TaskAttributionInfo* current_task_state = CurrentTaskState();
   if (observer_ && current_task_state) {
     observer_->OnCreateTaskScope(*current_task_state);
   }
@@ -179,7 +167,7 @@ TaskAttributionTrackerImpl::MaybeCreateTaskScopeForCallback(
 
 void TaskAttributionTrackerImpl::OnTaskScopeDestroyed(
     const TaskScope& task_scope) {
-  ScriptWrappableTaskState::SetCurrent(task_scope.script_state_,
+  TaskAttributionTaskState::SetCurrent(isolate_,
                                        task_scope.previous_task_state_);
   TRACE_EVENT_END("scheduler");
 }
@@ -197,9 +185,14 @@ void TaskAttributionTrackerImpl::OnObserverScopeDestroyed(
   observer_ = observer_scope.PreviousObserver();
 }
 
-void TaskAttributionTrackerImpl::AddSameDocumentNavigationTask(
-    TaskAttributionInfo* task) {
-  same_document_navigation_tasks_.push_back(task);
+std::optional<TaskAttributionId>
+TaskAttributionTrackerImpl::AsyncSameDocumentNavigationStarted() {
+  scheduler::TaskAttributionInfo* task_state = CurrentTaskState();
+  if (!task_state) {
+    return std::nullopt;
+  }
+  same_document_navigation_tasks_.push_back(task_state);
+  return task_state->Id();
 }
 
 void TaskAttributionTrackerImpl::ResetSameDocumentNavigationTasks() {

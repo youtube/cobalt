@@ -11,11 +11,13 @@
 #import "base/ios/block_types.h"
 #import "components/signin/public/identity_manager/tribool.h"
 #import "components/sync/base/data_type.h"
+#import "ios/chrome/app/change_profile_continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/signin/model/capabilities_types.h"
 #import "ios/chrome/browser/signin/model/system_identity.h"
 
 class Browser;
+enum class ChangeProfileReason;
 class ChromeAccountManagerService;
 @class MDCSnackbarMessage;
 class ProfileIOS;
@@ -150,10 +152,21 @@ bool IsFullscreenSigninPromoManagerMigrationDone();
 void LogFullscreenSigninPromoManagerMigrationDone();
 
 // Fetches asynchronously the unsynced data types for a sign-out or a profile
-// switching. And calls `callback`.
+// switching. And calls `callback` with the set of data type from
+// `TypesRequiringUnsyncedDataCheckOnSignout` containing unsynced data.
 void FetchUnsyncedDataForSignOutOrProfileSwitching(
     syncer::SyncService* sync_service,
     UnsyncedDataForSignoutOrProfileSwitchingCallback callback);
+
+// Post an asynchronous request to switch from a managed profile to the
+// personal profile, running `continuation` when the change completes.
+void SwitchToPersonalProfile(SceneState* scene_state,
+                             ChangeProfileReason reason,
+                             ChangeProfileContinuation continuation);
+
+// Whether there exists a scene with a profile different from the one of this
+// scene where the user is signed-in.
+bool DifferentUserIsSignedInInAnotherScene(SceneState* scene_state);
 
 }  // namespace signin
 

@@ -10,9 +10,14 @@
 
 #include "audio/utility/channel_mixer.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+#include "api/audio/audio_frame.h"
+#include "api/audio/channel_layout.h"
 #include "audio/utility/channel_mixing_matrix.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 
 namespace webrtc {

@@ -36,7 +36,9 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.webid.DigitalIdentityProvider;
 import org.chromium.chrome.browser.webid.IdentityCredentialsDelegate;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.test.util.DOMUtils;
 import org.chromium.content_public.browser.test.util.JavaScriptUtils;
@@ -59,7 +61,7 @@ public class DigitalIdentitySafetyInterstitialIntegrationTest {
      * Observes shown modal dialogs.
      *
      * <p>Presses {@link ButtonType.POSITIVE} for dialog whose {@link
-     * ModalDialogProperties.MESSAGE_PARAGRAPH1} matches the parameter passed to the constructor.
+     * ModalDialogProperties.MESSAGE_PARAGRAPHS} matches the parameter passed to the constructor.
      */
     private static class ModalDialogButtonPresser implements ModalDialogManagerObserver {
         private final String mSearchParagraph1;
@@ -85,7 +87,7 @@ public class DigitalIdentitySafetyInterstitialIntegrationTest {
         public void onDialogAdded(PropertyModel model) {
             mWasAnyDialogShown = true;
 
-            CharSequence paragraph1 = model.get(ModalDialogProperties.MESSAGE_PARAGRAPH_1);
+            CharSequence paragraph1 = model.get(ModalDialogProperties.MESSAGE_PARAGRAPHS).get(0);
             if (paragraph1 != null && mSearchParagraph1.equals(paragraph1.toString())) {
                 mWasDialogShown = true;
                 mDialogPropertyModel = model;
@@ -110,11 +112,13 @@ public class DigitalIdentitySafetyInterstitialIntegrationTest {
     private static final String TEST_PAGE = "/chrome/test/data/android/dc_mdocs.html";
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
     private EmbeddedTestServer mTestServer;
+    private WebPageStation mPage;
 
     private ModalDialogButtonPresser mModalDialogObserver;
 
@@ -128,7 +132,7 @@ public class DigitalIdentitySafetyInterstitialIntegrationTest {
         mTestServer = mActivityTestRule.getTestServer();
         DigitalIdentityProvider.setDelegateForTesting(new ReturnTokenIdentityCredentialsDelegate());
 
-        mActivityTestRule.startMainActivityWithURL(mTestServer.getURL(TEST_PAGE));
+        mPage = mActivityTestRule.startOnTestServerUrl(TEST_PAGE);
 
         mModalDialogManager = getActivity().getModalDialogManager();
     }

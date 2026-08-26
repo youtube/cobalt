@@ -21,7 +21,6 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
@@ -47,6 +46,7 @@
 #include "components/services/app_service/public/cpp/file_handler.h"
 #include "components/sync/base/time.h"
 #include "components/webapps/browser/install_result_code.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "mojo/public/cpp/bindings/struct_ptr.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -551,39 +551,17 @@ TEST_F(WebAppInstallFinalizerUnitTest, IsolationDataSetInWebAppDB) {
                                            integrity_block_data)));
 }
 
-TEST_F(WebAppInstallFinalizerUnitTest,
-       PopUpContentSettingsGrantedForForceInstalledIwa) {
-  std::unique_ptr<ScopedBundledIsolatedWebApp> app =
-      IsolatedWebAppBuilder(ManifestBuilder().SetVersion("1.0.0"))
-          .BuildBundle();
-
-  const web_app::IsolatedWebAppUrlInfo url_info =
-      app->InstallWithSource(
-             profile(),
-             &web_app::IsolatedWebAppInstallSource::FromExternalPolicy)
-          .value();
-
-  HostContentSettingsMap* const host_content_settings_map =
-      HostContentSettingsMapFactory::GetForProfile(profile());
-
-  EXPECT_EQ(ContentSetting::CONTENT_SETTING_ALLOW,
-            host_content_settings_map->GetContentSetting(
-                url_info.origin().GetURL(), url_info.origin().GetURL(),
-                ContentSettingsType::POPUPS));
-}
-
-TEST_F(WebAppInstallFinalizerUnitTest, PopUpContentSettingsNotGrantedForIwa) {
+TEST_F(WebAppInstallFinalizerUnitTest, PopUpContentSettingsGrantedForIwa) {
   std::unique_ptr<ScopedBundledIsolatedWebApp> app =
       IsolatedWebAppBuilder(ManifestBuilder().SetVersion("1.0.0"))
           .BuildBundle();
   app->TrustSigningKey();
   const web_app::IsolatedWebAppUrlInfo url_info =
       app->InstallChecked(profile());
+  scoped_refptr<HostContentSettingsMap> host_content_settings_map(
+      HostContentSettingsMapFactory::GetForProfile(profile()));
 
-  HostContentSettingsMap* const host_content_settings_map =
-      HostContentSettingsMapFactory::GetForProfile(profile());
-
-  EXPECT_EQ(ContentSetting::CONTENT_SETTING_BLOCK,
+  EXPECT_EQ(ContentSetting::CONTENT_SETTING_ALLOW,
             host_content_settings_map->GetContentSetting(
                 url_info.origin().GetURL(), url_info.origin().GetURL(),
                 ContentSettingsType::POPUPS));

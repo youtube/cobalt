@@ -86,6 +86,10 @@ class MODULES_EXPORT AIPageContentAgent final
       int stack_depth = 0;
     };
 
+    bool actionable_mode() const {
+      return options_->mode ==
+             mojom::blink::AIPageContentMode::kActionableElements;
+    }
     // Returns true if any descendant of `object` has a computed value of
     // visible for `visibility`.
     bool WalkChildren(const LayoutObject& object,
@@ -99,7 +103,7 @@ class MODULES_EXPORT AIPageContentAgent final
         const RecursionData& recursion_data);
     void AddPageInteractionInfo(const Document& document,
                                 mojom::blink::AIPageContent& page_content);
-    void AddFrameData(const LocalFrame& frame,
+    void AddFrameData(LocalFrame& frame,
                       mojom::blink::AIPageContentFrameData& frame_data);
     void AddFrameInteractionInfo(
         const LocalFrame& frame,
@@ -144,6 +148,10 @@ class MODULES_EXPORT AIPageContentAgent final
     // The set of nodes which are involved in a user interaction and must
     // produce a ContentNode.
     base::flat_set<DOMNodeId> interactive_dom_node_ids_;
+
+    // If present, the node which is accessibility focused. This is used to
+    // determine which node to add geometry for in non-actionable mode.
+    DOMNodeId accessibility_focused_node_id_ = kInvalidDOMNodeId;
 
     const raw_ref<const mojom::blink::AIPageContentOptions> options_;
 

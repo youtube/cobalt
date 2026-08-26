@@ -17,7 +17,8 @@ class {{export_attribute|append_space_if_nonempty}}{{interface.name}}
  public:
   using IPCStableHashFunction = uint32_t(*)();
 
-  static const char Name_[];
+  {#- Name includes namespace to prevent collision. #}
+  static constexpr const char* Name_ = "{{module_namespace}}.{{interface.name}}";
   static IPCStableHashFunction MessageToMethodInfo_(mojo::Message& message);
   static const char* MessageToMethodName_(mojo::Message& message);
 {%-  if interface.runtime_feature %}

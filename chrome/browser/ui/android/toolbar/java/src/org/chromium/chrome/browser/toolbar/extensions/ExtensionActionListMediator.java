@@ -4,10 +4,10 @@
 
 package org.chromium.chrome.browser.toolbar.extensions;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.view.View;
 
-import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.lifetime.LifetimeAssert;
@@ -17,135 +17,77 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionActionButtonProperties.ListItemType;
+import org.chromium.chrome.browser.ui.extensions.ExtensionAction;
+import org.chromium.chrome.browser.ui.extensions.ExtensionActionPopupContents;
+import org.chromium.chrome.browser.ui.extensions.ExtensionActionsBridge;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.extensions.ShowAction;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.ModelListAdapter;
 import org.chromium.ui.modelutil.PropertyModel;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/**
- * Responsible for mediating external events like extension action changes and reflects all these
- * changes on the action button model.
- */
 @NullMarked
 class ExtensionActionListMediator implements Destroyable {
     private static final String TAG = "EALMediator";
 
+    private final Context mContext;
+    private final WindowAndroid mWindowAndroid;
     private final ModelList mModels;
-    private final ObservableSupplier<Profile> mProfileSupplier;
-    private final ObservableSupplier<Tab> mCurrentTabSupplier;
-    private final Callback<Profile> mProfileUpdatedCallback = this::onProfileUpdated;
-    private final Callback<Tab> mTabChangedCallback = this::onTabChanged;
-    private final ActionsObserver mActionsObserver = new ActionsObserver();
+    private final ExtensionActionsUpdateHelper mExtensionActionsUpdateHelper;
+
+    private final ActionsUpdateDelegate mActionsUpdateDelegate = new ActionsUpdateDelegate();
 
     @Nullable private final LifetimeAssert mLifetimeAssert = LifetimeAssert.create(this);
 
-    @Nullable private Profile mProfile;
-    @Nullable private ExtensionActionsBridge mExtensionActionsBridge;
-    @Nullable private Tab mCurrentTab;
+    @Nullable private ExtensionActionPopup mCurrentPopup;
 
     public ExtensionActionListMediator(
+            Context context,
+            WindowAndroid windowAndroid,
             ModelList models,
             ObservableSupplier<Profile> profileSupplier,
             ObservableSupplier<Tab> currentTabSupplier) {
+        mContext = context;
+        mWindowAndroid = windowAndroid;
         mModels = models;
-        mProfileSupplier = profileSupplier;
-        mCurrentTabSupplier = currentTabSupplier;
 
-        mProfileSupplier.addObserver(mProfileUpdatedCallback);
-        mCurrentTabSupplier.addObserver(mTabChangedCallback);
+        mExtensionActionsUpdateHelper =
+                new ExtensionActionsUpdateHelper(
+                        mModels, profileSupplier, currentTabSupplier, mActionsUpdateDelegate);
     }
 
     @Override
     public void destroy() {
-        if (mExtensionActionsBridge != null) {
-            mExtensionActionsBridge.removeObserver(mActionsObserver);
-        }
-        mCurrentTabSupplier.removeObserver(mTabChangedCallback);
-        mProfileSupplier.removeObserver(mProfileUpdatedCallback);
-
-        mCurrentTab = null;
-        mExtensionActionsBridge = null;
-        mProfile = null;
-
+        closePopup();
+        assert mCurrentPopup == null;
+        mExtensionActionsUpdateHelper.destroy();
         LifetimeAssert.setSafeToGc(mLifetimeAssert, true);
     }
 
-    private void onProfileUpdated(@Nullable Profile profile) {
-        if (profile == mProfile) {
+    private void onPrimaryClick(View buttonView, String actionId) {
+        ExtensionActionsBridge extensionActionsBridge =
+                mExtensionActionsUpdateHelper.getExtensionActionsBridge();
+        Tab currentTab = mExtensionActionsUpdateHelper.getCurrentTab();
+        if (extensionActionsBridge == null || currentTab == null) {
             return;
         }
 
-        if (mExtensionActionsBridge != null) {
-            mExtensionActionsBridge.removeObserver(mActionsObserver);
-        }
-        mExtensionActionsBridge = null;
-        mProfile = profile;
-
-        if (mProfile != null) {
-            mExtensionActionsBridge = ExtensionActionsBridge.get(mProfile);
-            if (mExtensionActionsBridge != null) {
-                mExtensionActionsBridge.addObserver(mActionsObserver);
-            }
-        }
-
-        // Force clearing buttons even if the actions for the new profile are not available yet
-        // because switching profiles usually results in a very different set of extension actions.
-        mModels.clear();
-
-        // If the current tab belongs to a different profile, onTabChanged will be called soon, so
-        // do not update actions now to avoid duplicated updates.
-        if (mCurrentTab != null && mCurrentTab.getProfile() != mProfile) {
-            return;
-        }
-
-        maybeUpdateAllActions();
-    }
-
-    private void onTabChanged(Tab tab) {
-        if (tab == mCurrentTab) {
-            return;
-        }
-        if (tab == null) {
-            // The current tab can be null when a non-tab UI is shown (e.g. tab switcher). In this
-            // case, we do not bother refreshing actions as they're hidden anyway. We do not set
-            // mCurrentTab to null because we can skip updating actions if the current tab is set
-            // back to the previous tab.
-            return;
-        }
-
-        mCurrentTab = tab;
-
-        // If the tab belongs to a different profile, onProfileUpdated will be called soon, so
-        // do not update actions now to avoid duplicated updates.
-        if (tab.getProfile() != mProfile) {
-            return;
-        }
-
-        maybeUpdateAllActions();
-    }
-
-    private void onPrimaryClick(View unused_buttonView, String actionId) {
-        if (mExtensionActionsBridge == null || mCurrentTab == null) {
-            return;
-        }
-
-        WebContents webContents = mCurrentTab.getWebContents();
+        WebContents webContents = currentTab.getWebContents();
         if (webContents == null) {
             // TODO(crbug.com/385985177): Revisit how to handle this case.
             return;
         }
 
-        @ShowAction int showAction = mExtensionActionsBridge.runAction(actionId, webContents);
+        @ShowAction
+        int showAction =
+                extensionActionsBridge.runAction(actionId, currentTab.getId(), webContents);
         switch (showAction) {
             case ShowAction.NONE:
                 break;
             case ShowAction.SHOW_POPUP:
-                Log.e(TAG, "Extension popups are not implemented yet");
+                openPopup(buttonView, actionId);
                 break;
             case ShowAction.TOGGLE_SIDE_PANEL:
                 Log.e(TAG, "Extension side panels are not implemented yet");
@@ -153,78 +95,69 @@ class ExtensionActionListMediator implements Destroyable {
         }
     }
 
-    private void maybeUpdateAllActions() {
-        if (mProfile == null || mExtensionActionsBridge == null || mCurrentTab == null) {
-            mModels.clear();
+    private void openPopup(View buttonView, String actionId) {
+        // TODO(crbug.com/385987224): Do not open a popup again when the user clicks the action
+        // button while its popup is open.
+        closePopup();
+
+        Tab currentTab = mExtensionActionsUpdateHelper.getCurrentTab();
+        Profile profile = mExtensionActionsUpdateHelper.getProfile();
+
+        if (profile == null || currentTab == null) {
             return;
         }
+        int tabId = currentTab.getId();
 
-        if (!mExtensionActionsBridge.areActionsInitialized()) {
-            // No need to update the model as ActionsObserver will be called back soon.
-            return;
-        }
-
-        int tabId = mCurrentTab.getId();
-
-        // TODO(crbug.com/385984462): Show pinned actions only. For now, we pretend that all actions
-        // are pinned.
-        String[] actionIds = mExtensionActionsBridge.getActionIds();
-
-        List<ListItem> items = new ArrayList<>(actionIds.length);
-        for (String actionId : actionIds) {
-            ExtensionAction action = mExtensionActionsBridge.getAction(actionId, tabId);
-            assert action != null;
-            Bitmap icon = mExtensionActionsBridge.getActionIcon(actionId, tabId);
-            assert icon != null;
-            items.add(
-                    new ModelListAdapter.ListItem(
-                            ListItemType.EXTENSION_ACTION,
-                            new PropertyModel.Builder(ExtensionActionButtonProperties.ALL_KEYS)
-                                    .with(ExtensionActionButtonProperties.ICON, icon)
-                                    .with(ExtensionActionButtonProperties.ID, action.getId())
-                                    .with(
-                                            ExtensionActionButtonProperties.ON_CLICK_LISTENER,
-                                            (view) -> onPrimaryClick(view, actionId))
-                                    .with(ExtensionActionButtonProperties.TITLE, action.getTitle())
-                                    .build()));
-        }
-        mModels.set(items);
+        ExtensionActionPopupContents contents =
+                ExtensionActionPopupContents.create(profile, actionId, tabId);
+        assert mCurrentPopup == null;
+        mCurrentPopup =
+                new ExtensionActionPopup(mContext, mWindowAndroid, buttonView, actionId, contents);
+        mCurrentPopup.loadInitialPage();
+        mCurrentPopup.addOnDismissListener(this::closePopup);
     }
 
-    private class ActionsObserver implements ExtensionActionsBridge.Observer {
+    private void closePopup() {
+        if (mCurrentPopup == null) {
+            return;
+        }
+        assert mExtensionActionsUpdateHelper.getExtensionActionsBridge() != null;
+
+        // Clear mCurrentPopup now to avoid calling closePopup recursively via OnDismissListener.
+        ExtensionActionPopup popup = mCurrentPopup;
+        mCurrentPopup = null;
+        popup.destroy();
+    }
+
+    private class ActionsUpdateDelegate
+            implements ExtensionActionsUpdateHelper.ActionsUpdateDelegate {
         @Override
-        public void onActionAdded(String actionId) {
-            // TODO(crbug.com/385984462): Update the added action only.
-            maybeUpdateAllActions();
+        public void onUpdateStarted() {
+            closePopup();
+            assert mCurrentPopup == null;
         }
 
         @Override
-        public void onActionRemoved(String actionId) {
-            // TODO(crbug.com/385984462): Update the removed action only.
-            maybeUpdateAllActions();
+        public ListItem createActionModel(
+                ExtensionActionsBridge extensionActionsBridge, int tabId, String actionId) {
+            ExtensionAction action = extensionActionsBridge.getAction(actionId, tabId);
+            assert action != null;
+            Bitmap icon = extensionActionsBridge.getActionIcon(actionId, tabId);
+            assert icon != null;
+
+            return new ModelListAdapter.ListItem(
+                    ListItemType.EXTENSION_ACTION,
+                    new PropertyModel.Builder(ExtensionActionButtonProperties.ALL_KEYS)
+                            .with(ExtensionActionButtonProperties.ICON, icon)
+                            .with(ExtensionActionButtonProperties.ID, action.getId())
+                            .with(
+                                    ExtensionActionButtonProperties.ON_CLICK_LISTENER,
+                                    (view) -> onPrimaryClick(view, actionId))
+                            .with(ExtensionActionButtonProperties.TITLE, action.getTitle())
+                            .build());
         }
 
         @Override
-        public void onActionUpdated(String actionId) {
-            // TODO(crbug.com/385984462): Update the updated action only.
-            maybeUpdateAllActions();
-        }
-
-        @Override
-        public void onActionModelInitialized() {
-            maybeUpdateAllActions();
-        }
-
-        @Override
-        public void onPinnedActionsChanged() {
-            // TODO(crbug.com/385984462): Update the pinned/unpinned actions only.
-            maybeUpdateAllActions();
-        }
-
-        @Override
-        public void onActionIconUpdated(String actionId) {
-            // TODO(crbug.com/385984462): Update the updated action only.
-            maybeUpdateAllActions();
-        }
+        public void onUpdateFinished() {}
     }
 }

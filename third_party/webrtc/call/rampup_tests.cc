@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "absl/flags/flag.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"
@@ -43,7 +44,6 @@
 #include "call/video_receive_stream.h"
 #include "call/video_send_stream.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/string_encode.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/task_utils/repeating_task.h"
 #include "test/call_test.h"
@@ -66,12 +66,12 @@ using test::ImprovementDirection;
 using test::Unit;
 
 constexpr TimeDelta kPollInterval = TimeDelta::Millis(20);
-static const int kExpectedHighVideoBitrateBps = 80000;
-static const int kExpectedHighAudioBitrateBps = 30000;
-static const int kLowBandwidthLimitBps = 20000;
+const int kExpectedHighVideoBitrateBps = 80000;
+const int kExpectedHighAudioBitrateBps = 30000;
+const int kLowBandwidthLimitBps = 20000;
 // Set target detected bitrate to slightly larger than the target bitrate to
 // avoid flakiness.
-static const int kLowBitrateMarginBps = 2000;
+const int kLowBitrateMarginBps = 2000;
 
 std::vector<uint32_t> GenerateSsrcs(size_t num_streams, uint32_t ssrc_offset) {
   std::vector<uint32_t> ssrcs;

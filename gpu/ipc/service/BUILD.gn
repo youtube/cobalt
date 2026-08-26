@@ -114,14 +114,11 @@ component("service") {
       "image_transport_surface_overlay_mac.mm",
     ]
     deps += [ "//ui/accelerated_widget_mac" ]
-    if (skia_use_metal) {
-      deps += [ "//components/viz/common:metal_context_provider" ]
-    }
     if (is_mac) {
       sources += [ "image_transport_surface_mac.mm" ]
       deps += [
-        "//ui/display:display",
-        "//ui/display/types:types",
+        "//ui/display",
+        "//ui/display/types",
       ]
       lib_dirs = [ "$mac_sdk_path/usr/lib" ]
       frameworks = [
@@ -142,6 +139,12 @@ component("service") {
   }
   if (is_linux || is_chromeos) {
     sources += [ "image_transport_surface_linux.cc" ]
+  }
+  if (is_chromeos) {
+    sources += [
+      "arc_shared_image_interface.cc",
+      "arc_shared_image_interface.h",
+    ]
   }
   if (use_ozone) {
     sources += [
@@ -174,11 +177,15 @@ source_set("test_support") {
   sources = [ "gpu_memory_buffer_factory_test_template.h" ]
   public_deps = [
     ":service",
-    "//testing/gtest:gtest",
+    "//testing/gtest",
   ]
   deps = [
     "//base/test:test_support",
     "//gpu/ipc/common",
     "//ui/gl:test_support",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

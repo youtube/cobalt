@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/legacy_tab_grid_transition_handler.h"
 
+#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/ui/util/named_guide.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/legacy_grid_transition_animation.h"
@@ -109,18 +111,13 @@ const CGFloat kToTabGroupAnimationDuration = 0.25;
   // this transition instead of just zeroing the alpha here.
   browser.view.alpha = 0;
 
-  // Run the main animation.
-  if (@available(iOS 17, *)) {
-    // On iOS 17, there is an issue if the animation is run directly.
-    // See crbug.com/1458980.
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
-                                 static_cast<int64_t>(0.01 * NSEC_PER_SEC)),
-                   dispatch_get_main_queue(), ^{
-                     [self.animation.animator startAnimation];
-                   });
-  } else {
-    [self.animation.animator startAnimation];
-  }
+  // Run the main animation. There is an issue if the animation is run directly.
+  // See crbug.com/1458980.
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
+                               static_cast<int64_t>(0.01 * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), ^{
+                   [self.animation.animator startAnimation];
+                 });
 }
 
 - (void)transitionFromTabGrid:(UIViewController*)tabGrid
@@ -129,7 +126,15 @@ const CGFloat kToTabGroupAnimationDuration = 0.25;
                withCompletion:(void (^)(void))completion {
   [tabGrid addChildViewController:browser];
 
-  browser.view.frame = tabGrid.view.bounds;
+  if (IsDiamondPrototypeEnabled()) {
+    CGRect frame = tabGrid.view.bounds;
+    CGFloat bottomInset =
+        tabGrid.view.safeAreaInsets.bottom + kChromeAppBarPrototypeHeight;
+    frame.size.height -= bottomInset;
+    browser.view.frame = frame;
+  } else {
+    browser.view.frame = tabGrid.view.bounds;
+  }
   [tabGrid.view addSubview:browser.view];
 
   browser.view.accessibilityViewIsModal = YES;
@@ -221,7 +226,7 @@ const CGFloat kToTabGroupAnimationDuration = 0.25;
   LegacyGridTransitionLayout* layout =
       [self.layoutProvider transitionLayout:activePage];
 
-  // Get the fram for the snapshotted content of the active tab.
+  // Get the frame for the snapshotted content of the active tab.
   // Conceptually the transition is dismissing/presenting a tab (a BVC).
   // However, currently the BVC instances are themselves contanted within a
   // BVCContainer view controller. This means that the
@@ -265,14 +270,22 @@ const CGFloat kToTabGroupAnimationDuration = 0.25;
     tabFinalAlpha = 1;
     tabFinalTransform = tab.transform;
     tab.transform = CGAffineTransformScale(tabFinalTransform, 0.75, 0.75);
-    tabFinalCornerRadius = DeviceCornerRadius();
+    if (IsDiamondPrototypeEnabled()) {
+      tabFinalCornerRadius = kDiamondBrowserCornerRadius;
+    } else {
+      tabFinalCornerRadius = DeviceCornerRadius();
+    }
     tab.layer.cornerRadius = 26.0;
   } else {
     // If dismissing, the the tab view animates out to 0% opacity, 75% scale,
     // and 26px corner radius.
     tabFinalAlpha = 0;
     tabFinalTransform = CGAffineTransformScale(tab.transform, 0.75, 0.75);
-    tab.layer.cornerRadius = DeviceCornerRadius();
+    if (IsDiamondPrototypeEnabled()) {
+      tab.layer.cornerRadius = kDiamondBrowserCornerRadius;
+    } else {
+      tab.layer.cornerRadius = DeviceCornerRadius();
+    }
     tabFinalCornerRadius = 26.0;
   }
 

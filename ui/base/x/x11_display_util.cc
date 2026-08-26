@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "ui/base/x/x11_display_util.h"
 
 #include <dlfcn.h>
@@ -20,8 +15,10 @@
 
 #include "base/bits.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/containers/flat_map.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "base/numerics/clamped_math.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -78,7 +75,8 @@ gfx::Rect GetWorkAreaSync(x11::Future<x11::GetPropertyReply> future) {
     return gfx::Rect();
   }
   const uint32_t* value = response->value->cast_to<uint32_t>();
-  return gfx::Rect(value[0], value[1], value[2], value[3]);
+  return gfx::Rect(value[0], UNSAFE_TODO(value[1]), UNSAFE_TODO(value[2]),
+                   UNSAFE_TODO(value[3]));
 }
 
 x11::Future<x11::GetPropertyReply> GetIccProfileFuture(

@@ -31,8 +31,8 @@
 #include "chrome/browser/ui/webui/ash/edu_coexistence/edu_coexistence_login_handler.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chromeos/ash/components/account_manager/account_manager_facade_factory.h"
 #include "components/account_manager_core/account_manager_facade.h"
-#include "components/account_manager_core/chromeos/account_manager_facade_factory.h"
 #include "components/account_manager_core/mock_account_manager_facade.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
@@ -174,9 +174,10 @@ std::unique_ptr<InProcessBrowserTestMixin> CreateLoginMixin(
           host, AccountId::FromUserEmailGaiaId(info.email, GaiaId(info.id)));
     case user_manager::UserType::kGuest:
     case user_manager::UserType::kPublicAccount:
-    case user_manager::UserType::kKioskApp:
-    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskChromeApp:
+    case user_manager::UserType::kKioskWebApp:
     case user_manager::UserType::kKioskIWA:
+    case user_manager::UserType::kKioskArcvmApp:
       NOTREACHED();
   }
 }
@@ -262,7 +263,7 @@ class InlineLoginHandlerTest
 
     // Setup fake Gaia.
     FakeGaia::Configuration params;
-    params.email = kSecondaryAccount1Email;
+    params.emails = {kSecondaryAccount1Email};
     params.refresh_token = kSecondaryAccountRefreshToken;
     params.auth_code = kSecondaryAccountOAuthCode;
     fake_gaia_.UpdateConfiguration(params);
@@ -366,7 +367,7 @@ IN_PROC_BROWSER_TEST_P(InlineLoginHandlerTest, NewAccountAdditionSuccess) {
   base::ScopedObservation<account_manager::AccountManagerFacade,
                           account_manager::AccountManagerFacade::Observer>
       observation{&observer};
-  observation.Observe(::GetAccountManagerFacade(profile()->GetPath().value()));
+  observation.Observe(GetAccountManagerFacade(profile()->GetPath().value()));
 
   // Call "completeLogin".
   base::Value::List args;
@@ -391,7 +392,7 @@ IN_PROC_BROWSER_TEST_P(InlineLoginHandlerTest, PrimaryReauthenticationSuccess) {
   base::ScopedObservation<account_manager::AccountManagerFacade,
                           account_manager::AccountManagerFacade::Observer>
       observation{&observer};
-  observation.Observe(::GetAccountManagerFacade(profile()->GetPath().value()));
+  observation.Observe(GetAccountManagerFacade(profile()->GetPath().value()));
 
   // Call "completeLogin".
   base::Value::List args;

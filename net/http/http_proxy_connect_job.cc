@@ -29,6 +29,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/proxy_chain.h"
 #include "net/base/session_usage.h"
+#include "net/base/task/task_runner.h"
 #include "net/dns/public/secure_dns_policy.h"
 #include "net/log/net_log_source_type.h"
 #include "net/log/net_log_with_source.h"
@@ -135,6 +136,14 @@ GURL MakeProxyUrl(const HttpProxySocketParams& params) {
   const bool is_https = params.is_over_ssl() || params.is_over_quic();
   return GURL((is_https ? "https://" : "http://") +
               params.proxy_server().host_port_pair().ToString());
+}
+
+const scoped_refptr<base::SingleThreadTaskRunner>& TaskRunner(
+    net::RequestPriority priority) {
+  if (features::kNetTaskSchedulerHttpProxyConnectJob.Get()) {
+    return net::GetTaskRunner(priority);
+  }
+  return base::SingleThreadTaskRunner::GetCurrentDefault();
 }
 
 }  // namespace
@@ -406,9 +415,9 @@ void HttpProxyConnectJob::RestartWithAuthCredentials() {
 
   // Always do this asynchronously, to avoid re-entrancy.
   next_state_ = STATE_RESTART_WITH_AUTH;
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(&HttpProxyConnectJob::OnIOComplete,
-                                weak_ptr_factory_.GetWeakPtr(), OK));
+  TaskRunner(priority())
+      ->PostTask(FROM_HERE, base::BindOnce(&HttpProxyConnectJob::OnIOComplete,
+                                           weak_ptr_factory_.GetWeakPtr(), OK));
 }
 
 int HttpProxyConnectJob::DoLoop(int result) {
@@ -504,7 +513,7 @@ int HttpProxyConnectJob::DoTransportConnect() {
     // Skip making a new connection if we have an existing HTTP/2 session.
     if (params_->tunnel() &&
         common_connect_job_params()->spdy_session_pool->FindAvailableSession(
-            CreateSpdySessionKey(), /*enable_ip_based_pooling=*/false,
+            CreateSpdySessionKey(), /*enable_ip_based_pooling_for_h2=*/false,
             /*is_websocket=*/false, net_log())) {
       next_state_ = STATE_SPDY_PROXY_CREATE_STREAM;
       return OK;
@@ -631,8 +640,9 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
 int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
   // Always inform caller of auth requests asynchronously.
   if (result == ERR_PROXY_AUTH_REQUESTED) {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&HttpProxyConnectJob::OnAuthChallenge,
+    TaskRunner(priority())
+        ->PostTask(FROM_HERE,
+                   base::BindOnce(&HttpProxyConnectJob::OnAuthChallenge,
                                   weak_ptr_factory_.GetWeakPtr()));
     return ERR_IO_PENDING;
   }
@@ -668,7 +678,7 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
   SpdySessionKey key = CreateSpdySessionKey();
   base::WeakPtr<SpdySession> spdy_session =
       common_connect_job_params()->spdy_session_pool->FindAvailableSession(
-          key, /* enable_ip_based_pooling = */ false,
+          key, /* enable_ip_based_pooling_for_h2 = */ false,
           /* is_websocket = */ false, net_log());
   // It's possible that a session to the proxy has recently been created
   if (spdy_session) {

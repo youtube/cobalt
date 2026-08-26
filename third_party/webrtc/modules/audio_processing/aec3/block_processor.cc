@@ -9,17 +9,17 @@
  */
 #include "modules/audio_processing/aec3/block_processor.h"
 
-#include <stddef.h>
-
 #include <atomic>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <utility>
-#include <vector>
 
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/echo_control.h"
+#include "api/environment/environment.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/block.h"
 #include "modules/audio_processing/aec3/block_processor_metrics.h"
 #include "modules/audio_processing/aec3/delay_estimate.h"
 #include "modules/audio_processing/aec3/echo_path_variability.h"

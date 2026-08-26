@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Sada možete da koristite samo Alatke u razredu</translation>
 <translation id="1762483337755424125">Transkript</translation>
 <translation id="1765169783255151332">Brzo menjajte tastere</translation>
 <translation id="1768959921651994223">Tip potvrde identiteta</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Prekidač rasporeda</translation>
 <translation id="224421911978987610">duga ekspozicija</translation>
 <translation id="2244834438220057800">zelene</translation>
+<translation id="2248689665683494517">minimalistička mrtva priroda sa nekoliko cvetova bulke u staklenoj vazi na crnoj pozadini</translation>
 <translation id="225692081236532131">Status aktivacije</translation>
 <translation id="2267285889943769271">Dodaj snimak ekrana</translation>
 <translation id="2268044343513325586">Preciziraj</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Nije uspelo – zaustavljeno je</translation>
 <translation id="3102119246920354026">Keš</translation>
 <translation id="3103783611481501187">nadrealno</translation>
+<translation id="3119672627216736407">Dostupni su prevodi</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">bazenima</translation>
 <translation id="3122883569442693641">Još detalja</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">šifona</translation>
 <translation id="4310735698903592804">Nedavne pozadine koje omogućava Google AI</translation>
 <translation id="4320904097188876154">fluorescentno roze</translation>
+<translation id="432961742358282111">Kliknite desnim tasterom ili pritisnite i zadržite da biste dobili definicije, prevode ili konverzije jedinica. Koristite taster sa strelicom nalevo ili nadesno da biste upravljali ovom funkcijom.</translation>
 <translation id="4333390807948134856">Taster <ph name="KEY_NAME" /> je pritisnut</translation>
 <translation id="4334293042716981313">Možete i da <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />napišete svoj upit<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">taster</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">Da biste završili, unesite staru i novu lozinku</translation>
 <translation id="6061772781719867950">Neuspešni HTTPS zahtevi</translation>
 <translation id="6073292342939316679">smanjite osvetljenost tastature</translation>
+<translation id="6074608334942655098">Zaustavi prevod</translation>
 <translation id="6074752328838739425">Sakrij rezime</translation>
 <translation id="6075872808778243331">(Android) HTTP kašnjenje</translation>
 <translation id="6078323886959318429">Dodaj prečicu</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Pitajte stručnjake na Chromebook forumu pomoći</translation>
-<translation id="7309823890857024809">minimalistička mrtva priroda sa nekoliko stabljika bulke u staklenoj vazi na crnoj pozadini</translation>
 <translation id="7311368985037279727">boja tastature</translation>
 <translation id="7317831949569936035">Registracija za školu</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@ Preuzmite model transkripcije (do 100 MB) da biste preuzeli te transkripcije.</t
 <translation id="8088963492174775412">Pritisnite da biste snimili</translation>
 <translation id="8094062939584182041">Dozvolite Google-u da vam pošalje imejl o ovom problemu</translation>
 <translation id="8104083085214006426">Koristite otvorenu i neobezbeđenu mrežu</translation>
+<translation id="8108879170356113798">Moći ćete da koristite Alatke u razredu tek za <ph name="NUM_SECONDS" /> sek</translation>
 <translation id="811820734797650957">(Android) Mrežni prolaz može da se pinguje</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Potvrdi</translation>

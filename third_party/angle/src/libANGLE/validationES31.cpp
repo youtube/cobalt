@@ -472,7 +472,7 @@ bool ValidateDrawIndirectBase(const Context *context,
         return false;
     }
 
-    if (context->getStateCache().hasAnyActiveClientAttrib())
+    if (context->hasAnyActiveClientAttrib())
     {
         ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kClientDataInVertexArray);
         return false;
@@ -509,16 +509,7 @@ bool ValidateDrawArraysIndirect(const Context *context,
     {
         // EXT_geometry_shader allows transform feedback to work with all draw commands.
         // [EXT_geometry_shader] Section 12.1, "Transform Feedback"
-        if (context->getExtensions().geometryShaderAny() || context->getClientVersion() >= ES_3_2)
-        {
-            if (!ValidateTransformFeedbackPrimitiveMode(
-                    context, entryPoint, curTransformFeedback->getPrimitiveMode(), mode))
-            {
-                ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInvalidDrawModeTransformFeedback);
-                return false;
-            }
-        }
-        else
+        if (!context->getExtensions().geometryShaderAny() && context->getClientVersion() < ES_3_2)
         {
             // An INVALID_OPERATION error is generated if transform feedback is active and not
             // paused.
@@ -1811,16 +1802,6 @@ bool ValidateCreateShaderProgramvBase(const Context *context,
     }
 
     return true;
-}
-
-bool ValidateCreateShaderProgramvBase(const Context *context,
-                                      angle::EntryPoint entryPoint,
-                                      ShaderType type,
-                                      GLsizei count,
-                                      const GLchar **strings)
-{
-    const GLchar *const *tmpStrings = strings;
-    return ValidateCreateShaderProgramvBase(context, entryPoint, type, count, tmpStrings);
 }
 
 bool ValidateGetProgramPipelineivBase(const Context *context,

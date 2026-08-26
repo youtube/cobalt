@@ -40,6 +40,9 @@ import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
+import org.chromium.chrome.browser.browser_controls.TopControlLayer;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlType;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlVisibility;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
@@ -51,6 +54,7 @@ import org.chromium.chrome.browser.toolbar.ControlContainer;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.ToolbarCaptureType;
 import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
+import org.chromium.chrome.browser.toolbar.ToolbarHairlineView;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.chrome.browser.toolbar.top.CaptureReadinessResult.TopToolbarBlockCaptureReason;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
@@ -74,7 +78,7 @@ import java.util.function.BooleanSupplier;
 /** Layout for the browser controls (omnibox, menu, tab strip, etc..). */
 @NullMarked
 public class ToolbarControlContainer extends OptimizedFrameLayout
-        implements ControlContainer, DesktopWindowStateManager.AppHeaderObserver {
+        implements ControlContainer, DesktopWindowStateManager.AppHeaderObserver, TopControlLayer {
     private boolean mIncognito;
     private boolean mMidVisibilityToggle;
     private boolean mIsCompositorInitialized;
@@ -94,6 +98,8 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
     private boolean mShowLocationBarOnly;
     private @Nullable View mLocationBarView;
     private final ObserverList<TouchEventObserver> mTouchEventObservers = new ObserverList<>();
+    private final Callback<Boolean> mOnXrSpaceModeChanged = this::onXrSpaceModeChanged;
+    private @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     /**
      * Constructs a new control container.
@@ -254,6 +260,10 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
         if (mToolbarContainerDragListener != null) {
             mToolbarContainer.setOnDragListener(null);
             mToolbarContainerDragListener = null;
+        }
+
+        if (mXrSpaceModeObservableSupplier != null) {
+            mXrSpaceModeObservableSupplier.removeObserver(mOnXrSpaceModeChanged);
         }
     }
 
@@ -505,7 +515,7 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
         private final Rect mLocationBarRect = new Rect();
         private final Rect mToolbarRect = new Rect();
         private final View mToolbarContainer;
-        private final View mToolbarHairline;
+        private final ToolbarHairlineView mToolbarHairline;
         private final Callback<Boolean> mOnCompositorInMotionChange =
                 this::onCompositorInMotionChange;
 
@@ -736,7 +746,7 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
                         ToolbarInMotionStage.NUM_ENTRIES);
             }
 
-            if (!Boolean.TRUE.equals(compositorInMotion)) {
+            if (Boolean.FALSE.equals(compositorInMotion)) {
                 if (mControlsToken == TokenHolder.INVALID_TOKEN) {
                     // Only needed when the ConstraintsChecker doesn't drive the capture.
                     // TODO(crbug.com/40244055): Make this post a task similar to
@@ -747,10 +757,11 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
                             mControlsToken);
                     mControlsToken = TokenHolder.INVALID_TOKEN;
                 }
-            } else if (super.isDirty() && mControlContainerIsVisibleSupplier.getAsBoolean()) {
+            } else if (Boolean.TRUE.equals(compositorInMotion)
+                    && super.isDirty()
+                    && mControlContainerIsVisibleSupplier.getAsBoolean()) {
                 CaptureReadinessResult captureReadinessResult = mToolbar.isReadyForTextureCapture();
-                if (ToolbarFeatures.shouldRecordSuppressionMetrics()
-                        && compositorInMotion != null) {
+                if (ToolbarFeatures.shouldRecordSuppressionMetrics()) {
                     RecordHistogram.recordEnumeratedHistogram(
                             "Android.TopToolbar.InMotionStage",
                             ToolbarInMotionStage.READINESS_CHECKED,
@@ -759,10 +770,10 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
                 if (captureReadinessResult.blockReason
                         == TopToolbarBlockCaptureReason.SNAPSHOT_SAME) {
                     setDirtyRectEmpty();
-                } else if (captureReadinessResult.isReady) {
+                } else {
                     // Motion is starting, and we don't have a good capture. Lock the controls so
-                    // that a new capture doesn't happen and the old capture is not shown. This can
-                    // be fixed once the motion is over.
+                    // that we keep using the Java view. After the touch event is over we'll unlock
+                    // and try to capture.
                     mControlsToken =
                             mBrowserStateBrowserControlsVisibilityDelegate
                                     .showControlsPersistentAndClearOldToken(mControlsToken);
@@ -852,5 +863,37 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
 
     ToolbarViewResourceFrameLayout getToolbarContainerForTesting() {
         return mToolbarContainer;
+    }
+
+    public void setXrSpaceModeObservableSupplierMaybe(
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
+        if (mXrSpaceModeObservableSupplier == null && xrSpaceModeObservableSupplier != null) {
+            mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
+            mXrSpaceModeObservableSupplier.addSyncObserver(mOnXrSpaceModeChanged);
+        }
+    }
+
+    public void onXrSpaceModeChanged(Boolean fullSpaceMode) {
+        setVisibility(Boolean.TRUE.equals(fullSpaceMode) ? View.INVISIBLE : View.VISIBLE);
+    }
+
+    // TopControlLayer implementation:
+
+    @Override
+    public @TopControlType int getTopControlType() {
+        return TopControlType.TOOLBAR;
+    }
+
+    @Override
+    public int getTopControlHeight() {
+        return getToolbarHeight();
+    }
+
+    @Override
+    public int getTopControlVisibility() {
+        // TODO(crbug.com/417238089): Possibly add way to notify stacker of visibility changes.
+        return isToolbarContainerFullyVisible()
+                ? TopControlVisibility.VISIBLE
+                : TopControlVisibility.HIDDEN;
     }
 }

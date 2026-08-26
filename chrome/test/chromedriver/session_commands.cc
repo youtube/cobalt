@@ -16,6 +16,7 @@
 #include "base/json/json_reader.h"
 #include "base/location.h"
 #include "base/logging.h"  // For CHECK macros.
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
@@ -380,20 +381,10 @@ Status InitSessionHelper(const InitSessionParams& bound_params,
     }
 
     base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
-    // Create a target fot BiDi-CDP mapper. It should be either a visible tab
-    // or a hidden target based on the `--debug-bidi-mapper` switch.
-    if (cmd_line->HasSwitch("debug-bidi-mapper")) {
-      // Create a visible tab.
-      status = session->chrome->NewWindow(session->window,
-        Chrome::WindowType::kTab, true,
-        session->w3c_compliant, &session->bidi_mapper_web_view_id);
-
-    } else {
-      // Create a hidden target.
-      status = session->chrome->NewHiddenTarget(
-          session->window, session->w3c_compliant,
-          &session->bidi_mapper_web_view_id);
-    }
+    // Create a hidden target for running  BiDi-CDP mapper in it.
+    status = session->chrome->NewHiddenTarget(
+        session->window, session->w3c_compliant,
+        &session->bidi_mapper_web_view_id);
     if (status.IsError()) {
       return status;
     }

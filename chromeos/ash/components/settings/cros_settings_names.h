@@ -641,6 +641,11 @@ inline constexpr char kDevicePeripheralDataAccessEnabled[] =
 inline constexpr char kDeviceAllowedBluetoothServices[] =
     "cros.device.allowed_bluetooth_services";
 
+// Boolean pref indicating whether "Just Works" bluetooth pairing is enabled or
+// not.
+inline constexpr char kDeviceBluetoothJustWorksPairingEnabled[] =
+    "cros.device.bluetooth_just_works_pairing_enabled";
+
 // A dictionary pref specifying the recurring schedule for device reboot.
 inline constexpr char kDeviceScheduledReboot[] =
     "cros.device.device_scheduled_reboot";
@@ -679,6 +684,9 @@ inline constexpr char kDeviceHindiInscriptLayoutEnabled[] =
 
 inline constexpr char kDeviceUserInitiatedFirmwareUpdatesEnabled[] =
     "cros.device.user_initiated_firmware_updates_enabled";
+
+inline constexpr char kDeviceUserInitiatedFlexSystemFirmwareUpdatesEnabled[] =
+    "cros.device.user_initiated_flex_system_firmware_updates_enabled";
 
 // A list of strings representing DLC identifiers to be pre downloaded on the
 // device.

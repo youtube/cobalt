@@ -7,9 +7,13 @@ import ios_chrome_browser_shared_ui_util_util_swift
 import ios_chrome_browser_tab_switcher_ui_bundled_tab_strip_ui_swift_constants
 
 /// View Controller displaying the TabStrip.
+// TODO(crbug.com/427169284): Replace @preconcurrency with @MainActor when all test bots
+// support this new syntax. @preconcurrency tells the Swift 6 compiler to do concurrency
+// chencking during the run-time instead of the compile time.
+@MainActor
 @objcMembers
-class TabStripViewController: UIViewController,
-  TabStripConsumer, TabStripNewTabButtonDelegate, TabStripGroupCellDelegate, TabStripTabCellDelegate
+class TabStripViewController: UIViewController, TabStripConsumer, TabStripNewTabButtonDelegate,
+  @preconcurrency TabStripGroupCellDelegate, @preconcurrency TabStripTabCellDelegate
 {
 
   // The enum used by the data source to manage the sections.
@@ -82,11 +86,16 @@ class TabStripViewController: UIViewController,
   public weak var contextMenuProvider: TabStripContextMenuProvider?
   /// Handles snapshots and favicons fetches.
   public weak var snapshotAndfaviconDataSource: TabSwitcherItemSnapShotAndFaviconDataSource?
+  /// Data source for fetching `TabStripTabGroupCell` properties.
+  public weak var tabGroupCellDataSource: TabStripTabGroupCellDataSource?
   /// Handler for tab group confirmation commands.
   public weak var tabGroupConfirmationHandler: TabGroupConfirmationCommands?
 
   /// Group cell of the closed tab. Nil if the tab is not from a group.
   public weak var closedTabGroupView: TabStripGroupCell?
+
+  // Leading constraint for the collectionView,
+  public var collectionViewLeadingConstraint: NSLayoutConstraint?
 
   /// The LayoutGuideCenter.
   @objc public var layoutGuideCenter: LayoutGuideCenter? {
@@ -142,21 +151,9 @@ class TabStripViewController: UIViewController,
     newTabButton.isIncognito = isIncognito
     view.addSubview(newTabButton)
 
-    if TabStripFeaturesUtils.isModernTabStripNewTabButtonDynamic {
-      NSLayoutConstraint.activate([
-        collectionView.trailingAnchor.constraint(
-          equalTo: view.trailingAnchor, constant: -TabStripConstants.NewTabButton.width),
-        newTabButton.leadingAnchor.constraint(
-          greaterThanOrEqualTo: view.leadingAnchor),
-        newTabButton.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor),
-      ])
-    } else {
-      NSLayoutConstraint.activate([
-        newTabButton.leadingAnchor.constraint(
-          equalTo: collectionView.trailingAnchor),
-        newTabButton.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-      ])
-    }
+    collectionViewLeadingConstraint = collectionView.leadingAnchor.constraint(
+      equalTo: view.leadingAnchor)
+    collectionViewLeadingConstraint?.isActive = true
 
     NSLayoutConstraint.activate(
       [
@@ -167,8 +164,8 @@ class TabStripViewController: UIViewController,
         trailingPlaceholder.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
         /// `collectionView` constraints.
-        collectionView.leadingAnchor.constraint(
-          equalTo: view.leadingAnchor),
+        collectionView.trailingAnchor.constraint(
+          equalTo: view.trailingAnchor, constant: -TabStripConstants.NewTabButton.width),
         collectionView.topAnchor.constraint(
           equalTo: view.topAnchor),
         collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -183,14 +180,12 @@ class TabStripViewController: UIViewController,
 
         /// `leadingStaticSeparator` constraints.
         leadingStaticSeparator.leadingAnchor.constraint(equalTo: collectionView.leadingAnchor),
-        leadingStaticSeparator.bottomAnchor.constraint(
-          equalTo: collectionView.bottomAnchor,
-          constant: -TabStripConstants.StaticSeparator.bottomInset),
+        leadingStaticSeparator.centerYAnchor.constraint(
+          equalTo: collectionView.centerYAnchor),
         /// `trailingStaticSeparator` constraints.
         trailingStaticSeparator.trailingAnchor.constraint(equalTo: collectionView.trailingAnchor),
-        trailingStaticSeparator.bottomAnchor.constraint(
-          equalTo: collectionView.bottomAnchor,
-          constant: -TabStripConstants.StaticSeparator.bottomInset),
+        trailingStaticSeparator.centerYAnchor.constraint(
+          equalTo: collectionView.centerYAnchor),
       ])
   }
 
@@ -231,6 +226,19 @@ class TabStripViewController: UIViewController,
     super.viewDidDisappear(animated)
     NotificationCenter.default.removeObserver(
       self, name: UIAccessibility.voiceOverStatusDidChangeNotification, object: nil)
+  }
+
+  override func viewWillLayoutSubviews() {
+    super.viewWillLayoutSubviews()
+    if #available(iOS 26, *) {
+      #if swift(>=6.2)
+        // On iOS 26, the safe area layout guide doesn't automatically adjust
+        // for the control setting island's dimensions.
+        let safeAreaRegion = UIView.LayoutRegion.safeArea(cornerAdaptation: .horizontal)
+        let calculatedInsets = view.directionalEdgeInsets(for: safeAreaRegion)
+        collectionViewLeadingConstraint?.constant = calculatedInsets.leading
+      #endif
+    }
   }
 
   // MARK: - TabStripConsumer
@@ -585,10 +593,20 @@ class TabStripViewController: UIViewController,
         }
       }
 
+      // Mark `nonisolated(unsafe)` to opt out of Swift’s concurrency checking. The Swift compiler
+      // doesn't ensure if it's safe to pass `cell.item` across threads since NSObject doesn't
+      // conform to Sendable protocol.
+      nonisolated(unsafe)
+      let cellItem = cell.item
       let completion = {
-        (item: TabSwitcherItem?, tabSnapshotAndFavicon: TabSnapshotAndFavicon?) -> Void in
-        if let item = item, item == cell.item {
-          cell.setFaviconImage(tabSnapshotAndFavicon?.favicon)
+        @Sendable (item: TabSwitcherItem?, tabSnapshotAndFavicon: TabSnapshotAndFavicon?) -> Void in
+        if let item = item, item == cellItem {
+          guard let favicon = tabSnapshotAndFavicon?.favicon else {
+            return
+          }
+          Task { @MainActor in
+            cell.setFaviconImage(favicon)
+          }
         }
       }
       self.snapshotAndfaviconDataSource?.fetchTabSnapshotAndFavicon(item, completion: completion)
@@ -616,9 +634,10 @@ class TabStripViewController: UIViewController,
       guard let item = itemIdentifier.tabGroupItem else { return }
       let itemData = self.itemData[itemIdentifier] as? TabStripItemData
       cell.title = item.title
-      cell.titleContainerBackgroundColor = item.groupColor
+      cell.contentContainerBackgroundColor = item.groupColor
       cell.titleTextColor = item.foregroundColor
       cell.collapsed = item.collapsed
+      cell.facePileProvider = self.tabGroupCellDataSource?.facePileProvider(forItem: itemIdentifier)
       cell.delegate = self
       cell.groupStrokeColor = itemData?.groupStrokeColor
       cell.hasNotificationDot = itemData?.hasNotificationDot == true && item.collapsed
@@ -902,6 +921,21 @@ extension TabStripViewController: UICollectionViewDelegateFlowLayout {
     }
   }
 
+  func collectionView(
+    _ collectionView: UICollectionView,
+    willDisplay cell: UICollectionViewCell,
+    forItemAt indexPath: IndexPath
+  ) {
+    guard let tabStripGroupCell = cell as? TabStripGroupCell else {
+      return
+    }
+    // Tab group cells that include a face pile must recalculate their size when they appear.
+    // This ensures their width properly accounts for the face pile, preventing them from using
+    // the approximate nonSharedWidth.
+    if tabStripGroupCell.facePileProvider != nil {
+      layout.invalidateLayout()
+    }
+  }
 }
 
 extension TabStripViewController: UICollectionViewDragDelegate, UICollectionViewDropDelegate {

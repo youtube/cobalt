@@ -6,49 +6,51 @@
 
 #include <stddef.h>
 
-#include <cmath>
+#include <algorithm>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback.h"
-#include "base/metrics/histogram_functions.h"
-#include "base/metrics/user_metrics.h"
-#include "base/notreached.h"
-#include "base/strings/escape.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "base/values.h"
 #include "build/build_config.h"
+#include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/omnibox/browser/actions/contextual_search_action.h"
+#include "components/omnibox/browser/actions/omnibox_action_concepts.h"
 #include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_match_classification.h"
+#include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/omnibox/browser/autocomplete_provider_client.h"
 #include "components/omnibox/browser/autocomplete_provider_debouncer.h"
 #include "components/omnibox/browser/autocomplete_provider_listener.h"
+#include "components/omnibox/browser/base_search_provider.h"
 #include "components/omnibox/browser/lens_suggest_inputs_utils.h"
 #include "components/omnibox/browser/match_compare.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
+#include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/page_classification_functions.h"
 #include "components/omnibox/browser/remote_suggestions_service.h"
 #include "components/omnibox/browser/search_suggestion_parser.h"
 #include "components/omnibox/browser/suggestion_group_util.h"
 #include "components/omnibox/browser/zero_suggest_provider.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
-#include "components/omnibox/common/omnibox_features.h"
+#include "components/search/search.h"
 #include "components/search_engines/search_engine_type.h"
+#include "components/search_engines/search_terms_data.h"
+#include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/search_engines/template_url_starter_pack_data.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/url_formatter/url_formatter.h"
 #include "services/network/public/cpp/simple_url_loader.h"
-#include "services/network/public/mojom/url_response_head.mojom.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
-#include "third_party/metrics_proto/omnibox_focus_type.pb.h"
-#include "third_party/metrics_proto/omnibox_input_type.pb.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
@@ -56,6 +58,35 @@ namespace {
 
 // The internal default verbatim match relevance.
 constexpr int kDefaultVerbatimMatchRelevance = 1500;
+
+// Creates a URL to drive the lens API to open the side panel lens for 'whole
+// page mode' with the given `query`.
+GURL ComputeDestinationUrlForLensQueryText(
+    const std::u16string& query,
+    const TemplateURLService* turl_service) {
+  CHECK(!query.empty());
+  // This algorithm was reverse engineered as there's no documentation. So it's
+  // very possible some of this is unnecessary or even wrong. Used these as
+  // references:
+  // - `ContextualSearchProvider::AddDefaultVerbatimMatch()`
+  // - `SearchSuggestionParser::SuggestResult::SuggestResult()`
+  // - `BaseSearchProvider::CreateSearchSuggestion()`.
+  // TODO(b/403629222): Once we have a lens API that accepts a query string
+  //   instead of codifying it within a GURL, we may be able to bypass
+  //   `ComputeDestinationUrlForLensQueryText()`.
+  auto search_terms_args =
+      std::make_unique<TemplateURLRef::SearchTermsArgs>(query);
+  search_terms_args->request_source = SearchTermsData::RequestSource::SEARCHBOX;
+  search_terms_args->original_query = query;
+  // 0 isn't even one of the valid enum value. Valid enum values are -2 and -1.
+  search_terms_args->accepted_suggestion = 0;
+  search_terms_args->append_extra_query_params_from_command_line = true;
+  const TemplateURLRef& search_url =
+      turl_service->GetDefaultSearchProvider()->url_ref();
+  const SearchTermsData& search_terms_data = turl_service->search_terms_data();
+  return GURL(
+      search_url.ReplaceSearchTerms(*search_terms_args, search_terms_data));
+}
 
 // Populates |results| with the response if it can be successfully parsed for
 // |input|. Returns true if the response can be successfully parsed.
@@ -80,48 +111,262 @@ bool ParseRemoteResponse(const std::string& response_json,
       /*is_keyword_result=*/true, results);
 }
 
+// Helper to determine which matches to show. Since this is the primary
+// contributor to this provider's complexity, it's easier to manage when
+// centralized than distributed.
+struct EligibleMatchesAndActions {
+  EligibleMatchesAndActions(const AutocompleteInput& input,
+                            const TemplateURL* template_url,
+                            AutocompleteProviderClient* client) {
+    // - Hide toolbelt in realbox.
+    // - Check feature/params for zero and typed inputs.
+    // - Hide toolbelt if user has disabled the context menu option.
+    // - Check feature param for removing toolbelt when in keyword mode.
+    const auto& toolbelt_config = omnibox_feature_configs::Toolbelt::Get();
+    toolbelt =
+        input.current_page_classification() !=
+            metrics::OmniboxEventProto::NTP_REALBOX &&
+        toolbelt_config.enabled &&
+        (toolbelt_config.keep_toolbelt_after_input || input.IsZeroSuggest()) &&
+        client->GetPrefs()->GetBoolean(omnibox::kShowSearchTools) &&
+        (toolbelt_config.keep_toolbelt_in_keyword_mode || !template_url);
+
+    // - Restricted to DSE google, which is already checked in
+    //   `client->IsLensEnabled()`.
+    // - Not restricted by locale.
+    // - `LensEntrypointEligible()` restricts lens to web & SRP.
+    // - Unlike `lens_entry_match`, `toolbelt_lens` is not restricted to zero
+    //   inputs.
+    toolbelt_lens =
+        toolbelt &&
+        ToolbeltActionEligible(
+            input, client, toolbelt_config.show_lens_action_on_non_ntp,
+            toolbelt_config.show_lens_action_on_ntp, std::nullopt) &&
+        (toolbelt_config.always_include_lens_action ||
+         LensEntrypointEligible(input, client));
+
+    // - Restricted to when `kAiModeOmniboxEntryPoint` is disabled
+    // - Restricted to DSE google
+    // - Restricted to locale EN
+    // - Restricted to when `kAIModeSettings` policy is enabled
+    toolbelt_ai_mode =
+        toolbelt &&
+        !base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint) &&
+        search::DefaultSearchProviderIsGoogle(
+            client->GetTemplateURLService()) &&
+        l10n_util::GetLanguage(client->GetApplicationLocale()) == "en" &&
+        omnibox::IsAimAllowedByPolicy(client->GetPrefs()) &&
+        ToolbeltActionEligible(
+            input, client, toolbelt_config.show_ai_mode_action_on_non_ntp,
+            toolbelt_config.show_ai_mode_action_on_ntp,
+            template_url_starter_pack_data::StarterPackId::kAiMode);
+
+    toolbelt_history =
+        toolbelt &&
+        ToolbeltActionEligible(
+            input, client, toolbelt_config.show_history_action_on_non_ntp,
+            toolbelt_config.show_history_action_on_ntp,
+            template_url_starter_pack_data::StarterPackId::kHistory);
+
+    toolbelt_bookmarks =
+        toolbelt &&
+        ToolbeltActionEligible(
+            input, client, toolbelt_config.show_bookmarks_action_on_non_ntp,
+            toolbelt_config.show_bookmarks_action_on_ntp,
+            template_url_starter_pack_data::StarterPackId::kBookmarks);
+
+    toolbelt_tabs =
+        toolbelt &&
+        ToolbeltActionEligible(
+            input, client, toolbelt_config.show_tabs_action_on_non_ntp,
+            toolbelt_config.show_tabs_action_on_ntp,
+            template_url_starter_pack_data::StarterPackId::kTabs);
+
+    // Hide toolbelt if it would be empty.
+    toolbelt =
+        toolbelt && (toolbelt_lens || toolbelt_ai_mode || toolbelt_history ||
+                     toolbelt_bookmarks || toolbelt_tabs);
+
+    // - Check feature/params.
+    // - Restricted to DSE google, which is already checked in
+    //   `client->IsLensEnabled()`.
+    // - Not restricted by locale.
+    // - `LensEntrypointEligible()` restricts lens to web & SRP.
+    // - Unlike `toolbelt_lens`, `lens_entry_match` is restricted to zero
+    //   inputs. `lens_entry_match`, `toolbelt_lens` is not restricted to zero
+    //   inputs.
+    // - Only shown if toolbelt lens not shown.
+    const auto& contextual_search_config =
+        omnibox_feature_configs::ContextualSearch::Get();
+    lens_entry_match = contextual_search_config.show_open_lens_action &&
+                       !toolbelt_lens && input.IsZeroSuggest() &&
+                       LensEntrypointEligible(input, client);
+
+    // - Check feature/params.
+    // - Disabled if either `toolbelt` or `contextual_search_config` are shown.
+    //   They are not compatible. Enabling this in parallel will require
+    //   splitting the provider or making them play nicely.
+    // - Shown only when the user is in '@page' scope.
+    // - Hidden in incognito.
+    page_verbatim = !toolbelt_config.enabled &&
+                    !contextual_search_config.show_open_lens_action &&
+                    template_url &&
+                    template_url->starter_pack_id() ==
+                        template_url_starter_pack_data::StarterPackId::kPage &&
+                    !client->IsOffTheRecord();
+
+    // - Same base requirements as `page_verbatim`
+    // - Hidden on zero input.
+    page_suggestions = page_verbatim && !input.text().empty() &&
+                       !input.omit_asynchronous_matches();
+  }
+
+  // Show on web & SRP, but not NTP.
+  // Http, https, & local files are allowed but not other local schemes.
+  // Do not show if Lens is already opened.
+  static bool LensEntrypointEligible(const AutocompleteInput& input,
+                                     AutocompleteProviderClient* client) {
+    return (omnibox::IsOtherWebPage(input.current_page_classification()) ||
+            omnibox::IsSearchResultsPage(
+                input.current_page_classification())) &&
+           (input.current_url().SchemeIsHTTPOrHTTPS() ||
+            input.current_url().SchemeIs(url::kFileScheme)) &&
+           client->IsLensEnabled() && client->AreLensEntrypointsVisible();
+  }
+
+  // - Show on non-NTP depending on finch param passed in via
+  //   `enabled_non_ntp`
+  // - Show on NTP depending on finch param passed in via `enabled_ntp`
+  // - Show only if corresponding starter pack is enabled. `starter_pack_id`
+  //   is `nullopt` when the action is not associated with a starter pack.
+  static bool ToolbeltActionEligible(const AutocompleteInput& input,
+                                     AutocompleteProviderClient* client,
+                                     bool enabled_non_ntp,
+                                     bool enabled_ntp,
+                                     std::optional<int> starter_pack_id) {
+    // Only show on NTP if the NTP param is enabled.
+    if (!enabled_ntp && input.current_page_classification() ==
+                            metrics::OmniboxEventProto::
+                                INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS) {
+      return false;
+    }
+
+    // Only show on non-NTP if the non-NTP param is enabled.
+    if (!enabled_non_ntp &&
+        input.current_page_classification() !=
+            metrics::OmniboxEventProto::
+                INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS) {
+      return false;
+    }
+
+    // If it's a starterpack action, the starterpack must be enabled.
+    if (starter_pack_id.has_value()) {
+      auto* turl_service = client->GetTemplateURLService();
+      const TemplateURL* turl =
+          turl_service->FindStarterPackTemplateURL(starter_pack_id.value());
+      if (!turl || turl->is_active() != TemplateURLData::ActiveStatus::kTrue) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // Return the toolbelt actions that are eligible.
+  std::vector<scoped_refptr<OmniboxAction>> GetToolbeltActions(
+      const AutocompleteInput& input,
+      const TemplateURLService* turl_service) const {
+    CHECK(toolbelt);
+    std::vector<scoped_refptr<OmniboxAction>> actions = {};
+
+    if (toolbelt_lens) {
+      // If there is no query yet, trigger the overlay CSB so the user can start
+      // creating their input (text & page selection). Otherwise, if the user
+      // has already formed a textual input, bypass the overlay CSB and trigger
+      // the lens side panel directly. This will unfortunately prevent the user
+      // from making a page selection. Treat on focus inputs like empty inputs;
+      // it's unlikely the user wants to query with the page URL.
+      if (input.IsZeroSuggest() || input.text().empty()) {
+        actions.push_back(
+            base::MakeRefCounted<ContextualSearchOpenLensAction>());
+      } else {
+        GURL url =
+            ComputeDestinationUrlForLensQueryText(input.text(), turl_service);
+        actions.push_back(
+            base::MakeRefCounted<ContextualSearchFulfillmentAction>(
+                url, AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED, false));
+      }
+    }
+    if (toolbelt_ai_mode) {
+      actions.push_back(base::MakeRefCounted<StarterPackAiModeAction>());
+    }
+    if (toolbelt_history) {
+      actions.push_back(base::MakeRefCounted<StarterPackHistoryAction>());
+    }
+    if (toolbelt_bookmarks) {
+      actions.push_back(base::MakeRefCounted<StarterPackBookmarksAction>());
+    }
+    if (toolbelt_tabs) {
+      actions.push_back(base::MakeRefCounted<StarterPackTabsAction>());
+    }
+
+    // `toolbelt` should be set false if it would be empty.
+    CHECK(!actions.empty());
+    return actions;
+  }
+
+  bool toolbelt;
+  bool toolbelt_lens;
+  bool toolbelt_ai_mode;
+  bool toolbelt_history;
+  bool toolbelt_bookmarks;
+  bool toolbelt_tabs;
+  bool lens_entry_match;
+  bool page_verbatim;
+  bool page_suggestions;
+};
+
 }  // namespace
 
-void ContextualSearchProvider::Start(
-    const AutocompleteInput& autocomplete_input,
-    bool minimal_changes) {
+void ContextualSearchProvider::Start(const AutocompleteInput& input,
+                                     bool minimal_changes) {
   TRACE_EVENT0("omnibox", "ContextualSearchProvider::Start");
   // Clear the cached results to remove the page search action matches. Also,
   // matches the behavior of the `ZeroSuggestProvider`.
   Stop(AutocompleteStopReason::kClobbered);
 
-  if (client()->IsOffTheRecord()) {
-    done_ = true;
-    return;
+  // Determine keyword (may be nullptr, a starter pack, or some other keyword).
+  AutocompleteInput keyword_input = input;
+  const TemplateURL* template_url =
+      input.prefer_keyword()
+          ? AutocompleteInput::GetSubstitutingTemplateURLForInput(
+                client()->GetTemplateURLService(), &keyword_input)
+          : nullptr;
+
+  const EligibleMatchesAndActions eligibility(input, template_url, client());
+
+  if (eligibility.toolbelt) {
+    AddToolbeltMatch(keyword_input,
+                     eligibility.GetToolbeltActions(
+                         keyword_input, client()->GetTemplateURLService()));
   }
 
-  const auto [input, starter_pack_engine] = AdjustInputForStarterPackKeyword(
-      autocomplete_input, client()->GetTemplateURLService());
-  if (!starter_pack_engine) {
-    // Only surface the action match that helps the user find their way to Lens.
-    // Requirements: web or SRP, non-NTP, with empty input, and local files are
-    // allowed but not other local schemes.
-    if ((omnibox::IsOtherWebPage(input.current_page_classification()) ||
-         omnibox::IsSearchResultsPage(input.current_page_classification())) &&
-        (input.current_url().SchemeIsHTTPOrHTTPS() ||
-         input.current_url().SchemeIs(url::kFileScheme)) &&
-        input.IsZeroSuggest() && client()->IsLensEnabled()) {
-      AddPageSearchActionMatches(input);
-    }
-    return;
+  if (eligibility.lens_entry_match) {
+    AddLensEntrypointMatch(keyword_input);
   }
-  input_keyword_ = starter_pack_engine->keyword();
 
-  AddDefaultVerbatimMatch(input);
-
-  // Exit early if the input is not in ZPS keyword mode or the autocomplete
-  // input is not allowed to make asynchronous requests.
-  if (!input.text().empty() || autocomplete_input.omit_asynchronous_matches()) {
-    done_ = true;
-    return;
+  if (eligibility.page_verbatim) {
+    // `template_url` can't be nullptr here; see `page_verbatim` assignment.
+    DCHECK(template_url);
+    input_keyword_ = template_url->keyword();
+    AddDefaultVerbatimMatch(input);
   }
-  done_ = false;
-  StartSuggestRequest(std::move(input));
+
+  if (eligibility.page_suggestions) {
+    done_ = false;
+    AddDefaultVerbatimMatch(keyword_input);
+    StartSuggestRequest(std::move(keyword_input));
+  }
 }
 
 void ContextualSearchProvider::Stop(AutocompleteStopReason stop_reason) {
@@ -142,6 +387,13 @@ void ContextualSearchProvider::AddProviderInfo(
   if (!matches().empty()) {
     provider_info->back().set_times_returned_results_in_session(1);
   }
+}
+
+bool ContextualSearchProvider::HasToolbeltLensAction() const {
+  return std::ranges::any_of(matches_, [](const auto& match) {
+    return match.IsToolbelt() &&
+           match.HasAction(OmniboxActionId::CONTEXTUAL_SEARCH_OPEN_LENS);
+  });
 }
 
 ContextualSearchProvider::ContextualSearchProvider(
@@ -300,9 +552,9 @@ void ContextualSearchProvider::ConvertSuggestResultsToAutocompleteMatches(
   }
 }
 
-void ContextualSearchProvider::AddPageSearchActionMatches(
+void ContextualSearchProvider::AddLensEntrypointMatch(
     const AutocompleteInput& input) {
-  // These matches are effectively pedals that don't require any query matching.
+  // This match is effectively a pedal that doesn't require any query matching.
   // Relevance depends on the page class, and selecting an appropriate score is
   // necessary to avoid downstream conflicts in grouping framework sort order.
   AutocompleteMatch match(
@@ -372,6 +624,25 @@ void ContextualSearchProvider::AddDefaultVerbatimMatch(
         client()->GetTemplateURLService()->search_terms_data(),
         /*accepted_suggestion=*/0, ShouldAppendExtraParams(verbatim));
   }
+  matches_.push_back(match);
+}
+
+void ContextualSearchProvider::AddToolbeltMatch(
+    const AutocompleteInput& input,
+    std::vector<scoped_refptr<OmniboxAction>> actions) {
+  AutocompleteMatch match(this, omnibox::kToolbeltRelevance, false,
+                          AutocompleteMatchType::NULL_RESULT_MESSAGE);
+  match.transition = ui::PAGE_TRANSITION_GENERATED;
+  match.suggest_type = omnibox::SuggestType::TYPE_NATIVE_CHROME;
+  match.suggestion_group_id = omnibox::GroupId::GROUP_SEARCH_TOOLBELT;
+  match.fill_into_edit = input.text();
+
+  match.description = l10n_util::GetStringUTF16(IDS_OMNIBOX_TOOLBELT_LABEL);
+  if (!match.description.empty()) {
+    match.description_class = {{0, ACMatchClassification::TOOLBELT}};
+  }
+
+  match.actions = actions;
   matches_.push_back(match);
 }
 

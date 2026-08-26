@@ -5,6 +5,8 @@
 #import "ios/chrome/browser/download/coordinator/auto_deletion/auto_deletion_coordinator.h"
 
 #import "base/memory/raw_ptr.h"
+#import "base/metrics/user_metrics.h"
+#import "base/metrics/user_metrics_action.h"
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/feature_engagement/public/tracker.h"
 #import "components/prefs/pref_service.h"
@@ -106,6 +108,8 @@ typedef void (^UIAlertActionHandler)(UIAlertAction* action);
                             view:self.baseViewController.view];
   __weak __typeof(self) weakSelf = self;
   ProceduralBlock primaryItemAction = ^{
+    base::RecordAction(base::UserMetricsAction(
+        "IOS.AutoDeletion.ActionSheet.AcceptDownloadEnrollment"));
     [weakSelf scheduleFileForDeletion];
     [weakSelf dismiss];
   };
@@ -115,7 +119,9 @@ typedef void (^UIAlertActionHandler)(UIAlertAction* action);
                 action:primaryItemAction
                  style:UIAlertActionStyleDestructive];
   ProceduralBlock cancelAction = ^{
-    [weakSelf dismiss];
+    base::RecordAction(base::UserMetricsAction(
+        "IOS.AutoDeletion.ActionSheet.RejectDownloadEnrollment"));
+    [weakSelf cancel];
   };
   [coordinator
       addItemWithTitle:l10n_util::GetNSString(
@@ -145,8 +151,16 @@ typedef void (^UIAlertActionHandler)(UIAlertAction* action);
 // Schedules the downloaded file for automatic deletion when the user hits the
 // action sheet's primary action button.
 - (void)scheduleFileForDeletion {
-  GetApplicationContext()->GetAutoDeletionService()->ScheduleFileForDeletion(
-      _downloadTask);
+  GetApplicationContext()->GetAutoDeletionService()->MarkTaskForDeletion(
+      _downloadTask, auto_deletion::DeletionEnrollmentStatus::kEnrolled);
+}
+
+// Informs the AutoDeletionService that the user does not intend to enroll the
+// file in Auto-deletion and then closes the action sheet.
+- (void)cancel {
+  GetApplicationContext()->GetAutoDeletionService()->MarkTaskForDeletion(
+      _downloadTask, auto_deletion::DeletionEnrollmentStatus::kNotEnrolled);
+  [self dismiss];
 }
 
 // Creates a handler that conforms to the AutoDeletionCommands protocol and

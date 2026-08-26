@@ -151,8 +151,12 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
     self.title = l10n_util::GetNSString(
         IDS_IOS_AUTOFILL_ADDRESS_MIGRATION_TO_ACCOUNT_PROMPT_TITLE);
   } else if (self.isUpdateModal) {
-    self.title =
-        l10n_util::GetNSString(IDS_IOS_AUTOFILL_UPDATE_ADDRESS_PROMPT_TITLE);
+    self.title = l10n_util::GetNSString(
+        base::FeatureList::IsEnabled(
+            autofill::features::kAutofillEnableSupportForHomeAndWork) &&
+                ![self shouldShowOldSection]
+            ? IDS_IOS_AUTOFILL_ADD_NEW_INFO_ADDRESS_PROMPT_TITLE
+            : IDS_IOS_AUTOFILL_UPDATE_ADDRESS_PROMPT_TITLE);
   } else {
     self.title = l10n_util::GetNSString(
         self.isMigrationToAccount
@@ -175,8 +179,12 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
 
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
+  CGFloat tableViewScrollableHeight =
+      self.tableView.contentSize.height +
+      self.tableView.adjustedContentInset.top +
+      self.tableView.adjustedContentInset.bottom;
   self.tableView.scrollEnabled =
-      self.tableView.contentSize.height > self.view.frame.size.height;
+      tableViewScrollableHeight > self.view.frame.size.height;
 }
 
 #pragma mark - TableViewModel
@@ -410,7 +418,11 @@ const CGFloat kInfobarSaveAddressProfileSeparatorInset = 54;
         IDS_AUTOFILL_ADDRESS_MIGRATION_TO_ACCOUNT_PROMPT_OK_BUTTON_LABEL);
   } else if (self.isUpdateModal) {
     saveUpdateButton.buttonText = l10n_util::GetNSString(
-        IDS_AUTOFILL_UPDATE_ADDRESS_PROMPT_OK_BUTTON_LABEL);
+        base::FeatureList::IsEnabled(
+            autofill::features::kAutofillEnableSupportForHomeAndWork) &&
+                ![self shouldShowOldSection]
+            ? IDS_AUTOFILL_UPDATE_ADDRESS_ADD_NEW_INFO_PROMPT_OK_BUTTON_LABEL
+            : IDS_AUTOFILL_UPDATE_ADDRESS_PROMPT_OK_BUTTON_LABEL);
   } else {
     saveUpdateButton.buttonText = l10n_util::GetNSString(
         IDS_AUTOFILL_SAVE_ADDRESS_PROMPT_OK_BUTTON_LABEL);

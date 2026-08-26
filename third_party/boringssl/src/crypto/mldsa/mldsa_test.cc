@@ -152,6 +152,15 @@ TEST(MLDSATest, Basic87) {
                  BCM_mldsa87_marshal_private_key>();
 }
 
+TEST(MLDSATest, Basic44) {
+  MLDSABasicTest<MLDSA44_private_key, MLDSA44_public_key,
+                 BCM_MLDSA44_PUBLIC_KEY_BYTES, BCM_MLDSA44_SIGNATURE_BYTES,
+                 MLDSA44_generate_key, MLDSA44_sign, MLDSA44_parse_public_key,
+                 MLDSA44_verify, MLDSA44_private_key_from_seed,
+                 BCM_mldsa44_private_key, BCM_mldsa44_parse_private_key,
+                 BCM_mldsa44_marshal_private_key>();
+}
+
 TEST(MLDSATest, SignatureIsRandomized) {
   std::vector<uint8_t> encoded_public_key(MLDSA65_PUBLIC_KEY_BYTES);
   auto priv = std::make_unique<MLDSA65_private_key>();
@@ -183,6 +192,54 @@ TEST(MLDSATest, SignatureIsRandomized) {
                            encoded_signature2.size(), kMessage,
                            sizeof(kMessage), nullptr, 0),
             1);
+}
+
+TEST(MLDSATest, PrehashedSignatureVerifies) {
+  std::vector<uint8_t> encoded_public_key(MLDSA65_PUBLIC_KEY_BYTES);
+  auto priv = std::make_unique<MLDSA65_private_key>();
+  uint8_t seed[MLDSA_SEED_BYTES];
+  EXPECT_TRUE(
+      MLDSA65_generate_key(encoded_public_key.data(), seed, priv.get()));
+
+  auto pub = std::make_unique<MLDSA65_public_key>();
+  CBS cbs = CBS(encoded_public_key);
+  ASSERT_TRUE(MLDSA65_parse_public_key(pub.get(), &cbs));
+
+  std::vector<uint8_t> encoded_signature(MLDSA65_SIGNATURE_BYTES);
+  static const uint8_t kMessage[] = {'H', 'e', 'l', 'l', 'o', ' ',
+                                     'w', 'o', 'r', 'l', 'd'};
+
+  MLDSA65_prehash prehash_state;
+  EXPECT_TRUE(MLDSA65_prehash_init(&prehash_state, pub.get(), nullptr, 0));
+  MLDSA65_prehash_update(&prehash_state, kMessage, sizeof(kMessage));
+  uint8_t representative[MLDSA_MU_BYTES];
+  MLDSA65_prehash_finalize(representative, &prehash_state);
+  EXPECT_TRUE(MLDSA65_sign_message_representative(encoded_signature.data(),
+                                                  priv.get(), representative));
+
+  EXPECT_EQ(MLDSA65_verify(pub.get(), encoded_signature.data(),
+                           encoded_signature.size(), kMessage, sizeof(kMessage),
+                           nullptr, 0),
+            1);
+
+  // Updating in multiple chunks also works.
+  for (size_t i = 0; i <= sizeof(kMessage); ++i) {
+    for (size_t j = i; j <= sizeof(kMessage); ++j) {
+      EXPECT_TRUE(MLDSA65_prehash_init(&prehash_state, pub.get(), nullptr, 0));
+      MLDSA65_prehash_update(&prehash_state, kMessage, i);
+      MLDSA65_prehash_update(&prehash_state, kMessage + i, j - i);
+      MLDSA65_prehash_update(&prehash_state, kMessage + j,
+                             sizeof(kMessage) - j);
+      MLDSA65_prehash_finalize(representative, &prehash_state);
+      EXPECT_TRUE(MLDSA65_sign_message_representative(
+          encoded_signature.data(), priv.get(), representative));
+
+      EXPECT_EQ(MLDSA65_verify(pub.get(), encoded_signature.data(),
+                               encoded_signature.size(), kMessage,
+                               sizeof(kMessage), nullptr, 0),
+                1);
+    }
+  }
 }
 
 TEST(MLDSATest, PublicFromPrivateIsConsistent) {
@@ -315,6 +372,16 @@ TEST(MLDSATest, SigGenTests87) {
                       BCM_mldsa87_verify_internal>);
 }
 
+TEST(MLDSATest, SigGenTests44) {
+  FileTestGTest(
+      "crypto/mldsa/mldsa_nist_siggen_44_tests.txt",
+      MLDSASigGenTest<BCM_mldsa44_private_key, BCM_mldsa44_public_key,
+                      BCM_MLDSA44_SIGNATURE_BYTES,
+                      BCM_mldsa44_parse_private_key, BCM_mldsa44_sign_internal,
+                      BCM_mldsa44_public_from_private,
+                      BCM_mldsa44_verify_internal>);
+}
+
 template <typename PrivateKey, size_t PublicKeyBytes,
           bcm_status (*Generate)(uint8_t *, PrivateKey *, const uint8_t *),
           bcm_status (*MarshalPrivate)(CBB *, const PrivateKey *)>
@@ -352,6 +419,14 @@ TEST(MLDSATest, KeyGenTests87) {
       MLDSAKeyGenTest<BCM_mldsa87_private_key, BCM_MLDSA87_PUBLIC_KEY_BYTES,
                       BCM_mldsa87_generate_key_external_entropy,
                       BCM_mldsa87_marshal_private_key>);
+}
+
+TEST(MLDSATest, KeyGenTests44) {
+  FileTestGTest(
+      "crypto/mldsa/mldsa_nist_keygen_44_tests.txt",
+      MLDSAKeyGenTest<BCM_mldsa44_private_key, BCM_MLDSA44_PUBLIC_KEY_BYTES,
+                      BCM_mldsa44_generate_key_external_entropy,
+                      BCM_mldsa44_marshal_private_key>);
 }
 
 template <
@@ -417,6 +492,14 @@ TEST(MLDSATest, WycheproofSignTests87) {
           BCM_MLDSA87_SIGNATURE_BYTES, BCM_mldsa87_sign_internal>);
 }
 
+TEST(MLDSATest, WycheproofSignTests44) {
+  FileTestGTest(
+      "third_party/wycheproof_testvectors/mldsa_44_standard_sign_test.txt",
+      MLDSAWycheproofSignTest<
+          BCM_mldsa44_private_key, BCM_mldsa44_parse_private_key,
+          BCM_MLDSA44_SIGNATURE_BYTES, BCM_mldsa44_sign_internal>);
+}
+
 template <typename PublicKey, size_t SignatureLength,
           bcm_status_t (*ParsePublicKey)(PublicKey *, CBS *),
           bcm_status_t (*Verify)(const PublicKey *, const uint8_t *,
@@ -471,6 +554,14 @@ TEST(MLDSATest, WycheproofVerifyTests87) {
           BCM_mldsa87_parse_public_key, BCM_mldsa87_verify>);
 }
 
+TEST(MLDSATest, WycheproofVerifyTests44) {
+  FileTestGTest(
+      "third_party/wycheproof_testvectors/mldsa_44_standard_verify_test.txt",
+      MLDSAWycheproofVerifyTest<
+          BCM_mldsa44_public_key, BCM_MLDSA44_SIGNATURE_BYTES,
+          BCM_mldsa44_parse_public_key, BCM_mldsa44_verify>);
+}
+
 TEST(MLDSATest, Self) { ASSERT_TRUE(boringssl_self_test_mldsa()); }
 
 TEST(MLDSATest, PWCT) {
@@ -485,6 +576,11 @@ TEST(MLDSATest, PWCT) {
   auto priv87 = std::make_unique<BCM_mldsa87_private_key>();
   ASSERT_EQ(BCM_mldsa87_generate_key_fips(pub87.get(), seed, priv87.get()),
             bcm_status::approved);
+
+  auto pub44 = std::make_unique<uint8_t[]>(BCM_MLDSA44_PUBLIC_KEY_BYTES);
+  auto priv44 = std::make_unique<BCM_mldsa44_private_key>();
+  ASSERT_EQ(BCM_mldsa44_generate_key_fips(pub44.get(), seed, priv44.get()),
+            bcm_status::approved);
 }
 
 TEST(MLDSATest, NullptrArgumentsToCreate) {
@@ -493,11 +589,16 @@ TEST(MLDSATest, NullptrArgumentsToCreate) {
             bcm_status::failure);
   ASSERT_EQ(BCM_mldsa87_generate_key_fips(nullptr, nullptr, nullptr),
             bcm_status::failure);
+  ASSERT_EQ(BCM_mldsa44_generate_key_fips(nullptr, nullptr, nullptr),
+            bcm_status::failure);
   ASSERT_EQ(
       BCM_mldsa65_generate_key_external_entropy_fips(nullptr, nullptr, nullptr),
       bcm_status::failure);
   ASSERT_EQ(
       BCM_mldsa87_generate_key_external_entropy_fips(nullptr, nullptr, nullptr),
+      bcm_status::failure);
+  ASSERT_EQ(
+      BCM_mldsa44_generate_key_external_entropy_fips(nullptr, nullptr, nullptr),
       bcm_status::failure);
 }
 

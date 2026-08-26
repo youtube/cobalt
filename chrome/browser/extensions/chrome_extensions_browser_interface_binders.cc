@@ -11,12 +11,14 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/service_worker_version_base_info.h"
 #include "extensions/browser/api/mime_handler_private/mime_handler_private.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
 #include "extensions/common/api/mime_handler.mojom.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/permissions/api_permission.h"
 #include "extensions/common/permissions/permissions_data.h"
+#include "mojo/public/cpp/bindings/binder_map.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/webui/camera_app_ui/camera_app_ui.h"
@@ -83,29 +85,27 @@ void BindMachineLearningService(
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 void BindLanguagePacks(
-    content::RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<ash::language::mojom::LanguagePacks> receiver) {
   ash::language_packs::LanguagePacksImpl::GetInstance().BindReceiver(
       std::move(receiver));
 }
 
 void BindGoogleTtsStream(
-    content::RenderFrameHost* render_frame_host,
+    content::BrowserContext* browser_context,
     mojo::PendingReceiver<chromeos::tts::mojom::GoogleTtsStream> receiver) {
   TtsEngineExtensionObserverChromeOSFactory::GetForProfile(
-      Profile::FromBrowserContext(render_frame_host->GetBrowserContext()))
+      Profile::FromBrowserContext(browser_context))
       ->BindGoogleTtsStream(std::move(receiver));
 }
 
 void BindEnhancedNetworkTts(
-    content::RenderFrameHost* render_frame_host,
+    content::BrowserContext* browser_context,
     mojo::PendingReceiver<ash::enhanced_network_tts::mojom::EnhancedNetworkTts>
         receiver) {
   ash::enhanced_network_tts::EnhancedNetworkTtsImpl::GetInstance()
       .BindReceiverAndURLFactory(
           std::move(receiver),
-          Profile::FromBrowserContext(render_frame_host->GetBrowserContext())
-              ->GetURLLoaderFactory());
+          Profile::FromBrowserContext(browser_context)->GetURLLoaderFactory());
 }
 
 void BindRemoteAppsFactory(
@@ -171,11 +171,13 @@ void PopulateChromeFrameBindersForExtension(
   // Register InputEngineManager for official Google ChromeOS 1P Input only.
   if (extension->id() == ash::extension_ime_util::kXkbExtensionId) {
     binder_map->Add<ash::ime::mojom::InputEngineManager>(
-        base::BindRepeating(&BindInputEngineManager));
+        &BindInputEngineManager);
     binder_map->Add<ash::language::mojom::LanguagePacks>(
-        base::BindRepeating(&BindLanguagePacks));
+        [](content::RenderFrameHost* frame_host,
+           mojo::PendingReceiver<ash::language::mojom::LanguagePacks>
+               receiver) { BindLanguagePacks(std::move(receiver)); });
     binder_map->Add<chromeos::machine_learning::mojom::MachineLearningService>(
-        base::BindRepeating(&BindMachineLearningService));
+        &BindMachineLearningService);
   }
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
@@ -193,7 +195,7 @@ void PopulateChromeFrameBindersForExtension(
 #if BUILDFLAG(PLATFORM_CFM)
   if (chromeos::cfm::IsChromeboxForMeetingsHashedAppId(
           extension->hashed_id().value())) {
-    binder_map->Add<ash::cfm::mojom::XuCamera>(base::BindRepeating(
+    binder_map->Add<ash::cfm::mojom::XuCamera>(
         [](content::RenderFrameHost* frame_host,
            mojo::PendingReceiver<ash::cfm::mojom::XuCamera> receiver) {
           if (base::FeatureList::IsEnabled(ash::cfm::features::kXuControls)) {
@@ -205,7 +207,7 @@ void PopulateChromeFrameBindersForExtension(
                     chromeos::cfm::mojom::DisconnectReason::kFinchDisabledCode),
                 chromeos::cfm::mojom::DisconnectReason::kFinchDisabledMessage);
           }
-        }));
+        });
   }
 #endif  // BUILDFLAG(PLATFORM_CFM)
 
@@ -230,29 +232,41 @@ void PopulateChromeFrameBindersForExtension(
   }
 
   if (extension->id() == extension_misc::kGoogleSpeechSynthesisExtensionId) {
-    binder_map->Add<chromeos::tts::mojom::GoogleTtsStream>(
-        base::BindRepeating(&BindGoogleTtsStream));
-    binder_map->Add<ash::language::mojom::LanguagePacks>(
-        base::BindRepeating(&BindLanguagePacks));
+    binder_map->Add<chromeos::tts::mojom::GoogleTtsStream>(base::BindRepeating(
+        [](content::RenderFrameHost* frame_host,
+           mojo::PendingReceiver<chromeos::tts::mojom::GoogleTtsStream>
+               receiver) {
+          BindGoogleTtsStream(frame_host->GetBrowserContext(),
+                              std::move(receiver));
+        }));
+    binder_map->Add<ash::language::mojom::LanguagePacks>(base::BindRepeating(
+        [](content::RenderFrameHost* frame_host,
+           mojo::PendingReceiver<ash::language::mojom::LanguagePacks>
+               receiver) { BindLanguagePacks(std::move(receiver)); }));
   }
 
   // Limit the binding to EnhancedNetworkTts Extension.
   if (extension->id() == extension_misc::kEnhancedNetworkTtsExtensionId) {
     binder_map->Add<ash::enhanced_network_tts::mojom::EnhancedNetworkTts>(
-        base::BindRepeating(&BindEnhancedNetworkTts));
+        [](content::RenderFrameHost* frame_host,
+           mojo::PendingReceiver<
+               ash::enhanced_network_tts::mojom::EnhancedNetworkTts> receiver) {
+          BindEnhancedNetworkTts(frame_host->GetBrowserContext(),
+                                 std::move(receiver));
+        });
   }
 
   if (ash::RemoteAppsImpl::IsMojoPrivateApiAllowed(render_frame_host,
                                                    extension)) {
     binder_map->Add<chromeos::remote_apps::mojom::RemoteAppsFactory>(
-        base::BindRepeating(&BindRemoteAppsFactory));
+        &BindRemoteAppsFactory);
   }
 
   // Only allow specific extensions to bind CfmServiceContext
   if (chromeos::cfm::IsChromeboxForMeetingsHashedAppId(
           extension->hashed_id().value())) {
     binder_map->Add<chromeos::cfm::mojom::CfmServiceContext>(
-        base::BindRepeating(&BindCfmServiceContext));
+        &BindCfmServiceContext);
 
 #if !BUILDFLAG(PLATFORM_CFM)
     // On first launch some older devices may be running on none-CfM
@@ -260,7 +274,7 @@ void PopulateChromeFrameBindersForExtension(
     // rebooted to the CfM image variant for their device.
     // This applies to LaCrOS and none CfM Ash builds
     // TODO(crbug.com/341493979): Deprecate after CfM LaCrOS migration.
-    binder_map->Add<ash::cfm::mojom::XuCamera>(base::BindRepeating(
+    binder_map->Add<ash::cfm::mojom::XuCamera>(
         [](content::RenderFrameHost* frame_host,
            mojo::PendingReceiver<ash::cfm::mojom::XuCamera> receiver) {
           receiver.ResetWithReason(
@@ -268,15 +282,49 @@ void PopulateChromeFrameBindersForExtension(
                                         kServiceUnavailableCode),
               chromeos::cfm::mojom::DisconnectReason::
                   kServiceUnavailableMessage);
-        }));
+        });
 #endif  // BUILDFLAG(PLATFORM_CFM)
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  binder_map->Add<mime_handler::MimeHandlerService>(
-      base::BindRepeating(&BindMimeHandlerService));
-  binder_map->Add<mime_handler::BeforeUnloadControl>(
-      base::BindRepeating(&BindBeforeUnloadControl));
+  binder_map->Add<mime_handler::MimeHandlerService>(&BindMimeHandlerService);
+  binder_map->Add<mime_handler::BeforeUnloadControl>(&BindBeforeUnloadControl);
+}
+
+void PopulateChromeServiceWorkerBindersForExtension(
+    mojo::BinderMapWithContext<const content::ServiceWorkerVersionBaseInfo&>*
+        binder_map,
+    content::BrowserContext* browser_context,
+    const Extension* extension) {
+#if BUILDFLAG(IS_CHROMEOS)
+  if (extension->id() == extension_misc::kGoogleSpeechSynthesisExtensionId) {
+    binder_map->Add<chromeos::tts::mojom::GoogleTtsStream>(base::BindRepeating(
+        [](content::BrowserContext* browser_context,
+           const content::ServiceWorkerVersionBaseInfo&,
+           mojo::PendingReceiver<chromeos::tts::mojom::GoogleTtsStream>
+               receiver) {
+          BindGoogleTtsStream(browser_context, std::move(receiver));
+        },
+        browser_context));
+    binder_map->Add<ash::language::mojom::LanguagePacks>(
+        [](const content::ServiceWorkerVersionBaseInfo&,
+           mojo::PendingReceiver<ash::language::mojom::LanguagePacks>
+               receiver) { BindLanguagePacks(std::move(receiver)); });
+  }
+
+  if (extension->id() == extension_misc::kEnhancedNetworkTtsExtensionId) {
+    binder_map->Add<ash::enhanced_network_tts::mojom::EnhancedNetworkTts>(
+        base::BindRepeating(
+            [](content::BrowserContext* browser_context,
+               const content::ServiceWorkerVersionBaseInfo&,
+               mojo::PendingReceiver<
+                   ash::enhanced_network_tts::mojom::EnhancedNetworkTts>
+                   receiver) {
+              BindEnhancedNetworkTts(browser_context, std::move(receiver));
+            },
+            browser_context));
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 }  // namespace extensions

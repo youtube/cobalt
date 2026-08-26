@@ -91,7 +91,7 @@ public class TabSwitcherListEditorPTTest {
         RegularTabSwitcherStation tabSwitcher = firstPage.openRegularTabSwitcher();
         TabSwitcherListEditorFacility<RegularTabSwitcherStation> editor =
                 tabSwitcher.openAppMenu().clickSelectTabs();
-        editor.pressBackToExit();
+        editor.pressBackTo().exitFacility();
 
         // Go back to PageStation for InitialStateRule to reset
         firstPage = tabSwitcher.leaveHubToPreviousTabViaBack(WebPageStation.newBuilder());
@@ -194,8 +194,7 @@ public class TabSwitcherListEditorPTTest {
         WebPageStation pageStation =
                 Journeys.prepareTabs(firstPage, 10, 0, "about:blank", WebPageStation::newBuilder);
         RegularTabSwitcherStation tabSwitcher = pageStation.openRegularTabSwitcher();
-        TabList tabList =
-                tabSwitcher.tabModelSelectorElement.get().getCurrentModel().getComprehensiveModel();
+        TabList tabList = tabSwitcher.tabModelElement.get().getComprehensiveModel();
         List<Tab> tabs =
                 List.of(
                         tabList.getTabAt(0),
@@ -218,7 +217,7 @@ public class TabSwitcherListEditorPTTest {
         pageStation =
                 Journeys.prepareTabs(pageStation, 10, 0, "about:blank", WebPageStation::newBuilder);
 
-        TabModel currentModel = pageStation.getActivity().getCurrentTabModel();
+        TabModel currentModel = pageStation.getTabModel();
         List<Tab> tabGroup1 = List.of(currentModel.getTabAt(0), currentModel.getTabAt(3));
         List<Tab> tabGroup2 =
                 List.of(
@@ -247,7 +246,7 @@ public class TabSwitcherListEditorPTTest {
     public void testUndoCreateTabGroup() {
         WebPageStation firstPage = mCtaTestRule.startOnBlankPage();
 
-        TabModel tabModel = firstPage.getActivity().getCurrentTabModel();
+        TabModel tabModel = firstPage.getTabModel();
 
         // Open 3 tabs
         int firstTabId = firstPage.loadedTabElement.get().getId();

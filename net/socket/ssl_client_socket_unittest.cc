@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "base/containers/span.h"
+#include "base/containers/span_reader.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -25,6 +26,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
@@ -34,7 +36,6 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "crypto/rsa_private_key.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/features.h"
@@ -66,6 +67,7 @@
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/read_buffering_stream_socket.h"
 #include "net/socket/socket_test_util.h"
+#include "net/socket/ssl_client_socket_impl.h"
 #include "net/socket/ssl_server_socket.h"
 #include "net/socket/stream_socket.h"
 #include "net/socket/tcp_client_socket.h"
@@ -990,7 +992,7 @@ class SSLClientSocketCertRequestInfoTest : public SSLClientSocketVersionTest {
     sock_->GetSSLCertRequestInfo(request_info.get());
     sock_->Disconnect();
     EXPECT_FALSE(sock_->IsConnected());
-    EXPECT_TRUE(host_port_pair().Equals(request_info->host_and_port));
+    EXPECT_EQ(host_port_pair(), request_info->host_and_port);
 
     return request_info;
   }
@@ -1310,6 +1312,16 @@ class HangingCertVerifier : public CertVerifier {
     return ERR_IO_PENDING;
   }
 
+  void Verify2QwacBinding(
+      const std::string& binding,
+      const std::string& hostname,
+      const scoped_refptr<net::X509Certificate>& tls_cert,
+      base::OnceCallback<void(const scoped_refptr<net::X509Certificate>&)>
+          callback,
+      const net::NetLogWithSource& net_log) override {
+    ADD_FAILURE();
+    std::move(callback).Run(nullptr);
+  }
   void SetConfig(const Config& config) override {}
   void AddObserver(Observer* observer) override {}
   void RemoveObserver(Observer* observer) override {}
@@ -2296,22 +2308,21 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
   ASSERT_TRUE(
       StartEmbeddedTestServer(EmbeddedTestServer::CERT_OK, SSLServerConfig()));
 
-  static const unsigned char application_data[] = {
-      0x17, 0x03, 0x01, 0x00, 0x4a, 0x02, 0x00, 0x00, 0x46, 0x03, 0x01, 0x4b,
-      0xc2, 0xf8, 0xb2, 0xc1, 0x56, 0x42, 0xb9, 0x57, 0x7f, 0xde, 0x87, 0x46,
-      0xf7, 0xa3, 0x52, 0x42, 0x21, 0xf0, 0x13, 0x1c, 0x9c, 0x83, 0x88, 0xd6,
-      0x93, 0x0c, 0xf6, 0x36, 0x30, 0x05, 0x7e, 0x20, 0xb5, 0xb5, 0x73, 0x36,
-      0x53, 0x83, 0x0a, 0xfc, 0x17, 0x63, 0xbf, 0xa0, 0xe4, 0x42, 0x90, 0x0d,
-      0x2f, 0x18, 0x6d, 0x20, 0xd8, 0x36, 0x3f, 0xfc, 0xe6, 0x01, 0xfa, 0x0f,
-      0xa5, 0x75, 0x7f, 0x09, 0x00, 0x04, 0x00, 0x16, 0x03, 0x01, 0x11, 0x57,
-      0x0b, 0x00, 0x11, 0x53, 0x00, 0x11, 0x50, 0x00, 0x06, 0x22, 0x30, 0x82,
-      0x06, 0x1e, 0x30, 0x82, 0x05, 0x06, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02,
-      0x0a};
+  static const uint8_t application_data[] = {
+      0x17, 0x03, 0x01, 0x00, 0x4a, 0x02, 0x00, 0x00, 0x46, 0x03, 0x01,
+      0x4b, 0xc2, 0xf8, 0xb2, 0xc1, 0x56, 0x42, 0xb9, 0x57, 0x7f, 0xde,
+      0x87, 0x46, 0xf7, 0xa3, 0x52, 0x42, 0x21, 0xf0, 0x13, 0x1c, 0x9c,
+      0x83, 0x88, 0xd6, 0x93, 0x0c, 0xf6, 0x36, 0x30, 0x05, 0x7e, 0x20,
+      0xb5, 0xb5, 0x73, 0x36, 0x53, 0x83, 0x0a, 0xfc, 0x17, 0x63, 0xbf,
+      0xa0, 0xe4, 0x42, 0x90, 0x0d, 0x2f, 0x18, 0x6d, 0x20, 0xd8, 0x36,
+      0x3f, 0xfc, 0xe6, 0x01, 0xfa, 0x0f, 0xa5, 0x75, 0x7f, 0x09, 0x00,
+      0x04, 0x00, 0x16, 0x03, 0x01, 0x11, 0x57, 0x0b, 0x00, 0x11, 0x53,
+      0x00, 0x11, 0x50, 0x00, 0x06, 0x22, 0x30, 0x82, 0x06, 0x1e, 0x30,
+      0x82, 0x05, 0x06, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x0a};
 
   // All reads and writes complete synchronously (async=false).
   MockRead data_reads[] = {
-      MockRead(SYNCHRONOUS, reinterpret_cast<const char*>(application_data),
-               std::size(application_data)),
+      MockRead(SYNCHRONOUS, base::span(application_data)),
       MockRead(SYNCHRONOUS, OK),
   };
 
@@ -2757,6 +2768,97 @@ TEST_P(SSLClientSocketVersionTest, ConnectWithTrustAnchorIDs) {
   ASSERT_TRUE(CreateAndConnectSSLClientSocket(ssl_config, &rv));
   EXPECT_THAT(rv, IsOk());
   EXPECT_TRUE(ran_callback);
+}
+
+// Tests that SSLClientSocket sends Trust Anchor IDs when configured via
+// SSLConfig (similar to ConnectWithTrustAnchorIDs, but more end-to-end as it
+// tests that sending a Trust Anchor ID influences the actual certificate that
+// the server serves), and properly retrieves the server's Trust Anchor IDs from
+// the handshake on error.
+TEST_P(SSLClientSocketVersionTest, ConnectToServerWithTrustAnchorIDs) {
+  SSLServerConfig server_config;
+  SSLConfig client_config;
+  server_config.intermediate_trust_anchor_id = {0x01, 0x02, 0x03};
+
+  ASSERT_TRUE(StartEmbeddedTestServer(
+      EmbeddedTestServer::CERT_OK_BY_INTERMEDIATE, server_config));
+
+  // If the client doesn't advertise any trust anchor IDs on the connection,
+  // then the server should provide a full chain (with the intermediate).
+  int rv;
+  ASSERT_TRUE(CreateAndConnectSSLClientSocket(client_config, &rv));
+  EXPECT_THAT(rv, IsOk());
+  SSLInfo ssl_info;
+  ASSERT_TRUE(sock_->GetSSLInfo(&ssl_info));
+  EXPECT_EQ(1u, ssl_info.unverified_cert->intermediate_buffers().size());
+
+  // If the client advertises trust anchor IDs that don't correspond to the
+  // server's intermediate, then the server should provide a full chain (with
+  // the intermediate).
+  client_config.trust_anchor_ids = {0x03, 0x01, 0x01, 0x01, 0x02, 0x03, 0x03};
+  ASSERT_TRUE(CreateAndConnectSSLClientSocket(client_config, &rv));
+  EXPECT_THAT(rv, IsOk());
+  EXPECT_TRUE(sock_->GetServerTrustAnchorIDsForRetry().empty());
+  ASSERT_TRUE(sock_->GetSSLInfo(&ssl_info));
+  EXPECT_EQ(1u, ssl_info.unverified_cert->intermediate_buffers().size());
+
+  // If the client advertises the trust anchor ID corresponding to the server's
+  // intermediate, then the server should omit the intermediate from the
+  // connection.
+  client_config.trust_anchor_ids = {0x03, 0x01, 0x02, 0x03};
+  ASSERT_TRUE(CreateAndConnectSSLClientSocket(client_config, &rv));
+  EXPECT_THAT(rv, IsOk());
+  EXPECT_TRUE(sock_->GetServerTrustAnchorIDsForRetry().empty());
+  ASSERT_TRUE(sock_->GetSSLInfo(&ssl_info));
+  EXPECT_EQ(0u, ssl_info.unverified_cert->intermediate_buffers().size());
+
+  // If the client advertises multiple trust anchor IDs including the one
+  // corresponding to the server's intermediate, then the server should omit the
+  // intermediate from the connection.
+  client_config.trust_anchor_ids = {0x02, 0x01, 0x01, 0x03, 0x01, 0x02, 0x03};
+  ASSERT_TRUE(CreateAndConnectSSLClientSocket(client_config, &rv));
+  EXPECT_THAT(rv, IsOk());
+  EXPECT_TRUE(sock_->GetServerTrustAnchorIDsForRetry().empty());
+  ASSERT_TRUE(sock_->GetSSLInfo(&ssl_info));
+  EXPECT_EQ(0u, ssl_info.unverified_cert->intermediate_buffers().size());
+
+  // If the client advertises the trust anchor ID corresponding to the server's
+  // intermediate but gets an error, it should be able to access the trust
+  // anchor IDs that the server advertised in the handshake.
+  cert_verifier_->set_default_result(ERR_CERT_INVALID);
+  client_config.trust_anchor_ids = {0x03, 0x01, 0x02, 0x03};
+  ASSERT_TRUE(CreateAndConnectSSLClientSocket(client_config, &rv));
+  EXPECT_THAT(rv, IsError(ERR_CERT_INVALID));
+  ASSERT_TRUE(sock_->GetSSLInfo(&ssl_info));
+  EXPECT_EQ(0u, ssl_info.unverified_cert->intermediate_buffers().size());
+  EXPECT_EQ(sock_->GetServerTrustAnchorIDsForRetry(),
+            std::vector<std::vector<uint8_t>>({{0x01, 0x02, 0x03}}));
+}
+
+// Tests the method that parses the server's Trust Anchor IDs that it can
+// provide in the handshake.
+TEST_F(SSLClientSocketTest, ParseServerTrustAnchorIDs) {
+  struct TestCase {
+    const std::vector<uint8_t> server_trust_anchor_ids;
+    const std::vector<std::vector<uint8_t>> expected_parsed_trust_anchor_ids;
+  };
+  TestCase test_cases[] = {
+      // Two Trust Anchor IDs, correctly formed
+      {{0x03, 0x01, 0x02, 0x03, 0x02, 0x01, 0x01},
+       {{0x01, 0x02, 0x03}, {0x01, 0x01}}},
+      // Empty
+      {{}, {}},
+      // Malformed
+      {{0x02, 0x1}, {}},
+      {{0x00, 0x01, 0x02, 0x03}, {}},
+      {{0x00}, {}},
+  };
+
+  for (const auto& test : test_cases) {
+    base::SpanReader<const uint8_t> reader(test.server_trust_anchor_ids);
+    auto result = SSLClientSocketImpl::ParseServerTrustAnchorIDs(&reader);
+    EXPECT_EQ(result, test.expected_parsed_trust_anchor_ids);
+  }
 }
 
 // Tests that OCSP stapling is requested, as per Certificate Transparency (RFC
@@ -4291,7 +4393,6 @@ TEST_F(SSLClientSocketTest, ClientCertSignatureAlgorithm) {
 
   const struct {
     const char* name;
-    bool legacy_pkcs1_enabled = true;
     uint16_t version;
     std::vector<uint16_t> server_prefs;
     std::vector<uint16_t> client_prefs;
@@ -4374,16 +4475,6 @@ TEST_F(SSLClientSocketTest, ClientCertSignatureAlgorithm) {
           .expected_signature_algorithm = SSL_SIGN_RSA_PKCS1_SHA256_LEGACY,
       },
       {
-          .name = "TLS 1.3 legacy PKCS#1 disabled",
-          .legacy_pkcs1_enabled = false,
-          .version = SSL_PROTOCOL_VERSION_TLS1_3,
-          .server_prefs = {SSL_SIGN_RSA_PKCS1_SHA256_LEGACY},
-          .client_prefs = {SSL_SIGN_RSA_PKCS1_SHA256},
-          // The rsa_pkcs1_sha256_legacy codepoint may be used in TLS 1.3, but
-          // was disabled.
-          .error = ERR_SSL_CLIENT_AUTH_NO_COMMON_ALGORITHMS,
-      },
-      {
           .name = "TLS 1.3 legacy PKCS#1 not preferred",
           .version = SSL_PROTOCOL_VERSION_TLS1_3,
           .server_prefs = {SSL_SIGN_RSA_PKCS1_SHA256_LEGACY,
@@ -4397,10 +4488,6 @@ TEST_F(SSLClientSocketTest, ClientCertSignatureAlgorithm) {
   };
   for (const auto& test : kTests) {
     SCOPED_TRACE(test.name);
-
-    base::test::ScopedFeatureList scoped_feature_list;
-    scoped_feature_list.InitWithFeatureState(
-        net::features::kLegacyPKCS1ForTLS13, test.legacy_pkcs1_enabled);
 
     SSLServerConfig server_config;
     server_config.version_min = test.version;
@@ -4435,10 +4522,10 @@ TEST_F(SSLClientSocketTest, ClientCertSignatureAlgorithm) {
 }
 #endif  // BUILDFLAG(ENABLE_CLIENT_CERTIFICATES)
 
-HashValueVector MakeHashValueVector(uint8_t value) {
-  HashValueVector out;
-  HashValue hash(HASH_VALUE_SHA256);
-  std::ranges::fill(hash.span(), value);
+std::vector<SHA256HashValue> MakeHashValueVector(uint8_t tag) {
+  SHA256HashValue hash;
+  std::ranges::fill(hash, tag);
+  std::vector<SHA256HashValue> out;
   out.push_back(hash);
   return out;
 }
@@ -5446,11 +5533,8 @@ TEST_P(SSLClientSocketReadTest, IdleAfterRead) {
   bssl::UniquePtr<EVP_PKEY> pkey =
       key_util::LoadEVP_PKEYFromPEM(certs_dir.AppendASCII("ok_cert.pem"));
   ASSERT_TRUE(pkey);
-  std::unique_ptr<crypto::RSAPrivateKey> key =
-      crypto::RSAPrivateKey::CreateFromKey(pkey.get());
-  ASSERT_TRUE(key);
   std::unique_ptr<SSLServerContext> server_context =
-      CreateSSLServerContext(cert.get(), *key.get(), GetServerConfig());
+      CreateSSLServerContext(cert.get(), pkey.get(), GetServerConfig());
 
   // Complete the SSL handshake on both sides.
   std::unique_ptr<SSLClientSocket> client(CreateSSLClientSocket(
@@ -5533,17 +5617,11 @@ TEST_F(SSLClientSocketTest, SSLOverSSLBadCertificate) {
   ASSERT_THAT(client_callback.GetResult(client_rv), IsOk());
 
   // Set up a pair of SSL servers.
-  std::unique_ptr<crypto::RSAPrivateKey> ok_key =
-      crypto::RSAPrivateKey::CreateFromKey(ok_pkey.get());
-  ASSERT_TRUE(ok_key);
   std::unique_ptr<SSLServerContext> ok_server_context =
-      CreateSSLServerContext(ok_cert.get(), *ok_key.get(), SSLServerConfig());
+      CreateSSLServerContext(ok_cert.get(), ok_pkey.get(), SSLServerConfig());
 
-  std::unique_ptr<crypto::RSAPrivateKey> expired_key =
-      crypto::RSAPrivateKey::CreateFromKey(expired_pkey.get());
-  ASSERT_TRUE(expired_key);
   std::unique_ptr<SSLServerContext> expired_server_context =
-      CreateSSLServerContext(expired_cert.get(), *expired_key.get(),
+      CreateSSLServerContext(expired_cert.get(), expired_pkey.get(),
                              SSLServerConfig());
 
   // Complete the proxy SSL handshake with ok_cert.pem. This should succeed.

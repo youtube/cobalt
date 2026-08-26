@@ -23,21 +23,7 @@ constexpr size_t kDebugAcceleratorActionsNum = 29;
 // The hash of accelerator actions. Please update this when adding a new
 // accelerator action.
 constexpr char kAcceleratorActionsHash[] =
-    "0827c8b3db8a74c4c8f080814060465fdf54f0f9bc2cc913cb549b8df6f67bb3";
-
-// Define the mapping between an AcceleratorAction and its string name.
-// Example:
-//   AcceleratorAction::kDevToggleUnifiedDesktop -> "DevToggleUnifiedDesktop".
-constexpr static auto kAcceleratorActionToName =
-    base::MakeFixedFlatMap<AcceleratorAction, std::string_view>({
-#define ACCELERATOR_ACTION_ENTRY(action) \
-  {AcceleratorAction::k##action, #action},
-#define ACCELERATOR_ACTION_ENTRY_FIXED_VALUE(action, value) \
-  {AcceleratorAction::k##action, #action},
-        ACCELERATOR_ACTIONS
-#undef ACCELERATOR_ACTION_ENTRY
-#undef ACCELERATOR_ACTION_ENTRY_FIXED_VALUE
-    });
+    "5376c379e20a43cf689c1d23bc111305426d078d0a24343e2fd4f63787c61ebc";
 
 struct TestParams {
   bool use_debug_shortcuts = false;
@@ -80,14 +66,16 @@ TEST_P(AcceleratorActionsTest, CheckHistogramEnum) {
   ASSERT_TRUE(enums);
   // The number of enums in the histogram entry should be equal to the number of
   // enums in the C++ file.
-  EXPECT_EQ(enums->size(), kAcceleratorActionToName.size());
+  EXPECT_EQ(enums->size(), GetAcceleratorActionsForTest().size());
 
   for (const auto& entry : *enums) {
     // Check that the C++ file has a definition equal to the histogram file.
-    EXPECT_EQ(entry.second, kAcceleratorActionToName.find(entry.first)->second)
+    AcceleratorAction action = static_cast<AcceleratorAction>(entry.first);
+    const char* action_name = GetAcceleratorActionName(action);
+    EXPECT_EQ(entry.second, action_name)
         << "Enum entry name: " << entry.second
-        << " in enums.xml is different from enum entry name: "
-        << kAcceleratorActionToName.find(entry.first)->second << " in C++ file";
+        << " in enums.xml is different from enum entry name: " << action_name
+        << " in C++ file";
   }
 }
 
@@ -100,12 +88,15 @@ TEST_P(AcceleratorActionsTest, AcceleratorActionsHash) {
       "`kDebugAcceleratorActionsNum` (if applicable).";
 
   // First check that the size of the enum is correct.
-  ASSERT_EQ(kAcceleratorActionToName.size(), kAcceleratorActionsTotalNum);
+  auto all = GetAcceleratorActionsForTest();
+  ASSERT_EQ(all.size(), kAcceleratorActionsTotalNum);
   const size_t kAcceleratorsToHashNum =
       kAcceleratorActionsTotalNum - kDebugAcceleratorActionsNum;
-  const std::string hash = ash::StableHashOfCollection(
-      base::span(kAcceleratorActionToName).first<kAcceleratorsToHashNum>(),
-      [](const auto& item) { return item.second; });
+  auto names = base::span(all).first<kAcceleratorsToHashNum>();
+  const std::string hash =
+      ash::StableHashOfCollection(names, [](const auto& action) {
+        return std::string(GetAcceleratorActionName(action));
+      });
 
   EXPECT_EQ(hash, kAcceleratorActionsHash)
       << kCommonMessage << " Please update kAcceleratorActionsHash to: \n"

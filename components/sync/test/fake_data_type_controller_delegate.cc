@@ -70,7 +70,6 @@ void FakeDataTypeControllerDelegate::OnSyncStarting(
   sync_started_ = true;
 
   error_handler_ = request.error_handler;
-  previously_syncing_gaia_id_info_ = request.previously_syncing_gaia_id_info;
 
   // If the model has already experienced the error, report it immediately.
   if (model_error_) {
@@ -139,7 +138,8 @@ void FakeDataTypeControllerDelegate::ClearMetadataIfStopped() {
 }
 
 void FakeDataTypeControllerDelegate::ReportBridgeErrorForTest() {
-  SimulateModelError(ModelError(FROM_HERE, "Report error for test"));
+  SimulateModelError(
+      ModelError(FROM_HERE, syncer::ModelError::Type::kGenericTestError));
 }
 
 }  // namespace syncer

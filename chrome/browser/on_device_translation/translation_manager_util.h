@@ -27,13 +27,28 @@ bool IsInAcceptLanguage(const std::vector<std::string_view>& accept_languages,
 // Determines if the Translator API is enabled.
 bool IsTranslatorAllowed(content::BrowserContext* browser_context);
 
-// When the `TranslationAPIAcceptLanguagesCheck` feature is enabled, the
-// Translation API will fail if neither the source nor destination language is
-// in Accept Languages. This is intended to mitigate privacy concerns.
-bool PassAcceptLanguagesCheck(
-    const std::vector<std::string_view>& accept_languages,
-    const std::string& source_lang,
-    const std::string& target_lang);
+// Implementation of LookupMatchingLocaleByBestFit
+// (https://tc39.es/ecma402/#sec-lookupmatchinglocalebybestfit) as
+// LookupMatchingLocaleByPrefix
+// (https://tc39.es/ecma402/#sec-lookupmatchinglocalebyprefix) assuming
+// `available_languages` contains no extension.
+template <typename SetType>
+std::optional<std::string> LookupMatchingLocaleByBestFit(
+    const SetType& available_languages,
+    std::string requested_language) {
+  std::string prefix = std::move(requested_language);
+  while (prefix != "") {
+    if (available_languages.contains(prefix)) {
+      return prefix;
+    }
+    int pos = prefix.rfind('-');
+    if (pos == -1) {
+      break;
+    }
+    prefix.resize(pos);
+  }
+  return std::nullopt;
+}
 
 }  // namespace on_device_translation
 

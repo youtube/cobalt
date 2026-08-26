@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
@@ -70,10 +71,8 @@ namespace {
 
 const int kModalDialogWidth = 448;
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-const int kManagedUserNoticeConfirmationDialogWidth = 512;
-const int kManagedUserNoticeConfirmationDialogHeight = 576;
-const int kManagedUserNoticeConfirmationUpdatedDialogWidth = 780;
-const int kManagedUserNoticeConfirmationUpdatedDialogHeight = 560;
+const int kManagedUserNoticeConfirmationDialogWidth = 780;
+const int kManagedUserNoticeConfirmationDialogHeight = 560;
 #endif
 const int kSyncConfirmationDialogWidth = 512;
 const int kSyncConfirmationDialogHeight = 487;
@@ -97,7 +96,7 @@ void CloseModalSigninInBrowser(
     return;
   }
 
-  browser->signin_view_controller()->CloseModalSignin();
+  browser->GetFeatures().signin_view_controller()->CloseModalSignin();
   if (show_supervised_user_iph) {
     browser->window()->MaybeShowSupervisedUserProfileSignInIPH();
   }
@@ -141,12 +140,16 @@ SigninViewControllerDelegateViews::CreateSyncConfirmationWebView(
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 std::unique_ptr<views::WebView>
 SigninViewControllerDelegateViews::CreateHistorySyncOptInWebView(
-    Browser* browser) {
+    Browser* browser,
+    HistorySyncOptinLaunchContext launch_context) {
   GURL url = GURL(chrome::kChromeUIHistorySyncOptinURL);
   // The the actual dialog's height will be set dynamically based on its
   // contents, so the initial height does not matter.
   auto web_view =
-      CreateDialogWebView(browser, url, /*dialog_height=*/0, kModalDialogWidth,
+      CreateDialogWebView(browser,
+                          HistorySyncOptinUI::AppendHistorySyncOptinQueryParams(
+                              url, launch_context),
+                          /*dialog_height=*/0, kModalDialogWidth,
                           InitializeSigninWebDialogUI(false));
   CHECK(web_view);
   HistorySyncOptinUI* web_ui = web_view->GetWebContents()
@@ -231,19 +234,9 @@ SigninViewControllerDelegateViews::CreateManagedUserNoticeConfirmationWebView(
     Browser* browser,
     std::unique_ptr<signin::EnterpriseProfileCreationDialogParams>
         create_param) {
-  bool enable_updated_dialog = base::FeatureList::IsEnabled(
-      features::kEnterpriseUpdatedProfileCreationScreen);
   bool is_oidc_account = create_param->is_oidc_account;
-  enable_updated_dialog |=
-      is_oidc_account &&
-      base::FeatureList::IsEnabled(
-          profile_management::features::kOidcAuthProfileManagement);
-  auto width = enable_updated_dialog
-                   ? kManagedUserNoticeConfirmationUpdatedDialogWidth
-                   : kManagedUserNoticeConfirmationDialogWidth;
-  auto height = enable_updated_dialog
-                    ? kManagedUserNoticeConfirmationUpdatedDialogHeight
-                    : kManagedUserNoticeConfirmationDialogHeight;
+  auto width = kManagedUserNoticeConfirmationDialogWidth;
+  auto height = kManagedUserNoticeConfirmationDialogHeight;
   std::unique_ptr<views::WebView> web_view = CreateDialogWebView(
       browser, GURL(chrome::kChromeUIManagedUserProfileNoticeUrl), height,
       width, InitializeSigninWebDialogUI(false));
@@ -544,9 +537,12 @@ SigninViewControllerDelegate::CreateSyncConfirmationDelegate(
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // static
 SigninViewControllerDelegate*
-SigninViewControllerDelegate::CreateSyncHistoryOptInDelegate(Browser* browser) {
+SigninViewControllerDelegate::CreateSyncHistoryOptInDelegate(
+    Browser* browser,
+    HistorySyncOptinLaunchContext launch_context) {
   auto content_view =
-      SigninViewControllerDelegateViews::CreateHistorySyncOptInWebView(browser);
+      SigninViewControllerDelegateViews::CreateHistorySyncOptInWebView(
+          browser, launch_context);
   return new SigninViewControllerDelegateViews(
       std::move(content_view), browser, ui::mojom::ModalType::kWindow,
       /*wait_for_size=*/true, /*should_show_close_button=*/false,

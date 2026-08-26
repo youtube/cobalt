@@ -13,21 +13,29 @@
 #include "services/webnn/public/mojom/webnn_tensor.mojom.h"
 #include "services/webnn/webnn_object_impl.h"
 
+namespace gpu {
+class WebNNTensorRepresentation;
+}  // namespace gpu
+
 namespace webnn {
 
 class WebNNContextImpl;
 
 // GPU process implementation of the MLTensor interface exposed to script.
-// Owned by the WebNNContextImpl which created it.
 class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNTensorImpl
-    : public mojom::WebNNTensor,
+    : public WebNNReceiverImpl<mojom::WebNNTensor>,
       public WebNNObjectImpl<blink::WebNNTensorToken> {
  public:
   explicit WebNNTensorImpl(
       mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
-      WebNNContextImpl* context,
+      base::WeakPtr<WebNNContextImpl> context,
       mojom::TensorInfoPtr tensor_info);
-  ~WebNNTensorImpl() override;
+
+  WebNNTensorImpl(
+      mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
+      base::WeakPtr<WebNNContextImpl> context,
+      mojom::TensorInfoPtr tensor_info,
+      std::unique_ptr<gpu::WebNNTensorRepresentation> representation);
 
   WebNNTensorImpl(const WebNNTensorImpl&) = delete;
   WebNNTensorImpl& operator=(const WebNNTensorImpl&) = delete;
@@ -51,14 +59,19 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNTensorImpl
   virtual void WriteTensorImpl(mojo_base::BigBuffer src_buffer) = 0;
 
  protected:
+  ~WebNNTensorImpl() override;
+
   // This method will be called by `ReadTensor()` after the read info is
   // validated. A backend subclass should implement this method to read data
   // from a platform specific buffer.
   virtual void ReadTensorImpl(
       mojom::WebNNTensor::ReadTensorCallback callback) = 0;
 
-  // WebNNContextImpl owns this object.
-  const raw_ptr<WebNNContextImpl> context_;
+  base::WeakPtr<WebNNContextImpl> context_;
+
+  // The shared image representation used to access the contents from shared
+  // image. Only valid when usage has WebGPUInterop.
+  std::unique_ptr<gpu::WebNNTensorRepresentation> representation_;
 
  private:
   // mojom::WebNNTensor
@@ -70,12 +83,10 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNTensorImpl
   //  developer via the WebNN API.
   //  - When the tensor is dropped by the WebNN developer where
   //  the tensor gets implicitly destroyed upon garbage collection.
-  void OnDisconnect();
+  void OnDisconnect() override;
 
   const OperandDescriptor descriptor_;
   const MLTensorUsage usage_;
-
-  mojo::AssociatedReceiver<mojom::WebNNTensor> receiver_;
 
   base::WeakPtrFactory<WebNNTensorImpl> weak_factory_{this};
 };

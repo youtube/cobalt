@@ -24,7 +24,7 @@
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/fec_controller.h"
-#include "api/field_trials_view.h"
+#include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
 #include "api/neteq/neteq_factory.h"
 #include "api/peer_connection_interface.h"
@@ -43,6 +43,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/ssl_certificate.h"
+#include "test/create_test_field_trials.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {
@@ -53,7 +54,9 @@ PeerConfigurer::PeerConfigurer(PeerNetworkDependencies& network)
           network.ReleaseNetworkManager(),
           network.socket_factory())),
       params_(std::make_unique<Params>()),
-      configurable_params_(std::make_unique<ConfigurableParams>()) {}
+      configurable_params_(std::make_unique<ConfigurableParams>()) {
+  components_->pcf_dependencies->field_trials = CreateTestFieldTrialsPtr();
+}
 
 PeerConfigurer* PeerConfigurer::SetName(absl::string_view name) {
   params_->name = std::string(name);
@@ -169,6 +172,10 @@ PeerConfigurer* PeerConfigurer::SetUseUlpFEC(bool value) {
 }
 PeerConfigurer* PeerConfigurer::SetUseFlexFEC(bool value) {
   params_->use_flex_fec = value;
+  absl::string_view group = value ? "Enabled" : "Disabled";
+  FieldTrials& field_trials = GetFieldTrials();
+  field_trials.Set("WebRTC-FlexFEC-03-Advertised", group);
+  field_trials.Set("WebRTC-FlexFEC-03", group);
   return this;
 }
 PeerConfigurer* PeerConfigurer::SetVideoEncoderBitrateMultiplier(
@@ -229,12 +236,6 @@ PeerConfigurer* PeerConfigurer::SetBitrateSettings(
 PeerConfigurer* PeerConfigurer::SetIceTransportFactory(
     std::unique_ptr<IceTransportFactory> factory) {
   components_->pc_dependencies->ice_transport_factory = std::move(factory);
-  return this;
-}
-
-PeerConfigurer* PeerConfigurer::SetFieldTrials(
-    std::unique_ptr<FieldTrialsView> field_trials) {
-  components_->pcf_dependencies->trials = std::move(field_trials);
   return this;
 }
 

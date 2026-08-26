@@ -471,6 +471,9 @@
   <message name="IDS_UPDATE_OVER_CELLULAR_PROMPT_MESSAGE" desc="Contens of the dialog shown to the user in ChromeOS OOBE before forced auto-update is attempted if the ChromeOS device is connected to a cellular/metered network. The dialog warns the user that procceeding with OOBE on a mobile network can cause overage charges. The dialog title states that the Chromebook needs an update.">
     If you download the update over your mobile network, it could result in overage charges.
   </message>
+  <message name="IDS_FJORD_WELCOME_MESSAGE" desc="Welcome message shown when user is setting up their device">
+    Your hardware is ready to set up
+  </message>
   <message name="IDS_REMORA_CONFIRM_MESSAGE" desc="Remora confirm message on the first OOBE screen">
     Your Google Meet hardware is ready to set up
   </message>
@@ -1158,6 +1161,17 @@
     Please retry. If you see this error again please contact your support representative.
   </message>
 
+  <!-- Strings for Demo Sessions -->
+  <message name="IDS_DEMO_SESSION_TOS_NOTIFICATION_TITLE" desc="Title of the ToS notification in demo session.">
+    You are using a demo device
+  </message>
+  <message name="IDS_DEMO_SESSION_TOS_NOTIFICATION_MESSAGE" desc="Message of the ToS notification in demo session.">
+    Demo mode is intended for users 18+ and is governed by Google's Terms of Service and Privacy Policy. Data entered on this device may be viewed by others between periodic wipes.
+  </message>
+  <message name="IDS_DEMO_SESSION_TOS_NOTIFICATION_BUTTON_TEXT" desc="The text of the button on the ToS notification in demo session.">
+    Learn more
+  </message>
+
   <!-- Strings for OS trial screen-->
   <message name="IDS_OS_TRIAL_TITLE" desc="Title of the install or try screen, the first screen of the ChromeOS Flex Installation flow">
     Start using <ph name="DEVICE_OS">$1<ex>ChromeOS Flex</ex></ph>
@@ -1705,9 +1719,6 @@
     Use Google Account password
   </message>
 
-  <message name="IDS_APP_START_CONFIGURE_NETWORK" desc="Text displayed for configure network button while installing and/or launching web application in kiosk mode.">
-    Configure network
-  </message>
   <message name="IDS_APP_START_NETWORK_WAIT_TIMEOUT_MESSAGE" desc="Message displayed while the network wait is timed out during app launching.">
     Internet disconnected. Please check your internet connection.
   </message>
@@ -2812,6 +2823,9 @@
   </message>
   <message name="IDS_KIOSK_APP_ERROR_UNABLE_TO_LAUNCH_CHROME_APP" desc="Error message used when a kiosk session fails to launch due to the app being launched is a deprecated Chrome App.">
     Can't launch unsupported Chrome app. Notify your administrator about this issue.
+  </message>
+  <message name="IDS_KIOSK_APP_ERROR_IWA_UNSUPPORTED" desc="Error message used when a kiosk app fails to launch/install because of being unsupported (e.g., not allowlisted/blocklisted)">
+    Can't launch unsupported kiosk app. Notify your administrator about this issue.
   </message>
   <message name="IDS_KIOSK_EXTERNAL_UPDATE_IN_PROGRESS" desc="Message shown on screen when the system is updating kiosk apps from usb stick.">
     Please wait....Kiosk app is in the process of being updated. Do not remove the USB stick.

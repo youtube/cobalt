@@ -6,7 +6,9 @@
 #define CHROME_BROWSER_UI_TABS_SAVED_TAB_GROUPS_SAVED_TAB_GROUP_UTILS_H_
 
 #include <unordered_set>
+#include <vector>
 
+#include "base/containers/span.h"
 #include "base/uuid.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_keyed_service.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
@@ -15,6 +17,7 @@
 #include "components/saved_tab_groups/public/saved_tab_group.h"
 #include "components/saved_tab_groups/public/types.h"
 #include "components/tabs/public/tab_group.h"
+#include "components/user_education/common/help_bubble/help_bubble_params.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
@@ -61,9 +64,9 @@ class SavedTabGroupUtils {
   static void RemoveGroupFromTabstrip(
       const Browser* browser,
       const tab_groups::TabGroupId& local_group);
-  static void UngroupSavedGroup(const Browser* browser,
+  static void UngroupSavedGroup(Browser* browser,
                                 const base::Uuid& saved_group_guid);
-  static void DeleteSavedGroup(const Browser* browser,
+  static void DeleteSavedGroup(Browser* browser,
                                const base::Uuid& saved_group_guid);
   static void LeaveSharedGroup(const Browser* browser,
                                const base::Uuid& saved_group_guid);
@@ -84,9 +87,9 @@ class SavedTabGroupUtils {
   // runs the callback if the dialog is not shown or it shows the dialog
   // and the callback is run asynchronously through the dialog.
   static void MaybeShowSavedTabGroupDeletionDialog(
-      const Browser* browser,
+      Browser* browser,
       GroupDeletionReason reason,
-      const std::vector<TabGroupId>& group_ids,
+      base::span<const TabGroupId> group_ids,
       base::OnceCallback<void(DeletionDialogController::DeletionDialogTiming)>
           callback);
 
@@ -141,6 +144,10 @@ class SavedTabGroupUtils {
   // the SavedTabGroupBar::EverythingMenuButton or the AppMenuButton.
   static ui::TrackedElement* GetAnchorElementForTabGroupsV2IPH(
       const ui::ElementTracker::ElementList& elements);
+
+  // Returns the correct help bubble arrow for the Saved Groups V2 IPH.
+  static user_education::HelpBubbleArrow GetArrowForTabGroupsV2IPH(
+      const ui::TrackedElement* el);
 
   // Returns true if new tab groups should be pinned.
   static bool ShouldAutoPinNewTabGroups(Profile* profile);

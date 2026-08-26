@@ -11,8 +11,6 @@
 // Integration tests for PeerConnection.
 // These tests exercise a full stack for the SVC extension.
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <vector>
 

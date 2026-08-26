@@ -22,6 +22,7 @@
 #include "net/base/host_mapping_rules.h"
 #include "net/base/host_port_pair.h"
 #include "net/disk_cache/backend_experiment.h"
+#include "net/disk_cache/buildflags.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_stream_factory.h"
 #include "net/third_party/quiche/src/quiche/http2/core/spdy_protocol.h"
@@ -107,9 +108,7 @@ TEST_F(NetworkSessionConfiguratorTest, Defaults) {
       quic_params_.initial_delay_for_broken_alternative_service.has_value());
   EXPECT_FALSE(quic_params_.exponential_backoff_on_initial_delay.has_value());
   EXPECT_FALSE(quic_params_.delay_main_job_with_available_spdy_session);
-  EXPECT_EQ(
-      base::FeatureList::IsEnabled(net::features::kUseNewAlpsCodepointQUIC),
-      quic_params_.use_new_alps_codepoint);
+  EXPECT_TRUE(quic_params_.use_new_alps_codepoint);
   EXPECT_TRUE(quic_params_.enable_origin_frame);
   EXPECT_TRUE(quic_params_.skip_dns_with_origin_frame);
   EXPECT_FALSE(quic_params_.ignore_ip_matching_when_finding_existing_sessions);
@@ -847,13 +846,11 @@ TEST_F(NetworkSessionConfiguratorTest, HostRules) {
 }
 
 TEST_F(NetworkSessionConfiguratorTest, DefaultCacheBackend) {
-  if constexpr (disk_cache::IsSimpleBackendEnabledByDefaultPlatform()) {
-    EXPECT_EQ(net::URLRequestContextBuilder::HttpCacheParams::DISK_SIMPLE,
-              ChooseCacheType());
-  } else {
-    EXPECT_EQ(net::URLRequestContextBuilder::HttpCacheParams::DISK_BLOCKFILE,
-              ChooseCacheType());
-  }
+  EXPECT_EQ(
+      disk_cache::IsSimpleBackendEnabledByDefaultPlatform()
+          ? net::URLRequestContextBuilder::HttpCacheParams::DISK_SIMPLE
+          : net::URLRequestContextBuilder::HttpCacheParams::DISK_BLOCKFILE,
+      ChooseCacheType());
 }
 
 TEST_F(NetworkSessionConfiguratorTest, DiskCacheExperimentSimpleBackend) {
@@ -868,13 +865,36 @@ TEST_F(NetworkSessionConfiguratorTest, DiskCacheExperimentBlockfileBackend) {
   scoped_feature_list_.Reset();
   scoped_feature_list_.InitAndEnableFeatureWithParameters(
       net::features::kDiskCacheBackendExperiment, {{"backend", "blockfile"}});
-  if constexpr (disk_cache::IsSimpleBackendEnabledByDefaultPlatform()) {
-    EXPECT_EQ(net::URLRequestContextBuilder::HttpCacheParams::DISK_SIMPLE,
-              ChooseCacheType());
-  } else {
-    EXPECT_EQ(net::URLRequestContextBuilder::HttpCacheParams::DISK_BLOCKFILE,
-              ChooseCacheType());
-  }
+  EXPECT_EQ(net::URLRequestContextBuilder::HttpCacheParams::DISK_BLOCKFILE,
+            ChooseCacheType());
+}
+
+TEST_F(NetworkSessionConfiguratorTest, DiskCacheExperimentDefaultBackend) {
+  scoped_feature_list_.Reset();
+  scoped_feature_list_.InitAndEnableFeatureWithParameters(
+      net::features::kDiskCacheBackendExperiment, {{"backend", "default"}});
+  EXPECT_EQ(
+      disk_cache::IsSimpleBackendEnabledByDefaultPlatform()
+          ? net::URLRequestContextBuilder::HttpCacheParams::DISK_SIMPLE
+          : net::URLRequestContextBuilder::HttpCacheParams::DISK_BLOCKFILE,
+      ChooseCacheType());
+}
+
+TEST_F(NetworkSessionConfiguratorTest, DiskCacheExperimentSqlBackend) {
+  scoped_feature_list_.Reset();
+  scoped_feature_list_.InitAndEnableFeatureWithParameters(
+      net::features::kDiskCacheBackendExperiment, {{"backend", "sql"}});
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+  EXPECT_EQ(
+      net::URLRequestContextBuilder::HttpCacheParams::DISK_EXPERIMENTAL_SQL,
+      ChooseCacheType());
+#else   // BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+  EXPECT_EQ(
+      disk_cache::IsSimpleBackendEnabledByDefaultPlatform()
+          ? net::URLRequestContextBuilder::HttpCacheParams::DISK_SIMPLE
+          : net::URLRequestContextBuilder::HttpCacheParams::DISK_BLOCKFILE,
+      ChooseCacheType());
+#endif  // BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
 }
 
 TEST_F(NetworkSessionConfiguratorTest, Http2GreaseSettingsFromCommandLine) {
@@ -1090,10 +1110,7 @@ class NetworkSessionConfiguratorWithNewAlpsCodepointTest
   NetworkSessionConfiguratorWithNewAlpsCodepointTest()
       : use_new_alps_codepoint_feature_setting_(std::get<0>(GetParam())),
         use_new_alps_codepoint_field_trial_setting_(std::get<1>(GetParam())) {
-    if (use_new_alps_codepoint_feature_setting_) {
-      feature_list_.InitAndEnableFeature(
-          net::features::kUseNewAlpsCodepointQUIC);
-    } else {
+    if (!use_new_alps_codepoint_feature_setting_) {
       feature_list_.InitAndDisableFeature(
           net::features::kUseNewAlpsCodepointQUIC);
     }

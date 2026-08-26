@@ -10,14 +10,13 @@
 
 #include "api/transport/stun.h"
 
-#include <string.h>
-
 #include <algorithm>  // IWYU pragma: keep
 #include <cstdint>
 #include <cstring>
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -1111,6 +1110,17 @@ StunByteStringAttribute::StunByteStringAttribute(uint16_t type,
   CopyBytes(bytes, length);
 }
 
+StunByteStringAttribute::StunByteStringAttribute(
+    uint16_t type,
+    const std::vector<uint32_t>& values)
+    : StunAttribute(type, 0), bytes_(nullptr) {
+  ByteBufferWriter writer;
+  for (const auto& value : values) {
+    writer.WriteUInt32(value);
+  }
+  CopyBytes(writer.Data(), writer.Length());
+}
+
 StunByteStringAttribute::StunByteStringAttribute(uint16_t type, uint16_t length)
     : StunAttribute(type, length), bytes_(nullptr) {}
 
@@ -1120,6 +1130,20 @@ StunByteStringAttribute::~StunByteStringAttribute() {
 
 StunAttributeValueType StunByteStringAttribute::value_type() const {
   return STUN_VALUE_BYTE_STRING;
+}
+
+std::optional<std::vector<uint32_t>> StunByteStringAttribute::GetUInt32Vector()
+    const {
+  if (length() % 4 != 0) {
+    return std::nullopt;
+  }
+  std::vector<uint32_t> values;
+  ByteBufferReader reader(array_view());
+  uint32_t value;
+  while (reader.ReadUInt32(&value)) {
+    values.push_back(value);
+  }
+  return values;
 }
 
 void StunByteStringAttribute::CopyBytes(absl::string_view bytes) {

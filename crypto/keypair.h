@@ -5,10 +5,17 @@
 #ifndef CRYPTO_KEYPAIR_H_
 #define CRYPTO_KEYPAIR_H_
 
+#include <array>
+#include <vector>
+
 #include "base/containers/span.h"
 #include "crypto/crypto_export.h"
 #include "crypto/subtle_passkey.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
+
+namespace crypto {
+class RSAPrivateKey;
+}
 
 namespace crypto::keypair {
 
@@ -40,11 +47,24 @@ class CRYPTO_EXPORT PrivateKey {
   // Generates a fresh, random elliptic curve key on the NIST P-256 curve.
   static PrivateKey GenerateEcP256();
 
+  // Generates a fresh, random Ed25519 key.
+  static PrivateKey GenerateEd25519();
+
   // Imports a PKCS#8 PrivateKeyInfo block. Returns nullopt if the passed-in
   // buffer is not a valid PrivateKeyInfo block, or if there is trailing data in
   // it after the PrivateKeyInfo block.
   static std::optional<PrivateKey> FromPrivateKeyInfo(
       base::span<const uint8_t> pki);
+
+  // Deprecated compatibility interface for using new signing APIs with the old
+  // RSAPrivateKey type. Do not add new uses.
+  static PrivateKey FromDeprecatedRSAPrivateKey(RSAPrivateKey* key);
+
+  // Imports an RFC 8032-encoded Ed25519 private key.
+  //
+  // The encoding used doesn't allow for importing to fail (all input bit
+  // strings are potentially valid keys).
+  static PrivateKey FromEd25519PrivateKey(base::span<const uint8_t, 32> key);
 
   // Deliberately not present in this API:
   // ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(): imports a PKCS#8
@@ -54,6 +74,10 @@ class CRYPTO_EXPORT PrivateKey {
   // Exports a PKCS#8 PrivateKeyInfo block.
   std::vector<uint8_t> ToPrivateKeyInfo() const;
 
+  // Exports an Ed25519 private key in RFC 8032 format. It is illegal to call
+  // this if !IsEd25519().
+  std::array<uint8_t, 32> ToEd25519PrivateKey() const;
+
   // Computes and exports an X.509 SubjectPublicKeyInfo block corresponding to
   // this key.
   std::vector<uint8_t> ToSubjectPublicKeyInfo() const;
@@ -62,10 +86,16 @@ class CRYPTO_EXPORT PrivateKey {
   // this on a non-EC PrivateKey.
   std::vector<uint8_t> ToUncompressedForm() const;
 
+  // Exports an Ed25519 public key in RFC 8032 format. It is illegal to call
+  // this if !IsEd25519().
+  std::array<uint8_t, 32> ToEd25519PublicKey() const;
+
   EVP_PKEY* key() { return key_.get(); }
+  const EVP_PKEY* key() const { return key_.get(); }
 
   bool IsRsa() const;
   bool IsEc() const;
+  bool IsEd25519() const;
 
  private:
   explicit PrivateKey(bssl::UniquePtr<EVP_PKEY> key);
@@ -94,13 +124,42 @@ class CRYPTO_EXPORT PublicKey {
   static std::optional<PublicKey> FromSubjectPublicKeyInfo(
       base::span<const uint8_t> spki);
 
+  // Imports a pair of big-endian big integers (n, e) to form an RSA public key.
+  // Returns nullopt if the parameters are invalid for some reason.
+  //
+  // Note: if you need to serialize and deserialize RSA keys, you should
+  // probably use SubjectPublicKeyInfo instead of rolling your own serialization
+  // format for the (n, e) pair.
+  static std::optional<PublicKey> FromRsaPublicKeyComponents(
+      base::span<const uint8_t> n,
+      base::span<const uint8_t> e);
+
+  // Imports a big-endian integer point to form an EC P-256 public key. Returns
+  // nullopt if the point is not on the curve or something else is wrong with
+  // it.
+  //
+  // Note: unless you *only* want an EC P-256 key, you should use
+  // SubjectPublicKeyInfo as a serialization format rather than inventing your
+  // own format.
+  static std::optional<PublicKey> FromEcP256Point(
+      base::span<const uint8_t> point);
+
+  // Imports an Ed25519 public key in RFC 8032 format.
+  //
+  // Note: the size is hardcoded to 32 here rather than ED25519_PUBLIC_KEY_LEN
+  // to avoid pulling curve25519.h into this file. Also, it's impossible for
+  // importing to fail.
+  static PublicKey FromEd25519PublicKey(base::span<const uint8_t, 32> key);
+
   // Exports a PublicKey as an X.509 SubjectPublicKeyInfo.
   std::vector<uint8_t> ToSubjectPublicKeyInfo() const;
 
   EVP_PKEY* key() { return key_.get(); }
+  const EVP_PKEY* key() const { return key_.get(); }
 
   bool IsRsa() const;
   bool IsEc() const;
+  bool IsEd25519() const;
 
  private:
   explicit PublicKey(bssl::UniquePtr<EVP_PKEY> key);

@@ -20,6 +20,7 @@
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/values.h"
 #include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/chrome_content_browser_client_parts.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
@@ -58,7 +59,6 @@
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
-#include "chromeos/crosapi/mojom/multi_capture_service.mojom.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/policy_constants.h"
@@ -94,7 +94,7 @@ bool RunGetAllScreensMediaAndGetIds(content::WebContents* tab,
     const content::EvalJsResult js_result = content::EvalJs(
         tab->GetPrimaryMainFrame(),
         "typeof navigator.mediaDevices.getAllScreensMedia === 'function';");
-    if (!js_result.value.is_bool()) {
+    if (!js_result.is_bool()) {
       ADD_FAILURE() << "Could not check existence of getAllScreensMedia.";
       return false;
     }
@@ -109,7 +109,7 @@ bool RunGetAllScreensMediaAndGetIds(content::WebContents* tab,
     const content::EvalJsResult js_result = content::EvalJs(
         tab->GetPrimaryMainFrame(),
         "typeof runGetAllScreensMediaAndGetIds === 'function';");
-    if (!js_result.value.is_bool()) {
+    if (!js_result.is_bool()) {
       ADD_FAILURE()
           << "Could not check existence of runGetAllScreensMediaAndGetIds.";
       return false;
@@ -123,7 +123,7 @@ bool RunGetAllScreensMediaAndGetIds(content::WebContents* tab,
 
   const content::EvalJsResult js_result = content::EvalJs(
       tab->GetPrimaryMainFrame(), "runGetAllScreensMediaAndGetIds();");
-  if (!js_result.value.is_string()) {
+  if (!js_result.is_string()) {
     ADD_FAILURE() << "Could not run runGetAllScreensMediaAndGetIds.";
     return false;
   }
@@ -171,48 +171,6 @@ void SetScreens(size_t screen_count) {
       .UpdateDisplay(screens.str());
 #endif
 }
-
-#if BUILDFLAG(IS_CHROMEOS)
-class MockMultiCaptureService : public crosapi::mojom::MultiCaptureService {
- public:
-  MockMultiCaptureService() = default;
-  MockMultiCaptureService(const MockMultiCaptureService&) = delete;
-  MockMultiCaptureService& operator=(const MockMultiCaptureService&) = delete;
-  ~MockMultiCaptureService() override = default;
-
-  void BindReceiver(
-      mojo::PendingReceiver<crosapi::mojom::MultiCaptureService> receiver) {
-    receivers_.Add(this, std::move(receiver));
-  }
-
-  // crosapi::mojom::MultiCaptureService:
-  MOCK_METHOD(void,
-              MultiCaptureStarted,
-              (const std::string& label, const std::string& host),
-              (override));
-  MOCK_METHOD(void,
-              MultiCaptureStopped,
-              (const std::string& label),
-              (override));
-  MOCK_METHOD(void,
-              MultiCaptureStartedFromApp,
-              (const std::string& label,
-               const std::string& app_id,
-               const std::string& app_name),
-              (override));
-  MOCK_METHOD(void,
-              IsMultiCaptureAllowed,
-              (const GURL& url, IsMultiCaptureAllowedCallback),
-              (override));
-  MOCK_METHOD(void,
-              IsMultiCaptureAllowedForAnyOriginOnMainProfile,
-              (IsMultiCaptureAllowedForAnyOriginOnMainProfileCallback),
-              (override));
-
- private:
-  mojo::ReceiverSet<crosapi::mojom::MultiCaptureService> receivers_;
-};
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace
 
@@ -436,9 +394,6 @@ class InteractionBetweenGetAllScreensMediaAndGetDisplayMediaTest
 
   void SetUpOnMainThread() override {
     GetAllScreensMediaBrowserTestBase::SetUpOnMainThread();
-    capture_policy::SetMultiCaptureServiceForTesting(
-        &mock_multi_capture_service_);
-
     contents_ = content::WebContents::FromRenderFrameHost(
         OpenApp(allowed_url_info_1().app_id()));
   }
@@ -478,7 +433,6 @@ class InteractionBetweenGetAllScreensMediaAndGetDisplayMediaTest
   }
 
  protected:
-  testing::NiceMock<MockMultiCaptureService> mock_multi_capture_service_;
   const std::string method1_;
   const std::string method2_;
   raw_ptr<content::WebContents> contents_ = nullptr;
@@ -493,19 +447,12 @@ IN_PROC_BROWSER_TEST_P(
     InteractionBetweenGetAllScreensMediaAndGetDisplayMediaTest,
     ProgrammaticallyStoppingOneDoesNotStopTheOther) {
   SetScreens(/*screen_count=*/1u);
-  EXPECT_CALL(mock_multi_capture_service_,
-              IsMultiCaptureAllowed(testing::_, testing::_))
-      .WillOnce(testing::Invoke(
-          [](const GURL& url, base::OnceCallback<void(bool)> callback) {
-            std::move(callback).Run(true);
-          }));
+  ASSERT_EQ(Run(method1_), base::Value());
+  ASSERT_EQ(Run(method2_), base::Value());
+  ASSERT_EQ(ProgrammaticallyStop(method1_), base::Value());
 
-  ASSERT_EQ(Run(method1_), nullptr);
-  ASSERT_EQ(Run(method2_), nullptr);
-  ASSERT_EQ(ProgrammaticallyStop(method1_), nullptr);
-
-  EXPECT_FALSE(AreAllTracksLive(method1_).value.GetBool());
-  EXPECT_TRUE(AreAllTracksLive(method2_).value.GetBool());
+  EXPECT_EQ(false, AreAllTracksLive(method1_));
+  EXPECT_EQ(true, AreAllTracksLive(method2_));
 }
 
 // Identical to StoppingOneDoesNotStopTheOther other than that this following
@@ -514,34 +461,20 @@ IN_PROC_BROWSER_TEST_P(
     InteractionBetweenGetAllScreensMediaAndGetDisplayMediaTest,
     ProgrammaticallyStoppingOneDoesNotStopTheOtherInverseOrder) {
   SetScreens(/*screen_count=*/1u);
-  EXPECT_CALL(mock_multi_capture_service_,
-              IsMultiCaptureAllowed(testing::_, testing::_))
-      .WillOnce(testing::Invoke(
-          [](const GURL& url, base::OnceCallback<void(bool)> callback) {
-            std::move(callback).Run(true);
-          }));
+  ASSERT_EQ(Run(method1_), base::Value());
+  ASSERT_EQ(Run(method2_), base::Value());
+  ASSERT_EQ(ProgrammaticallyStop(method2_), base::Value());
 
-  ASSERT_EQ(Run(method1_), nullptr);
-  ASSERT_EQ(Run(method2_), nullptr);
-  ASSERT_EQ(ProgrammaticallyStop(method2_), nullptr);
-
-  EXPECT_TRUE(AreAllTracksLive(method1_).value.GetBool());
-  EXPECT_FALSE(AreAllTracksLive(method2_).value.GetBool());
+  EXPECT_EQ(true, AreAllTracksLive(method1_));
+  EXPECT_EQ(false, AreAllTracksLive(method2_));
 }
 
 IN_PROC_BROWSER_TEST_P(
     InteractionBetweenGetAllScreensMediaAndGetDisplayMediaTest,
     UserStoppingGetDisplayMediaDoesNotStopGetAllScreensMedia) {
   SetScreens(/*screen_count=*/1u);
-  EXPECT_CALL(mock_multi_capture_service_,
-              IsMultiCaptureAllowed(testing::_, testing::_))
-      .WillOnce(testing::Invoke(
-          [](const GURL& url, base::OnceCallback<void(bool)> callback) {
-            std::move(callback).Run(true);
-          }));
-
-  ASSERT_EQ(Run(method1_), nullptr);
-  ASSERT_EQ(Run(method2_), nullptr);
+  ASSERT_EQ(Run(method1_), base::Value());
+  ASSERT_EQ(Run(method2_), base::Value());
 
   // The capture which was started via getDisplayMedia() caused the
   // browser to show the user UX for stopping that capture. Simlate a user
@@ -552,11 +485,11 @@ IN_PROC_BROWSER_TEST_P(
           contents_, MediaStreamCaptureIndicator::MediaType::kDisplayMedia);
   EXPECT_EQ(content::EvalJs(contents_,
                             "waitUntilStoppedByUser(\"getDisplayMedia\");"),
-            nullptr);
+            base::Value());
 
   // Test-focus - the capture started through gASM was not affected
   // by the user's interaction with the capture started via gDM.
-  EXPECT_TRUE(AreAllTracksLive("getAllScreensMedia").value.GetBool());
+  EXPECT_EQ(true, AreAllTracksLive("getAllScreensMedia"));
 }
 
 class MultiCaptureNotificationTest : public GetAllScreensMediaBrowserTestBase {

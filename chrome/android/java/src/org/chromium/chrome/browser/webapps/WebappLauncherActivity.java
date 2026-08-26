@@ -91,7 +91,7 @@ public class WebappLauncherActivity extends Activity {
 
     /** Creates intent to relaunch WebAPK. */
     public static Intent createRelaunchWebApkIntent(
-            Intent sourceIntent, @NonNull String webApkPackageName, @NonNull String url) {
+            Intent sourceIntent, @Nullable String webApkPackageName, @NonNull String url) {
         Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         intent.setPackage(webApkPackageName);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
@@ -136,7 +136,7 @@ public class WebappLauncherActivity extends Activity {
 
     @Override
     @SuppressWarnings("UnsafeIntentLaunch")
-    public void onCreate(Bundle savedInstanceState) {
+    public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         // Triggers UnsafeIntentLaunch lint warning. https://crbug.com/1412281

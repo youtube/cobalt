@@ -18,6 +18,9 @@ const char kAllowSandboxDebugging[] = "allow-sandbox-debugging";
 // Disables the GPU process sandbox.
 const char kDisableGpuSandbox[] = "disable-gpu-sandbox";
 
+// Disables the Landlock sandbox (Android only).
+const char kDisableLandlockSandbox[] = "disable-landlock-sandbox";
+
 // Disables usage of the namespace sandbox.
 const char kDisableNamespaceSandbox[] = "disable-namespace-sandbox";
 
@@ -65,8 +68,6 @@ const char kDisableMetalShaderCache[] = "disable-metal-shader-cache";
 // Flags spied upon from other layers.
 const char kProcessType[] = "type";
 const char kGpuProcess[] = "gpu-process";
-const char kNaClLoaderProcess[] = "nacl-loader";
-const char kPpapiPluginProcess[] = "ppapi";
 const char kRendererProcess[] = "renderer";
 const char kUtilityProcess[] = "utility";
 const char kZygoteProcessType[] = "zygote";

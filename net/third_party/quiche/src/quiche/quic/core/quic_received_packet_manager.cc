@@ -6,12 +6,16 @@
 
 #include <algorithm>
 #include <limits>
+#include <optional>
 #include <utility>
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection_stats.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
@@ -45,7 +49,6 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       stats_(stats),
       num_retransmittable_packets_received_since_last_ack_sent_(0),
       min_received_before_ack_decimation_(kMinReceivedBeforeAckDecimation),
-      ack_frequency_(kDefaultRetransmittablePacketsBeforeAck),
 #if BUILDFLAG(IS_COBALT)
       max_retransmittable_packets_before_ack_(
           kMaxRetransmittablePacketsBeforeAck),
@@ -53,13 +56,11 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       ack_decimation_delay_(GetQuicFlag(quic_ack_decimation_delay)),
       unlimited_ack_decimation_(false),
       one_immediate_ack_(false),
-      ignore_order_(false),
       local_max_ack_delay_(
           QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs())),
       ack_timeout_(QuicTime::Zero()),
       time_of_previous_received_packet_(QuicTime::Zero()),
-      was_last_packet_missing_(false),
-      last_ack_frequency_frame_sequence_number_(-1) {}
+      was_last_packet_missing_(false) {}
 
 QuicReceivedPacketManager::~QuicReceivedPacketManager() {}
 
@@ -302,11 +303,14 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  if (!ignore_order_ && was_last_packet_missing_ &&
+  // Limiting this to reordering_threshold_ > 0 is not compliant with
+  // draft-ietf-quic-ack-frequency-11, but there is an issue to add this
+  // behavior.
+  if (reordering_threshold_ > 0 && was_last_packet_missing_ &&
       last_sent_largest_acked_.IsInitialized() &&
       last_received_packet_number < last_sent_largest_acked_) {
-    // Only ack immediately if an ACK frame was sent with a larger largest acked
-    // than the newly received packet number.
+    // Ack immediately if an ACK frame was sent with a larger largest acked than
+    // the newly received packet number.
     ack_timeout_ = now;
     return;
   }
@@ -330,9 +334,25 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  if (!ignore_order_ && HasNewMissingPackets()) {
-    ack_timeout_ = now;
-    return;
+  if (reordering_threshold_ == 1) {
+    // Default behavior, not updated by ACK_FREQUENCY.
+    if (HasNewMissingPackets()) {
+      ack_timeout_ = now;
+      return;
+    }
+  } else {
+    if (ack_frame_.packets.NumIntervals() == max_ack_ranges_ &&
+        (!last_sent_largest_acked_.IsInitialized() ||
+         last_sent_largest_acked_ < ack_frame_.packets.begin()->max() - 1)) {
+      // If the lowest ACK range has not yet been reported, and might be trimmed
+      // on the next packet arrival, send an ACK.
+      ack_timeout_ = now;
+      return;
+    }
+    if (ReorderingExceedsThreshold()) {
+      ack_timeout_ = now;
+      return;
+    }
   }
 
   const QuicTime updated_ack_time = std::max(
@@ -369,6 +389,54 @@ bool QuicReceivedPacketManager::HasNewMissingPackets() const {
          ack_frame_.packets.LastIntervalLength() <= kMaxPacketsAfterNewMissing;
 }
 
+bool QuicReceivedPacketManager::ReorderingExceedsThreshold() const {
+  if (reordering_threshold_ <= 1) {  // flag is not enabled, or there is no
+                                     // threshold.
+    return false;
+  }
+  if (!HasMissingPackets() ||
+      GetLargestObserved() < QuicPacketNumber(reordering_threshold_)) {
+    return false;
+  }
+  // Find the next missing packet.
+  QuicPacketNumber smallest_unreported_missing;
+  if (last_sent_largest_acked_.IsInitialized() &&
+      last_sent_largest_acked_ >= QuicPacketNumber(reordering_threshold_)) {
+    smallest_unreported_missing =
+        last_sent_largest_acked_ - reordering_threshold_ + 1;
+  }
+  // All ACK ranges before peer_least_packet_awaiting_ack_ have already been
+  // deleted, so this is the lowest packet number that has receive state.
+  if (peer_least_packet_awaiting_ack_.IsInitialized() &&
+      (!smallest_unreported_missing.IsInitialized() ||
+       smallest_unreported_missing < peer_least_packet_awaiting_ack_)) {
+    smallest_unreported_missing = peer_least_packet_awaiting_ack_;
+    if (!least_unacked_plus_1_) {
+      ++smallest_unreported_missing;
+    }
+  }
+  if (smallest_unreported_missing.IsInitialized()) {
+    auto it = ack_frame_.packets.LowerBound(smallest_unreported_missing);
+    if (it == ack_frame_.packets.end()) {
+      QUIC_BUG(quic_bug_764939479)
+          << "Checking reordering with improper ACK state";
+      return false;
+    }
+    if (it->Contains(smallest_unreported_missing)) {
+      smallest_unreported_missing = it->max();
+    }
+  } else {
+    // No ACK has been sent. Since HasMissingPackets() is true, there must be at
+    // least two ranges. Per RFC9000, ignore the range from zero to the first
+    // observed packet. Smallest_unreported_missing is therefore the max of the
+    // first range.
+    QUICHE_DCHECK(ack_frame_.packets.NumIntervals() > 1);
+    smallest_unreported_missing = ack_frame_.packets.begin()->max();
+  }
+  return smallest_unreported_missing <=
+         (GetLargestObserved() - reordering_threshold_);
+}
+
 bool QuicReceivedPacketManager::ack_frame_updated() const {
   return ack_frame_updated_;
 }
@@ -392,15 +460,14 @@ bool QuicReceivedPacketManager::IsAckFrameEmpty() const {
 
 void QuicReceivedPacketManager::OnAckFrequencyFrame(
     const QuicAckFrequencyFrame& frame) {
-  int64_t new_sequence_number = frame.sequence_number;
-  if (new_sequence_number <= last_ack_frequency_frame_sequence_number_) {
+  if (frame.sequence_number < next_ack_frequency_frame_sequence_number_) {
     // Ignore old ACK_FREQUENCY frames.
     return;
   }
-  last_ack_frequency_frame_sequence_number_ = new_sequence_number;
-  ack_frequency_ = frame.packet_tolerance;
-  local_max_ack_delay_ = frame.max_ack_delay;
-  ignore_order_ = frame.ignore_order;
+  next_ack_frequency_frame_sequence_number_ = frame.sequence_number + 1;
+  ack_frequency_ = frame.ack_eliciting_threshold + 1;
+  local_max_ack_delay_ = frame.requested_max_ack_delay;
+  reordering_threshold_ = frame.reordering_threshold;
 }
 
 }  // namespace quic

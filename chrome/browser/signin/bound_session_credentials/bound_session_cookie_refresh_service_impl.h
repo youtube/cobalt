@@ -15,6 +15,7 @@
 #include "base/containers/span.h"
 #include "base/containers/unique_ptr_adapters.h"
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/signin/bound_session_credentials/bound_session_cookie_controller.h"
@@ -172,8 +173,8 @@ class BoundSessionCookieRefreshServiceImpl
       const bound_session_credentials::BoundSessionParams& bound_session_params,
       bool is_off_the_record_profile);
   void InitializeBoundSession(
-      const bound_session_credentials::BoundSessionParams&
-          bound_session_params);
+      const bound_session_credentials::BoundSessionParams& bound_session_params,
+      bool is_new_session);
 
   void UpdateAllRenderers();
 

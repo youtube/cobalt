@@ -17,6 +17,8 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/containers/fixed_flat_set.h"
+#include "base/containers/span.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "cc/paint/paint_flags.h"
@@ -92,7 +94,7 @@ const double kAccentLuminanceAdjust = 0.11;
 // Get a color constant based on color-scheme
 // TODO(crbug.com/40242489): Move colors defined above to the color pipeline and
 // remove this function.
-SkColor GetColor(const SkColor colors[2],
+SkColor GetColor(base::span<const SkColor, 2> colors,
                  ui::NativeTheme::ColorScheme color_scheme) {
   return colors[color_scheme == ui::NativeTheme::ColorScheme::kDark ? 1 : 0];
 }
@@ -506,8 +508,7 @@ std::optional<SkColor> NativeThemeBase::GetContrastingPressedOrHoveredColor(
     State state,
     Part part) const {
   CHECK(SupportedPartsForContrastingColor(part));
-  if (!IsModifyScrollbarCssColorOnHoverOrPressEnabled() ||
-      !fg_color.has_value() ||
+  if (!fg_color.has_value() ||
       (state != NativeTheme::kPressed && state != NativeTheme::kHovered) ||
       SkColorGetA(fg_color.value()) == SK_AlphaTRANSPARENT) {
     return fg_color;

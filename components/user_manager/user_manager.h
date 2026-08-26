@@ -350,12 +350,14 @@ class USER_MANAGER_EXPORT UserManager {
   // Same as FindUser but returns non-const pointer to User object.
   virtual User* FindUserAndModify(const AccountId& account_id) = 0;
 
+  // DEPRECATED. Please use SessionManager::GetActiveSession() instead.
   // Returns the logged-in user that is currently active within this session.
   // There could be multiple users logged in at the the same but for now
   // we support only one of them being active.
   virtual const User* GetActiveUser() const = 0;
   virtual User* GetActiveUser() = 0;
 
+  // DEPRECATED. Please use SessionManager::GetPrimarySession() instead.
   // Returns the primary user of the current session. It is recorded for the
   // first signed-in user and does not change thereafter.
   virtual const User* GetPrimaryUser() const = 0;
@@ -462,6 +464,9 @@ class USER_MANAGER_EXPORT UserManager {
   // Returns true if we're logged in as a kiosk Isolated web app (IWA).
   virtual bool IsLoggedInAsKioskIWA() const = 0;
 
+  // Returns true if we're logged in as an ARCVM kiosk app.
+  virtual bool IsLoggedInAsKioskArcvmApp() const = 0;
+
   // Returns true if we're logged in as any kiosk app: chrome, web or IWA.
   virtual bool IsLoggedInAsAnyKioskApp() const = 0;
 
@@ -503,6 +508,10 @@ class USER_MANAGER_EXPORT UserManager {
   // Returns true if guest user is allowed.
   virtual bool IsGuestSessionAllowed() const = 0;
 
+  // Sets whether guest session is allowed. This is expected to be called
+  // on device policy update.
+  virtual void SetGuestSessionAllowed(bool value) = 0;
+
   // Returns true if the |user|, which has a GAIA account is allowed according
   // to device settings and policies.
   // Accept only users who has gaia account.
@@ -524,6 +533,9 @@ class USER_MANAGER_EXPORT UserManager {
 
   virtual void SetEphemeralModeConfig(
       EphemeralModeConfig ephemeral_mode_config) = 0;
+
+  // Notifies this UserManager whether or not to show users on sign-in.
+  virtual void SetShowUsersOnSignIn(bool value) = 0;
 
   // Returns "Local State" PrefService instance.
   virtual PrefService* GetLocalState() const = 0;

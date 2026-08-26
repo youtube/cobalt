@@ -21,7 +21,6 @@ Hona hemen hasteko egin ditzakezun gauza batzuk.</translation>
 <translation id="1056898198331236512">Abisua</translation>
 <translation id="1058009965971887428">Eman iritzia</translation>
 <translation id="1059120031266247284">Zurekin partekatutakoa</translation>
-<translation id="1059194134494239015"><ph name="DISPLAY_NAME" />: <ph name="RESOLUTION" /></translation>
 <translation id="1060847216467038176"><ph name="ITEM_LABEL" /> kentzeko botoiarekin</translation>
 <translation id="1062407476771304334">Ordeztu</translation>
 <translation id="1073899992769346247">Aldatu edo kargatu bateria</translation>
@@ -71,7 +70,7 @@ Hona hemen hasteko egin ditzakezun gauza batzuk.</translation>
 <translation id="1201402288615127009">Hurrengoa</translation>
 <translation id="1210557957257435379">pantaila-grabaketa</translation>
 <translation id="121097972571826261">Joan hurrengo hitzera</translation>
-<translation id="1218444235442067213">Play Store-ko aplikazioa (<ph name="APP_NAME" />)</translation>
+<translation id="1218444235442067213">Google Play Store-ko aplikazioa (<ph name="APP_NAME" />)</translation>
 <translation id="1225748608451425081">Chromebook-a blokeatuta dago arazo ezagun bat dela eta. <ph name="TIME_LEFT" /> barru hasi ahalko duzu saioa.</translation>
 <translation id="1229194443904279055">Utzi hautatzeari</translation>
 <translation id="1235458158152011030">Sare ezagunak</translation>
@@ -540,7 +539,6 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="2814448776515246190">Pantaila-kaptura partziala</translation>
 <translation id="2819276065543622893">Saioa amaituko zaizu.</translation>
 <translation id="2822551631199737692">Kamera abian da</translation>
-<translation id="2825224105325558319"><ph name="DISPLAY_NAME" /> pantailak ez du onartzen <ph name="SPECIFIED_RESOLUTION" /> bereizmena. <ph name="FALLBACK_RESOLUTION" /> ezarri da bereizmen gisa.</translation>
 <translation id="2825619548187458965">Apala</translation>
 <translation id="2831035692318564937">Aktibatuta egunsentira arte</translation>
 <translation id="2834813915651407382">Duela gutxi ireki da</translation>
@@ -553,7 +551,7 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="2848120746144143659">Pantaila osoaren pantaila-argazki bat ateratzeko, sakatu Sartu</translation>
 <translation id="2849936225196189499">Ezinbestekoa</translation>
 <translation id="2850207700020959936">Aplikazioek kamera erabil dezakete</translation>
-<translation id="2860184359326882502">Emaitzarik onena</translation>
+<translation id="2860184359326882502">Emaitzarik onenak</translation>
 <translation id="2865888419503095837">Sarearen informazioa</translation>
 <translation id="2869095047958348710">Joan den <ph name="DAY_OF_WEEK" /></translation>
 <translation id="2872353916818027657">Trukatu monitore nagusia</translation>
@@ -605,8 +603,6 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="3026897869154397692">Gehitu da egutegian</translation>
 <translation id="3033545621352269033">Aktibatuta</translation>
 <translation id="3033912566804961911">Konbinatu <ph name="DESK_NAME" /> lan-eremuarekin</translation>
-<translation id="3036649622769666520">Ireki fitxategiak</translation>
-<translation id="3038571455154067151">Saioa hasteko, idatzi Family Link-eko gurasoen sarbide-kodea</translation>
 <translation id="3039939407102840004">Arkatzaren bateriari <ph name="PERCENTAGE" /> gelditzen zaio.</translation>
 <translation id="304097922505898963">Ireki Lasterbideak aplikazioa</translation>
 <translation id="304417730895741346">Aplikazio ainguratuak eta irekiak apalean daude. Aplikazio bat apalean ainguratzeko, egin klik bertan eskuineko botoiarekin edo sakatu ukipen-panela bi hatzekin.</translation>
@@ -724,7 +720,7 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="3434107140712555581">% <ph name="BATTERY_PERCENTAGE" /></translation>
 <translation id="343571671045587506">Editatu gogorarazpena</translation>
 <translation id="3435967511775410570">Ezagutu da hatz-marka</translation>
-<translation id="3437677362970530951">Play Store-ko eta beste bideojoko-plataformetako jokoak</translation>
+<translation id="3437677362970530951">Google Play Store-ko eta beste bideojoko-plataformetako jokoak</translation>
 <translation id="3439896670700055005">Kargatu orria berriro, baina cacheko edukia erabili gabe</translation>
 <translation id="3441920967307853524"><ph name="RECEIVED_BYTES" />/<ph name="TOTAL_BYTES" /></translation>
 <translation id="3443917186865471894">Pertsonalizatu sagua</translation>
@@ -761,6 +757,7 @@ Bestela, <ph name="TIMEOUT_SECONDS" /> barru gaituko da berriro ukipen-panel int
 <translation id="3552189655002856821">Desaktibatuta dago wifi-konexioa</translation>
 <translation id="3554215588514239132">Erakutsi edo ezkutatu garatzaileentzako tresnen panela</translation>
 <translation id="3554637740840164787">Ainguratu da <ph name="ITEM_TITLE" /></translation>
+<translation id="3554928024630051016">USB bidezko beste gailu bat gehitzeko, kendu bat eta entxufatu beste bat</translation>
 <translation id="3558768885091059911">Kamera eta mikrofonoa erabiltzeko baimena aktibatu nahi duzu?</translation>
 <translation id="3560174576767922131">Grabatu bideo bat</translation>
 <translation id="3563775809269155755">Gaitu wifi-gunea</translation>
@@ -869,6 +866,7 @@ Aurrera egiteko, erabiltzaile guztiek saioa amaitu behar dute.</translation>
 <translation id="3861651314799684201">Pantaila osoa grabatzeko, sakatu Sartu</translation>
 <translation id="3870197372373144624">Itzali gailua.</translation>
 <translation id="3879748587602334249">Deskargen kudeatzailea</translation>
+<translation id="3884007280698606545">USB bidezko gailuen mugara iritsi zara</translation>
 <translation id="3886872229787704059">Gaur ireki da</translation>
 <translation id="3891340733213178823">Saioa amaitzeko, sakatu Ktrl + Maius + Q bi aldiz.</translation>
 <translation id="3892148308691398805">Kopiatu testua</translation>
@@ -1013,6 +1011,7 @@ Bateriaren iraupena luzatzeko, eginbide batzuk mugatu dira.</translation>
 <translation id="4305817255990598646">Aldatu</translation>
 <translation id="4307713728991152670">Konfiguratu telefonoko azkenaldiko argazkiak, multimedia-elementuak eta aplikazioak ikusteko aukera</translation>
 <translation id="4312840429157639164">Atxiki egin da kamera goiko eskuinaldeko izkinan, sistemaren beste gainazal batean gainjartzen zelako.</translation>
+<translation id="4312935606722154789">Taldekatu edo kendu taldetik bata bestearen alboan dauden 2 leiho</translation>
 <translation id="4316910396681052118">APLIKAZIO GUZTIAK</translation>
 <translation id="4321179778687042513">ktrl</translation>
 <translation id="4322385711258710213">Ezkutatu Chrome arakatzailearen iradokizunak</translation>
@@ -1155,7 +1154,7 @@ Gailu bat dago konektatuta.</translation>
 <translation id="4774338217796918551">Itzuli bihar ordu honetan: <ph name="COME_BACK_TIME" />.</translation>
 <translation id="4776584068981882959">Oraindik ezin izan da egiaztatu pasahitza. Saiatu berriro.</translation>
 <translation id="4776917500594043016"><ph name="USER_EMAIL_ADDRESS" /> erabiltzaile-kontuko pasahitza</translation>
-<translation id="4777825441726637019">Play Store</translation>
+<translation id="4777825441726637019">Google Play Store</translation>
 <translation id="4778095205580009397">Google-ren Laguntzailea ez dago erabilgarri demo saioetan.</translation>
 <translation id="4785412405516449976">Google-ko kontu bat duten kontaktuak soilik</translation>
 <translation id="4789348252524569426">Ezin dira instalatu hizketa-fitxategiak. Gailua eguneratu behar da. Berrabiarazi gailua eta saiatu berriro.</translation>
@@ -1172,7 +1171,7 @@ Gailu bat dago konektatuta.</translation>
 <translation id="481749895090480684">Zereginen zerrenda: <ph name="GLANCEABLES_TASKS_LIST_NAME" /></translation>
 <translation id="4826588772550366629">kamera eta mikrofonoa</translation>
 <translation id="4828935196674083554">Gehitzen…</translation>
-<translation id="482908187605862807">Play Store-n erabilgarri dauden aplikazioak</translation>
+<translation id="482908187605862807">Google Play Store-n erabilgarri dauden aplikazioak</translation>
 <translation id="4831034276697007977">Ziur klik automatikoak desaktibatu nahi dituzula?</translation>
 <translation id="4835677468087803981">Ezkutatu PINa</translation>
 <translation id="4849058404725798627">Nabarmendu teklatuaren fokua duen objektua</translation>
@@ -1452,7 +1451,6 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="5691772641933328258">Ez da ezagutu hatz-marka</translation>
 <translation id="5693255400847650006">Mikrofonoa abian da</translation>
 <translation id="5699366815052349604">Esleitu leiho aktiboa lan-eremu guztiei</translation>
-<translation id="5701785125601597013">Bidali mezuak edo erantzun azkar telefonoan jasotako mezuei Phone Hub bidez</translation>
 <translation id="570390244361237317">Aplikazio guztiak, erabili gezi-teklak aplikazio guztiak atzitzeko</translation>
 <translation id="5705197514573687092">Erakutsi kontzentratzeko moduaren ezarpenak. Tenporizadorea: <ph name="FOCUS_DURATION" />.</translation>
 <translation id="5707775774148071965">Gailuak kableak baino bizkorrago transferi ditzake datuak. Baliteke gailuaren errendimendua mugatuta egotea.</translation>
@@ -1582,7 +1580,6 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="6095425951508823973">Gehitu <ph name="PROVIDER" /> bidezko konexioa</translation>
 <translation id="6099678161144790572">Azken hilabetean editatu da</translation>
 <translation id="6103838137565245112">sistema</translation>
-<translation id="610395411842312282">Taldekatu bata bestearen alboan dauden bi leiho</translation>
 <translation id="6108952804512516814">Sortu AA bidez</translation>
 <translation id="6114505516289286752">Deskargatu dira hizketa-fitxategiak (<ph name="LANGUAGE" />)</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>
@@ -1606,7 +1603,6 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="6166852626429024716">Bilatu gailuan, aplikazioetan, ezarpenetan, sarean…</translation>
 <translation id="6168318496333165060">Ireki Diagnostikoak aplikazioa</translation>
 <translation id="6168622430237609329">Instalatutako aplikazioak</translation>
-<translation id="6179832488876878285">Hemen aingura ditzakezu fitxategi garrantzitsuak. Hasteko, erabili Fitxategiak aplikazioa.</translation>
 <translation id="6180193585172850042">Atzera botoia</translation>
 <translation id="6180651297859206670">Aurrera botoia</translation>
 <translation id="6182592640011875895">Ireki lan-eremua</translation>
@@ -1639,7 +1635,6 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="6267036997247669271"><ph name="NAME" />: aktibatzen…</translation>
 <translation id="6274202259872570803">Screencast</translation>
 <translation id="6276708887952587684">Ikusi orriaren iturburua</translation>
-<translation id="6284232397434400372">Aldatu egin da bereizmena</translation>
 <translation id="6285871695023807425">Gehitu Calendar-en</translation>
 <translation id="6288235558961782912">Geroago gehi daiteke <ph name="USER_EMAIL_ADDRESS" /> guraso baten baimenarekin.</translation>
 <translation id="6291221004442998378">Ez da kargatzen ari</translation>
@@ -1687,7 +1682,6 @@ Ez dago gailurik konektatuta.</translation>
 <translation id="6452181791372256707">Baztertu</translation>
 <translation id="6453179446719226835">Hizkuntza aldatu da</translation>
 <translation id="6456096448804832585">Orientazio bertikalean soilik dago erabilgarri</translation>
-<translation id="6459472438155181876">Pantaila <ph name="DISPLAY_NAME" /> gailura zabaltzen</translation>
 <translation id="6464094930452079790">irudiak</translation>
 <translation id="6467290994038932560">Aktibatuta (<ph name="GAME_APP_NAME" />)</translation>
 <translation id="6468406072297048412">{0,plural, =1{Itzuli gailuaren aurreko bertsiora minutu bat barru}other{Itzuli gailuaren aurreko bertsiora # minutu barru}}</translation>
@@ -1920,6 +1914,7 @@ Berriki instalatu da</translation>
 <translation id="7240636904654154599">Sortu da Google-ko kalkulu-orria</translation>
 <translation id="7244725679040769470">Bateriari % <ph name="PERCENTAGE" /> geratzen zaio. Konektatu gailua korrontera.</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />. Chromebook hau berrabiarazi egin behar da eguneratzea aplikatzeko. Baliteke minutu bat behar izatea.</translation>
+<translation id="7248100343060254997">Bilatu nire pantailan</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">Atzeko mikrofonoa</translation>
 <translation id="7258828758145722155">Atzo editatu zen</translation>
@@ -2419,7 +2414,6 @@ Itzaltzeko, eduki sakatuta berriro gailuaren etengailua.</translation>
 <translation id="8876148469852588625"><ph name="EVENT_TOTAL_COUNT" /> gertaeratan <ph name="EVENT_POSITION" />garrena</translation>
 <translation id="8876661425082386199">Egiaztatu konektatuta zaudela</translation>
 <translation id="8877788021141246043">Ezarri gogorarazpen bat</translation>
-<translation id="8878886163241303700">Pantaila hedatzen</translation>
 <translation id="8885424115080869847">Ezin izan da konektatu YouTube Music-era</translation>
 <translation id="888982883502837004">Firmware-eguneratze batzuk erabilgarri daude gailurako. Sakatu hau eguneratzeak berrikusi eta instalatzeko.</translation>
 <translation id="8896630965521842259">Betiko ezabatuko da "<ph name="DESK_TEMPLATE_NAME" />".</translation>

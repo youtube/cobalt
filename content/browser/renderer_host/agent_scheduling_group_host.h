@@ -38,7 +38,6 @@ class Message;
 namespace content {
 
 class AgentSchedulingGroupHostFactory;
-class BrowserMessageFilter;
 class RenderProcessHost;
 class SiteInstanceGroup;
 
@@ -76,10 +75,6 @@ class CONTENT_EXPORT AgentSchedulingGroupHost
   explicit AgentSchedulingGroupHost(RenderProcessHost& process);
   ~AgentSchedulingGroupHost() override;
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  void AddFilter(BrowserMessageFilter* filter);
-#endif
-
   RenderProcessHost* GetProcess();
   // Ensure that the process this AgentSchedulingGroupHost belongs to is alive.
   // Returns |false| if any part of the initialization failed.
@@ -94,8 +89,6 @@ class CONTENT_EXPORT AgentSchedulingGroupHost
   // the future they will be handled directly by the AgentSchedulingGroupHost.
   // IPC:
   IPC::ChannelProxy* GetChannel();
-  // This is marked virtual for use in tests by `MockAgentSchedulingGroupHost`.
-  virtual bool Send(IPC::Message* message);
   void AddRoute(int32_t routing_id, IPC::Listener* listener);
   void RemoveRoute(int32_t routing_id);
 

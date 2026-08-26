@@ -63,6 +63,7 @@
 #include "ui/gl/angle_implementation.h"
 #include "v8/include/v8-local-handle.h"
 
+class GURL;
 class SkCanvas;
 class SkBitmap;
 
@@ -134,6 +135,7 @@ class WebLocalFrame;
 class WebSandboxSupport;
 class WebSecurityOrigin;
 class WebThemeEngine;
+class WebURL;
 class WebVideoCaptureImplManager;
 struct WebContentSecurityPolicyHeader;
 
@@ -288,7 +290,10 @@ class BLINK_PLATFORM_EXPORT Platform {
   }
 
   // Determines whether it is safe to redirect from |from_url| to |to_url|.
-  virtual bool IsRedirectSafe(const GURL& from_url, const GURL& to_url) {
+  virtual bool IsRedirectSafe(
+      const GURL& from_url,
+      const GURL& to_url,
+      const std::optional<url::Origin>& request_initiator) {
     return false;
   }
 
@@ -748,6 +753,21 @@ class BLINK_PLATFORM_EXPORT Platform {
       MediaInspectorContext* inspector_context,
       scoped_refptr<base::SingleThreadTaskRunner> owner_task_runner,
       bool is_on_worker);
+
+  // Navigation Metrics --------------------------------------------------
+
+  // Record the start/end time when creating a set of child RemoteFrames/proxies
+  // for a particular frame tree. `navigation_metrics_token` identifies the
+  // navigation responsible for creating the remote children, if any. This is
+  // used for tracing, to construct a holistic view of events pertaining to a
+  // navigation. If a navigation requires proxies to be created for several
+  // frame trees (such as with openers), this may be called several times for
+  // the same navigation token. In this case, multiple trace events will be
+  // created, each representing one processed IPC.
+  virtual void AddCreateRemoteChildrenEvent(
+      const std::optional<base::UnguessableToken>& navigation_metrics_token,
+      const base::TimeTicks& start_time,
+      const base::TimeDelta& elapsed_time) {}
 
   // GpuVideoAcceleratorFactories --------------------------------------
 

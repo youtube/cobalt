@@ -22,8 +22,10 @@ source_set("coordinator") {
     "//components/signin/public/identity_manager",
     "//components/signin/public/identity_manager/objc",
     "//components/sync",
+    "//ios/chrome/browser/authentication/ui_bundled:continuation",
     "//ios/chrome/browser/authentication/ui_bundled/history_sync",
     "//ios/chrome/browser/authentication/ui_bundled/signin:constants",
+    "//ios/chrome/browser/authentication/ui_bundled/signin:signin_headers",
     "//ios/chrome/browser/default_browser/model:default_browser_interest_signals",
     "//ios/chrome/browser/favicon/model",
     "//ios/chrome/browser/feature_engagement/model",
@@ -75,8 +77,6 @@ source_set("ui") {
     "recent_tabs_presentation_delegate.h",
     "recent_tabs_table_view_controller.h",
     "recent_tabs_table_view_controller.mm",
-    "recent_tabs_table_view_controller_delegate.h",
-    "recent_tabs_table_view_controller_ui_delegate.h",
     "sessions_sync_user_state.h",
   ]
   deps = [
@@ -122,7 +122,7 @@ source_set("ui") {
     "//ios/chrome/browser/signin/model:authentication_service_factory",
     "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/synced_sessions/model",
-    "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/suggested_actions/resources",
+    "//ios/chrome/browser/tab_switcher/tab_grid/base_grid/suggested_actions/resources",
     "//ios/chrome/browser/tabs_search/model",
     "//ios/chrome/browser/tabs_search/model:model_factory",
     "//ios/chrome/browser/url_loading/model",
@@ -136,10 +136,7 @@ source_set("ui") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [
-    "recent_tabs_coordinator_unittest.mm",
-    "recent_tabs_mediator_unittest.mm",
-  ]
+  sources = [ "recent_tabs_coordinator_unittest.mm" ]
   deps = [
     ":coordinator",
     ":ui",
@@ -172,9 +169,6 @@ source_set("unit_tests") {
     "//ios/chrome/browser/signin/model:test_support",
     "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/sync/model:test_support",
-    "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid:tab_grid_mode",
-    "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/toolbars",
-    "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/toolbars/test:fakes",
     "//ios/chrome/test:test_support",
     "//ios/web/public/test",
     "//testing/gtest",

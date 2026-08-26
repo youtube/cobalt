@@ -12,7 +12,6 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
@@ -24,17 +23,13 @@
 #include "chrome/browser/chromeos/reporting/metric_default_utils.h"
 #include "chrome/browser/chromeos/reporting/metric_reporting_prefs.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
-#include "chromeos/ash/components/kiosk/vision/pref_names.h"
 #include "chromeos/ash/components/login/session/session_termination_manager.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/constants/chromeos_features.h"
-#include "components/reporting/client/report_queue_configuration.h"
 #include "components/reporting/metrics/collector_base.h"
-#include "components/reporting/metrics/event_driven_telemetry_collector_pool.h"
 #include "components/reporting/metrics/fakes/fake_metric_event_observer.h"
 #include "components/reporting/metrics/fakes/fake_metric_report_queue.h"
 #include "components/reporting/metrics/fakes/fake_reporting_settings.h"
@@ -42,12 +37,8 @@
 #include "components/reporting/metrics/metric_event_observer.h"
 #include "components/reporting/metrics/metric_event_observer_manager.h"
 #include "components/reporting/metrics/metric_report_queue.h"
-#include "components/reporting/metrics/sampler.h"
 #include "components/reporting/proto/synced/metric_data.pb.h"
-#include "components/reporting/proto/synced/record.pb.h"
 #include "components/reporting/proto/synced/record_constants.pb.h"
-#include "components/reporting/util/rate_limiter_interface.h"
-#include "components/reporting/util/rate_limiter_slide_window.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -773,9 +764,8 @@ TEST_F(MetricReportingManagerTelemetryTest, OneShotCollectorBootPerformance) {
           CreateOneShotCollector(_, _,  // telemetry_queue
                                  _, ::ash::kReportDeviceBootMode, true,
                                  metrics::kInitialCollectionDelay))
-      .WillByDefault([&]() {
-        return std::make_unique<FakeCollector>(&collector_count);
-      });
+      .WillByDefault(
+          [&]() { return std::make_unique<FakeCollector>(&collector_count); });
 
   // Create a metric reporting manager.
   const auto metric_reporting_manager =
@@ -956,8 +946,8 @@ TEST_F(KioskHeartbeatTelemetryTest, Disabled) {
   EXPECT_CALL(*mock_delegate_,
               CreatePeriodicCollector(
                   /*sampler=*/_,
-                  /*queue=*/_,
-                  /*report_settings=*/_,
+                  /*metric_report_queue=*/_,
+                  /*reporting_settings=*/_,
                   /*enable_setting_path=*/StrEq(::ash::kHeartbeatEnabled),
                   /*setting_enabled_default_value=*/
                   metrics::kHeartbeatTelemetryDefaultValue,
@@ -987,8 +977,8 @@ TEST_F(KioskHeartbeatTelemetryTest, Init) {
   EXPECT_CALL(*mock_delegate_,
               CreatePeriodicCollector(
                   /*sampler=*/_,
-                  /*queue=*/_,
-                  /*report_settings=*/_,
+                  /*metric_report_queue=*/_,
+                  /*reporting_settings=*/_,
                   /*enable_setting_path=*/StrEq(::ash::kHeartbeatEnabled),
                   /*setting_enabled_default_value=*/
                   metrics::kHeartbeatTelemetryDefaultValue,
@@ -1019,127 +1009,6 @@ TEST_F(KioskHeartbeatTelemetryTest, Init) {
   EXPECT_EQ(metric_reporting_manager->telemetry_queue()->GetNumFlush(), 1);
 
   // deprovision -> destruction
-  DeprovisionDelegate(*metric_reporting_manager);
-
-  EXPECT_EQ(collector_count_, 0);
-}
-
-class KioskVisionTelemetryTest : public MetricReportingManagerTest {
- protected:
-  void SetUp() override {
-    MetricReportingManagerTest::SetUp();
-
-    ON_CALL(*mock_delegate_, IsUserAffiliated).WillByDefault(Return(true));
-    // Mock app service unavailability to eliminate noise.
-    ON_CALL(*mock_delegate_, IsAppServiceAvailableForProfile)
-        .WillByDefault(Return(false));
-  }
-
-  // Counts the number of `PeriodicCollector`s created for KioskVision
-  // telemetry.
-  int collector_count_{0};
-};
-
-TEST_F(KioskVisionTelemetryTest, Disabled) {
-  // Ignore any call to `CreatePeriodicCollector()` because it's irrelevant to
-  // this test.
-  EXPECT_CALL(*mock_delegate_,
-              CreatePeriodicCollector(
-                  _, _, _, StrNe(::ash::prefs::kKioskVisionTelemetryEnabled), _,
-                  _, _, _, _))
-      .Times(AnyNumber());
-  // PeriodicCollector should be not be created as the feature is disabled.
-  EXPECT_CALL(*mock_delegate_,
-              CreatePeriodicCollector(
-                  /*sampler=*/_,
-                  /*metric_report_queue=*/_,
-                  /*reporting_settings=*/_,
-                  /*enable_setting_path=*/
-                  StrEq(::ash::prefs::kKioskVisionTelemetryEnabled),
-                  /*setting_enabled_default_value=*/
-                  _,
-                  /*rate_setting_path=*/_, _, _,
-                  /*init_delay=*/_))
-      .Times(0);
-
-  ON_CALL(*mock_delegate_,
-          CreatePeriodicCollector(
-              /*sampler=*/_,
-              /*queue=*/_,  // kiosk_heartbeat_telemetry_queue
-              /*report_settings=*/_,
-              /*enable_setting_path=*/::ash::kHeartbeatEnabled,
-              /*setting_enabled_default_value=*/
-              metrics::kHeartbeatTelemetryDefaultValue,
-              /*rate_setting_path=*/::ash::kHeartbeatFrequency, _, 1,
-              /*init_delay=*/base::TimeDelta()))
-      .WillByDefault(
-          [&]() { return std::make_unique<FakeCollector>(&collector_count_); });
-
-  // Create a metric reporting manager.
-  const auto metric_reporting_manager =
-      test::MetricReportingManagerForTest::Create(std::move(mock_delegate_),
-                                                  nullptr);
-
-  metric_reporting_manager->OnLogin(profile());
-}
-
-TEST_F(KioskVisionTelemetryTest, Init) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(kEnableKioskVisionTelemetry);
-
-  const auto upload_delay = mock_delegate_->GetInitialUploadDelay();
-
-  // Calls to create other collectors are not relevant.
-  EXPECT_CALL(*mock_delegate_,
-              CreatePeriodicCollector(
-                  _, _, _, StrNe(::ash::prefs::kKioskVisionTelemetryEnabled), _,
-                  _, _, _, _))
-      .Times(AnyNumber());
-
-  ON_CALL(*mock_delegate_,
-          CreatePeriodicCollector(
-              /*sampler=*/_,
-              /*queue=*/_,  // kiosk_heartbeat_telemetry_queue
-              /*report_settings=*/_,
-              /*enable_setting_path=*/::ash::kHeartbeatEnabled,
-              /*setting_enabled_default_value=*/
-              metrics::kHeartbeatTelemetryDefaultValue,
-              /*rate_setting_path=*/::ash::kHeartbeatFrequency, _, 1,
-              /*init_delay=*/base::TimeDelta()))
-      .WillByDefault(
-          [&]() { return std::make_unique<FakeCollector>(&collector_count_); });
-
-  // PeriodicCollector should be created here.
-  EXPECT_CALL(
-      *mock_delegate_,
-      CreatePeriodicCollector(
-          /*sampler=*/_,
-          /*metric_report_queue=*/_,  // user_telemetry_queue
-          /*reporting_settings=*/_,
-          /*enable_setting_path=*/
-          StrEq(::ash::prefs::kKioskVisionTelemetryEnabled),
-          /*setting_enabled_default_value=*/
-          metrics::kKioskVisionTelemetryDefaultValue,
-          /*rate_setting_path=*/::ash::prefs::kKioskVisionTelemetryFrequency, _,
-          1,
-          /*init_delay=*/metrics::kInitialCollectionDelay))
-      .Times(1);
-
-  // Create a metric reporting manager.
-  const auto metric_reporting_manager =
-      test::MetricReportingManagerForTest::Create(std::move(mock_delegate_),
-                                                  nullptr);
-
-  EXPECT_EQ(collector_count_, 0);
-  metric_reporting_manager->OnLogin(profile());
-  EXPECT_EQ(collector_count_, 1);
-
-  // Call Flush after initial delay.
-  task_environment_.FastForwardBy(upload_delay +
-                                  metrics::kInitialCollectionDelay);
-  EXPECT_EQ(metric_reporting_manager->telemetry_queue()->GetNumFlush(), 1);
-
-  // Deprovising the delegate should lead to the destruction of the collector.
   DeprovisionDelegate(*metric_reporting_manager);
 
   EXPECT_EQ(collector_count_, 0);
@@ -1191,7 +1060,6 @@ class EventDrivenTelemetryCollectorPoolTest
   std::unique_ptr<::testing::NiceMock<test::MockDelegate>> mock_delegate_;
 
   ::ash::ScopedTestingCrosSettings cros_settings_;
-  ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
 
   // Placeholder test profile needed for initializing downstream components.
   TestingProfile profile_;

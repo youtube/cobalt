@@ -29,6 +29,7 @@
 #include "device/vr/buildflags/buildflags.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_switches.h"
+#include "media/audio/audio_features.h"
 #include "media/base/media_switches.h"
 #include "net/base/features.h"
 #include "services/device/public/cpp/device_features.h"
@@ -191,6 +192,10 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(features::kUseAXPositionForDocumentMarkers)},
           {wf::EnableAOMAriaRelationshipProperties,
            raw_ref(features::kEnableAriaElementReflection)},
+#if BUILDFLAG(IS_ANDROID)
+          {wf::EnableAudioOutputDevices,
+           raw_ref(features::kAAudioPerStreamDeviceSelection)},
+#endif
           {wf::EnableBackgroundFetch, raw_ref(features::kBackgroundFetch)},
           {wf::EnableBoundaryEventDispatchTracksNodeRemoval,
            raw_ref(blink::features::kBoundaryEventDispatchTracksNodeRemoval)},
@@ -296,8 +301,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(device::features::kWebXrIncubations)},
           {wf::EnableWebXRGPUBinding,
            raw_ref(device::features::kWebXrWebGpuBinding)},
-          {wf::EnableWebXRHandInput,
-           raw_ref(device::features::kWebXrHandInput)},
           {wf::EnableWebXRImageTracking,
            raw_ref(device::features::kWebXrIncubations)},
           {wf::EnableWebXRLayers, raw_ref(device::features::kWebXrLayers)},
@@ -348,11 +351,11 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
 #endif
           {"CompressionDictionaryTransport",
            raw_ref(network::features::kCompressionDictionaryTransport)},
-          {"ClipboardChangeEvent", raw_ref(features::kClipboardChangeEvent)},
           {"CompressionDictionaryTransportBackend",
            raw_ref(network::features::kCompressionDictionaryTransportBackend)},
           {"CookieDeprecationFacilitatedTesting",
            raw_ref(features::kCookieDeprecationFacilitatedTesting)},
+          {"CSPHashesV1", raw_ref(network::features::kCSPScriptSrcHashesInV1)},
           {"DocumentPolicyIncludeJSCallStacksInCrashReports",
            raw_ref(blink::features::
                        kDocumentPolicyIncludeJSCallStacksInCrashReports),
@@ -398,9 +401,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(features::kTrustedTypesFromLiteral)},
           {"MediaStreamTrackTransfer",
            raw_ref(features::kMediaStreamTrackTransfer)},
-          {"PrivateNetworkAccessPermissionPrompt",
-           raw_ref(network::features::kPrivateNetworkAccessPermissionPrompt),
-           kSetOnlyIfOverridden},
           {"ExperimentalMachineLearningNeuralNetwork",
            raw_ref(webnn::mojom::features::
                        kExperimentalWebMachineLearningNeuralNetwork),
@@ -465,14 +465,8 @@ void SetRuntimeFeaturesFromCommandLine(const base::CommandLine& command_line) {
       {wrf::EnableScriptedSpeechSynthesis, switches::kDisableSpeechSynthesisAPI,
        false},
       {wrf::EnableSharedWorker, switches::kDisableSharedWorkers, false},
-      {wrf::EnableKeyboardFocusableScrollers,
-       blink::switches::kKeyboardFocusableScrollersEnabled, true},
-      {wrf::EnableKeyboardFocusableScrollers,
-       blink::switches::kKeyboardFocusableScrollersOptOut, false},
       {wrf::EnableStandardizedBrowserZoom,
        blink::switches::kDisableStandardizedBrowserZoom, false},
-      {wrf::EnableSelectParserRelaxation,
-       blink::switches::kDisableSelectParserRelaxation, false},
       {wrf::EnableTextFragmentIdentifiers,
        switches::kDisableScrollToTextFragment, false},
       {wrf::EnableWebAuthenticationRemoteDesktopSupport,
@@ -542,11 +536,24 @@ void SetCustomizedRuntimeFeaturesFromCombinedArgs(
 
   WebRuntimeFeatures::EnableBackForwardCache(
       content::IsBackForwardCacheEnabled());
+
+  WebRuntimeFeatures::EnableLocalNetworkAccessWebRTC(
+      base::FeatureList::IsEnabled(
+          network::features::kLocalNetworkAccessChecks) &&
+      base::FeatureList::IsEnabled(
+          network::features::kLocalNetworkAccessChecksWebRTC));
 }
 
 // Ensures that the various ways of enabling/disabling features do not produce
 // an invalid configuration.
 void ResolveInvalidConfigurations() {
+#if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  // When Privacy Sandbox APIs are excluded from the build, explicitly disable
+  // their Blink runtime features so their interfaces (e.g. HTMLFencedFrameElement,
+  // document.hasPrivateToken) are not exposed to JavaScript.
+  WebRuntimeFeatures::EnableFencedFrames(false);
+  WebRuntimeFeatures::EnablePrivateStateTokens(false);
+#endif
   // Fenced frames cannot be enabled without the support of the
   // browser process.
   if ((base::FeatureList::IsEnabled(features::kPrivacySandboxAdsAPIsOverride) ||

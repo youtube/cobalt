@@ -13,6 +13,7 @@
 
 namespace web_app {
 
+// Represents a successful cleanup of the bundle cache.
 class CleanupBundleCacheSuccess {
  public:
   explicit CleanupBundleCacheSuccess(size_t number_of_cleaned_up_directories)
@@ -27,13 +28,24 @@ class CleanupBundleCacheSuccess {
     return number_of_cleaned_up_directories_;
   }
 
+  std::string ToString() const;
+
  private:
   size_t number_of_cleaned_up_directories_ = 0;
 };
 
+// Represents an error during bundle cache cleanup.
 class CleanupBundleCacheError {
  public:
-  enum class Type { kCouldNotDeleteAllBundles, kSystemShutdown };
+  // These are used in histograms, do not remove/renumber entries. If you're
+  // adding to this enum with the intention that it will be logged, update the
+  // `IsolatedWebAppCleanupBundleCacheError` enum listing in
+  // tools/metrics/histograms/metadata/webapps/enums.xml.
+  enum class Type {
+    kSystemShutdown = 0,
+    kCouldNotDeleteAllBundles = 1,
+    kMaxValue = kCouldNotDeleteAllBundles
+  };
 
   explicit CleanupBundleCacheError(
       Type type,
@@ -53,6 +65,8 @@ class CleanupBundleCacheError {
     return number_of_failed_to_cleaned_up_directories_;
   }
 
+  std::string ToString() const;
+
  private:
   Type type_;
   // Valid only for `kCouldNotDeleteAllBundles` failure.
@@ -61,8 +75,6 @@ class CleanupBundleCacheError {
 
 using CleanupBundleCacheResult =
     base::expected<CleanupBundleCacheSuccess, CleanupBundleCacheError>;
-
-using SessionType = IwaCacheClient::SessionType;
 
 // Cleans all IWA cached bundles for `session_type` which are not in the
 // `iwas_to_keep_in_cache`. During the cleanup, this class iterates through all
@@ -75,7 +87,7 @@ class CleanupBundleCacheCommand
 
   CleanupBundleCacheCommand(
       const std::vector<web_package::SignedWebBundleId>& iwas_to_keep_in_cache,
-      SessionType session_type,
+      IwaCacheClient::SessionType session_type,
       Callback callback);
   CleanupBundleCacheCommand(const CleanupBundleCacheCommand&) = delete;
   CleanupBundleCacheCommand& operator=(const CleanupBundleCacheCommand&) =
@@ -92,7 +104,7 @@ class CleanupBundleCacheCommand
 
   std::unique_ptr<AllAppsLock> lock_;
   const std::vector<web_package::SignedWebBundleId> iwas_to_keep_in_cache_;
-  const SessionType session_type_;
+  const IwaCacheClient::SessionType session_type_;
 
   base::WeakPtrFactory<CleanupBundleCacheCommand> weak_ptr_factory_{this};
 };

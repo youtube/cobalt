@@ -6,8 +6,10 @@
 
 #include "base/allocator/partition_alloc_support.h"
 #include "base/command_line.h"
+#include "base/debug/alias.h"
 #include "base/debug/leak_annotations.h"
 #include "base/functional/bind.h"
+#include "base/immediate_crash.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
@@ -29,16 +31,17 @@
 #include "content/public/common/main_function_params.h"
 #include "content/public/utility/content_utility_client.h"
 #include "content/utility/utility_thread_impl.h"
-#include "media/gpu/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/sandbox.h"
 #include "sandbox/policy/sandbox_type.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "services/on_device_model/on_device_model_service.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
 #include "services/tracing/public/cpp/trace_startup.h"
 #include "services/video_effects/public/cpp/buildflags.h"
+
+#if !BUILDFLAG(IS_COBALT)
+#include "content/utility/on_device_model/on_device_model_sandbox_init.h"  // nogncheck
+#include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "base/file_descriptor_store.h"
@@ -50,19 +53,31 @@
 #include "content/common/gpu_pre_sandbox_hook_linux.h"
 #include "content/public/common/content_descriptor_keys.h"
 #include "content/utility/speech/speech_recognition_sandbox_hook_linux.h"
+#include "media/gpu/buildflags.h"
+#include "media/media_buildflags.h"
 #include "sandbox/policy/linux/sandbox_linux.h"
 #include "services/audio/audio_sandbox_hook_linux.h"
 #include "services/network/network_sandbox_hook_linux.h"
 #include "services/screen_ai/buildflags/buildflags.h"
+#include "services/shape_detection/shape_detection_sandbox_hook.h"
 
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #include "gpu/config/gpu_info_collector.h"
-#include "media/gpu/sandbox/hardware_video_decoding_sandbox_hook_linux.h"
 #include "media/gpu/sandbox/hardware_video_encoding_sandbox_hook_linux.h"
 // gn check is not smart enough to realize that this include is guarded behind
 // some BUILDFLAG()s and the BUILD.gn dependencies correctly account for that.
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  //nogncheck
+
+#if BUILDFLAG(USE_VAAPI)
+#include "media/gpu/vaapi/vaapi_wrapper.h"
+#include "media/mojo/mojom/video_decoder_factory_process.mojom.h"
+#endif  // BUILDFLAG(USE_VAAPI)
+
 #endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
+#include "media/gpu/sandbox/hardware_video_decoding_sandbox_hook_linux.h"
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 #if BUILDFLAG(ENABLE_PRINTING)
 #include "printing/sandbox/print_backend_sandbox_hook_linux.h"
@@ -98,8 +113,10 @@
 #include "base/native_library.h"
 #include "base/rand_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/win_util.h"
+#include "base/win/windows_handle_util.h"
 #include "base/win/windows_version.h"
 #include "content/utility/sandbox_delegate_data.mojom.h"
 #include "sandbox/policy/win/sandbox_warmup.h"
@@ -146,7 +163,8 @@ std::vector<std::string> GetNetworkContextsParentDirectories() {
 }
 
 bool ShouldUseAmdGpuPolicy(sandbox::mojom::Sandbox sandbox_type) {
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION) || \
+    BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   const bool obtain_gpu_info =
       sandbox_type == sandbox::mojom::Sandbox::kHardwareVideoDecoding ||
       sandbox_type == sandbox::mojom::Sandbox::kHardwareVideoEncoding;
@@ -158,7 +176,8 @@ bool ShouldUseAmdGpuPolicy(sandbox::mojom::Sandbox sandbox_type) {
     gpu::CollectBasicGraphicsInfo(&gpu_info);
     return angle::IsAMD(gpu_info.active_gpu().vendor_id);
   }
-#endif
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION) ||
+        // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   return false;
 }
 #endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
@@ -191,6 +210,15 @@ bool PreLockdownSandboxHook(base::span<const uint8_t> delegate_blob) {
       }
     }
   }
+
+  HANDLE event =
+      base::win::Uint32ToHandle(sandbox_config->bootstrap_event_handle);
+
+  CHECK(event && event != INVALID_HANDLE_VALUE);
+  CHECK(::SetEvent(event));
+  // Close handle to ensure nothing can reset it after sandbox lockdown.
+  CHECK(::CloseHandle(event));
+
   return true;
 }
 #endif  // BUILDFLAG(IS_WIN)
@@ -211,6 +239,11 @@ void SetUtilityThreadName(const std::string& utility_sub_type) {
 
 // Mainline routine for running as the utility process.
 int UtilityMain(MainFunctionParams parameters) {
+  if (parameters.command_line->HasSwitch(
+          switches::kUtilityImmediateCrashForTesting)) {
+    base::ImmediateCrash();
+  }
+
   base::MessagePumpType message_pump_type =
       parameters.command_line->HasSwitch(switches::kMessageLoopTypeUi)
           ? base::MessagePumpType::UI
@@ -255,19 +288,30 @@ int UtilityMain(MainFunctionParams parameters) {
 
 #if !BUILDFLAG(IS_COBALT)
   if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
-    CHECK(on_device_model::OnDeviceModelService::PreSandboxInit());
+    CHECK(on_device_model::PreSandboxInit());
   }
 #endif  // !BUILDFLAG(IS_COBALT)
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION) && BUILDFLAG(USE_VAAPI)
+  // Regardless of the sandbox status, the VaapiWrapper needs to be initialized
+  // for decoder utility processes on devices that use VA-API.
+  if (utility_sub_type == media::mojom::VideoDecoderFactoryProcess::Name_) {
+    media::VaapiWrapper::PreSandboxInitialization(
+        /*allow_disabling_global_lock=*/true);
+  }
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION) && BUILDFLAG(USE_VAAPI)
+
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   // Thread type delegate of the process should be registered before first
   // thread type change in ChildProcess constructor. It also needs to be
   // registered before the process has multiple threads, which may race with
   // application of the sandbox.
   SandboxedProcessThreadTypeHandler::Create();
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   // Initializes the sandbox before any threads are created.
   // TODO(jorgelo): move this after GTK initialization when we enable a strict
   // Seccomp-BPF policy.
@@ -293,9 +337,8 @@ int UtilityMain(MainFunctionParams parameters) {
       break;
 #if !BUILDFLAG(IS_COBALT)
     case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
-      on_device_model::OnDeviceModelService::AddSandboxLinuxOptions(
-          sandbox_options);
-      pre_sandbox_hook = base::BindOnce(&GpuPreSandboxHook);
+      on_device_model::AddSandboxLinuxOptions(sandbox_options);
+      pre_sandbox_hook = base::BindOnce(&on_device_model::PreSandboxHook);
       break;
 #endif  // !BUILDFLAG(IS_COBALT)
     case sandbox::mojom::Sandbox::kSpeechRecognition:
@@ -327,16 +370,24 @@ int UtilityMain(MainFunctionParams parameters) {
       break;
 #endif  // BUILDFLAG(IS_LINUX)
 #endif  // !BUILDFLAG(IS_STARBOARD)
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+    case sandbox::mojom::Sandbox::kShapeDetection:
+      pre_sandbox_hook =
+          base::BindOnce(&shape_detection::ShapeDetectionPreSandboxHook);
+      break;
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
       break;
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoEncodingPreSandboxHook);
       break;
-#endif
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kIme:
       pre_sandbox_hook = base::BindOnce(&ash::ime::ImePreSandboxHook);
@@ -362,6 +413,14 @@ int UtilityMain(MainFunctionParams parameters) {
         sandbox_type, std::move(pre_sandbox_hook), sandbox_options);
   }
 
+  // Startup tracing creates a tracing thread, which is incompatible on
+  // platforms that require single-threaded sandbox initialization. In these
+  // cases, startup tracing is initialized right after sandbox initialization.
+  if (parameters.needs_startup_tracing_after_sandbox_init) {
+    tracing::InitTracingPostFeatureList(/*enable_consumer=*/false,
+                                        /*will_trace_thread_restart=*/false);
+  }
+
   // Start the HangWatcher now that the sandbox is engaged, if it hasn't
   // already been started.
   if (base::HangWatcher::IsEnabled() &&
@@ -374,6 +433,7 @@ int UtilityMain(MainFunctionParams parameters) {
                             uncovered_hang_watcher_time);
     base::HangWatcher::GetInstance()->Start();
   }
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #elif BUILDFLAG(IS_WIN)
   std::optional<base::win::ScopedCOMInitializer> scoped_com_initializer;
@@ -392,40 +452,7 @@ int UtilityMain(MainFunctionParams parameters) {
       PreLockdownSandboxHook(delegate_data.value());
     }
   }
-#endif
 
-  ChildProcess utility_process(base::ThreadType::kDefault);
-  GetContentClient()->utility()->PostIOThreadCreated(
-      utility_process.io_task_runner());
-  base::RunLoop run_loop;
-  utility_process.set_main_thread(
-      new UtilityThreadImpl(run_loop.QuitClosure()));
-
-  // Mojo IPC support is brought up by UtilityThreadImpl, so startup tracing
-  // is enabled here if it needs to start after mojo init (normally so the mojo
-  // broker can bypass the sandbox to allocate startup tracing's SMB).
-  if (parameters.needs_startup_tracing_after_mojo_init) {
-    tracing::EnableStartupTracingIfNeeded();
-  }
-
-  // Both utility process and service utility process would come
-  // here, but the later is launched without connection to service manager, so
-  // there has no base::PowerMonitor be created(See ChildThreadImpl::Init()).
-  // As base::PowerMonitor is necessary to base::HighResolutionTimerManager, for
-  // such case we just disable base::HighResolutionTimerManager for now.
-  // Note that disabling base::HighResolutionTimerManager means high resolution
-  // timer is always disabled no matter on battery or not, but it should have
-  // no any bad influence because currently service utility process is not using
-  // any high resolution timer.
-  // TODO(leonhsl): Once http://crbug.com/646833 got resolved, re-enable
-  // base::HighResolutionTimerManager here for future possible usage of high
-  // resolution timer in service utility process.
-  std::optional<base::HighResolutionTimerManager> hi_res_timer_manager;
-  if (base::PowerMonitor::GetInstance()->IsInitialized()) {
-    hi_res_timer_manager.emplace();
-  }
-
-#if BUILDFLAG(IS_WIN)
   auto sandbox_type =
       sandbox::policy::SandboxTypeFromCommandLine(*parameters.command_line);
   DVLOG(1) << "Sandbox type: " << static_cast<int>(sandbox_type);
@@ -465,6 +492,30 @@ int UtilityMain(MainFunctionParams parameters) {
   }
 #endif
 
+  ChildProcess utility_process(base::ThreadType::kDefault);
+  GetContentClient()->utility()->PostIOThreadCreated(
+      utility_process.io_task_runner());
+  base::RunLoop run_loop;
+  utility_process.set_main_thread(
+      new UtilityThreadImpl(run_loop.QuitClosure()));
+
+  // Both utility process and service utility process would come
+  // here, but the later is launched without connection to service manager, so
+  // there has no base::PowerMonitor be created(See ChildThreadImpl::Init()).
+  // As base::PowerMonitor is necessary to base::HighResolutionTimerManager, for
+  // such case we just disable base::HighResolutionTimerManager for now.
+  // Note that disabling base::HighResolutionTimerManager means high resolution
+  // timer is always disabled no matter on battery or not, but it should have
+  // no any bad influence because currently service utility process is not using
+  // any high resolution timer.
+  // TODO(leonhsl): Once http://crbug.com/646833 got resolved, re-enable
+  // base::HighResolutionTimerManager here for future possible usage of high
+  // resolution timer in service utility process.
+  std::optional<base::HighResolutionTimerManager> hi_res_timer_manager;
+  if (base::PowerMonitor::GetInstance()->IsInitialized()) {
+    hi_res_timer_manager.emplace();
+  }
+
   base::allocator::PartitionAllocSupport::Get()->ReconfigureAfterTaskRunnerInit(
       switches::kUtilityProcess);
 
@@ -472,7 +523,7 @@ int UtilityMain(MainFunctionParams parameters) {
 
 #if !BUILDFLAG(IS_COBALT)
   if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
-    CHECK(on_device_model::OnDeviceModelService::Shutdown());
+    CHECK(on_device_model::Shutdown());
   }
 #endif  // !BUILDFLAG(IS_COBALT)
 

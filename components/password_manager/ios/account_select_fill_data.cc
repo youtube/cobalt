@@ -65,9 +65,14 @@ FormInfo::FormInfo(const FormInfo&) = default;
 
 Credential::Credential(const std::u16string& username,
                        const std::u16string& password,
+                       const std::optional<std::u16string>& backup_password,
                        const std::string& realm)
-    : username(username), password(password), realm(realm) {}
+    : username(username),
+      password(password),
+      backup_password(backup_password),
+      realm(realm) {}
 Credential::~Credential() = default;
+Credential::Credential(const Credential&) = default;
 
 AccountSelectFillData::AccountSelectFillData() = default;
 AccountSelectFillData::~AccountSelectFillData() = default;
@@ -90,18 +95,22 @@ void AccountSelectFillData::Add(const autofill::PasswordFormFillData& form_data,
   credentials_.push_back(
       {form_data.preferred_login.username_value,
        form_data.preferred_login.password_value,
+       form_data.preferred_login.backup_password_value,
        always_populate_realm && form_data.preferred_login.realm.empty()
            ? form_data.url.spec()
            : form_data.preferred_login.realm});
 
-  for (const auto& username_password_and_realm : form_data.additional_logins) {
-    const std::u16string& username = username_password_and_realm.username_value;
-    const std::u16string& password = username_password_and_realm.password_value;
-    const std::string& realm = username_password_and_realm.realm;
+  for (const auto& login : form_data.additional_logins) {
+    const std::u16string& username = login.username_value;
+    const std::u16string& password = login.password_value;
+    const std::optional<std::u16string>& backup_password =
+        login.backup_password_value;
+    const std::string& realm = login.realm;
     if (always_populate_realm && realm.empty()) {
-      credentials_.push_back({username, password, form_data.url.spec()});
+      credentials_.push_back(
+          {username, password, backup_password, form_data.url.spec()});
     } else {
-      credentials_.push_back({username, password, realm});
+      credentials_.push_back({username, password, backup_password, realm});
     }
   }
 }
@@ -150,6 +159,14 @@ std::vector<UsernameAndRealm> AccountSelectFillData::RetrieveSuggestions(
   std::vector<UsernameAndRealm> usernames;
   for (const Credential& credential : credentials_) {
     usernames.push_back({credential.username, credential.realm});
+    // If `credential` has a backup password, create a separate UsernameAndRealm
+    // entry for it.
+    if (credential.backup_password &&
+        base::FeatureList::IsEnabled(
+            password_manager::features::kIOSFillRecoveryPassword)) {
+      usernames.push_back({credential.username, credential.realm,
+                           /*is_backup_credential=*/true});
+    }
   }
 
   return usernames;
@@ -157,6 +174,7 @@ std::vector<UsernameAndRealm> AccountSelectFillData::RetrieveSuggestions(
 
 FillDataRetrievalResult AccountSelectFillData::GetFillData(
     const std::u16string& username,
+    bool is_backup_credential,
     autofill::FormRendererId form_renderer_id,
     autofill::FieldRendererId field_renderer_id,
     bool is_likely_real_password_field) const {
@@ -168,11 +186,13 @@ FillDataRetrievalResult AccountSelectFillData::GetFillData(
       is_likely_real_password_field ? field_renderer_id
                                     : autofill::FieldRendererId();
 
-  return GetFillData(username, form_info, password_field_id);
+  return GetFillData(username, is_backup_credential, form_info,
+                     password_field_id);
 }
 
 FillDataRetrievalResult AccountSelectFillData::GetFillData(
-    const std::u16string& username) const {
+    const std::u16string& username,
+    bool is_backup_credential) const {
   if (!last_requested_form_) {
     SCOPED_CRASH_KEY_NUMBER(
         "Bug6401794", "fill_data_status",
@@ -180,19 +200,24 @@ FillDataRetrievalResult AccountSelectFillData::GetFillData(
     DUMP_WILL_BE_NOTREACHED();
     return base::unexpected(FillDataRetrievalStatus::kNoCachedLastRequestForm);
   }
-  return GetFillData(username, last_requested_form_,
+  return GetFillData(username, is_backup_credential, last_requested_form_,
                      last_requested_password_field_id_);
 }
 
 FillDataRetrievalResult AccountSelectFillData::GetFillData(
     const std::u16string& username,
+    bool is_backup_credential,
     const FormInfo* requested_form,
     autofill::FieldRendererId password_field_id) const {
   // There must be a `requested_form` at this point. It is the responsibility of
   // the caller to ensure that.
   CHECK(requested_form);
 
-  auto it = std::ranges::find(credentials_, username, &Credential::username);
+  auto it =
+      std::ranges::find_if(credentials_, [&](const Credential& credential) {
+        return credential.username == username &&
+               (!is_backup_credential || credential.backup_password);
+      });
   if (it == credentials_.end()) {
     return base::unexpected(FillDataRetrievalStatus::kNoCredentials);
   }
@@ -204,7 +229,9 @@ FillDataRetrievalResult AccountSelectFillData::GetFillData(
   result->username_value = credential.username;
   result->password_element_id =
       password_field_id ?: requested_form->password_element_id;
-  result->password_value = credential.password;
+  result->password_value = is_backup_credential
+                               ? credential.backup_password.value()
+                               : credential.password;
   return std::move(result);
 }
 

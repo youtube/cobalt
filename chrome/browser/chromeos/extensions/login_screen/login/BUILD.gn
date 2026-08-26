@@ -29,9 +29,11 @@ static_library("login") {
 
   deps = [
     "//ash/constants",
+    "//chrome/browser:browser_process",
     "//chrome/browser/ash/login",
     "//chrome/browser/ash/login/lock",
     "//chrome/browser/chromeos/extensions/login_screen/login/cleanup",
+    "//chrome/browser/ui/ash/login",
     "//chrome/browser/ui/ash/session",
     "//chrome/common:constants",
     "//chrome/common/extensions/api",
@@ -104,8 +106,6 @@ source_set("unit_tests") {
     "//chrome/browser/ash/login/users:test_support",
     "//chrome/browser/chromeos/extensions/login_screen/login/cleanup",
     "//chrome/browser/chromeos/extensions/login_screen/login/cleanup:test_support",
-    "//chrome/browser/chromeos/extensions/login_screen/login/external_logout_done",
-    "//chrome/browser/chromeos/extensions/login_screen/login/external_logout_request",
     "//chrome/browser/ui/ash/login:test_support",
     "//chrome/common:constants",
     "//chrome/test:test_support",

@@ -16,10 +16,11 @@
 #include "base/time/time.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "components/signin/public/base/signin_buildflags.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/events/event.h"
 
-class AvatarToolbarButtonDelegate;
+class AvatarToolbarButtonStateManager;
 class Browser;
 class BrowserView;
 struct AccountInfo;
@@ -30,9 +31,11 @@ class GaiaId;
 enum class AvatarDelayType {
   // Delay for the name to stop showing.
   kNameGreeting,
+  // Delay for the on sign-in state.
+  kOnSignin,
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   // Delay for the SigninPending mode to show the "Verify it's you" text.
   kSigninPendingText,
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   // Delay for the History Sync Opt-in entry point.
   kHistorySyncOptin,
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -41,9 +44,10 @@ enum class AvatarDelayType {
 // This class takes care the Profile Avatar Button.
 // Primarily applies UI configuration.
 // It's data (text, icon, etc...) content are computed through the
-// `AvatarToolbarButtonDelegate`, when relying on Chrome and Profile changes in
-// order to adapt the expected content shown in the button.
-class AvatarToolbarButton : public ToolbarButton {
+// `AvatarToolbarButtonStateManager`, when relying on Chrome and Profile changes
+// in order to adapt the expected content shown in the button.
+class AvatarToolbarButton : public ToolbarButton,
+                            signin::IdentityManager::Observer {
   METADATA_HEADER(AvatarToolbarButton, ToolbarButton)
 
  public:
@@ -53,6 +57,7 @@ class AvatarToolbarButton : public ToolbarButton {
     virtual void OnBlur() {}
     virtual void OnIPHPromoChanged(bool has_promo) {}
     virtual void OnIconUpdated() {}
+    virtual void OnButtonPressed() {}
 
     ~Observer() override = default;
   };
@@ -64,19 +69,22 @@ class AvatarToolbarButton : public ToolbarButton {
 
   void UpdateText();
 
-  // Expands the pill to show the intercept text.
-  // Returns a callback to be used when the shown text should be hidden.
-  [[nodiscard]] base::ScopedClosureRunner ShowExplicitText(
+  // Sets the button state to show the provided text with the provided
+  // accessibility label and action.
+  //
+  // If the `explicit_action` is set, it will override the default action of the
+  // button, otherwise the default action will be used.
+  //
+  // Returns a callback to be used when the button state should be reset, i.e.
+  // shown text should be hidden and the explicit action should stop being used.
+  [[nodiscard]] base::ScopedClosureRunner SetExplicitButtonState(
       const std::u16string& text,
-      std::optional<std::u16string> accessibility_label);
+      std::optional<std::u16string> accessibility_label,
+      std::optional<base::RepeatingCallback<void(bool is_source_accelerator)>>
+          explicit_action);
 
-  // Changes the button pressed action externally.
-  // Returns a callback to be used when the new action should stop being used.
-  [[nodiscard]] base::ScopedClosureRunner SetExplicitButtonAction(
-      base::RepeatingClosure explicit_closure);
-
-  // Returns whether the button currently has a explicit action already set.
-  bool HasExplicitButtonAction() const;
+  // Returns whether the button currently has an explicit state set.
+  bool HasExplicitButtonState() const;
 
   // Control whether the button action is active or not.
   // One reason to disable the action; when a bubble is shown from this button
@@ -105,9 +113,6 @@ class AvatarToolbarButton : public ToolbarButton {
   // Returns true if a text is set and is visible.
   bool IsLabelPresentAndVisible() const;
 
-  // Updates the action button based on the current state.
-  void UpdateButtonAction();
-
   // ToolbarButton:
   void OnMouseExited(const ui::MouseEvent& event) override;
   void OnBlur() override;
@@ -121,6 +126,7 @@ class AvatarToolbarButton : public ToolbarButton {
   bool ShouldPaintBorder() const override;
   bool ShouldBlendHighlightColor() const override;
   void AddedToWidget() override;
+  void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
 
   void ButtonPressed(bool is_source_accelerator = false);
 
@@ -142,8 +148,9 @@ class AvatarToolbarButton : public ToolbarButton {
   // after delay expiry while controlling those events..
   [[nodiscard]] static base::AutoReset<std::optional<base::TimeDelta>>
   CreateScopedInfiniteDelayOverrideForTesting(AvatarDelayType delay_type);
-  // Force stop any ongoing delay, this expects the proper state to be active.
-  void TriggerTimeoutForTesting(AvatarDelayType delay_type);
+  // Clears the active state (makes it inactive).
+  void ClearActiveStateForTesting();
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   // Specific override for the SigninPending text delay. Setting a zero value
   // make it possible to test the creation of browser after the delay has
   // reached.
@@ -152,10 +159,21 @@ class AvatarToolbarButton : public ToolbarButton {
   // `TriggerTimeoutForTesting()` not enough for testing.
   [[nodiscard]] static base::AutoReset<std::optional<base::TimeDelta>>
   CreateScopedZeroDelayOverrideSigninPendingTextForTesting();
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
  private:
   FRIEND_TEST_ALL_PREFIXES(AvatarToolbarButtonTest,
                            HighlightMeetsMinimumContrast);
+
+  // signin::IdentityManager::Observer:
+  void OnPrimaryAccountChanged(
+      const signin::PrimaryAccountChangeEvent& event_details) override;
+  void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
+  void OnErrorStateOfRefreshTokenUpdatedForAccount(
+      const CoreAccountInfo& account_info,
+      const GoogleServiceAuthError& error,
+      signin_metrics::SourceForRefreshTokenOperation token_operation_source)
+      override;
 
   // ui::PropertyHandler:
   void AfterPropertyChange(const void* key, int64_t old_value) override;
@@ -167,15 +185,12 @@ class AvatarToolbarButton : public ToolbarButton {
   // and whether the chip is expanded.
   void UpdateInkdrop();
 
-  // Used as a callback to reset the explicit button action.
-  void ResetButtonAction();
-
   void UpdateAccessibilityLabel();
 
   // Lists of observers.
   base::ObserverList<Observer, true> observer_list_;
 
-  std::unique_ptr<AvatarToolbarButtonDelegate> delegate_;
+  std::unique_ptr<AvatarToolbarButtonStateManager> state_manager_;
 
   const raw_ptr<Browser> browser_;
 
@@ -190,18 +205,15 @@ class AvatarToolbarButton : public ToolbarButton {
   // Setting this to true will stop the button reaction but the button will
   // remain in active state, not affecting it's UI in any way.
   bool button_action_disabled_ = false;
-  // Explicit button action set by external calls.
-  base::RepeatingClosure explicit_button_pressed_action_;
-  // Internal pointer to the current explicit closure. This is used to
-  // invalidate an existing reset callback if an explicit action is being set
-  // while an existing already exists. Priority to the last call.
-  raw_ptr<base::ScopedClosureRunner> reset_button_action_button_closure_ptr_ =
-      nullptr;
 
-  // Internal (owned by this class) closure to reset the button action.
-  // This is used to invalidate the button action whenever the button is updated
-  // by `AvatarToolbarButtonDelegate`.
-  base::ScopedClosureRunner internal_reset_button_action_closure_;
+  // Gaia Id of the account that was signed in from having it's choice
+  // remembered following a web sign-in event but waiting for the available
+  // account information to be fetched in order to show the sign in IPH.
+  GaiaId gaia_id_for_signin_choice_remembered_;
+
+  base::ScopedObservation<signin::IdentityManager,
+                          signin::IdentityManager::Observer>
+      identity_manager_observation_{this};
 
   base::WeakPtrFactory<AvatarToolbarButton> weak_ptr_factory_{this};
 };

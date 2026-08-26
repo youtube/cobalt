@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/side_panel/read_anything/read_anything_side_panel_controller.h"
 
 #include <algorithm>
+#include <climits>
 #include <memory>
 
 #include "base/check_is_test.h"
@@ -28,6 +29,7 @@
 #include "components/language/core/browser/language_model_manager.h"
 #include "components/language/core/common/locale_util.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
+#include "read_anything_side_panel_controller.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_types.h"
@@ -57,7 +59,9 @@ ReadAnythingSidePanelController::ReadAnythingSidePanelController(
       SidePanelEntry::Key(SidePanelEntry::Id::kReadAnything),
       base::BindRepeating(&ReadAnythingSidePanelController::CreateContainerView,
                           base::Unretained(this)),
-      SidePanelEntry::kSidePanelDefaultContentWidth);
+      base::BindRepeating(
+          &ReadAnythingSidePanelController::GetPreferredDefaultWidth,
+          base::Unretained(this)));
   side_panel_entry->AddObserver(this);
   side_panel_registry_->Register(std::move(side_panel_entry));
 
@@ -162,6 +166,15 @@ ReadAnythingSidePanelController::CreateContainerView(
   return std::move(web_view);
 }
 
+int ReadAnythingSidePanelController::GetPreferredDefaultWidth() {
+  // Use 50% of the current WebView width
+  return tab_->GetBrowserWindowInterface()
+             ->GetWebView()
+             ->GetContentsBounds()
+             .width() /
+         2;
+}
+
 bool ReadAnythingSidePanelController::IsActivePageDistillable() const {
   auto url = tab_->GetContents()->GetLastCommittedURL();
 
@@ -226,7 +239,7 @@ void ReadAnythingSidePanelController::UpdateIphVisibility() {
 
   // Promo controller does not exist for incognito windows.
   auto* const user_ed =
-      tab_->GetBrowserWindowInterface()->GetUserEducationInterface();
+      BrowserUserEducationInterface::From(tab_->GetBrowserWindowInterface());
 
   if (should_show_iph) {
     user_ed->MaybeShowFeaturePromo(

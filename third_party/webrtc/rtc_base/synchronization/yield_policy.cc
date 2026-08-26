@@ -11,7 +11,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "rtc_base/checks.h"
 #if !defined(ABSL_HAVE_THREAD_LOCAL) && defined(WEBRTC_POSIX)
 #include <pthread.h>
 #endif

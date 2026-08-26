@@ -777,7 +777,12 @@ void PaintArtifactCompositor::Layerizer::LayerizeGroup(
         pending_layers_.pop_back();
         break;
       }
-      if (new_layer.MightOverlap(candidate_layer)) {
+#if BUILDFLAG(IS_COBALT)
+    if (candidate_layer.DrawsContent() &&
+          new_layer.MightOverlap(candidate_layer)) {
+#else  // BUILDFLAG(IS_COBALT)
+    if (new_layer.MightOverlap(candidate_layer)) {
+#endif  // BUILDFLAG(IS_COBALT)
         new_layer.SetCompositingTypeToOverlap();
         break;
       }
@@ -1138,7 +1143,7 @@ bool PaintArtifactCompositor::TryFastPathUpdate(
       // If this fires, a property tree value has changed but we are missing a
       // call to |PaintArtifactCompositor::SetNeedsUpdate|.
       DCHECK(!chunk.properties.Unalias().ChangedToRoot(
-          PaintPropertyChangeType::kChangedOnlyNonRerasterValues));
+          PaintPropertyChangeType::kChangedOnlySimpleValues));
     }
   }
 #endif
@@ -1340,6 +1345,7 @@ void PaintArtifactCompositor::UpdateDebugInfo() const {
       tracking->AddToLayerDebugInfo(debug_info);
       tracking->ClearInvalidations();
     }
+
     previous_layer_state = pending_layer.GetPropertyTreeState();
   }
 }

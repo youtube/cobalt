@@ -10,6 +10,7 @@
 
 #include "base/command_line.h"
 #include "build/ios_buildflags.h"
+#include "cc/mojom/render_frame_metadata.mojom-shared.h"
 #include "components/input/events_helper.h"
 #include "components/input/render_widget_host_input_event_router.h"
 #include "components/input/switches.h"
@@ -125,6 +126,10 @@ RenderWidgetHostViewIOS::RenderWidgetHostViewIOS(RenderWidgetHost* widget)
   }
 
   host()->render_frame_metadata_provider()->AddObserver(this);
+  host()
+      ->render_frame_metadata_provider()
+      ->UpdateRootScrollOffsetUpdateFrequency(
+          cc::mojom::RootScrollOffsetUpdateFrequency::kAllUpdates);
   host()->SetView(this);
 }
 
@@ -877,17 +882,13 @@ void RenderWidgetHostViewIOS::ChildDidAckGestureEvent(
 }
 
 void RenderWidgetHostViewIOS::UpdateFrameBounds() {
-  // UIScrollView* scrollView = (UIScrollView*)[ui_view_->view_ superview];
-  gfx::PointF scrollOffset;
-  if (last_root_scroll_offset_) {
-    scrollOffset = *last_root_scroll_offset_;
-  }
-  CGRect parentBounds = [[ui_view_->view_ superview] bounds];
-  gfx::SizeF viewportSize(parentBounds.size);
+  const gfx::PointF scrollOffset =
+      last_root_scroll_offset_.value_or(gfx::PointF());
+  const CGRect parentBounds = [[ui_view_->view_ superview] bounds];
 
   CGRect frameBounds;
   frameBounds.origin = scrollOffset.ToCGPoint();
-  frameBounds.size = viewportSize.ToCGSize();
+  frameBounds.size = parentBounds.size;
 
   // If we are scrolling we don't resize the WebView immediately.
   if (!is_scrolling_ && !IsTesting()
@@ -926,6 +927,11 @@ void RenderWidgetHostViewIOS::OnRenderFrameMetadataChangedBeforeActivation(
   }
 }
 
+void RenderWidgetHostViewIOS::OnRootScrollOffsetChanged(
+    const gfx::PointF& root_scroll_offset) {
+  ApplyRootScrollOffsetChanged(root_scroll_offset, /*force=*/false);
+}
+
 void RenderWidgetHostViewIOS::ContentInsetChanged() {
   if (last_root_scroll_offset_) {
     ApplyRootScrollOffsetChanged(*last_root_scroll_offset_, /*force=*/true);
@@ -933,6 +939,26 @@ void RenderWidgetHostViewIOS::ContentInsetChanged() {
   if (!is_scrolling_) {
     host()->SynchronizeVisualProperties();
   }
+}
+
+void RenderWidgetHostViewIOS::ExtendSelectionAndDelete(int32_t before,
+                                                       int32_t after) {
+  auto* input_handler = GetFrameWidgetInputHandlerForFocusedWidget();
+  if (!input_handler) {
+    return;
+  }
+  input_handler->ExtendSelectionAndDelete(before, after);
+}
+
+void RenderWidgetHostViewIOS::ExtendSelectionAndReplace(
+    uint32_t before,
+    uint32_t after,
+    const std::u16string& replacement_text) {
+  auto* input_handler = GetFrameWidgetInputHandlerForFocusedWidget();
+  if (!input_handler) {
+    return;
+  }
+  input_handler->ExtendSelectionAndReplace(before, after, replacement_text);
 }
 
 void RenderWidgetHostViewIOS::DeleteSurroundingText(int before, int after) {
@@ -943,6 +969,14 @@ void RenderWidgetHostViewIOS::DeleteSurroundingText(int before, int after) {
     }
     input_handler->DeleteSurroundingTextInCodePoints(before, after);
   }
+}
+
+void RenderWidgetHostViewIOS::ExecuteEditCommand(const std::string& command) {
+  auto* input_handler = GetFrameWidgetInputHandlerForFocusedWidget();
+  if (!input_handler) {
+    return;
+  }
+  input_handler->ExecuteEditCommand(command, std::nullopt);
 }
 
 void RenderWidgetHostViewIOS::SendKeyEvent(

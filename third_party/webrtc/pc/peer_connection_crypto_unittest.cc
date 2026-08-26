@@ -8,8 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -65,8 +64,10 @@ namespace webrtc {
 
 using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
 using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
+
 using ::testing::Combine;
 using ::testing::HasSubstr;
+using ::testing::NotNull;
 using ::testing::Values;
 
 constexpr int kGenerateCertTimeout = 1000;
@@ -191,8 +192,8 @@ TEST_P(PeerConnectionCryptoTest, CorrectCryptoInOfferWhenDtlsEnabled) {
   RTCConfiguration config;
   auto caller = CreatePeerConnectionWithAudioVideo(config);
 
-  auto offer = caller->CreateOffer();
-  ASSERT_TRUE(offer);
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
+  ASSERT_THAT(offer, NotNull());
 
   ASSERT_FALSE(offer->description()->contents().empty());
   EXPECT_TRUE(SdpContentsAll(HaveDtlsFingerprint(), offer->description()));
@@ -205,8 +206,8 @@ TEST_P(PeerConnectionCryptoTest, CorrectCryptoInAnswerWhenDtlsEnabled) {
   auto callee = CreatePeerConnectionWithAudioVideo(config);
 
   callee->SetRemoteDescription(caller->CreateOffer());
-  auto answer = callee->CreateAnswer();
-  ASSERT_TRUE(answer);
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
+  ASSERT_THAT(answer, NotNull());
 
   ASSERT_FALSE(answer->description()->contents().empty());
   EXPECT_TRUE(SdpContentsAll(HaveDtlsFingerprint(), answer->description()));
@@ -222,12 +223,14 @@ TEST_P(PeerConnectionCryptoTest, ExchangeOfferAnswerWhenDtlsOn) {
   auto caller = CreatePeerConnectionWithAudioVideo(config);
   auto callee = CreatePeerConnectionWithAudioVideo(config);
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
-  ASSERT_TRUE(offer);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer, NotNull());
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
-  auto answer = callee->CreateAnswerAndSetAsLocal();
-  ASSERT_TRUE(answer);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer, NotNull());
   ASSERT_TRUE(caller->SetRemoteDescription(std::move(answer)));
 }
 TEST_P(PeerConnectionCryptoTest,
@@ -235,7 +238,7 @@ TEST_P(PeerConnectionCryptoTest,
   RTCConfiguration config;
   auto caller = CreatePeerConnectionWithAudioVideo(config);
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   SdpContentsForEach(RemoveDtlsFingerprint(), offer->description());
 
   EXPECT_FALSE(caller->SetLocalDescription(std::move(offer)));
@@ -246,7 +249,7 @@ TEST_P(PeerConnectionCryptoTest,
   auto caller = CreatePeerConnectionWithAudioVideo(config);
   auto callee = CreatePeerConnectionWithAudioVideo(config);
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   SdpContentsForEach(RemoveDtlsFingerprint(), offer->description());
 
   EXPECT_FALSE(callee->SetRemoteDescription(std::move(offer)));
@@ -258,7 +261,7 @@ TEST_P(PeerConnectionCryptoTest,
   auto callee = CreatePeerConnectionWithAudioVideo(config);
 
   callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal());
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   SdpContentsForEach(RemoveDtlsFingerprint(), answer->description());
 }
 TEST_P(PeerConnectionCryptoTest,
@@ -268,7 +271,8 @@ TEST_P(PeerConnectionCryptoTest,
   auto callee = CreatePeerConnectionWithAudioVideo(config);
 
   callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal());
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
   SdpContentsForEach(RemoveDtlsFingerprint(), answer->description());
 
   EXPECT_FALSE(caller->SetRemoteDescription(std::move(answer)));
@@ -288,12 +292,14 @@ TEST_P(PeerConnectionCryptoTest,
       FakeRTCCertificateGenerator::GenerateCertificate());
   auto callee = CreatePeerConnectionWithAudioVideo(callee_config);
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
-  ASSERT_TRUE(offer);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer, NotNull());
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
-  auto answer = callee->CreateAnswerAndSetAsLocal();
-  ASSERT_TRUE(answer);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
+  ASSERT_THAT(answer, NotNull());
   ASSERT_TRUE(caller->SetRemoteDescription(std::move(answer)));
 }
 
@@ -431,7 +437,8 @@ TEST_P(PeerConnectionCryptoTest, CreateAnswerWithDifferentSslRoles) {
 
   // First, negotiate different SSL roles for audio and video.
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
-  auto answer = callee->CreateAnswer(options_no_bundle);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options_no_bundle);
 
   AudioConnectionRole(answer->description()) = CONNECTIONROLE_ACTIVE;
   VideoConnectionRole(answer->description()) = CONNECTIONROLE_PASSIVE;

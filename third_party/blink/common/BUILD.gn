@@ -46,6 +46,7 @@ blink_python_runner("make_generated_features") {
              "../renderer/build/scripts/make_runtime_features.py",
              "../renderer/build/scripts/templates/features_generated.cc.tmpl",
              "../renderer/platform/runtime_enabled_features.json5",
+             "../renderer/platform/runtime_enabled_features.override.json5",
            ]
   outputs = [ "$root_gen_dir/third_party/blink/common/features_generated.cc" ]
 
@@ -70,6 +71,7 @@ blink_python_runner("make_generated_origin_trials") {
              "../renderer/build/scripts/make_runtime_features.py",
              "../renderer/build/scripts/templates/origin_trials.cc.tmpl",
              "../renderer/platform/runtime_enabled_features.json5",
+             "../renderer/platform/runtime_enabled_features.override.json5",
            ]
   outputs = [
     "$root_gen_dir/third_party/blink/common/origin_trials/origin_trials.cc",
@@ -93,6 +95,7 @@ blink_python_runner("make_runtime_feature_state_contexts_impl") {
              "../renderer/build/scripts/make_runtime_features.py",
              "../renderer/build/scripts/templates/runtime_feature_state_context.cc.tmpl",
              "../renderer/platform/runtime_enabled_features.json5",
+             "../renderer/platform/runtime_enabled_features.override.json5",
            ]
 
   outputs = [ "$root_gen_dir/third_party/blink/common/runtime_feature_state/runtime_feature_state_context.cc" ]
@@ -224,6 +227,7 @@ source_set("common") {
     "navigation/navigation_policy.cc",
     "navigation/navigation_policy_mojom_traits.cc",
     "navigation/prefetched_signed_exchange_info_mojom_traits.cc",
+    "navigation/preloading_headers.cc",
     "notifications/notification_mojom_traits.cc",
     "notifications/notification_resources.cc",
     "notifications/platform_notification_data.cc",
@@ -291,8 +295,8 @@ source_set("common") {
     ":make_generated_features",
     ":make_generated_origin_trials",
     ":make_runtime_feature_state_contexts_impl",
-    "//components/viz/common:common",
-    "//third_party/blink/common/privacy_budget:privacy_budget",
+    "//components/viz/common",
+    "//third_party/blink/common/privacy_budget",
     "//third_party/blink/public/common:common_export",
     "//third_party/blink/public/common:headers",
     "//ui/base/mojom:ui_base_types",
@@ -308,13 +312,13 @@ source_set("common") {
     "//net",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
-    "//services/metrics/public/mojom:mojom",
-    "//services/network/public/cpp:cpp",
+    "//services/metrics/public/mojom",
+    "//services/network/public/cpp",
     "//services/network/public/mojom:mojom_permissions_policy",
     "//third_party/blink/common/rust_crash",
     "//third_party/blink/public/common:buildflags",
     "//third_party/re2",
-    "//ui/base:base",
+    "//ui/base",
     "//ui/base/dragdrop/mojom:mojom_shared",
     "//ui/base/mojom",
     "//ui/display",
@@ -347,6 +351,10 @@ source_set("common") {
       (is_ios && target_platform == "tvos")) {
     defines = [ "ENABLE_PROTECTED_MEDIA_IDENTIFIER_PERMISSION" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 test("blink_common_unittests") {
@@ -356,7 +364,7 @@ test("blink_common_unittests") {
     ":common_unittests_sources",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
-    "//services/metrics/public/mojom:mojom",
+    "//services/metrics/public/mojom",
     "//third_party/blink/common/privacy_budget:unit_tests",
     "//third_party/blink/public/common",
     "//ui/gfx:test_support",
@@ -412,6 +420,7 @@ source_set("common_unittests_sources") {
     "mediastream/media_stream_mojom_traits_unittest.cc",
     "messaging/message_port_descriptor_unittest.cc",
     "mime_util/mime_util_unittest.cc",
+    "navigation/preloading_headers_unittest.cc",
     "notifications/notification_mojom_traits_unittest.cc",
     "notifications/platform_notification_data_unittest.cc",
     "origin_trials/origin_trials_settings_provider_unittest.cc",
@@ -453,7 +462,7 @@ source_set("common_unittests_sources") {
     "//net:test_support",
     "//services/device:test_support",
     "//services/network:test_support",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//skia/public/mojom",
     "//testing/gmock",
     "//testing/gtest",
@@ -488,6 +497,10 @@ source_set("common_unittests_sources") {
       "font_unique_name_lookup/icu_fold_case_util_unittest.cc",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 group("common_unittests_data") {

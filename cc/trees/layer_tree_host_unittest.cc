@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <array>
-
-
 #include "cc/trees/layer_tree_host.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <algorithm>
+#include <array>
 #include <memory>
 
 #include "base/auto_reset.h"
@@ -39,7 +37,7 @@
 #include "cc/layers/view_transition_content_layer.h"
 #include "cc/metrics/begin_main_frame_metrics.h"
 #include "cc/metrics/events_metrics_manager.h"
-#include "cc/metrics/ukm_smoothness_data.h"
+#include "cc/metrics/ukm_dropped_frames_data.h"
 #include "cc/paint/image_animation_count.h"
 #include "cc/resources/ui_resource_manager.h"
 #include "cc/test/fake_content_layer_client.h"
@@ -653,10 +651,17 @@ class LayerTreeHostContextCacheTest : public LayerTreeHostTest {
                  void(bool aggressively_free_resources));
   };
 
-  raw_ptr<MockContextSupport, AcrossTasksDanglingUntriaged>
-      mock_main_context_support_;
-  raw_ptr<MockContextSupport, AcrossTasksDanglingUntriaged>
-      mock_worker_context_support_;
+  // This is called before DestroyLayerTreeHost. The MockContextSupport
+  // objects are owned by the TestContextProvider and will be destroyed as part
+  // of LayerTreeHost d'tor, so clean them up here to avoid dangling pointers.
+  void AfterTest() override {
+    mock_main_context_support_ = nullptr;
+    mock_worker_context_support_ = nullptr;
+    LayerTreeHostTest::AfterTest();
+  }
+
+  raw_ptr<MockContextSupport> mock_main_context_support_;
+  raw_ptr<MockContextSupport> mock_worker_context_support_;
 };
 
 // Test if the LTH successfully frees resources on the main/worker
@@ -1409,6 +1414,13 @@ class LayerTreeHostTestLayerListSurfaceDamage : public LayerTreeHostTest {
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
+  void AfterTest() override {
+    // Clear the root_ pointer before LayerTreeHost is destroyed to avoid
+    // a dangling pointer.
+    root_ = nullptr;
+    LayerTreeHostTest::AfterTest();
+  }
+
   void DidCommit() override {
     switch (layer_tree_host()->SourceFrameNumber()) {
       case 1:
@@ -1523,7 +1535,7 @@ class LayerTreeHostTestLayerListSurfaceDamage : public LayerTreeHostTest {
   }
 
  private:
-  raw_ptr<Layer, DanglingUntriaged> root_;
+  raw_ptr<Layer> root_;
   scoped_refptr<Layer> child_a_;
   scoped_refptr<Layer> child_b_;
   scoped_refptr<Layer> child_c_;
@@ -2971,7 +2983,8 @@ class LayerTreeHostTestSetNeedsCommitWithForcedRedraw
   void CommitCompleteOnThread(LayerTreeHostImpl* host_impl) override {
     if (num_draws_ == 3) {
       host_impl->SetViewportDamage(invalid_rect_);
-      host_impl->SetNeedsRedraw();
+      host_impl->SetNeedsRedraw(/*animation_only=*/false,
+                                /*skip_if_inside_draw=*/false);
     }
   }
 
@@ -3355,7 +3368,8 @@ class LayerTreeHostTestFrameTimeUpdatesAfterDraw : public LayerTreeHostTest {
     frame_++;
     if (frame_ == 1) {
       first_frame_time_ = impl->CurrentBeginFrameArgs().frame_time;
-      impl->SetNeedsRedraw();
+      impl->SetNeedsRedraw(/*animation_only=*/false,
+                           /*skip_if_inside_draw=*/false);
 
       // Since we might use a low-resolution clock on Windows, we need to
       // make sure that the clock has incremented past first_frame_time_.
@@ -5972,11 +5986,18 @@ class LayerTreeHostTestElasticOverscroll : public LayerTreeHostTest {
     }
   }
 
+  void AfterTest() override {
+    // Clean up non-owned pointers before the LayerTreeHost is destroyed and
+    // releases the objects they point to.
+    root_layer_ = nullptr;
+    scroll_elasticity_helper_ = nullptr;
+    LayerTreeHostTest::AfterTest();
+  }
+
  private:
   FakeContentLayerClient client_;
-  raw_ptr<Layer, DanglingUntriaged> root_layer_;
-  raw_ptr<ScrollElasticityHelper, AcrossTasksDanglingUntriaged>
-      scroll_elasticity_helper_;
+  raw_ptr<Layer> root_layer_;
+  raw_ptr<ScrollElasticityHelper> scroll_elasticity_helper_;
   int content_layer_id_;
   int num_draws_;
 };
@@ -6619,11 +6640,10 @@ class LayerTreeHostTestGpuRasterizationDisabled : public LayerTreeHostTest {
 
     scoped_refptr<FakePictureLayer> layer =
         FakePictureLayer::Create(&layer_client_);
-    layer_ = layer.get();
     layer->SetBounds(gfx::Size(10, 10));
     layer->SetIsDrawable(true);
     layer_tree_host()->root_layer()->AddChild(layer);
-    layer_client_.set_bounds(layer_->bounds());
+    layer_client_.set_bounds(layer->bounds());
   }
 
   void BeginTest() override {
@@ -6642,7 +6662,6 @@ class LayerTreeHostTestGpuRasterizationDisabled : public LayerTreeHostTest {
   }
 
   FakeContentLayerClient layer_client_;
-  raw_ptr<FakePictureLayer, DanglingUntriaged> layer_;
 };
 
 MULTI_THREAD_TEST_F(LayerTreeHostTestGpuRasterizationDisabled);
@@ -6666,12 +6685,10 @@ class LayerTreeHostTestGpuRasterizationSupportedButDisabled
 
     scoped_refptr<FakePictureLayer> layer =
         FakePictureLayer::Create(&layer_client_);
-    layer_ = layer.get();
-
     layer->SetBounds(gfx::Size(10, 10));
     layer->SetIsDrawable(true);
     layer_tree_host()->root_layer()->AddChild(layer);
-    layer_client_.set_bounds(layer_->bounds());
+    layer_client_.set_bounds(layer->bounds());
   }
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
@@ -6688,7 +6705,6 @@ class LayerTreeHostTestGpuRasterizationSupportedButDisabled
   }
 
   FakeContentLayerClient layer_client_;
-  raw_ptr<FakePictureLayer, DanglingUntriaged> layer_;
 };
 
 MULTI_THREAD_TEST_F(LayerTreeHostTestGpuRasterizationSupportedButDisabled);
@@ -6707,12 +6723,11 @@ class LayerTreeHostTestGpuRasterizationEnabled : public LayerTreeHostTest {
 
     scoped_refptr<FakePictureLayer> layer =
         FakePictureLayer::Create(&layer_client_);
-    layer_ = layer.get();
 
     layer->SetBounds(gfx::Size(10, 10));
     layer->SetIsDrawable(true);
     layer_tree_host()->root_layer()->AddChild(layer);
-    layer_client_.set_bounds(layer_->bounds());
+    layer_client_.set_bounds(layer->bounds());
   }
 
   void BeginTest() override {
@@ -6731,7 +6746,6 @@ class LayerTreeHostTestGpuRasterizationEnabled : public LayerTreeHostTest {
   }
 
   FakeContentLayerClient layer_client_;
-  raw_ptr<FakePictureLayer, DanglingUntriaged> layer_;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(LayerTreeHostTestGpuRasterizationEnabled);
@@ -6789,8 +6803,15 @@ class LayerTreeHostTestGpuRasterizationEnabledWithMSAA : public LayerTreeTest {
     EndTest();
   }
 
+  void AfterTest() override {
+    // Clear the non-ref pointer before LayerTreeHost is destroyed to avoid a
+    // dangling pointer.
+    layer_ = nullptr;
+    LayerTreeTest::AfterTest();
+  }
+
   FakeContentLayerClient layer_client_;
-  raw_ptr<FakePictureLayer, DanglingUntriaged> layer_;
+  raw_ptr<FakePictureLayer> layer_;
 };
 
 MULTI_THREAD_TEST_F(LayerTreeHostTestGpuRasterizationEnabledWithMSAA);
@@ -8798,7 +8819,7 @@ class LayerTreeHostTestRequestForceSendMetadata
       target_->OnRenderFrameSubmission(render_frame_metadata,
                                        compositor_frame_metadata, force_send);
     }
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
     void DidEndScroll() override { target_->DidEndScroll(); }
 #endif
 
@@ -8853,7 +8874,7 @@ class LayerTreeHostTestRequestForceSendMetadata
     if (force_send)
       num_force_sends_++;
   }
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   void DidEndScroll() override {}
 #endif
 
@@ -9056,7 +9077,7 @@ class LayerTreeHostTestDelegatedInkMetadataBase
       target_->OnRenderFrameSubmission(render_frame_metadata,
                                        compositor_frame_metadata, force_send);
     }
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
     void DidEndScroll() override { target_->DidEndScroll(); }
 #endif
 
@@ -9133,7 +9154,7 @@ class LayerTreeHostTestDelegatedInkMetadataBase
     ExpectMetadata(render_frame_metadata.delegated_ink_metadata,
                    compositor_frame_metadata->delegated_ink_metadata.get());
   }
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   void DidEndScroll() override {}
 #endif
 
@@ -9220,7 +9241,8 @@ class LayerTreeHostTestDelegatedInkMetadataCompositorOnlyFrame
     } else if (begin_frame_count_ == 4) {
       PostIssueBeginFrame(false);
     }
-    host_impl->SetNeedsRedraw();
+    host_impl->SetNeedsRedraw(/*animation_only=*/false,
+                              /*skip_if_inside_draw=*/false);
     host_impl->SetViewportDamage(gfx::Rect(1, 1));
   }
 
@@ -9688,79 +9710,6 @@ class LayerTreeHostTestIgnoreEventsMetricsForNoUpdate
 // TODO(crbug.com/40756887): Disabled because test is flaky on Linux and CrOS.
 // MULTI_THREAD_TEST_F(LayerTreeHostTestIgnoreEventsMetricsForNoUpdate);
 
-class LayerTreeHostUkmSmoothnessMetric : public LayerTreeTest {
- public:
-  LayerTreeHostUkmSmoothnessMetric() = default;
-  ~LayerTreeHostUkmSmoothnessMetric() override = default;
-
-  void InitializeSettings(LayerTreeSettings* settings) override {
-    settings->commit_to_active_tree = false;
-  }
-
-  void SetupTree() override {
-    LayerTreeTest::SetupTree();
-    shmem_region_ = layer_tree_host()->CreateSharedMemoryForSmoothnessUkm();
-    shmem_region_dropped_frames_ =
-        layer_tree_host()->CreateSharedMemoryForDroppedFramesUkm();
-  }
-
-  void BeginTest() override {
-    // Start with requesting main-frames.
-    PostSetNeedsCommitToMainThread();
-  }
-
-  void AfterTest() override {
-    ASSERT_TRUE(shmem_region_.IsValid());
-    auto mapping = shmem_region_.Map();
-    auto* smoothness = mapping.GetMemoryAs<UkmSmoothnessDataShared>();
-    ASSERT_TRUE(smoothness);
-    // It is not always possible to guarantee an exact number of dropped frames.
-    // So validate that there are non-zero dropped frames.
-    EXPECT_GT(smoothness->data.avg_smoothness, 0);
-
-    ASSERT_TRUE(shmem_region_dropped_frames_.IsValid());
-    // TODO(crbug.com/395868899): Test that values are exported here.
-  }
-
-  void WillBeginImplFrameOnThread(LayerTreeHostImpl* host_impl,
-                                  const viz::BeginFrameArgs& args,
-                                  bool has_damage) override {
-    last_args_ = args;
-    if (!fcp_sent_) {
-      host_impl->dropped_frame_counter()->OnFirstContentfulPaintReceived();
-      fcp_sent_ = true;
-    }
-    host_impl->frame_sorter_for_testing()->AddNewFrame(last_args_);
-  }
-
-  void DidFinishImplFrameOnThread(LayerTreeHostImpl* host_impl) override {
-    if (TestEnded())
-      return;
-
-    if (frames_counter_ == 0) {
-      EndTest();
-      return;
-    }
-
-    // Mark every frame as a dropped frame affecting smoothness.
-    // Delegates to DFC::AddSortedFrame, which calls DFC::OnEndFrame.
-    host_impl->frame_sorter_for_testing()->AddFrameResult(
-        last_args_, CreateFakeImplDroppedFrameInfo());
-    host_impl->SetNeedsRedraw();
-    --frames_counter_;
-  }
-
- private:
-  const uint32_t kTotalFramesForTest = 5;
-  uint32_t frames_counter_ = kTotalFramesForTest;
-  bool fcp_sent_ = false;
-  viz::BeginFrameArgs last_args_;
-  base::ReadOnlySharedMemoryRegion shmem_region_;
-  base::ReadOnlySharedMemoryRegion shmem_region_dropped_frames_;
-};
-
-MULTI_THREAD_TEST_F(LayerTreeHostUkmSmoothnessMetric);
-
 class LayerTreeHostUkmSmoothnessMemoryOwnership : public LayerTreeTest {
  public:
   LayerTreeHostUkmSmoothnessMemoryOwnership() = default;
@@ -9783,7 +9732,6 @@ class LayerTreeHostUkmSmoothnessMemoryOwnership : public LayerTreeTest {
                                   bool has_damage) override {
     last_args_ = args;
     if (!fcp_sent_) {
-      host_impl->dropped_frame_counter()->OnFirstContentfulPaintReceived();
       fcp_sent_ = true;
     }
     host_impl->SetNeedsCommit();
@@ -9804,13 +9752,9 @@ class LayerTreeHostUkmSmoothnessMemoryOwnership : public LayerTreeTest {
     // Delegates to DFC::AddSortedFrame, which calls DFC::OnEndFrame.
     host_impl->frame_sorter_for_testing()->AddFrameResult(
         last_args_, CreateFakeImplDroppedFrameInfo());
-    host_impl->SetNeedsRedraw();
+    host_impl->SetNeedsRedraw(/*animation_only=*/false,
+                              /*skip_if_inside_draw=*/false);
     --frames_counter_;
-  }
-
-  void DidBeginMainFrame() override {
-    // Re-request the shared memory region in each frame.
-    shmem_region_ = layer_tree_host()->CreateSharedMemoryForSmoothnessUkm();
   }
 
  private:
@@ -9818,7 +9762,6 @@ class LayerTreeHostUkmSmoothnessMemoryOwnership : public LayerTreeTest {
   uint32_t frames_counter_ = kTotalFramesForTest;
   bool fcp_sent_ = false;
   viz::BeginFrameArgs last_args_;
-  base::ReadOnlySharedMemoryRegion shmem_region_;
 };
 
 MULTI_THREAD_TEST_F(LayerTreeHostUkmSmoothnessMemoryOwnership);
@@ -10202,7 +10145,8 @@ class LayerTreeHostTestDelayRecreateTiling
       host_impl->pending_tree()->set_needs_update_draw_properties();
 
       // to make sure Draw happen
-      host_impl->SetNeedsRedraw();
+      host_impl->SetNeedsRedraw(/*animation_only=*/false,
+                                /*skip_if_inside_draw=*/false);
     }
   }
 
@@ -10356,7 +10300,8 @@ class LayerTreeHostTestInvalidateImplSideForRerasterTiling
         // implside will be requested for rerastering tiling.
         ClearAnimationForLayer(host_impl->active_tree(), target_layer);
         ClearAnimationForLayer(host_impl->recycle_tree(), target_layer);
-        host_impl->SetNeedsRedraw();
+        host_impl->SetNeedsRedraw(/*animation_only=*/false,
+                                  /*skip_if_inside_draw=*/false);
       }
     }
   }
@@ -10384,7 +10329,8 @@ class LayerTreeHostTestInvalidateImplSideForRerasterTiling
 
           // trigger draw to check if invalidating implside is not triggered
           // if animation is still active.
-          host_impl->SetNeedsRedraw();
+          host_impl->SetNeedsRedraw(/*animation_only=*/false,
+                                    /*skip_if_inside_draw=*/false);
         } else {
           // check if invalidation implside was requested successfully.
           // new tiling should be created.
@@ -10489,6 +10435,13 @@ class LayerTreeHostTestBeginFramePausedChanged : public LayerTreeHostTest {
 
   void BeginTest() override { PostSetNeedsCommitToMainThread(); }
 
+  void AfterTest() override {
+    // Clear the non-ref pointers before LayerTreeHost is destroyed to avoid a
+    // dangling pointer.
+    layer_tree_frame_sink_ = nullptr;
+    LayerTreeHostTest::AfterTest();
+  }
+
   void ReadyToCommitOnThread(LayerTreeHostImpl* host_impl) override {
     switch (host_impl->active_tree()->source_frame_number()) {
       // frame 1 is ready in main thread and main thread is waiting until
@@ -10550,7 +10503,7 @@ class LayerTreeHostTestBeginFramePausedChanged : public LayerTreeHostTest {
   }
 
  private:
-  raw_ptr<TestLayerTreeFrameSink, DanglingUntriaged> layer_tree_frame_sink_;
+  raw_ptr<TestLayerTreeFrameSink> layer_tree_frame_sink_;
 };
 MULTI_THREAD_TEST_F(LayerTreeHostTestBeginFramePausedChanged);
 
@@ -11027,7 +10980,7 @@ class LayerTreeHostTestDetachInputDelegateAndRenderFrameObserver
         const RenderFrameMetadata& render_frame_metadata,
         viz::CompositorFrameMetadata* compositor_frame_metadata,
         bool force_send) override {}
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
     void DidEndScroll() override {}
 #endif
 

@@ -30,7 +30,6 @@
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "services/network/public/mojom/trust_token_access_observer.mojom.h"
 #include "services/network/public/mojom/trust_tokens.mojom.h"
-#include "services/network/public/mojom/url_request.mojom-forward.h"
 #include "services/network/public/mojom/url_request.mojom.h"
 #include "services/network/public/mojom/web_bundle_handle.mojom.h"
 #include "testing/perf/perf_result_reporter.h"
@@ -99,7 +98,7 @@ network::ResourceRequest CreateResourceRequest() {
   request.devtools_accepted_stream_types = std::vector<net::SourceStreamType>(
       {net::SourceStreamType::kBrotli, net::SourceStreamType::kGzip,
        net::SourceStreamType::kDeflate});
-  request.target_ip_address_space = mojom::IPAddressSpace::kPrivate;
+  request.target_ip_address_space = mojom::IPAddressSpace::kLocal;
   request.storage_access_api_status =
       net::StorageAccessApiStatus::kAccessViaAPI;
 

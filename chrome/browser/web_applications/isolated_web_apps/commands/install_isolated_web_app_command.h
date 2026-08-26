@@ -25,8 +25,6 @@
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_install_command_helper.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_install_source.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_response_reader_factory.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/jobs/prepare_install_info_job.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
@@ -36,6 +34,8 @@
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/installable/installable_logging.h"
 #include "components/webapps/common/web_app_id.h"
+#include "components/webapps/isolated_web_apps/reading/response_reader_factory.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-forward.h"
 
 class Profile;
@@ -46,6 +46,7 @@ class WebContents;
 
 namespace web_app {
 
+// Represents a successful installation of an Isolated Web App.
 struct InstallIsolatedWebAppCommandSuccess {
   InstallIsolatedWebAppCommandSuccess(IsolatedWebAppUrlInfo url_info,
                                       base::Version installed_version,
@@ -62,6 +63,7 @@ struct InstallIsolatedWebAppCommandSuccess {
 std::ostream& operator<<(std::ostream& os,
                          const InstallIsolatedWebAppCommandSuccess& success);
 
+// Represents an error during the installation of an Isolated Web App.
 struct InstallIsolatedWebAppCommandError {
   std::string message;
 };
@@ -69,12 +71,10 @@ struct InstallIsolatedWebAppCommandError {
 std::ostream& operator<<(std::ostream& os,
                          const InstallIsolatedWebAppCommandError& error);
 
-// Isolated Web App requires:
-//  * no cross-origin navigation
-//  * content should never be loaded in normal tab
-//
-// |content::IsolatedWebAppThrottle| enforces that. The requirements prevent
-// re-using web contents.
+// Command to install an Isolated Web App from a given `IsolatedWebAppUrlInfo`
+// and `IsolatedWebAppInstallSource`. This command will perform a full
+// installation, including checking for trust and signatures, creating the
+// storage partition, and finalizing the installation.
 class InstallIsolatedWebAppCommand
     : public WebAppCommand<AppLock,
                            base::expected<InstallIsolatedWebAppCommandSuccess,

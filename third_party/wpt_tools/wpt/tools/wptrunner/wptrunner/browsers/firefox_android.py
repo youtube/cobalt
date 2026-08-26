@@ -197,6 +197,12 @@ class ProfileCreator(FirefoxProfileCreator):
 
         if self.test_type == "wdspec":
             profile.set_preferences({"remote.prefs.recommended": True})
+            profile.set_preferences({
+                "geo.provider.network.url": "https://web-platform.test:8444/webdriver/tests/support/http_handlers/geolocation_override.py"
+            })
+        else:
+            # Except for wdspec dispatch wheel scroll as widget event by default.
+            profile.set_preferences({"remote.events.async.wheel.enabled": True})
 
         profile.set_preferences({"fission.autostart": True})
         if self.disable_fission:
@@ -380,6 +386,9 @@ class FirefoxAndroidBrowser(Browser):
 
 class FirefoxAndroidWdSpecBrowser(FirefoxWdSpecBrowser):
     def __init__(self, logger, config=None, device_serial=None, adb_binary=None, **kwargs):
+
+        if "profile_creator_cls" not in kwargs:
+            kwargs["profile_creator_cls"] = ProfileCreator
 
         super().__init__(logger, config=config, **kwargs)
 

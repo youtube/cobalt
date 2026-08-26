@@ -13,8 +13,10 @@ export function getHtml(this: BookmarksAppElement) {
 </bookmarks-toolbar>
 <div id="drop-shadow" class="cr-container-shadow"></div>
 <div id="main-container">
-  <div id="sidebar" role="tree" aria-label="$i18n{sidebarAxLabel}">
-    <bookmarks-folder-node item-id="0" depth="-1"></bookmarks-folder-node>
+  <div id="sidebar">
+    <div id="sidebar-folders" role="tree" aria-label="$i18n{sidebarAxLabel}">
+      <bookmarks-folder-node item-id="0" depth="-1"></bookmarks-folder-node>
+    </div>
     <managed-footnote></managed-footnote>
   </div>
   <cr-splitter id="splitter"></cr-splitter>

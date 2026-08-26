@@ -30,7 +30,7 @@
 #include "components/optimization_guide/proto/string_value.pb.h"
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-#include "components/optimization_guide/core/model_validator.h"
+#include "components/optimization_guide/core/inference/model_validator.h"
 #endif  // BUILD_WITH_TFLITE_LIB
 
 namespace {
@@ -231,7 +231,8 @@ void ModelValidatorKeyedService::OnDeviceModelExecuteResponse(
   }
   // Complete responses with empty log entry indicate errors.
   if (!result.execution_info || !result.provided_by_on_device) {
-    LOCAL_HISTOGRAM_BOOLEAN(kModelValidationErrorHistogramString, true);
+    LOCAL_HISTOGRAM_BOOLEAN(
+        "OptimizationGuide.ModelValidation.OnDevice.DidError", true);
   }
   proto::ModelValidationOutput output;
   optimization_guide::proto::ModelCall* model_call = output.add_model_calls();

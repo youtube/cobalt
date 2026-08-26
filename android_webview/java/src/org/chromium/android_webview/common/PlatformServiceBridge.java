@@ -9,6 +9,8 @@ import android.os.Handler;
 import android.os.HandlerThread;
 
 import org.chromium.base.Callback;
+import org.chromium.base.ServiceLoaderUtil;
+import org.chromium.base.StrictModeContext;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -32,10 +34,12 @@ public abstract class PlatformServiceBridge {
     public static PlatformServiceBridge getInstance() {
         synchronized (sInstanceLock) {
             if (sInstance == null) {
-                // Load an instance of PlatformServiceBridgeImpl. Because this can change
-                // depending on the GN configuration, this may not be the PlatformServiceBridgeImpl
-                // defined upstream.
-                sInstance = new PlatformServiceBridgeImpl();
+                try (StrictModeContext ignored = StrictModeContext.allowDiskReads()) {
+                    sInstance = ServiceLoaderUtil.maybeCreate(PlatformServiceBridge.class);
+                }
+                if (sInstance == null) {
+                    sInstance = new NoOpPlatformServiceBridge();
+                }
             }
             return sInstance;
         }
@@ -145,6 +149,8 @@ public abstract class PlatformServiceBridge {
             long cloudProjectNumber,
             @MediaIntegrityApiStatus int apiStatus,
             ValueOrErrorCallback<MediaIntegrityProvider, MediaIntegrityErrorWrapper> callback) {
+        MediaIntegrityNonRecoverableErrorLogger.log(
+                MediaIntegrityNonRecoverableErrorLogger.AOSP_BUILD);
         callback.onError(
                 new MediaIntegrityErrorWrapper(MediaIntegrityErrorCode.NON_RECOVERABLE_ERROR));
     }

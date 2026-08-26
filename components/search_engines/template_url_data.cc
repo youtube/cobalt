@@ -79,7 +79,6 @@ TemplateURLData::TemplateURLData(
     std::string_view contextual_search_url,
     std::string_view logo_url,
     std::string_view doodle_url,
-    std::string_view base_builtin_resource_id,
     std::string_view search_url_post_params,
     std::string_view suggest_url_post_params,
     std::string_view image_url_post_params,
@@ -102,7 +101,6 @@ TemplateURLData::TemplateURLData(
       contextual_search_url(contextual_search_url),
       logo_url(logo_url),
       doodle_url(doodle_url),
-      base_builtin_resource_id(base_builtin_resource_id),
       search_url_post_params(search_url_post_params),
       suggestions_url_post_params(suggest_url_post_params),
       image_url_post_params(image_url_post_params),
@@ -183,13 +181,6 @@ std::vector<uint8_t> TemplateURLData::GenerateHash() const {
   const auto hash = crypto::hash::Sha256(pickle);
   result.insert(result.end(), hash.begin(), hash.end());
   return result;
-}
-
-std::string TemplateURLData::GetBuiltinImageResourceId() const {
-  if (base_builtin_resource_id.empty()) {
-    return "IDR_DEFAULT_FAVICON";
-  }
-  return base::StrCat({base_builtin_resource_id, "_IMAGE"});
 }
 
 void TemplateURLData::GenerateSyncGUID() {

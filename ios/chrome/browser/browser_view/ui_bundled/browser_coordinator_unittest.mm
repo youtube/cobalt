@@ -203,7 +203,7 @@ class BrowserCoordinatorTest : public PlatformTest {
 
     // Force the WebStateObserver callbacks that simulate a page load.
     web::WebStateObserver* ntpHelper =
-        (web::WebStateObserver*)NewTabPageTabHelper::FromWebState(web_state);
+        NewTabPageTabHelper::FromWebState(web_state);
     web::FakeNavigationContext context;
     context.SetUrl(url);
     context.SetIsSameDocument(false);
@@ -429,6 +429,19 @@ TEST_F(BrowserCoordinatorTest, ShowDefaultBrowserPromoAfterRemindMeLater) {
       HandlerForProtocol(dispatcher, PromosManagerCommands);
 
   [handler showDefaultBrowserPromoAfterRemindMeLater];
+
+  [browser_coordinator stop];
+}
+
+// Tests that the BrowserCoordinator early returns from
+// `overscrollActionRefresh:` if it doesn't have an active web state.
+TEST_F(BrowserCoordinatorTest,
+       NoCrashOnOverscrollActionsRefreshWithNoActiveWebState) {
+  OverscrollActionsController* overscroll_actions_controller;
+  BrowserCoordinator* browser_coordinator = GetBrowserCoordinator();
+  [browser_coordinator start];
+
+  [browser_coordinator overscrollActionRefresh:overscroll_actions_controller];
 
   [browser_coordinator stop];
 }

@@ -9,6 +9,7 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "components/commerce/core/compare/cluster_manager.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
 
@@ -43,6 +44,11 @@ class ProductSpecificationsEntryPointController
   explicit ProductSpecificationsEntryPointController(
       BrowserWindowInterface* browser);
   ~ProductSpecificationsEntryPointController() override;
+
+  DECLARE_USER_DATA(ProductSpecificationsEntryPointController);
+
+  static ProductSpecificationsEntryPointController* From(
+      BrowserWindowInterface* browser_window_interface);
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(
@@ -125,6 +131,8 @@ class ProductSpecificationsEntryPointController
   raw_ptr<ClusterManager, DanglingUntriaged> cluster_manager_;
   raw_ptr<ProductSpecificationsService> product_specifications_service_;
   base::ObserverList<Observer> observers_;
+  ui::ScopedUnownedUserData<ProductSpecificationsEntryPointController>
+      scoped_data_holder_;
   base::ScopedObservation<ClusterManager, ClusterManager::Observer>
       cluster_manager_observations_{this};
   base::WeakPtrFactory<ProductSpecificationsEntryPointController>

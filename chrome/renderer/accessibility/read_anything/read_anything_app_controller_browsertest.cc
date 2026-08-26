@@ -13,6 +13,7 @@
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/types/cxx23_to_underlying.h"
@@ -124,6 +125,7 @@ class MockReadAnythingUntrustedPageHandler
               OnImageDataRequested,
               (const ::ui::AXTreeID& target_tree_id, int32_t target_node_id),
               (override));
+  MOCK_METHOD(void, OnReadAloudAudioStateChange, (bool playing), (override));
 
   mojo::PendingRemote<read_anything::mojom::UntrustedPageHandler>
   BindNewPipeAndPassRemote() {
@@ -340,7 +342,7 @@ TEST_F(ReadAnythingAppControllerTest, IsReadAloudEnabled) {
 
 #if BUILDFLAG(IS_CHROMEOS)
 TEST_F(ReadAnythingAppControllerTest, OnDeviceLocked_OnlyLogsIfSpeechPlaying) {
-  read_aloud_model().set_speech_playing(false);
+  read_aloud_model().SetSpeechPlaying(false);
   base::HistogramTester histogram_tester;
 
   controller().OnDeviceLocked();
@@ -351,7 +353,7 @@ TEST_F(ReadAnythingAppControllerTest, OnDeviceLocked_OnlyLogsIfSpeechPlaying) {
   EXPECT_EQ(0, histogram_tester.GetTotalSum(
                    ReadAloudAppModel::kSpeechStopSourceHistogramName));
 
-  read_aloud_model().set_speech_playing(true);
+  read_aloud_model().SetSpeechPlaying(true);
   controller().OnDeviceLocked();
   histogram_tester.ExpectUniqueSample(
       ReadAloudAppModel::kSpeechStopSourceHistogramName,
@@ -359,9 +361,16 @@ TEST_F(ReadAnythingAppControllerTest, OnDeviceLocked_OnlyLogsIfSpeechPlaying) {
 }
 #endif
 
+TEST_F(ReadAnythingAppControllerTest, OnIsAudioCurrentlyPlayingChanged) {
+  controller().OnIsAudioCurrentlyPlayingChanged(true);
+  EXPECT_CALL(page_handler_, OnReadAloudAudioStateChange(true)).Times(1);
+  controller().OnIsAudioCurrentlyPlayingChanged(false);
+  EXPECT_CALL(page_handler_, OnReadAloudAudioStateChange(false)).Times(1);
+}
+
 TEST_F(ReadAnythingAppControllerTest,
        OnReadingModeHidden_OnlyLogsIfSpeechPlaying) {
-  read_aloud_model().set_speech_playing(false);
+  read_aloud_model().SetSpeechPlaying(false);
   base::HistogramTester histogram_tester;
 
   controller().OnReadingModeHidden();
@@ -372,7 +381,7 @@ TEST_F(ReadAnythingAppControllerTest,
   EXPECT_EQ(0, histogram_tester.GetTotalSum(
                    ReadAloudAppModel::kSpeechStopSourceHistogramName));
 
-  read_aloud_model().set_speech_playing(true);
+  read_aloud_model().SetSpeechPlaying(true);
   controller().OnReadingModeHidden();
   histogram_tester.ExpectUniqueSample(
       ReadAloudAppModel::kSpeechStopSourceHistogramName,
@@ -380,7 +389,7 @@ TEST_F(ReadAnythingAppControllerTest,
 }
 
 TEST_F(ReadAnythingAppControllerTest, OnTabWillDetach_OnlyLogsIfSpeechPlaying) {
-  read_aloud_model().set_speech_playing(false);
+  read_aloud_model().SetSpeechPlaying(false);
   base::HistogramTester histogram_tester;
 
   controller().OnTabWillDetach();
@@ -391,7 +400,7 @@ TEST_F(ReadAnythingAppControllerTest, OnTabWillDetach_OnlyLogsIfSpeechPlaying) {
   EXPECT_EQ(0, histogram_tester.GetTotalSum(
                    ReadAloudAppModel::kSpeechStopSourceHistogramName));
 
-  read_aloud_model().set_speech_playing(true);
+  read_aloud_model().SetSpeechPlaying(true);
   controller().OnTabWillDetach();
   histogram_tester.ExpectUniqueSample(
       ReadAloudAppModel::kSpeechStopSourceHistogramName,
@@ -399,7 +408,7 @@ TEST_F(ReadAnythingAppControllerTest, OnTabWillDetach_OnlyLogsIfSpeechPlaying) {
 }
 
 TEST_F(ReadAnythingAppControllerTest, OnUrlInformationSet_LogsReload) {
-  read_aloud_model().set_speech_playing(true);
+  read_aloud_model().SetSpeechPlaying(true);
   ui::AXTreeUpdate update1;
   ui::AXTreeID id_1 = ui::AXTreeID::CreateNewAXTreeID();
   test::SetUpdateTreeID(&update1, id_1);
@@ -433,7 +442,7 @@ TEST_F(ReadAnythingAppControllerTest, OnUrlInformationSet_LogsReload) {
 }
 
 TEST_F(ReadAnythingAppControllerTest, OnUrlInformationSet_LogsNewPage) {
-  read_aloud_model().set_speech_playing(true);
+  read_aloud_model().SetSpeechPlaying(true);
   ui::AXTreeUpdate update1;
   ui::AXTreeID id_1 = ui::AXTreeID::CreateNewAXTreeID();
   test::SetUpdateTreeID(&update1, id_1);
@@ -1504,7 +1513,7 @@ TEST_F(ReadAnythingAppControllerTest, AccessibilityEventReceivedWhileSpeaking) {
   EXPECT_EQ(u"", controller().GetTextContent(4));
 
   // Send three updates while playing.
-  controller().OnSpeechPlayingStateChanged(/* is_speech_active= */ true);
+  controller().OnIsSpeechActiveChanged(/* is_speech_active= */ true);
   SendBatchUpdates();
 
   // The updates shouldn't be applied yet.
@@ -1515,7 +1524,7 @@ TEST_F(ReadAnythingAppControllerTest, AccessibilityEventReceivedWhileSpeaking) {
   // OnAXTreeDistilled would unserialize the pending updates. Since a11y events
   // happen asynchronously, they can come between the time distillation finishes
   // and pending updates are unserialized.
-  controller().OnSpeechPlayingStateChanged(/* is_speech_active= */ false);
+  controller().OnIsSpeechActiveChanged(/* is_speech_active= */ false);
   ui::AXNodeData final_node = test::TextNode(/* id= */ 2, u"Final update");
   SendUpdateWithNodes({std::move(final_node)});
 
@@ -1796,7 +1805,7 @@ TEST_F(ReadAnythingAppControllerTest,
   // unserialized. Speech starts playing
   EXPECT_CALL(*distiller_, Distill).Times(0);
   ui::AXEvent load_complete_2(2, ax::mojom::Event::kLoadComplete);
-  controller().OnSpeechPlayingStateChanged(/*is_speech_active=*/true);
+  controller().OnIsSpeechActiveChanged(/*is_speech_active=*/true);
   AccessibilityEventReceived({std::move(updates[2])},
                              {std::move(load_complete_2)});
   EXPECT_EQ(u"23456", controller().GetTextContent(1));
@@ -1811,7 +1820,7 @@ TEST_F(ReadAnythingAppControllerTest,
 
   // Speech stops. We request distillation (deferred from above)
   EXPECT_CALL(*distiller_, Distill).Times(1);
-  controller().OnSpeechPlayingStateChanged(/*is_speech_active=*/false);
+  controller().OnIsSpeechActiveChanged(/*is_speech_active=*/false);
   EXPECT_EQ(u"23456", controller().GetTextContent(1));
   Mock::VerifyAndClearExpectations(distiller_);
 
@@ -2127,6 +2136,31 @@ TEST_F(ReadAnythingAppControllerTest, OnCollapseSelection) {
   EXPECT_CALL(page_handler_, OnCollapseSelection()).Times(1);
   controller().OnCollapseSelection();
   Mock::VerifyAndClearExpectations(distiller_);
+}
+
+TEST_F(ReadAnythingAppControllerTest, DrawSelection_ResetsReadAloudState) {
+  ui::AXNodeData node1 = test::TextNode(/* id= */ 2, u"Not like you- ");
+  ui::AXNodeData node2 =
+      test::TextNode(/* id= */ 3, u" you lost your nerve, you lost the game.");
+  SendUpdateWithNodes({std::move(node1), std::move(node2)});
+
+  // Initialize read aloud state.
+  controller().InitAXPositionWithNode(2);
+  EXPECT_TRUE(controller().IsSpeechTreeInitialized());
+
+  // Create a selection from node 2-3. This will trigger DrawSelection.
+  ui::AXTreeUpdate update;
+  test::SetUpdateTreeID(&update, tree_id_);
+  update.has_tree_data = true;
+  update.tree_data.sel_anchor_object_id = 2;
+  update.tree_data.sel_focus_object_id = 3;
+  update.tree_data.sel_anchor_offset = 1;
+  update.tree_data.sel_focus_offset = 3;
+  update.tree_data.sel_is_backward = false;
+  AccessibilityEventReceived({std::move(update)});
+
+  // After a selection, the read aloud state should be reset.
+  EXPECT_FALSE(controller().IsSpeechTreeInitialized());
 }
 
 TEST_F(ReadAnythingAppControllerTest,
@@ -3791,6 +3825,57 @@ TEST_F(ReadAnythingAppControllerTest,
       controller().GetDependencyParserModelForTesting();
 
   EXPECT_FALSE(model.IsAvailable());
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       OnStringAttributeChanged_ImageSrcChange_RequestsImageData) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kReadAnythingImagesViaAlgorithm);
+
+  // Create an image node with a placeholder "data:" URL, mimicking a
+  // lazy-loaded image.
+  static constexpr ui::AXNodeID kImageNodeId = 2;
+  std::string placeholder_src = "data:image/svg+xml,...";
+  ui::AXNodeData image_node = test::ImageNode(kImageNodeId, placeholder_src);
+  SendUpdateAndDistillNodes({std::move(image_node)});
+
+  // Now update with the actual image url.
+  std::string final_src = "https://example.com/real_image.png";
+  ui::AXNodeData updated_image_node = test::ImageNode(kImageNodeId, final_src);
+  SendUpdateAndDistillNodes({std::move(updated_image_node)});
+
+  EXPECT_CALL(page_handler_, OnImageDataRequested(tree_id_, kImageNodeId))
+      .Times(2);
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       OnStringAttributeChanged_NonImageNode_DoesNothing) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kReadAnythingImagesViaAlgorithm);
+
+  static constexpr ui::AXNodeID kLinkNodeId = 2;
+  std::string placeholder_url = "data:image/svg+xml,...";
+  ui::AXNodeData link_node = test::LinkNode(kLinkNodeId, placeholder_url);
+  SendUpdateAndDistillNodes({std::move(link_node)});
+
+  std::string final_url = "https://example.com/real_image.png";
+  ui::AXNodeData updated_link_node = test::LinkNode(kLinkNodeId, final_url);
+  SendUpdateAndDistillNodes({std::move(updated_link_node)});
+
+  EXPECT_CALL(page_handler_, OnImageDataRequested).Times(0);
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       OnStringAttributeChanged_ImageFlagDisabled_DoesNothing) {
+  static constexpr ui::AXNodeID kImageNodeId = 2;
+  std::string placeholder_src = "data:image/svg+xml,...";
+  ui::AXNodeData image_node = test::ImageNode(kImageNodeId, placeholder_src);
+  SendUpdateAndDistillNodes({std::move(image_node)});
+  std::string final_src = "https://example.com/real_image.png";
+  ui::AXNodeData updated_image_node = test::ImageNode(kImageNodeId, final_src);
+  SendUpdateAndDistillNodes({std::move(updated_image_node)});
+
+  EXPECT_CALL(page_handler_, OnImageDataRequested).Times(0);
 }
 
 class ReadAnythingAppControllerScreen2xDataCollectionModeTest

@@ -13,6 +13,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -81,8 +82,7 @@ INSTANTIATE_TEST_SUITE_P(ProfilesState,
 class IsGuestModeEnabledTest : public testing::TestWithParam<bool> {
  public:
   IsGuestModeEnabledTest()
-      : profile_manager_(TestingBrowserProcess::GetGlobal(),
-                         &testing_local_state_),
+      : profile_manager_(TestingBrowserProcess::GetGlobal()),
         testing_local_state_(TestingBrowserProcess::GetGlobal()) {
     testing_local_state_.Get()->SetBoolean(prefs::kBrowserGuestModeEnabled,
                                            BrowserGuestModePrefValue());

@@ -10,8 +10,8 @@
 
 #include "test/pc/e2e/peer_params_preprocessor.h"
 
-#include <stddef.h>
-
+#include <cstddef>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>

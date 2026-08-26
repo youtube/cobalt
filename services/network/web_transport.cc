@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "mojo/public/cpp/system/data_pipe.h"
@@ -27,9 +28,11 @@ namespace {
 
 net::WebTransportParameters CreateParameters(
     const std::vector<mojom::WebTransportCertificateFingerprintPtr>&
-        fingerprints) {
+        fingerprints,
+    std::vector<std::string> application_protocols) {
   net::WebTransportParameters params;
   params.enable_web_transport_http3 = true;
+  params.application_protocols = std::move(application_protocols);
 
   for (const auto& fingerprint : fingerprints) {
     params.server_certificate_fingerprints.push_back(
@@ -400,14 +403,16 @@ WebTransport::WebTransport(
     const net::NetworkAnonymizationKey& key,
     const std::vector<mojom::WebTransportCertificateFingerprintPtr>&
         fingerprints,
+    const std::vector<std::string>& application_protocols,
     NetworkContext* context,
     mojo::PendingRemote<mojom::WebTransportHandshakeClient> handshake_client)
-    : transport_(net::CreateWebTransportClient(url,
-                                               origin,
-                                               this,
-                                               key,
-                                               context->url_request_context(),
-                                               CreateParameters(fingerprints))),
+    : transport_(net::CreateWebTransportClient(
+          url,
+          origin,
+          this,
+          key,
+          context->url_request_context(),
+          CreateParameters(fingerprints, std::move(application_protocols)))),
       context_(context),
       receiver_(this),
       handshake_client_(std::move(handshake_client)) {
@@ -567,6 +572,18 @@ void WebTransport::CloseIfNonceMatches(base::UnguessableToken nonce) {
   transport_->CloseIfNonceMatches(nonce);
 }
 
+void WebTransport::OnBeforeConnect(const net::IPEndPoint& server_address) {
+  if (torn_down_ || closing_) {
+    return;
+  }
+
+  DCHECK(handshake_client_);
+
+  // Here we assume that the server_address is not going to handed to the
+  // initiator renderer.
+  handshake_client_->OnBeforeConnect(server_address);
+}
+
 void WebTransport::OnConnected(
     scoped_refptr<net::HttpResponseHeaders> response_headers) {
   if (torn_down_ || closing_) {
@@ -578,6 +595,7 @@ void WebTransport::OnConnected(
   handshake_client_->OnConnectionEstablished(
       receiver_.BindNewPipeAndPassRemote(),
       client_.BindNewPipeAndPassReceiver(), std::move(response_headers),
+      transport_->session()->GetNegotiatedSubprotocol(),
       StatsToMojom(transport_->session()->GetSessionStats()));
 
   handshake_client_.reset();

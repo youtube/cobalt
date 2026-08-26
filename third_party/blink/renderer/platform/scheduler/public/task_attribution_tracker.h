@@ -18,9 +18,8 @@
 
 namespace blink {
 class SchedulerTaskContext;
-class ScriptState;
-class ScriptWrappableTaskStateBase;
 class SoftNavigationContext;
+class TaskAttributionTaskState;
 }  // namespace blink
 
 namespace v8 {
@@ -47,6 +46,7 @@ class PLATFORM_EXPORT TaskAttributionTracker {
     kRequestIdleCallback,
     kXMLHttpRequest,
     kSoftNavigation,
+    kMiscEvent,
   };
 
   // `TaskScope` stores state for the current task, which is propagated to tasks
@@ -66,12 +66,10 @@ class PLATFORM_EXPORT TaskAttributionTracker {
 
     TaskScope(TaskScope&& other)
         : task_tracker_(std::exchange(other.task_tracker_, nullptr)),
-          script_state_(other.script_state_),
           previous_task_state_(other.previous_task_state_) {}
 
     TaskScope& operator=(TaskScope&& other) {
       task_tracker_ = std::exchange(other.task_tracker_, nullptr);
-      script_state_ = other.script_state_;
       previous_task_state_ = other.previous_task_state_;
       return *this;
     }
@@ -81,20 +79,17 @@ class PLATFORM_EXPORT TaskAttributionTracker {
     friend class TaskAttributionTrackerImpl;
 
     TaskScope(TaskAttributionTracker* tracker,
-              ScriptState* script_state,
-              ScriptWrappableTaskStateBase* previous_task_state)
+              TaskAttributionTaskState* previous_task_state)
         : task_tracker_(tracker),
-          script_state_(script_state),
           previous_task_state_(previous_task_state) {}
 
     // `task_tracker_` is tied to the lifetime of the isolate, which will
     // outlive the current task.
     TaskAttributionTracker* task_tracker_;
 
-    // The rest are on the Oilpan heap, so these are stored as raw pointers
-    // since the class is stack allocated.
-    ScriptState* script_state_;
-    ScriptWrappableTaskStateBase* previous_task_state_;
+    // `previous_task_state_` is on the Oilpan heap, so this is stored as a raw
+    // pointer since the class is stack allocated.
+    TaskAttributionTaskState* previous_task_state_;
   };
 
   class Observer : public GarbageCollectedMixin {
@@ -145,19 +140,17 @@ class PLATFORM_EXPORT TaskAttributionTracker {
 
   // Creates a new `TaskScope` to propagate `task_state` to descendant tasks and
   // continuations.
-  virtual TaskScope CreateTaskScope(ScriptState*,
-                                    TaskAttributionInfo* task_state,
+  virtual TaskScope CreateTaskScope(TaskAttributionInfo* task_state,
                                     TaskScopeType type) = 0;
 
   // Create a new `TaskScope` to propagate the given `SoftNavigationContext`,
   // initiating propagation for the context.
-  virtual TaskScope CreateTaskScope(ScriptState*, SoftNavigationContext*) = 0;
+  virtual TaskScope CreateTaskScope(SoftNavigationContext*) = 0;
 
   // Creates a new `TaskScope` with web scheduling context. `task_state` will be
   // propagated to descendant tasks and continuations; `continuation_context`
   // will only be propagated to continuations.
   virtual TaskScope CreateTaskScope(
-      ScriptState*,
       TaskAttributionInfo* task_state,
       TaskScopeType type,
       SchedulerTaskContext* continuation_context) = 0;
@@ -166,23 +159,29 @@ class PLATFORM_EXPORT TaskAttributionTracker {
   // is always created if `task_state` is non-null, and one is additionally
   // created if there isn't an active `TaskScope`.
   virtual std::optional<TaskScope> MaybeCreateTaskScopeForCallback(
-      ScriptState*,
       TaskAttributionInfo* task_state) = 0;
 
   // Get the `TaskAttributionInfo` for the currently running task.
-  virtual TaskAttributionInfo* RunningTask() const = 0;
+  virtual TaskAttributionInfo* CurrentTaskState() const = 0;
 
   // Registers an observer to be notified when a `TaskScope` has been created.
   // Multiple `Observer`s can be registered, but only the innermost one will
   // receive callbacks.
   virtual ObserverScope RegisterObserver(Observer* observer) = 0;
 
-  // Setter and getter for a pointer to a pending same-document navigation task,
-  // to ensure the task's lifetime.
-  virtual void AddSameDocumentNavigationTask(TaskAttributionInfo* task) = 0;
-  virtual void ResetSameDocumentNavigationTasks() = 0;
+  // Registers the current task state as being associated with a same-document
+  // navigation, managing its lifetime until the navigation is committed
+  // or aborted. Returns the `TaskAttributionId` associated with the current
+  // task state, if any.
+  virtual std::optional<scheduler::TaskAttributionId>
+  AsyncSameDocumentNavigationStarted() = 0;
+  // Returns the task state for the `TaskAttributionId`, which is associated
+  // with a same-document navigation. Clears the tracked task state associated
+  // with this and any previous pending same-document navigations.
   virtual TaskAttributionInfo* CommitSameDocumentNavigation(
       TaskAttributionId) = 0;
+  // Clears all tracked task state associated with same-document navigations.
+  virtual void ResetSameDocumentNavigationTasks() = 0;
 
  protected:
   virtual void OnTaskScopeDestroyed(const TaskScope&) = 0;

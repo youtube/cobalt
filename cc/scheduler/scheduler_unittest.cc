@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "cc/scheduler/scheduler.h"
 
 #include <stddef.h>
@@ -18,6 +13,7 @@
 
 #include "base/auto_reset.h"
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -31,9 +27,9 @@
 #include "base/trace_event/trace_event.h"
 #include "cc/base/features.h"
 #include "cc/metrics/begin_main_frame_metrics.h"
-#include "cc/metrics/dropped_frame_counter.h"
 #include "cc/metrics/event_metrics.h"
 #include "cc/metrics/frame_sequence_tracker_collection.h"
+#include "cc/scheduler/scheduler_state_machine.h"
 #include "cc/test/fake_compositor_frame_reporting_controller.h"
 #include "cc/test/scheduler_test_common.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
@@ -94,8 +90,9 @@ class FakeSchedulerClient : public SchedulerClient,
 
   int ActionIndex(const char* action) const {
     for (size_t i = 0; i < actions_.size(); i++)
-      if (!strcmp(actions_[i], action))
+      if (!UNSAFE_TODO(strcmp(actions_[i], action))) {
         return base::checked_cast<int>(i);
+      }
     return -1;
   }
 
@@ -377,7 +374,7 @@ class SchedulerTest : public testing::Test {
   SchedulerTest()
       : task_runner_(base::MakeRefCounted<SchedulerTestTaskRunner>()),
         fake_external_begin_frame_source_(nullptr),
-        tracker_collection_(false, &dropped_counter) {}
+        tracker_collection_(false) {}
 
   ~SchedulerTest() override { client_->set_scheduler(nullptr); }
 
@@ -417,7 +414,6 @@ class SchedulerTest : public testing::Test {
     reporting_controller->SetFrameSorter(&frame_sorter);
     reporting_controller->SetFrameSequenceTrackerCollection(
         &tracker_collection_);
-    reporting_controller->SetDroppedFrameCounter(&dropped_counter);
 
     scheduler_ = std::make_unique<TestScheduler>(
         task_runner_->GetMockTickClock(), client_.get(), scheduler_settings_, 0,
@@ -617,16 +613,18 @@ class SchedulerTest : public testing::Test {
   std::unique_ptr<viz::SyntheticBeginFrameSource> unthrottled_frame_source_;
   SchedulerSettings scheduler_settings_;
   std::unique_ptr<FakeSchedulerClient> client_;
-  std::unique_ptr<TestScheduler> scheduler_;
-  raw_ptr<FakeCompositorTimingHistory> fake_compositor_timing_history_;
-  DroppedFrameCounter dropped_counter;
   FrameSequenceTrackerCollection tracker_collection_;
   FrameSorter frame_sorter;
-  // Since CFRC destructor cleans up the FrameSorter's
-  // registered observers (in this case, DFC and FSTC)
-  // it needs to be declared last so that it will be
-  // cleaned up first.
+  // Since CFRC destructor cleans up the FrameSorter's registered observers (in
+  // this case FSTC) it needs to be declared last so that it will be cleaned up
+  // first.
   std::unique_ptr<CompositorFrameReportingController> reporting_controller;
+  // Scheduler must be destroyed before reporting_controller since it has a
+  // raw_ptr to the reporting controller.
+  std::unique_ptr<TestScheduler> scheduler_;
+  // FakeCompositorTimingHistory is owned by the Scheduler, so must be released
+  // before the scheduler is destroyed to avoid a dangling ptr.
+  raw_ptr<FakeCompositorTimingHistory> fake_compositor_timing_history_;
 };
 
 TEST_F(SchedulerTest, InitializeLayerTreeFrameSinkDoesNotBeginImplFrame) {
@@ -1702,7 +1700,7 @@ TEST_F(SchedulerTest,
   SetUpScheduler(EXTERNAL_BFS);
   scheduler_->SetTreePrioritiesAndScrollState(
       SMOOTHNESS_TAKES_PRIORITY,
-      ScrollHandlerState::SCROLL_DOES_NOT_AFFECT_SCROLL_HANDLER);
+      ScrollHandlerState::SCROLL_DOES_NOT_AFFECT_SCROLL_HANDLER, false);
   fake_compositor_timing_history_->SetAllEstimatesTo(kFastDuration);
 
   EXPECT_SCOPED(CheckMainFrameNotSkippedAfterLateCommit());
@@ -3386,7 +3384,7 @@ TEST_F(SchedulerTest, ImplLatencyTakesPriority) {
 
   scheduler_->SetTreePrioritiesAndScrollState(
       SMOOTHNESS_TAKES_PRIORITY,
-      ScrollHandlerState::SCROLL_DOES_NOT_AFFECT_SCROLL_HANDLER);
+      ScrollHandlerState::SCROLL_DOES_NOT_AFFECT_SCROLL_HANDLER, false);
   scheduler_->SetCriticalBeginMainFrameToActivateIsFast(true);
   EXPECT_TRUE(scheduler_->ImplLatencyTakesPriority());
   scheduler_->SetCriticalBeginMainFrameToActivateIsFast(false);
@@ -3394,7 +3392,7 @@ TEST_F(SchedulerTest, ImplLatencyTakesPriority) {
 
   scheduler_->SetTreePrioritiesAndScrollState(
       SMOOTHNESS_TAKES_PRIORITY,
-      ScrollHandlerState::SCROLL_AFFECTS_SCROLL_HANDLER);
+      ScrollHandlerState::SCROLL_AFFECTS_SCROLL_HANDLER, true);
   scheduler_->SetCriticalBeginMainFrameToActivateIsFast(true);
   EXPECT_FALSE(scheduler_->ImplLatencyTakesPriority());
   scheduler_->SetCriticalBeginMainFrameToActivateIsFast(false);
@@ -3402,7 +3400,7 @@ TEST_F(SchedulerTest, ImplLatencyTakesPriority) {
 
   scheduler_->SetTreePrioritiesAndScrollState(
       SAME_PRIORITY_FOR_BOTH_TREES,
-      ScrollHandlerState::SCROLL_DOES_NOT_AFFECT_SCROLL_HANDLER);
+      ScrollHandlerState::SCROLL_DOES_NOT_AFFECT_SCROLL_HANDLER, false);
   scheduler_->SetCriticalBeginMainFrameToActivateIsFast(true);
   EXPECT_FALSE(scheduler_->ImplLatencyTakesPriority());
   scheduler_->SetCriticalBeginMainFrameToActivateIsFast(false);
@@ -3410,7 +3408,7 @@ TEST_F(SchedulerTest, ImplLatencyTakesPriority) {
 
   scheduler_->SetTreePrioritiesAndScrollState(
       SAME_PRIORITY_FOR_BOTH_TREES,
-      ScrollHandlerState::SCROLL_AFFECTS_SCROLL_HANDLER);
+      ScrollHandlerState::SCROLL_AFFECTS_SCROLL_HANDLER, true);
   scheduler_->SetCriticalBeginMainFrameToActivateIsFast(true);
   EXPECT_FALSE(scheduler_->ImplLatencyTakesPriority());
   scheduler_->SetCriticalBeginMainFrameToActivateIsFast(false);
@@ -3530,8 +3528,10 @@ bool SchedulerTest::BeginMainFrameOnCriticalPath(
   SetUpScheduler(EXTERNAL_BFS);
   fake_compositor_timing_history_->SetAllEstimatesTo(durations);
   client_->Reset();
-  scheduler_->SetTreePrioritiesAndScrollState(tree_priority,
-                                              scroll_handler_state);
+  scheduler_->SetTreePrioritiesAndScrollState(
+      tree_priority, scroll_handler_state,
+      scroll_handler_state ==
+          ScrollHandlerState::SCROLL_AFFECTS_SCROLL_HANDLER);
   scheduler_->SetNeedsBeginMainFrame();
   EXPECT_FALSE(client_->last_begin_main_frame_args().IsValid());
   EXPECT_SCOPED(AdvanceFrame());
@@ -3801,7 +3801,7 @@ TEST_F(SchedulerTest, CriticalBeginMainFrameToActivateIsFast) {
   // still prioritize impl thread latency.
   scheduler_->SetTreePrioritiesAndScrollState(
       SMOOTHNESS_TAKES_PRIORITY,
-      ScrollHandlerState::SCROLL_AFFECTS_SCROLL_HANDLER);
+      ScrollHandlerState::SCROLL_AFFECTS_SCROLL_HANDLER, true);
   scheduler_->SetNeedsRedraw();
   // An interval of 2ms makes sure that the main frame is considered slow.
   base::TimeDelta interval = base::Milliseconds(2);
@@ -3973,7 +3973,7 @@ TEST_F(SchedulerTest, ShouldDeferInvalidation_BMFQueueDurationNotCriticalSlow) {
   scheduler_->SetNeedsBeginMainFrame();
   scheduler_->SetTreePrioritiesAndScrollState(
       TreePriority::SMOOTHNESS_TAKES_PRIORITY,
-      ScrollHandlerState::SCROLL_DOES_NOT_AFFECT_SCROLL_HANDLER);
+      ScrollHandlerState::SCROLL_DOES_NOT_AFFECT_SCROLL_HANDLER, false);
   fake_compositor_timing_history_->SetAllEstimatesTo(kFastDuration);
   fake_compositor_timing_history_
       ->SetBeginMainFrameQueueDurationNotCriticalEstimate(kSlowDuration);

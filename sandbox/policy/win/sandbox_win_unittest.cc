@@ -19,6 +19,7 @@
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/scoped_native_library.h"
+#include "base/strings/string_util.h"
 #include "base/test/scoped_amount_of_physical_memory_override.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/types/expected.h"
@@ -374,6 +375,8 @@ class TestSandboxDelegate : public SandboxDelegate {
   bool ShouldUnsandboxedRunInJob() override { return false; }
 
   bool CetCompatible() override { return true; }
+
+  bool RestrictCoreSharing() override { return false; }
 
  private:
   sandbox::mojom::Sandbox sandbox_type_;

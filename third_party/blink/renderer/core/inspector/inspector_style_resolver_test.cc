@@ -13,7 +13,6 @@
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
@@ -35,7 +34,7 @@ void InspectorStyleResolverTest::SetUp() {
 }
 
 TEST_F(InspectorStyleResolverTest, DirectlyMatchedRules) {
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       #grid {
         display: grid;
@@ -59,7 +58,7 @@ TEST_F(InspectorStyleResolverTest, DirectlyMatchedRules) {
 }
 
 TEST_F(InspectorStyleResolverTest, ParentRules) {
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       #grid-container {
         display: inline-grid;
@@ -95,9 +94,7 @@ TEST_F(InspectorStyleResolverTest, ParentRules) {
 }
 
 TEST_F(InspectorStyleResolverTest, HighlightPseudoInheritance) {
-  ScopedHighlightInheritanceForTest highlight_inheritance(true);
-
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       #outer::selection {
         color: limegreen;

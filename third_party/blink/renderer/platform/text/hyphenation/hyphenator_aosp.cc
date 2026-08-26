@@ -28,6 +28,8 @@
 
 namespace android {
 
+using blink::wtf_size_t;
+
 static const uint16_t CHAR_SOFT_HYPHEN = 0x00AD;
 
 // The following are structs that correspond to tables inside the hyb file
@@ -114,7 +116,7 @@ Hyphenator* Hyphenator::loadBinary(const uint8_t* patternData) {
   return result;
 }
 
-void Hyphenator::hyphenate(Vector<uint8_t>* result,
+void Hyphenator::hyphenate(blink::Vector<uint8_t>* result,
                            const uint16_t* word,
                            wtf_size_t len) {
   result->clear();

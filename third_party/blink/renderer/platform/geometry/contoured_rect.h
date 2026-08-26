@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GEOMETRY_CONTOURED_RECT_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GEOMETRY_CONTOURED_RECT_H_
 
+#include <array>
 #include <optional>
 
 #include "third_party/blink/renderer/platform/geometry/float_rounded_rect.h"
@@ -13,6 +14,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "ui/gfx/geometry/insets_f.h"
 #include "ui/gfx/geometry/outsets_f.h"
+#include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/rrect_f.h"
 #include "ui/gfx/geometry/size_f.h"
@@ -36,10 +38,13 @@ class PLATFORM_EXPORT ContouredRect {
  public:
   // A corner curvature is the exponent of a superellipse quadrant.
   // e.g. 2 is round, 1 is bevel/angled, infinity is defunct/straight.
+  // This is equivalent to 2^s, where s is the superellipse parameter.
+  // See https://drafts.csswg.org/css-borders-4/#superellipse-parameter
   class CornerCurvature {
    public:
     static constexpr float kRound = 2;
     static constexpr float kBevel = 1;
+    static constexpr float kScoop = 0.5;
     static constexpr float kStraight = 1000;
     static constexpr float kNotch = 1 / kStraight;
 
@@ -65,6 +70,11 @@ class PLATFORM_EXPORT ContouredRect {
     constexpr bool IsConvex() const {
       return top_left_ >= kBevel && top_right_ >= kBevel &&
              bottom_right_ >= kBevel && bottom_left_ >= kBevel;
+    }
+
+    constexpr bool IsHyperellipse() const {
+      return top_left_ >= kRound && top_right_ >= kRound &&
+             bottom_right_ >= kRound && bottom_left_ >= kRound;
     }
 
     constexpr bool IsUniform() const {
@@ -128,7 +138,11 @@ class PLATFORM_EXPORT ContouredRect {
       return curvature_ == CornerCurvature::kNotch;
     }
     constexpr bool IsConcave() const { return curvature_ < 1; }
+    constexpr bool IsHyperellipse() const { return curvature_ >= 2; }
     constexpr bool IsZero() const { return Start() == End(); }
+    constexpr bool IsEmpty() const {
+      return v1().Length() == 0 || v2().Length() == 0;
+    }
     constexpr bool operator==(const Corner&) const = default;
 
     // Invert the curvature
@@ -156,6 +170,13 @@ class PLATFORM_EXPORT ContouredRect {
     constexpr float DiagonalLength() const {
       return (End() - Start()).Length();
     }
+
+    constexpr gfx::PointF HalfCorner() const {
+      const float normalized_half_corner = HalfCornerForCurvature(curvature_);
+      return MapPoint(
+          gfx::Vector2dF(normalized_half_corner, normalized_half_corner));
+    }
+
     static constexpr float HalfCornerForCurvature(float curvature) {
       return std::pow(0.5, 1 / ClampCurvature(curvature));
     }
@@ -168,7 +189,11 @@ class PLATFORM_EXPORT ContouredRect {
              gfx::ScaleVector2d(v4(), normalized_point.y());
     }
 
-    Corner AlignedToOrigin(const Corner& origin) const;
+    gfx::PointF QuadraticControlPoint() const;
+
+    Corner AlignedToOrigin(const Corner& origin,
+                           float thickness_start,
+                           float thickness_end) const;
     String ToString() const;
 
    private:
@@ -200,7 +225,9 @@ class PLATFORM_EXPORT ContouredRect {
 
   void SetRadii(const FloatRoundedRect::Radii& radii) { rect_.SetRadii(radii); }
 
-  bool IsRounded() const { return rect_.IsRounded(); }
+  bool IsRounded() const {
+    return rect_.IsRounded() || (origin_rect_ && origin_rect_->IsRounded());
+  }
 
   const FloatRoundedRect& AsRoundedRect() const { return rect_; }
 
@@ -244,35 +271,43 @@ class PLATFORM_EXPORT ContouredRect {
   void SetOriginRect(const FloatRoundedRect& rect) { origin_rect_ = rect; }
 
   constexpr bool IsInnerRect() const {
-    return origin_rect_ && *origin_rect_ != rect_ &&
-           origin_rect_->Rect().Contains(rect_.Rect());
+    return origin_rect_ && *origin_rect_ != rect_;
   }
 
   constexpr Corner TopRightCorner() const {
     return IsInnerRect() ? TopRightCornerInternal().AlignedToOrigin(
                                ContouredRect(*origin_rect_, corner_curvature_)
-                                   .TopRightCornerInternal())
+                                   .TopRightCornerInternal(),
+                               rect_.Rect().y() - origin_rect_->Rect().y(),
+                               origin_rect_->Rect().right() - Rect().right())
                          : TopRightCornerInternal();
   }
 
   constexpr Corner BottomRightCorner() const {
     return IsInnerRect() ? BottomRightCornerInternal().AlignedToOrigin(
                                ContouredRect(*origin_rect_, corner_curvature_)
-                                   .BottomRightCornerInternal())
+                                   .BottomRightCornerInternal(),
+                               origin_rect_->Rect().right() - Rect().right(),
+                               origin_rect_->Rect().bottom() - Rect().bottom())
                          : BottomRightCornerInternal();
   }
 
   constexpr Corner BottomLeftCorner() const {
-    return IsInnerRect() ? BottomLeftCornerInternal().AlignedToOrigin(
-                               ContouredRect(*origin_rect_, corner_curvature_)
-                                   .BottomLeftCornerInternal())
-                         : BottomLeftCornerInternal();
+    return IsInnerRect()
+               ? BottomLeftCornerInternal().AlignedToOrigin(
+                     ContouredRect(*origin_rect_, corner_curvature_)
+                         .BottomLeftCornerInternal(),
+                     origin_rect_->Rect().bottom() - rect_.Rect().bottom(),
+                     Rect().x() - origin_rect_->Rect().x())
+               : BottomLeftCornerInternal();
   }
 
   constexpr Corner TopLeftCorner() const {
     return IsInnerRect() ? TopLeftCornerInternal().AlignedToOrigin(
                                ContouredRect(*origin_rect_, corner_curvature_)
-                                   .TopLeftCornerInternal())
+                                   .TopLeftCornerInternal(),
+                               Rect().x() - origin_rect_->Rect().x(),
+                               rect_.Rect().y() - origin_rect_->Rect().y())
                          : TopLeftCornerInternal();
   }
 

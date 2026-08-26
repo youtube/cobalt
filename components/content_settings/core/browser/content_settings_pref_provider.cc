@@ -56,6 +56,8 @@ const char
              "all_screens";
 constexpr char kObsoleteFederatedIdentityActiveSesssionExceptionsPref[] =
     "profile.content_settings.exceptions.fedcm_active_session";
+constexpr char kObsoletePrivateNetworkChooserDataPref[] =
+    "profile.content_settings.exceptions.private_network_chooser_data";
 
 #if !BUILDFLAG(IS_IOS)
 // This setting was accidentally bound to a UI surface intended for a different
@@ -103,6 +105,7 @@ void PrefProvider::RegisterProfilePrefs(
       kObsoleteGetDisplayMediaSetAutoSelectAllScreensAllowedForUrlsExceptionsPref);
   registry->RegisterListPref(
       kObsoleteFederatedIdentityActiveSesssionExceptionsPref);
+  registry->RegisterDictionaryPref(kObsoletePrivateNetworkChooserDataPref);
 #if !BUILDFLAG(IS_IOS)
   // TODO(https://crbug.com/367181093): clean this up.
   registry->RegisterBooleanPref(kBug364820109AlreadyWorkedAroundPref, false);
@@ -222,7 +225,8 @@ bool PrefProvider::SetWebsiteSetting(
       store_last_modified_ ? clock_->Now() : base::Time();
 
   DCHECK(!constraints.track_last_visit_for_autoexpiration() ||
-         content_settings::CanTrackLastVisit(content_type));
+         content_settings::CanTrackLastVisit(content_type))
+      << content_type;
   // Last visit timestamps can only be tracked for host-specific pattern.
   DCHECK(!constraints.track_last_visit_for_autoexpiration() ||
          !primary_pattern.GetHost().empty());
@@ -441,6 +445,7 @@ void PrefProvider::DiscardOrMigrateObsoletePreferences() {
   prefs_->ClearPref(
       kObsoleteGetDisplayMediaSetAutoSelectAllScreensAllowedForUrlsExceptionsPref);
   prefs_->ClearPref(kObsoleteFederatedIdentityActiveSesssionExceptionsPref);
+  prefs_->ClearPref(kObsoletePrivateNetworkChooserDataPref);
 
 #if !BUILDFLAG(IS_IOS)
   // TODO(https://crbug.com/367181093): clean this up.

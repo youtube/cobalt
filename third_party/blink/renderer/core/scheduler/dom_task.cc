@@ -24,7 +24,7 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/scheduler/dom_task_signal.h"
 #include "third_party/blink/renderer/core/scheduler/scheduler_task_context.h"
-#include "third_party/blink/renderer/core/scheduler/script_wrappable_task_state.h"
+#include "third_party/blink/renderer/core/scheduler/task_attribution_task_state.h"
 #include "third_party/blink/renderer/core/scheduler/web_scheduling_task_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -91,7 +91,7 @@ DOMTask::DOMTask(ScriptPromiseResolver<IDLAny>* resolver,
   if (script_state->World().IsMainWorld()) {
     if (auto* tracker = scheduler::TaskAttributionTracker::From(
             script_state->GetIsolate())) {
-      parent_task_ = tracker->RunningTask();
+      task_state_ = tracker->CurrentTaskState();
     }
   }
 
@@ -109,7 +109,7 @@ void DOMTask::Trace(Visitor* visitor) const {
   visitor->Trace(scheduler_task_context_);
   visitor->Trace(abort_handle_);
   visitor->Trace(task_queue_);
-  visitor->Trace(parent_task_);
+  visitor->Trace(task_state_);
 }
 
 void DOMTask::Invoke() {
@@ -175,13 +175,14 @@ void DOMTask::InvokeInternal(ScriptState* script_state) {
       scheduler::TaskAttributionTracker::From(script_state->GetIsolate());
   if (tracker) {
     task_attribution_scope = tracker->CreateTaskScope(
-        script_state, parent_task_,
+        task_state_,
         scheduler::TaskAttributionTracker::TaskScopeType::kSchedulerPostTask,
         scheduler_task_context_);
   } else {
     auto* task_state = MakeGarbageCollected<WebSchedulingTaskState>(
         /*TaskAttributionInfo=*/nullptr, scheduler_task_context_);
-    ScriptWrappableTaskState::SetCurrent(script_state, task_state);
+    TaskAttributionTaskState::SetCurrent(script_state->GetIsolate(),
+                                         task_state);
   }
 
   execution_state_ = ExecutionState::kRunningSync;
@@ -206,7 +207,7 @@ void DOMTask::InvokeInternal(ScriptState* script_state) {
   // If this is a worker, clear the context to prevent it from leaking to the
   // next task (`task_attribution_scope` handles this on the main thread).
   if (!tracker) {
-    ScriptWrappableTaskState::SetCurrent(script_state, nullptr);
+    TaskAttributionTaskState::SetCurrent(script_state->GetIsolate(), nullptr);
   }
 }
 

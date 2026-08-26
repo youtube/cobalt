@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -185,8 +186,8 @@ class VIEWS_EXPORT NativeWidgetMacNSWindowHost
   uint64_t GetRootViewNSViewId() const { return root_view_id_; }
 
   void set_immersive_mode_reveal_client(
-      ImmersiveModeRevealClient* reveal_client) {
-    immersive_mode_reveal_client_ = reveal_client;
+      base::WeakPtr<ImmersiveModeRevealClient> reveal_client) {
+    immersive_mode_reveal_client_ = std::move(reveal_client);
   }
 
   // Initialize the ui::Compositor and ui::Layer.
@@ -343,8 +344,9 @@ class VIEWS_EXPORT NativeWidgetMacNSWindowHost
   bool DispatchMonitorEvent(std::unique_ptr<ui::Event> event,
                             bool* event_handled) override;
   bool GetHasMenuController(bool* has_menu_controller) override;
-  bool GetIsDraggableBackgroundAt(const gfx::Point& location_in_content,
-                                  bool* is_draggable_background) override;
+  bool GetHitTestResult(
+      const gfx::Point& location_in_content,
+      remote_cocoa::mojom::HitTestResult* hit_test_result) override;
   bool GetWidgetIsModal(bool* widget_is_modal) override;
   bool GetIsFocusedViewTextual(bool* is_textual) override;
   void OnWindowGeometryChanged(
@@ -413,9 +415,8 @@ class VIEWS_EXPORT NativeWidgetMacNSWindowHost
   void DispatchMonitorEvent(std::unique_ptr<ui::Event> event,
                             DispatchMonitorEventCallback callback) override;
   void GetHasMenuController(GetHasMenuControllerCallback callback) override;
-  void GetIsDraggableBackgroundAt(
-      const gfx::Point& location_in_content,
-      GetIsDraggableBackgroundAtCallback callback) override;
+  void GetHitTestResult(const gfx::Point& location_in_content,
+                        GetHitTestResultCallback callback) override;
   void GetTooltipTextAt(const gfx::Point& location_in_content,
                         GetTooltipTextAtCallback callback) override;
   void GetWidgetIsModal(GetWidgetIsModalCallback callback) override;
@@ -527,7 +528,7 @@ class VIEWS_EXPORT NativeWidgetMacNSWindowHost
   std::unique_ptr<TooltipManager> tooltip_manager_;
   std::unique_ptr<TextInputHost> text_input_host_;
 
-  raw_ptr<ImmersiveModeRevealClient> immersive_mode_reveal_client_;
+  base::WeakPtr<ImmersiveModeRevealClient> immersive_mode_reveal_client_;
 
   std::u16string window_title_;
 

@@ -57,7 +57,7 @@ FilledCardInformationBubbleController::Get(content::WebContents* web_contents) {
 FilledCardInformationBubbleControllerImpl::
     ~FilledCardInformationBubbleControllerImpl() = default;
 
-void FilledCardInformationBubbleControllerImpl::ShowBubble(
+void FilledCardInformationBubbleControllerImpl::SetupAndShowBubble(
     const FilledCardInformationBubbleOptions& options) {
   // If another bubble is visible, dismiss it and show a new one since the card
   // information can be different.
@@ -75,7 +75,7 @@ void FilledCardInformationBubbleControllerImpl::ShowBubble(
   // the same time.
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
-      base::BindOnce(&FilledCardInformationBubbleControllerImpl::Show,
+      base::BindOnce(&FilledCardInformationBubbleControllerImpl::ShowBubble,
                      weak_ptr_factory_.GetWeakPtr()),
       kFilledCardInformationBubbleDelay);
 }
@@ -88,7 +88,7 @@ void FilledCardInformationBubbleControllerImpl::ReshowBubble() {
 
   is_user_gesture_ = true;
   should_icon_be_visible_ = true;
-  Show();
+  ShowBubble();
 }
 
 AutofillBubbleBase* FilledCardInformationBubbleControllerImpl::GetBubble()
@@ -284,6 +284,9 @@ FilledCardInformationBubbleControllerImpl::GetCardImageForDescriptionView()
     // Afterpay to the BNPL flow.
     case BnplIssuer::IssuerId::kBnplAfterpay:
       return {ui::ImageModel::FromImage(options_.card_image), std::nullopt};
+    case BnplIssuer::IssuerId::kBnplKlarna:
+      return {ui::ImageModel::FromResourceId(IDR_AUTOFILL_KLARNA_LINKED),
+              ui::ImageModel::FromResourceId(IDR_AUTOFILL_KLARNA_LINKED_DARK)};
   }
   NOTREACHED();
 }
@@ -350,7 +353,7 @@ void FilledCardInformationBubbleControllerImpl::OnVisibilityChanged(
   // to the tab.
   if (visibility == content::Visibility::VISIBLE && !bubble_has_been_shown_ &&
       should_icon_be_visible_) {
-    Show();
+    ShowBubble();
   } else if (visibility == content::Visibility::HIDDEN) {
     HideBubble();
   }

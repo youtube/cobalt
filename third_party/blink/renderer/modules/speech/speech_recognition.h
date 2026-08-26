@@ -34,13 +34,13 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_availability_status.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_speech_recognition_mode.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_observable_array_speech_recognition_phrase.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/core/page/page_visibility_observer.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/speech/speech_grammar_list.h"
-#include "third_party/blink/renderer/modules/speech/speech_recognition_phrase_list.h"
+#include "third_party/blink/renderer/modules/speech/speech_recognition_phrase.h"
 #include "third_party/blink/renderer/modules/speech/speech_recognition_result.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
@@ -57,7 +57,9 @@ class ExceptionState;
 class ExecutionContext;
 class LocalDOMWindow;
 class MediaStreamTrack;
+class SpeechRecognitionOptions;
 class SpeechRecognitionController;
+class V8ObservableArraySpeechRecognitionPhrase;
 
 class MODULES_EXPORT SpeechRecognition final
     : public EventTarget,
@@ -76,8 +78,7 @@ class MODULES_EXPORT SpeechRecognition final
   // SpeechRecognition.idl attributes implementation.
   SpeechGrammarList* grammars() const { return grammars_.Get(); }
   void setGrammars(SpeechGrammarList* grammars) { grammars_ = grammars; }
-  SpeechRecognitionPhraseList* phrases() const { return phrases_.Get(); }
-  void setPhrases(SpeechRecognitionPhraseList* phrases);
+  V8ObservableArraySpeechRecognitionPhrase* phrases() const { return phrases_; }
   String lang() const { return lang_; }
   void setLang(const String& lang) { lang_ = lang; }
   bool continuous() const { return continuous_; }
@@ -90,8 +91,8 @@ class MODULES_EXPORT SpeechRecognition final
   void setMaxAlternatives(unsigned max_alternatives) {
     max_alternatives_ = max_alternatives;
   }
-  V8SpeechRecognitionMode mode() const { return mode_; }
-  void setMode(const V8SpeechRecognitionMode& mode);
+  bool processLocally() const { return process_locally_; }
+  void setProcessLocally(bool process_locally);
 
   // Callable by the user. Methods may be called after the execution context is
   // destroyed.
@@ -99,11 +100,14 @@ class MODULES_EXPORT SpeechRecognition final
   void start(MediaStreamTrack*, ExceptionState&);
   void stopFunction();
   void abort();
-  static ScriptPromise<V8AvailabilityStatus>
-  availableOnDevice(ScriptState*, const String& lang, ExceptionState&);
-  static ScriptPromise<IDLBoolean> installOnDevice(ScriptState*,
-                                                   const String& lang,
-                                                   ExceptionState&);
+  static ScriptPromise<V8AvailabilityStatus> available(
+      ScriptState*,
+      const blink::SpeechRecognitionOptions* options,
+      ExceptionState&);
+  static ScriptPromise<IDLBoolean> install(
+      ScriptState*,
+      const blink::SpeechRecognitionOptions* options,
+      ExceptionState&);
 
   // media::mojom::blink::SpeechRecognitionSessionClient
   void ResultRetrieved(
@@ -131,6 +135,8 @@ class MODULES_EXPORT SpeechRecognition final
   // PageVisibilityObserver
   void PageVisibilityChanged() override;
 
+  void OnPhrasesChanged();
+
   DEFINE_ATTRIBUTE_EVENT_LISTENER(audiostart, kAudiostart)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(soundstart, kSoundstart)
   DEFINE_ATTRIBUTE_EVENT_LISTENER(speechstart, kSpeechstart)
@@ -146,7 +152,18 @@ class MODULES_EXPORT SpeechRecognition final
   void Trace(Visitor*) const override;
 
  private:
+  static void OnPhrasesSet(GarbageCollectedMixin*,
+                           ScriptState*,
+                           V8ObservableArraySpeechRecognitionPhrase&,
+                           uint32_t,
+                           Member<SpeechRecognitionPhrase>&);
+  static void OnPhrasesDelete(GarbageCollectedMixin*,
+                              ScriptState*,
+                              V8ObservableArraySpeechRecognitionPhrase&,
+                              uint32_t);
+
   void OnConnectionError();
+  void SchedulePhrasesUpdate();
   void CheckAvailabilityAndStart(ExceptionState* exception_state);
   void StartInternal();
   void StartController(
@@ -159,15 +176,15 @@ class MODULES_EXPORT SpeechRecognition final
 
   Member<MediaStreamTrack> stream_track_;
   Member<SpeechGrammarList> grammars_;
-  Member<SpeechRecognitionPhraseList> phrases_;
+  Member<V8ObservableArraySpeechRecognitionPhrase> phrases_;
   String lang_;
   bool continuous_ = false;
   bool interim_results_ = false;
   uint32_t max_alternatives_ = 1;
-  V8SpeechRecognitionMode mode_ = V8SpeechRecognitionMode{
-      V8SpeechRecognitionMode::Enum::kOndevicePreferred};
+  bool process_locally_ = false;
 
   Member<SpeechRecognitionController> controller_;
+  bool phrases_update_scheduled_ = false;
   bool started_ = false;
   bool stopping_ = false;
   HeapVector<Member<SpeechRecognitionResult>> final_results_;

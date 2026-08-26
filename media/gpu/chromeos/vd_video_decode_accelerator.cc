@@ -14,7 +14,6 @@
 #include "base/not_fatal_until.h"
 #include "base/task/sequenced_task_runner.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
-#include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "media/base/format_utils.h"
 #include "media/base/media_util.h"
 #include "media/base/video_color_space.h"
@@ -31,7 +30,7 @@
 #include "media/gpu/macros.h"
 #include "media/media_buildflags.h"
 #include "ui/gfx/buffer_format_util.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gl/gl_bindings.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -584,8 +583,7 @@ void VdVideoDecodeAccelerator::ImportBufferForPicture(
   CHECK(res.second);
 
   // |wrapped_frame| is used to keep |origin_frame| alive until everyone
-  // released |wrapped_frame|. Then GpuMemoryBufferId will be available at
-  // OnFrameReleased().
+  // released |wrapped_frame|.
   scoped_refptr<FrameResource> wrapped_frame =
       origin_frame->CreateWrappingFrame();
   wrapped_frame->AddDestructionObserver(

@@ -2784,7 +2784,7 @@ void Internals::setMediaControlsTestMode(HTMLMediaElement* media_element,
 void Internals::registerURLSchemeAsBypassingContentSecurityPolicy(
     const String& scheme) {
 #if DCHECK_IS_ON()
-  WTF::SetIsBeforeThreadCreatedForTest();  // Required for next operation:
+  SetIsBeforeThreadCreatedForTest();  // Required for next operation:
 #endif
   SchemeRegistry::RegisterURLSchemeAsBypassingContentSecurityPolicy(scheme);
 }
@@ -2800,7 +2800,7 @@ void Internals::registerURLSchemeAsBypassingContentSecurityPolicy(
       policy_areas_enum |= SchemeRegistry::kPolicyAreaStyle;
   }
 #if DCHECK_IS_ON()
-  WTF::SetIsBeforeThreadCreatedForTest();  // Required for next operation:
+  SetIsBeforeThreadCreatedForTest();  // Required for next operation:
 #endif
   SchemeRegistry::RegisterURLSchemeAsBypassingContentSecurityPolicy(
       scheme, static_cast<SchemeRegistry::PolicyAreas>(policy_areas_enum));
@@ -2809,10 +2809,10 @@ void Internals::registerURLSchemeAsBypassingContentSecurityPolicy(
 void Internals::removeURLSchemeRegisteredAsBypassingContentSecurityPolicy(
     const String& scheme) {
 #if DCHECK_IS_ON()
-  WTF::SetIsBeforeThreadCreatedForTest();  // Required for next operation:
+  SetIsBeforeThreadCreatedForTest();  // Required for next operation:
 #endif
-  SchemeRegistry::RemoveURLSchemeRegisteredAsBypassingContentSecurityPolicy(
-      scheme);
+  SchemeRegistry::
+      RemoveURLSchemeRegisteredAsBypassingContentSecurityPolicyForTest(scheme);
 }
 
 TypeConversions* Internals::typeConversions() const {
@@ -3496,8 +3496,9 @@ void Internals::forceLoseCanvasContext(CanvasRenderingContext* context) {
   context->LoseContext(CanvasRenderingContext::kSyntheticLostContext);
 }
 
-void Internals::disableCanvasAcceleration(HTMLCanvasElement* canvas) {
-  canvas->DisableAcceleration();
+void Internals::disableCanvasAccelerationForCanvas2D(
+    HTMLCanvasElement* canvas) {
+  canvas->DisableAccelerationForCanvas2D();
 }
 
 bool Internals::isCanvasImageSourceAccelerated(
@@ -3718,7 +3719,7 @@ bool Internals::isLowEndDevice() const {
 }
 
 Vector<String> Internals::supportedTextEncodingLabels() const {
-  return WTF::TextEncodingAliasesForTesting();
+  return TextEncodingAliasesForTesting();
 }
 
 void Internals::simulateRasterUnderInvalidations(bool enable) {

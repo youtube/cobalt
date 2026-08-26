@@ -70,7 +70,6 @@ int posix_spawnattr_set_csm_np(const posix_spawnattr_t*, uint32_t)
 
 #include <crt_externs.h>
 #include <mach/mach.h>
-#include <os/availability.h>
 #include <spawn.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -84,7 +83,7 @@ int posix_spawnattr_set_csm_np(const posix_spawnattr_t*, uint32_t)
 #include "base/process/environment_internal.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "base/apple/mach_port_rendezvous_mac.h"
@@ -450,11 +449,7 @@ bool GetAppOutputAndError(const CommandLine& cl, std::string* output) {
 bool GetAppOutputWithExitCode(const CommandLine& cl,
                               std::string* output,
                               int* exit_code) {
-  GetAppOutputOptions options;
-  options.output = output;
-  bool rv = GetAppOutputInternal(cl.argv(), &options);
-  *exit_code = options.exit_code;
-  return rv;
+  return GetAppOutputWithExitCode(cl.argv(), output, exit_code);
 }
 
 bool GetAppOutput(const std::vector<std::string>& argv, std::string* output) {
@@ -471,6 +466,16 @@ bool GetAppOutputAndError(const std::vector<std::string>& argv,
   options.output = output;
   return GetAppOutputInternal(argv, &options) &&
          options.exit_code == EXIT_SUCCESS;
+}
+
+bool GetAppOutputWithExitCode(const std::vector<std::string>& argv,
+                              std::string* output,
+                              int* exit_code) {
+  GetAppOutputOptions options;
+  options.output = output;
+  bool rv = GetAppOutputInternal(argv, &options);
+  *exit_code = options.exit_code;
+  return rv;
 }
 
 void RaiseProcessToHighPriority() {

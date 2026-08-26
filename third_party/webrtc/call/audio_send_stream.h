@@ -99,6 +99,9 @@ class AudioSendStream : public AudioSender {
       // included in the list of extensions.
       std::string mid;
 
+      // The list of CSRCs to be included in the RTP header.
+      std::vector<uint32_t> csrcs;
+
       // Corresponds to the SDP attribute extmap-allow-mixed.
       bool extmap_allow_mixed = false;
 

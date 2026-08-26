@@ -1041,10 +1041,13 @@ TEST_F(AutocompleteMatchTest, RearrangeActionsInSuggest) {
       new FakeAutocompleteProvider(AutocompleteProvider::Type::TYPE_SEARCH);
   const OmniboxAction::LabelStrings dummy_labels(u"", u"", u"", u"");
 
-  using ActionType = omnibox::ActionInfo::ActionType;
-  constexpr auto CALL = omnibox::ActionInfo_ActionType_CALL;
-  constexpr auto NAV = omnibox::ActionInfo_ActionType_DIRECTIONS;
-  constexpr auto REVS = omnibox::ActionInfo_ActionType_REVIEWS;
+  using ActionType = omnibox::SuggestTemplateInfo::TemplateAction::ActionType;
+  constexpr auto CALL =
+      omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CALL;
+  constexpr auto NAV =
+      omnibox::SuggestTemplateInfo_TemplateAction_ActionType_DIRECTIONS;
+  constexpr auto REVS =
+      omnibox::SuggestTemplateInfo_TemplateAction_ActionType_REVIEWS;
 
   struct FilterOmniboxActionsTestData {
     std::string test_name;
@@ -1076,10 +1079,10 @@ TEST_F(AutocompleteMatchTest, RearrangeActionsInSuggest) {
 
     // Populate match with requested actions.
     for (auto& action_type : test_case.types_to_add) {
-      omnibox::ActionInfo info;
-      info.set_action_type(action_type);
+      omnibox::SuggestTemplateInfo::TemplateAction action;
+      action.set_action_type(action_type);
       match.actions.push_back(base::MakeRefCounted<OmniboxActionInSuggest>(
-          std::move(info), std::nullopt));
+          std::move(action), std::nullopt));
     }
 
     match.FilterAndSortActionsInSuggest();
@@ -1114,8 +1117,8 @@ TEST_F(AutocompleteMatchTest, ValidateGetVectorIcons) {
 
     if (match.type == AutocompleteMatchType::STARTER_PACK) {
       // All STARTER_PACK suggestions should have non-empty vector icons.
-      for (int starter_pack_id = TemplateURLStarterPackData::kBookmarks;
-           starter_pack_id != TemplateURLStarterPackData::kMaxStarterPackID;
+      for (int starter_pack_id = template_url_starter_pack_data::kBookmarks;
+           starter_pack_id != template_url_starter_pack_data::kMaxStarterPackId;
            starter_pack_id++) {
         TemplateURLData turl_data;
         turl_data.starter_pack_id = starter_pack_id;
@@ -1126,7 +1129,7 @@ TEST_F(AutocompleteMatchTest, ValidateGetVectorIcons) {
     } else if (match.type == AutocompleteMatchType::SEARCH_SUGGEST_TAIL ||
                match.type == AutocompleteMatchType::HISTORY_EMBEDDINGS_ANSWER ||
                (match.type == AutocompleteMatchType::NULL_RESULT_MESSAGE &&
-                !match.IsIPHSuggestion())) {
+                !match.IsIphSuggestion())) {
       // SEARCH_SUGGEST_TAIL and non-IPH NULL_RESULT_MESSAGE suggestions use an
       // empty vector icon.
       EXPECT_TRUE(match.GetVectorIcon(/*is_bookmark=*/false).is_empty());

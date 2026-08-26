@@ -167,7 +167,6 @@ class WasmModuleObject
   inline wasm::NativeModule* native_module() const;
   inline const std::shared_ptr<wasm::NativeModule>& shared_native_module()
       const;
-  inline const wasm::WasmModule* module() const;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmModuleObject)
@@ -177,9 +176,6 @@ class WasmModuleObject
   V8_EXPORT_PRIVATE static DirectHandle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       DirectHandle<Script> script);
-
-  // Check whether this module was generated from asm.js source.
-  inline bool is_asm_js();
 
   // Get the module name, if set. Returns an empty handle otherwise.
   static MaybeDirectHandle<String> GetModuleNameOrNull(
@@ -201,10 +197,7 @@ class WasmModuleObject
   // internalized. (Prefer to internalize early if the string will be used for a
   // property lookup anyway.)
   static DirectHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate*, DirectHandle<WasmModuleObject>, wasm::WireBytesRef,
-      InternalizeString);
-  static DirectHandle<String> ExtractUtf8StringFromModuleBytes(
-      Isolate*, base::Vector<const uint8_t> wire_byte, wasm::WireBytesRef,
+      Isolate*, base::Vector<const uint8_t> wire_bytes, wasm::WireBytesRef,
       InternalizeString);
 
   TQ_OBJECT_CONSTRUCTORS(WasmModuleObject)
@@ -681,7 +674,8 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
 #endif  // V8_ENABLE_DRUMBRAKE
 
   static DirectHandle<WasmTrustedInstanceData> New(
-      Isolate*, DirectHandle<WasmModuleObject>, bool shared);
+      Isolate*, DirectHandle<WasmModuleObject>,
+      std::shared_ptr<wasm::NativeModule>, bool shared);
 
   WasmCodePointer GetCallTarget(uint32_t func_index);
 
@@ -716,10 +710,14 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // the given {trusted_instance_data}, or creates a new {WasmInternalFunction}
   // and {WasmFuncRef} if it does not exist yet. The new objects are added to
   // the cache of the {trusted_instance_data} immediately.
+  // {precreate_external}: Allocate the corresponding WasmExportedFunction
+  // immediately (which is slightly more efficient than letting
+  // {WasmInternalFunction::GetOrCreateExternal} do the work separately).
   static DirectHandle<WasmFuncRef> GetOrCreateFuncRef(
       Isolate* isolate,
       DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-      int function_index);
+      int function_index,
+      wasm::PrecreateExternal precreate_external = wasm::kOnlyInternalFunction);
 
   // Get a raw pointer to the location where the given global is stored.
   // {global} must not be a reference type.
@@ -1005,6 +1003,16 @@ class WasmExportedFunction : public JSFunction {
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
       DirectHandle<Code> export_wrapper);
+  // Compared to the version above, the extra parameters are redundant
+  // information, but passing them along from callers that have them readily
+  // available is faster than looking them up.
+  static DirectHandle<WasmExportedFunction> New(
+      Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
+      DirectHandle<WasmFuncRef> func_ref,
+      DirectHandle<WasmInternalFunction> internal_function, int arity,
+      DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
+      int func_index, wasm::CanonicalTypeIndex sig_id,
+      const wasm::CanonicalSig* sig, wasm::Promise promise);
 
   static void MarkAsReceiverIsFirstParam(
       Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function);
@@ -1273,9 +1281,12 @@ class WasmCapiFunctionData
 class WasmResumeData
     : public TorqueGeneratedWasmResumeData<WasmResumeData, HeapObject> {
  public:
-  using BodyDescriptor =
-      FlexibleBodyDescriptor<WasmResumeData::kStartOfStrongFieldsOffset>;
+  using BodyDescriptor = StackedBodyDescriptor<
+      FlexibleBodyDescriptor<WasmResumeData::kStartOfStrongFieldsOffset>,
+      WithStrongTrustedPointer<kTrustedSuspenderOffset,
+                               kWasmSuspenderIndirectPointerTag>>;
   DECL_PRINTER(WasmResumeData)
+  DECL_TRUSTED_POINTER_ACCESSORS(trusted_suspender, WasmSuspenderObject)
   TQ_OBJECT_CONSTRUCTORS(WasmResumeData)
 };
 
@@ -1524,13 +1535,16 @@ class WasmDescriptorOptions
 // promises. See: https://github.com/WebAssembly/js-promise-integration.
 class WasmSuspenderObject
     : public TorqueGeneratedWasmSuspenderObject<WasmSuspenderObject,
-                                                HeapObject> {
+                                                ExposedTrustedObject> {
  public:
   using BodyDescriptor = StackedBodyDescriptor<
-      FixedBodyDescriptorFor<WasmSuspenderObject>,
-      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
+      FixedExposedTrustedObjectBodyDescriptor<WasmSuspenderObject,
+                                              kWasmSuspenderIndirectPointerTag>,
+      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>,
+      WithProtectedPointer<kParentOffset>>;
   enum State : int { kInactive = 0, kActive, kSuspended };
   DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
+  DECL_PROTECTED_POINTER_ACCESSORS(parent, WasmSuspenderObject)
   DECL_PRINTER(WasmSuspenderObject)
   TQ_OBJECT_CONSTRUCTORS(WasmSuspenderObject)
 };
@@ -1592,17 +1606,21 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
 // not point to any context-specific objects!).
 DirectHandle<Map> CreateStructMap(
     Isolate* isolate, wasm::CanonicalTypeIndex type,
-    DirectHandle<Map> opt_rtt_parent,
+    DirectHandle<Map> opt_rtt_parent, int num_supertypes,
     DirectHandle<NativeContext> opt_native_context);
 
 DirectHandle<Map> CreateArrayMap(Isolate* isolate,
                                  wasm::CanonicalTypeIndex array_index,
-                                 DirectHandle<Map> opt_rtt_parent);
+                                 DirectHandle<Map> opt_rtt_parent,
+                                 int num_supertypes);
 
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
                                    DirectHandle<Map> opt_rtt_parent,
-                                   bool shared);
+                                   int num_supertypes, bool shared);
+
+DirectHandle<Map> CreateContRefMap(Isolate* isolate,
+                                   wasm::CanonicalTypeIndex type);
 
 namespace wasm {
 // Takes a {value} in the JS representation and typechecks it according to

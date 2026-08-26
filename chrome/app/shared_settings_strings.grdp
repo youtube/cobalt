@@ -103,6 +103,9 @@
   <message name="IDS_SETTINGS_CAPTIONS_MANAGE_LANGUAGES_SUBTITLE" desc="Subtitle for the caption settings section for managing language packs.">
     Chrome can create and translate captions for the languages shown here
   </message>
+  <message name="IDS_SETTINGS_CAPTIONS_MANAGE_LANGUAGES_SUBTITLE_LIVE_CAPTION_ONLY" desc="Subtitle for the caption settings section for managing language packs without live translate.">
+    Chrome can create captions for the languages shown here
+  </message>
   <message name="IDS_SETTINGS_CAPTIONS_LIVE_TRANSLATE_TARGET_LANGUAGE" desc="Description of the target language setting for the Live Translate feature.">
     Translate captions to
   </message>
@@ -251,16 +254,9 @@
       </message>
     </else>
   </if>
-  <message name="IDS_SETTINGS_LINKDOCTOR_PREF" desc="The documentation string of the 'Use Link Doctor' preference to help with navigation errors.">
-    Show suggestions for similar pages when a page can't be found
-  </message>
-  <message name="IDS_SETTINGS_LINKDOCTOR_PREF_DESC" desc="The description of the 'Use Link Doctor' preference to help with navigation errors.">
-    Sends the web address of the page you're trying to reach to Google
-  </message>
   <message name="IDS_SETTINGS_SUGGEST_PREF" desc="The label of the checkbox to enable/disable sending omnibox input to the user's default search engine to get additional suggestions.">
     Improve search suggestions
   </message>
-
   <!-- Sync Accounts page (used by the <settings-sync-account-control> element) -->
   <message name="IDS_SETTINGS_PEOPLE_SIGNED_IN_TO_ACCOUNT" desc="The text displayed to the user that the profile is currently signed in to a specific account.">
     Signed in to <ph name="EMAIL">$1<ex>abcd@google.com</ex></ph>
@@ -309,6 +305,9 @@
   </message>
    <message name="IDS_SETTINGS_PEOPLE_ACCOUNT_AWARE_SIGNIN_ACCOUNT_ROW_SUBTITLE_WITH_EMAIL" desc="The subtitle of the avatar row shown to users who are signed in only to the web">
       To get your passwords and more on all your devices, sign in as <ph name="EMAIL">$1<ex>johndoe@gmail.com</ex></ph>
+  </message>
+   <message name="IDS_SETTINGS_PEOPLE_ACCOUNT_AWARE_SIGNIN_ACCOUNT_ROW_SUBTITLE_WITH_EMAIL_WITH_BOOKMARKS" desc="The subtitle of the avatar row shown to users who are signed in only to the web">
+      To get your passwords, bookmarks, and more on all your devices, sign in as <ph name="EMAIL">$1<ex>johndoe@gmail.com</ex></ph>
   </message>
   <message name="IDS_SETTINGS_CHANGE_ACCOUNT" desc="The alt-text that corresponds to the down arrow button on the settings page. On clicking the user will a list of accounts they can use to signin with. This button is shown when the user is signed in the content area but not into Chrome.">
       Choose another account

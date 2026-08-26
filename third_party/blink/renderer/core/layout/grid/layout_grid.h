@@ -33,6 +33,12 @@ class CORE_EXPORT LayoutGrid : public LayoutBlock {
       const GridLayoutData* grid_layout_data,
       GridTrackSizingDirection track_direction);
 
+  // Helper functions shared between LayoutGrid and LayoutMasonry.
+  static const GridLayoutData* GetGridLayoutDataFromFragments(
+      const LayoutBlock* layout_block);
+  static LayoutUnit ComputeGridGap(const GridLayoutData* grid_layout_data,
+                                   GridTrackSizingDirection track_direction);
+
   bool HasCachedPlacementData() const;
   const GridPlacementData& CachedPlacementData() const;
   void SetCachedPlacementData(GridPlacementData&& placement_data);
@@ -65,6 +71,8 @@ class CORE_EXPORT LayoutGrid : public LayoutBlock {
     NOT_DESTROYED();
     return true;
   }
+
+  void MarkGridDirty();
 
   void AddChild(LayoutObject* new_child, LayoutObject* before_child) override;
   void RemoveChild(LayoutObject* child) override;

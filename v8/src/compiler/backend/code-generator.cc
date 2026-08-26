@@ -172,7 +172,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   DeoptimizeReason deoptimization_reason = exit->reason();
   Label* jump_deoptimization_entry_label =
       &jump_deoptimization_entry_labels_[static_cast<int>(deopt_kind)];
-  if (info()->source_positions()) {
+  if (info()->source_positions() ||
+      AlwaysPreserveDeoptReason(deoptimization_reason)) {
     masm()->RecordDeoptReason(deoptimization_reason, exit->node_id(),
                               exit->pos(), deoptimization_id);
   }
@@ -226,6 +227,15 @@ void CodeGenerator::AssembleCode() {
   offsets_info_.code_start_register_check = masm()->pc_offset();
 
   masm()->CodeEntry();
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // TODO(saelo): should there also be a info->IsJS()?
+  if (v8_flags.debug_code &&
+      (call_descriptor->IsJSFunctionCall() || info->IsWasm())) {
+    masm()->RecordComment("-- Prologue: check sandboxing mode --");
+    masm()->AssertInSandboxedExecutionMode();
+  }
+#endif
 
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
   if (v8_flags.debug_code && info->called_with_code_start_register()) {
@@ -855,11 +865,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       AssembleArchBoolean(instr, condition);
       break;
     }
-    case kFlags_conditional_set: {
-      // Assemble a conditional boolean materialization after this instruction.
-      AssembleArchConditionalBoolean(instr);
-      break;
-    }
     case kFlags_select: {
       AssembleArchSelect(instr, condition);
       break;
@@ -867,6 +872,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     case kFlags_trap: {
 #if V8_ENABLE_WEBASSEMBLY
       AssembleArchTrap(instr, condition);
+      break;
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+    }
+    case kFlags_conditional_trap: {
+#if V8_ENABLE_WEBASSEMBLY
+      InstructionOperandConverter i(this, instr);
+      condition = static_cast<FlagsCondition>(
+          i.ToConstant(instr->InputAt(instr->InputCount() -
+                                      kConditionalTrapEndOffsetOfCondition))
+              .ToInt64());
+      AssembleArchConditionalTrap(instr, condition);
       break;
 #else
       UNREACHABLE();

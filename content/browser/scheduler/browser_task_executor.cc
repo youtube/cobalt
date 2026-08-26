@@ -6,6 +6,7 @@
 
 #include <atomic>
 
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/run_loop.h"
@@ -51,6 +52,9 @@ scoped_refptr<base::SingleThreadTaskRunner> GetTaskRunnerForAndroidMainThread(
       break;
     case ::TaskTraits::UI_USER_BLOCKING:
       traits = {base::TaskPriority::USER_BLOCKING};
+      break;
+    case ::TaskTraits::UI_STARTUP:
+      traits = {BrowserTaskType::kStartup};
       break;
     default:
       NOTREACHED();
@@ -100,6 +104,9 @@ QueueType BrowserTaskExecutor::GetQueueType(const BrowserTaskTraits& traits) {
         return QueueType::kBeforeUnloadBrowserResponse;
       }
       break;
+
+    case BrowserTaskType::kStartup:
+      return QueueType::kStartup;
 
     case BrowserTaskType::kDefault:
       // Defer to traits.priority() below.
@@ -158,6 +165,8 @@ void BrowserTaskExecutor::CreateInternal(
   // required for WebView's async startup to work properly.
   g_browser_task_executor->browser_io_thread_handle_->EnableTaskQueue(
       QueueType::kDefault);
+  g_browser_task_executor->browser_ui_thread_handle_->EnableTaskQueue(
+      QueueType::kStartup);
 
   base::OnceClosure enable_native_ui_task_execution_callback =
       base::BindOnce([] {
@@ -289,6 +298,13 @@ std::unique_ptr<BrowserProcessIOThread> BrowserTaskExecutor::CreateIOThread() {
   if (!io_thread->StartWithOptions(std::move(options)))
     LOG(FATAL) << "Failed to start BrowserThread:IO";
   return io_thread;
+}
+
+// static
+void BrowserTaskExecutor::
+    InstallPartitionAllocSchedulerLoopQuarantineTaskObserver() {
+  CHECK_DEREF(Get()->browser_ui_thread_scheduler_.get())
+      .InstallPartitionAllocSchedulerLoopQuarantineTaskObserver();
 }
 
 }  // namespace content

@@ -19,13 +19,8 @@
 #include "api/scoped_refptr.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ref_count.h"
-
-#if defined(WEBRTC_AUDIO_DEVICE_INCLUDE_ANDROID_AAUDIO)
-#include "sdk/android/src/jni/audio_device/aaudio_player.h"
-#include "sdk/android/src/jni/audio_device/aaudio_recorder.h"
-#endif
-
 #include "sdk/android/native_api/jni/application_context_provider.h"
+#include "sdk/android/native_api/jni/jvm.h"
 #include "sdk/android/src/jni/audio_device/audio_record_jni.h"
 #include "sdk/android/src/jni/audio_device/audio_track_jni.h"
 #include "sdk/android/src/jni/audio_device/opensles_player.h"
@@ -33,6 +28,11 @@
 #include "sdk/android/src/jni/jvm.h"
 #include "system_wrappers/include/metrics.h"
 #include "third_party/jni_zero/jni_zero.h"
+
+#if defined(WEBRTC_AUDIO_DEVICE_INCLUDE_ANDROID_AAUDIO)
+#include "sdk/android/src/jni/audio_device/aaudio_player.h"
+#include "sdk/android/src/jni/audio_device/aaudio_recorder.h"
+#endif
 
 namespace webrtc {
 

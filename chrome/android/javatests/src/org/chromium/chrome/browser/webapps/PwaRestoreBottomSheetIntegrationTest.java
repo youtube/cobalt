@@ -217,7 +217,7 @@ public class PwaRestoreBottomSheetIntegrationTest {
     @Test
     @SmallTest
     @Feature({"PwaRestore"})
-    @DisabledTest(message = "Flakey test. See https://crbug.com/416875403")
+    @DisabledTest(message = "https://crbug.com/425736622")
     public void testBackButton() {
         // This test opens the dialog, clicks the Review button to expand the bottom sheet dialog
         // and then presses the Back in the OS twice to see what happens (first click should
@@ -250,7 +250,7 @@ public class PwaRestoreBottomSheetIntegrationTest {
     @Test
     @SmallTest
     @Feature({"PwaRestore"})
-    @DisabledTest(message = "Flakey test. See https://crbug.com/416875403")
+    @DisabledTest(message = "https://crbug.com/425736622")
     public void testClickForwarding() {
         Assert.assertTrue(setTestAppsForRestoring(sDefaultApps, sDefaultLastUsed));
 
@@ -286,7 +286,7 @@ public class PwaRestoreBottomSheetIntegrationTest {
     @Test
     @SmallTest
     @Feature({"PwaRestore"})
-    @DisabledTest(message = "Flakey test. See https://crbug.com/416875403")
+    @DisabledTest(message = "https://crbug.com/425736622")
     public void testDeselectAll() throws Exception {
         Assert.assertTrue(setTestAppsForRestoring(sDefaultApps, sDefaultLastUsed));
 
@@ -337,7 +337,7 @@ public class PwaRestoreBottomSheetIntegrationTest {
     @Test
     @SmallTest
     @Feature({"PwaRestore"})
-    @DisabledTest(message = "Flakey test. See https://crbug.com/416875403")
+    @DisabledTest(message = "https://crbug.com/425736622")
     public void testRestoreClosesUi() throws Exception {
         Assert.assertTrue(setTestAppsForRestoring(sDefaultApps, sDefaultLastUsed));
 

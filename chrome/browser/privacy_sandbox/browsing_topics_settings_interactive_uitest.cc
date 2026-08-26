@@ -36,15 +36,17 @@ constexpr char BlockedTopicsListFirstTopicIdFunc[] =
     "topicId";
 
 DeepQuery GetManageTopicsPageQuery() {
-  return DeepQuery({{"settings-ui", "settings-main", "settings-basic-page",
-                     "settings-privacy-page",
-                     "settings-privacy-sandbox-manage-topics-subpage"}});
+  return DeepQuery(
+      {{"settings-ui", "settings-main", "settings-privacy-page-index",
+        "settings-basic-page", "settings-privacy-page",
+        "settings-privacy-sandbox-manage-topics-subpage"}});
 }
 
 DeepQuery GetAdTopicsPageQuery() {
   return DeepQuery(
-      {{"settings-ui", "settings-main", "settings-basic-page",
-        "settings-privacy-page", "settings-privacy-sandbox-topics-subpage"}});
+      {{"settings-ui", "settings-main", "settings-privacy-page-index",
+        "settings-basic-page", "settings-privacy-page",
+        "settings-privacy-sandbox-topics-subpage"}});
 }
 
 class PrivacySandboxSettingsTopicsInteractiveTest
@@ -113,8 +115,17 @@ IN_PROC_BROWSER_TEST_F(PrivacySandboxSettingsTopicsInteractiveTest,
 // (checked == false). Validate that the PS service returns only 1 blocked topic
 // with an ID of 1. Navigate to the Ad Topics Page and validate topic(1) is
 // blocked topics list.
+// TODO(https://crbug.com/430518830): Flaky on
+// linux-blink-web-tests-force-accessibility-rel
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_BlockFirstTopicOnManageTopicsPage \
+  DISABLED_BlockFirstTopicOnManageTopicsPage
+#else
+#define MAYBE_BlockFirstTopicOnManageTopicsPage \
+  BlockFirstTopicOnManageTopicsPage
+#endif
 IN_PROC_BROWSER_TEST_F(PrivacySandboxSettingsTopicsInteractiveTest,
-                       BlockFirstTopicOnManageTopicsPage) {
+                       MAYBE_BlockFirstTopicOnManageTopicsPage) {
   RunTestSequence(
       InstrumentTab(kPrivacySandboxTopicsElementId),
       NavigateWebContents(kPrivacySandboxTopicsElementId,

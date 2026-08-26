@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/values.h"
 #include "chrome/browser/devtools/devtools_settings.h"
 #include "chrome/browser/devtools/features.h"
@@ -509,6 +510,8 @@ DevToolsEmbedderMessageDispatcher::CreateForDevToolsFrontend(
 
   d->RegisterHandlerWithCallback("doAidaConversation",
                                  &Delegate::DoAidaConversation, delegate);
+  d->RegisterHandlerWithCallback("aidaCodeComplete",
+                                 &Delegate::AidaCodeComplete, delegate);
   d->RegisterHandlerWithCallback("registerAidaClientEvent",
                                  &Delegate::RegisterAidaClientEvent, delegate);
   return d;

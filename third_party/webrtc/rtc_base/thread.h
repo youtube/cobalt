@@ -11,9 +11,10 @@
 #ifndef RTC_BASE_THREAD_H_
 #define RTC_BASE_THREAD_H_
 
-#include <stdint.h>
-
-#include <list>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <queue>
@@ -23,23 +24,21 @@
 #include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
-
-#if defined(WEBRTC_POSIX)
-#include <pthread.h>
-#endif
-#include "absl/base/attributes.h"
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
 #include "api/function_view.h"
 #include "api/location.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/platform_thread_types.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/thread_annotations.h"
+
+#if defined(WEBRTC_POSIX)
+#include <pthread.h>  // IWYU pragma: keep
+#endif
 
 #if defined(WEBRTC_WIN)
 #include "rtc_base/win32.h"
@@ -366,7 +365,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public TaskQueueBase {
   // These functions are public to avoid injecting test hooks. Don't call them
   // outside of tests.
   // This method should be called when thread is created using non standard
-  // method, like derived implementation of webrtc::Thread and it can not be
+  // method, like derived implementation of Thread and it can not be
   // started by calling Start(). This will set started flag to true and
   // owned to false. This must be called from the current thread.
   bool WrapCurrent();
@@ -566,15 +565,5 @@ class AutoSocketServerThread : public Thread {
 };
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::AutoSocketServerThread;
-using ::webrtc::AutoThread;
-using ::webrtc::Thread;
-using ::webrtc::ThreadManager;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_THREAD_H_

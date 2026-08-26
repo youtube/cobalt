@@ -264,11 +264,12 @@ constexpr uint64_t kSandboxedPointerShift = 64 - kSandboxSizeLog2;
 
 // Size of the guard regions surrounding the sandbox. This assumes a worst-case
 // scenario of a 32-bit unsigned index used to access an array of 64-bit values
-// with an additional 4GB (compressed pointer) offset. In particular, accesses
-// to TypedArrays are effectively computed as
+// with an additional offset of up to 32GB.
+// In particular, accesses to TypedArrays are effectively computed as
 // `entry_pointer = array->base + array->offset + index * array->element_size`.
+// (although in that case, the offset can only be up to 4GB large).
 // See also https://crbug.com/40070746 for more details.
-constexpr size_t kSandboxGuardRegionSize = 32ULL * GB + 4ULL * GB;
+constexpr size_t kSandboxGuardRegionSize = 64ULL * GB;
 
 static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
               "The size of the guard regions around the sandbox must be a "
@@ -635,7 +636,14 @@ enum ExternalPointerTag : uint16_t {
   kIcuLocalizedNumberFormatterTag,
   kIcuPluralRulesTag,
   kIcuCollatorTag,
+  kTemporalDurationTag,
   kTemporalInstantTag,
+  kTemporalPlainDateTag,
+  kTemporalPlainTimeTag,
+  kTemporalPlainDateTimeTag,
+  kTemporalPlainYearMonthTag,
+  kTemporalPlainMonthDayTag,
+  kTemporalZonedDateTimeTag,
   kDisplayNamesInternalTag,
   kD8WorkerTag,
   kD8ModuleEmbedderDataTag,
@@ -840,6 +848,24 @@ V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 // mode based on the current context and the closure. This returns true if the
 // language mode is strict.
 V8_EXPORT bool ShouldThrowOnError(internal::Isolate* isolate);
+
+struct HandleScopeData final {
+  static constexpr uint32_t kSizeInBytes =
+      2 * kApiSystemPointerSize + 2 * kApiInt32Size;
+
+  Address* next;
+  Address* limit;
+  int level;
+  int sealed_level;
+
+  void Initialize() {
+    next = limit = nullptr;
+    sealed_level = level = 0;
+  }
+};
+
+static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
+
 /**
  * This class exports constants and functionality from within v8 that
  * is necessary to implement inline functions in the v8 api.  Don't
@@ -893,7 +919,7 @@ class Internals {
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;
-  static const int kThreadLocalTopSize = 30 * kApiSystemPointerSize;
+  static const int kThreadLocalTopSize = 29 * kApiSystemPointerSize;
   static const int kHandleScopeDataSize =
       2 * kApiSystemPointerSize + 2 * kApiInt32Size;
 
@@ -1014,12 +1040,12 @@ class Internals {
 
 #endif  // V8_STATIC_ROOTS_BOOL
 
-  static const int kUndefinedValueRootIndex = 4;
-  static const int kTheHoleValueRootIndex = 5;
-  static const int kNullValueRootIndex = 6;
-  static const int kTrueValueRootIndex = 7;
-  static const int kFalseValueRootIndex = 8;
-  static const int kEmptyStringRootIndex = 9;
+  static const int kUndefinedValueRootIndex = 0;
+  static const int kTheHoleValueRootIndex = 1;
+  static const int kNullValueRootIndex = 2;
+  static const int kTrueValueRootIndex = 3;
+  static const int kFalseValueRootIndex = 4;
+  static const int kEmptyStringRootIndex = 5;
 
   static const int kNodeClassIdOffset = 1 * kApiSystemPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiSystemPointerSize + 3;
@@ -1196,6 +1222,12 @@ class Internals {
     return *reinterpret_cast<void* const*>(addr);
   }
 
+  V8_INLINE static HandleScopeData* GetHandleScopeData(v8::Isolate* isolate) {
+    Address addr =
+        reinterpret_cast<Address>(isolate) + kIsolateHandleScopeDataOffset;
+    return reinterpret_cast<HandleScopeData*>(addr);
+  }
+
   V8_INLINE static void IncrementLongTasksStatsCounter(v8::Isolate* isolate) {
     Address addr =
         reinterpret_cast<Address>(isolate) + kIsolateLongTaskStatsCounterOffset;
@@ -1248,7 +1280,7 @@ class Internals {
   V8_INLINE static T ReadRawField(Address heap_object_ptr, int offset) {
     Address addr = heap_object_ptr + offset - kHeapObjectTag;
 #ifdef V8_COMPRESS_POINTERS
-    if (sizeof(T) > kApiTaggedSize) {
+    if constexpr (sizeof(T) > kApiTaggedSize) {
       // TODO(ishell, v8:8875): When pointer compression is enabled 8-byte size
       // fields (external pointers, doubles and BigInt data) are only
       // kTaggedSize aligned so we have to use unaligned pointer friendly way of

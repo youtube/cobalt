@@ -12,6 +12,7 @@
 #include <string_view>
 
 #include "base/compiler_specific.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
@@ -58,7 +59,10 @@ bool IsSystemAudioCaptureSupported() {
   if (!media::IsSystemLoopbackCaptureSupported()) {
     return false;
   }
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_MAC)
+  return media::IsMacSckSystemLoopbackCaptureSupported() ||
+         base::FeatureList::IsEnabled(media::kMacCatapLoopbackAudioForCast);
+#elif BUILDFLAG(IS_LINUX)
   return base::FeatureList::IsEnabled(media::kPulseaudioLoopbackForCast);
 #else
   return true;

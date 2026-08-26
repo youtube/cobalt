@@ -15,6 +15,7 @@
 #include <cmath>
 #include <numeric>
 
+#include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_compare.h"
 

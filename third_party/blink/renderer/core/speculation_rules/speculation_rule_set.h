@@ -32,7 +32,9 @@ enum class SpeculationRuleSetErrorType {
   kSourceIsNotJsonObject,
   // An invalid or unsupported rule was ignored.
   kInvalidRulesSkipped,
-  kMaxValue = kInvalidRulesSkipped,
+  // An invalid ruleset-level tag was found.
+  kInvalidRulesetLevelTag,
+  kMaxValue = kInvalidRulesetLevelTag,
 };
 
 enum class BrowserInjectedSpeculationRuleOptOut { kRespect, kIgnore };
@@ -124,6 +126,10 @@ class CORE_EXPORT SpeculationRuleSet final
   const HeapVector<Member<SpeculationRule>>& prerender_rules() const {
     return prerender_rules_;
   }
+  const HeapVector<Member<SpeculationRule>>& prerender_until_script_rules()
+      const {
+    return prerender_until_script_rules_;
+  }
 
   bool has_document_rule() const { return has_document_rule_; }
   bool requires_unfiltered_input() const { return requires_unfiltered_input_; }
@@ -164,6 +170,7 @@ class CORE_EXPORT SpeculationRuleSet final
   HeapVector<Member<SpeculationRule>> prefetch_rules_;
   HeapVector<Member<SpeculationRule>> prefetch_with_subresources_rules_;
   HeapVector<Member<SpeculationRule>> prerender_rules_;
+  HeapVector<Member<SpeculationRule>> prerender_until_script_rules_;
   // The original source is reused to reparse speculation rule sets when the
   // document base URL changes.
   Member<Source> source_;

@@ -44,6 +44,9 @@ chromium-metrics-reviews@google.com.
       summary="The context menu was shown for an image which is also a link."/>
   <variant name=".Link"
       summary="The context menu was shown for a (non-image) link"/>
+  <variant name=".LinkWithInterestFor"
+      summary="The context menu was shown for a link (image or non-image)
+               that has the `interestfor` attribute."/>
   <variant name=".Page" summary="The context menu was shown for a page."/>
   <variant name=".SharedHighlightingInteraction"
       summary="The context menu was shown from tap on highlighted text."/>
@@ -55,6 +58,7 @@ chromium-metrics-reviews@google.com.
 <variants name="TopChromeWebUIName">
   <variant name=""/>
   <variant name=".BookmarksSidePanel"/>
+  <variant name=".CommentsSidePanel"/>
   <variant name=".CompanionSidePanelUntrusted"/>
   <variant name=".Compose"/>
   <variant name=".CustomizeChrome"/>
@@ -109,7 +113,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="Bubble.{BubbleName}.CloseReason" enum="WidgetClosedReason"
-    expires_after="2025-11-16">
+    expires_after="2026-01-25">
   <owner>kerenzhu@chromium.org</owner>
   <owner>dayeung@chromium.org</owner>
   <owner>temao@chromium.org</owner>
@@ -121,7 +125,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bubble.{BubbleName}.CreateToPresentationTime" units="ms"
-    expires_after="2025-11-16">
+    expires_after="2026-01-25">
   <owner>temao@chromium.org</owner>
   <owner>yuhengh@chromium.org</owner>
   <owner>kerenzhu@chromium.org</owner>
@@ -136,7 +140,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bubble.{BubbleName}.CreateToVisibleTime" units="ms"
-    expires_after="2025-11-16">
+    expires_after="2026-01-25">
   <owner>temao@chromium.org</owner>
   <owner>yuhengh@chromium.org</owner>
   <owner>kerenzhu@chromium.org</owner>
@@ -151,7 +155,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bubble.{BubbleName}.TimeVisible" units="ms"
-    expires_after="2025-11-16">
+    expires_after="2026-01-25">
   <owner>yuhengh@chromium.org</owner>
   <owner>kerenzhu@chromium.org</owner>
   <owner>dayeung@chromium.org</owner>
@@ -163,7 +167,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContextMenu.LensSupportStatus" enum="LensSupportStatus"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>benwgold@google.com</owner>
   <owner>lens-chrome@google.com</owner>
   <summary>
@@ -192,7 +196,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContextMenu.SelectedOptionDesktop{ContextMenuTypeDesktop}"
-    enum="ContextMenuOptionDesktop" expires_after="2025-11-16">
+    enum="ContextMenuOptionDesktop" expires_after="2026-01-18">
   <owner>avi@chromium.org</owner>
   <owner>mpearson@chromium.org</owner>
   <summary>
@@ -219,7 +223,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContextMenu.Shown{Type}" enum="BooleanPresent"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>mpearson@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <owner>clank-app-team@google.com</owner>
@@ -258,21 +262,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="DefaultBrowser.AppMenu.DefaultChipShown" enum="BooleanShown"
-    expires_after="2025-07-13">
-  <owner>agale@chromium.org</owner>
-  <owner>robliao@chromium.org</owner>
-  <summary>
-    Whether the default browser app menu chip has been shown when it is eligible
-    to be shown. This is logged every time the ToolbarView renders the app menu
-    and the default browser prompt is eligible to be shown. This is a proxy for
-    how often the default chip gets pre-empted. This is emitted each time the
-    type and severity of the app menu is updated.
-  </summary>
-</histogram>
-
 <histogram name="DefaultBrowser.AppMenu.TimesShownBeforeAccept" units="count"
-    expires_after="2025-07-27">
+    expires_after="2025-11-16">
   <owner>agale@chromium.org</owner>
   <owner>robliao@chromium.org</owner>
   <summary>
@@ -282,18 +273,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="DefaultBrowser.AppMenu.TimeToSetDefault" units="ms"
-    expires_after="2025-07-13">
-  <owner>agale@chromium.org</owner>
-  <owner>robliao@chromium.org</owner>
-  <summary>
-    Time duration between when the prompt was shown and when it was accepted.
-    Only logged when the prompt is accepted.
-  </summary>
-</histogram>
-
 <histogram name="DefaultBrowser.InfoBar.TimesShownBeforeAccept" units="count"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>agale@chromium.org</owner>
   <owner>robliao@chromium.org</owner>
   <summary>
@@ -303,11 +284,21 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DefaultBrowser.InfoBar.UserInteraction"
-    enum="DefaultBrowserInfoBarUserInteraction" expires_after="2025-11-16">
+    enum="DefaultBrowserInfoBarUserInteraction" expires_after="2026-01-18">
   <owner>pmonette@chromium.org</owner>
   <owner>robliao@chromium.org</owner>
   <summary>
     Possible user interactions with the default browser info bar.
+  </summary>
+</histogram>
+
+<histogram name="DefaultBrowser.PinInfoBar.UserInteraction"
+    enum="PinInfoBarUserInteraction" expires_after="2026-07-17">
+  <owner>jessemckenna@google.com</owner>
+  <owner>davidbienvenu@chromium.org</owner>
+  <summary>
+    User interaction with the pin-to-taskbar infobar (e.g., accepted, ignored,
+    dismissed).
   </summary>
 </histogram>
 
@@ -365,7 +356,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RenderTextHarfBuzz.ShapeRunsFallback" enum="ShapeRunFallback"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>dayeung@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
@@ -375,7 +366,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RenderTextHarfBuzz.ShapeRunsWithFallbackFontsTime" units="ms"
-    expires_after="2025-09-14">
+    expires_after="2026-01-04">
   <owner>dayeung@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
@@ -385,7 +376,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RenderViewContextMenu.OpenLinkAsProfile" enum="OpenLinkAs"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -398,7 +389,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RenderViewContextMenu.Shown" enum="RenderViewContextMenuItem"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>avi@chromium.org</owner>
   <owner>edwardjung@chromium.org</owner>
   <owner>mpearson@chromium.org</owner>
@@ -466,7 +457,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="Views.ColorProviderCacheSize" units="entries"
-    expires_after="2025-11-09">
+    expires_after="2026-01-11">
   <owner>tluk@chromium.org</owner>
   <owner>skau@chromium.org</owner>
   <summary>
@@ -479,7 +470,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="Views.InvalidatesDuringLayout" units="count"
-    expires_after="2025-11-09">
+    expires_after="2026-01-11">
   <owner>dpranke@chromium.org</owner>
   <owner>elainechien@chromium.org</owner>
   <owner>kylixrd@chromium.org</owner>
@@ -521,7 +512,7 @@ features through Chrome Labs. -->
 
 <histogram
     name="Views.{Process}.NumColorProvidersInitializedDuringOnNativeThemeUpdated"
-    units="providers" expires_after="2025-11-09">
+    units="providers" expires_after="2026-01-11">
   <owner>pkasting@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <owner>skau@chromium.org</owner>
@@ -538,7 +529,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="Views.{Process}.TimeSpentInitializingColorProvider" units="ms"
-    expires_after="2025-11-09">
+    expires_after="2026-01-11">
   <owner>pkasting@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <owner>skau@chromium.org</owner>
@@ -555,7 +546,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="Views.{Process}.TimeSpentProcessingOnNativeThemeUpdatedEvent"
-    units="ms" expires_after="2025-11-09">
+    units="ms" expires_after="2026-01-11">
   <owner>pkasting@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <owner>skau@chromium.org</owner>
@@ -572,7 +563,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.ColorsStylesheetServingDuration" units="ms"
-    expires_after="2025-09-28">
+    expires_after="2025-11-30">
   <owner>skau@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -586,14 +577,14 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.CreatedForUrl" enum="WebUIUrlHashes"
-    expires_after="2025-11-09">
+    expires_after="2026-01-11">
   <owner>dpapad@chromium.org</owner>
   <owner>chrome-webui@google.com</owner>
   <summary>URLs for which Chrome creates WebUIControllers.</summary>
 </histogram>
 
 <histogram name="WebUI.Settings.PathVisited" enum="WebUISettingsPathHashes"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>dschuyler@chromium.org</owner>
   <owner>tbuckley@chromium.org</owner>
   <owner>bettes@chromium.org</owner>
@@ -608,7 +599,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.ShownUrl" enum="WebUIUrlHashes"
-    expires_after="2025-09-28">
+    expires_after="2025-11-30">
   <owner>kerenzhu@chromium.org</owner>
   <owner>dpapad@chromium.org</owner>
   <owner>chrome-webui@google.com</owner>
@@ -622,8 +613,18 @@ features through Chrome Labs. -->
   </summary>
 </histogram>
 
+<histogram name="WebUI.TopChrome.Preload.Reason" enum="WebUIPreloadReason"
+    expires_after="2026-01-25">
+  <owner>kerenzhu@chromium.org</owner>
+  <owner>tluk@chromium.org</owner>
+  <owner>robliao@chromium.org</owner>
+  <summary>
+    The reason of preloading a WebUI. Logged when a preloaded WebUI is created.
+  </summary>
+</histogram>
+
 <histogram name="WebUI.TopChrome.Preload.Result" enum="WebUIPreloadResult"
-    expires_after="2025-09-21">
+    expires_after="2026-01-25">
   <owner>kerenzhu@chromium.org</owner>
   <owner>dayeung@chromium.org</owner>
   <owner>elainechien@chromium.org</owner>
@@ -636,9 +637,10 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.RequestToFCP{WebUIName}" units="ms"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>kerenzhu@chromium.org</owner>
   <owner>chrome-webui-for-features@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Measures the time elapsed from the initiation of a WebUI request to its
     first contentful paint. This metric applies to the main frame documents of
@@ -649,9 +651,10 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.RequestToLCP{WebUIName}" units="ms"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>kerenzhu@chromium.org</owner>
   <owner>chrome-webui-for-features@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Measures the time elapsed from the initiation of a WebUI request to its
     largest contentful paint. This metric applies to the main frame documents of
@@ -706,7 +709,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUITabStrip.LoadCompletedTime" units="ms"
-    expires_after="2025-11-12">
+    expires_after="2026-01-11">
   <owner>robliao@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <summary>
@@ -719,7 +722,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUITabStrip.LoadDocumentTime" units="ms"
-    expires_after="2025-11-12">
+    expires_after="2026-01-11">
   <owner>robliao@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <summary>
@@ -732,7 +735,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUITabStrip.OpenAction" enum="WebUITabStripOpenActions"
-    expires_after="2025-11-12">
+    expires_after="2026-01-11">
   <owner>robliao@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <summary>
@@ -743,7 +746,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUITabStrip.OpenDuration" units="ms"
-    expires_after="2025-11-12">
+    expires_after="2026-01-11">
   <owner>robliao@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <summary>
@@ -784,14 +787,14 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WrenchMenu.MenuAction" enum="WrenchMenuAction"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>ainslie@chromium.org</owner>
   <owner>edwardjung@chromium.org</owner>
   <summary>Number of times that each menu item is clicked.</summary>
 </histogram>
 
 <histogram name="WrenchMenu.TimeToAction.{Action}" units="ms"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>ainslie@chromium.org</owner>
   <owner>edwardjung@chromium.org</owner>
   <summary>

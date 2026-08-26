@@ -327,6 +327,7 @@
 <translation id="2240366984605217732">版面配置切換</translation>
 <translation id="224421911978987610">長時間曝光</translation>
 <translation id="2244834438220057800">綠色</translation>
+<translation id="2248689665683494517">一幅採用黑色背景的極簡靜物畫，幾枝虞美人花插在玻璃花瓶中</translation>
 <translation id="225692081236532131">啟用狀態</translation>
 <translation id="2267285889943769271">新增螢幕截圖</translation>
 <translation id="2268044343513325586">修正搜尋</translation>
@@ -477,6 +478,7 @@
 <translation id="3091839911843451378">失敗 - 已停止</translation>
 <translation id="3102119246920354026">快取</translation>
 <translation id="3103783611481501187">超現實</translation>
+<translation id="3119672627216736407">顯示翻譯</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">水池</translation>
 <translation id="3122883569442693641">更多詳情</translation>
@@ -756,6 +758,7 @@
 <translation id="430786093962686457">雪紡</translation>
 <translation id="4310735698903592804">最近採用 Google AI 技術製作的桌布</translation>
 <translation id="4320904097188876154">螢光粉紅色</translation>
+<translation id="432961742358282111">㩒右鍵或者㩒住畫面就可以取得定義、翻譯或者單位轉換結果。用向左或者向右箭咀掣就可以管理呢個功能。</translation>
 <translation id="4333390807948134856">㩒咗 <ph name="KEY_NAME" /> 制</translation>
 <translation id="4334293042716981313">你亦可<ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />自行撰寫提示<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">鍵</translation>
@@ -1137,6 +1140,7 @@
 <translation id="6058625436358447366">如要完成變更，請輸入您的舊密碼和新密碼</translation>
 <translation id="6061772781719867950">HTTP 要求失敗</translation>
 <translation id="6073292342939316679">校暗鍵盤</translation>
+<translation id="6074608334942655098">停止翻譯</translation>
 <translation id="6074752328838739425">隱藏摘要</translation>
 <translation id="6075872808778243331">(Android) HTTP 延遲時間</translation>
 <translation id="6078323886959318429">新增捷徑</translation>
@@ -1434,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">在 Chromebook 說明論壇中詢問專家</translation>
-<translation id="7309823890857024809">一幅採用黑色背景的極簡靜物畫，幾枝虞美人花插在玻璃花瓶中</translation>
 <translation id="7311368985037279727">鍵盤顏色</translation>
 <translation id="7317831949569936035">學校註冊程序</translation>
 <translation id="7319430975418800333">A3</translation>

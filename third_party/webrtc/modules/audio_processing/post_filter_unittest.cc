@@ -9,11 +9,10 @@
  */
 #include "modules/audio_processing/post_filter.h"
 
-#include <math.h>
-
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <numbers>
 #include <vector>
 
 #include "api/array_view.h"
@@ -91,7 +90,8 @@ TEST(PostFilterTest, Tone19p8kHzSignalAttenuation48k) {
   constexpr int num_frames = sample_rate_hz * 10 / 1000;  // 10ms;
   constexpr double tone_frequency = 19800;                // Hz
 
-  const double phase_increment = tone_frequency * 2.0 * M_PI / sample_rate_hz;
+  const double phase_increment =
+      tone_frequency * 2.0 * std::numbers::pi / sample_rate_hz;
   double phase = 0.0;
 
   std::vector<float> audio_input(num_frames);
@@ -132,7 +132,8 @@ TEST(PostFilterTest, Tone17kHzSignalNoAttenuation48k) {
   constexpr int num_frames = sample_rate_hz * 10 / 1000;  // 10ms;
   constexpr double tone_frequency = 16800;                // Hz
 
-  const double phase_increment = tone_frequency * 2.0 * M_PI / sample_rate_hz;
+  const double phase_increment =
+      tone_frequency * 2.0 * std::numbers::pi / sample_rate_hz;
   double phase = 0.0;
 
   std::vector<float> audio_input(num_frames);

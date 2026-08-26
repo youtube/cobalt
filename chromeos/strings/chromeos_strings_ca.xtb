@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Ara només pots utilitzar Eines de classe</translation>
 <translation id="1762483337755424125">Transcripció</translation>
 <translation id="1765169783255151332">Canvia de tecles ràpidament</translation>
 <translation id="1768959921651994223">Tipus d'autenticació</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Canvi de disseny</translation>
 <translation id="224421911978987610">llarga exposició</translation>
 <translation id="2244834438220057800">verd</translation>
+<translation id="2248689665683494517">una natura morta minimalista d'unes quantes flors de Papaver rhoeas en un gerro de vidre sobre un fons negre</translation>
 <translation id="225692081236532131">Estat d'activació</translation>
 <translation id="2267285889943769271">Afegeix una captura de pantalla</translation>
 <translation id="2268044343513325586">Refina</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Error: s'ha aturat</translation>
 <translation id="3102119246920354026">Memòria cau</translation>
 <translation id="3103783611481501187">surrealista</translation>
+<translation id="3119672627216736407">La traducció està disponible</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">piscines</translation>
 <translation id="3122883569442693641">Més detalls</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">xifó</translation>
 <translation id="4310735698903592804">Fons de pantalla recents amb la tecnologia de la IA de Google</translation>
 <translation id="4320904097188876154">rosa neó</translation>
+<translation id="432961742358282111">Fes-hi clic amb el botó dret o mantén-lo premut per obtenir definicions, traduccions o conversions d'unitats. Utilitza les tecles de fletxa dreta o esquerra per gestionar aquesta funció.</translation>
 <translation id="4333390807948134856">S'ha premut la tecla <ph name="KEY_NAME" /></translation>
 <translation id="4334293042716981313">També pots <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />escriure la indicació<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">tecla</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">Per acabar, introdueix la contrasenya antiga i la nova</translation>
 <translation id="6061772781719867950">Algunes sol·licituds HTTPS han fallat</translation>
 <translation id="6073292342939316679">disminueix la brillantor del teclat</translation>
+<translation id="6074608334942655098">Deixa de traduir</translation>
 <translation id="6074752328838739425">Amaga el resum</translation>
 <translation id="6075872808778243331">(Android) Latència d'HTTP</translation>
 <translation id="6078323886959318429">Afegeix una drecera</translation>
@@ -1403,7 +1408,7 @@
 <translation id="7177485034254901881">Aquest dispositiu <ph name="DEVICE_TYPE" /> està gestionat per <ph name="MANAGER" />. És possible que els administradors el configurin de manera remota.</translation>
 <translation id="7180611975245234373">Actualitza</translation>
 <translation id="7180865173735832675">Personalitza</translation>
-<translation id="7182063559013288142">Punt d'accés Wi‑Fi instantani</translation>
+<translation id="7182063559013288142">Punt d'accés instantani</translation>
 <translation id="7184043045742675738">Fes clic en qualsevol tecla per personalitzar el teu botó. Canvia la posició de la tecla amb el ratolí o les tecles de fletxa.</translation>
 <translation id="7187669805838282391">dimecres</translation>
 <translation id="7205318498545665455">Tria el micròfon</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Pregunta als experts al fòrum d'ajuda de Chromebook</translation>
-<translation id="7309823890857024809">una natura morta minimalista d'unes quantes tiges de Papaver rhoeas en un gerro de vidre sobre un fons negre</translation>
 <translation id="7311368985037279727">color del teclat</translation>
 <translation id="7317831949569936035">Inscripció en un centre educatiu</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@ Baixa el model de transcripció (fins a 100 MB) per obtenir aquestes transcripci
 <translation id="8088963492174775412">Prem per gravar</translation>
 <translation id="8094062939584182041">Permet que Google t'enviï un correu electrònic sobre aquest problema</translation>
 <translation id="8104083085214006426">Estàs utilitzant una xarxa oberta i no segura</translation>
+<translation id="8108879170356113798">D'aquí a <ph name="NUM_SECONDS" /> segons només podràs utilitzar Eines de classe</translation>
 <translation id="811820734797650957">(Android) Es pot fer ping a la passarel·la</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Confirma</translation>

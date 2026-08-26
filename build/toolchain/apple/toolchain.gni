@@ -115,6 +115,9 @@ template("single_apple_toolchain") {
       host_toolchain = host_toolchain
     }
 
+    # bin_path is only used in some builds.
+    not_needed(invoker, [ "bin_path" ])
+
     # When the invoker has explicitly overridden cc_wrapper in the
     # toolchain args, use those values, otherwise default to the global one.
     # This works because the only reasonable override that toolchains might
@@ -185,6 +188,7 @@ template("single_apple_toolchain") {
       ld += " -B " + invoker.bin_path
     }
 
+    coverage_wrapper = ""
     if (defined(toolchain_args.coverage_instrumentation_input_file)) {
       toolchain_coverage_instrumentation_input_file =
           toolchain_args.coverage_instrumentation_input_file
@@ -200,8 +204,7 @@ template("single_apple_toolchain") {
                       root_build_dir) + " --files-to-instrument=" +
           rebase_path(toolchain_coverage_instrumentation_input_file,
                       root_build_dir) + " --target-os=" + target_os
-      cc = "\"$python_path\" $_coverage_wrapper ${cc}"
-      cxx = "\"$python_path\" $_coverage_wrapper ${cxx}"
+      coverage_wrapper = "\"$python_path\" ${_coverage_wrapper} "
     }
 
     linker_driver_env = "TOOL_VERSION=${tool_versions.linker_driver}"
@@ -210,7 +213,7 @@ template("single_apple_toolchain") {
     linker_driver_args = "-Wcrl,driver,$ld"
 
     # Specify an explicit path for the strip binary.
-    _strippath = invoker.bin_path + "strip"
+    _strippath = "${prefix}llvm-strip"
     _installnametoolpath = "${prefix}llvm-install-name-tool"
     linker_driver_args += " -Wcrl,strippath,${_strippath} -Wcrl,installnametoolpath,${_installnametoolpath}"
     _enable_dsyms = enable_dsyms
@@ -255,7 +258,7 @@ template("single_apple_toolchain") {
       rustc_bin = "$rust_sysroot_relative/bin/rustc"
       rustc = "$rust_compiler_prefix${rustc_bin}"
       rustc_wrapper =
-          rebase_path("//build/rust/rustc_wrapper.py", root_build_dir)
+          rebase_path("//build/rust/gni_impl/rustc_wrapper.py", root_build_dir)
 
       tool("rust_staticlib") {
         libname = "{{output_dir}}/{{target_output_name}}{{output_extension}}"
@@ -395,7 +398,7 @@ template("single_apple_toolchain") {
     tool("cc") {
       depfile = "{{output}}.d"
       precompiled_header_type = "gcc"
-      command = "$cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} -c {{source}} -o {{output}}"
+      command = "$coverage_wrapper$cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_c}} -c {{source}} -o {{output}}"
       depsformat = "gcc"
       description = "CC {{output}}"
       outputs = [ "$object_subdir/{{source_name_part}}.o" ]
@@ -404,7 +407,7 @@ template("single_apple_toolchain") {
     tool("cxx") {
       depfile = "{{output}}.d"
       precompiled_header_type = "gcc"
-      command = "$cxx -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} {{module_deps_no_self}} -c {{source}} -o {{output}}"
+      command = "$coverage_wrapper$cxx -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} {{module_deps_no_self}} -c {{source}} -o {{output}}"
       depsformat = "gcc"
       description = "CXX {{output}}"
       outputs = [ "$object_subdir/{{source_name_part}}.o" ]
@@ -413,6 +416,9 @@ template("single_apple_toolchain") {
     tool("cxx_module") {
       depfile = "{{output}}.d"
       precompiled_header_type = "gcc"
+
+      # Module file doesn't need coverage instrumentation because module files
+      # represent interfaces rather than implementations.
       command = "$cxx -MMD -MF $depfile {{defines}} {{include_dirs}} {{cflags}} {{cflags_cc}} {{module_deps_no_self}} -fmodule-name={{label_name}} -c -x c++ -Xclang -emit-module {{source}} -o {{output}}"
       depsformat = "gcc"
       description = "CXX_MODULE {{output}}"
@@ -431,7 +437,7 @@ template("single_apple_toolchain") {
     tool("objc") {
       depfile = "{{output}}.d"
       precompiled_header_type = "gcc"
-      command = "$cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{framework_dirs}} {{cflags}} {{cflags_objc}} -c {{source}} -o {{output}}"
+      command = "$coverage_wrapper$cc -MMD -MF $depfile {{defines}} {{include_dirs}} {{framework_dirs}} {{cflags}} {{cflags_objc}} -c {{source}} -o {{output}}"
       depsformat = "gcc"
       description = "OBJC {{output}}"
       outputs = [ "$object_subdir/{{source_name_part}}.o" ]
@@ -440,7 +446,7 @@ template("single_apple_toolchain") {
     tool("objcxx") {
       depfile = "{{output}}.d"
       precompiled_header_type = "gcc"
-      command = "$cxx -MMD -MF $depfile {{defines}} {{include_dirs}} {{framework_dirs}} {{cflags}} {{cflags_objcc}} -c {{source}} -o {{output}}"
+      command = "$coverage_wrapper$cxx -MMD -MF $depfile {{defines}} {{include_dirs}} {{framework_dirs}} {{cflags}} {{cflags_objcc}} -c {{source}} -o {{output}}"
       depsformat = "gcc"
       description = "OBJCXX {{output}}"
       outputs = [ "$object_subdir/{{source_name_part}}.o" ]
@@ -493,13 +499,8 @@ template("single_apple_toolchain") {
       # search path in /usr/bin are thin wrappers around xcrun, which requires a
       # full CommandLineTools or Xcode install, and still may not choose the
       # appropriate binary if there are multiple installs.
-      if (host_os == "mac") {
-        nm = invoker.bin_path + "nm"
-        otool = invoker.bin_path + "otool"
-      } else {
-        nm = "${prefix}llvm-nm"
-        otool = "${prefix}llvm-otool"
-      }
+      nm = "${prefix}llvm-nm"
+      otool = "${prefix}llvm-otool"
 
       link_command = "$linker_driver_env $linker_driver"
       link_command += " -Wcrl,otoolpath,$otool -Wcrl,nmpath,$nm"
@@ -660,19 +661,14 @@ template("single_apple_toolchain") {
         # The list of outputs and partial_outputs change whether the whole
         # module optimization is enabled or not.
         if (swift_whole_module_optimization) {
-          outputs += [
-            "$_output_dir/{{module_name}}.swiftconstvalues"
-          ]
+          outputs += [ "$_output_dir/{{module_name}}.swiftconstvalues" ]
 
           # This seems broken in Xcode 26 beta 1. The OutputFileMap.json
           # confirms the file should be there, but when
           # whole-module-optimization is enabled it's not there.
           if (xcode_version_int < 2600) {
-            outputs += [
-              "$_output_dir/{{module_name}}.swiftdeps"
-            ]
+            outputs += [ "$_output_dir/{{module_name}}.swiftdeps" ]
           }
-
         } else {
           outputs += [ "$_output_dir/{{module_name}}.priors" ]
           partial_outputs += [

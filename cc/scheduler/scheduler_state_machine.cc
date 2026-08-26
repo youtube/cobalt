@@ -670,6 +670,14 @@ bool SchedulerStateMachine::ShouldThrottleSendBeginMainFrame() const {
     result = true;
   }
 
+  // Throttling main frame production when the current scroll is blocked on it
+  // is visually bad, as it loses the benefit of high refresh rate. Don't
+  // throttle. This is more expensive, but is required to reach perceptual
+  // visual parity between throttled and non-throttled scrolling.
+  if (is_current_scroll_main_painted_) {
+    result = false;
+  }
+
   TRACE_EVENT_INSTANT("cc", __PRETTY_FUNCTION__, "result", result);
   return result;
 }
@@ -1243,16 +1251,6 @@ void SchedulerStateMachine::SetPauseRendering(bool pause_rendering) {
   }
 
   pause_rendering_ = pause_rendering;
-
-  // If we're resuming rendering, we shouldn't already have a pending tree from
-  // the main thread.
-  // Note: This is possible if the main thread does the following:
-  // 1. Pause rendering followed by a commit for the ongoing BeginMainFrame.
-  // 2. Resume rendering before the above commit activates.
-  // The current users of PauseRendering wait on the commit in #1 to be flushed
-  // so it can never happen.
-  DCHECK(pause_rendering_ || !has_pending_tree_);
-
   // When resuming rendering, main thread always commits at least one frame.
   // Dont draw any impl frames until this commit is activated.
   waiting_for_activation_after_rendering_resumed_ = !pause_rendering_;
@@ -1648,9 +1646,11 @@ void SchedulerStateMachine::DidReceiveCompositorFrameAck() {
 
 void SchedulerStateMachine::SetTreePrioritiesAndScrollState(
     TreePriority tree_priority,
-    ScrollHandlerState scroll_handler_state) {
+    ScrollHandlerState scroll_handler_state,
+    bool is_current_scroll_main_painted) {
   tree_priority_ = tree_priority;
   scroll_handler_state_ = scroll_handler_state;
+  is_current_scroll_main_painted_ = is_current_scroll_main_painted;
 }
 
 void SchedulerStateMachine::SetCriticalBeginMainFrameToActivateIsFast(

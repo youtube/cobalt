@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/acm2/acm_send_test.h"
 
-#include <stdio.h>
-#include <string.h>
-
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <utility>
 
@@ -27,9 +26,8 @@
 #include "modules/audio_coding/include/audio_coding_module.h"
 #include "modules/audio_coding/include/audio_coding_module_typedefs.h"
 #include "modules/audio_coding/neteq/tools/input_audio_file.h"
-#include "modules/audio_coding/neteq/tools/packet.h"
+#include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/copy_on_write_buffer.h"
 
 namespace webrtc {
 namespace test {
@@ -97,7 +95,7 @@ void AcmSendTestOldApi::RegisterExternalCodec(
   codec_registered_ = true;
 }
 
-std::unique_ptr<Packet> AcmSendTestOldApi::NextPacket() {
+std::unique_ptr<RtpPacketReceived> AcmSendTestOldApi::NextPacket() {
   RTC_DCHECK(codec_registered_);
   if (filter_.test(static_cast<size_t>(payload_type_))) {
     // This payload type should be filtered out. Since the payload type is the
@@ -141,35 +139,19 @@ int32_t AcmSendTestOldApi::SendData(
   return 0;
 }
 
-std::unique_ptr<Packet> AcmSendTestOldApi::CreatePacket() {
-  const size_t kRtpHeaderSize = 12;
-  CopyOnWriteBuffer packet_buffer(last_payload_vec_.size() + kRtpHeaderSize);
-  uint8_t* packet_memory = packet_buffer.MutableData();
-  // Populate the header bytes.
-  packet_memory[0] = 0x80;
-  packet_memory[1] = static_cast<uint8_t>(payload_type_);
-  packet_memory[2] = (sequence_number_ >> 8) & 0xFF;
-  packet_memory[3] = (sequence_number_) & 0xFF;
-  packet_memory[4] = (timestamp_ >> 24) & 0xFF;
-  packet_memory[5] = (timestamp_ >> 16) & 0xFF;
-  packet_memory[6] = (timestamp_ >> 8) & 0xFF;
-  packet_memory[7] = timestamp_ & 0xFF;
-  // Set SSRC to 0x12345678.
-  packet_memory[8] = 0x12;
-  packet_memory[9] = 0x34;
-  packet_memory[10] = 0x56;
-  packet_memory[11] = 0x78;
+std::unique_ptr<RtpPacketReceived> AcmSendTestOldApi::CreatePacket() {
+  auto rtp_packet = std::make_unique<RtpPacketReceived>();
 
+  // Populate the header.
+  rtp_packet->SetPayloadType(payload_type_);
+  rtp_packet->SetSequenceNumber(sequence_number_);
+  rtp_packet->SetTimestamp(timestamp_);
+  rtp_packet->SetSsrc(0x12345678);
   ++sequence_number_;
 
-  // Copy the payload data.
-  memcpy(packet_memory + kRtpHeaderSize, &last_payload_vec_[0],
-         last_payload_vec_.size());
-  auto packet = std::make_unique<Packet>(std::move(packet_buffer),
-                                         clock_.TimeInMilliseconds());
-  RTC_DCHECK(packet);
-  RTC_DCHECK(packet->valid_header());
-  return packet;
+  rtp_packet->SetPayload(last_payload_vec_);
+  rtp_packet->set_arrival_time(clock_.CurrentTime());
+  return rtp_packet;
 }
 
 }  // namespace test

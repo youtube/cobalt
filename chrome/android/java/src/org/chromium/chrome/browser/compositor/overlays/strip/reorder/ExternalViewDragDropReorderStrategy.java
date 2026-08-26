@@ -11,6 +11,7 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import org.chromium.base.Token;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.compositor.overlays.strip.AnimationHost;
@@ -27,6 +28,7 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.ui.base.LocalizationUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** Drag and drop reorder - drag external view onto / out-of strip and reorder within strip. */
@@ -46,7 +48,7 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
             TabModel model,
             TabGroupModelFilter tabGroupModelFilter,
             View containerView,
-            ObservableSupplierImpl<Integer> groupIdToHideSupplier,
+            ObservableSupplierImpl<Token> groupIdToHideSupplier,
             Supplier<Float> tabWidthSupplier,
             Supplier<Long> lastReorderScrollTimeSupplier) {
         super(
@@ -155,17 +157,18 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
     @Override
     public void stopReorderMode(StripLayoutView[] stripViews, StripLayoutGroupTitle[] groupTitles) {
         List<Animator> animatorList = new ArrayList<>();
-        handleStopReorderMode(stripViews, groupTitles, mInteractingView, animatorList);
         mInteractingViewDuringStop = mInteractingView;
-        // Start animations.
-        mAnimationHost.startAnimations(
+        Runnable onAnimationEnd =
+                () -> {
+                    mInteractingView = null;
+                };
+        handleStopReorderMode(
+                stripViews,
+                groupTitles,
+                Collections.singletonList(mInteractingView),
+                null,
                 animatorList,
-                new AnimatorListenerAdapter() {
-                    @Override
-                    public void onAnimationEnd(Animator animation) {
-                        mInteractingView = null;
-                    }
-                });
+                onAnimationEnd);
     }
 
     @Override
@@ -186,7 +189,8 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
             destinationTabId = interactingTab.getId();
         } else {
             groupTitle = (StripLayoutGroupTitle) mInteractingViewDuringStop;
-            destinationTabId = groupTitle.getRootId();
+            Token destinationTabGroupId = groupTitle.getTabGroupId();
+            destinationTabId = mTabGroupModelFilter.getGroupLastShownTabId(destinationTabGroupId);
         }
 
         // 1. If hovered on view is not part of group or is collapsed, no-op.
@@ -244,7 +248,7 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
             StripLayoutView interactingView, boolean isInteracting) {
         if (!isInteracting) return false;
 
-        if (TabDragSource.canMergeIntoGroupOnDrop()) return true;
+        if (TabStripDragHandler.canMergeIntoGroupOnDrop()) return true;
 
         // Skip applying trailing margin for grouped views (like expanded group titles or tabs) when
         // merging on drop is not allowed.

@@ -23,7 +23,6 @@ export interface SettingsRoutes {
   AUTOFILL_AI: Route;
   BASIC: Route;
   CAPTIONS: Route;
-  CHROME_CLEANUP: Route;
   CLEAR_BROWSER_DATA: Route;
   COMPARE: Route;
   COOKIES: Route;
@@ -35,7 +34,6 @@ export interface SettingsRoutes {
   GLIC_SECTION: Route;
   HISTORY_SEARCH: Route;
   INCOGNITO_TRACKING_PROTECTIONS: Route;
-  INCOMPATIBLE_APPLICATIONS: Route;
   LANGUAGES: Route;
   MANAGE_PROFILE: Route;
   OFFER_WRITING_HELP: Route;
@@ -59,7 +57,6 @@ export interface SettingsRoutes {
   SEARCH_ENGINES: Route;
   SECURITY: Route;
   SECURITY_KEYS: Route;
-  SECURITY_KEYS_PHONES: Route;
   SITE_SETTINGS: Route;
   SITE_SETTINGS_ADS: Route;
   SITE_SETTINGS_ALL: Route;
@@ -117,7 +114,9 @@ export interface SettingsRoutes {
   SYSTEM: Route;
   TRIGGERED_RESET_DIALOG: Route;
 
-  // <if expr="not chromeos_ash">
+  // <if expr="not is_chromeos">
+  ACCOUNT: Route;
+  GOOGLE_SERVICES: Route;
   IMPORT_DATA: Route;
   SIGN_OUT: Route;
   // </if>
@@ -129,6 +128,10 @@ export class Route {
   parent: Route|null = null;
   depth: number = 0;
   title: string|undefined;
+
+  // Whether this route's contents have migrated to the new Settings plugin
+  // architecture. See crug.com/424223101 for details.
+  hasMigratedToPlugin: boolean = false;
 
   /**
    * Whether this route corresponds to a navigable dialog. Those routes must

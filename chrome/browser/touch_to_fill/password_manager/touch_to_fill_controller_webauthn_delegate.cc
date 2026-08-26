@@ -9,9 +9,8 @@
 
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "chrome/browser/password_manager/android/password_manager_launcher_android.h"
-#include "chrome/browser/webauthn/android/webauthn_request_delegate_android.h"
 #include "components/password_manager/core/browser/manage_passwords_referrer.h"
 #include "components/password_manager/core/browser/origin_credential_store.h"
 #include "components/password_manager/core/browser/passkey_credential.h"
@@ -20,10 +19,12 @@
 #include "url/gurl.h"
 
 TouchToFillControllerWebAuthnDelegate::TouchToFillControllerWebAuthnDelegate(
-    WebAuthnRequestDelegateAndroid* request_delegate,
-    bool should_show_hybrid_option)
-    : request_delegate_(request_delegate),
-      should_show_hybrid_option_(should_show_hybrid_option) {}
+    CredentialReceiver* receiver,
+    bool should_show_hybrid_option,
+    bool is_immediate)
+    : credential_receiver_(receiver),
+      should_show_hybrid_option_(should_show_hybrid_option),
+      is_immediate_(is_immediate) {}
 
 TouchToFillControllerWebAuthnDelegate::
     ~TouchToFillControllerWebAuthnDelegate() = default;
@@ -35,13 +36,16 @@ void TouchToFillControllerWebAuthnDelegate::OnShow(
 void TouchToFillControllerWebAuthnDelegate::OnCredentialSelected(
     const password_manager::UiCredential& credential,
     base::OnceClosure action_complete) {
-  NOTIMPLEMENTED();
+  CHECK(is_immediate_);
+  credential_receiver_->OnPasswordCredentialSelected(
+      {credential.username(), credential.password()});
+  std::move(action_complete).Run();
 }
 
 void TouchToFillControllerWebAuthnDelegate::OnPasskeyCredentialSelected(
     const password_manager::PasskeyCredential& credential,
     base::OnceClosure action_complete) {
-  request_delegate_->OnWebAuthnAccountSelected(credential.credential_id());
+  credential_receiver_->OnWebAuthnAccountSelected(credential.credential_id());
   std::move(action_complete).Run();
 }
 
@@ -49,7 +53,7 @@ void TouchToFillControllerWebAuthnDelegate::OnManagePasswordsSelected(
     bool passkeys_shown,
     base::OnceClosure action_complete) {
   password_manager_launcher::ShowPasswordSettings(
-      request_delegate_->web_contents(),
+      credential_receiver_->web_contents(),
       password_manager::ManagePasswordsReferrer::kTouchToFill,
       /*manage_passkeys=*/true);
   OnDismiss(std::move(action_complete));
@@ -57,13 +61,17 @@ void TouchToFillControllerWebAuthnDelegate::OnManagePasswordsSelected(
 
 void TouchToFillControllerWebAuthnDelegate::OnHybridSignInSelected(
     base::OnceClosure action_complete) {
-  request_delegate_->ShowHybridSignIn();
+  credential_receiver_->OnHybridSignInSelected();
   std::move(action_complete).Run();
 }
 
 void TouchToFillControllerWebAuthnDelegate::OnDismiss(
     base::OnceClosure action_complete) {
-  request_delegate_->OnWebAuthnAccountSelected(std::vector<uint8_t>());
+  if (is_immediate_) {
+    credential_receiver_->OnCredentialSelectionDeclined();
+  } else {
+    credential_receiver_->OnWebAuthnAccountSelected(std::vector<uint8_t>());
+  }
   std::move(action_complete).Run();
 }
 
@@ -73,7 +81,7 @@ void TouchToFillControllerWebAuthnDelegate::OnCredManDismissed(
 }
 
 GURL TouchToFillControllerWebAuthnDelegate::GetFrameUrl() {
-  return request_delegate_->web_contents()->GetLastCommittedURL();
+  return credential_receiver_->web_contents()->GetLastCommittedURL();
 }
 
 bool TouchToFillControllerWebAuthnDelegate::ShouldShowTouchToFill() {
@@ -95,5 +103,5 @@ bool TouchToFillControllerWebAuthnDelegate::
 }
 
 gfx::NativeView TouchToFillControllerWebAuthnDelegate::GetNativeView() {
-  return request_delegate_->web_contents()->GetNativeView();
+  return credential_receiver_->web_contents()->GetNativeView();
 }

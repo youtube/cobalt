@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "chrome/browser/ash/input_method/editor_switch.h"
 
@@ -20,13 +16,13 @@
 #include "chrome/browser/ash/input_method/editor_consent_enums.h"
 #include "chrome/browser/ash/input_method/input_methods_by_language.h"
 #include "chrome/browser/ash/input_method/url_utils.h"
-#include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/manta/manta_service_factory.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/common/extensions/extension_constants.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/ash/components/editor_menu/public/cpp/editor_consent_status.h"
 #include "chromeos/ash/components/editor_menu/public/cpp/editor_enterprise_policy_enums.h"
 #include "chromeos/ash/components/editor_menu/public/cpp/editor_mode.h"
@@ -300,7 +296,7 @@ bool EditorSwitch::IsAllowedForUse() const {
   }
 
   return base::FeatureList::IsEnabled(ash::features::kOrcaSupportDemoMode) &&
-                 ash::DemoSession::IsDeviceInDemoMode()
+                 ash::demo_mode::IsDeviceInDemoMode()
              ? IsAllowedForUseInDemoMode(context_->active_country_code())
              : IsAllowedForUseInNonDemoMode(profile_,
                                             context_->active_country_code());
@@ -384,6 +380,10 @@ std::vector<EditorBlockedReason> EditorSwitch::GetBlockedReasons() const {
     blocked_reasons.push_back(EditorBlockedReason::kBlockedBySetting);
   }
 
+  if (!context_->is_selection_valid()) {
+    blocked_reasons.push_back(EditorBlockedReason::kBlockedByInvalidSelection);
+  }
+
   if (!IsTriggerableFromTextLength(context_->selected_text_length())) {
     blocked_reasons.push_back(EditorBlockedReason::kBlockedByTextLength);
   }
@@ -444,6 +444,7 @@ bool EditorSwitch::CanBeTriggered() const {
                  chromeos::editor_menu::EditorEnterprisePolicy::kDisallowed) &&
          // user pref value
          profile_->GetPrefs()->GetBoolean(prefs::kOrcaEnabled) &&
+         context_->is_selection_valid() &&
          context_->selected_text_length() <= kTextLengthMaxLimit &&
          (!base::FeatureList::IsEnabled(features::kOrcaOnlyInEnglishLocales) ||
           IsSystemInEnglishLanguage());

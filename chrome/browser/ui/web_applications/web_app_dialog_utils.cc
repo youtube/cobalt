@@ -18,6 +18,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/web_applications/pwa_install_page_action.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
@@ -33,6 +34,7 @@
 #include "chrome/browser/web_applications/web_app_screenshot_fetcher.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_features.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/webapps/browser/banners/app_banner_manager.h"
 #include "components/webapps/browser/banners/web_app_banner_data.h"
 #include "components/webapps/browser/features.h"
@@ -62,6 +64,7 @@ void OnWebAppInstallShowInstallDialog(
     webapps::WebappInstallSource install_source,
     PwaInProductHelpState iph_state,
     std::unique_ptr<webapps::MlInstallOperationTracker> install_tracker,
+    bool show_initiating_origin,
     base::WeakPtr<WebAppScreenshotFetcher> screenshot_fetcher,
     content::WebContents* initiator_web_contents,
     std::unique_ptr<WebAppInstallInfo> web_app_info,
@@ -96,7 +99,7 @@ void OnWebAppInstallShowInstallDialog(
         ShowSimpleInstallDialogForWebApps(
             initiator_web_contents, std::move(web_app_info),
             std::move(install_tracker), std::move(web_app_acceptance_callback),
-            iph_state);
+            iph_state, show_initiating_origin);
         return;
       }
 #if BUILDFLAG(IS_CHROMEOS)
@@ -221,7 +224,8 @@ void CreateWebAppFromCurrentWebContents(Browser* browser,
       install_source, web_contents->GetWeakPtr(),
       base::BindOnce(OnWebAppInstallShowInstallDialog, flow, install_source,
                      PwaInProductHelpState::kNotShown,
-                     std::move(install_tracker)),
+                     std::move(install_tracker),
+                     /*show_initiating_origin=*/false),
       base::BindOnce(OnWebAppInstalled, std::move(callback)),
       fallback_behavior);
 }
@@ -268,7 +272,8 @@ bool CreateWebAppFromManifest(content::WebContents* web_contents,
       install_source, web_contents->GetWeakPtr(),
       base::BindOnce(OnWebAppInstallShowInstallDialog,
                      WebAppInstallFlow::kInstallSite, install_source, iph_state,
-                     std::move(install_tracker)),
+                     std::move(install_tracker),
+                     /*show_initiating_origin=*/false),
       base::BindOnce(OnWebAppInstalled, std::move(installed_callback)),
       fallback_behavior);
   return true;
@@ -288,7 +293,8 @@ void CreateWebAppForBackgroundInstall(
       base::BindOnce(&OnWebAppInstallShowInstallDialog,
                      WebAppInstallFlow::kInstallSite,
                      webapps::WebappInstallSource::WEB_INSTALL,
-                     PwaInProductHelpState::kNotShown, std::move(tracker)),
+                     PwaInProductHelpState::kNotShown, std::move(tracker),
+                     /*show_initiating_origin=*/true),
       std::move(installed_callback));
 }
 
@@ -310,9 +316,10 @@ void ShowPwaInstallDialog(Browser* browser) {
   // Close PWA install IPH if it is showing.
   PwaInProductHelpState iph_state = PwaInProductHelpState::kNotShown;
   bool install_icon_clicked_after_iph_shown =
-      browser->window()->NotifyFeaturePromoFeatureUsed(
-          feature_engagement::kIPHDesktopPwaInstallFeature,
-          FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+      BrowserUserEducationInterface::From(browser)
+          ->NotifyFeaturePromoFeatureUsed(
+              feature_engagement::kIPHDesktopPwaInstallFeature,
+              FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
   if (install_icon_clicked_after_iph_shown) {
     iph_state = PwaInProductHelpState::kShown;
   }

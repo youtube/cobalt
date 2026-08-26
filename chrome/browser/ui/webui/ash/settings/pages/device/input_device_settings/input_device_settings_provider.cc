@@ -10,7 +10,6 @@
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/accelerator_actions.h"
 #include "ash/public/cpp/input_device_settings_controller.h"
-#include "ash/public/mojom/input_device_settings.mojom-forward.h"
 #include "ash/public/mojom/input_device_settings.mojom.h"
 #include "ash/rgb_keyboard/rgb_keyboard_manager.h"
 #include "ash/shell.h"
@@ -204,44 +203,35 @@ InputDeviceSettingsProvider::InputDeviceSettingsProvider() {
     return;
   }
 
-  if (features::IsInputDeviceSettingsSplitEnabled()) {
-    controller->AddObserver(this);
-  }
+  controller->AddObserver(this);
 
-  if (features::IsKeyboardBacklightControlInSettingsEnabled()) {
-    chromeos::PowerManagerClient* power_manager_client =
-        chromeos::PowerManagerClient::Get();
-    if (power_manager_client) {
-      // power_manager_client may be NULL in unittests.
-      power_manager_client->AddObserver(this);
-      power_manager_client->GetSwitchStates(
-          base::BindOnce(&InputDeviceSettingsProvider::OnReceiveSwitchStates,
-                         weak_ptr_factory_.GetWeakPtr()));
-    }
+  chromeos::PowerManagerClient* power_manager_client =
+      chromeos::PowerManagerClient::Get();
+  if (power_manager_client) {
+    // power_manager_client may be NULL in unittests.
+    power_manager_client->AddObserver(this);
+    power_manager_client->GetSwitchStates(
+        base::BindOnce(&InputDeviceSettingsProvider::OnReceiveSwitchStates,
+                       weak_ptr_factory_.GetWeakPtr()));
   }
 }
 
 InputDeviceSettingsProvider::~InputDeviceSettingsProvider() {
-  auto* controller = InputDeviceSettingsController::Get();
-
-  if (features::IsPeripheralCustomizationEnabled() && controller) {
-    controller->StopObservingButtons();
-    if (widget_) {
-      widget_->RemoveObserver(this);
+  if (auto* controller = InputDeviceSettingsController::Get()) {
+    if (features::IsPeripheralCustomizationEnabled()) {
+      controller->StopObservingButtons();
+      if (widget_) {
+        widget_->RemoveObserver(this);
+      }
     }
-  }
-
-  if (features::IsInputDeviceSettingsSplitEnabled() && controller) {
     controller->RemoveObserver(this);
   }
 
-  if (features::IsKeyboardBacklightControlInSettingsEnabled()) {
-    chromeos::PowerManagerClient* power_manager_client =
-        chromeos::PowerManagerClient::Get();
-    if (power_manager_client) {
-      // power_manager_client may be NULL in unittests.
-      power_manager_client->RemoveObserver(this);
-    }
+  chromeos::PowerManagerClient* power_manager_client =
+      chromeos::PowerManagerClient::Get();
+  if (power_manager_client) {
+    // power_manager_client may be NULL in unittests.
+    power_manager_client->RemoveObserver(this);
   }
 }
 
@@ -296,8 +286,7 @@ void InputDeviceSettingsProvider::KeyboardAmbientLightSensorEnabledChanged(
         ->OnKeyboardAmbientLightSensorEnabledChanged(change.sensor_enabled());
   }
 
-  if (features::IsKeyboardBacklightControlInSettingsEnabled() &&
-      !change.sensor_enabled()) {
+  if (!change.sensor_enabled()) {
     RecordKeyboardAmbientLightSensorDisabledCause(change.cause());
   }
 }
@@ -345,7 +334,6 @@ void InputDeviceSettingsProvider::StopObserving() {
 
 void InputDeviceSettingsProvider::BindInterface(
     mojo::PendingReceiver<mojom::InputDeviceSettingsProvider> receiver) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   if (receiver_.is_bound()) {
     receiver_.reset();
   }
@@ -354,7 +342,6 @@ void InputDeviceSettingsProvider::BindInterface(
 
 void InputDeviceSettingsProvider::RestoreDefaultKeyboardRemappings(
     uint32_t device_id) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   DCHECK(InputDeviceSettingsController::Get());
   InputDeviceSettingsController::Get()->RestoreDefaultKeyboardRemappings(
       device_id);
@@ -363,7 +350,6 @@ void InputDeviceSettingsProvider::RestoreDefaultKeyboardRemappings(
 void InputDeviceSettingsProvider::SetKeyboardSettings(
     uint32_t device_id,
     ::ash::mojom::KeyboardSettingsPtr settings) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   DCHECK(InputDeviceSettingsController::Get());
   if (!InputDeviceSettingsController::Get()->SetKeyboardSettings(
           device_id, std::move(settings))) {
@@ -374,7 +360,6 @@ void InputDeviceSettingsProvider::SetKeyboardSettings(
 void InputDeviceSettingsProvider::SetPointingStickSettings(
     uint32_t device_id,
     ::ash::mojom::PointingStickSettingsPtr settings) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   DCHECK(InputDeviceSettingsController::Get());
   if (!InputDeviceSettingsController::Get()->SetPointingStickSettings(
           device_id, std::move(settings))) {
@@ -385,7 +370,6 @@ void InputDeviceSettingsProvider::SetPointingStickSettings(
 void InputDeviceSettingsProvider::SetMouseSettings(
     uint32_t device_id,
     ::ash::mojom::MouseSettingsPtr settings) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   DCHECK(InputDeviceSettingsController::Get());
   if (!InputDeviceSettingsController::Get()->SetMouseSettings(
           device_id, std::move(settings))) {
@@ -396,7 +380,6 @@ void InputDeviceSettingsProvider::SetMouseSettings(
 void InputDeviceSettingsProvider::SetTouchpadSettings(
     uint32_t device_id,
     ::ash::mojom::TouchpadSettingsPtr settings) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   DCHECK(InputDeviceSettingsController::Get());
   if (!InputDeviceSettingsController::Get()->SetTouchpadSettings(
           device_id, std::move(settings))) {
@@ -416,7 +399,6 @@ void InputDeviceSettingsProvider::SetGraphicsTabletSettings(
 }
 
 void InputDeviceSettingsProvider::SetKeyboardBrightness(double percent) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   if (!keyboard_brightness_control_delegate_) {
     LOG(ERROR) << "InputDeviceSettingsProvider: BrightnessControlDelegate not "
                   "available when setting keyboard brightness.";
@@ -428,7 +410,6 @@ void InputDeviceSettingsProvider::SetKeyboardBrightness(double percent) {
 
 void InputDeviceSettingsProvider::SetKeyboardAmbientLightSensorEnabled(
     bool enabled) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   if (!keyboard_brightness_control_delegate_) {
     LOG(ERROR) << "InputDeviceSettingsProvider: BrightnessControlDelegate not "
                   "available when setting keyboard ambient light sensor.";
@@ -459,7 +440,6 @@ void InputDeviceSettingsProvider::OnReceiveKeyboardAmbientLightSensorEnabled(
 
 void InputDeviceSettingsProvider::ObserveKeyboardSettings(
     mojo::PendingRemote<mojom::KeyboardSettingsObserver> observer) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   DCHECK(InputDeviceSettingsController::Get());
   const auto id = keyboard_settings_observers_.Add(std::move(observer));
   auto* keyboard_settings_observer = keyboard_settings_observers_.Get(id);
@@ -471,7 +451,6 @@ void InputDeviceSettingsProvider::ObserveKeyboardSettings(
 
 void InputDeviceSettingsProvider::ObserveTouchpadSettings(
     mojo::PendingRemote<mojom::TouchpadSettingsObserver> observer) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   DCHECK(InputDeviceSettingsController::Get());
   const auto id = touchpad_settings_observers_.Add(std::move(observer));
   touchpad_settings_observers_.Get(id)->OnTouchpadListUpdated(
@@ -481,7 +460,6 @@ void InputDeviceSettingsProvider::ObserveTouchpadSettings(
 
 void InputDeviceSettingsProvider::ObservePointingStickSettings(
     mojo::PendingRemote<mojom::PointingStickSettingsObserver> observer) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   DCHECK(InputDeviceSettingsController::Get());
   const auto id = pointing_stick_settings_observers_.Add(std::move(observer));
   pointing_stick_settings_observers_.Get(id)->OnPointingStickListUpdated(
@@ -491,7 +469,6 @@ void InputDeviceSettingsProvider::ObservePointingStickSettings(
 
 void InputDeviceSettingsProvider::ObserveMouseSettings(
     mojo::PendingRemote<mojom::MouseSettingsObserver> observer) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   DCHECK(InputDeviceSettingsController::Get());
   const auto id = mouse_settings_observers_.Add(std::move(observer));
   auto* mouse_settings_observer = mouse_settings_observers_.Get(id);
@@ -503,7 +480,6 @@ void InputDeviceSettingsProvider::ObserveMouseSettings(
 
 void InputDeviceSettingsProvider::ObserveGraphicsTabletSettings(
     mojo::PendingRemote<mojom::GraphicsTabletSettingsObserver> observer) {
-  DCHECK(features::IsInputDeviceSettingsSplitEnabled());
   DCHECK(InputDeviceSettingsController::Get());
   const auto id = graphics_tablet_settings_observers_.Add(std::move(observer));
   auto* graphics_tablet_settings_observer =
@@ -521,7 +497,6 @@ void InputDeviceSettingsProvider::ObserveButtonPresses(
 
 void InputDeviceSettingsProvider::ObserveKeyboardBrightness(
     mojo::PendingRemote<mojom::KeyboardBrightnessObserver> observer) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   keyboard_brightness_observer_.reset();
   keyboard_brightness_observer_.Bind(std::move(observer));
 
@@ -533,7 +508,6 @@ void InputDeviceSettingsProvider::ObserveKeyboardBrightness(
 
 void InputDeviceSettingsProvider::ObserveKeyboardAmbientLightSensor(
     mojo::PendingRemote<mojom::KeyboardAmbientLightSensorObserver> observer) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   keyboard_ambient_light_sensor_observer_.reset();
   keyboard_ambient_light_sensor_observer_.Bind(std::move(observer));
 
@@ -549,7 +523,6 @@ void InputDeviceSettingsProvider::ObserveKeyboardAmbientLightSensor(
 void InputDeviceSettingsProvider::ObserveLidState(
     mojo::PendingRemote<mojom::LidStateObserver> observer,
     ObserveLidStateCallback callback) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   lid_state_observers_.Add(std::move(observer));
   std::move(callback).Run(is_lid_open_);
 }
@@ -557,7 +530,6 @@ void InputDeviceSettingsProvider::ObserveLidState(
 void InputDeviceSettingsProvider::LidEventReceived(
     chromeos::PowerManagerClient::LidState state,
     base::TimeTicks time) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   // If the lid state is open or if the lid state sensors is not present, the
   // lid is considered open
   is_lid_open_ = state != chromeos::PowerManagerClient::LidState::CLOSED;
@@ -568,7 +540,6 @@ void InputDeviceSettingsProvider::LidEventReceived(
 
 void InputDeviceSettingsProvider::OnReceiveSwitchStates(
     std::optional<chromeos::PowerManagerClient::SwitchStates> switch_states) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   if (switch_states.has_value()) {
     LidEventReceived(switch_states->lid_state, /*time=*/{});
   }
@@ -876,7 +847,6 @@ void InputDeviceSettingsProvider::OnReceiveHasAmbientLightSensor(
 
 void InputDeviceSettingsProvider::HasKeyboardBacklight(
     HasKeyboardBacklightCallback callback) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   chromeos::PowerManagerClient::Get()->HasKeyboardBacklight(base::BindOnce(
       &InputDeviceSettingsProvider::OnReceiveHasKeyboardBacklight,
       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
@@ -884,7 +854,6 @@ void InputDeviceSettingsProvider::HasKeyboardBacklight(
 
 void InputDeviceSettingsProvider::HasAmbientLightSensor(
     HasAmbientLightSensorCallback callback) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   chromeos::PowerManagerClient::Get()->HasAmbientLightSensor(base::BindOnce(
       &InputDeviceSettingsProvider::OnReceiveHasAmbientLightSensor,
       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
@@ -892,20 +861,17 @@ void InputDeviceSettingsProvider::HasAmbientLightSensor(
 
 void InputDeviceSettingsProvider::IsRgbKeyboardSupported(
     IsRgbKeyboardSupportedCallback callback) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   std::move(callback).Run(
       Shell::Get()->rgb_keyboard_manager()->IsRgbKeyboardSupported());
 }
 
 void InputDeviceSettingsProvider::RecordKeyboardColorLinkClicked() {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   base::UmaHistogramBoolean(
       "ChromeOS.Settings.Device.Keyboard.ColorLinkClicked", true);
 }
 
 void InputDeviceSettingsProvider::RecordKeyboardBrightnessChangeFromSlider(
     double percent) {
-  DCHECK(features::IsKeyboardBacklightControlInSettingsEnabled());
   DCHECK(0 <= percent && percent <= 100);
   base::UmaHistogramPercentage(
       "ChromeOS.Settings.Device.Keyboard.BrightnessSliderAdjusted", percent);

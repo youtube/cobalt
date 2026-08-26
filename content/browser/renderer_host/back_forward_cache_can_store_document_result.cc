@@ -12,10 +12,9 @@
 #include "base/feature_list.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/common/debug_utils.h"
 #include "content/public/browser/disallow_activation_reason.h"
-#include "content/public/common/content_features.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/scheduler/web_scheduler_tracked_feature.h"
 #include "third_party/blink/public/mojom/script_source_location.mojom.h"
 
@@ -202,6 +201,8 @@ ProtoEnum::BackForwardCacheNotRestoredReason NotRestoredReasonToTraceEnum(
       return ProtoEnum::CACHE_LIMIT_PRUNED_ON_MODERATE_MEMORY_PRESSURE;
     case Reason::kCacheLimitPrunedOnCriticalMemoryPressure:
       return ProtoEnum::CACHE_LIMIT_PRUNED_ON_CRITICAL_MEMORY_PRESSURE;
+    case Reason::kSharedWorkerMessage:
+      return ProtoEnum::SHARED_WORKER_MESSAGE;
   }
   NOTREACHED();
 }
@@ -225,8 +226,7 @@ bool BackForwardCacheCanStoreDocumentResult::operator==(
          disabled_reasons() == other.disabled_reasons() &&
          browsing_instance_swap_result() ==
              other.browsing_instance_swap_result() &&
-         disallow_activation_reasons() == other.disallow_activation_reasons() &&
-         ax_events() == other.ax_events();
+         disallow_activation_reasons() == other.disallow_activation_reasons();
 }
 
 bool BackForwardCacheCanStoreDocumentResult::HasNotRestoredReason(
@@ -460,6 +460,8 @@ std::string BackForwardCacheCanStoreDocumentResult::NotRestoredReasonToString(
     case Reason::kCacheControlNoStoreDeviceBoundSessionTerminated:
       return "A device bound session was terminated on a cached page with "
              "Cache-Control: no-store";
+    case Reason::kSharedWorkerMessage:
+      return "Pages with shared worker in bfcache received a message";
   }
 }
 
@@ -553,6 +555,8 @@ BackForwardCacheCanStoreDocumentResult::NotRestoredReasonToReportString(
                  blink::features::kBackForwardCacheUpdateNotRestoredReasonsName)
                  ? "masked"
                  : "cookie-removed";
+    case Reason::kSharedWorkerMessage:
+      return "sharedworker-message";
     case Reason::kDisableForRenderFrameHostCalled:
       return DisabledReasonsToString(disabled_reasons_,
                                      /*for_not_restored_reasons=*/true);
@@ -655,17 +659,6 @@ void BackForwardCacheCanStoreDocumentResult::NoDueToDisallowActivation(
   disallow_activation_reasons_.insert(reason);
 }
 
-void BackForwardCacheCanStoreDocumentResult::NoDueToAXEvents(
-    const std::vector<ui::AXEvent>& events) {
-  DCHECK(base::FeatureList::IsEnabled(features::kEvictOnAXEvents));
-  for (auto& event : events) {
-    ax_events_.insert(event.event_type);
-  }
-  AddNotRestoredReason(
-      BackForwardCacheMetrics::NotRestoredReason::kIgnoreEventAndEvict);
-  disallow_activation_reasons_.insert(DisallowActivationReasonId::kAXEvent);
-}
-
 void BackForwardCacheCanStoreDocumentResult::AddReasonsFrom(
     const BackForwardCacheCanStoreDocumentResult& other) {
   not_restored_reasons_.PutAll(other.not_restored_reasons_);
@@ -691,9 +684,6 @@ void BackForwardCacheCanStoreDocumentResult::AddReasonsFrom(
     browsing_instance_swap_result_ = other.browsing_instance_swap_result_;
   for (const auto reason : other.disallow_activation_reasons()) {
     disallow_activation_reasons_.insert(reason);
-  }
-  for (const auto event : other.ax_events()) {
-    ax_events_.insert(event);
   }
 }
 

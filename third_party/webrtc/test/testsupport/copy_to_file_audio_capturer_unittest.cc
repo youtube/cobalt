@@ -10,10 +10,15 @@
 
 #include "test/testsupport/copy_to_file_audio_capturer.h"
 
+#include <stdio.h>
+
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "modules/audio_device/include/test_audio_device.h"
+#include "rtc_base/buffer.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 

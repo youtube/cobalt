@@ -54,8 +54,6 @@
 #include "content/public/browser/navigation_ui_data.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
-#include "crypto/secure_hash.h"
-#include "crypto/sha2.h"
 #include "extensions/browser/content_verifier/content_verifier.h"
 #include "extensions/browser/content_verifier/content_verify_job.h"
 #include "extensions/browser/extension_navigation_ui_data.h"
@@ -151,7 +149,7 @@ void GenerateBackgroundPageContents(const Extension* extension,
   *data = "<!DOCTYPE html>\n<body>\n";
   for (const auto& script : BackgroundInfo::GetBackgroundScripts(extension)) {
     *data += "<script src=\"";
-    *data += script;
+    *data += script.relative_path().AsUTF8Unsafe();
     *data += "\"></script>\n";
   }
 }
@@ -367,8 +365,7 @@ bool IsBackgroundServiceWorker(const Extension& extension,
              network::mojom::RequestDestination::kServiceWorker &&
          BackgroundInfo::IsServiceWorkerBased(&extension) &&
          request.url ==
-             extension.GetResourceURL(
-                 BackgroundInfo::GetBackgroundServiceWorkerScript(&extension));
+             BackgroundInfo::GetBackgroundServiceWorkerScriptURL(&extension);
 }
 
 bool IsExtensionDocument(const Extension& extension,
@@ -445,11 +442,9 @@ void AddCacheHeaders(net::HttpResponseHeaders& headers,
   // On Fuchsia, some resources are served from read-only filesystems which
   // don't manage creation timestamps. Cache-control headers should still
   // be generated for those resources.
-#if !BUILDFLAG(IS_FUCHSIA)
   if (last_modified_time.is_null()) {
     return;
   }
-#endif  // !BUILDFLAG(IS_FUCHSIA)
 
   // Hash the time and make an etag to avoid exposing the exact
   // user installation time of the extension.

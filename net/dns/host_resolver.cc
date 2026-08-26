@@ -75,22 +75,25 @@ class FailingRequestImpl : public HostResolver::ResolveHostRequest,
   int Start(CompletionOnceCallback callback) override { return error_; }
   int Start() override { return error_; }
 
-  AddressList* GetAddressResults() const override { return nullptr; }
-
-  std::vector<HostResolverEndpointResult>* GetEndpointResults() const override {
-    return nullptr;
+  const AddressList& GetAddressResults() const override {
+    static const base::NoDestructor<AddressList> kEmptyResult;
+    return *kEmptyResult;
   }
 
-  const std::vector<std::string>* GetTextResults() const override {
-    return nullptr;
+  base::span<const HostResolverEndpointResult> GetEndpointResults()
+      const override {
+    return {};
   }
 
-  const std::vector<HostPortPair>* GetHostnameResults() const override {
-    return nullptr;
+  base::span<const std::string> GetTextResults() const override { return {}; }
+
+  base::span<const HostPortPair> GetHostnameResults() const override {
+    return {};
   }
 
-  const std::set<std::string>* GetDnsAliasResults() const override {
-    return nullptr;
+  const std::set<std::string>& GetDnsAliasResults() const override {
+    static const base::NoDestructor<std::set<std::string>> kEmptyResult;
+    return *kEmptyResult;
   }
 
   ResolveErrorInfo GetResolveErrorInfo() const override {
@@ -122,10 +125,7 @@ class FailingServiceEndpointRequestImpl
 
   int Start(Delegate* delegate) override { return error_; }
 
-  const std::vector<ServiceEndpoint>& GetEndpointResults() override {
-    static const base::NoDestructor<std::vector<ServiceEndpoint>> kEmptyResult;
-    return *kEmptyResult.get();
-  }
+  base::span<const ServiceEndpoint> GetEndpointResults() override { return {}; }
 
   const std::set<std::string>& GetDnsAliasResults() override {
     static const base::NoDestructor<std::set<std::string>> kEmptyResult;
@@ -149,10 +149,6 @@ class FailingServiceEndpointRequestImpl
  private:
   const int error_;
 };
-
-bool EndpointResultIsNonProtocol(const HostResolverEndpointResult& result) {
-  return result.metadata.supported_protocol_alpns.empty();
-}
 
 void GetTimeDeltaFromDictString(const base::Value::Dict& args,
                                 std::string_view key,
@@ -307,11 +303,6 @@ HostResolver::ManagerOptions::ManagerOptions(const ManagerOptions& other) =
 HostResolver::ManagerOptions::ManagerOptions(ManagerOptions&& other) = default;
 
 HostResolver::ManagerOptions::~ManagerOptions() = default;
-
-const std::vector<bool>*
-HostResolver::ResolveHostRequest::GetExperimentalResultsForTesting() const {
-  NOTREACHED();
-}
 
 std::unique_ptr<HostResolver> HostResolver::Factory::CreateResolver(
     HostResolverManager* manager,
@@ -585,12 +576,14 @@ AddressList HostResolver::EndpointResultToAddressList(
     const std::set<std::string>& aliases) {
   AddressList list;
 
-  auto non_protocol_endpoint =
-      std::ranges::find_if(endpoints, &EndpointResultIsNonProtocol);
-  if (non_protocol_endpoint == endpoints.end())
+  auto authority_endpoint = std::ranges::find_if_not(
+      endpoints,
+      [](const auto& endpoint) { return endpoint.metadata.IsAlternative(); });
+  if (authority_endpoint == endpoints.end()) {
     return list;
+  }
 
-  list.endpoints() = non_protocol_endpoint->ip_endpoints;
+  list.endpoints() = authority_endpoint->ip_endpoints;
 
   std::vector<std::string> aliases_vector(aliases.begin(), aliases.end());
   list.SetDnsAliases(std::move(aliases_vector));

@@ -155,7 +155,7 @@ id<GREYMatcher> GoButtonMatcher() {
 
 // Matcher for the resend POST button in the repost warning dialog.
 id<GREYMatcher> ResendPostButtonMatcher() {
-  return chrome_test_util::ButtonWithAccessibilityLabelId(
+  return chrome_test_util::AlertItemWithAccessibilityLabelId(
       IDS_HTTP_POST_WARNING_RESEND);
 }
 
@@ -373,8 +373,19 @@ id<GREYMatcher> ResendPostButtonMatcher() {
 
     [ChromeEarlGrey
         waitForSufficientlyVisibleElementWithMatcher:ResendPostButtonMatcher()];
+
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+    if (@available(iOS 26, *)) {
+      [ChromeEarlGreyUI
+          dismissByTappingOnTheWindowOfPopover:ResendPostButtonMatcher()];
+    } else {
+      [[EarlGrey selectElementWithMatcher:ElementToDismissAlert(@"Cancel")]
+          performAction:grey_tap()];
+    }
+#else
     [[EarlGrey selectElementWithMatcher:ElementToDismissAlert(@"Cancel")]
         performAction:grey_tap()];
+#endif
   }
 
   [ChromeEarlGrey waitForPageToFinishLoading];

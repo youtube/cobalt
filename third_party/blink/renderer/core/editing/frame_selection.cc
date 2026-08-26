@@ -30,6 +30,7 @@
 #include <optional>
 
 #include "base/auto_reset.h"
+#include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/accessibility/blink_ax_event_intent.h"
@@ -607,6 +608,23 @@ bool FrameSelection::SelectionHasFocus() const {
       ComputeVisibleSelectionInFlatTree().End() >= focused_position)
     return true;
 
+  // Selection has focus if current selection matches the focused
+  // element's visible position and the focused element is focusable but not
+  // editable (e.g., tabindex="-1"). This handles cases where text selection
+  // should be visible in focusable but non-editable elements.
+  if (RuntimeEnabledFeatures::
+          SelectionAndFocusedVisiblePositionMatchEnabled()) {
+    if (GetDocument().FocusedElement() && focused_element->IsFocusable() &&
+        !IsEditable(*focused_element)) {
+      const VisiblePositionInFlatTree focused_visible_position =
+          CreateVisiblePosition(focused_position);
+      if (focused_visible_position.DeepEquivalent() ==
+          ComputeVisibleSelectionInFlatTree().Start()) {
+        return true;
+      }
+    }
+  }
+
   bool is_editable = IsEditable(*current);
   const TreeScope* tree_scope = &current->GetTreeScope();
   do {
@@ -727,6 +745,10 @@ bool FrameSelection::ShouldPaintCaret(
 gfx::Rect FrameSelection::AbsoluteCaretBounds() const {
   DCHECK(ComputeVisibleSelectionInDOMTree().IsValidFor(*frame_->GetDocument()));
   return frame_caret_->AbsoluteCaretBounds();
+}
+
+CaretShape FrameSelection::GetCaretShape() const {
+  return frame_caret_->GetCaretShape();
 }
 
 bool FrameSelection::ComputeAbsoluteBounds(gfx::Rect& anchor,

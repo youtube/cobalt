@@ -37,9 +37,9 @@
 #include "chrome/updater/crash_client.h"
 #include "chrome/updater/crash_reporter.h"
 #include "chrome/updater/ipc/ipc_support.h"
-#include "chrome/updater/update_usage_stats_task.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/updater_version.h"
+#include "chrome/updater/usage_stats_permissions.h"
 #include "chrome/updater/util/util.h"
 #include "components/crash/core/common/crash_key.h"
 #include "components/crash/core/common/crash_keys.h"
@@ -53,6 +53,7 @@
 #include "base/win/windows_version.h"
 #include "chrome/updater/app/server/win/updater_service_delegate.h"
 #include "chrome/updater/util/win_util.h"
+#include "partition_alloc/page_allocator.h"
 #endif
 
 // Instructions For Windows.
@@ -115,6 +116,9 @@ int HandleUpdaterCommands(UpdaterScope updater_scope,
   base::EnableTerminationOnHeapCorruption();
   base::EnableTerminationOnOutOfMemory();
   logging::RegisterAbslAbortHook();
+#if BUILDFLAG(IS_WIN)
+  partition_alloc::SetRetryOnCommitFailure(true);
+#endif
 
   InitializeThreadPool("updater");
   const base::ScopedClosureRunner shutdown_thread_pool(base::BindOnce([] {
@@ -262,18 +266,6 @@ constexpr const char* BuildFlavor() {
 #endif
 }
 
-constexpr const char* BuildArch() {
-#if defined(ARCH_CPU_ARM64)
-  return "64 bit (ARM)";
-#elif defined(ARCH_CPU_X86_64)
-  return "64 bit (x64)";
-#elif defined(ARCH_CPU_X86)
-  return "32 bit (x86)";
-#else
-#error CPU architecture is unknown.
-#endif
-}
-
 std::string OperatingSystemVersion() {
 #if BUILDFLAG(IS_WIN)
   const base::win::OSInfo::VersionNumber v =
@@ -326,7 +318,8 @@ int UpdaterMain(int argc, const char* const* argv) {
   const UpdaterScope updater_scope = GetUpdaterScope();
   InitLogging(updater_scope);
   VLOG(1) << "Version: " << kUpdaterVersion << ", " << BuildFlavor() << ", "
-          << BuildArch() << ", command line: " << GetCommandLineString();
+          << base::SysInfo::ProcessCPUArchitecture()
+          << ", command line: " << GetCommandLineString();
   VLOG(1) << "OS version: " << OperatingSystemVersion()
           << ", System uptime (seconds): "
           << base::SysInfo::Uptime().InSeconds() << ", parent pid: "

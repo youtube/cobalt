@@ -7,7 +7,8 @@
 #import "base/check.h"
 #import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
-#import "ios/chrome/browser/omnibox/model/autocomplete_suggestion.h"
+#import "components/omnibox/common/omnibox_features.h"
+#import "ios/chrome/browser/omnibox/model/suggestions/autocomplete_suggestion.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_popup_accessibility_identifier_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/ui/popup/row/omnibox_popup_row_content_view.h"
@@ -26,15 +27,14 @@
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
-
-/// Size of the trailing button.
-const CGFloat kTrailingButtonPointSize = 17.0f;
 /// Maximum number of lines displayed for search suggestions.
 const NSInteger kWrappingSuggestNumberOfLines = 2;
 
 }  // namespace
 
 NSString* const OmniboxPopupRowCellReuseIdentifier = @"OmniboxPopupRowCell";
+NSString* const OmniboxPopupAIModeRowCellReuseIdentifier =
+    @"OmniboxPopupAIModeRowCell";
 const CGFloat kOmniboxPopupCellMinimumHeight = 58;
 
 /// Redefines "Content View interface" as readwrite.
@@ -57,11 +57,8 @@ const CGFloat kOmniboxPopupCellMinimumHeight = 58;
 @property(nonatomic, assign, readwrite) BOOL secondaryTextFading;
 @property(nonatomic, assign, readwrite) BOOL secondaryTextDisplayAsURL;
 
-// Trailing Icon.
-@property(nonatomic, strong, readwrite) UIImage* trailingIcon;
-@property(nonatomic, strong, readwrite) UIColor* trailingIconTintColor;
-@property(nonatomic, strong, readwrite)
-    NSString* trailingButtonAccessibilityIdentifier;
+// Trailing Icon type.
+@property(nonatomic, readwrite) TrailingIconType trailingIconType;
 
 // Margins.
 @property(nonatomic, assign, readwrite)
@@ -112,30 +109,20 @@ const CGFloat kOmniboxPopupCellMinimumHeight = 58;
   _secondaryTextDisplayAsURL = _suggestion.isURL;
 
   // Trailing Button.
+  self.trailingIconType = TrailingIconType::kNone;
   NSString* trailingButtonActionName = nil;
   if (_suggestion.isTabMatch) {
-    _trailingIcon = DefaultSymbolWithPointSize(kNavigateToTabSymbol,
-                                               kTrailingButtonPointSize);
-    _trailingButtonAccessibilityIdentifier =
-        kOmniboxPopupRowSwitchTabAccessibilityIdentifier;
+    self.trailingIconType = TrailingIconType::kOpenExistingTab;
     trailingButtonActionName =
         l10n_util::GetNSString(IDS_IOS_OMNIBOX_POPUP_SWITCH_TO_OPEN_TAB);
-
+  } else if (_suggestion.hasAimShortcut) {
+    self.trailingIconType = TrailingIconType::kSearchWithAim;
+    trailingButtonActionName =
+        l10n_util::GetNSString(IDS_IOS_OMNIBOX_POPUP_SEARCH_WITH_AIM);
   } else if (_suggestion.isAppendable) {
-    _trailingIcon = DefaultSymbolWithPointSize(kRefineQuerySymbol,
-                                               kTrailingButtonPointSize);
-    _trailingButtonAccessibilityIdentifier =
-        kOmniboxPopupRowAppendAccessibilityIdentifier;
+    self.trailingIconType = TrailingIconType::kRefineQuery;
     trailingButtonActionName =
         l10n_util::GetNSString(IDS_IOS_OMNIBOX_POPUP_APPEND);
-  }
-
-  if (_trailingIcon) {
-    // `imageWithHorizontallyFlippedOrientation` is flipping the icon
-    // automatically when the UI is RTL/LTR.
-    _trailingIcon = [_trailingIcon imageWithHorizontallyFlippedOrientation];
-    _trailingIcon = [_trailingIcon
-        imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
   }
 
   // Accessibility actions.
@@ -169,9 +156,9 @@ const CGFloat kOmniboxPopupCellMinimumHeight = 58;
   configuration.leadingIconHighlighted = self.leadingIconHighlighted;
   configuration.primaryText = self.primaryText;
   configuration.secondaryText = self.secondaryText;
-  configuration.trailingIconTintColor = self.trailingIconTintColor;
   configuration.directionalLayoutMargin = self.directionalLayoutMargin;
   configuration.isPopoutOmnibox = self.isPopoutOmnibox;
+  configuration.trailingIconType = self.trailingIconType;
   return configuration;
 }
 
@@ -201,8 +188,6 @@ const CGFloat kOmniboxPopupCellMinimumHeight = 58;
           ? [self.class highlightedAttributedStringWithString:_suggestion
                                                                   .detailText]
           : _suggestion.detailText;
-  configuration.trailingIconTintColor =
-      allowHighlight ? UIColor.whiteColor : [UIColor colorNamed:kBlueColor];
 
   // Update margins for popout omnibox. Popout omnibox is only available on
   // regular size class.

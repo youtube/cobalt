@@ -103,6 +103,7 @@ if (enable_vr) {
     deps = [
       "//base",
       "//device/vr/public/mojom:isolated_xr_service",
+      "//device/vr/public/mojom:vr_service",
       "//ui/gfx",
     ]
 
@@ -135,7 +136,7 @@ if (enable_vr) {
       ":vr_base",
       ":vr_util",
       "//base",
-      "//components/ukm:ukm",
+      "//components/ukm",
       "//device/base",
       "//device/vr/buildflags",
       "//device/vr/public/mojom:isolated_xr_service",
@@ -158,6 +159,10 @@ if (enable_vr) {
         "openxr/fb/openxr_hand_tracker_fb.h",
         "openxr/msft/openxr_anchor_manager_msft.cc",
         "openxr/msft/openxr_anchor_manager_msft.h",
+        "openxr/msft/openxr_hit_test_manager_msft.cc",
+        "openxr/msft/openxr_hit_test_manager_msft.h",
+        "openxr/msft/openxr_plane_manager_msft.cc",
+        "openxr/msft/openxr_plane_manager_msft.h",
         "openxr/msft/openxr_scene_bounds_msft.cc",
         "openxr/msft/openxr_scene_bounds_msft.h",
         "openxr/msft/openxr_scene_msft.cc",
@@ -197,6 +202,8 @@ if (enable_vr) {
         "openxr/openxr_hand_tracker.h",
         "openxr/openxr_hand_utils.cc",
         "openxr/openxr_hand_utils.h",
+        "openxr/openxr_hit_test_manager.cc",
+        "openxr/openxr_hit_test_manager.h",
         "openxr/openxr_input_helper.cc",
         "openxr/openxr_input_helper.h",
         "openxr/openxr_interaction_profile_paths.h",
@@ -208,6 +215,8 @@ if (enable_vr) {
         "openxr/openxr_light_estimator.h",
         "openxr/openxr_path_helper.cc",
         "openxr/openxr_path_helper.h",
+        "openxr/openxr_plane_manager.cc",
+        "openxr/openxr_plane_manager.h",
         "openxr/openxr_platform.h",
         "openxr/openxr_platform_helper.cc",
         "openxr/openxr_platform_helper.h",
@@ -218,6 +227,8 @@ if (enable_vr) {
         "openxr/openxr_stage_bounds_provider.h",
         "openxr/openxr_stage_bounds_provider_basic.cc",
         "openxr/openxr_stage_bounds_provider_basic.h",
+        "openxr/openxr_swapchain_info.cc",
+        "openxr/openxr_swapchain_info.h",
         "openxr/openxr_unbounded_space_provider.cc",
         "openxr/openxr_unbounded_space_provider.h",
         "openxr/openxr_util.cc",
@@ -259,13 +270,15 @@ if (enable_vr) {
           "openxr/android/openxr_depth_sensor_android.h",
           "openxr/android/openxr_graphics_binding_open_gles.cc",
           "openxr/android/openxr_graphics_binding_open_gles.h",
+          "openxr/android/openxr_hit_test_manager_android.cc",
+          "openxr/android/openxr_hit_test_manager_android.h",
           "openxr/android/openxr_light_estimator_android.cc",
           "openxr/android/openxr_light_estimator_android.h",
+          "openxr/android/openxr_plane_manager_android.cc",
+          "openxr/android/openxr_plane_manager_android.h",
           "openxr/android/openxr_platform_helper_android_statics.cc",
           "openxr/android/openxr_scene_understanding_manager_android.cc",
           "openxr/android/openxr_scene_understanding_manager_android.h",
-          "openxr/android/openxr_stage_bounds_provider_android.cc",
-          "openxr/android/openxr_stage_bounds_provider_android.h",
           "openxr/android/openxr_unbounded_space_provider_android.cc",
           "openxr/android/openxr_unbounded_space_provider_android.h",
         ]
@@ -381,15 +394,13 @@ if (enable_openxr) {
     shared_library("openxr_mock") {
       testonly = true
 
-      # Not everything seems to respect `output_dir`. It appears that while on
-      # windows the last name appropriately gets renamed as needed, it does not
-      # on android, so this actually ends up written to `libmock_vr_clients`,
-      # and due to Android's expectations we have to name the runtime
-      # accordingly as well.
+      # Not everything seems to respect `output_dir`, so we can't actually use
+      # it on both platforms. Furthermore, on Android if there are directories
+      # in the output_name path, then symbolization on the bots is broken.
       if (is_win) {
         output_name = "mock_vr_clients/bin/openxr/openxrruntime"
       } else if (is_android) {
-        output_name = "mock_vr_clients/bin/openxr/libopenxrruntime"
+        output_name = "libmockopenxrruntime"
       }
 
       defines = [ "XR_EXTENSION_PROTOTYPES" ]
@@ -409,6 +420,16 @@ if (enable_openxr) {
         "openxr/test/openxr_test_helper.h",
       ]
 
+      deps = [
+        ":vr_test_hook",
+        "//base",
+        "//components/version_info",
+        "//device/gamepad/public/cpp:shared_with_blink",
+        "//device/vr/public/mojom:test_mojom",
+        "//device/vr/public/mojom:vr_service",
+        "//third_party/openxr:openxr_headers",
+      ]
+
       if (is_win) {
         sources += [ "openxr/test/openxr.def" ]
         libs = [
@@ -422,21 +443,23 @@ if (enable_openxr) {
                     rebase_path("//device/vr/openxr/test/openxr.lst",
                                 root_build_dir) ]
         inputs = [ "//device/vr/openxr/test/openxr.lst" ]
+        sources += [
+          "openxr/test/xr_test_gl.cc",
+          "openxr/test/xr_test_gl.h",
+        ]
+        libs = [
+          "EGL",
+          "GLESv2",
+        ]
       }
-
-      deps = [
-        ":vr_test_hook",
-        "//base",
-        "//components/version_info",
-        "//device/gamepad/public/cpp:shared_with_blink",
-        "//device/vr/public/mojom:test_mojom",
-        "//device/vr/public/mojom:vr_service",
-        "//third_party/openxr:openxr_headers",
-      ]
 
       public_deps = [ ":openxr_data" ]
 
       data_deps = [ "//device/vr:json_mock" ]
+
+      # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+      # enable the diagnostic by removing this line.
+      configs += [ "//build/config/compiler:no_exit_time_destructors" ]
     }
 
     if (is_android) {
@@ -446,8 +469,7 @@ if (enable_openxr) {
         testonly = true
 
         shared_libraries = [ ":openxr_mock" ]
-        library_always_compress =
-            [ "libmock_vr_clients/bin/openxr/libopenxrruntime.so" ]
+        library_always_compress = [ "libmockopenxrruntime.so" ]
 
         apk_name = "OpenXrTestSupport"
         android_manifest = "openxr/test/AndroidManifest.xml"

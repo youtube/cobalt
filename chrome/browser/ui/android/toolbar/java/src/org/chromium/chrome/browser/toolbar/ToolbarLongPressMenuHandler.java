@@ -33,6 +33,7 @@ import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.toolbar.settings.AddressBarPreference;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
+import org.chromium.components.browser_ui.widget.ListItemBuilder;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.ui.base.Clipboard;
@@ -47,6 +48,7 @@ import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /** The handler for the toolbar long press menu. */
@@ -68,8 +70,8 @@ public class ToolbarLongPressMenuHandler implements ConfigurationChangedObserver
     private int mScreenWidthDp;
     private final Context mContext;
     private final ObservableSupplier<Profile> mProfileSupplier;
-    private final ObservableSupplier<Boolean> mOmniboxFocusStateSupplier;
-    private final Supplier<String> mUrlBarTextSupplier;
+    private final BooleanSupplier mSuppressLongPressSupplier;
+    private final Supplier<GURL> mUrlSupplier;
     private final Supplier<ViewRectProvider> mUrlBarViewRectProviderSupplier;
     private final @Nullable OnLongClickListener mOnLongClickListener;
     private final SharedPreferencesManager mSharedPreferencesManager;
@@ -85,15 +87,15 @@ public class ToolbarLongPressMenuHandler implements ConfigurationChangedObserver
             Context context,
             ObservableSupplier<Profile> profileSupplier,
             boolean isCustomTab,
-            ObservableSupplier<Boolean> omniboxFocusStateSupplier,
+            BooleanSupplier suppressLongPressSupplier,
             ActivityLifecycleDispatcher lifecycleDispatcher,
             WindowAndroid windowAndroid,
-            Supplier<String> urlBarTextSupplier,
+            Supplier<GURL> urlSupplier,
             Supplier<ViewRectProvider> urlBarViewRectProviderSupplier) {
         mContext = context;
         mProfileSupplier = profileSupplier;
-        mOmniboxFocusStateSupplier = omniboxFocusStateSupplier;
-        mUrlBarTextSupplier = urlBarTextSupplier;
+        mSuppressLongPressSupplier = suppressLongPressSupplier;
+        mUrlSupplier = urlSupplier;
         mUrlBarViewRectProviderSupplier = urlBarViewRectProviderSupplier;
         mWindowAndroid = windowAndroid;
         mLifecycleDispatcher = lifecycleDispatcher;
@@ -104,8 +106,8 @@ public class ToolbarLongPressMenuHandler implements ConfigurationChangedObserver
         if (ToolbarPositionController.isToolbarPositionCustomizationEnabled(context, isCustomTab)) {
             mOnLongClickListener =
                     (view) -> {
-                        if (mOmniboxFocusStateSupplier.get()) {
-                            // Do nothing if the URL bar has focus during a long press.
+                        if (mSuppressLongPressSupplier.getAsBoolean()) {
+                            // Do nothing if we're suppressed, e.g. if the omnibox is focused.
                             return false;
                         }
 
@@ -214,15 +216,18 @@ public class ToolbarLongPressMenuHandler implements ConfigurationChangedObserver
     ModelList buildMenuItems(boolean onTop) {
         ModelList itemList = new ModelList();
         itemList.add(
-                BrowserUiListMenuUtils.buildMenuListItem(
-                        onTop
-                                ? R.string.toolbar_move_to_the_bottom
-                                : R.string.toolbar_move_to_the_top,
-                        MenuItemType.MOVE_ADDRESS_BAR_TO,
-                        /* startIconId= */ 0));
+                new ListItemBuilder()
+                        .withTitleRes(
+                                onTop
+                                        ? R.string.toolbar_move_to_the_bottom
+                                        : R.string.toolbar_move_to_the_top)
+                        .withMenuId(MenuItemType.MOVE_ADDRESS_BAR_TO)
+                        .build());
         itemList.add(
-                BrowserUiListMenuUtils.buildMenuListItem(
-                        R.string.toolbar_copy_link, MenuItemType.COPY_LINK, /* startIconId= */ 0));
+                new ListItemBuilder()
+                        .withTitleRes(R.string.toolbar_copy_link)
+                        .withMenuId(MenuItemType.COPY_LINK)
+                        .build());
         return itemList;
     }
 
@@ -243,7 +248,7 @@ public class ToolbarLongPressMenuHandler implements ConfigurationChangedObserver
     }
 
     private void handleCopyLink() {
-        Clipboard.getInstance().copyUrlToClipboard(new GURL(mUrlBarTextSupplier.get()));
+        Clipboard.getInstance().copyUrlToClipboard(mUrlSupplier.get());
     }
 
     @VisibleForTesting

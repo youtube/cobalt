@@ -287,6 +287,12 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       base::Vector<const char> str,
       AllocationType allocation = AllocationType::kYoung);
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      std::string_view str,
+      AllocationType allocation = AllocationType::kYoung) {
+    return NewStringFromUtf8(base::StrVector(str), allocation);
+  }
+
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       base::Vector<const uint8_t> str, unibrow::Utf8Variant utf8_variant,
       AllocationType allocation = AllocationType::kYoung);
 
@@ -744,7 +750,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int length, wasm::CanonicalValueType table_type, bool shared);
   DirectHandle<WasmTypeInfo> NewWasmTypeInfo(
       wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
-      DirectHandle<Map> opt_parent, bool shared);
+      DirectHandle<Map> opt_parent, int num_supertypes, bool shared);
   DirectHandle<WasmInternalFunction> NewWasmInternalFunction(
       DirectHandle<TrustedObject> ref, int function_index, bool shared,
       WasmCodePointer call_target);
@@ -879,7 +885,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(DirectHandle<JSReceiver> target,
-                             DirectHandle<JSReceiver> handler);
+                             DirectHandle<JSReceiver> handler, bool revocable);
 
   // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the

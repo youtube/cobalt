@@ -21,6 +21,7 @@
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/product_specifications/product_specifications_service.h"
 #include "components/commerce/core/proto/commerce_subscription_db_content.pb.h"
+#include "components/commerce/core/proto/discount_infos_db_content.pb.h"  // nogncheck
 #include "components/commerce/core/proto/parcel_tracking_db_content.pb.h"
 #include "components/commerce/core/shopping_service.h"
 #include "components/prefs/pref_service.h"
@@ -82,6 +83,8 @@ ShoppingServiceFactory::ShoppingServiceFactory()
   DependsOn(SessionProtoDBFactory<
             discounts_db::DiscountsContentProto>::GetInstance());
 #endif
+  DependsOn(SessionProtoDBFactory<
+            discount_infos_db::DiscountInfosContentProto>::GetInstance());
   DependsOn(SyncServiceFactory::GetInstance());
   DependsOn(commerce::ProductSpecificationsServiceFactory::GetInstance());
   DependsOn(TabRestoreServiceFactory::GetInstance());
@@ -113,6 +116,9 @@ ShoppingServiceFactory::BuildServiceInstanceForBrowserContext(
 #else
       nullptr, nullptr,
 #endif
+      SessionProtoDBFactory<
+          discount_infos_db::DiscountInfosContentProto>::GetInstance()
+          ->GetForProfile(context),
       SessionProtoDBFactory<
           parcel_tracking_db::ParcelTrackingContent>::GetInstance()
           ->GetForProfile(context),

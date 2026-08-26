@@ -38,6 +38,7 @@ rtc_library("primitives") {
     "../../api:scoped_refptr",
     "../../rtc_base:checks",
     "../../rtc_base:refcount",
+    "../../rtc_base:stringutils",
     "../../rtc_base/system:rtc_export",
     "//third_party/libyuv",
   ]
@@ -103,6 +104,7 @@ if (rtc_include_tests) {
         ":desktop_capture",
         ":desktop_capture_mock",
         ":primitives",
+        "../../api:scoped_refptr",
         "../../rtc_base:checks",
         "../../rtc_base:logging",
         "../../rtc_base:random",
@@ -154,14 +156,13 @@ if (rtc_include_tests) {
       ":desktop_capture",
       ":desktop_capture_mock",
       ":primitives",
+      "../../api:array_view",
       "../../rtc_base:checks",
       "../../rtc_base:logging",
-      "../../rtc_base:macromagic",
       "../../rtc_base:random",
       "../../rtc_base:task_queue_for_test",
       "../../rtc_base:threading",
       "../../rtc_base:timeutils",
-      "../../system_wrappers",
       "../../test:test_support",
     ]
 
@@ -291,6 +292,7 @@ rtc_library("desktop_capture") {
     "delegated_source_list_controller.h",
     "desktop_and_cursor_composer.cc",
     "desktop_and_cursor_composer.h",
+    "desktop_capture_metadata.h",
     "desktop_capture_metrics_helper.cc",
     "desktop_capture_metrics_helper.h",
     "desktop_capture_options.cc",
@@ -328,9 +330,6 @@ rtc_library("desktop_capture") {
     "window_finder.cc",
     "window_finder.h",
   ]
-  if (is_linux && !is_castos && rtc_use_pipewire) {
-    sources += [ "desktop_capture_metadata.h" ]
-  }
   if (is_mac) {
     sources += [
       "mac/desktop_configuration.h",
@@ -433,6 +432,7 @@ rtc_library("desktop_capture") {
     "../../api:scoped_refptr",
     "../../api:sequence_checker",
     "../../rtc_base:checks",
+    "../../rtc_base:cpu_info",
     "../../rtc_base:event_tracer",
     "../../rtc_base:logging",
     "../../rtc_base:macromagic",
@@ -443,7 +443,6 @@ rtc_library("desktop_capture") {
     "../../rtc_base/system:arch",
     "../../rtc_base/system:no_unique_address",
     "../../rtc_base/system:rtc_export",
-    "../../system_wrappers",
     "../../system_wrappers:metrics",
   ]
 
@@ -615,6 +614,7 @@ if (is_mac) {
     visibility = [ ":desktop_capture" ]
     sources = [
       "delegated_source_list_controller.h",
+      "desktop_capture_metadata.h",
       "desktop_capture_options.h",
       "desktop_capturer.h",
       "full_screen_application_handler.h",

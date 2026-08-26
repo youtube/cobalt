@@ -219,10 +219,9 @@ int32_t VideoCaptureImpl::IncomingFrame(uint8_t* videoFrame,
   }
 
   const int conversionResult = libyuv::ConvertToI420(
-      videoFrame, videoFrameLength, buffer.get()->MutableDataY(),
-      buffer.get()->StrideY(), buffer.get()->MutableDataU(),
-      buffer.get()->StrideU(), buffer.get()->MutableDataV(),
-      buffer.get()->StrideV(), 0, 0,  // No Cropping
+      videoFrame, videoFrameLength, buffer->MutableDataY(), buffer->StrideY(),
+      buffer->MutableDataU(), buffer->StrideU(), buffer->MutableDataV(),
+      buffer->StrideV(), 0, 0,  // No Cropping
       width, height, target_width, target_height, rotation_mode,
       ConvertVideoType(frameInfo.videoType));
   if (conversionResult != 0) {

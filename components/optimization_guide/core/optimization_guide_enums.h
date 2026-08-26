@@ -313,57 +313,6 @@ enum class TextSafetyModelMetadataValidity {
   kMaxValue = kValid,
 };
 
-enum class OnDeviceModelAdaptationAvailability {
-  // Adaptation model was available.
-  kAvailable = 0,
-
-  // Base model was not available.
-  kBaseModelUnavailable = 1,
-
-  // Base model spec was invalid, so adaptation model cannot be fetched.
-  kBaseModelSpecInvalid = 2,
-
-  // Adaptation model was not available.
-  kAdaptationModelUnavailable = 3,
-
-  // The received adaptation model was invalid.
-  kAdaptationModelInvalid = 4,
-
-  // The received adaptation model was incompatible with the base model.
-  kAdaptationModelIncompatible = 5,
-
-  // The execution config in the adaptation model was invalid.
-  kAdaptationModelExecutionConfigInvalid = 6,
-
-  // The model execution feature was not recently used.
-  kFeatureNotRecentlyUsed = 7,
-
-  // This must be kept in sync with OnDeviceModelAdaptationAvailability in
-  // optimization/enums.xml.
-  kMaxValue = kFeatureNotRecentlyUsed,
-};
-
-// The result of running validation prompts for the on-device model.
-//
-// Keep in sync with OnDeviceModelValidationResult in enums.xml.
-enum class OnDeviceModelValidationResult {
-  kUnknown = 0,
-  // The validation is currently running or was interrupted.
-  kPending = 1,
-  // The validation test succeeded.
-  kSuccess = 2,
-  // The validation test produced non-matching output.
-  kNonMatchingOutput = 3,
-  // The service crashed while running the validation test.
-  kServiceCrash = 4,
-  // The validation test was interrupted by another session.
-  kInterrupted = 5,
-
-  // This must be kept in sync with OnDeviceModelValidationResult in
-  // optimization/enums.xml.
-  kMaxValue = kInterrupted,
-};
-
 // Whether a response is complete or not.
 enum class ResponseCompleteness {
   // This is a partial response, more output may follow.

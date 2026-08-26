@@ -351,8 +351,8 @@ Position LeadingCollapsibleWhitespacePosition(const Position& position,
   const String& string = anchor_text_node->data();
   const UChar previous_character = string[prev.ComputeOffsetInContainerNode()];
   const bool is_space = option == kConsiderNonCollapsibleWhitespace
-                            ? (IsSpaceOrNewline(previous_character) ||
-                               previous_character == kNoBreakSpaceCharacter)
+                            ? (unicode::IsSpaceOrNewline(previous_character) ||
+                               previous_character == uchar::kNoBreakSpace)
                             : IsCollapsibleWhitespace(previous_character);
   if (!is_space || !IsEditablePosition(prev))
     return Position();
@@ -376,8 +376,9 @@ bool LineBreakExistsAtVisiblePosition(const VisiblePosition& visible_position) {
 HTMLElement* CreateHTMLElement(Document& document, const QualifiedName& name) {
   DCHECK_EQ(name.NamespaceURI(), html_names::xhtmlNamespaceURI)
       << "Unexpected namespace: " << name;
-  return To<HTMLElement>(document.CreateElement(
-      name, CreateElementFlags::ByCloneNode(), g_null_atom));
+  return To<HTMLElement>(
+      document.CreateElement(name, CreateElementFlags::ByCloneNode(),
+                             g_null_atom, /*registry*/ nullptr));
 }
 
 HTMLElement* EnclosingList(const Node* node) {
@@ -523,7 +524,7 @@ VisibleSelection SelectionForParagraphIteration(
 
 const String& NonBreakingSpaceString() {
   DEFINE_STATIC_LOCAL(String, non_breaking_space_string,
-                      (base::span_from_ref(kNoBreakSpaceCharacter)));
+                      (base::span_from_ref(uchar::kNoBreakSpace)));
   return non_breaking_space_string;
 }
 

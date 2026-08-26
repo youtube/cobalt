@@ -26,8 +26,8 @@
 namespace webrtc {
 
 // VideoBroadcaster broadcast video frames to sinks and combines VideoSinkWants
-// from its sinks. It does that by implementing webrtc::VideoSourceInterface and
-// webrtc::VideoSinkInterface. The class is threadsafe; methods may be called on
+// from its sinks. It does that by implementing VideoSourceInterface and
+// VideoSinkInterface. The class is threadsafe; methods may be called on
 // any thread. This is needed because VideoStreamEncoder calls AddOrUpdateSink
 // both on the worker thread and on the encoder task queue.
 class VideoBroadcaster : public VideoSourceBase,
@@ -81,12 +81,5 @@ class VideoBroadcaster : public VideoSourceBase,
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::VideoBroadcaster;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_VIDEO_BROADCASTER_H_

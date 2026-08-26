@@ -13,22 +13,17 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/values.h"
+#include "crypto/keypair.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "net/cert/x509_certificate.h"
-#include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace base {
 class FilePath;
-class Value;
 }  // namespace base
 
 namespace content {
 class BrowserContext;
-}
-
-namespace crypto {
-class RSAPrivateKey;
 }
 
 namespace ash {
@@ -106,7 +101,7 @@ class TestCertificateProviderExtension final {
 
   const raw_ptr<content::BrowserContext> browser_context_;
   const scoped_refptr<net::X509Certificate> certificate_;
-  std::unique_ptr<crypto::RSAPrivateKey> private_key_;
+  crypto::keypair::PrivateKey private_key_;
   int certificate_request_count_ = 0;
   // When non-empty, contains the expected PIN; the implementation will request
   // the PIN on every signature request in this case.

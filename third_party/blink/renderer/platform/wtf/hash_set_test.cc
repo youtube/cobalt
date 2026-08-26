@@ -35,10 +35,7 @@
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_test_helper.h"
 
-namespace WTF {
-
-int* const CountCopy::kDeletedValue =
-    reinterpret_cast<int*>(static_cast<uintptr_t>(-1));
+namespace blink {
 
 namespace {
 
@@ -113,11 +110,11 @@ TEST(HashSetTest, FindAndErase) {
   EXPECT_EQ(1U, set.size());
 }
 
-template <unsigned size>
+template <wtf_size_t size>
 void TestReserveCapacity();
 template <>
 void TestReserveCapacity<0>() {}
-template <unsigned size>
+template <wtf_size_t size>
 void TestReserveCapacity() {
   HashSet<int> test_set;
 
@@ -125,8 +122,8 @@ void TestReserveCapacity() {
   EXPECT_EQ(0UL, test_set.Capacity());
 
   test_set.ReserveCapacityForSize(size);
-  const unsigned initial_capacity = test_set.Capacity();
-  const unsigned kMinimumTableSize = HashTraits<int>::kMinimumTableSize;
+  const wtf_size_t initial_capacity = test_set.Capacity();
+  constexpr wtf_size_t kMinimumTableSize = HashTraits<int>::kMinimumTableSize;
 
   // reserveCapacityForSize should respect minimumTableSize.
   EXPECT_GE(initial_capacity, kMinimumTableSize);
@@ -139,7 +136,7 @@ void TestReserveCapacity() {
 
   // Adding items up to less than half the capacity should not change the
   // capacity.
-  unsigned capacity_limit = initial_capacity / 2 - 1;
+  wtf_size_t capacity_limit = initial_capacity / 2 - 1;
   for (wtf_size_t i = size; i < capacity_limit; ++i) {
     test_set.insert(i + 1);
     EXPECT_EQ(initial_capacity, test_set.Capacity());
@@ -489,9 +486,9 @@ TEST(HashSetTest, ConstructFromOtherContainerIterators) {
   convert_and_verify(base::span(kArray), "span");
 }
 
-static_assert(!IsTraceable<HashSet<int>>::value,
+static_assert(!IsTraceableV<HashSet<int>>,
               "HashSet<int, int> must not be traceable.");
 
 }  // anonymous namespace
 
-}  // namespace WTF
+}  // namespace blink

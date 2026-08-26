@@ -30,8 +30,8 @@
 #include "components/services/storage/public/mojom/session_storage_control.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "storage/common/database/db_status.h"
 #include "third_party/blink/public/mojom/dom_storage/session_storage_namespace.mojom.h"
-#include "third_party/leveldatabase/src/include/leveldb/status.h"
 
 namespace base {
 class SequencedTaskRunner;
@@ -43,9 +43,11 @@ class StorageKey;
 
 namespace storage {
 
+class StorageServiceImpl;
 // The Session Storage implementation. An instance of this class exists for each
-// storage partition using Session Storage, managing storage for all StorageKeys
-// and namespaces within the partition.
+// profile directory (within the user data directory) that is using Session
+// Storage. It manages storage for all StorageKeys and namespaces within that
+// partition.
 class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
                            public mojom::SessionStorageControl,
                            public SessionStorageDataMap::Listener,
@@ -65,12 +67,15 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
     kRestoreDiskState
   };
 
+  using DestructSessionStorageCallback =
+      base::OnceCallback<void(SessionStorageImpl*)>;
   SessionStorageImpl(
       const base::FilePath& partition_directory,
       scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
       scoped_refptr<base::SequencedTaskRunner> memory_dump_task_runner,
       BackingMode backing_option,
       std::string database_name,
+      DestructSessionStorageCallback destruct_callback,
       mojo::PendingReceiver<mojom::SessionStorageControl> receiver);
 
   ~SessionStorageImpl() override;
@@ -114,6 +119,8 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   // base::trace_event::MemoryDumpProvider implementation:
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
                     base::trace_event::ProcessMemoryDump* pmd) override;
+
+  const base::FilePath& GetStoragePath() const { return partition_directory_; }
 
   void PretendToConnectForTesting();
 
@@ -166,9 +173,8 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   void OnDataMapCreation(const std::vector<uint8_t>& map_prefix,
                          SessionStorageDataMap* map) override;
   void OnDataMapDestruction(const std::vector<uint8_t>& map_prefix) override;
-  void OnCommitResult(leveldb::Status status) override;
-  void OnCommitResultWithCallback(base::OnceClosure callback,
-                                  leveldb::Status status);
+  void OnCommitResult(DbStatus status) override;
+  void OnCommitResultWithCallback(base::OnceClosure callback, DbStatus status);
 
   // SessionStorageNamespaceImpl::Delegate implementation:
   scoped_refptr<SessionStorageDataMap> MaybeGetExistingDataMapForId(
@@ -191,13 +197,13 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
 
   // Part of our asynchronous directory opening called from RunWhenConnected().
   void InitiateConnection(bool in_memory_only = false);
-  void OnDatabaseOpened(leveldb::Status status);
+  void OnDatabaseOpened(DbStatus status);
 
   struct ValueAndStatus {
     ValueAndStatus();
     ValueAndStatus(ValueAndStatus&&);
     ~ValueAndStatus();
-    leveldb::Status status;
+    DbStatus status;
     DomStorageDatabase::Value value;
   };
 
@@ -205,7 +211,7 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
     KeyValuePairsAndStatus();
     KeyValuePairsAndStatus(KeyValuePairsAndStatus&&);
     ~KeyValuePairsAndStatus();
-    leveldb::Status status;
+    DbStatus status;
     std::vector<DomStorageDatabase::KeyValuePair> key_value_pairs;
   };
 
@@ -228,7 +234,7 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   void OnConnectionFinished();
   void PurgeAllNamespaces();
   void DeleteAndRecreateDatabase(const char* histogram_name);
-  void OnDBDestroyed(bool recreate_in_memory, leveldb::Status status);
+  void OnDBDestroyed(bool recreate_in_memory, DbStatus status);
 
   void OnShutdownComplete();
 
@@ -236,6 +242,12 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
 
   void LogDatabaseOpenResult(OpenResult result);
 
+  void OnReceiverDisconnected();
+
+  // Passed in by the StorageServiceImpl that owns this object. Used to signal
+  // that this SessionStorageImpl can be destructed when the Receiver is
+  // disconnected.
+  DestructSessionStorageCallback destruct_callback_;
   // Since the session storage object hierarchy references iterators owned by
   // the metadata, make sure it is destroyed last on destruction.
   SessionStorageMetadata metadata_;

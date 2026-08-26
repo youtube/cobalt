@@ -479,7 +479,15 @@ String ListedElement::CustomValidationMessage() const {
 }
 
 void ListedElement::SetCustomValidationMessage(const String& message) {
-  custom_validation_message_ = message;
+  if (RuntimeEnabledFeatures::CustomValidityNormalizeNewlinesEnabled()) {
+    // \r\n and \r should be replaced with \n:
+    // https://github.com/whatwg/html/pull/10350
+    String message_copy(message);
+    custom_validation_message_ =
+        message_copy.Replace("\r\n", "\n").Replace('\r', '\n');
+  } else {
+    custom_validation_message_ = message;
+  }
 }
 
 String ListedElement::validationMessage() const {
@@ -567,9 +575,7 @@ Element& ListedElement::GetHostOrFocusDelegate() const {
   const HTMLElement& host = ToHTMLElement();
   // If host is a shadow host with delegatesFocus, then the element to get
   // focus should be its focusable area.
-  if (RuntimeEnabledFeatures::
-          FormValidationCustomElementsDelegatesFocusFixEnabled() &&
-      host.IsShadowHostWithDelegatesFocus()) {
+  if (host.IsShadowHostWithDelegatesFocus()) {
     if (Element* focusable_area =
             host.GetFocusableArea(/*in_descendant_traversal=*/true)) {
       return *focusable_area;

@@ -179,10 +179,9 @@ class CORE_EXPORT LayoutFlowThread : public LayoutBlockFlow {
 
   LayoutMultiColumnSetList multi_column_set_list_;
 
-  typedef WTF::PODInterval<LayoutUnit, LayoutMultiColumnSet*>
-      MultiColumnSetInterval;
-  typedef WTF::PODIntervalTree<LayoutUnit, LayoutMultiColumnSet*>
-      MultiColumnSetIntervalTree;
+  using MultiColumnSetInterval = PodInterval<LayoutUnit, LayoutMultiColumnSet*>;
+  using MultiColumnSetIntervalTree =
+      PodIntervalTree<LayoutUnit, LayoutMultiColumnSet*>;
 
   class MultiColumnSetSearchAdapter {
     STACK_ALLOCATED();
@@ -214,24 +213,22 @@ struct DowncastTraits<LayoutFlowThread> {
   }
 };
 
-}  // namespace blink
-
-namespace WTF {
-// These structures are used by PODIntervalTree for debugging.
+// These structures are used by PodIntervalTree for debugging.
 #ifndef NDEBUG
 template <>
-struct ValueToString<blink::LayoutMultiColumnSet*> {
-  static String ToString(const blink::LayoutMultiColumnSet* value) {
+struct ValueToString<LayoutMultiColumnSet*> {
+  static String ToString(const LayoutMultiColumnSet* value) {
     return String::Format("%p", value);
   }
 };
 template <>
-struct ValueToString<blink::LayoutUnit> {
-  static String ToString(const blink::LayoutUnit value) {
+struct ValueToString<LayoutUnit> {
+  static String ToString(const LayoutUnit value) {
     return String::Number(value.ToFloat());
   }
 };
 #endif
-}  // namespace WTF
+
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_LAYOUT_FLOW_THREAD_H_

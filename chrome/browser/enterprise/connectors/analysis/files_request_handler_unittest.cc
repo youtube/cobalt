@@ -184,7 +184,7 @@ class TestContentAnalysisInfo : public ContentAnalysisInfo {
 
   std::string email() const override { return "test@user.com"; }
 
-  std::string url() const override { return kTestUrl; }
+  const GURL& url() const override { return tab_url(); }
 
   const GURL& tab_url() const override {
     static GURL url(kTestUrl);
@@ -205,6 +205,8 @@ class TestContentAnalysisInfo : public ContentAnalysisInfo {
       const override {
     return {};
   }
+
+  content::WebContents* web_contents() const override { return nullptr; }
 
  private:
   const raw_ref<const enterprise_connectors::AnalysisSettings> settings_;
@@ -278,8 +280,8 @@ class FilesRequestHandlerTest : public BaseTest {
                 settings->cloud_or_local_settings.is_cloud_analysis()),
             /*content_analysis_info=*/&info,
             /*upload_service=*/nullptr, profile_, GURL(kTestUrl), "", "",
-            kContentTransferMethod, safe_browsing::DeepScanAccessPoint::UPLOAD,
-            paths, future.GetCallback());
+            kContentTransferMethod, DeepScanAccessPoint::UPLOAD, paths,
+            future.GetCallback());
 
     fake_files_request_handler_->UploadData();
 

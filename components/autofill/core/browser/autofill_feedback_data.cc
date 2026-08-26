@@ -6,6 +6,7 @@
 
 #include <variant>
 
+#include "base/strings/string_number_conversions.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
@@ -36,6 +37,8 @@ std::string FillDataTypeToStr(FillDataType type) {
       return "AutofillAi";
     case FillDataType::kSingleFieldFillerLoyaltyCard:
       return "SingleFieldFillerLoyaltyCard";
+    case FillDataType::kOneTimePasswordValue:
+      return "OneTimePasswordValue";
   }
 }
 
@@ -50,7 +53,7 @@ base::Value::Dict BuildFieldDataLogs(AutofillField* field) {
   field_data.Set("autocompleteAttribute", field->autocomplete_attribute());
   field_data.Set("labelAttribute", field->label());
   field_data.Set("placeholderAttribute", field->placeholder());
-  field_data.Set("fieldType", field->Type().ToStringView());
+  field_data.Set("fieldType", field->Type().ToString());
   field_data.Set("heuristicType",
                  FieldTypeToStringView(field->heuristic_type()));
   field_data.Set("serverType", FieldTypeToStringView(field->server_type()));

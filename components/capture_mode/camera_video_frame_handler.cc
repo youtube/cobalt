@@ -28,7 +28,6 @@
 #include "ui/compositor/compositor.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/gpu_memory_buffer.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "gpu/command_buffer/common/shared_image_capabilities.h"
@@ -176,8 +175,8 @@ class SharedMemoryBufferHandleHolder : public BufferHandleHolder {
     auto& frame_info = buffer->frame_info;
     auto frame = media::VideoFrame::WrapExternalData(
         frame_info->pixel_format, frame_info->coded_size,
-        frame_info->visible_rect, frame_info->visible_rect.size(),
-        mapping.GetMemoryAs<uint8_t>(), mapping.size(), frame_info->timestamp);
+        frame_info->visible_rect, frame_info->visible_rect.size(), mapping,
+        frame_info->timestamp);
 
     if (frame) {
       frame->AddDestructionObserver(base::DoNothingWithBoundArgs(mapping_));
@@ -371,9 +370,7 @@ class GpuMemoryBufferHandleHolder : public BufferHandleHolder,
     // If format is not multiplanar it must be used for testing.
     CHECK(format.is_multi_plane() || g_force_use_gpu_memory_buffer_for_test);
 
-    if (frame_info->color_space.IsValid()) {
-      frame->set_color_space(frame_info->color_space);
-    }
+    frame->set_color_space(shared_image_->color_space());
     frame->metadata().allow_overlay = true;
     frame->metadata().read_lock_fences_enabled = true;
     frame->metadata().MergeMetadataFrom(frame_info->metadata);

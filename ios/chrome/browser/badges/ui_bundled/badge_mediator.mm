@@ -11,7 +11,6 @@
 #import "ios/chrome/browser/badges/ui_bundled/badge_button.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_consumer.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_item.h"
-#import "ios/chrome/browser/badges/ui_bundled/badge_static_item.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_tappable_item.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_type_util.h"
 #import "ios/chrome/browser/infobars/model/badge_state.h"
@@ -67,9 +66,6 @@ const char kInfobarOverflowBadgeShownUserAction[] =
 // The infobar banner OverlayPresenter.
 @property(nonatomic, readonly) OverlayPresenter* overlayPresenter;
 
-// The incognito badge, or nil if the Browser is not off-the-record.
-@property(nonatomic, readonly) id<BadgeItem> offTheRecordBadge;
-
 // Array of all available badges.
 @property(nonatomic, strong, readonly) NSArray<id<BadgeItem>>* badges;
 
@@ -81,15 +77,9 @@ const char kInfobarOverflowBadgeShownUserAction[] =
 @implementation BadgeMediator
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList
-                    overlayPresenter:(OverlayPresenter*)overlayPresenter
-                         isIncognito:(BOOL)isIncognito {
+                    overlayPresenter:(OverlayPresenter*)overlayPresenter {
   self = [super init];
   if (self) {
-    // Create the incognito badge if `browser` is off-the-record.
-    if (isIncognito) {
-      _offTheRecordBadge =
-          [[BadgeStaticItem alloc] initWithBadgeType:kBadgeTypeIncognito];
-    }
     // Set up the OverlayPresenterObserver for the infobar banner presentation.
     _overlayPresenterObserver =
         std::make_unique<OverlayPresenterObserverBridge>(self);
@@ -234,8 +224,7 @@ const char kInfobarOverflowBadgeShownUserAction[] =
     displayedBadge = [badges firstObject];
   }
   // Update the consumer with the new badge items.
-  [self.consumer setupWithDisplayedBadge:displayedBadge
-                         fullScreenBadge:self.offTheRecordBadge];
+  [self.consumer setupWithDisplayedBadge:displayedBadge];
 }
 
 #pragma mark - BadgeDelegate
@@ -356,7 +345,6 @@ const char kInfobarOverflowBadgeShownUserAction[] =
   }
 
   [self.consumer updateDisplayedBadge:displayedBadge
-                      fullScreenBadge:self.offTheRecordBadge
                               infoBar:infoBar];
   [self updateConsumerReadStatus];
 }

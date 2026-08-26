@@ -33,11 +33,10 @@
 #include "components/viz/common/frame_timing_details.h"
 
 namespace viz {
-struct FrameTimingDetails;
+class FrameTimingDetails;
 }
 
 namespace cc {
-class DroppedFrameCounter;
 class EventLatencyTracker;
 class FrameSorter;
 class LatencyUkmReporter;
@@ -45,7 +44,6 @@ class LatencyUkmReporter;
 struct GlobalMetricsTrackers {
   // RAW_PTR_EXCLUSION: Renderer performance: visible in sampling profiler
   // stacks.
-  RAW_PTR_EXCLUSION DroppedFrameCounter* dropped_frame_counter = nullptr;
   RAW_PTR_EXCLUSION LatencyUkmReporter* latency_ukm_reporter = nullptr;
   RAW_PTR_EXCLUSION FrameSequenceTrackerCollection* frame_sequence_trackers =
       nullptr;
@@ -185,18 +183,6 @@ class CC_EXPORT CompositorFrameReporter {
     ~StageData();
   };
 
-  struct CC_EXPORT EventLatencyInfo {
-    std::vector<base::TimeDelta> dispatch_durations;
-    base::TimeDelta transition_duration;
-    std::vector<base::TimeDelta> compositor_durations;
-    base::TimeDelta total_duration;
-    std::string transition_name;
-    EventLatencyInfo(const int num_dispatch_stages,
-                     const int num_compositor_stages);
-    EventLatencyInfo(const EventLatencyInfo&);
-    ~EventLatencyInfo();
-  };
-
   using SmoothThread = FrameInfo::SmoothThread;
   using SmoothEffectDrivingThread = FrameInfo::SmoothEffectDrivingThread;
 
@@ -292,21 +278,6 @@ class CC_EXPORT CompositorFrameReporter {
     base::TimeTicks swap_start_;
   };
 
-  // Wrapper for all level of breakdown stages' prediction
-  struct CC_EXPORT CompositorLatencyInfo {
-    CompositorLatencyInfo();
-    explicit CompositorLatencyInfo(base::TimeDelta init_value);
-    ~CompositorLatencyInfo();
-
-    std::vector<base::TimeDelta> top_level_stages;
-    std::vector<base::TimeDelta> blink_breakdown_stages;
-    std::vector<base::TimeDelta> viz_breakdown_stages;
-
-    base::TimeDelta total_latency;
-    base::TimeDelta total_blink_latency;
-    base::TimeDelta total_viz_latency;
-  };
-
   CompositorFrameReporter(const ActiveTrackers& active_trackers,
                           const viz::BeginFrameArgs& args,
                           bool should_report_histograms,
@@ -325,8 +296,7 @@ class CC_EXPORT CompositorFrameReporter {
   static const char* GetStageName(
       StageType stage_type,
       std::optional<VizBreakdown> viz_breakdown = std::nullopt,
-      std::optional<BlinkBreakdown> blink_breakdown = std::nullopt,
-      bool impl_only = false);
+      std::optional<BlinkBreakdown> blink_breakdown = std::nullopt);
 
   // Name for the viz breakdowns which are shown in traces as substages under
   // PipelineReporter -> SubmitCompositorFrameToPresentationCompositorFrame or
@@ -361,7 +331,7 @@ class CC_EXPORT CompositorFrameReporter {
     return stage_history_.size();
   }
 
-  void OnFinishImplFrame(base::TimeTicks timestamp);
+  void OnFinishImplFrame(base::TimeTicks timestamp, bool waiting_for_main);
   void OnAbortBeginMainFrame(base::TimeTicks timestamp);
   void OnDidNotProduceFrame(FrameSkippedReason skip_reason);
   void EnableCompositorOnlyReporting();
@@ -384,6 +354,7 @@ class CC_EXPORT CompositorFrameReporter {
     return *main_frame_abort_time_;
   }
 
+  bool has_frame_skip_reason() const { return frame_skip_reason_.has_value(); }
   FrameSkippedReason frame_skip_reason() const { return *frame_skip_reason_; }
 
   void set_tick_clock(const base::TickClock* tick_clock) {
@@ -447,31 +418,10 @@ class CC_EXPORT CompositorFrameReporter {
   using FrameReportTypes =
       std::bitset<static_cast<size_t>(FrameReportType::kMaxValue) + 1>;
 
-  // This function is called to calculate breakdown stage duration's prediction
-  // based on the `previous_predictions` and update the `previous_predictions`
-  // to the new prediction calculated.
-  void CalculateCompositorLatencyPrediction(
-      CompositorLatencyInfo& previous_predictions,
-      base::TimeDelta prediction_deviation_threshold);
-
-  // Sets EventLatency stage duration predictions based on previous trace
-  // durations using exponentially weighted averages.
-  void CalculateEventLatencyPrediction(
-      CompositorFrameReporter::EventLatencyInfo& predicted_event_latency,
-      base::TimeDelta prediction_deviation_threshold);
-
   ReporterType get_reporter_type() { return reporter_type_; }
 
   void set_reporter_type_to_impl() { reporter_type_ = ReporterType::kImpl; }
   void set_reporter_type_to_main() { reporter_type_ = ReporterType::kMain; }
-
-  const std::vector<std::string>& high_latency_substages_for_testing() {
-    return high_latency_substages_;
-  }
-
-  void ClearHighLatencySubstagesForTesting() {
-    high_latency_substages_.clear();
-  }
 
   std::vector<std::unique_ptr<EventMetrics>>& events_metrics_for_testing() {
     return events_metrics_;
@@ -480,6 +430,21 @@ class CC_EXPORT CompositorFrameReporter {
   // Erase and return only the EventMetrics objects which depend on main thread
   // updates (see comments on EventMetrics::requires_main_thread_update_).
   EventMetrics::List TakeMainBlockedEventsMetrics();
+
+  bool will_throttle_main() const { return will_throttle_main_; }
+  void set_will_throttle_main(bool will_throttle_main) {
+    will_throttle_main_ = will_throttle_main;
+  }
+  bool waiting_for_main() const { return waiting_for_main_; }
+  void waiting_for_main(bool waiting_for_main) {
+    waiting_for_main_ = waiting_for_main;
+  }
+  void set_active_tree_staleness(bool active_tree_staleness) {
+    active_tree_staleness_ = active_tree_staleness;
+  }
+  void set_frame_skipped_reason_v4(std::optional<FrameSkippedReason> reason) {
+    frame_skipped_reason_v4_ = reason;
+  }
 
  protected:
   void set_has_partial_update(bool has_partial_update) {
@@ -531,15 +496,6 @@ class CC_EXPORT CompositorFrameReporter {
   FrameInfo GenerateFrameInfo() const;
 
   base::WeakPtr<CompositorFrameReporter> GetWeakPtr();
-
-  void FindHighLatencyAttribution(
-      CompositorLatencyInfo& previous_predictions,
-      CompositorLatencyInfo& current_stage_durations);
-
-  void FindEventLatencyAttribution(
-      EventMetrics* event_metrics,
-      CompositorFrameReporter::EventLatencyInfo& predicted_event_latency,
-      CompositorFrameReporter::EventLatencyInfo& actual_event_latency);
 
   // Whether UMA histograms should be reported or not.
   const bool should_report_histograms_;
@@ -642,9 +598,24 @@ class CC_EXPORT CompositorFrameReporter {
 
   bool invalidate_raster_scroll_ = false;
 
-  const GlobalMetricsTrackers global_trackers_;
+  // Main thread can be throttled separately from Compositor thread work. We
+  // can also be scheduled to not wait for the Main thread at all. We denote
+  // these as partial updates where we do not give Main a chance to respond.
+  // These frames should not be considered dropped.
+  bool will_throttle_main_ = false;
+  bool waiting_for_main_ = true;
+  // The difference of `viz::BeginFrameId.sequence_number` of the current frame
+  // and the current `active_tree`. Denotes how stale updates from the
+  // Main-thread are.
+  uint64_t active_tree_staleness_ = 0;
+  // Similar to above, we may skip the entire production of a Compositor thread
+  // if there is no damage. We need to account for Main thread itself
+  // producing no damage. Such as when a rAF is completely offscreen. We track
+  // this separately from `frame_skipped_reason_` so as to not shift the V3
+  // metrics
+  std::optional<FrameSkippedReason> frame_skipped_reason_v4_;
 
-  std::vector<std::string> high_latency_substages_;
+  const GlobalMetricsTrackers global_trackers_;
 
   ReporterType reporter_type_;
 

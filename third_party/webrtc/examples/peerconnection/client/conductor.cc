@@ -10,8 +10,7 @@
 
 #include "examples/peerconnection/client/conductor.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -23,6 +22,7 @@
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/audio_options.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media.h"
 #include "api/environment/environment.h"
 #include "api/jsep.h"
@@ -83,8 +83,8 @@ class DummySetSessionDescriptionObserver
   static webrtc::scoped_refptr<DummySetSessionDescriptionObserver> Create() {
     return webrtc::make_ref_counted<DummySetSessionDescriptionObserver>();
   }
-  virtual void OnSuccess() { RTC_LOG(LS_INFO) << __FUNCTION__; }
-  virtual void OnFailure(webrtc::RTCError error) {
+  void OnSuccess() override { RTC_LOG(LS_INFO) << __FUNCTION__; }
+  void OnFailure(webrtc::RTCError error) override {
     RTC_LOG(LS_INFO) << __FUNCTION__ << " " << ToString(error.type()) << ": "
                      << error.message();
   }
@@ -170,7 +170,7 @@ bool Conductor::InitializePeerConnection() {
   RTC_DCHECK(!peer_connection_factory_);
   RTC_DCHECK(!peer_connection_);
 
-  if (!signaling_thread_.get()) {
+  if (!signaling_thread_) {
     signaling_thread_ = webrtc::Thread::CreateWithSocketServer();
     signaling_thread_->Start();
   }
@@ -290,7 +290,7 @@ void Conductor::OnRemoveTrack(
   main_wnd_->QueueUIThreadCallback(TRACK_REMOVED, receiver->track().release());
 }
 
-void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
+void Conductor::OnIceCandidate(const webrtc::IceCandidate* candidate) {
   RTC_LOG(LS_INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
   // For loopback test. To save some connecting delay.
   if (loopback_) {
@@ -303,12 +303,7 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate) {
   Json::Value jmessage;
   jmessage[kCandidateSdpMidName] = candidate->sdp_mid();
   jmessage[kCandidateSdpMlineIndexName] = candidate->sdp_mline_index();
-  std::string sdp;
-  if (!candidate->ToString(&sdp)) {
-    RTC_LOG(LS_ERROR) << "Failed to serialize candidate";
-    return;
-  }
-  jmessage[kCandidateSdpName] = sdp;
+  jmessage[kCandidateSdpName] = candidate->ToString();
 
   Json::StreamWriterBuilder factory;
   SendMessage(Json::writeString(factory, jmessage));
@@ -355,7 +350,7 @@ void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
   RTC_DCHECK(peer_id_ == peer_id || peer_id_ == -1);
   RTC_DCHECK(!message.empty());
 
-  if (!peer_connection_.get()) {
+  if (!peer_connection_) {
     RTC_DCHECK(peer_id_ == -1);
     peer_id_ = peer_id;
 
@@ -442,9 +437,9 @@ void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
       return;
     }
     webrtc::SdpParseError error;
-    std::unique_ptr<webrtc::IceCandidateInterface> candidate(
+    std::unique_ptr<webrtc::IceCandidate> candidate(
         webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error));
-    if (!candidate.get()) {
+    if (!candidate) {
       RTC_LOG(LS_WARNING) << "Can't parse received candidate message. "
                              "SdpParseError was: "
                           << error.description;
@@ -488,7 +483,7 @@ void Conductor::ConnectToPeer(int peer_id) {
   RTC_DCHECK(peer_id_ == -1);
   RTC_DCHECK(peer_id != -1);
 
-  if (peer_connection_.get()) {
+  if (peer_connection_) {
     main_wnd_->MessageBox(
         "Error", "We only support connecting to one peer at a time", true);
     return;
@@ -540,7 +535,7 @@ void Conductor::AddTracks() {
 
 void Conductor::DisconnectFromCurrentPeer() {
   RTC_LOG(LS_INFO) << __FUNCTION__;
-  if (peer_connection_.get()) {
+  if (peer_connection_) {
     client_->SendHangUp(peer_id_);
     DeletePeerConnection();
   }
@@ -587,7 +582,7 @@ void Conductor::UIThreadCallback(int msg_id, void* data) {
         delete msg;
       }
 
-      if (!peer_connection_.get())
+      if (!peer_connection_)
         peer_id_ = -1;
 
       break;

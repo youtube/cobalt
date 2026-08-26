@@ -311,15 +311,13 @@ class PersonalizationAppUserProviderImplTest : public testing::Test {
   }
 
  private:
-  ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
   base::test::ScopedFeatureList scoped_feature_list_;
   content::BrowserTaskEnvironment task_environment_;
   FakeVideoCaptureService fake_video_capture_service_;
   user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
       user_manager_{std::make_unique<ash::FakeChromeUserManager>()};
   UserImageManagerRegistry user_image_manager_registry_{user_manager_.Get()};
-  TestingProfileManager profile_manager_{TestingBrowserProcess::GetGlobal(),
-                                         &local_state_};
+  TestingProfileManager profile_manager_{TestingBrowserProcess::GetGlobal()};
   data_decoder::test::InProcessDataDecoder data_decoder_;
   content::TestWebUI web_ui_;
   std::unique_ptr<content::WebContents> web_contents_;

@@ -564,13 +564,13 @@ class BASE_EXPORT FieldTrialList {
       LaunchOptions* launch_options);
 #endif  // !BUILDFLAG(IS_IOS)
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
   // On POSIX, we also need to explicitly pass down this file descriptor that
   // should be shared with the child process. Returns -1 if it was not
   // initialized properly. The current process remains the onwer of the passed
   // descriptor.
   static int GetFieldTrialDescriptor();
-#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL)
+#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
 
   static ReadOnlySharedMemoryRegion DuplicateFieldTrialSharedMemoryForTesting();
 
@@ -688,7 +688,7 @@ class BASE_EXPORT FieldTrialList {
   // this class to its friends.
   friend class FieldTrialListIncludingLowAnonymity;
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS)
   // Serialization is used to pass information about the shared memory handle
   // to child processes. This is achieved by passing a stringified reference to
   // the relevant OS resources to the child process.
@@ -720,7 +720,7 @@ class BASE_EXPORT FieldTrialList {
   // down to the child process for the shared memory region.
   static bool CreateTrialsFromSwitchValue(const std::string& switch_value,
                                           uint32_t fd_key);
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_IOS)
 
   // Takes an unmapped ReadOnlySharedMemoryRegion, maps it with the correct size
   // and creates field trials via CreateTrialsFromSharedMemoryMapping(). Returns

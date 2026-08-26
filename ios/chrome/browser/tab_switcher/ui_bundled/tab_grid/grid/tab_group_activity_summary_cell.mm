@@ -7,16 +7,19 @@
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_constants.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
+#import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
 
 const CGFloat kCornerRadius = 16;
-const CGFloat kSymbolSize = 20;
+const CGFloat kSymbolSize = 14;
+const CGFloat kCloseButtonSize = 20;
 const CGFloat kHorizontalPadding = 16;
-const CGFloat kVerticalPadding = 16;
+const CGFloat kVerticalPadding = 8;
 const CGFloat kTextLabelWidthMultiplier = 0.7;
 const CGFloat kActivityButtonWidthMultiplier = 0.4;
 
@@ -34,8 +37,18 @@ const CGFloat kActivityButtonWidthMultiplier = 0.4;
 - (instancetype)initWithFrame:(CGRect)frame {
   self = [super initWithFrame:frame];
   if (self) {
-    self.backgroundColor = [UIColor colorNamed:kTertiaryBackgroundColor];
+    UIBlurEffect* blurEffect = [UIBlurEffect
+        effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialDark];
+    UIVisualEffectView* backgroundView =
+        [[UIVisualEffectView alloc] initWithEffect:blurEffect];
+    backgroundView.backgroundColor = TabGroupViewButtonBackgroundColor();
+    backgroundView.frame = self.bounds;
+    backgroundView.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:backgroundView];
+    AddSameConstraints(self, backgroundView);
+
     self.layer.cornerRadius = kCornerRadius;
+    self.layer.masksToBounds = YES;
 
     UIView* contentView = self.contentView;
 
@@ -107,18 +120,15 @@ const CGFloat kActivityButtonWidthMultiplier = 0.4;
       [_activityButton.bottomAnchor
           constraintLessThanOrEqualToAnchor:contentView.bottomAnchor
                                    constant:-kVerticalPadding],
-      [_closeButton.widthAnchor constraintEqualToConstant:kSymbolSize],
-      [_closeButton.heightAnchor constraintEqualToConstant:kSymbolSize],
+      [_closeButton.widthAnchor constraintEqualToConstant:kCloseButtonSize],
+      [_closeButton.heightAnchor constraintEqualToConstant:kCloseButtonSize],
     ]];
 
     [self updateConstraintsForContentSizeCategory];
 
-    if (@available(iOS 17, *)) {
-      [self
-          registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
+    [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
                        withAction:@selector
                        (updateConstraintsForContentSizeCategory)];
-    }
   }
 
   return self;
@@ -139,26 +149,12 @@ const CGFloat kActivityButtonWidthMultiplier = 0.4;
   _textLabel.text = _text;
 }
 
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
-  }
-
-  if (previousTraitCollection.preferredContentSizeCategory !=
-      self.traitCollection.preferredContentSizeCategory) {
-    [self updateConstraintsForContentSizeCategory];
-  }
-}
-#endif
-
 #pragma mark - Private
 
 // Returns a configured text label.
 - (UILabel*)createTextLabel {
   UILabel* label = [[UILabel alloc] init];
-  label.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+  label.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
   label.adjustsFontForContentSizeCategory = YES;
   label.translatesAutoresizingMaskIntoConstraints = NO;
   label.textColor = UIColor.whiteColor;
@@ -219,6 +215,8 @@ const CGFloat kActivityButtonWidthMultiplier = 0.4;
   button.tintColor = [UIColor colorNamed:kTextSecondaryColor];
   button.accessibilityIdentifier =
       kActivitySummaryGridCellCloseButtonIdentifier;
+  button.accessibilityLabel = l10n_util::GetNSString(
+      IDS_IOS_TAB_GROUP_ACTIVITY_SUMMARY_ACTIVITY_CLOSE_BUTTON_ACCESSIBILITY_LABEL);
   return button;
 }
 

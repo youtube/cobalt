@@ -12,7 +12,6 @@
 #include "base/apple/bridging.h"
 #include "base/apple/foundation_util.h"
 #include "base/containers/fixed_flat_set.h"
-#include "base/debug/stack_trace.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/memory/scoped_policy.h"
@@ -77,7 +76,7 @@ bool IsValidAXAttribute(const std::string& attribute) {
     NSAccessibilityARIARowIndexAttribute,
     NSAccessibilityARIASetSizeAttribute,
     NSAccessibilityAutocompleteValueAttribute,
-    NSAccessibilityBlockQuoteLevelAttribute,
+    CrNSAccessibilityBlockQuoteLevelAttribute,
     NSAccessibilityBrailleLabelAttribute,
     NSAccessibilityBrailleRoleDescription,
     NSAccessibilityChromeAXNodeIdAttribute,
@@ -115,7 +114,7 @@ bool IsValidAXAttribute(const std::string& attribute) {
     NSAccessibilityTitleAttribute,
     NSAccessibilityTitleUIElementAttribute,
     NSAccessibilityURLAttribute,
-    NSAccessibilityVisitedAttribute,
+    CrNSAccessibilityVisitedAttribute,
   ]];
 
   return [valid_attributes containsObject:base::SysUTF8ToNSString(attribute)];

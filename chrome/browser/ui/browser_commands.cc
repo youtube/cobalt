@@ -62,6 +62,7 @@
 #include "chrome/browser/ui/autofill/payments/offer_notification_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/virtual_card_enroll_bubble_controller_impl.h"
+#include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
 #include "chrome/browser/ui/bookmarks/bookmark_stats.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils_desktop.h"
@@ -74,6 +75,7 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
@@ -92,10 +94,12 @@
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tab_dialogs.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/new_tab_grouping_user_data.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service_factory.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_session.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/split_tab_util.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
@@ -479,40 +483,47 @@ void ReloadInternal(Browser* browser,
   const WebContents* const active_contents =
       browser->tab_strip_model()->GetActiveWebContents();
 
-  // Reloading a tab may change the selection (see crbug.com/339061099), so take
-  // a defensive copy into a more stable form before we begin. We take
-  // WebContents* so we can follow the tabs as they shift within the same
-  // tabstrip (e.g. if `disposition` is NEW_BACKGROUND_TAB).
-  std::vector<WebContents*> selected_tabs;
-  for (const int selected_index :
-       browser->tab_strip_model()->selection_model().selected_indices()) {
-    selected_tabs.push_back(
-        browser->tab_strip_model()->GetWebContentsAt(selected_index));
+  std::vector<WebContents*> tabs_to_reload;
+
+  if (base::FeatureList::IsEnabled(features::kReloadSelectionModel)) {
+    tabs_to_reload.push_back(
+        browser->tab_strip_model()->GetActiveWebContents());
+  } else {
+    // Reloading a tab may change the selection (see crbug.com/339061099), so
+    // take
+    // a defensive copy into a more stable form before we begin. We take
+    // WebContents* so we can follow the tabs as they shift within the same
+    // tabstrip (e.g. if `disposition` is NEW_BACKGROUND_TAB).
+    for (const int selected_index :
+         browser->tab_strip_model()->selection_model().selected_indices()) {
+      tabs_to_reload.push_back(
+          browser->tab_strip_model()->GetWebContentsAt(selected_index));
+    }
   }
 
-  base::UmaHistogramCounts100("TabStrip.Tab.ReloadCount", selected_tabs.size());
+  base::UmaHistogramCounts100("TabStrip.Tab.ReloadCount",
+                              tabs_to_reload.size());
 
-  for (WebContents* const selected_tab : selected_tabs) {
+  for (WebContents* const tab : tabs_to_reload) {
     // Skip this tab if it is no longer part of this tabstrip. N.B. we do this
     // instead of using WeakPtr<WebContents> because we do not want to reload
     // tabs that move to another browser.
-    if (browser->tab_strip_model()->GetIndexOfWebContents(selected_tab) ==
+    if (browser->tab_strip_model()->GetIndexOfWebContents(tab) ==
         TabStripModel::kNoTab) {
       continue;
     }
 
     WebContents* const new_tab =
-        GetTabAndRevertIfNecessaryHelper(browser, disposition, selected_tab);
+        GetTabAndRevertIfNecessaryHelper(browser, disposition, tab);
 
-    // If the selected_tab is the activated page, give the focus to it, as this
-    // is caused by a user action
-    if (selected_tab == active_contents &&
-        !new_tab->FocusLocationBarByDefault()) {
+    // If the `tab` is the activated page, give the focus to it, as this is
+    // caused by a user action
+    if (tab == active_contents && !new_tab->FocusLocationBarByDefault()) {
       new_tab->Focus();
     }
 
     // User reloads is a possible breakage indicator from blocking 3P cookies.
-    RecordReloadWithCookieBlocking(browser, selected_tab);
+    RecordReloadWithCookieBlocking(browser, tab);
 
     DevToolsWindow* const devtools =
         DevToolsWindow::GetInstanceForInspectedWebContents(new_tab);
@@ -742,7 +753,7 @@ void MaybeShowFeatureBackNavigationMenuPromo(Browser* browser,
   }
 
   if (should_show_feature_promo) {
-    browser->window()->MaybeShowFeaturePromo(
+    BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
         feature_engagement::kIPHBackNavigationMenuFeature);
   }
 }
@@ -994,6 +1005,10 @@ content::WebContents& NewTab(Browser* browser) {
   // user-initiated commands.
   UMA_HISTOGRAM_ENUMERATION("Tab.NewTab", NewTabTypes::NEW_TAB_COMMAND,
                             NewTabTypes::NEW_TAB_ENUM_COUNT);
+  browser->profile()->SetUserData(
+      NewTabGroupingUserData::kNewTabGroupingUserDataKey,
+      std::make_unique<NewTabGroupingUserData>(
+          browser->tab_strip_model()->GetActiveTabGroupId()));
   if (browser->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
     return *AddAndReturnTabAt(browser, GURL(), -1, true);
   }
@@ -1258,7 +1273,9 @@ void DuplicateSplit(Browser* browser, split_tabs::SplitTabId split) {
   CHECK(browser->CanSupportWindowFeature(Browser::FEATURE_TABSTRIP));
 
   TabStripModel* model = browser->tab_strip_model();
-  gfx::Range split_indices_range = model->GetIndexRangeOfSplit(split);
+  split_tabs::SplitTabData* split_data = model->GetSplitData(split);
+  gfx::Range split_indices_range = split_data->GetIndexRange();
+
   std::vector<int> duplicated_tab_indices;
   for (size_t split_index = split_indices_range.GetMin();
        split_index < split_indices_range.GetMax(); split_index++) {
@@ -1281,7 +1298,8 @@ void DuplicateSplit(Browser* browser, split_tabs::SplitTabId split) {
                                          active_index));
   model->AddToNewSplit(duplicated_tab_indices,
                        split_tabs::SplitTabVisualData(
-                           *(model->GetSplitData(split)->visual_data())));
+                           *(model->GetSplitData(split)->visual_data())),
+                       split_tabs::SplitTabCreatedSource::kDuplicateSplit);
 }
 
 bool CanDuplicateTabAt(const Browser* browser, int index) {
@@ -1347,14 +1365,15 @@ void GroupTab(Browser* browser) {
       TabStripModel::ContextMenuCommand::CommandToggleGrouped);
 }
 
-void NewSplitTab(Browser* browser) {
+void NewSplitTab(Browser* browser, split_tabs::SplitTabCreatedSource source) {
   TabStripModel* const tab_strip_model = browser->tab_strip_model();
   const int active_index = tab_strip_model->active_index();
   tab_strip_model->delegate()->AddTabAt(
       GURL(chrome::kChromeUISplitViewNewTabPageURL), active_index + 1, true,
-      tab_strip_model->GetTabGroupForTab(active_index));
+      tab_strip_model->GetTabGroupForTab(active_index),
+      tab_strip_model->IsTabPinned(active_index));
   tab_strip_model->AddToNewSplit({active_index},
-                                 split_tabs::SplitTabVisualData());
+                                 split_tabs::SplitTabVisualData(), source);
 }
 
 void AddNewTabToGroup(Browser* browser) {
@@ -1601,7 +1620,7 @@ void BookmarkAllTabs(Browser* browser) {
   RecordBookmarkAllTabsWithTabsCount(browser->profile(),
                                      browser->tab_strip_model()->count());
 
-  chrome::ShowBookmarkAllTabsDialog(browser);
+  bookmarks::ShowBookmarkAllTabsDialog(browser);
 }
 
 bool CanBookmarkAllTabs(const Browser* browser) {
@@ -1637,12 +1656,13 @@ void MoveTabsToReadLater(Browser* browser,
     }
     model->AddOrReplaceEntry(url, base::UTF16ToUTF8(title),
                              reading_list::EntrySource::ADDED_VIA_CURRENT_APP,
-                             /*estimated_read_time=*/base::TimeDelta());
-    browser->window()->MaybeShowFeaturePromo(
+                             /*estimated_read_time=*/std::nullopt,
+                             /*creation_time=*/std::nullopt);
+    BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
         feature_engagement::kIPHReadingListDiscoveryFeature);
     base::UmaHistogramEnumeration(
         "ReadingList.BookmarkBarState.OnEveryAddToReadingList",
-        browser->bookmark_bar_state());
+        BookmarkBarController::From(browser)->bookmark_bar_state());
     added_to_read_later += 1;
   }
 
@@ -1700,9 +1720,9 @@ bool IsCurrentTabUnreadInReadLater(Browser* browser) {
   return entry && !entry->IsRead();
 }
 
-void ShowOffersAndRewardsForPage(Browser* browser) {
-  WebContents* web_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+void ShowOffersAndRewardsForPage(BrowserWindowInterface* bwi) {
+  WebContents* const web_contents =
+      bwi->GetTabStripModel()->GetActiveWebContents();
   autofill::OfferNotificationBubbleControllerImpl* controller =
       autofill::OfferNotificationBubbleControllerImpl::FromWebContents(
           web_contents);
@@ -1821,13 +1841,14 @@ void ShowTranslateBubble(Browser* browser) {
 }
 
 void ManagePasswordsForPage(Browser* browser) {
-  browser->window()->NotifyFeaturePromoFeatureUsed(
+  auto* const user_education = BrowserUserEducationInterface::From(browser);
+  user_education->NotifyFeaturePromoFeatureUsed(
       feature_engagement::kIPHPasswordsManagementBubbleAfterSaveFeature,
       FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
-  browser->window()->NotifyFeaturePromoFeatureUsed(
+  user_education->NotifyFeaturePromoFeatureUsed(
       feature_engagement::kIPHPasswordsManagementBubbleDuringSigninFeature,
       FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
-  browser->window()->NotifyFeaturePromoFeatureUsed(
+  user_education->NotifyFeaturePromoFeatureUsed(
       feature_engagement::kIPHPasswordManagerShortcutFeature,
       FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
   WebContents* web_contents =
@@ -2022,7 +2043,8 @@ void FindPrevious(Browser* browser) {
 }
 
 void FindInPage(Browser* browser, bool find_next, bool forward_direction) {
-  browser->GetFindBarController()->Show(find_next, forward_direction);
+  browser->GetFeatures().GetFindBarController()->Show(find_next,
+                                                      forward_direction);
 }
 
 void ShowTabSearch(Browser* browser) {
@@ -2053,7 +2075,7 @@ bool CanCloseFind(Browser* browser) {
 }
 
 void CloseFind(Browser* browser) {
-  browser->GetFindBarController()->EndFindSession(
+  browser->GetFeatures().GetFindBarController()->EndFindSession(
       find_in_page::SelectionAction::kKeep, find_in_page::ResultAction::kKeep);
 }
 
@@ -2165,6 +2187,13 @@ void ToggleShowGoogleLensShortcut(Browser* browser) {
                                              !pref_enabled);
 }
 
+void ToggleShowSearchTools(Browser* browser) {
+  bool pref_enabled =
+      browser->profile()->GetPrefs()->GetBoolean(omnibox::kShowSearchTools);
+  browser->profile()->GetPrefs()->SetBoolean(omnibox::kShowSearchTools,
+                                             !pref_enabled);
+}
+
 void ShowAppMenu(Browser* browser) {
   // We record the user metric for this event in AppMenu::RunMenu.
   browser->window()->ShowAppMenu();
@@ -2255,7 +2284,8 @@ void SetAndroidOsForTabletSite(content::WebContents* current_tab) {
 
 void ToggleFullscreenMode(Browser* browser, bool user_initiated) {
   DCHECK(browser);
-  browser->exclusive_access_manager()
+  browser->GetFeatures()
+      .exclusive_access_manager()
       ->fullscreen_controller()
       ->ToggleBrowserFullscreenMode(user_initiated);
 }
@@ -2443,7 +2473,8 @@ void ExecLensOverlay(Browser* browser) {
       LensSearchController::FromTabWebContents(web_contents);
   CHECK(controller);
   controller->OpenLensOverlay(lens::LensOverlayInvocationSource::kAppMenu);
-  browser->window()->NotifyNewBadgeFeatureUsed(lens::features::kLensOverlay);
+  BrowserUserEducationInterface::From(browser)->NotifyNewBadgeFeatureUsed(
+      lens::features::kLensOverlay);
 }
 
 void ExecLensRegionSearch(Browser* browser) {

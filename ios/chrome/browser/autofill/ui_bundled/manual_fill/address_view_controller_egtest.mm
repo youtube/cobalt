@@ -18,6 +18,7 @@
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
+#import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ios/web/public/test/element_selector.h"
 #import "net/test/embedded_test_server/embedded_test_server.h"
@@ -29,6 +30,7 @@ using chrome_test_util::NavigationBarCancelButton;
 using chrome_test_util::NavigationBarDoneButton;
 using chrome_test_util::SettingsProfileMatcher;
 using chrome_test_util::TapWebElementWithId;
+using chrome_test_util::WebViewMatcher;
 
 namespace {
 
@@ -216,6 +218,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
   const GURL URL = self.testServer->GetURL(kFormHTMLFile);
   [ChromeEarlGrey loadURL:URL];
   [ChromeEarlGrey waitForWebStateContainingText:"Profile form"];
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:WebViewMatcher()];
 
   // Set up histogram tester.
   chrome_test_util::GREYAssertErrorNil(
@@ -242,7 +245,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
     config.features_disabled.push_back(kIOSKeyboardAccessoryUpgradeForIPad);
   }
   if ([self isRunningTest:@selector
-            (testDoNotEditHomeWorkAddressFromOverflowMenu)]) {
+            (testDoNotEditHomeAndWorkAddressFromOverflowMenu)]) {
     config.features_enabled.push_back(
         autofill::features::kAutofillEnableSupportForHomeAndWork);
   }
@@ -252,7 +255,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
 
 // Tests that the addresses view controller appears on screen.
 // TODO(crbug.com/40711697): Flaky on ios simulator.
-#if TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_SIMULATOR
 #define MAYBE_testAddressesViewControllerIsPresented \
   DISABLED_testAddressesViewControllerIsPresented
 #else
@@ -261,7 +264,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
 #endif
 - (void)MAYBE_testAddressesViewControllerIsPresented {
   // Bring up the keyboard.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
 
   // Open the address manual fill view and verify that the address table view
@@ -292,7 +295,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
   }
 
   // Bring up the keyboard.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
 
   // Open the address manual fill view and verify that the address table view
@@ -306,7 +309,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
 // TODO(crbug.com/40928438): Fix this flaky test.
 - (void)FLAKY_testManageAddressesActionOpensAddressSettings {
   // Bring up the keyboard.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
 
   // Open the address manual fill view.
@@ -328,7 +331,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
 // TODO(crbug.com/40928438): Fix this flaky test.
 - (void)FLAKY_testAddressesStateAfterPresentingManageAddresses {
   // Bring up the keyboard.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
 
   // Open the address manual fill view.
@@ -399,7 +402,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
   }
 
   // Bring up the keyboard.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
 
   // Open the address manual fill view.
@@ -425,7 +428,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
     EARL_GREY_TEST_SKIPPED(@"Test is not applicable for iPhone");
   }
   // Bring up the keyboard.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
 
   // Open the address manual fill view.
@@ -458,7 +461,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
   [AutofillAppInterface clearProfilesStore];
 
   // Bring up the keyboard.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
 
   // Wait for the keyboard to appear.
@@ -472,7 +475,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
   [AutofillAppInterface saveExampleProfile];
 
   // Tap another field to trigger form activity.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementCity)];
 
   // Assert the address icon is visible now.
@@ -498,7 +501,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
   [AutofillAppInterface clearProfilesStore];
 
   // Bring up the keyboard.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
 
   // Open the address manual fill view.
@@ -531,7 +534,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
   }
 
   // Bring up the keyboard
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
   [ChromeEarlGrey waitForKeyboardToAppear];
 
@@ -558,7 +561,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
 // TODO(crbug.com/40928438): Fix this flaky test.
 - (void)FLAKY_testOverflowMenuVisibility {
   // Bring up the keyboard
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
   [ChromeEarlGrey waitForKeyboardToAppear];
 
@@ -583,7 +586,7 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
   }
 
   // Bring up the keyboard
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
   [ChromeEarlGrey waitForKeyboardToAppear];
 
@@ -612,6 +615,9 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
   [[EarlGrey selectElementWithMatcher:NavigationBarDoneButton()]
       performAction:grey_tap()];
 
+  // Synchronization off due to an infinite spinner.
+  ScopedSynchronizationDisabler disabler;
+
   // Check that the address details page is no longer visible.
   [[EarlGrey selectElementWithMatcher:AddressDetailsPage()]
       assertWithMatcher:grey_notVisible()];
@@ -621,16 +627,16 @@ void OpenAddressManualFillViewWithNoSavedAddresses() {
 
 // Tests the "Edit" action of the overflow menu button does not display the
 // address's details for Home and Work profiles.
-- (void)testDoNotEditHomeWorkAddressFromOverflowMenu {
+- (void)testDoNotEditHomeAndWorkAddressFromOverflowMenu {
   if (![AutofillAppInterface isKeyboardAccessoryUpgradeEnabled]) {
     EARL_GREY_TEST_DISABLED(@"This test is not relevant when the Keyboard "
                             @"Accessory Upgrade feature is disabled.")
   }
   [AutofillAppInterface clearProfilesStore];
-  [AutofillAppInterface saveExampleHomeWorkAccountProfile];
+  [AutofillAppInterface saveExampleHomeAndWorkAccountProfile];
 
   // Bring up the keyboard
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
+  [[EarlGrey selectElementWithMatcher:WebViewMatcher()]
       performAction:TapWebElementWithId(kFormElementName)];
   [ChromeEarlGrey waitForKeyboardToAppear];
 

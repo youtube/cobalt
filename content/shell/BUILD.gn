@@ -11,11 +11,11 @@ import("//build/config/ui.gni")
 import("//build/config/win/console_app.gni")
 import("//build/config/win/manifest.gni")
 import("//content/browser/devtools/features.gni")
+import("//content/public/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//gpu/vulkan/features.gni")
 import("//media/media_options.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
-import("//ppapi/buildflags/buildflags.gni")
 import("//third_party/inspector_protocol/inspector_protocol.gni")
 import("//tools/grit/grit_rule.gni")
 import("//tools/grit/repack.gni")
@@ -36,7 +36,10 @@ if (is_android) {
 } else if (is_ios) {
   import("//build/config/apple/mobile_config.gni")
   import("//build/config/apple/swift_source_set.gni")
-  import("//content/shell/app/ios/extensions.gni")
+
+  if (target_platform == "iphoneos") {
+    import("//content/shell/app/ios/extensions.gni")
+  }
 }
 if (is_cobalt) {
   import("//cobalt/build/modular_executable.gni")
@@ -131,6 +134,8 @@ static_library("content_shell_app") {
       "app/ios/web_tests_support_ios.h",
       "app/ios/web_tests_support_ios.mm",
     ]
+
+    deps += [ "//components/crash/core/common:reporter_running_ios" ]
   }
   defines = [
     "CONTENT_SHELL_VERSION=\"$content_shell_version\"",
@@ -327,7 +332,7 @@ static_library("content_shell_lib") {
     "//components/metrics",
     "//components/metrics:net",
     "//components/metrics:test_support",
-    "//components/network_hints/browser:browser",
+    "//components/network_hints/browser",
     "//components/network_hints/renderer",
     "//components/network_session_configurator/common",
     "//components/origin_trials:browser",
@@ -351,7 +356,6 @@ static_library("content_shell_lib") {
     "//media/mojo/services",
     "//net",
     "//net:net_resources",
-    "//ppapi/buildflags",
     "//services/device/public/cpp:test_support",
     "//services/network/public/cpp",
     "//services/test/echo:lib",
@@ -417,7 +421,7 @@ static_library("content_shell_lib") {
       "//components/permissions",
       "//components/strings:components_strings",
       "//services/tracing/public/cpp",
-      "//services/tracing/public/mojom:mojom",
+      "//services/tracing/public/mojom",
       "//ui/shell_dialogs",
     ]
   }
@@ -487,6 +491,10 @@ static_library("content_shell_lib") {
     deps += [ "//ui/ozone" ]
   }
 
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
   if (is_cobalt && use_starboard_media) {
     deps += [
       "//starboard:starboard_group",
@@ -552,6 +560,7 @@ repack("pak") {
     "$root_gen_dir/third_party/blink/public/strings/blink_strings_en-US.pak",
     "$root_gen_dir/third_party/blink/public/strings/permission_element_generated_strings.pak",
     "$root_gen_dir/third_party/blink/public/strings/permission_element_strings_en-US.pak",
+    "$root_gen_dir/ui/resources/ui_lottie_resources.pak",
     "$root_gen_dir/ui/resources/ui_resources_100_percent.pak",
     "$root_gen_dir/ui/strings/app_locale_settings_en-US.pak",
     "$root_gen_dir/ui/strings/auto_image_annotation_strings_en-US.pak",
@@ -565,7 +574,7 @@ repack("pak") {
     "//base/tracing/protos:chrome_track_event_resources",
     "//components/ukm/debug:resources",
     "//content:content_resources",
-    "//content/browser/resources:resources",
+    "//content/browser/resources",
     "//content/browser/resources/media:resources",
     "//content/browser/webrtc/resources",
     "//content/test:web_ui_mojo_test_resources",
@@ -729,19 +738,21 @@ if (is_android) {
     info_plist = "app/ios/ios-app.plist"
   }
 
-  browserkit_extension("gpu_process") {
-    testonly = true
-    bundle_identifier = ios_gpu_process_bundle_identifier
-  }
+  if (target_platform == "iphoneos") {
+    browserkit_extension("gpu_process") {
+      testonly = true
+      bundle_identifier = ios_gpu_process_bundle_identifier
+    }
 
-  browserkit_extension("network_process") {
-    testonly = true
-    bundle_identifier = ios_network_process_bundle_identifier
-  }
+    browserkit_extension("network_process") {
+      testonly = true
+      bundle_identifier = ios_network_process_bundle_identifier
+    }
 
-  browserkit_extension("content_process") {
-    testonly = true
-    bundle_identifier = ios_content_process_bundle_identifier
+    browserkit_extension("content_process") {
+      testonly = true
+      bundle_identifier = ios_content_process_bundle_identifier
+    }
   }
 } else {
   if (is_cobalt && is_cobalt_hermetic_build) {
@@ -771,7 +782,7 @@ if (is_android) {
 
     data_deps = [
       ":pak",
-      "//tools/v8_context_snapshot:v8_context_snapshot",
+      "//tools/v8_context_snapshot",
     ]
 
     if (is_win) {
@@ -866,22 +877,6 @@ if (is_apple) {
 }
 
 if (is_mac) {
-  if (enable_ppapi) {
-    bundle_data("content_shell_framework_plugins") {
-      sources = [
-        "$root_out_dir/blink_deprecated_test_plugin.plugin",
-        "$root_out_dir/blink_test_plugin.plugin",
-      ]
-
-      outputs = [ "{{bundle_contents_dir}}/{{source_file_part}}" ]
-
-      public_deps = [
-        "//ppapi:blink_deprecated_test_plugin",
-        "//ppapi:blink_test_plugin",
-      ]
-    }
-  }
-
   content_shell_framework_name = "$content_shell_product_name Framework"
   content_shell_helper_name = "$content_shell_product_name Helper"
 
@@ -946,10 +941,6 @@ if (is_mac) {
       ":content_shell_framework_resources",
       ":content_shell_swiftshader_binaries",
     ]
-
-    if (enable_ppapi) {
-      deps += [ ":content_shell_framework_plugins" ]
-    }
 
     if (!is_component_build) {
       # Specify a sensible install_name for static builds. The library is

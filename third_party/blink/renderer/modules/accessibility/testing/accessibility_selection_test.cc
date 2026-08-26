@@ -10,6 +10,7 @@
 
 #include "base/containers/span.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/strings/string_view_util.h"
 #include "third_party/blink/public/platform/file_path_conversion.h"
 #include "third_party/blink/renderer/core/dom/character_data.h"
 #include "third_party/blink/renderer/core/dom/container_node.h"
@@ -212,7 +213,7 @@ class AXSelectionDeserializer final {
   // parts of the tree indicated by the selection markers in the snippet.
   const Vector<AXSelection> Deserialize(const std::string_view& html_snippet,
                                         HTMLElement& element) {
-    element.setInnerHTML(String::FromUTF8(html_snippet));
+    element.SetInnerHTMLWithoutTrustedTypes(String::FromUTF8(html_snippet));
     element.GetDocument().View()->UpdateAllLifecyclePhasesForTest();
     AXObject* root = ax_object_cache_->Get(&element);
     if (!root || root->IsDetached())

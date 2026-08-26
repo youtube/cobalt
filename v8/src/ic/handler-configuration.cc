@@ -16,7 +16,7 @@ namespace internal {
 namespace {
 
 template <typename BitField>
-Tagged<Smi> SetBitFieldValue(Isolate* isolate, Tagged<Smi> smi_handler,
+Tagged<Smi> SetBitFieldValue(Tagged<Smi> smi_handler,
                              typename BitField::FieldType value) {
   int config = smi_handler.value();
   config = BitField::update(config, true);
@@ -44,26 +44,30 @@ int InitPrototypeChecksImpl(Isolate* isolate, DirectHandle<ICHandler> handler,
     // The validity cell check for primitive and global proxy receivers does
     // not guarantee that certain native context ever had access to other
     // native context. However, a handler created for one native context could
-    // be used in other native context through the megamorphic stub cache.
+    // be used in another native context through the megamorphic stub cache.
     // So we record the original native context to which this handler
-    // corresponds.
+    // corresponds in the validity cell.
     if (fill_handler) {
-      DirectHandle<Context> native_context = isolate->native_context();
-      handler->set_data2(MakeWeak(*native_context));
+      if (DEBUG_BOOL) {
+        // Make sure validity cell contains native context.
+        Tagged<Cell> validity_cell = Cast<Cell>(handler->validity_cell());
+        Tagged<HeapObject> heap_object;
+        CHECK(validity_cell->maybe_value().GetHeapObject(&heap_object));
+        CHECK(IsNativeContext(heap_object));
+      }
     } else {
       // Enable access checks on the lookup start object.
       *smi_handler = SetBitFieldValue<
           typename ICHandler::DoAccessCheckOnLookupStartObjectBits>(
-          isolate, *smi_handler, true);
+          *smi_handler, true);
     }
-    data_size++;
   } else if (lookup_start_object_map->is_dictionary_map() &&
              !IsJSGlobalObjectMap(*lookup_start_object_map)) {
     if (!fill_handler) {
       // Enable lookup on lookup start object.
       *smi_handler =
           SetBitFieldValue<typename ICHandler::LookupOnLookupStartObjectBits>(
-              isolate, *smi_handler, true);
+              *smi_handler, true);
     }
   }
   if (fill_handler) {
@@ -130,6 +134,13 @@ Handle<Object> LoadHandler::LoadFromPrototype(
       Map::GetOrCreatePrototypeChainValidityCell(lookup_start_object_map,
                                                  isolate);
 
+  // There must be a validity cell in case access check is needed.
+  // ICs support access checks only for JSGlobalProxy objects and they are
+  // guaranteed to have validity cell.
+  DCHECK_IMPLIES(
+      *validity_cell == Map::kNoValidityCellSentinel,
+      !DoAccessCheckOnLookupStartObjectBits::decode(smi_handler.value()));
+
   Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_size);
 
   handler->set_smi_handler(smi_handler);
@@ -151,7 +162,15 @@ Handle<Object> LoadHandler::LoadFullChain(
   DirectHandle<UnionOf<Smi, Cell>> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(lookup_start_object_map,
                                                  isolate);
-  if (IsSmi(*validity_cell)) {
+
+  // There must be a validity cell in case access check is needed.
+  // ICs support access checks only for JSGlobalProxy objects and they are
+  // guaranteed to have validity cell.
+  DCHECK_IMPLIES(
+      *validity_cell == Map::kNoValidityCellSentinel,
+      !DoAccessCheckOnLookupStartObjectBits::decode(smi_handler.value()));
+
+  if (*validity_cell == Map::kNoValidityCellSentinel) {
     DCHECK_EQ(1, data_size);
     // Lookup on lookup start object isn't supported in case of a simple smi
     // handler.
@@ -182,10 +201,17 @@ Handle<Object> LoadHandler::LoadNonExistent(
       Map::GetOrCreatePrototypeChainValidityCell(lookup_start_object_map,
                                                  isolate, &prototype_info);
 
+  // There must be a validity cell in case access check is needed.
+  // ICs support access checks only for JSGlobalProxy objects and they are
+  // guaranteed to have validity cell.
+  DCHECK_IMPLIES(
+      *validity_cell == Map::kNoValidityCellSentinel,
+      !DoAccessCheckOnLookupStartObjectBits::decode(smi_handler.value()));
+
   // Try to fetch cached handler if it was already created.
   int handler_index;
 
-  if (IsSmi(*validity_cell)) {
+  if (*validity_cell == Map::kNoValidityCellSentinel) {
     DCHECK_EQ(1, data_size);
     // Lookup on lookup start object isn't supported in case of a simple smi
     // handler.
@@ -402,6 +428,13 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
   DirectHandle<UnionOf<Smi, Cell>> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
 
+  // There must be a validity cell in case access check is needed.
+  // ICs support access checks only for JSGlobalProxy objects and they are
+  // guaranteed to have validity cell.
+  DCHECK_IMPLIES(
+      *validity_cell == Map::kNoValidityCellSentinel,
+      !DoAccessCheckOnLookupStartObjectBits::decode(smi_handler.value()));
+
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(data_size);
 
   handler->set_smi_handler(smi_handler);
@@ -577,6 +610,9 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
       os << "kSlow, keyed access store mode = " << keyed_access_store_mode;
       break;
     }
+    case StoreHandler::Kind::kGeneric:
+      os << "kGeneric";
+      break;
     case StoreHandler::Kind::kProxy:
       os << "kProxy";
       break;

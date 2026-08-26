@@ -13,6 +13,7 @@
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/color/color_variant.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/bubble/bubble_dialog_utils.h"
@@ -23,6 +24,11 @@
 namespace {
 
 using ButtonModel = ui::DialogModel::Button;
+
+// A top margin is necessary since without the dialog "close" button, there is
+// no enough margin to display the progress bar and match the margin below the
+// content view.
+constexpr int kContentMarginTop = 12;
 
 // Creates ScrollView for `contents_view`.
 std::unique_ptr<views::View> CreateContentsScrollView(
@@ -121,6 +127,15 @@ void DigitalIdentityMultiStepDialogDelegate::Update(
   }
 
   SetTitle(dialog_title);
+  // When the `dialog_title` is empty, the calling site would make sure to add
+  // the proper name for the `custom_body_field` accessibility. This should be
+  // used in this case as the dialog accessible title.
+  SetAccessibleTitle(
+      dialog_title.empty()
+          ? custom_body_field->GetViewAccessibility().GetCachedName()
+          : dialog_title);
+
+  SetShowCloseButton(false);
   SetCancelCallbackWithClose(base::BindRepeating(
       &DigitalIdentityMultiStepDialogDelegate::OnDialogCanceled,
       base::Unretained(this)));
@@ -141,12 +156,13 @@ void DigitalIdentityMultiStepDialogDelegate::Update(
 
   SetButtons(button_mask);
 
-  auto body_label = std::make_unique<views::Label>(body_text);
-  body_label->SetMultiLine(true);
-  body_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-
   contents_view_->RemoveAllChildViews();
-  contents_view_->AddChildView(std::move(body_label));
+  if (!body_text.empty()) {
+    auto body_label = std::make_unique<views::Label>(body_text);
+    body_label->SetMultiLine(true);
+    body_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+    contents_view_->AddChildView(std::move(body_label));
+  }
   if (custom_body_field) {
     contents_view_->AddChildView(std::move(custom_body_field));
   }
@@ -231,7 +247,8 @@ void DigitalIdentityMultiStepDialog::TryShow(
     base::OnceClosure cancel_callback,
     const std::u16string& dialog_title,
     const std::u16string& body_text,
-    std::unique_ptr<views::View> custom_body_field) {
+    std::unique_ptr<views::View> custom_body_field,
+    bool show_progress_bar) {
   if (!web_contents_) {
     // Post task so that the callback is guaranteed to be called asynchronously
     // in all cases.
@@ -239,6 +256,7 @@ void DigitalIdentityMultiStepDialog::TryShow(
         FROM_HERE, std::move(cancel_callback));
     return;
   }
+  views::View* custom_body_field_ptr = custom_body_field.get();
 
   std::unique_ptr<DigitalIdentityMultiStepDialogDelegate> new_dialog_delegate;
   DigitalIdentityMultiStepDialogDelegate* delegate = GetWidgetDelegate();
@@ -259,6 +277,25 @@ void DigitalIdentityMultiStepDialog::TryShow(
                   new_dialog_delegate.release(), web_contents_.get())
                   ->GetWeakPtr();
   }
+  if (dialog_title.empty()) {
+    // Adding a top margin is necessary only when there is no title in which
+    // case the content is very close to the dialog top.
+    delegate->GetBubbleFrameView()->SetContentMargins(
+        gfx::Insets::TLBR(kContentMarginTop, 0, 0, 0));
+  }
+  if (!new_dialog_delegate && custom_body_field_ptr) {
+    // When the dialog is displayed for the first time, the title is announced
+    // to screen reader. However, upon subsequent changes to the dialog contents
+    // including the title, this has to be announced explicitly to convey to
+    // the user the change in the UI.
+    views::ViewAccessibility& custom_body_field_accessibility =
+        custom_body_field_ptr->GetViewAccessibility();
+    custom_body_field_accessibility.AnnouncePolitely(
+        dialog_title.empty() ? custom_body_field_accessibility.GetCachedName()
+                             : dialog_title);
+  }
+  delegate->GetBubbleFrameView()->SetProgress(
+      show_progress_bar ? std::optional<double>(-1) : std::nullopt);
 }
 
 ui::ColorVariant DigitalIdentityMultiStepDialog::GetBackgroundColor() {

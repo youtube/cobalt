@@ -179,6 +179,11 @@ cc::LayerTreeSettings GetSynchronousSingleThreadLayerTreeSettings() {
   // test makes progress.
   settings.single_thread_proxy_scheduler = false;
   settings.use_layer_lists = true;
+// TODO(crbug.com/434513378) Cannot enable smooth scrolling on Fuchsia as it
+// causes test failures in BasicScroll test.
+#if !BUILDFLAG(IS_FUCHSIA)
+  settings.enable_smooth_scroll = true;
+#endif
 #if BUILDFLAG(IS_MAC)
   settings.enable_elastic_overscroll = true;
 #endif
@@ -749,7 +754,9 @@ void WebViewHelper::InitializeWebView(
       /*session_storage_namespace_id=*/std::string(),
       /*page_base_background_color=*/std::nullopt, browsing_context_group_token,
       /*color_provider_colors=*/nullptr,
-      /*partitioned_popin_params=*/nullptr));
+      /*partitioned_popin_params=*/nullptr,
+      /*history_index=*/-1,
+      /*history_length=*/0));
   // This property must be set at initialization time, it is not supported to be
   // changed afterward, and does nothing.
   web_view_->GetSettings()->SetViewportEnabled(viewport_enabled_);
@@ -792,7 +799,9 @@ WebViewImpl* WebViewHelper::CreateWebView(WebViewClient* web_view_client,
       /*page_base_background_color=*/std::nullopt,
       /*browsing_context_group_token=*/base::UnguessableToken::Create(),
       /*color_provider_colors=*/nullptr,
-      /*partitioned_popin_params=*/nullptr));
+      /*partitioned_popin_params=*/nullptr,
+      /*history_index=*/-1,
+      /*history_length=*/0));
 }
 
 int TestWebFrameClient::loads_in_progress_ = 0;
@@ -1054,7 +1063,7 @@ void TestWebFrameWidget::BindWidgetChannels(
 
   widget_host_->GetWidgetInputHandler(
       input_handler.BindNewPipeAndPassReceiver(),
-      GetInputHandlerHost()->BindNewRemote());
+      GetInputHandlerHost()->BindNewRemote(), /* from_viz= */ false);
 }
 
 bool TestWebFrameWidget::HaveScrollEventHandlers() const {
@@ -1153,8 +1162,10 @@ void TestWebFrameWidgetHost::BindRenderInputRouterInterfaces(
 
 void TestWebFrameWidgetHost::GetWidgetInputHandler(
     mojo::PendingReceiver<mojom::blink::WidgetInputHandler> request,
-    mojo::PendingRemote<mojom::blink::WidgetInputHandlerHost> host) {
-  client_remote_->GetWidgetInputHandler(std::move(request), std::move(host));
+    mojo::PendingRemote<mojom::blink::WidgetInputHandlerHost> host,
+    bool from_viz) {
+  client_remote_->GetWidgetInputHandler(std::move(request), std::move(host),
+                                        from_viz);
 }
 
 mojo::PendingRemote<mojom::blink::WidgetInputHandlerHost>

@@ -41,7 +41,7 @@
         </cr-radio-button>
       </settings-radio-group>
       <cr-radio-button class="two-line"
-          id="location-block-radio-button"
+          id="locationBlockRadioButton"
           name="location-block-radio-button"
           sub-label="$i18n{siteSettingsLocationBlockedSubLabel}"
           checked$="[[!isLocationAllowed_]]">
@@ -97,5 +97,5 @@
     read-only-list
     allow-header="$i18n{siteSettingsLocationAllowedExceptions}"
     block-header="$i18n{siteSettingsLocationBlockedExceptions}"
-    search-filter="[[searchFilter_]]">
+    search-filter="[[searchTerm]]">
 </category-setting-exceptions>

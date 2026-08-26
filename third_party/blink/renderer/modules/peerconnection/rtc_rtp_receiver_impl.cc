@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_features.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_encoded_audio_stream_transformer.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_encoded_video_stream_transformer.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_rtp_sender_platform.h"
@@ -137,9 +138,10 @@ const std::vector<std::string>& RtpReceiverState::stream_ids() const {
 }
 
 class RTCRtpReceiverImpl::RTCRtpReceiverInternal
-    : public WTF::ThreadSafeRefCounted<
+    : public ThreadSafeRefCounted<
           RTCRtpReceiverImpl::RTCRtpReceiverInternal,
-          RTCRtpReceiverImpl::RTCRtpReceiverInternalTraits> {
+          RTCRtpReceiverImpl::RTCRtpReceiverInternalTraits>,
+      public webrtc::RtpReceiverObserverInterface {
  public:
   RTCRtpReceiverInternal(webrtc::scoped_refptr<webrtc::PeerConnectionInterface>
                              native_peer_connection,
@@ -170,6 +172,11 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
           encoded_video_transformer_->Delegate());
     }
     DCHECK(!encoded_audio_transformer_ || !encoded_video_transformer_);
+    // TODO(https://crbug.com/40821064): Remove killswitch after rollout.
+    if (base::FeatureList::IsEnabled(kWebRtcUnmuteTracksWhenPacketArrives)) {
+      CHECK(webrtc_receiver_);
+      webrtc_receiver_->SetObserver(this);
+    }
   }
 
   const RtpReceiverState& state() const {
@@ -191,8 +198,8 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
     // secondary thread, which is the WebRTC worker thread.
     auto webrtc_sources = webrtc_receiver_->GetSources();
     Vector<std::unique_ptr<RTCRtpSource>> sources(
-        static_cast<WTF::wtf_size_t>(webrtc_sources.size()));
-    for (WTF::wtf_size_t i = 0; i < webrtc_sources.size(); ++i) {
+        static_cast<wtf_size_t>(webrtc_sources.size()));
+    for (wtf_size_t i = 0; i < webrtc_sources.size(); ++i) {
       sources[i] = std::make_unique<RTCRtpSource>(webrtc_sources[i]);
     }
     return sources;
@@ -222,13 +229,34 @@ class RTCRtpReceiverImpl::RTCRtpReceiverInternal
     return encoded_video_transformer_.get();
   }
 
+  // RtpReceiverObserverInterface implementation.
+  // Note: unregistering from the event is not necessary.
+  void OnFirstPacketReceived(webrtc::MediaType media_type) override {
+    DCHECK(webrtc_receiver_);
+    if (!main_task_runner_->BelongsToCurrentThread()) {
+      main_task_runner_->PostTask(
+          FROM_HERE,
+          base::BindOnce(&RTCRtpReceiverImpl::RTCRtpReceiverInternal::
+                             OnFirstPacketReceived,
+                         this, media_type));
+      return;
+    }
+    state_.track_ref()->track()->Source()->SetReadyState(
+        MediaStreamSource::kReadyStateLive);
+  }
+
  private:
-  friend class WTF::ThreadSafeRefCounted<RTCRtpReceiverInternal,
-                                         RTCRtpReceiverInternalTraits>;
+  friend class ThreadSafeRefCounted<RTCRtpReceiverInternal,
+                                    RTCRtpReceiverInternalTraits>;
   friend struct RTCRtpReceiverImpl::RTCRtpReceiverInternalTraits;
 
-  ~RTCRtpReceiverInternal() {
+  ~RTCRtpReceiverInternal() override {
     DCHECK(main_task_runner_->BelongsToCurrentThread());
+    // TODO(https://crbug.com/40821064): Remove killswitch after rollout.
+    if (webrtc_receiver_ &&
+        base::FeatureList::IsEnabled(kWebRtcUnmuteTracksWhenPacketArrives)) {
+      webrtc_receiver_->SetObserver(nullptr);
+    }
   }
 
   void GetStatsOnSignalingThread(RTCStatsReportCallback callback) {
@@ -329,10 +357,10 @@ MediaStreamComponent* RTCRtpReceiverImpl::Track() const {
 
 Vector<String> RTCRtpReceiverImpl::StreamIds() const {
   const auto& stream_ids = internal_->state().stream_ids();
-  Vector<String> wtf_stream_ids(
-      static_cast<WTF::wtf_size_t>(stream_ids.size()));
-  for (WTF::wtf_size_t i = 0; i < stream_ids.size(); ++i)
+  Vector<String> wtf_stream_ids(static_cast<wtf_size_t>(stream_ids.size()));
+  for (wtf_size_t i = 0; i < stream_ids.size(); ++i) {
     wtf_stream_ids[i] = String::FromUTF8(stream_ids[i]);
+  }
   return wtf_stream_ids;
 }
 

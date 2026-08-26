@@ -14,8 +14,14 @@ inline constexpr int kLiveTranslateLabelLineHeightDip = 18;
 inline constexpr int kLiveTranslateImageWidthDip = 16;
 inline constexpr int kLanguageButtonImageLabelSpacing = 4;
 inline constexpr auto kLanguageButtonInsets = gfx::Insets::TLBR(2, 8, 2, 6);
+inline constexpr int kScrollLockButtonImageLabelSpacing = 4;
+inline constexpr auto kScrollLockButtonInsets = gfx::Insets::TLBR(2, 8, 2, 6);
 inline constexpr int kNumLinesCollapsed = 2;
 inline constexpr int kNumLinesExpanded = 8;
+inline constexpr int kMinScrollViewHeight = 0;
+inline constexpr int kMaxScrollViewHeightCollapsed = 48;
+inline constexpr int kMaxScrollViewHeightExpanded = 192;
+inline constexpr int kLeftContainerSpacingDip = 10;
 inline constexpr int kCornerRadiusDip = 4;
 inline constexpr int kSidePaddingDip = 18;
 inline constexpr int kButtonDip = 16;
@@ -26,6 +32,9 @@ inline constexpr int kMinAnchorMarginDip = 20;
 inline constexpr char kPrimaryFont[] = "Roboto";
 inline constexpr char kSecondaryFont[] = "Arial";
 inline constexpr char kTertiaryFont[] = "sans-serif";
+#if BUILDFLAG(IS_CHROMEOS)
+inline constexpr char kArabicFont[] = "Noto Sans Arabic UI";
+#endif
 inline constexpr int kFontSizePx = 16;
 inline constexpr int kLiveTranslateLabelFontSizePx = 11;
 inline constexpr double kDefaultRatioInParentX = 0.5;

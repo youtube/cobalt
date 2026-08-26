@@ -10,7 +10,6 @@
 
 #import "ARDAppDelegate.h"
 
-#import "sdk/objc/api/peerconnection/RTCFieldTrials.h"
 #import "sdk/objc/api/peerconnection/RTCSSLAdapter.h"
 #import "sdk/objc/api/peerconnection/RTCTracing.h"
 #import "sdk/objc/base/RTCLogging.h"
@@ -25,8 +24,6 @@
 
 - (BOOL)application:(UIApplication *)application
     didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-  NSDictionary *fieldTrials = @{};
-  RTCInitFieldTrialDictionary(fieldTrials);
   RTCInitializeSSL();
   RTCSetupInternalTracer();
   _window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];

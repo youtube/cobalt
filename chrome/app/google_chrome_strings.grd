@@ -677,6 +677,12 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_UNINSTALL_BUTTON_TEXT" desc="Label for uninstall button on Uninstall confirmation dialog.">
           Uninstall
         </message>
+        <message name="IDS_PIN_INFOBAR_TEXT" desc="Text to show in an infobar when Chrome is not pinned to the taskbar.">
+          Pin Chrome to your taskbar to get to it quickly anytime
+        </message>
+        <message name="IDS_PIN_INFOBAR_BUTTON" desc="Label for the button on an infobar offering to pin Chrome to the taskbar. Pins Chrome when clicked.">
+          Pin Chrome
+        </message>
       </if>
       <message name="IDS_DEFAULT_BROWSER_INFOBAR_TEXT" desc="Text to show in an infobar when Google Chrome is not the current default browser.">
         Google Chrome isn't your default browser
@@ -988,6 +994,9 @@ Google Chrome is unable to recover your settings.
       <message name="IDS_INSTALLER_DOWNLOADER_BUTTON_LABEL" desc="Button label for the installer downloader infobar to download the Chrome installer.">
         Download Chrome Installer
       </message>
+      <message name="IDS_INSTALLER_DOWNLOADER_LINK" desc="Text for the link in the installer downloader infobar to learn more about installing Chrome">
+        Learn more about installing Chrome
+      </message>
 
       <!-- Enterprise sign-in dialog -->
       <message name="IDS_ENTERPRISE_VALUE_PROPOSITION_PROFILE_REQUIRED_BY_ORG_TITLE" desc="Title of the screen in the profile creation flow where the user is asked whether they want to confirm signing in to Chrome with their enterprise account when it is mandatory to sign in to Chrome with the enterprise account.">
@@ -1113,6 +1122,9 @@ Google Chrome is unable to recover your settings.
         </message>
         <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_SUBTITLE" desc="Subtitle of the Chrome Signin Bubble intercept that is shown when a signed out user signs in on the web with it's first account.">
           To get your passwords and more on all your devices, sign in to Chrome
+        </message>
+        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_SUBTITLE_WITH_BOOKMARKS" desc="Subtitle of the Chrome Signin Bubble intercept that is shown when a signed out user signs in on the web with it's first account.">
+          To get your passwords, bookmarks, and more on all your devices, sign in to Chrome
         </message>
         <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_SUBTITLE_SUPERVISED" desc="This string is the body of a promotion about signing in to Chrome with the user's Google Account. It explains the overarching user benefit of signing in: Kids of a certain age are motivated to get their parents’ help staying safer online, so the tone should be motivating. We want users to understand why signing in is beneficial, and click 'Continue as name' to sign in to their Google Account.">
           To stay safer online with your parent’s choices, sign in to Chrome
@@ -1393,16 +1405,6 @@ Google Chrome is unable to recover your settings.
       <message name="IDS_QUIET_NOTIFICATION_IPH_TEXT_SCREENREADER" desc="Text of the blocked notifications indicator promo, that shows under the blocked notifications indicator in the address bar, when a site requests notifications permission. The promo informs the user that as a result of them usually blocking notifications, the request from the site is automatically blocked, and the user can click on the icon to allow notifications.">
         You usually block notifications. To let this site notify you, click the notification icon on the right corner of your location bar.
       </message>
-
-      <if expr="not is_android">
-        <!-- Desktop User Education IPH Strings -->
-        <message name="IDS_SIDE_PANEL_GENERIC_MENU_IPH" desc="The body text of the IPH describing how to find side panel entry points in the Chrome menu.">
-          You can open bookmarks, reading mode, and more from the Chrome menu
-        </message>
-        <message name="IDS_SIDE_PANEL_GENERIC_MENU_IPH_SCREENREADER" desc="The screen reader text of the IPH describing how to find side panel entry points in the Chrome menu. The phrase 'top right' should read as 'top left' in rtl languages.">
-          You can open bookmarks, reading mode, and more from the Chrome menu at the top right
-        </message>
-      </if>
 
       <!-- Settings API bubble -->
       <message name="IDS_EXTENSIONS_SETTINGS_API_SECOND_LINE_START_PAGES" desc="Second line in the Settings API bubble. Only shown if the secondary change by the extension was just the start pages. The triple single quotes are needed to preserve the space before and after the sentence which is needed when the language (Chrome is being translated to) uses space as word separator. Please preserve them, unless the language being translated to does not use space as word separator.">
@@ -1724,6 +1726,11 @@ Google Chrome is unable to recover your settings.
           desc="The label for the button that on click opens a feedback form for the user to send feedback about the feature.">
           Send feedback
         </message>
+        <message name="IDS_LENS_OVERLAY_CLOSE_FEEDBACK_TOAST_ACCESSIBILITY_LABEL"
+          desc="The accessibility label for the button that closes the feedback toast."
+          is_accessibility_with_no_ui="true">
+          Close feedback dialog
+        </message>
         <message name="IDS_LENS_OVERLAY_MORE_OPTIONS_BUTTON_LABEL"
           desc="Text that is shown in the tooltip of the more options button in the Lens Overlay.">
           More options
@@ -1889,6 +1896,10 @@ Google Chrome is unable to recover your settings.
           desc="Accessibility label for the slider controlling the bottom left corner of the search area. Includes the coordinates of the left and bottom edges of the search area expressed as percentages of the image area.">
           bottom left corner of search area: left <ph name="LEFT"><ex>15</ex>$1</ph>%, bottom <ph name="BOTTOM"><ex>65</ex>$2</ph>%
         </message>
+        <message name="IDS_LENS_OVERLAY_SEARCH_SCREENSHOT_ACCESSIBILITY_LABEL"
+          desc="Spoken by screen readers when the screenshot gets focus, but not visually rendered. Informs the user that the screenshot will be searched when activated.">
+          Search this screenshot
+        </message>
 
         <!-- IPH Strings -->
         <message name="IDS_LENS_OVERLAY_TRANSLATE_BUTTON_IPH"
@@ -1917,6 +1928,48 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_SIDE_PANEL_LENS_OVERLAY_TOOLBAR_TOOLTIP"
           desc="The tooltip for the Lens overlay toolbar button.">
           Search with Google Lens
+        </message>
+
+        <message name="IDS_LENS_OVERLAY_ENTRYPOINT_LABEL_ALT1"
+          desc="Label for the Lens overlay command, through which the user can ask Google questions about the page.">
+          Ask Google about this page
+        </message>
+        <message name="IDS_LENS_OVERLAY_ENTRYPOINT_LABEL_ALT2"
+          desc="Label for the Lens overlay command, through which the user can ask Google Lens questions about the page.">
+          Ask Google Lens about this page
+        </message>
+        <message name="IDS_LENS_OVERLAY_ENTRYPOINT_LABEL_ALT3"
+          desc="Label for the Lens overlay command, through which the page will be searched using Google Lens.">
+          Search this page with Google Lens
+        </message>
+        <message name="IDS_LENS_OVERLAY_IMAGE_ENTRYPOINT_LABEL_ALT1"
+          desc="Label for the Lens overlay command, through which the user can ask Google questions about the image.">
+          Ask Google about this image
+        </message>
+        <message name="IDS_LENS_OVERLAY_IMAGE_ENTRYPOINT_LABEL_ALT2"
+          desc="Label for the Lens overlay command, through which the user can ask Google Lens questions about the image.">
+          Ask Google Lens about this image
+        </message>
+        <message name="IDS_LENS_OVERLAY_IMAGE_ENTRYPOINT_LABEL_ALT3"
+          desc="Label for the Lens overlay command, through which the image will be searched using Google Lens.">
+          Search this image with Google Lens
+        </message>
+        <message name="IDS_LENS_OVERLAY_VIDEO_ENTRYPOINT_LABEL_ALT1"
+          desc="Label for the Lens overlay command, through which the user can ask Google questions about the video.">
+          Ask Google about this video
+        </message>
+        <message name="IDS_LENS_OVERLAY_VIDEO_ENTRYPOINT_LABEL_ALT2"
+          desc="Label for the Lens overlay command, through which the user can ask Google Lens questions about the video.">
+          Ask Google Lens about this video
+        </message>
+        <message name="IDS_LENS_OVERLAY_VIDEO_ENTRYPOINT_LABEL_ALT3"
+          desc="Label for the Lens overlay command, through which the video will be searched using Google Lens.">
+          Search this video with Google Lens
+        </message>
+
+        <message name="IDS_AI_MODE_ENTRYPOINT_LABEL"
+          desc="The label of the AI mode entrypoint in the omnibox">
+          AI Mode
         </message>
 
         <!-- Lens Side Panel Error Page -->
@@ -1983,6 +2036,24 @@ Google Chrome is unable to recover your settings.
             Always show Google Lens shortcut
           </message>
         </if>
+
+        <!-- CSB Strings -->
+        <message name="IDS_LENS_CONTEXTUAL_SEARCH_DEFAULT_QUERY"
+          desc="Default query for Lens searchbox to request help with the current page context.">
+          help me with this
+        </message>
+
+        <!-- AI Mode Strings -->
+        <message name="IDS_LENS_COMPOSEBOX_HINT_TEXT"
+          desc="The hint text of the AI mode searchbox in the Lens side panel. This text is shown in the searchbox when the user has not yet typed any text, and prompts the user to ask a follow up question.">
+          Ask a follow up
+        </message>
+
+        <!-- On Sign-in Avatar Button Label Desktop -->
+        <!-- TODO(crbug.com/417928515): Finalize the string and make it translateable. -->
+        <message translateable="false" name="IDS_AVATAR_BUTTON_MAKING_CHROME_YOURS" desc="">
+          Making Chrome Yours
+        </message>
       </if>
 
       <!-- OOBE -->
@@ -2000,13 +2071,6 @@ Google Chrome is unable to recover your settings.
             ChromeOS terms
           </message>
         </if>
-      </if>
-
-      <!-- Welcome page (chrome://welcome) strings -->
-      <if expr="not is_chromeos">
-        <message name="IDS_WELCOME_HEADER" desc="A message which will appear as the header on the Welcome UI if the user has never run Chrome before.">
-          Welcome to Chrome
-        </message>
       </if>
 
       <!-- Native notifications for Windows 10 -->
@@ -2127,6 +2191,13 @@ Google Chrome is unable to recover your settings.
       <if expr="not is_android">
         <message name="IDS_HATS_BUBBLE_TITLE" translateable="false" desc="The title of Happiness Tracking Survey's invitation banner, it invites users to take a survey">
           Take a quick survey
+        </message>
+      </if>
+
+      <!-- HaTS invitations on Android -->
+      <if expr="is_android">
+        <message name="IDS_MESSAGE_ACT_SURVEY_INVITATION" desc="Survey invitation text that's shown in a pop up. The user can then ignore the invitation or accept it, which will cause the survey to be shown.">
+          Help us improve Incognito by taking this 1 minute survey.
         </message>
       </if>
 
@@ -2251,14 +2322,20 @@ Google Chrome is unable to recover your settings.
       </message>
 
       <!-- Advanced security settings -->
-      <message name="IDS_SETTINGS_SECURITY_V8_LINK_DESCRIPTION" desc="Description for the link row of the V8 security settings page.">
-        Turn on additional protection in Chrome’s JavaScript and WebAssembly engine
+      <message name="IDS_SETTINGS_SECURITY_JAVASCRIPT_OPTIMIZATION_LINK_ROW_ENABLED" desc="Description for the link row of the Javascript-optimization page when javascript-optimization is enabled.">
+        Speeds up sites with Chrome's V8 engine but makes Chrome slightly less resistant to attacks. This setting is on.
+      </message>
+      <message name="IDS_SETTINGS_SECURITY_JAVASCRIPT_OPTIMIZATION_LINK_ROW_DISABLED" desc="Description for the link row of the Javascript-optimization page when javascript-optimization is disabled.">
+        Speeds up sites with Chrome's V8 engine but makes Chrome slightly less resistant to attacks. This setting is off.
       </message>
       <message name="IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_DESCRIPTION" desc="Description of the JavaScript optimizer content setting.">
-        V8 is Chrome’s JavaScript and WebAssembly engine used to improve site performance
+        Speeds up sites with Chrome's V8 engine but makes Chrome slightly less resistant to attacks
       </message>
       <message name="IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_ALLOWED_SUB_LABEL" desc="Sub-label for the enabled option of the JavaScript optimizer content setting.">
         Chrome runs faster and features that use JavaScript should work as designed (recommended)
+      </message>
+      <message name="IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_SUB_LABEL" desc="Sub-label for the disabled option of the JavaScript optimizer content setting.">
+        Reduces performance but makes Chrome more resistant to attacks
       </message>
 
       <!-- GoogleUpdater Strings -->
@@ -2582,6 +2659,91 @@ Google Chrome is unable to recover your settings.
         </message>
       </if>
 
+      <!-- Glic Strings -->
+      <if expr="enable_glic">
+        <message name="IDS_GLIC_PROMO_TITLE" desc="Gemini promo title." translateable="false">
+          Try Gemini in Google Chrome
+        </message>
+        <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP" translateable="false" desc="This is the tooltip shown when hovering over the Gemini entry button in the tab strip while the Gemini window is closed.">
+          Open Gemini in Chrome
+        </message>
+        <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE" translateable="false" desc="This is the tooltip shown when hovering over the Gemini entry button in the tab strip while the Gemini window is open.">
+          Close Gemini in Chrome
+        </message>
+
+        <message name="IDS_GLIC_THREE_DOT_MENU_ITEM" desc="This is the three-dot menu item for opening Gemini." translateable="false">
+          Open Gemini in Chrome
+        </message>
+
+        <!-- Glic status tray icon strings -->
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP" translateable="false" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed.">
+          Open Gemini in Chrome
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CANARY" translateable="false" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed. It indicates that this is the Canary version of the browser.">
+          Open Gemini in Chrome Canary
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_DEV" translateable="false" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed. It indicates that this is the Dev version of the browser.">
+          Open Gemini in Chrome Dev
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_BETA" translateable="false" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed. It indicates that this is the Beta version of the browser.">
+          Open Gemini in Chrome Beta
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE" translateable="false" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open.">
+          Close Gemini in Chrome
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_CANARY" translateable="false" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open. It indicates that this is the Canary version of the browser.">
+          Close Gemini in Chrome Canary
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_DEV" translateable="false" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open. It indicates that this is the Dev version of the browser.">
+          Close Gemini in Chrome Dev
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_BETA" translateable="false" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open. It indicates that this is the Beta version of the browser.">
+          Close Gemini in Chrome Beta
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_MENU_SHOW" translateable="false" desc="This is the menu item for showing the Gemini experience in Chrome.">
+          Open Gemini in Chrome
+        </message>
+        <message name="IDS_GLIC_STATUS_ICON_MENU_CLOSE" translateable="false" desc="This is the menu item for closing the Gemini window.">
+          Close Gemini in Chrome
+        </message>
+        <message name ="IDS_GLIC_INELIGIBLE_PROFILE_NOTICE" translateable="false" desc="This is the text of the Gemini ineligible profile notice.">
+          To use Gemini in Chrome, sign in with a different Google Account
+        </message>
+
+        <!-- Experimental Glic settings -->
+        <message name="IDS_SETTINGS_GLIC_PAGE_TITLE" translateable="false" desc="Title of the Gemini settings subpage. Also shown in tab strip.">
+          Gemini in Chrome
+        </message>
+        <message name="IDS_SETTINGS_GLIC_SECTION_TITLE" translateable="false" desc="Text of the Gemini section header on the AI settings page.">
+          Gemini in Chrome
+        </message>
+        <message name="IDS_SETTINGS_GLIC_ROW_LABEL" translateable="false" desc="Label of the Gemini row button on the AI settings page leading to the Gemini subpage.">
+          Gemini in Chrome
+        </message>
+
+        <!-- Profile Picker Glic version-->
+        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_GLIC" desc="Heading describing that the section below choosing a Chrome profile to use with Gemini. 'Gemini' has a special styling." translateable="false">
+          Choose a Chrome profile to use with <ph name="START_GLIC_STYLING">&lt;span class="glic-brand-style"&gt;</ph>Gemini<ph name="END_GLIC_STYLING">&lt;/span&gt;</ph>
+        </message>
+        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_GLIC_NO_PROFILE" desc="Sublabel describing to sign with a Google account to use Chrome with Gemini. 'Gemini' has a special styling." translateable="false">
+          Sign into Chrome with your Google Account to use <ph name="START_GLIC_STYLING">&lt;span class="glic-brand-style"&gt;</ph>Gemini<ph name="END_GLIC_STYLING">&lt;/span&gt;</ph>
+        </message>
+        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_GLIC" desc="Sublabel describing that the section below choosing a Chrome profile to use with Gemini" translateable="false">
+          To use Gemini in Chrome, you need to be signed in to Chrome with your Google Account
+        </message>
+        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_GLIC_NO_PROFILE" desc="Sublabel describing that in order to add a new Chrome profile to use with Gemini, sign up with a Google account" translateable="false">
+          When you sign in to Chrome with your Google Account, you can use your Chrome profile with Gemini. <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>Learn how to sign in to Chrome<ph name="END_LINK">&lt;/a&gt;</ph>
+        </message>
+        <message name="IDS_PROFILE_PICKER_ADD_PROFILE_HELPER_GLIC" desc="Sublabel describing that in order to add a new Chrome profile to use with Gemini, sign up with a different Google account" translateable="false">
+          To use a different Google Account with Gemini in Chrome, <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>create a new profile<ph name="END_LINK">&lt;/a&gt;</ph> and sign in with the account you want
+        </message>
+
+        <!-- Glic button and tab strip context menu -->
+        <message name="IDS_GLIC_CONTEXTUAL_CUEING_ANNOUNCEMENT" desc="Polite announcement that happens when a contextual nudge is shown next to the Gemini button." translateable="false">
+          To open Gemini in Chrome, press <ph name="GLOBAL_HOTKEY">$1<ex>⌘+G</ex></ph>
+        </message>
+      </if>
+
       <!-- UNO Promo strings for extensions -->
       <if expr="enable_extensions">
         <message name="IDS_EXTENSION_INSTALLED_PROMO_EXPLICIT_SIGNIN_MESSAGE" desc="Text of the promo displayed at the bottom of the extension installed bubble asking the user to enable UNO.">
@@ -2592,6 +2754,23 @@ Google Chrome is unable to recover your settings.
       <!-- UNO Promo strings for bookmarks -->
       <message name="IDS_BOOKMARK_INSTALLED_PROMO_EXPLICIT_SIGNIN_MESSAGE" desc="Text of the promo displayed at the bottom of the bookmark bubble asking the user to enable UNO.">
         To get this bookmark and more on all your devices, sign in to Chrome
+      </message>
+
+      <!-- Dice Migration strings -->
+      <message name="IDS_DICE_MIGRATION_DIALOG_TITLE" desc="The title in the Dice Migration dialog advertising the sign-in benefit.">
+        Get more when you’re signed in to Chrome
+      </message>
+      <message name="IDS_DICE_MIGRATION_DIALOG_DESCRIPTION" desc="The content of the Dice Migration dialog advertising the benefits of signing in to Chrome.">
+        You’ll save and use passwords and more in your Google Account whenever you’re signed in to Chrome. <ph name="LEARN_MORE">$1<ex>Learn more</ex></ph>
+      </message>
+      <message name="IDS_DICE_MIGRATION_DIALOG_OK_BUTTON" desc="The primary button label in the Dice Migration dialog, letting the user acknowledge signing in to Chrome.">
+        Got it
+      </message>
+      <message name="IDS_DICE_MIGRATION_CONFIRMATION_TOAST_MESSAGE" desc="The confirmation message shown in a toast after the user clicks on the accept button on the Dice Migration dialog.">
+        You now have more features available in Chrome
+      </message>
+      <message name="IDS_DICE_MIGRATION_CONFIRMATION_TOAST_BUTTON" desc="The text on the button of the confirmation toast shown after the user clicks on the accept button on the Dice Migration dialog, that allows the users to control the sync settings or sign out of Chrome.">
+        Manage
       </message>
     </messages>
   </release>

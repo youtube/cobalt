@@ -7,11 +7,12 @@ import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import type {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {CrToastElement} from 'chrome://settings/lazy_load.js';
 import {ClearBrowsingDataBrowserProxyImpl, ContentSetting, ContentSettingsTypes, CookieControlsMode, SiteSettingsPrefsBrowserProxyImpl} from 'chrome://settings/lazy_load.js';
 import type {CrLinkRowElement, Route, SettingsPrefsElement, SettingsPrivacyPageElement, SyncStatus} from 'chrome://settings/settings.js';
 import {CrSettingsPrefs, HatsBrowserProxyImpl, MetricsBrowserProxyImpl, PrivacyGuideInteractions, PrivacyPageBrowserProxyImpl, resetRouterForTesting, Router, routes, StatusAction, TrustSafetyInteraction} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue, assertThrows} from 'chrome://webui-test/chai_assert.js';
-import {isChildVisible, isVisible} from 'chrome://webui-test/test_util.js';
+import {eventToPromise, isChildVisible, isVisible} from 'chrome://webui-test/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import {TestClearBrowsingDataBrowserProxy} from './test_clear_browsing_data_browser_proxy.js';
@@ -121,6 +122,30 @@ suite('PrivacyPage', function() {
     const dialog = page.shadowRoot!.querySelector(
         'settings-clear-browsing-data-dialog-v2');
     assertTrue(!!dialog);
+  });
+
+  test('showDeletionConfirmationToast', async function() {
+    const toast = page.shadowRoot!.querySelector<CrToastElement>(
+        '#deleteBrowsingDataToast');
+    assertTrue(!!toast);
+    assertFalse(toast.open);
+    page.$.clearBrowsingData.click();
+    flush();
+
+    const dialog = page.shadowRoot!.querySelector(
+        'settings-clear-browsing-data-dialog-v2');
+    assertTrue(!!dialog);
+    dialog.dispatchEvent(new CustomEvent('browsing-data-deleted', {
+      bubbles: true,
+      composed: true,
+      detail: {deletionConfirmationText: 'test'},
+    }));
+    dialog.$.deleteBrowsingDataDialog.close();
+    await eventToPromise('close', dialog);
+    flush();
+
+    assertTrue(toast.open);
+    assertEquals('test', toast.textContent!.trim());
   });
 
   // TODO(crbug.com/417690232): Update once its kBundledSecuritySettings is
@@ -476,6 +501,7 @@ suite('CookiesSubpageRedesignDisabled', function() {
 suite(`IncognitoTrackingProtectionsSubpage`, function() {
   let page: SettingsPrivacyPageElement;
   let settingsPrefs: SettingsPrefsElement;
+  let metricsBrowserProxy: TestMetricsBrowserProxy;
 
   suiteSetup(function() {
     loadTimeData.overrideValues({
@@ -489,6 +515,9 @@ suite(`IncognitoTrackingProtectionsSubpage`, function() {
 
   setup(function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+    metricsBrowserProxy = new TestMetricsBrowserProxy();
+    MetricsBrowserProxyImpl.setInstance(metricsBrowserProxy);
 
     page = document.createElement('settings-privacy-page');
     page.prefs = settingsPrefs.prefs!;
@@ -506,6 +535,10 @@ suite(`IncognitoTrackingProtectionsSubpage`, function() {
             '#incognitoTrackingProtectionsLinkRow');
     assertTrue(!!incognitoTrackingProtectionsLinkRow);
     incognitoTrackingProtectionsLinkRow.click();
+
+    assertEquals(
+        'Settings.TrackingProtections.OpenedFromPrivacyPage',
+        await metricsBrowserProxy.whenCalled('recordAction'));
     // Check that the correct page was navigated to.
     await flushTasks();
     assertEquals(

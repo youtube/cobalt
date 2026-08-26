@@ -517,7 +517,6 @@ void EventTarget::SetDefaultAddEventListenerOptions(
 
 Observable* EventTarget::when(const AtomicString& event_type,
                               const ObservableEventListenerOptions* options) {
-  DCHECK(RuntimeEnabledFeatures::ObservableAPIEnabled());
   return MakeGarbageCollected<Observable>(
       GetExecutionContext(), MakeGarbageCollected<ObservableSubscribeDelegate>(
                                  this, event_type, options));
@@ -704,7 +703,8 @@ void EventTarget::AddedEventListener(
       UseCounter::Count(*document, WebFeature::kScrollend);
     } else if (event_util::IsSnapEventType(event_type)) {
       UseCounter::Count(*document, WebFeature::kSnapEvent);
-    } else if (RuntimeEnabledFeatures::WindowOnMoveEventEnabled() &&
+    } else if (RuntimeEnabledFeatures::
+                   DesktopPWAsAdditionalWindowingControlsEnabled() &&
                (event_type == event_type_names::kMove)) {
       UseCounter::Count(*document, WebFeature::kMoveEvent);
     }
@@ -718,40 +718,6 @@ void EventTarget::AddedEventListener(
       UseCounter::Count(
           *worker,
           WebFeature::kServiceWorkerPushSubscriptionChangeEventListener);
-    }
-  }
-
-  auto info = event_util::IsDOMMutationEventType(event_type);
-  if (info.is_mutation_event) {
-    if (ExecutionContext* context = GetExecutionContext()) {
-      if (RuntimeEnabledFeatures::MutationEventsEnabled(context) &&
-          (!document || document->SupportsLegacyDOMMutations())) {
-        String message_text = WTF::StrCat(
-            {"Listener added for a '", event_type,
-             "' mutation event. This event type is no longer supported, and "
-             "will be removed from this browser VERY soon. Consider using "
-             "MutationObserver instead. See "
-             "https://chromestatus.com/feature/5083947249172480 for more "
-             "information."});
-        PerformanceMonitor::ReportGenericViolation(
-            context, PerformanceMonitor::kDiscouragedAPIUse, message_text,
-            base::TimeDelta(), nullptr);
-        context->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
-            mojom::blink::ConsoleMessageSource::kDeprecation,
-            mojom::blink::ConsoleMessageLevel::kWarning, message_text));
-        Deprecation::CountDeprecation(context, info.listener_feature);
-        UseCounter::Count(context, WebFeature::kAnyMutationEventListenerAdded);
-      } else {
-        String message_text = WTF::StrCat(
-            {"Listener added for a '", event_type,
-             "' mutation event. Support for this event type has been removed, "
-             "and this event will no longer be fired. See "
-             "https://chromestatus.com/feature/5083947249172480 for more "
-             "information."});
-        context->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
-            mojom::blink::ConsoleMessageSource::kDeprecation,
-            mojom::blink::ConsoleMessageLevel::kError, message_text));
-      }
     }
   }
 }

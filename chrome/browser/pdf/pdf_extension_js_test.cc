@@ -200,11 +200,31 @@ IN_PROC_BROWSER_TEST_P(PDFExtensionJSTest, Elements) {
   RunTestsInJsModule("material_elements_test.js", "test.pdf");
 }
 
+IN_PROC_BROWSER_TEST_P(PDFExtensionJSTest, SaveControlsMixin) {
+  // Although this test file does not require a PDF to be loaded, loading the
+  // elements without loading a PDF is difficult.
+  RunTestsInJsModule("save_controls_mixin_test.js", "test.pdf");
+}
+
 IN_PROC_BROWSER_TEST_P(PDFExtensionJSTest, DownloadControls) {
   // Although this test file does not require a PDF to be loaded, loading the
   // elements without loading a PDF is difficult.
   RunTestsInJsModule("download_controls_test.js", "test.pdf");
 }
+
+#if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+IN_PROC_BROWSER_TEST_P(PDFExtensionJSTest, CircularProgressRing) {
+  // Although this test file does not require a PDF to be loaded, loading the
+  // elements without loading a PDF is difficult.
+  RunTestsInJsModule("circular_progress_ring_test.js", "test.pdf");
+}
+
+IN_PROC_BROWSER_TEST_P(PDFExtensionJSTest, SaveToDriveControls) {
+  // Although this test file does not require a PDF to be loaded, loading the
+  // elements without loading a PDF is difficult.
+  RunTestsInJsModule("save_to_drive_controls_test.js", "test.pdf");
+}
+#endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 
 IN_PROC_BROWSER_TEST_P(PDFExtensionJSTest, Title) {
   RunTestsInJsModule("title_test.js", "test-title.pdf");
@@ -405,7 +425,7 @@ class PDFExtensionContentSettingJSTest : public PDFExtensionJSTest {
           content::EvalJs(extension_host, kEnsurePdfHasLoadedScript);
       // The dom can be in an unusable state during setup. If the EvalJs
       // errors out tries again.
-      if (js_result.error.empty() && js_result.ExtractBool()) {
+      if (js_result.is_ok() && js_result.ExtractBool()) {
         return true;
       }
     }

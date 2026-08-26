@@ -209,6 +209,89 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     self.assertEqual(out_base_dir, rel_out)
     self.assertEqual(src_base_dir, rel_source)
 
+  def test_find_strip_tool(self):
+    # Test discovery of llvm-strip under source_dir
+    fake_llvm_strip = os.path.join(self.source_dir, 'third_party', 'llvm-build',
+                                   'Release+Asserts', 'bin', 'llvm-strip')
+    os.makedirs(os.path.dirname(fake_llvm_strip), exist_ok=True)
+    with open(fake_llvm_strip, 'w', encoding='utf-8') as f:
+      f.write('fake-strip')
+    # pylint: disable=protected-access
+    found = archive_test_artifacts._find_strip_tool(self.source_dir)
+    self.assertEqual(found, fake_llvm_strip)
+
+  @mock.patch(
+      'archive_test_artifacts._find_strip_tool',
+      return_value='/fake/llvm-strip')
+  @mock.patch('subprocess.run')
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_with_strip(self, mock_make_tar, mock_run,
+                                     mock_strip_tool):
+    del mock_strip_tool
+    target_name = 'stripped_target'
+    deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('libsample.so\n')
+
+    # Create dummy .so file
+    sample_so = os.path.join(self.out_dir, 'libsample.so')
+    with open(sample_so, 'w', encoding='utf-8') as f:
+      f.write('dummy elf binary content')
+
+    archive_test_artifacts.create_archive(
+        targets=[f'starboard:{target_name}'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=True,
+        use_android_deps_path=False,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=True,
+        strip_binaries=True)
+
+    # Verify llvm-strip was invoked with --strip-unneeded
+    self.assertTrue(mock_run.called)
+    strip_cmd = mock_run.call_args[0][0]
+    self.assertEqual(strip_cmd[0], '/fake/llvm-strip')
+    self.assertEqual(strip_cmd[1], '--strip-unneeded')
+    self.assertEqual(strip_cmd[2], '-o')
+    self.assertEqual(strip_cmd[4], sample_so)
+    self.assertTrue(mock_make_tar.called)
+
+  @mock.patch(
+      'archive_test_artifacts._find_strip_tool',
+      return_value='/fake/llvm-strip')
+  @mock.patch('subprocess.run')
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_without_strip(self, mock_make_tar, mock_run,
+                                        mock_strip_tool):
+    del mock_strip_tool
+    target_name = 'unstripped_target'
+    deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('libsample.so\n')
+
+    sample_so = os.path.join(self.out_dir, 'libsample.so')
+    with open(sample_so, 'w', encoding='utf-8') as f:
+      f.write('dummy elf binary content')
+
+    archive_test_artifacts.create_archive(
+        targets=[f'starboard:{target_name}'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=True,
+        use_android_deps_path=False,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=True,
+        strip_binaries=False)
+
+    # Verify strip was NOT invoked
+    self.assertFalse(mock_run.called)
+    self.assertTrue(mock_make_tar.called)
+
 
 if __name__ == '__main__':
   unittest.main()

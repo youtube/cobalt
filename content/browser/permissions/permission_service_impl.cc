@@ -161,14 +161,15 @@ void PermissionServiceImpl::RegisterPageEmbeddedPermissionControl(
   CHECK(web_contents);
   auto* checker = EmbeddedPermissionControlChecker::GetOrCreateForPage(
       web_contents->GetPrimaryPage());
-
   std::set<PermissionName> permission_names;
-  std::ranges::transform(
-      permissions, std::inserter(permission_names, permission_names.begin()),
-      [](const auto& p) { return p->name; });
-  if (permissions.size() != permission_names.size()) {
-    ReceivedBadMessage();
-    return;
+  for (const auto& permission : permissions) {
+    // Ensure all requested permissions are device permissions and check for
+    // duplicates.
+    if (!PermissionUtil::IsDevicePermission(permission) ||
+        !permission_names.insert(permission->name).second) {
+      ReceivedBadMessage();
+      return;
+    }
   }
 
   checker->CheckPageEmbeddedPermission(
@@ -372,25 +373,24 @@ void PermissionServiceImpl::AddPermissionObserver(
       /*should_include_device_status*/ false, std::move(observer));
 }
 
-void PermissionServiceImpl::AddPageEmbeddedPermissionObserver(
+void PermissionServiceImpl::AddCombinedPermissionObserver(
     PermissionDescriptorPtr permission,
     PermissionStatus last_known_status,
     mojo::PendingRemote<blink::mojom::PermissionObserver> observer) {
-  if (!base::FeatureList::IsEnabled(blink::features::kPermissionElement)) {
-    bad_message::ReceivedBadMessage(
-        context_->render_frame_host()->GetProcess(),
-        bad_message::PSI_ADD_PAGE_EMBEDDED_PERMISSION_OBSERVER_WITHOUT_FEATURE);
-    return;
-  }
   auto type = blink::MaybePermissionDescriptorToPermissionType(permission);
   if (!type) {
     ReceivedBadMessage();
     return;
   }
-  context_->CreateSubscription(
-      permission, origin_, GetCombinedPermissionAndDeviceStatus(permission),
-      last_known_status, /*should_include_device_status*/ true,
-      std::move(observer));
+  bool should_include_device_status =
+      PermissionUtil::IsDevicePermission(permission);
+  PermissionStatus current_status =
+      should_include_device_status
+          ? GetCombinedPermissionAndDeviceStatus(permission)
+          : GetPermissionStatusForCurrentContext(permission);
+  context_->CreateSubscription(permission, origin_, current_status,
+                               last_known_status, should_include_device_status,
+                               std::move(observer));
 }
 
 void PermissionServiceImpl::NotifyEventListener(

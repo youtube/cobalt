@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "base/location.h"
+#include "base/strings/to_string.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
@@ -74,8 +75,6 @@ std::vector<PasswordForm> CreateTestLogins() {
 class PasswordStoreAndroidLocalBackendTest : public testing::Test {
  protected:
   PasswordStoreAndroidLocalBackendTest() {
-    prefs_.registry()->RegisterBooleanPref(
-        prefs::kUnenrolledFromGoogleMobileServicesDueToErrors, false);
     ResetBackend();
   }
 
@@ -279,34 +278,6 @@ TEST_F(PasswordStoreAndroidLocalBackendTest, CallsBridgeForUpdateLogin) {
   RunUntilIdle();
 }
 
-// Error from GMSCore doesn't cause unenrollment.
-TEST_F(PasswordStoreAndroidLocalBackendTest,
-       ExternalErrorDontCauseUnenrollment) {
-  backend().InitBackend(
-      /*affiliated_match_helper=*/nullptr,
-      PasswordStoreAndroidLocalBackend::RemoteChangesReceived(),
-      base::NullCallback(), base::DoNothing());
-
-  base::MockCallback<LoginsOrErrorReply> mock_reply;
-  EXPECT_CALL(*bridge_helper(), GetAllLogins).WillOnce(Return(kJobId));
-  backend().GetAllLoginsAsync(mock_reply.Get());
-  int kInternalErrorCode =
-      static_cast<int>(AndroidBackendAPIErrorCode::kInternalError);
-  PasswordStoreBackendError expected_error = {
-      PasswordStoreBackendErrorType::kUncategorized};
-  expected_error.android_backend_api_error = kInternalErrorCode;
-  EXPECT_CALL(mock_reply,
-              Run(VariantWith<PasswordStoreBackendError>(expected_error)));
-  AndroidBackendError error{AndroidBackendErrorType::kExternalError};
-  // Simulate receiving INTERNAL_ERROR code from GMSCore.
-  error.api_error_code = std::optional<int>(kInternalErrorCode);
-  consumer().OnError(kJobId, std::move(error));
-  RunUntilIdle();
-
-  EXPECT_FALSE(prefs()->GetBoolean(
-      prefs::kUnenrolledFromGoogleMobileServicesDueToErrors));
-}
-
 TEST_F(PasswordStoreAndroidLocalBackendTest,
        ResetTemporarySavingSuspensionAfterSuccessfulLogin) {
   backend().InitBackend(
@@ -376,9 +347,6 @@ TEST_P(PasswordStoreAndroidLocalBackendRetriesTest,
   consumer().OnCompleteWithLogins(kJobId, CreateTestLogins());
 
   RunUntilIdle();
-
-  EXPECT_FALSE(prefs()->GetBoolean(
-      prefs::kUnenrolledFromGoogleMobileServicesDueToErrors));
 }
 
 TEST_P(PasswordStoreAndroidLocalBackendRetriesTest,
@@ -412,9 +380,6 @@ TEST_P(PasswordStoreAndroidLocalBackendRetriesTest,
   consumer().OnCompleteWithLogins(kJobId, CreateTestLogins());
 
   RunUntilIdle();
-
-  EXPECT_FALSE(prefs()->GetBoolean(
-      prefs::kUnenrolledFromGoogleMobileServicesDueToErrors));
 }
 
 TEST_P(PasswordStoreAndroidLocalBackendRetriesTest,
@@ -450,9 +415,6 @@ TEST_P(PasswordStoreAndroidLocalBackendRetriesTest,
   consumer().OnError(kJobId, error);
 
   RunUntilIdle();
-
-  EXPECT_FALSE(prefs()->GetBoolean(
-      prefs::kUnenrolledFromGoogleMobileServicesDueToErrors));
 }
 
 TEST_P(PasswordStoreAndroidLocalBackendRetriesTest,
@@ -488,9 +450,6 @@ TEST_P(PasswordStoreAndroidLocalBackendRetriesTest,
   consumer().OnError(kJobId, error);
 
   RunUntilIdle();
-
-  EXPECT_FALSE(prefs()->GetBoolean(
-      prefs::kUnenrolledFromGoogleMobileServicesDueToErrors));
 }
 
 INSTANTIATE_TEST_SUITE_P(

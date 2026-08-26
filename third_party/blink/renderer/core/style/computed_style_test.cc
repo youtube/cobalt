@@ -1148,7 +1148,7 @@ TEST_F(ComputedStyleTest, GetVariableNamesWithInitialData_Invalidation) {
 
 TEST_F(ComputedStyleTest, BorderWidthZoom) {
   Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       div {
         border-top-style: solid;
@@ -1191,7 +1191,18 @@ TEST_F(ComputedStyleTest, BorderWidthZoom) {
           false /* allow_visited_style */, CSSValuePhase::kComputedValue);
       AtomicString prop_name = longhand.GetCSSPropertyName().ToAtomicString();
       ASSERT_TRUE(computed_value) << prop_name;
-      auto* numeric_value = DynamicTo<CSSNumericLiteralValue>(computed_value);
+      const CSSNumericLiteralValue* numeric_value = nullptr;
+      // With CSSGapDecorations, ColumnRuleWidth is a list of values. Thus,
+      // for this case we must get the first value before we attempt to cast.
+      if (RuntimeEnabledFeatures::CSSGapDecorationEnabled() &&
+          property == &GetCSSPropertyColumnRuleWidth()) {
+        auto* list = DynamicTo<CSSValueList>(computed_value);
+        ASSERT_TRUE(list);
+        ASSERT_EQ(list->length(), 1);
+        numeric_value = DynamicTo<CSSNumericLiteralValue>(list->First());
+      } else {
+        numeric_value = DynamicTo<CSSNumericLiteralValue>(computed_value);
+      }
       ASSERT_TRUE(numeric_value) << prop_name;
       EXPECT_TRUE(numeric_value->IsPx()) << prop_name;
       EXPECT_EQ(test.expected_px, numeric_value->DoubleValue()) << prop_name;
@@ -1204,7 +1215,7 @@ TEST_F(ComputedStyleTest, BorderWidthConversion) {
   // are converted as expected.
 
   Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       div {
         border-top-style: solid;
@@ -1264,7 +1275,18 @@ TEST_F(ComputedStyleTest, BorderWidthConversion) {
           *test.style, nullptr /* layout_object */,
           false /* allow_visited_style */, CSSValuePhase::kComputedValue);
       ASSERT_NE(computed_value, nullptr);
-      auto* numeric_value = DynamicTo<CSSNumericLiteralValue>(computed_value);
+      const CSSNumericLiteralValue* numeric_value = nullptr;
+      // With CSSGapDecorations, ColumnRuleWidth is a list of values. Thus,
+      // for this case we must get the first value before we attempt to cast.
+      if (RuntimeEnabledFeatures::CSSGapDecorationEnabled() &&
+          longhand == &GetCSSPropertyColumnRuleWidth()) {
+        auto* list = DynamicTo<CSSValueList>(computed_value);
+        ASSERT_TRUE(list);
+        ASSERT_EQ(list->length(), 1);
+        numeric_value = DynamicTo<CSSNumericLiteralValue>(list->First());
+      } else {
+        numeric_value = DynamicTo<CSSNumericLiteralValue>(computed_value);
+      }
       ASSERT_NE(numeric_value, nullptr);
       EXPECT_TRUE(numeric_value->IsPx());
       EXPECT_DOUBLE_EQ(test.expected_px, numeric_value->DoubleValue());
@@ -1277,7 +1299,7 @@ TEST_F(ComputedStyleTest, BorderWidthConversionWithZoom) {
   // are converted as expected when Zoom is applied.
 
   Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       div {
         border-top-style: solid;
@@ -1345,7 +1367,7 @@ TEST_F(ComputedStyleTest,
   using css_test_helpers::ParseDeclarationBlock;
 
   Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       div {
         text-decoration: underline solid green 5px;
@@ -1357,7 +1379,7 @@ TEST_F(ComputedStyleTest,
     <div id="clone"></div>
     <div id="other" style="text-decoration-color: blue;"></div>
   )HTML",
-                                ASSERT_NO_EXCEPTION);
+                                                   ASSERT_NO_EXCEPTION);
   document.View()->UpdateAllLifecyclePhasesForTest();
 
   const ComputedStyle* style =
@@ -1381,7 +1403,7 @@ TEST_F(ComputedStyleTest, TextDecorationNotEqualRequiresRecomputeInkOverflow) {
   using css_test_helpers::ParseDeclarationBlock;
 
   Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       div {
         text-decoration: underline solid green 5px;
@@ -1396,7 +1418,7 @@ TEST_F(ComputedStyleTest, TextDecorationNotEqualRequiresRecomputeInkOverflow) {
     <div id="offset" style="text-underline-offset: 4px;"></div>
     <div id="position" style="text-underline-position: left;"></div>
   )HTML",
-                                ASSERT_NO_EXCEPTION);
+                                                   ASSERT_NO_EXCEPTION);
   document.View()->UpdateAllLifecyclePhasesForTest();
 
   const ComputedStyle* style =
@@ -1513,28 +1535,13 @@ TEST_F(ComputedStyleTest, ApplyInitialAnimationNameAndTransitionProperty) {
     EXPECT_FALSE(diff.HasDifference());                            \
   }
 
-// Ensures ref-counted values are compared by their values, not by pointers.
-#define TEST_STYLE_REFCOUNTED_VALUE_NO_DIFF(type, field_name)              \
-  {                                                                        \
-    ComputedStyleBuilder builder1 = CreateComputedStyleBuilder();          \
-    ComputedStyleBuilder builder2 = CreateComputedStyleBuilder();          \
-    scoped_refptr<type> value1 = base::MakeRefCounted<type>();             \
-    scoped_refptr<type> value2 = base::MakeRefCounted<type>(value1->data); \
-    builder1.Set##field_name(value1);                                      \
-    builder2.Set##field_name(value2);                                      \
-    const ComputedStyle* style1 = builder1.TakeStyle();                    \
-    const ComputedStyle* style2 = builder2.TakeStyle();                    \
-    auto diff = style1->VisualInvalidationDiff(document, *style2);         \
-    EXPECT_FALSE(diff.HasDifference());                                    \
-  }
-
 TEST_F(ComputedStyleTest, SvgStrokeStyleShouldCompareValue) {
   Document& document = GetDocument();
   TEST_STYLE_VALUE_NO_DIFF(StrokeOpacity);
   TEST_STYLE_VALUE_NO_DIFF(StrokeMiterLimit);
   TEST_STYLE_VALUE_NO_DIFF(StrokeWidth);
   TEST_STYLE_VALUE_NO_DIFF(StrokeDashOffset);
-  TEST_STYLE_REFCOUNTED_VALUE_NO_DIFF(SVGDashArray, StrokeDashArray);
+  TEST_STYLE_VALUE_NO_DIFF(StrokeDashArray);
 
   TEST_STYLE_VALUE_NO_DIFF(StrokePaint);
   TEST_STYLE_VALUE_NO_DIFF(InternalVisitedStrokePaint);
@@ -2125,33 +2132,9 @@ TEST_F(ComputedStyleTest, DynamicRangeLimitMixAllThree) {
                   limit.constrained_high_mix);
 }
 
-TEST_F(ComputedStyleTest, UseCountInsideListMarkerPositionQuirk) {
-  Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
-    <style>.marker-content-none::marker { content: none }</style>
-    <ul><li></li></ul>
-    <ol><li></li></ol>
-    <ul><div><li></li></ul>
-    <ol><li><li></li></li></ol>
-    <div style="display: list-item"></div>
-    <li style="list-style-position: inside"></li>
-    <li style="list-style: none"></li>
-    <li class="marker-content-none"></li>
-    <li style="display: flex"></li>
-  )HTML");
-  document.View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_FALSE(
-      document.IsUseCounted(WebFeature::kInsideListMarkerPositionQuirk));
-
-  document.body()->setInnerHTML("<li></li>");
-  document.View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(
-      document.IsUseCounted(WebFeature::kInsideListMarkerPositionQuirk));
-}
-
 TEST_F(ComputedStyleTest, ZoomInheritance) {
   Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="target" style="line-height: revert; zoom: 2;">Hello, world!</div>
   )HTML");
   document.View()->UpdateAllLifecyclePhasesForTest();
@@ -2164,7 +2147,7 @@ TEST_F(ComputedStyleTest, ColorSchemeFlagsIsNormal) {
   color_scheme_helper.SetPreferredColorScheme(
       mojom::blink::PreferredColorScheme::kLight);
 
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="normal" style="color-scheme: normal"></div>
     <div id="light" style="color-scheme: light"></div>
     <div id="dark" style="color-scheme: dark"></div>
@@ -2190,7 +2173,7 @@ TEST_F(ComputedStyleTest, ColorSchemeFlagsIsNormal_WithMeta) {
   color_scheme_helper.SetPreferredColorScheme(
       mojom::blink::PreferredColorScheme::kLight);
 
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <meta name="color-scheme" content="light">
     <div id="normal" style="color-scheme: normal"></div>
     <div id="light" style="color-scheme: light"></div>
@@ -2213,7 +2196,7 @@ TEST_F(ComputedStyleTest, ColorSchemeFlagsIsNormal_WithMeta) {
 
 TEST_F(ComputedStyleTest, BottomRelativeToSafeAreaInset) {
   Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="f1" style="bottom: 5px"></div>
     <div id="f2" style="bottom: calc(5px + 5px)"></div>
     <div id="f3" style="bottom: env(safe-area-inset-top)"></div>
@@ -2289,7 +2272,7 @@ TEST_F(ComputedStyleTest, BottomRelativeToSafeAreaInset) {
 
 TEST_F(ComputedStyleTest, HasEnvSafeAreaInsetBottom) {
   Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div id="f1" style="bottom: 5px"></div>
     <div id="f2" style="bottom: calc(5px + 5px)"></div>
     <div id="f3" style="bottom: env(safe-area-inset-top)"></div>
@@ -2327,7 +2310,7 @@ TEST_F(ComputedStyleTest, HasEnvSafeAreaInsetBottom) {
 
 TEST_F(ComputedStyleTest, CursorInheritance) {
   Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       #parent {
         cursor: pointer;
@@ -2367,7 +2350,7 @@ TEST_F(ComputedStyleTest, CursorInheritance) {
 TEST_F(ComputedStyleTest, HasGapRule) {
   ScopedCSSGapDecorationForTest scoped_gap_decoration(true);
   Document& document = GetDocument();
-  document.body()->setInnerHTML(R"HTML(
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       #multi-col {
         columns: 4;

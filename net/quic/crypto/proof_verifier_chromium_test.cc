@@ -17,6 +17,7 @@
 #include "base/test/task_environment.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/features.h"
+#include "net/base/hash_value.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/cert/cert_status_flags.h"
@@ -62,6 +63,16 @@ class FailsTestCertVerifier : public CertVerifier {
              const NetLogWithSource& net_log) override {
     ADD_FAILURE() << "CertVerifier::Verify() should not be called";
     return ERR_FAILED;
+  }
+  void Verify2QwacBinding(
+      const std::string& binding,
+      const std::string& hostname,
+      const scoped_refptr<net::X509Certificate>& tls_cert,
+      base::OnceCallback<void(const scoped_refptr<net::X509Certificate>&)>
+          callback,
+      const net::NetLogWithSource& net_log) override {
+    ADD_FAILURE() << "CertVerifier::Verify2QwacBinding() should not be called";
+    std::move(callback).Run(nullptr);
   }
   void SetConfig(const Config& config) override {}
   void AddObserver(Observer* observer) override {}
@@ -274,10 +285,10 @@ TEST_F(ProofVerifierChromiumTest, FailsIfSignatureFails) {
   ASSERT_EQ(quic::QUIC_FAILURE, status);
 }
 
-HashValueVector MakeHashValueVector(uint8_t tag) {
-  HashValue hash(HASH_VALUE_SHA256);
-  std::ranges::fill(hash.span(), tag);
-  HashValueVector hashes;
+std::vector<SHA256HashValue> MakeHashValueVector(uint8_t tag) {
+  SHA256HashValue hash;
+  std::ranges::fill(hash, tag);
+  std::vector<SHA256HashValue> hashes;
   hashes.push_back(hash);
   return hashes;
 }

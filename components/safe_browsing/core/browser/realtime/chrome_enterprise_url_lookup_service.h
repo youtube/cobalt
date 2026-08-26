@@ -68,6 +68,8 @@ class ChromeEnterpriseRealTimeUrlLookupService
       bool is_off_the_record,
       bool is_guest_session,
       base::RepeatingCallback<std::string()> get_profile_email_callback,
+      base::RepeatingCallback<std::string(const GURL&)>
+          get_content_area_account_email_callback,
       base::RepeatingCallback<bool()> is_profile_affiliated_callback,
       bool is_command_line_switch_supported);
 
@@ -89,8 +91,8 @@ class ChromeEnterpriseRealTimeUrlLookupService
   std::string GetProfileDMTokenString() const override;
   std::unique_ptr<enterprise_connectors::ClientMetadata> GetClientMetadata()
       const override;
+  std::string GetContentAreaAccountEmail(const GURL& tab_url) const override;
   std::string GetMetricSuffix() const override;
-  void Shutdown() override;
   bool CanCheckUrl(const GURL& url) override;
 
  private:
@@ -100,22 +102,6 @@ class ChromeEnterpriseRealTimeUrlLookupService
   bool CanPerformFullURLLookupWithToken() const override;
   int GetReferrerUserGestureLimit() const override;
   bool CanSendPageLoadToken() const override;
-  void GetAccessToken(
-      const GURL& url,
-      RTLookupResponseCallback response_callback,
-      scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
-      SessionID tab_id,
-      std::optional<internal::ReferringAppInfo> referring_app_info) override;
-
-  // Called when the access token is obtained from |token_fetcher_|.
-  void OnGetAccessToken(
-      const GURL& url,
-      RTLookupResponseCallback response_callback,
-      scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
-      base::TimeTicks get_token_start_time,
-      SessionID tab_id,
-      std::optional<internal::ReferringAppInfo> referring_app_info,
-      const std::string& access_token);
 
   std::optional<std::string> GetDMTokenString() const override;
   bool ShouldIncludeCredentials() const override;
@@ -125,9 +111,6 @@ class ChromeEnterpriseRealTimeUrlLookupService
   // Unowned pointer to ConnectorsService, used to get a DM token.
   raw_ptr<enterprise_connectors::ConnectorsServiceBase, DanglingUntriaged>
       connectors_service_;
-
-  // The token fetcher used for getting access token.
-  std::unique_ptr<SafeBrowsingTokenFetcher> token_fetcher_;
 
   // Unowned object used for getting preference settings.
   raw_ptr<PrefService> pref_service_;
@@ -146,6 +129,11 @@ class ChromeEnterpriseRealTimeUrlLookupService
 
   // Callback for accessing the profile's email.
   base::RepeatingCallback<std::string()> get_profile_email_callback_;
+
+  // Callback for accessing the content area's email. This is used for active
+  // Gaia filtering. The argument is the tab URL.
+  base::RepeatingCallback<std::string(const GURL&)>
+      get_content_area_account_email_callback_;
 
   // Callback returning whether the profile and browser are managed by the same
   // organization.

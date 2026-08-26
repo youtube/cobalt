@@ -75,21 +75,12 @@ class ProfileDataRemover : public content::BrowsingDataRemover::Observer {
     if (all_data) {
       chrome_browsing_data_remover::DataType removed_types =
           chrome_browsing_data_remover::ALL_DATA_TYPES;
-      if (base::FeatureList::IsEnabled(
-              password_manager::features::kLoginDbDeprecationAndroid) ||
-          password_manager::UsesSplitStoresAndUPMForLocal(
-              profile_->GetPrefs())) {
-        // If usesSplitStoresAndUPMForLocal() is true, browser sign-in won't
-        // upload existing passwords, so there's no reason to wipe them
-        // immediately before. Similarly, on browser sign-out, account passwords
-        // should survive (outside of the browser) to be used by other apps,
-        // until system-level sign-out. In other words, the browser has no
-        // business deleting any passwords here.
-        // After the login db deprecation, all users have split stores which
-        // either store passwords outside the browser or don't store any
-        // passwords.
-        removed_types &= ~chrome_browsing_data_remover::DATA_TYPE_PASSWORDS;
-      }
+      // Browser sign-in won't upload existing passwords, so there's no reason
+      // to wipe them immediately before. Similarly, on browser sign-out,
+      // account passwords should survive (outside of the browser) to be used by
+      // other apps, until system-level sign-out. In other words, the browser
+      // has no business deleting any passwords here.
+      removed_types &= ~chrome_browsing_data_remover::DATA_TYPE_PASSWORDS;
       remover_->RemoveAndReply(base::Time(), base::Time::Max(), removed_types,
                                chrome_browsing_data_remover::ALL_ORIGIN_TYPES,
                                this);
@@ -166,11 +157,6 @@ SigninManagerAndroid::SigninManagerAndroid(
   DCHECK(user_cloud_policy_manager_);
   DCHECK(user_policy_signin_service_);
 
-  signin_allowed_.Init(
-      prefs::kSigninAllowed, profile_->GetPrefs(),
-      base::BindRepeating(&SigninManagerAndroid::OnSigninAllowedPrefChanged,
-                          base::Unretained(this)));
-
   force_browser_signin_.Init(prefs::kForceBrowserSignin,
                              g_browser_process->local_state());
 
@@ -202,14 +188,6 @@ SigninManagerAndroid::ManagementCredentials::ManagementCredentials(
 
 SigninManagerAndroid::ManagementCredentials::~ManagementCredentials() = default;
 
-bool SigninManagerAndroid::IsSigninAllowed() const {
-  return signin_allowed_.GetValue();
-}
-
-bool SigninManagerAndroid::IsSigninAllowed(JNIEnv* env) const {
-  return IsSigninAllowed();
-}
-
 bool SigninManagerAndroid::IsForceSigninEnabled(JNIEnv* env) {
   return force_browser_signin_.GetValue();
 }
@@ -220,13 +198,6 @@ bool SigninManagerAndroid::MatchesCachedIsAccountManagedEntry(
     const CoreAccountInfo& account) {
   return cached_entry.gaia_id == account.gaia &&
          cached_entry.expiration_time > base::Time::Now();
-}
-
-void SigninManagerAndroid::OnSigninAllowedPrefChanged() const {
-  VLOG(1) << "::OnSigninAllowedPrefChanged() " << IsSigninAllowed();
-  Java_SigninManagerImpl_onSigninAllowedChanged(
-      base::android::AttachCurrentThread(), java_signin_manager_,
-      IsSigninAllowed());
 }
 
 void SigninManagerAndroid::StopApplyingCloudPolicy(JNIEnv* env) {

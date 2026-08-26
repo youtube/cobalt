@@ -6,21 +6,24 @@
 
 #include <math.h>
 
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "chrome/browser/glic/browser_ui/theme_util.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
+#include "chrome/browser/glic/public/context/glic_sharing_manager.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/common/chrome_features.h"
 #include "content/public/browser/context_factory.h"
 #include "content/public/browser/gpu_data_manager.h"
+#include "content/public/common/color_parser.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/layer.h"
@@ -82,30 +85,83 @@ gfx::Insets GetContentsBorderInsets(BrowserView& browser_view) {
   }
   return insets_for_contents_border;
 }
+
+float GetContentBorderRadius(BrowserView& browser_view) {
+  if (browser_view.IsInSplitView()) {
+    return 6.0f;
+  }
+#if BUILDFLAG(IS_MAC)
+  if (!browser_view.IsFullscreen()) {
+    return 12.0f;
+  }
+#endif
+  return 0.0f;
+}
+
+std::vector<SkColor> GetParameterizedColors() {
+  std::vector<SkColor> colors;
+  if (base::FeatureList::IsEnabled(features::kGlicParameterizedShader)) {
+    std::vector<std::string> unparsed_colors =
+        base::SplitString(::features::kGlicParameterizedShaderColors.Get(), "#",
+                          base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    for (const auto& unparsed : unparsed_colors) {
+      SkColor result;
+      if (!content::ParseHexColorString("#" + unparsed, &result)) {
+        return std::vector<SkColor>();
+      }
+      colors.push_back(result);
+    }
+  }
+  return colors;
+}
+
+std::vector<float> GetParameterizedFloats() {
+  std::vector<float> floats;
+  if (base::FeatureList::IsEnabled(features::kGlicParameterizedShader)) {
+    std::vector<std::string> unparsed_floats =
+        base::SplitString(::features::kGlicParameterizedShaderFloats.Get(), "#",
+                          base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    for (const auto& unparsed : unparsed_floats) {
+      double result;
+      if (!base::StringToDouble(unparsed, &result)) {
+        return std::vector<float>();
+      }
+      floats.push_back(static_cast<float>(result));
+    }
+  }
+  return floats;
+}
+
 }  // namespace
 
 GlicBorderView::Factory* GlicBorderView::Factory::factory_ = nullptr;
 
 std::unique_ptr<GlicBorderView> GlicBorderView::Factory::Create(
-    Browser* browser) {
+    Browser* browser,
+    ContentsWebView* contents_web_view) {
   if (factory_) [[unlikely]] {
-    return factory_->CreateBorderView(browser);
+    return factory_->CreateBorderView(browser, contents_web_view);
   }
-  return base::WrapUnique(new GlicBorderView(browser, /*tester=*/nullptr));
+  return base::WrapUnique(new GlicBorderView(browser, contents_web_view,
+                                             /*tester=*/nullptr));
 }
 
-class GlicBorderView::BorderViewUpdater {
+class GlicBorderView::BorderViewUpdater : public views::ViewObserver {
  public:
-  explicit BorderViewUpdater(Browser* browser, GlicBorderView* border_view)
-      : border_view_(border_view), browser_(browser) {
-    auto* glic_service =
-        GlicKeyedServiceFactory::GetGlicKeyedService(browser_->GetProfile());
+  explicit BorderViewUpdater(GlicBorderView* border_view,
+                             ContentsWebView* contents_web_view)
+      : border_view_(border_view), contents_web_view_(contents_web_view) {
+    auto* glic_service = border_view->GetGlicService();
+
+    // Observe the contents web view for when it is deleting.
+    contents_web_view_observation_.Observe(contents_web_view_);
 
     // Subscribe to changes in the focus tab.
     focus_change_subscription_ =
-        glic_service->AddFocusedTabChangedCallback(base::BindRepeating(
-            &GlicBorderView::BorderViewUpdater::OnFocusedTabChanged,
-            base::Unretained(this)));
+        glic_service->sharing_manager().AddFocusedTabChangedCallback(
+            base::BindRepeating(
+                &GlicBorderView::BorderViewUpdater::OnFocusedTabChanged,
+                base::Unretained(this)));
 
     // Subscribe to changes in the context access indicator status.
     indicator_change_subscription_ =
@@ -116,27 +172,27 @@ class GlicBorderView::BorderViewUpdater {
   }
   BorderViewUpdater(const BorderViewUpdater&) = delete;
   BorderViewUpdater& operator=(const BorderViewUpdater&) = delete;
-  ~BorderViewUpdater() = default;
+  ~BorderViewUpdater() override = default;
 
   // Called when the focused tab changes with the focused tab data object.
-  void OnFocusedTabChanged(FocusedTabData focused_tab_data) {
-    content::WebContents* contents = focused_tab_data.focus();
-    auto* previous_focus = glic_focused_contents_in_current_window_.get();
-    if (contents && IsTabInCurrentWindow(contents)) {
-      glic_focused_contents_in_current_window_ = contents->GetWeakPtr();
+  void OnFocusedTabChanged(const FocusedTabData& focused_tab_data) {
+    tabs::TabInterface* tab = focused_tab_data.focus();
+    auto* previous_focus = glic_focused_contents_in_current_view_.get();
+    if (tab && IsTabInCurrentView(tab->GetContents())) {
+      glic_focused_contents_in_current_view_ = tab->GetContents()->GetWeakPtr();
     } else {
-      glic_focused_contents_in_current_window_.reset();
+      glic_focused_contents_in_current_view_.reset();
     }
 
-    auto* current_focus = glic_focused_contents_in_current_window_.get();
+    auto* current_focus = glic_focused_contents_in_current_view_.get();
     bool focus_changed = previous_focus != current_focus;
 
     bool tab_switch = previous_focus &&
-                      glic_focused_contents_in_current_window_ && focus_changed;
+                      glic_focused_contents_in_current_view_ && focus_changed;
     bool window_gained_focus =
-        !previous_focus && glic_focused_contents_in_current_window_;
+        !previous_focus && glic_focused_contents_in_current_view_;
     bool window_lost_focus =
-        previous_focus && !glic_focused_contents_in_current_window_;
+        previous_focus && !glic_focused_contents_in_current_view_;
 
     if (tab_switch) {
       UpdateBorderView(UpdateBorderReason::kFocusedTabChanged_NoFocusChange);
@@ -158,6 +214,14 @@ class GlicBorderView::BorderViewUpdater {
                          : UpdateBorderReason::kContextAccessIndicatorOff);
   }
 
+  // ViewObserver:
+  void OnViewIsDeleting(View* observed_view) override {
+    contents_web_view_observation_.Reset();
+    indicator_change_subscription_ = {};
+    focus_change_subscription_ = {};
+    contents_web_view_ = nullptr;
+  }
+
  private:
   // Updates the BorderView UI effect given the current state of the focused tab
   // and context access indicator flag.
@@ -165,13 +229,14 @@ class GlicBorderView::BorderViewUpdater {
     kContextAccessIndicatorOn = 0,
     kContextAccessIndicatorOff,
 
-    // Tab focus changes in the same window.
+    // Tab focus changes in the same contents view.
     kFocusedTabChanged_NoFocusChange,
 
-    // Focus changes across different application windows.
+    // Focus changes across different contents view.
     kFocusedTabChanged_GainFocus,
     kFocusedTabChanged_LostFocus,
   };
+
   void UpdateBorderView(UpdateBorderReason reason) {
     AddReasonForDebugging(reason);
     auto reasons_string = UpdateReasonsToString();
@@ -180,7 +245,7 @@ class GlicBorderView::BorderViewUpdater {
     SCOPED_CRASH_KEY_BOOL("crbug-398319435", "access_indicator",
                           context_access_indicator_enabled_);
     SCOPED_CRASH_KEY_BOOL("crbug-398319435", "glic_focused_contents",
-                          !!glic_focused_contents_in_current_window_);
+                          !!glic_focused_contents_in_current_view_);
     SCOPED_CRASH_KEY_BOOL("crbug-398319435", "is_glic_window_showing",
                           IsGlicWindowShowing());
 
@@ -228,16 +293,13 @@ class GlicBorderView::BorderViewUpdater {
     return border_view_->GetGlicService()->window_controller().IsShowing();
   }
 
-  bool IsTabInCurrentWindow(const content::WebContents* tab) const {
-    auto* model = browser_->GetTabStripModel();
-    CHECK(model);
-    int index = model->GetIndexOfWebContents(tab);
-    return index != TabStripModel::kNoTab;
+  bool IsTabInCurrentView(const content::WebContents* tab) const {
+    return contents_web_view_->web_contents() == tab;
   }
 
   bool ShouldShowBorderAnimation() {
     if (!context_access_indicator_enabled_ ||
-        !glic_focused_contents_in_current_window_) {
+        !glic_focused_contents_in_current_view_) {
       return false;
     }
     return IsGlicWindowShowing();
@@ -275,13 +337,16 @@ class GlicBorderView::BorderViewUpdater {
   }
 
   // Back pointer to the owner. Guaranteed to outlive `this`.
-  const raw_ptr<GlicBorderView> border_view_;
+  raw_ptr<GlicBorderView> border_view_;
 
-  // Owned by `BrowserView`. Outlives all the children of the `BrowserView`.
-  const raw_ptr<BrowserWindowInterface> browser_;
+  // Pointer to the associated contents web view and associated view
+  // observation for view deletion.
+  raw_ptr<ContentsWebView> contents_web_view_;
+  base::ScopedObservation<views::View, views::ViewObserver>
+      contents_web_view_observation_{this};
 
   // Tracked states and their subscriptions.
-  base::WeakPtr<content::WebContents> glic_focused_contents_in_current_window_;
+  base::WeakPtr<content::WebContents> glic_focused_contents_in_current_view_;
   base::CallbackListSubscription focus_change_subscription_;
   bool context_access_indicator_enabled_ = false;
   base::CallbackListSubscription indicator_change_subscription_;
@@ -290,12 +355,17 @@ class GlicBorderView::BorderViewUpdater {
   std::list<std::string> border_update_reasons_;
 };
 
-GlicBorderView::GlicBorderView(Browser* browser, std::unique_ptr<Tester> tester)
-    : updater_(std::make_unique<BorderViewUpdater>(browser, this)),
+GlicBorderView::GlicBorderView(Browser* browser,
+                               ContentsWebView* contents_web_view,
+                               std::unique_ptr<Tester> tester)
+    : browser_(browser),
+      updater_(std::make_unique<BorderViewUpdater>(this, contents_web_view)),
       creation_time_(base::TimeTicks::Now()),
       tester_(std::move(tester)),
-      theme_service_(ThemeServiceFactory::GetForProfile(browser->GetProfile())),
-      browser_(browser) {
+      colors_(GetParameterizedColors()),
+      floats_(GetParameterizedFloats()),
+      theme_service_(
+          ThemeServiceFactory::GetForProfile(browser->GetProfile())) {
   auto* gpu_data_manager = content::GpuDataManager::GetInstance();
   has_hardware_acceleration_ =
       gpu_data_manager->IsGpuRasterizationForUIEnabled();
@@ -304,12 +374,7 @@ GlicBorderView::GlicBorderView(Browser* browser, std::unique_ptr<Tester> tester)
   // will observe GPU changes to keep hardware acceleration status updated.
   gpu_data_manager_observer_.Observe(gpu_data_manager);
 
-  shader_ =
-      ForceSimplifiedShader()
-          ? ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
-                IDR_GLIC_SIMPLIFIED_BORDER_SHADER)
-          : ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
-                IDR_GLIC_BORDER_SHADER);
+  UpdateShader();
   CHECK(!shader_.empty()) << "Shader not initialized.";
 
   auto* glic_service =
@@ -346,12 +411,7 @@ void GlicBorderView::OnPaint(gfx::Canvas* canvas) {
   CHECK_EQ(uniform_insets.left(), uniform_insets.bottom());
   bounds.Inset(uniform_insets);
 
-  float corner_radius = 0.0f;
-#if BUILDFLAG(IS_MAC)
-  if (!browser_->window()->IsFullscreen()) {
-    corner_radius = 12.0f;
-  }
-#endif
+  float corner_radius = GetContentBorderRadius(browser_->GetBrowserView());
   std::vector<cc::PaintShader::FloatUniform> float_uniforms = {
       {.name = SkString("u_time"), .value = GetEffectTime()},
       {.name = SkString("u_emphasis"), .value = emphasis_},
@@ -370,11 +430,36 @@ void GlicBorderView::OnPaint(gfx::Canvas* canvas) {
       {.name = SkString("u_dark"),
        .value = UseDarkMode(theme_service_) ? 1 : 0}};
 
+  std::vector<cc::PaintShader::Float4Uniform> float4_uniforms;
+  if (base::FeatureList::IsEnabled(features::kGlicParameterizedShader)) {
+    for (int i = 0; i < static_cast<int>(colors_.size()); ++i) {
+      float4_uniforms.push_back(
+          {.name = SkString(absl::StrFormat("u_color%d", i + 1)),
+           .value =
+               SkV4{static_cast<float>(SkColorGetR(colors_[i]) / 255.0),
+                    static_cast<float>(SkColorGetG(colors_[i]) / 255.0),
+                    static_cast<float>(SkColorGetB(colors_[i]) / 255.0), 1.f}});
+    }
+    for (int i = 0; i < static_cast<int>(floats_.size()); ++i) {
+      float_uniforms.push_back(
+          {.name = SkString(absl::StrFormat("u_float%d", i + 1)),
+           .value = floats_[i]});
+    }
+  }
+
   views::View::OnPaint(canvas);
+
   cc::PaintFlags flags;
-  flags.setShader(cc::PaintShader::MakeSkSLCommand(
+  auto shader = cc::PaintShader::MakeSkSLCommand(
       shader_, std::move(float_uniforms), std::move(float2_uniforms),
-      /*float4_uniforms=*/{}, std::move(int_uniforms)));
+      std::move(float4_uniforms), std::move(int_uniforms),
+      cached_paint_shader_);
+
+  flags.setShader(shader);
+
+  if (base::FeatureList::IsEnabled(features::kGlicUseShaderCache)) {
+    cached_paint_shader_ = shader;
+  }
 
   // TODO(liuwilliam): This will create a hard clip at the boundary. Figure out
   // a better way of the falloff.
@@ -496,12 +581,7 @@ void GlicBorderView::OnGpuInfoUpdate() {
 
   if (has_hardware_acceleration_ != has_hardware_acceleration) {
     has_hardware_acceleration_ = has_hardware_acceleration;
-    shader_ =
-        ForceSimplifiedShader()
-            ? ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
-                  IDR_GLIC_SIMPLIFIED_BORDER_SHADER)
-            : ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
-                  IDR_GLIC_BORDER_SHADER);
+    UpdateShader();
 
     if (IsShowing()) {
       SchedulePaint();
@@ -545,8 +625,8 @@ void GlicBorderView::Show() {
   }
 
   compositor_ = compositor;
-  compositor_->AddAnimationObserver(this);
-  compositor_->AddObserver(this);
+  compositor_animation_observation_.Observe(compositor_.get());
+  compositor_observation_.Observe(compositor_.get());
 
   if (tester_) [[unlikely]] {
     tester_->AnimationStarted();
@@ -558,8 +638,8 @@ void GlicBorderView::StopShowing() {
     return;
   }
 
-  compositor_->RemoveObserver(this);
-  compositor_->RemoveAnimationObserver(this);
+  compositor_observation_.Reset();
+  compositor_animation_observation_.Reset();
   compositor_ = nullptr;
   first_frame_time_ = base::TimeTicks{};
   first_emphasis_frame_ = base::TimeTicks{};
@@ -722,6 +802,25 @@ GlicKeyedService* GlicBorderView::GetGlicService() const {
       GlicKeyedServiceFactory::GetGlicKeyedService(browser_->GetProfile());
   CHECK(service);
   return service;
+}
+
+void GlicBorderView::UpdateShader() {
+  if (base::FeatureList::IsEnabled(features::kGlicParameterizedShader) &&
+      !colors_.empty() && !floats_.empty()) {
+    shader_ =
+        ForceSimplifiedShader()
+            ? ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
+                  IDR_GLIC_SIMPLIFIED_PARAMETERIZED_BORDER_SHADER)
+            : ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
+                  IDR_GLIC_PARAMETERIZED_BORDER_SHADER);
+  } else {
+    shader_ =
+        ForceSimplifiedShader()
+            ? ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
+                  IDR_GLIC_SIMPLIFIED_BORDER_SHADER)
+            : ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
+                  IDR_GLIC_BORDER_SHADER);
+  }
 }
 
 BEGIN_METADATA(GlicBorderView)

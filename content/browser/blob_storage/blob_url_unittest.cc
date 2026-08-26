@@ -2,17 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include <stdint.h>
 
 #include <limits>
 #include <memory>
 #include <string_view>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -22,7 +19,6 @@
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
-#include "base/unguessable_token.h"
 #include "content/public/test/browser_task_environment.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -69,11 +65,11 @@ namespace {
 
 const int kBufferSize = 1024;
 const char kTestData1[] = "Hello";
-const char kTestData2[] = "Here it is data.";
+const std::string_view kTestData2 = "Here it is data.";
 const char kTestFileData1[] = "0123456789";
-const char kTestFileData2[] = "This is sample file.";
+const std::string_view kTestFileData2 = "This is sample file.";
 const char kTestFileSystemFileData1[] = "abcdefghijklmnop";
-const char kTestFileSystemFileData2[] = "File system file test data.";
+const std::string_view kTestFileSystemFileData2 = "File system file test data.";
 const char kTestDataHandleData1[] = "data handle test data1.";
 const char kTestDataHandleData2[] = "data handle test data2.";
 const char kTestDiskCacheSideData[] = "test side data";
@@ -222,26 +218,13 @@ class BlobURLTest : public testing::Test {
         blob_remote.InitWithNewPipeAndPassReceiver());
 
     base::RunLoop register_loop;
-    base::UnguessableToken agent = base::UnguessableToken::Create();
-    url_store.Register(std::move(blob_remote), url, agent,
-                       net::SchemefulSite(origin), register_loop.QuitClosure());
+    url_store.Register(std::move(blob_remote), url,
+                       register_loop.QuitClosure());
     register_loop.Run();
 
-    base::RunLoop resolve_loop;
     mojo::Remote<network::mojom::URLLoaderFactory> url_loader_factory;
     url_store.ResolveAsURLLoaderFactory(
-        url, url_loader_factory.BindNewPipeAndPassReceiver(),
-        base::BindOnce(
-            [](base::OnceClosure done,
-               const base::UnguessableToken& agent_registered,
-               const std::optional<base::UnguessableToken>&
-                   unsafe_agent_cluster_id,
-               const std::optional<net::SchemefulSite>& unsafe_top_level_site) {
-              EXPECT_EQ(agent_registered, unsafe_agent_cluster_id);
-              std::move(done).Run();
-            },
-            resolve_loop.QuitClosure(), agent));
-    resolve_loop.Run();
+        url, url_loader_factory.BindNewPipeAndPassReceiver());
 
     mojo::PendingRemote<network::mojom::URLLoader> url_loader;
     network::TestURLLoaderClient url_loader_client;
@@ -271,12 +254,12 @@ class BlobURLTest : public testing::Test {
   }
 
   void BuildComplicatedData(std::string* expected_result) {
-    auto str1 = std::string(kTestData1 + 1, 2);
+    auto str1 = std::string(UNSAFE_TODO(kTestData1 + 1), 2);
     blob_data_->AppendData(str1);
     *expected_result = str1;
 
     blob_data_->AppendFile(temp_file1_, 2, 3, temp_file_modification_time1_);
-    *expected_result += std::string(kTestFileData1 + 2, 3);
+    *expected_result += std::string(UNSAFE_TODO(kTestFileData1 + 2), 3);
 
     blob_data_->AppendReadableDataHandle(
         base::MakeRefCounted<storage::FakeBlobDataHandle>(kTestDataHandleData1,
@@ -287,20 +270,24 @@ class BlobURLTest : public testing::Test {
         file_system_context_->CrackURLInFirstPartyContext(
             temp_file_system_file1_),
         3, 4, temp_file_system_file_modification_time1_, file_system_context_);
-    *expected_result += std::string(kTestFileSystemFileData1 + 3, 4);
+    *expected_result +=
+        std::string(UNSAFE_TODO(kTestFileSystemFileData1 + 3), 4);
 
-    auto str2 = std::string(kTestData2 + 4, 5);
+    auto str2 =
+        std::string(base::span<const char>(kTestData2).subspan(4u).data(), 5);
     blob_data_->AppendData(str2);
     *expected_result += str2;
 
     blob_data_->AppendFile(temp_file2_, 5, 6, temp_file_modification_time2_);
-    *expected_result += std::string(kTestFileData2 + 5, 6);
+    *expected_result += std::string(
+        base::span<const char>(kTestFileData2).subspan(5u).data(), 6);
 
     blob_data_->AppendFileSystemFile(
         file_system_context_->CrackURLInFirstPartyContext(
             temp_file_system_file2_),
         6, 7, temp_file_system_file_modification_time2_, file_system_context_);
-    *expected_result += std::string(kTestFileSystemFileData2 + 6, 7);
+    *expected_result += std::string(
+        base::span<const char>(kTestFileSystemFileData2).subspan(6u).data(), 7);
   }
 
   storage::BlobDataHandle* GetHandleFromBuilder() {
@@ -402,7 +389,7 @@ TEST_F(BlobURLTest, TestGetChangedFileRequest) {
 
 TEST_F(BlobURLTest, TestGetSlicedFileRequest) {
   blob_data_->AppendFile(temp_file1_, 2, 4, temp_file_modification_time1_);
-  std::string result(kTestFileData1 + 2, 4);
+  std::string result(UNSAFE_TODO(kTestFileData1 + 2), 4);
   TestSuccessNonrangeRequest(result, 4);
 }
 
@@ -470,7 +457,7 @@ TEST_F(BlobURLTest, TestGetSlicedFileSystemFileRequest) {
       file_system_context_->CrackURLInFirstPartyContext(
           temp_file_system_file1_),
       2, 4, temp_file_system_file_modification_time1_, file_system_context_);
-  std::string result(kTestFileSystemFileData1 + 2, 4);
+  std::string result(UNSAFE_TODO(kTestFileSystemFileData1 + 2), 4);
   TestSuccessNonrangeRequest(result, 4);
 }
 
@@ -601,7 +588,7 @@ TEST_F(BlobURLTest, TestZeroSizeSideData) {
 TEST_F(BlobURLTest, BrokenBlob) {
   blob_handle_ = blob_context_.AddBrokenBlob(
       "uuid", "", "", storage::BlobStatus::ERR_INVALID_CONSTRUCTION_ARGUMENTS);
-  TestErrorRequest(net::ERR_FAILED);
+  TestErrorRequest(net::ERR_BLOB_INVALID_CONSTRUCTION_ARGUMENTS);
 }
 
 }  // namespace content

@@ -15,6 +15,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "base/task/single_thread_task_runner.h"
 #include "device/base/features.h"
 #include "device/bluetooth/android/wrappers.h"
@@ -24,7 +25,6 @@
 #include "device/bluetooth/bluetooth_device_android.h"
 #include "device/bluetooth/bluetooth_discovery_session_outcome.h"
 #include "device/bluetooth/bluetooth_socket_thread.h"
-
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "device/bluetooth/jni_headers/ChromeBluetoothAdapter_jni.h"
 #include "device/bluetooth/jni_headers/ChromeBluetoothScanFilterBuilder_jni.h"
@@ -182,10 +182,8 @@ BluetoothLocalGattService* BluetoothAdapterAndroid::GetGattService(
   return nullptr;
 }
 
-void BluetoothAdapterAndroid::OnAdapterStateChanged(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& caller,
-    const bool powered) {
+void BluetoothAdapterAndroid::OnAdapterStateChanged(JNIEnv* env,
+                                                    const bool powered) {
   RunPendingPowerCallbacks();
   NotifyAdapterPoweredChanged(powered);
   if (!powered) {
@@ -205,15 +203,12 @@ void BluetoothAdapterAndroid::UpdateDeviceConnectStatesOnAdapterOff() {
   }
 }
 
-void BluetoothAdapterAndroid::OnScanFailed(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& caller) {
+void BluetoothAdapterAndroid::OnScanFailed(JNIEnv* env) {
   MarkDiscoverySessionsAsInactive();
 }
 
 void BluetoothAdapterAndroid::CreateOrUpdateDeviceOnScan(
     JNIEnv* env,
-    const JavaParamRef<jobject>& caller,
     const JavaParamRef<jstring>& address,
     const JavaParamRef<jobject>&
         bluetooth_device_wrapper,  // Java Type: bluetoothDeviceWrapper
@@ -319,7 +314,6 @@ void BluetoothAdapterAndroid::CreateOrUpdateDeviceOnScan(
 
 void BluetoothAdapterAndroid::PopulateOrUpdatePairedDevice(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& caller,
     const base::android::JavaParamRef<jstring>& address,
     const base::android::JavaParamRef<jobject>&
         bluetooth_device_wrapper,  // Java Type: bluetoothDeviceWrapper
@@ -355,7 +349,6 @@ void BluetoothAdapterAndroid::PopulateOrUpdatePairedDevice(
 
 void BluetoothAdapterAndroid::OnDeviceUnpaired(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& caller,
     const base::android::JavaParamRef<jstring>& address) {
   std::string device_address = ConvertJavaStringToUTF8(env, address);
   auto iter = devices_.find(device_address);
@@ -381,7 +374,6 @@ void BluetoothAdapterAndroid::OnDeviceUnpaired(
 
 void BluetoothAdapterAndroid::UpdateDeviceAclConnectState(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& caller,
     const base::android::JavaParamRef<jstring>& address,
     const base::android::JavaParamRef<jobject>&
         bluetooth_device_wrapper,  // Java Type: BluetoothDeviceWrapper

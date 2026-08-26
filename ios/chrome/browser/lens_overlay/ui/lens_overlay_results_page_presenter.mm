@@ -91,6 +91,9 @@ const CGFloat kOpacityAnimationDuration = 0.4;
   UINavigationController* _presentationNavigationController;
 }
 
+@synthesize delegate = _delegate;
+@synthesize presentedResultsPageHeight = _presentedResultsPageHeight;
+
 - (instancetype)initWithBaseViewController:
                     (LensOverlayContainerViewController*)baseViewController
                   resultPageViewController:
@@ -293,21 +296,6 @@ const CGFloat kOpacityAnimationDuration = 0.4;
                                               startInTranslate:startInTranslate
                                                     completion:nil];
                         }];
-}
-
-- (void)revealBottomSheetIfHidden {
-  BOOL resultsPageExists = _resultViewController != nil;
-  BOOL isPresentingResultsPage =
-      _baseViewController.presentedViewController != nil;
-  BOOL isHidden = resultsPageExists && !isPresentingResultsPage;
-  if (isHidden) {
-    BOOL startInTranslate = _detentsManager.presentationStrategy ==
-                            SheetDetentPresentationStategyTranslate;
-    [self presentResultsPageAnimated:YES
-                       maximizeSheet:NO
-                    startInTranslate:startInTranslate
-                          completion:nil];
-  }
 }
 
 - (void)showInfoMessage:(LensOverlayBottomSheetInfoMessageType)infoMessageType {

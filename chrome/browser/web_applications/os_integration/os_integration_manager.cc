@@ -334,8 +334,8 @@ void OsIntegrationManager::GetShortcutInfoForAppFromRegistrar(
       GetDesiredIconSizesForShortcut());
 
   if (!icon_sizes_in_px.empty()) {
-    provider_->icon_manager().ReadIcons(
-        app_id, IconPurpose::ANY, icon_sizes_in_px,
+    provider_->icon_manager().ReadTrustedIconsWithFallbackToManifestIcons(
+        app_id, icon_sizes_in_px, IconPurpose::ANY,
         base::BindOnce(&OsIntegrationManager::OnIconsRead,
                        weak_ptr_factory_.GetWeakPtr(), app_id,
                        std::move(callback)));
@@ -374,7 +374,8 @@ std::optional<GURL> OsIntegrationManager::TranslateProtocolUrl(
 }
 
 std::vector<custom_handlers::ProtocolHandler>
-OsIntegrationManager::GetAppProtocolHandlers(const webapps::AppId& app_id) {
+OsIntegrationManager::GetAppProtocolHandlers(
+    const webapps::AppId& app_id) const {
   if (!protocol_handler_manager_)
     return std::vector<custom_handlers::ProtocolHandler>();
 

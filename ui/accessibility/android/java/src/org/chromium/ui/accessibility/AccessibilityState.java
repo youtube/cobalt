@@ -74,9 +74,6 @@ public class AccessibilityState {
     public static final String KNOWN_SCREEN_READER_SERVICE_IDS =
             "com.google.android.marvin.talkback/.TalkBackService";
 
-    // Constant value to multiply animation timeouts by for pre-Q Android versions.
-    private static final int ANIMATION_TIMEOUT_MULTIPLIER = 2;
-
     // Histogram strings and constants.
     private static final String UPDATE_ACCESSIBILITY_SERVICES_DID_POLL =
             "Accessibility.Android.UpdateAccessibilityServices.DidPoll";
@@ -454,19 +451,11 @@ public class AccessibilityState {
     public static int getRecommendedTimeoutMillis(int minimumTimeout, int nonA11yTimeout) {
         if (!sInitialized) updateAccessibilityServices();
 
-        int recommendedTimeout = nonA11yTimeout;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            recommendedTimeout =
-                    fetchAccessibilityManager()
-                            .getRecommendedTimeoutMillis(
-                                    nonA11yTimeout,
-                                    FLAG_CONTENT_ICONS | FLAG_CONTENT_TEXT | FLAG_CONTENT_CONTROLS);
-        } else {
-            // For pre-Q Android versions, we will multiply by a constant when services are enabled.
-            if (AccessibilityState.isAnyAccessibilityServiceEnabled()) {
-                recommendedTimeout *= ANIMATION_TIMEOUT_MULTIPLIER;
-            }
-        }
+        int recommendedTimeout =
+                fetchAccessibilityManager()
+                        .getRecommendedTimeoutMillis(
+                                nonA11yTimeout,
+                                FLAG_CONTENT_ICONS | FLAG_CONTENT_TEXT | FLAG_CONTENT_CONTROLS);
 
         return Math.max(minimumTimeout, recommendedTimeout);
     }
@@ -578,7 +567,7 @@ public class AccessibilityState {
     }
 
     protected static List<String> getCanonicalizedEnabledServiceNames(String enabledServiceString) {
-        ArrayList<String> enabledServiceNames = new ArrayList<String>();
+        ArrayList<String> enabledServiceNames = new ArrayList<>();
         if (enabledServiceString != null && !enabledServiceString.isEmpty()) {
             String[] serviceNames = enabledServiceString.split(":");
             for (String name : serviceNames) {
@@ -661,8 +650,8 @@ public class AccessibilityState {
 
         // Get the list of currently running accessibility services.
         List<AccessibilityServiceInfo> serviceInfoList = getRunningServiceInfoList();
-        sServiceIds = new ArrayList<String>();
-        List<String> runningServiceNames = new ArrayList<String>();
+        sServiceIds = new ArrayList<>();
+        List<String> runningServiceNames = new ArrayList<>();
         for (AccessibilityServiceInfo service : serviceInfoList) {
             if (service == null) continue;
             isAccessibilityToolPresent |=
@@ -715,7 +704,7 @@ public class AccessibilityState {
         // such as when some third-party password managers are running. In these cases, we will
         // have a mismatch between these lists until the max timeout. So try comparing the lists
         // while ignoring autofill, and if they match, then we can continue.
-        List<String> prunedRunningServiceNames = new ArrayList<String>();
+        List<String> prunedRunningServiceNames = new ArrayList<>();
         for (String service : runningServiceNames) {
             if (!service.equals(AUTOFILL_COMPAT_ACCESSIBILITY_SERVICE_ID)) {
                 prunedRunningServiceNames.add(service);
@@ -849,7 +838,7 @@ public class AccessibilityState {
     public static Set<Integer> relevantEventTypesForCurrentServices() {
         if (!sInitialized) updateAccessibilityServices();
 
-        Set<Integer> relevantEventTypes = new HashSet<Integer>();
+        Set<Integer> relevantEventTypes = new HashSet<>();
         int eventTypeBit;
         int currentEventTypes = sEventTypeMask;
         while (currentEventTypes != 0) {
@@ -1323,13 +1312,13 @@ public class AccessibilityState {
     public static void setServiceIdsForTesting(String newServiceId) {
         if (!sInitialized) initializeForTesting();
 
-        sServiceIds = new ArrayList<String>();
+        sServiceIds = new ArrayList<>();
         sServiceIds.add(newServiceId);
     }
 
     private static void initializeForTesting() {
         sState = new State(false, false, false, false, false, false, false, false, false);
-        sServiceIds = new ArrayList<String>();
+        sServiceIds = new ArrayList<>();
         fetchAccessibilityManager();
         sInitialized = true;
         sIsInTestingMode = true;

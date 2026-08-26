@@ -128,6 +128,8 @@ ios_web_view_sources = [
   "internal/autofill/cwv_credit_card_saver_internal.h",
   "internal/autofill/cwv_credit_card_verifier.mm",
   "internal/autofill/cwv_credit_card_verifier_internal.h",
+  "internal/autofill/cwv_password_affiliation.h",
+  "internal/autofill/cwv_password_affiliation.mm",
   "internal/autofill/ios_web_view_payments_autofill_client.h",
   "internal/autofill/ios_web_view_payments_autofill_client.mm",
   "internal/autofill/web_view_autocomplete_history_manager_factory.h",
@@ -333,7 +335,7 @@ ios_web_view_deps = [
   "//components/image_fetcher/ios",
   "//components/infobars/core",
   "//components/invalidation",
-  "//components/invalidation/impl",
+  "//components/invalidation:legacy_topics_cleanup",
   "//components/keyed_service/core",
   "//components/keyed_service/ios",
   "//components/language/core/browser",
@@ -348,6 +350,7 @@ ios_web_view_deps = [
   "//components/os_crypt/async/browser",
   "//components/password_manager/core/browser",
   "//components/password_manager/core/browser/affiliation:affiliation_fetching",
+  "//components/password_manager/core/browser/affiliation:affiliation_match_helper",
   "//components/password_manager/core/browser/features:password_features",
   "//components/password_manager/core/browser/generation:core",
   "//components/password_manager/core/browser/leak_detection",
@@ -445,6 +448,10 @@ source_set("web_view_sources") {
     "//components/version_info:channel",
   ]
   configs += [ ":config" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 action("web_view_umbrella_header") {
@@ -559,7 +566,6 @@ test("ios_web_view_unittests") {
     "//components/autofill/core/browser:test_support",
     "//components/autofill/ios/browser:test_support",
     "//components/autofill/ios/form_util:test_support",
-    "//components/invalidation/impl:test_support",
     "//components/language_detection/core",
     "//components/password_manager/core/browser:test_support",
     "//components/password_manager/core/browser/leak_detection:test_support",

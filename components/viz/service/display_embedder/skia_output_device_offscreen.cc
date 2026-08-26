@@ -31,11 +31,11 @@ SkiaOutputDeviceOffscreen::SkiaOutputDeviceOffscreen(
     scoped_refptr<gpu::SharedContextState> context_state,
     gfx::SurfaceOrigin origin,
     bool has_alpha,
-    gpu::MemoryTracker* memory_tracker,
+    scoped_refptr<gpu::MemoryTracker> memory_tracker,
     DidSwapBufferCompleteCallback did_swap_buffer_complete_callback)
     : SkiaOutputDevice(context_state->gr_context(),
                        context_state->graphite_shared_context(),
-                       memory_tracker,
+                       std::move(memory_tracker),
                        did_swap_buffer_complete_callback),
       context_state_(context_state),
       has_alpha_(has_alpha) {
@@ -236,7 +236,10 @@ void SkiaOutputDeviceOffscreen::ReadbackForTesting(
   ReadPixelsContext context;
   if (auto* graphite_shared_context =
           context_state_->graphite_shared_context()) {
-    graphite_shared_context->asyncRescaleAndReadPixels(
+    context_state_->FlushAndSubmit(true);
+    // asyncRescaleAndReadPixels is a context operation that inserts its own
+    // recording internally.
+    graphite_shared_context->asyncRescaleAndReadPixelsAndSubmit(
         sk_surface_.get(), sk_surface_->imageInfo(),
         SkIRect::MakeSize(sk_surface_->imageInfo().dimensions()),
         SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kRepeatedLinear,
@@ -248,9 +251,9 @@ void SkiaOutputDeviceOffscreen::ReadbackForTesting(
         SkIRect::MakeSize(sk_surface_->imageInfo().dimensions()),
         SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kRepeatedLinear,
         &ReadPixelsContext::OnReadPixelsDone, &context);
+    context_state_->FlushAndSubmit(true);
   }
 
-  context_state_->FlushAndSubmit(true);
   CHECK(context.finished);
   CHECK(context.async_result);
 

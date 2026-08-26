@@ -130,6 +130,7 @@ source_set("unit_tests") {
     "//chromeos/ash/services/network_config",
     "//chromeos/ash/services/network_config:in_process_instance",
     "//chromeos/services/network_health/public/mojom",
+    "//components/proxy_config",
     "//components/session_manager/core",
     "//components/sync_preferences:test_support",
     "//components/user_manager:test_support",
@@ -140,4 +141,8 @@ source_set("unit_tests") {
     "//services/network:test_support",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

@@ -21,7 +21,6 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
-#include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/bad_message.h"
 #include "extensions/browser/event_router.h"
@@ -30,10 +29,12 @@
 #include "extensions/browser/extension_host_observer.h"
 #include "extensions/browser/extension_host_queue.h"
 #include "extensions/browser/extension_host_registry.h"
+#include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_web_contents_observer.h"
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/process_manager.h"
+#include "extensions/browser/safe_browsing_delegate.h"
 #include "extensions/browser/view_type_utils.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_urls.h"
@@ -48,7 +49,6 @@
 #include "ui/color/color_provider_utils.h"
 
 using content::RenderProcessHost;
-using content::SiteInstance;
 using content::WebContents;
 
 namespace extensions {
@@ -130,7 +130,6 @@ void EmitDispatchTimeMetrics(const EventDispatchSource& dispatch_source,
 }  // namespace
 
 ExtensionHost::ExtensionHost(const Extension* extension,
-                             SiteInstance* site_instance,
                              content::BrowserContext* browser_context,
                              const GURL& url,
                              mojom::ViewType host_type)
@@ -144,15 +143,7 @@ ExtensionHost::ExtensionHost(const Extension* extension,
          host_type == mojom::ViewType::kOffscreenDocument ||
          host_type == mojom::ViewType::kExtensionPopup ||
          host_type == mojom::ViewType::kExtensionSidePanel);
-  // NOTE: `site_instance` may be null if the kRemoveRootSiteInstance feature
-  // is active. `WebContents::CreateParams` handles a null SiteInstance the
-  // same as if no SiteInstance argument were passed.
-  if (site_instance) {
-    // If a SiteInstance is passed, it must match the `browser_context`
-    // associated with the ExtensionHost.
-    CHECK_EQ(browser_context_, site_instance->GetBrowserContext());
-  }
-  WebContents::CreateParams create_params(browser_context_, site_instance);
+  WebContents::CreateParams create_params(browser_context_);
   create_params.is_never_composited =
       host_type == mojom::ViewType::kExtensionBackgroundPage ||
       host_type == mojom::ViewType::kOffscreenDocument;
@@ -179,8 +170,9 @@ ExtensionHost::ExtensionHost(const Extension* extension,
 
   // Create password reuse detection manager when new extension web contents are
   // created.
-  ExtensionsBrowserClient::Get()->CreatePasswordReuseDetectionManager(
-      host_contents_.get());
+  ExtensionsBrowserClient::Get()
+      ->GetSafeBrowsingDelegate()
+      ->CreatePasswordReuseDetectionManager(host_contents_.get());
 
   ExtensionHostRegistry::Get(browser_context_)->ExtensionHostCreated(this);
 }
@@ -244,7 +236,8 @@ void ExtensionHost::CreateRendererNow() {
   if (IsBackgroundPage()) {
     DCHECK(IsRendererLive());
     // Connect orphaned dev-tools instances.
-    delegate_->OnMainFrameCreatedForBackgroundPage(this);
+    ExtensionRegistrar::Get(browser_context())
+        ->DidCreateMainFrameForBackgroundPage(this);
   }
 }
 

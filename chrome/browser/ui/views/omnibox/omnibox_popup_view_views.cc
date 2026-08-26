@@ -17,6 +17,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_header_view.h"
@@ -24,6 +25,7 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_row_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
+#include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
 #include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/browser/omnibox_edit_model.h"
@@ -298,6 +300,13 @@ void OmniboxPopupViewViews::OnSelectionChanged(
   UpdateAccessibleActiveDescendantForInvokingView();
 }
 
+void OmniboxPopupViewViews::RequestAimButtonFocus() {
+  model()->SetFocusIsGoingToAimButton(true);
+  location_bar_view_->page_action_icon_controller()
+      ->GetIconView(PageActionIconType::kAiMode)
+      ->RequestFocus();
+}
+
 void OmniboxPopupViewViews::UpdatePopupAppearance() {
   const auto* autocomplete_controller = controller()->autocomplete_controller();
   if (autocomplete_controller->result().empty() ||
@@ -567,12 +576,19 @@ gfx::Rect OmniboxPopupViewViews::GetTargetBounds() const {
         return height + v->GetPreferredSize().height();
       });
 
-  // Add 8dp at the bottom for aesthetic reasons. https://crbug.com/1076646
-  // It's expected that this space is dead unclickable/unhighlightable space.
-  // This extra padding is not added if the results section has no height
-  // (result set is empty or all results are hidden).
+  // Add space at the bottom for aesthetic reasons. It's expected that this
+  // space is dead unclickable/unhighlightable space. This extra padding is not
+  // added if the results section has no height (result set is empty or all
+  // results are hidden). See https://crbug.com/1076646 for additional context.
   if (popup_height != 0) {
-    constexpr int kExtraBottomPadding = 8;
+    // The amount of extra space is dependent on whether the last match is the
+    // toolbelt or not. The toolbelt doesn't have an icon or image on the left
+    // like a regular suggestion nor a big background highlight like an IPH
+    // suggestion so it doesn't require as much space.
+    const size_t last_result_index =
+        autocomplete_controller->result().size() - 1;
+    int kExtraBottomPadding =
+        GetMatchAtIndex(last_result_index).IsToolbelt() ? 2 : 8;
     popup_height += kExtraBottomPadding;
   }
 

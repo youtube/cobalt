@@ -8,8 +8,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/rand_util.h"
+#include "base/trace_event/trace_event.h"
+#include "base/trace_event/trace_log.h"
 #include "net/base/net_export.h"
-#include "net/base/tracing.h"
 #include "net/log/net_log.h"
 #include "net/log/net_log_capture_mode.h"
 
@@ -39,6 +40,11 @@ class NET_EXPORT TraceNetLogObserver
 
     // The name of the root track netlog tracks will be nested under.
     perfetto::StaticString root_track_name = "Chromium NetLog";
+
+    // When true, record trace events verbosely:
+    // - Use separate tracks for each NetLogSource.
+    // - Add flows to relate NetLog events to threads.
+    bool verbose = false;
   };
   explicit TraceNetLogObserver(Options options = Options::Default());
 
@@ -65,6 +71,15 @@ class NET_EXPORT TraceNetLogObserver
   void OnTraceLogDisabled() override;
 
  private:
+  void AddEntry(const NetLogEntry& entry,
+                perfetto::StaticString entry_type_string,
+                perfetto::StaticString source_type_string,
+                base::Value::Dict params);
+  void AddEntryVerbose(const NetLogEntry& entry,
+                       perfetto::StaticString entry_type_string,
+                       perfetto::StaticString source_type_string,
+                       base::Value::Dict params);
+
   // The "root track" is used as the parent track of all NetLog event tracks.
   // Folding all NetLog tracks under a root track serves a number of purposes:
   //  - It looks tidier in the Perfetto UI, as it provides a nice visual
@@ -84,6 +99,7 @@ class NET_EXPORT TraceNetLogObserver
 
   const NetLogCaptureMode capture_mode_;
   const bool use_sensitive_category_;
+  const bool verbose_;
   const perfetto::StaticString root_track_name_;
 
   std::once_flag root_track_set_up_;

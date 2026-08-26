@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "components/optimization_guide/core/prediction_manager.h"
+#include "components/optimization_guide/core/delivery/prediction_manager.h"
 
 #include <memory>
 
@@ -31,16 +31,15 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/component_updater/pref_names.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
-#include "components/optimization_guide/core/model_util.h"
+#include "components/optimization_guide/core/delivery/model_util.h"
+#include "components/optimization_guide/core/delivery/prediction_model_download_manager.h"
+#include "components/optimization_guide/core/delivery/prediction_model_override.h"
+#include "components/optimization_guide/core/hints/optimization_guide_store.h"
+#include "components/optimization_guide/core/hints/store_update_data.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
-#include "components/optimization_guide/core/optimization_guide_store.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
-#include "components/optimization_guide/core/optimization_guide_test_util.h"
-#include "components/optimization_guide/core/prediction_model_download_manager.h"
-#include "components/optimization_guide/core/prediction_model_override.h"
-#include "components/optimization_guide/core/store_update_data.h"
 #include "components/optimization_guide/proto/models.pb.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/hashing.h"
@@ -311,7 +310,6 @@ class PredictionManagerBrowserTest : public PredictionManagerBrowserTestBase {
   void InitializeFeatureList() override {
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
         {optimization_guide::features::kOptimizationHints, {}},
-        {optimization_guide::features::kRemoteOptimizationGuideFetching, {}},
         {optimization_guide::features::kOptimizationTargetPrediction,
          {{"fetch_startup_delay_ms", "8000"}}},
     };
@@ -436,10 +434,7 @@ class PredictionManagerModelDownloadingBrowserTest
   void InitializeFeatureList() override {
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
         {features::kOptimizationHints, {}},
-        {features::kRemoteOptimizationGuideFetching, {}},
         {features::kOptimizationTargetPrediction, {}},
-        {features::kOptimizationGuideModelDownloading,
-         {{"unrestricted_model_downloading", "true"}}},
     };
     scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
   }

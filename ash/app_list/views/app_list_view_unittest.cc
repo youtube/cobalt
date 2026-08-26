@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -37,7 +38,6 @@
 #include "ash/app_list/views/search_result_list_view.h"
 #include "ash/app_list/views/search_result_page_view.h"
 #include "ash/app_list/views/search_result_view.h"
-#include "ash/constants/ash_features.h"
 #include "ash/keyboard/ui/keyboard_ui_controller.h"
 #include "ash/public/cpp/app_list/app_list_config.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
@@ -50,10 +50,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/icu_test_util.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "chromeos/constants/chromeos_features.h"
+#include "chromeos/ui/vector_icons/vector_icons.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/themed_vector_icon.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/compositor/presentation_time_recorder.h"
@@ -62,6 +62,8 @@
 #include "ui/display/screen.h"
 #include "ui/events/event_utils.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/color_palette.h"
+#include "ui/gfx/image/image.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/test/views_test_base.h"
 #include "ui/views/test/views_test_utils.h"
@@ -512,10 +514,7 @@ class AppListViewTest : public views::ViewsTestBase {
 // Tests app list view layout for different screen sizes.
 class AppListViewScalableLayoutTest : public AppListViewTest {
  public:
-  AppListViewScalableLayoutTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {ash::features::kEnableBackgroundBlur}, {});
-  }
+  AppListViewScalableLayoutTest() = default;
   ~AppListViewScalableLayoutTest() override = default;
 
   void SetUp() override {
@@ -533,9 +532,6 @@ class AppListViewScalableLayoutTest : public AppListViewTest {
     delegate_->GetTestModel()->PopulateApps(kInitialItems);
     Show();
   }
-
- protected:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Tests of focus, optionally parameterized by RTL.
@@ -826,7 +822,6 @@ class AppListViewFocusTest : public views::ViewsTestBase,
 
  protected:
   bool is_rtl_ = false;
-  base::test::ScopedFeatureList scoped_feature_list_;
 
  private:
   AshColorProvider ash_color_provider_;
@@ -1284,48 +1279,52 @@ TEST_F(AppListViewFocusTest, SelectionGoesIntoFolderIfSelected) {
   EXPECT_EQ(folder_item_view(), focused_view());
 }
 
-// Exercises ButtonFocusSkipper with only the Assistant button.
-TEST_F(AppListViewFocusTest, DownAndUpArrowSkipsAssistantButton) {
+// Exercises ButtonFocusSkipper with only the Gemini button.
+TEST_F(AppListViewFocusTest, DownAndUpArrowSkipsGeminiButton) {
   search_model()->search_box()->SetSunfishButtonVisibility(
       SearchBoxModel::SunfishButtonVisibility::kHidden);
-  search_model()->search_box()->SetShowAssistantButton(true);
+  search_model()->search_box()->SetGeminiButtonVisibility(
+      SearchBoxModel::SearchBoxIconButton(
+          {.display_name = "Gemini",
+           .icon = gfx::Image(ui::ThemedVectorIcon(&chromeos::kMahiSparkIcon)
+                                  .GetImageSkia(gfx::kPlaceholderColor))}));
 
   Show();
   const views::ViewModelT<AppListItemView>* view_model =
       apps_grid_view()->view_model();
   AppListItemView* first_item_view = view_model->view_at(0);
   EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
-  ASSERT_TRUE(search_box_view()->assistant_button());
-  ASSERT_TRUE(search_box_view()->assistant_button()->GetVisible());
+  ASSERT_TRUE(search_box_view()->gemini_button());
+  ASSERT_TRUE(search_box_view()->gemini_button()->GetVisible());
 
   // Pressing down arrow moves focus into apps.
   SimulateKeyPress(ui::VKEY_DOWN, /*shift_down=*/false);
   EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
-  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->gemini_button()->HasFocus());
   EXPECT_TRUE(first_item_view->HasFocus());
 
   // Pressing up arrow moves focus back to search box.
   SimulateKeyPress(ui::VKEY_UP, /*shift_down=*/false);
   EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
-  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->gemini_button()->HasFocus());
   EXPECT_FALSE(first_item_view->HasFocus());
 
-  // Tab key moves focus to assistant button.
+  // Tab key moves focus to Gemini button.
   SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/false);
   EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
-  EXPECT_TRUE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_TRUE(search_box_view()->gemini_button()->HasFocus());
 
   // Shift-tab moves focus back to search box.
   SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/true);
   EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
-  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->gemini_button()->HasFocus());
 }
 
 // Exercises ButtonFocusSkipper with only the Sunfish button.
 TEST_F(AppListViewFocusTest, DownAndUpArrowSkipsSunfishButton) {
   search_model()->search_box()->SetSunfishButtonVisibility(
       SearchBoxModel::SunfishButtonVisibility::kShownWithSunfishIcon);
-  search_model()->search_box()->SetShowAssistantButton(false);
+  search_model()->search_box()->SetGeminiButtonVisibility(std::nullopt);
 
   Show();
   const views::ViewModelT<AppListItemView>* view_model =
@@ -1358,11 +1357,15 @@ TEST_F(AppListViewFocusTest, DownAndUpArrowSkipsSunfishButton) {
   EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
 }
 
-// Exercises ButtonFocusSkipper with both Sunfish and Assistant buttons.
-TEST_F(AppListViewFocusTest, DownAndUpArrowSkipsSunfishAndAssistantButtons) {
+// Exercises ButtonFocusSkipper with both Sunfish and Gemini buttons.
+TEST_F(AppListViewFocusTest, DownAndUpArrowSkipsSunfishAndGeminiButtons) {
   search_model()->search_box()->SetSunfishButtonVisibility(
       SearchBoxModel::SunfishButtonVisibility::kShownWithSunfishIcon);
-  search_model()->search_box()->SetShowAssistantButton(true);
+  search_model()->search_box()->SetGeminiButtonVisibility(
+      SearchBoxModel::SearchBoxIconButton(
+          {.display_name = "Gemini",
+           .icon = gfx::Image(ui::ThemedVectorIcon(&chromeos::kMahiSparkIcon)
+                                  .GetImageSkia(gfx::kPlaceholderColor))}));
 
   Show();
   const views::ViewModelT<AppListItemView>* view_model =
@@ -1371,46 +1374,46 @@ TEST_F(AppListViewFocusTest, DownAndUpArrowSkipsSunfishAndAssistantButtons) {
   EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
   ASSERT_TRUE(search_box_view()->sunfish_button());
   ASSERT_TRUE(search_box_view()->sunfish_button()->GetVisible());
-  ASSERT_TRUE(search_box_view()->assistant_button());
-  ASSERT_TRUE(search_box_view()->assistant_button()->GetVisible());
+  ASSERT_TRUE(search_box_view()->gemini_button());
+  ASSERT_TRUE(search_box_view()->gemini_button()->GetVisible());
 
   // Pressing down arrow moves focus into apps.
   SimulateKeyPress(ui::VKEY_DOWN, /*shift_down=*/false);
   EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
   EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
-  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->gemini_button()->HasFocus());
   EXPECT_TRUE(first_item_view->HasFocus());
 
   // Pressing up arrow moves focus back to search box.
   SimulateKeyPress(ui::VKEY_UP, /*shift_down=*/false);
   EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
   EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
-  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->gemini_button()->HasFocus());
   EXPECT_FALSE(first_item_view->HasFocus());
 
   // Tab key moves focus to Sunfish button.
   SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/false);
   EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
   EXPECT_TRUE(search_box_view()->sunfish_button()->HasFocus());
-  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->gemini_button()->HasFocus());
 
-  // Tab key moves focus to assistant button.
+  // Tab key moves focus to Gemini button.
   SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/false);
   EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
   EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
-  EXPECT_TRUE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_TRUE(search_box_view()->gemini_button()->HasFocus());
 
   // Shift-tab moves focus back to Sunfish button.
   SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/true);
   EXPECT_FALSE(search_box_view()->search_box()->HasFocus());
   EXPECT_TRUE(search_box_view()->sunfish_button()->HasFocus());
-  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->gemini_button()->HasFocus());
 
   // Shift-tab moves focus back to search box.
   SimulateKeyPress(ui::VKEY_TAB, /*shift_down=*/true);
   EXPECT_TRUE(search_box_view()->search_box()->HasFocus());
   EXPECT_FALSE(search_box_view()->sunfish_button()->HasFocus());
-  EXPECT_FALSE(search_box_view()->assistant_button()->HasFocus());
+  EXPECT_FALSE(search_box_view()->gemini_button()->HasFocus());
 }
 
 // Tests that in tablet mode, the app list opens in fullscreen by default.
@@ -1589,10 +1592,8 @@ TEST_F(AppListViewTest, PageSwitchingAnimationTest) {
 }
 
 // Tests that the correct views are displayed for showing search results.
-TEST_F(AppListViewTest, DISABLED_SearchResultsTest) {
-  Initialize(false /*is_tablet_mode*/);
-  // TODO(newcomer): this test needs to be reevaluated for the fullscreen app
-  // list (http://crbug.com/759779).
+TEST_F(AppListViewTest, SearchResultsTest) {
+  Initialize(/*is_tablet_mode=*/true);
   EXPECT_FALSE(view_->GetWidget()->IsVisible());
   EXPECT_EQ(-1, GetPaginationModel()->total_pages());
   AppListTestModel* model = delegate_->GetTestModel();
@@ -1602,58 +1603,35 @@ TEST_F(AppListViewTest, DISABLED_SearchResultsTest) {
 
   AppListMainView* main_view = view_->app_list_main_view();
   ContentsView* contents_view = main_view->contents_view();
-  EXPECT_TRUE(SetAppListState(ash::AppListState::kStateApps));
+  EXPECT_EQ(ash::AppListViewState::kFullscreenAllApps, view_->app_list_state());
+  EXPECT_TRUE(contents_view->IsStateActive(ash::AppListState::kStateApps));
 
-  // Show the search results.
-  contents_view->ShowSearchResults(true);
-  views::test::RunScheduledLayout(contents_view);
-  EXPECT_TRUE(
-      contents_view->IsStateActive(ash::AppListState::kStateSearchResults));
-
-  EXPECT_TRUE(IsStateShown(ash::AppListState::kStateSearchResults));
-
-  // Hide the search results.
-  contents_view->ShowSearchResults(false);
-  views::test::RunScheduledLayout(contents_view);
-
-  // Check that we return to the page that we were on before the search.
-  EXPECT_TRUE(IsStateShown(ash::AppListState::kStateApps));
-
-  views::test::RunScheduledLayout(view_);
-  EXPECT_TRUE(IsStateShown(ash::AppListState::kStateApps));
-
-  std::u16string search_text = u"test";
-  main_view->search_box_view()->search_box()->SetText(std::u16string());
-  main_view->search_box_view()->search_box()->InsertText(
-      search_text,
-      ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
-  // Check that the current search is using |search_text|.
-  EXPECT_EQ(search_text, main_view->search_box_view()->search_box()->GetText());
-  EXPECT_EQ(search_text, main_view->search_box_view()->current_query());
-  views::test::RunScheduledLayout(contents_view);
+  // Type in the search box to show search results.
+  SetTextInSearchBox(u"test");
+  EXPECT_EQ(ash::AppListViewState::kFullscreenSearch, view_->app_list_state());
   EXPECT_TRUE(
       contents_view->IsStateActive(ash::AppListState::kStateSearchResults));
   EXPECT_TRUE(CheckSearchBoxView(contents_view->GetSearchBoxBounds(
       ash::AppListState::kStateSearchResults)));
 
-  // Check that typing into the search box triggers the search page.
-  EXPECT_TRUE(SetAppListState(ash::AppListState::kStateApps));
-  views::test::RunScheduledLayout(contents_view);
-  EXPECT_TRUE(IsStateShown(ash::AppListState::kStateApps));
-  EXPECT_TRUE(CheckSearchBoxView(
-      contents_view->GetSearchBoxBounds(ash::AppListState::kStateApps)));
+  // Go back to hide search results, which is equivalent to pressing Esc.
+  view_->Back();
+  EXPECT_EQ(ash::AppListViewState::kFullscreenAllApps, view_->app_list_state());
+  EXPECT_TRUE(contents_view->IsStateActive(ash::AppListState::kStateApps));
 
-  std::u16string new_search_text = u"apple";
-  main_view->search_box_view()->search_box()->SetText(std::u16string());
-  main_view->search_box_view()->search_box()->InsertText(
-      new_search_text,
-      ui::TextInputClient::InsertTextCursorBehavior::kMoveCursorAfterText);
-  // Check that the current search is using |new_search_text|.
-  EXPECT_EQ(new_search_text,
-            main_view->search_box_view()->search_box()->GetText());
-  EXPECT_EQ(search_text, main_view->search_box_view()->current_query());
-  views::test::RunScheduledLayout(contents_view);
-  EXPECT_TRUE(IsStateShown(ash::AppListState::kStateSearchResults));
+  // Check that typing into the search box triggers the search page.
+  SetTextInSearchBox(u"test");
+  EXPECT_EQ(ash::AppListViewState::kFullscreenSearch, view_->app_list_state());
+  EXPECT_TRUE(
+      contents_view->IsStateActive(ash::AppListState::kStateSearchResults));
+  EXPECT_TRUE(CheckSearchBoxView(contents_view->GetSearchBoxBounds(
+      ash::AppListState::kStateSearchResults)));
+
+  // Check that typing a new query keeps the search page.
+  SetTextInSearchBox(u"apple");
+  EXPECT_EQ(ash::AppListViewState::kFullscreenSearch, view_->app_list_state());
+  EXPECT_TRUE(
+      contents_view->IsStateActive(ash::AppListState::kStateSearchResults));
   EXPECT_TRUE(CheckSearchBoxView(contents_view->GetSearchBoxBounds(
       ash::AppListState::kStateSearchResults)));
 }

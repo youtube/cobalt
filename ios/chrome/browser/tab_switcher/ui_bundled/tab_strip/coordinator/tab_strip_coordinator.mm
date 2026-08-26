@@ -19,8 +19,11 @@
 #import "ios/chrome/browser/collaboration/model/ios_collaboration_controller_delegate.h"
 #import "ios/chrome/browser/collaboration/model/messaging/messaging_backend_service_factory.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
+#import "ios/chrome/browser/saved_tab_groups/coordinator/face_pile_configuration.h"
+#import "ios/chrome/browser/saved_tab_groups/coordinator/face_pile_coordinator.h"
 #import "ios/chrome/browser/saved_tab_groups/model/ios_tab_group_sync_util.h"
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
+#import "ios/chrome/browser/share_kit/model/share_kit_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/alert/alert_coordinator.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -37,7 +40,6 @@
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_strip_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_strip_last_tab_dragged_alert_command.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
 #import "ios/chrome/browser/sharing/ui_bundled/sharing_coordinator.h"
 #import "ios/chrome/browser/sharing/ui_bundled/sharing_params.h"
@@ -48,6 +50,7 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_action_type.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_confirmation_coordinator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/coordinator/tab_strip_mediator.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/coordinator/tab_strip_mediator_delegate.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/ui/context_menu/tab_strip_context_menu_helper.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/ui/swift.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_switcher_item.h"
@@ -64,8 +67,16 @@ using ResultCallback =
     collaboration::CollaborationControllerDelegate::ResultCallback;
 using collaboration::CollaborationControllerDelegate;
 
+namespace {
+
+// The preferred size in points for the avatar icons.
+constexpr CGFloat kFacePileAvatarSize = 16;
+
+}  // namespace
+
 @interface TabStripCoordinator () <CreateOrEditTabGroupCoordinatorDelegate,
-                                   TabStripCommands>
+                                   TabStripCommands,
+                                   TabStripMediatorDelegate>
 
 // Mediator for updating the TabStrip when the WebStateList changes.
 @property(nonatomic, strong) TabStripMediator* mediator;
@@ -124,12 +135,13 @@ using collaboration::CollaborationControllerDelegate;
           profile);
   collaboration::CollaborationService* collaborationService =
       collaboration::CollaborationServiceFactory::GetForProfile(profile);
+  ShareKitService* shareKitService =
+      ShareKitServiceFactory::GetForProfile(profile);
 
   FaviconLoader* faviconLoader = nil;
   // Fetch favicons if in regular mode and sync or shared tab groups is enabled.
   if (!profile->IsOffTheRecord() &&
-      (IsTabGroupSyncEnabled() ||
-       IsSharedTabGroupsJoinEnabled(collaborationService))) {
+      IsSharedTabGroupsJoinEnabled(collaborationService)) {
     faviconLoader = IOSChromeFaviconLoaderFactory::GetForProfile(profile);
   }
 
@@ -138,6 +150,7 @@ using collaboration::CollaborationControllerDelegate;
                              tabGroupSyncService:tabGroupSyncService
                                      browserList:browserList
                                 messagingService:messagingService
+                                 shareKitService:shareKitService
                             collaborationService:collaborationService
                                    faviconLoader:faviconLoader];
   self.mediator.webStateList = self.browser->GetWebStateList();
@@ -155,10 +168,12 @@ using collaboration::CollaborationControllerDelegate;
   self.contextMenuHelper.mutator = self.mediator;
   self.contextMenuHelper.handler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), TabStripCommands);
+  self.mediator.delegate = self;
 
   self.tabStripViewController.mutator = self.mediator;
   self.tabStripViewController.dragDropHandler = self.mediator;
   self.tabStripViewController.snapshotAndfaviconDataSource = self.mediator;
+  self.tabStripViewController.tabGroupCellDataSource = self.mediator;
   self.tabStripViewController.contextMenuProvider = self.contextMenuHelper;
 }
 
@@ -329,7 +344,7 @@ using collaboration::CollaborationControllerDelegate;
 
 - (void)showTabStripTabGroupSnackbarAfterClosingGroups:
     (int)numberOfClosedGroups {
-  if (!IsTabGroupSyncEnabled() || self.profile->IsOffTheRecord()) {
+  if (self.profile->IsOffTheRecord()) {
     return;
   }
 
@@ -435,6 +450,25 @@ using collaboration::CollaborationControllerDelegate;
   _createTabGroupCoordinator = nil;
 }
 
+#pragma mark - TabStripMediatorDelegate
+
+- (id<FacePileProviding>)facePileProviderForGroupID:(const std::string&)groupID
+                                         groupColor:(UIColor*)groupColor {
+  // Configure the face pile.
+  FacePileConfiguration* config = [[FacePileConfiguration alloc] init];
+  config.showsEmptyState = NO;
+  config.backgroundColor = groupColor;
+  config.avatarSize = kFacePileAvatarSize;
+  config.groupID = data_sharing::GroupId(groupID);
+
+  FacePileCoordinator* facePileCoordinator =
+      [[FacePileCoordinator alloc] initWithFacePileConfiguration:config
+                                                         browser:self.browser];
+  [facePileCoordinator start];
+
+  return facePileCoordinator;
+}
+
 #pragma mark - Properties
 
 - (UIViewController*)viewController {
@@ -500,6 +534,7 @@ using collaboration::CollaborationControllerDelegate;
       break;
     case TabGroupActionType::kDeleteOrKeepSharedTabGroup:
     case TabGroupActionType::kLeaveOrKeepSharedTabGroup:
+    case TabGroupActionType::kCloseLastTabUnknownRole:
       NOTREACHED();
   }
 

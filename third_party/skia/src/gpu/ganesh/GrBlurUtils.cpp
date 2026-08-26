@@ -111,8 +111,8 @@ static bool draw_mask(skgpu::ganesh::SurfaceDrawContext* sdc,
                       const SkIRect& maskBounds,
                       GrPaint&& paint,
                       GrSurfaceProxyView mask) {
-    SkMatrix inverse;
-    if (!viewMatrix.invert(&inverse)) {
+    auto inverse = viewMatrix.invert();
+    if (!inverse) {
         return false;
     }
 
@@ -124,7 +124,7 @@ static bool draw_mask(skgpu::ganesh::SurfaceDrawContext* sdc,
     paint.setCoverageFragmentProcessor(
             GrTextureEffect::Make(std::move(mask), kUnknown_SkAlphaType, matrix));
 
-    sdc->fillPixelsWithLocalMatrix(clip, std::move(paint), maskBounds, inverse);
+    sdc->fillPixelsWithLocalMatrix(clip, std::move(paint), maskBounds, *inverse);
     return true;
 }
 
@@ -492,9 +492,9 @@ static std::unique_ptr<GrFragmentProcessor> create_profile_effect(GrRecordingCon
     return GrTextureEffect::Make(std::move(profileView), kPremul_SkAlphaType, texM);
 }
 
-static std::unique_ptr<GrFragmentProcessor> make_circle_blur(GrRecordingContext* context,
-                                                             const SkRect& circle,
-                                                             float sigma) {
+std::unique_ptr<GrFragmentProcessor> MakeCircleBlur(GrRecordingContext* context,
+                                                    const SkRect& circle,
+                                                    float sigma) {
     if (skgpu::BlurIsEffectivelyIdentity(sigma)) {
         return nullptr;
     }
@@ -574,11 +574,11 @@ static std::unique_ptr<GrFragmentProcessor> make_rect_integral_fp(GrRecordingCon
             std::move(view), kPremul_SkAlphaType, m, GrSamplerState::Filter::kLinear);
 }
 
-static std::unique_ptr<GrFragmentProcessor> make_rect_blur(GrRecordingContext* context,
-                                                           const GrShaderCaps& caps,
-                                                           const SkRect& srcRect,
-                                                           const SkMatrix& viewMatrix,
-                                                           float transformedSigma) {
+std::unique_ptr<GrFragmentProcessor> MakeRectBlur(GrRecordingContext* context,
+                                                  const GrShaderCaps& caps,
+                                                  const SkRect& srcRect,
+                                                  const SkMatrix& viewMatrix,
+                                                  float transformedSigma) {
     SkASSERT(viewMatrix.preservesRightAngles());
     SkASSERT(srcRect.isSorted());
 
@@ -604,7 +604,9 @@ static std::unique_ptr<GrFragmentProcessor> make_rect_blur(GrRecordingContext* c
         if (!viewMatrix.decomposeScale(&scale, &m)) {
             return nullptr;
         }
-        if (!m.invert(&invM)) {
+        if (auto inv = m.invert()) {
+            invM = *inv;
+        } else {
             return nullptr;
         }
         rect = {srcRect.left() * scale.width(),
@@ -888,11 +890,11 @@ static std::unique_ptr<GrFragmentProcessor> find_or_create_rrect_blur_mask_fp(
     return GrTextureEffect::Make(std::move(view), kPremul_SkAlphaType, m);
 }
 
-static std::unique_ptr<GrFragmentProcessor> make_rrect_blur(GrRecordingContext* context,
-                                                            float sigma,
-                                                            float xformedSigma,
-                                                            const SkRRect& srcRRect,
-                                                            const SkRRect& devRRect) {
+std::unique_ptr<GrFragmentProcessor> MakeRRectBlur(GrRecordingContext* context,
+                                                   float sigma,
+                                                   float xformedSigma,
+                                                   const SkRRect& srcRRect,
+                                                   const SkRRect& devRRect) {
     SkASSERTF(!SkRRectPriv::IsCircle(devRRect),
               "Unexpected circle. %d\n\t%s\n\t%s",
               SkRRectPriv::IsCircle(srcRRect),
@@ -1042,10 +1044,9 @@ static bool direct_filter_mask(GrRecordingContext* context,
 
     std::unique_ptr<GrFragmentProcessor> fp;
 
-    SkRRect devRRect;
-    bool devRRectIsValid = srcRRect.transform(viewMatrix, &devRRect);
+    auto devRRect = srcRRect.transform(viewMatrix);
 
-    bool devRRectIsCircle = devRRectIsValid && SkRRectPriv::IsCircle(devRRect);
+    bool devRRectIsCircle = devRRect.has_value() && SkRRectPriv::IsCircle(*devRRect);
 
     bool canBeRect = srcRRect.isRect() && viewMatrix.preservesRightAngles();
     bool canBeCircle = (SkRRectPriv::IsCircle(srcRRect) && viewMatrix.isSimilarity()) ||
@@ -1053,22 +1054,21 @@ static bool direct_filter_mask(GrRecordingContext* context,
 
     if (canBeRect || canBeCircle) {
         if (canBeRect) {
-            fp = make_rect_blur(context, *context->priv().caps()->shaderCaps(),
+            fp = MakeRectBlur(context, *context->priv().caps()->shaderCaps(),
                                 srcRRect.rect(), viewMatrix, xformedSigma);
         } else {
             SkRect devBounds;
             if (devRRectIsCircle) {
-                devBounds = devRRect.getBounds();
+                devBounds = devRRect->getBounds();
             } else {
-                SkPoint center = {srcRRect.getBounds().centerX(), srcRRect.getBounds().centerY()};
-                viewMatrix.mapPoints(&center, 1);
+                SkPoint center = viewMatrix.mapPoint(srcRRect.getBounds().center());
                 SkScalar radius = viewMatrix.mapVector(0, srcRRect.width()/2.f).length();
                 devBounds = {center.x() - radius,
                              center.y() - radius,
                              center.x() + radius,
                              center.y() + radius};
             }
-            fp = make_circle_blur(context, devBounds, xformedSigma);
+            fp = MakeCircleBlur(context, devBounds, xformedSigma);
         }
 
         if (!fp) {
@@ -1099,11 +1099,11 @@ static bool direct_filter_mask(GrRecordingContext* context,
     if (!viewMatrix.rectStaysRect()) {
         return false;
     }
-    if (!devRRectIsValid || !SkRRectPriv::AllCornersCircular(devRRect)) {
+    if (!devRRect.has_value() || !SkRRectPriv::AllCornersCircular(*devRRect)) {
         return false;
     }
 
-    fp = make_rrect_blur(context, bmf->sigma(), xformedSigma, srcRRect, devRRect);
+    fp = MakeRRectBlur(context, bmf->sigma(), xformedSigma, srcRRect, *devRRect);
     if (!fp) {
         return false;
     }
@@ -1114,17 +1114,16 @@ static bool direct_filter_mask(GrRecordingContext* context,
         paint.setCoverageFragmentProcessor(std::move(fp));
         sdc->drawRect(clip, std::move(paint), GrAA::kNo, viewMatrix, srcProxyRect);
     } else {
-        SkMatrix inverse;
-        if (!viewMatrix.invert(&inverse)) {
+        auto inverse = viewMatrix.invert();
+        if (!inverse) {
             return false;
         }
 
-        SkIRect proxyBounds;
         float extra=3.f*SkScalarCeilToScalar(xformedSigma-1/6.0f);
-        devRRect.rect().makeOutset(extra, extra).roundOut(&proxyBounds);
+        SkIRect proxyBounds = devRRect->rect().makeOutset(extra, extra).roundOut();
 
         paint.setCoverageFragmentProcessor(std::move(fp));
-        sdc->fillPixelsWithLocalMatrix(clip, std::move(paint), proxyBounds, inverse);
+        sdc->fillPixelsWithLocalMatrix(clip, std::move(paint), proxyBounds, *inverse);
     }
 
     return true;

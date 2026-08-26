@@ -12,8 +12,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
-#include "content/public/browser/identity_request_account.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/identity_request_account.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/views/view.h"
 
@@ -27,7 +27,8 @@ inline constexpr char16_t kTitleSignIn[] =
     u"Sign in to rp-example.com with idp-example.com";
 inline constexpr char16_t kTitleIframeSignIn[] =
     u"Sign in to iframe-example.com with idp-example.com";
-inline constexpr char16_t kSubtitleIframeSignIn[] = u"on rp-example.com";
+inline constexpr char16_t kSubtitleIframeSignIn[] =
+    u"rp-example.com embeds content from iframe-example.com";
 inline constexpr char16_t kTitleSignInWithoutIdp[] =
     u"Sign in to rp-example.com";
 inline constexpr char16_t kTitleSigningIn[] = u"Verifying…";

@@ -10,7 +10,6 @@
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "components/enterprise/browser/controller/fake_browser_dm_token_storage.h"
 #include "components/enterprise/browser/enterprise_switches.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
@@ -21,41 +20,43 @@
 
 namespace enterprise::test {
 
-namespace {
-
-void SetProfileDMToken(Profile* profile, const std::string& dm_token) {
-  auto policy_data = std::make_unique<enterprise_management::PolicyData>();
-  policy_data->set_request_token(dm_token);
-  profile->GetCloudPolicyManager()
-      ->core()
-      ->store()
-      ->set_policy_data_for_testing(std::move(policy_data));
-
-  auto client = std::make_unique<policy::MockCloudPolicyClient>();
-  client->SetDMToken(dm_token);
-
-  profile->GetUserCloudPolicyManager()->Connect(
-      g_browser_process->local_state(), std::move(client));
-}
-
-}  // namespace
-
 ManagementContextMixinBrowser::ManagementContextMixinBrowser(
     InProcessBrowserTestMixinHost* host,
     InProcessBrowserTest* test_base,
     ManagementContext management_context)
-    : ManagementContextMixin(host, test_base, std::move(management_context)) {}
+    : ManagementContextMixin(host, test_base, std::move(management_context)) {
+  // Fake the OS' device ID.
+  browser_dm_token_storage_.SetClientId(kBrowserClientId);
+
+  if (management_context_.is_cloud_machine_managed) {
+    management_context_.is_cloud_machine_managed = true;
+    browser_dm_token_storage_.SetEnrollmentToken(kEnrollmentToken);
+    browser_dm_token_storage_.SetDMToken(kBrowserDmToken);
+  }
+}
 
 ManagementContextMixinBrowser::~ManagementContextMixinBrowser() = default;
 
 void ManagementContextMixinBrowser::ManageCloudUser() {
   ManagementContextMixin::ManageCloudUser();
-  SetProfileDMToken(browser()->profile(), kProfileDmToken);
 
-  auto* profile_policy_manager =
-      browser()->profile()->GetUserCloudPolicyManager();
-  profile_policy_manager->core()->store()->set_policy_data_for_testing(
-      GetBaseUserPolicyData());
+  auto policy_data = GetBaseUserPolicyData();
+  policy_data->set_request_token(kProfileDmToken);
+  policy_data->set_device_id(kProfileClientId);
+
+  browser()
+      ->profile()
+      ->GetCloudPolicyManager()
+      ->core()
+      ->store()
+      ->set_policy_data_for_testing(std::move(policy_data));
+
+  auto client = std::make_unique<policy::MockCloudPolicyClient>();
+  client->SetDMToken(kProfileDmToken);
+  client->SetClientId(kProfileClientId);
+
+  browser()->profile()->GetCloudPolicyManager()->Connect(
+      g_browser_process->local_state(), std::move(client));
 }
 
 void ManagementContextMixinBrowser::SetUpOnMainThread() {
@@ -79,14 +80,6 @@ void ManagementContextMixinBrowser::SetUpOnMainThread() {
   }
 }
 
-void ManagementContextMixinBrowser::SetUpInProcessBrowserTestFixture() {
-  browser_dm_token_storage_ =
-      std::make_unique<policy::FakeBrowserDMTokenStorage>();
-
-  policy::BrowserDMTokenStorage::SetForTesting(browser_dm_token_storage_.get());
-  ManagementContextMixin::SetUpInProcessBrowserTestFixture();
-}
-
 #if !BUILDFLAG(GOOGLE_CHROME_BRANDING)
 void ManagementContextMixinBrowser::SetUpDefaultCommandLine(
     base::CommandLine* command_line) {
@@ -94,15 +87,6 @@ void ManagementContextMixinBrowser::SetUpDefaultCommandLine(
   command_line->AppendSwitch(::switches::kEnableChromeBrowserCloudManagement);
 }
 #endif
-
-void ManagementContextMixinBrowser::ManageCloudMachine() {
-  ManagementContextMixin::ManageCloudMachine();
-  CHECK(browser_dm_token_storage_);
-  browser_dm_token_storage_->SetEnrollmentToken(kEnrollmentToken);
-  browser_dm_token_storage_->SetClientId(kBrowserClientId);
-  browser_dm_token_storage_->EnableStorage(true);
-  browser_dm_token_storage_->SetDMToken(kBrowserDmToken);
-}
 
 void ManagementContextMixinBrowser::SetCloudMachinePolicies(
     base::flat_map<std::string, std::optional<base::Value>> policy_entries) {

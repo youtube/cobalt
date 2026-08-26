@@ -61,10 +61,10 @@ struct RTC_EXPORT AsyncSocketPacketOptions {
   // https://www.rfc-editor.org/rfc/rfc9331.html
   bool ecn_1 = false;
 
-  // When used with RTP packets (for example, webrtc::PacketOptions), the value
+  // When used with RTP packets (for example, PacketOptions), the value
   // should be 16 bits. A value of -1 represents "not set".
   int64_t packet_id = -1;
-  webrtc::PacketTimeUpdateParams packet_time_params;
+  PacketTimeUpdateParams packet_time_params;
   // PacketInfo is passed to SentPacket when signaling this packet is sent.
   PacketInfo info_signaled_after_sent;
   // True if this is a batchable packet. Batchable packets are collected at low
@@ -127,12 +127,11 @@ class RTC_EXPORT AsyncPacketSocket : public sigslot::has_slots<> {
   // Register a callback to be called when the socket is closed.
   void SubscribeCloseEvent(
       const void* removal_tag,
-      std::function<void(webrtc::AsyncPacketSocket*, int)> callback);
+      std::function<void(AsyncPacketSocket*, int)> callback);
   void UnsubscribeCloseEvent(const void* removal_tag);
 
   void RegisterReceivedPacketCallback(
-      absl::AnyInvocable<void(webrtc::AsyncPacketSocket*,
-                              const webrtc::ReceivedIpPacket&)>
+      absl::AnyInvocable<void(AsyncPacketSocket*, const ReceivedIpPacket&)>
           received_packet_callback);
   void DeregisterReceivedPacketCallback();
 
@@ -173,8 +172,7 @@ class RTC_EXPORT AsyncPacketSocket : public sigslot::has_slots<> {
  private:
   CallbackList<AsyncPacketSocket*, int> on_close_
       RTC_GUARDED_BY(&network_checker_);
-  absl::AnyInvocable<void(webrtc::AsyncPacketSocket*,
-                          const webrtc::ReceivedIpPacket&)>
+  absl::AnyInvocable<void(AsyncPacketSocket*, const ReceivedIpPacket&)>
       received_packet_callback_ RTC_GUARDED_BY(&network_checker_);
 };
 
@@ -202,16 +200,5 @@ void CopySocketInformationToPacketInfo(size_t packet_size_bytes,
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::AsyncListenSocket;
-using ::webrtc::AsyncPacketSocket;
-using ::webrtc::CopySocketInformationToPacketInfo;
-using ::webrtc::PacketTimeUpdateParams;
-using PacketOptions = ::webrtc::AsyncSocketPacketOptions;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_ASYNC_PACKET_SOCKET_H_

@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.segmentation_platform;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.os.Handler;
 import android.os.Looper;
 
@@ -16,11 +18,15 @@ import org.chromium.base.Callback;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.CurrentTabObserver;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonController;
+import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonControllerFactory;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonController;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
@@ -29,14 +35,15 @@ import org.chromium.components.segmentation_platform.Constants;
 import org.chromium.components.segmentation_platform.InputContext;
 import org.chromium.components.segmentation_platform.ProcessedValue;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.function.BooleanSupplier;
 
 /**
  * Central class for contextual page actions bridging between UI and backend. Registers itself with
  * segmentation platform for on-demand model execution on page load triggers. Provides updated
  * button data to the toolbar when asked for it.
  */
+@NullMarked
 public class ContextualPageActionController {
     /**
      * The interface to be implemented by the individual feature backends to provide signals
@@ -58,31 +65,33 @@ public class ContextualPageActionController {
          * @param tab The current tab for which the action was shown.
          * @param action Enum value of the action shown.
          */
-        default void onActionShown(Tab tab, @AdaptiveToolbarButtonVariant int action) {}
+        default void onActionShown(@Nullable Tab tab, @AdaptiveToolbarButtonVariant int action) {}
 
         @Override
         default void destroy() {}
     }
 
     private final ObservableSupplier<Profile> mProfileSupplier;
-    private final ObservableSupplier<Tab> mTabSupplier;
+    private final ObservableSupplier<@Nullable Tab> mTabSupplier;
     private final AdaptiveToolbarButtonController mAdaptiveToolbarButtonController;
-    private CurrentTabObserver mCurrentTabObserver;
-    private SignalAccumulator mSignalAccumulator;
+    private @Nullable CurrentTabObserver mCurrentTabObserver;
+    private @Nullable SignalAccumulator mSignalAccumulator;
+    private BooleanSupplier mButtonVisibilitySupplier = () -> true;
 
     // The action provider backends.
-    protected final List<ActionProvider> mActionProviders = new ArrayList<>();
+    protected final HashMap<Integer, ActionProvider> mActionProviders = new HashMap<>();
 
     /**
      * Constructor.
+     *
      * @param profileSupplier The supplier for current profile.
      * @param tabSupplier The supplier of the current tab.
      * @param adaptiveToolbarButtonController The {@link AdaptiveToolbarButtonController} that
-     *         handles the logic to decide between multiple buttons to show.
+     *     handles the logic to decide between multiple buttons to show.
      */
     public ContextualPageActionController(
             ObservableSupplier<Profile> profileSupplier,
-            ObservableSupplier<Tab> tabSupplier,
+            ObservableSupplier<@Nullable Tab> tabSupplier,
             AdaptiveToolbarButtonController adaptiveToolbarButtonController,
             Supplier<ShoppingService> shoppingServiceSupplier,
             Supplier<BookmarkModel> bookmarkModelSupplier) {
@@ -119,17 +128,50 @@ public class ContextualPageActionController {
                 });
     }
 
+    /**
+     * Sets a boolean supplier that tells us if the contextual page action button is visible in the
+     * UI, used to handle cases such as the button being hidden because of screen width or other
+     * buttons.
+     *
+     * @param buttonVisibilitySupplier The boolean supplier of the button visibility.
+     */
+    public void setButtonVisibilitySupplier(BooleanSupplier buttonVisibilitySupplier) {
+        mButtonVisibilitySupplier = buttonVisibilitySupplier;
+    }
+
     @VisibleForTesting
     protected void initActionProviders(
             Supplier<ShoppingService> shoppingServiceSupplier,
             Supplier<BookmarkModel> bookmarkModelSupplier) {
         removeProviders();
-        mActionProviders.add(
+        mActionProviders.put(
+                AdaptiveToolbarButtonVariant.PRICE_TRACKING,
                 new PriceTrackingActionProvider(shoppingServiceSupplier, bookmarkModelSupplier));
-        mActionProviders.add(new ReaderModeActionProvider());
-        mActionProviders.add(new PriceInsightsActionProvider(shoppingServiceSupplier));
+        mActionProviders.put(
+                AdaptiveToolbarButtonVariant.READER_MODE,
+                new ReaderModeActionProvider(mButtonVisibilitySupplier));
+        mActionProviders.put(
+                AdaptiveToolbarButtonVariant.PRICE_INSIGHTS,
+                new PriceInsightsActionProvider(shoppingServiceSupplier));
         if (AdaptiveToolbarFeatures.isDiscountsPageActionEnabled()) {
-            mActionProviders.add(new DiscountsActionProvider(shoppingServiceSupplier));
+            mActionProviders.put(
+                    AdaptiveToolbarButtonVariant.DISCOUNTS,
+                    new DiscountsActionProvider(shoppingServiceSupplier));
+        }
+        if (AdaptiveToolbarFeatures.isTabGroupingPageActionEnabled()) {
+            Supplier<@Nullable GroupSuggestionsButtonController>
+                    groupSuggestionButtonControllerSupplier =
+                            () -> {
+                                if (!mProfileSupplier.hasValue()
+                                        || mProfileSupplier.get().isOffTheRecord()) {
+                                    return null;
+                                }
+                                return GroupSuggestionsButtonControllerFactory.getForProfile(
+                                        mProfileSupplier.get());
+                            };
+            mActionProviders.put(
+                    AdaptiveToolbarButtonVariant.TAB_GROUPING,
+                    new TabGroupingActionProvider(groupSuggestionButtonControllerSupplier));
         }
     }
 
@@ -147,17 +189,19 @@ public class ContextualPageActionController {
      *     false.
      */
     public boolean hasPriceInsights() {
-        return mSignalAccumulator == null ? false : mSignalAccumulator.hasPriceInsights();
+        return mSignalAccumulator == null
+                ? false
+                : mSignalAccumulator.getSignal(AdaptiveToolbarButtonVariant.PRICE_INSIGHTS);
     }
 
     private void removeProviders() {
-        for (ActionProvider provider : mActionProviders) {
+        for (ActionProvider provider : mActionProviders.values()) {
             provider.destroy();
         }
         mActionProviders.clear();
     }
 
-    private void activeTabChanged(Tab tab) {
+    private void activeTabChanged(@Nullable Tab tab) {
         // If the tab is loading or if it's going to load later then we'll also get a call to
         // onPageLoadFinished.
         if (tab != null && !tab.isLoading() && !tab.isFrozen()) {
@@ -186,18 +230,37 @@ public class ContextualPageActionController {
         Tab tab = getValidActiveTab();
         if (tab == null) return;
         InputContext inputContext = new InputContext();
+        assumeNonNull(mSignalAccumulator);
         inputContext.addEntry(
                 Constants.CONTEXTUAL_PAGE_ACTIONS_PRICE_TRACKING_INPUT,
-                ProcessedValue.fromFloat(mSignalAccumulator.hasPriceTracking() ? 1.0f : 0.0f));
+                ProcessedValue.fromFloat(
+                        mSignalAccumulator.getSignal(AdaptiveToolbarButtonVariant.PRICE_TRACKING)
+                                ? 1.0f
+                                : 0.0f));
         inputContext.addEntry(
                 Constants.CONTEXTUAL_PAGE_ACTIONS_READER_MODE_INPUT,
-                ProcessedValue.fromFloat(mSignalAccumulator.hasReaderMode() ? 1.0f : 0.0f));
+                ProcessedValue.fromFloat(
+                        mSignalAccumulator.getSignal(AdaptiveToolbarButtonVariant.READER_MODE)
+                                ? 1.0f
+                                : 0.0f));
         inputContext.addEntry(
                 Constants.CONTEXTUAL_PAGE_ACTIONS_PRICE_INSIGHTS_INPUT,
-                ProcessedValue.fromFloat(mSignalAccumulator.hasPriceInsights() ? 1.0f : 0.0f));
+                ProcessedValue.fromFloat(
+                        mSignalAccumulator.getSignal(AdaptiveToolbarButtonVariant.PRICE_INSIGHTS)
+                                ? 1.0f
+                                : 0.0f));
         inputContext.addEntry(
                 Constants.CONTEXTUAL_PAGE_ACTIONS_DISCOUNTS_INPUT,
-                ProcessedValue.fromFloat(mSignalAccumulator.hasDiscounts() ? 1.0f : 0.0f));
+                ProcessedValue.fromFloat(
+                        mSignalAccumulator.getSignal(AdaptiveToolbarButtonVariant.DISCOUNTS)
+                                ? 1.0f
+                                : 0.0f));
+        inputContext.addEntry(
+                Constants.CONTEXTUAL_PAGE_ACTIONS_TAB_GROPING_INPUT,
+                ProcessedValue.fromFloat(
+                        mSignalAccumulator.getSignal(AdaptiveToolbarButtonVariant.TAB_GROUPING)
+                                ? 1.0f
+                                : 0.0f));
         inputContext.addEntry("url", ProcessedValue.fromGURL(tab.getUrl()));
 
         ContextualPageActionControllerJni.get()
@@ -217,7 +280,7 @@ public class ContextualPageActionController {
     }
 
     private void showDynamicAction(@AdaptiveToolbarButtonVariant int action) {
-        for (ActionProvider actionProvider : mActionProviders) {
+        for (ActionProvider actionProvider : mActionProviders.values()) {
             actionProvider.onActionShown(mTabSupplier.get(), action);
         }
 
@@ -226,7 +289,7 @@ public class ContextualPageActionController {
     }
 
     /** @return The active regular tab. Null for incognito. */
-    private Tab getValidActiveTab() {
+    private @Nullable Tab getValidActiveTab() {
         if (mProfileSupplier == null || mProfileSupplier.get().isOffTheRecord()) return null;
         Tab tab = mTabSupplier.get();
         if (tab == null || tab.isIncognito() || tab.isDestroyed()) return null;

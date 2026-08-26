@@ -8,6 +8,7 @@
 #import <Cocoa/Cocoa.h>
 #include <CoreFoundation/CoreFoundation.h>
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -17,6 +18,7 @@
 #include "base/functional/callback.h"
 #include "base/lazy_instance.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/strings/sys_string_conversions.h"
 #include "components/crash/core/common/crash_key.h"
 #import "components/remote_cocoa/app_shim/bridged_content_view.h"
@@ -236,6 +238,16 @@ bool NativeWidgetMac::ExecuteCommand(
   return false;
 }
 
+gfx::NativeViewAccessible NativeWidgetMac::GetNativeViewAccessibleForNSView()
+    const {
+  return ns_window_host_->GetNativeViewAccessibleForNSView();
+}
+
+gfx::NativeViewAccessible NativeWidgetMac::GetNativeViewAccessibleForNSWindow()
+    const {
+  return ns_window_host_->GetNativeViewAccessibleForNSWindow();
+}
+
 void NativeWidgetMac::InitNativeWidget(Widget::InitParams params) {
   ownership_ = params.ownership;
   if (ownership_ == Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET) {
@@ -301,9 +313,21 @@ void NativeWidgetMac::InitNativeWidget(Widget::InitParams params) {
 
   DCHECK(GetWidget()->GetRootView());
   ns_window_host_->SetRootView(GetWidget()->GetRootView());
+
+  std::optional<int> corner_radius;
+  if (params.rounded_corners) {
+    CHECK_EQ(params.rounded_corners->upper_left(),
+             params.rounded_corners->upper_right());
+    CHECK_EQ(params.rounded_corners->upper_left(),
+             params.rounded_corners->lower_left());
+    CHECK_EQ(params.rounded_corners->lower_left(),
+             params.rounded_corners->lower_right());
+    corner_radius = params.rounded_corners->upper_left();
+  }
+
   GetNSWindowMojo()->CreateContentView(ns_window_host_->GetRootViewNSViewId(),
                                        GetWidget()->GetRootView()->bounds(),
-                                       params.corner_radius);
+                                       corner_radius);
   if (auto* focus_manager = GetWidget()->GetFocusManager()) {
     GetNSWindowMojo()->MakeFirstResponder();
     // Only one ZoomFocusMonitor is needed per FocusManager, so create one only
@@ -372,7 +396,8 @@ void NativeWidgetMac::ReparentNativeViewImpl(gfx::NativeView new_parent) {
 
 std::unique_ptr<NonClientFrameView>
 NativeWidgetMac::CreateNonClientFrameView() {
-  return GetWidget() ? std::make_unique<NativeFrameViewMac>(GetWidget())
+  return GetWidget() ? std::make_unique<NativeFrameViewMac>(GetWidget(),
+                                                            /*client=*/nullptr)
                      : nullptr;
 }
 
@@ -549,7 +574,9 @@ void NativeWidgetMac::InitModalType(ui::mojom::ModalType modal_type) {
   // Everything happens upon show.
 }
 
-void NativeWidgetMac::OnWidgetThemeChanged(ui::ColorProviderKey::ColorMode color_mode) {
+void NativeWidgetMac::OnWidgetThemeChanged(
+    ui::ColorProviderKey::ColorMode color_mode,
+    std::optional<SkColor> background_color) {
   if (ns_window_host_) {
     ns_window_host_->SetColorMode(color_mode);
   }
@@ -1063,6 +1090,10 @@ bool NativeWidgetMac::AreScreenshotsAllowed() {
   return true;
 }
 
+bool NativeWidgetMac::IsDesktopNativeWidget() const {
+  return true;
+}
+
 std::string NativeWidgetMac::GetName() const {
   return name_;
 }
@@ -1164,6 +1195,7 @@ void NativeWidgetMac::OnFocusManagerDestroying(FocusManager* focus_manager) {
   // parent's focus manager. However, this is not happening for unknown reasons.
   CHECK_EQ(focus_manager, focus_manager_);
   focus_manager->RemoveFocusChangeListener(this);
+  focus_manager_ = nullptr;
 }
 
 ui::EventDispatchDetails NativeWidgetMac::DispatchKeyEventPostIME(

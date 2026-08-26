@@ -81,6 +81,7 @@ constexpr auto kKnownSettings = base::MakeFixedFlatSet<std::string_view>({
     kDeviceActivityHeartbeatCollectionRateMs,
     kDeviceActivityHeartbeatEnabled,
     kDeviceAllowedBluetoothServices,
+    kDeviceBluetoothJustWorksPairingEnabled,
     kDeviceAutoUpdateTimeRestrictions,
     kDeviceCrostiniArcAdbSideloadingAllowed,
     kDeviceDisabled,
@@ -117,6 +118,7 @@ constexpr auto kKnownSettings = base::MakeFixedFlatSet<std::string_view>({
     kDeviceSecondFactorAuthenticationMode,
     kDeviceUnaffiliatedCrostiniAllowed,
     kDeviceUserInitiatedFirmwareUpdatesEnabled,
+    kDeviceUserInitiatedFlexSystemFirmwareUpdatesEnabled,
     kDeviceWebBasedAttestationAllowedUrls,
     kDeviceWiFiAllowed,
     kDisplayRotationDefault,
@@ -1307,6 +1309,13 @@ void DecodeGenericPolicies(const em::ChromeDeviceSettingsProto& policy,
     new_values_cache->SetValue(kDeviceAllowedBluetoothServices,
                                base::Value(std::move(list)));
   }
+  if (policy.has_devicebluetoothjustworkspairingenabled()) {
+    base::Value::List list;
+    const em::BooleanPolicyProto& container(
+        policy.devicebluetoothjustworkspairingenabled());
+    new_values_cache->SetValue(kDeviceBluetoothJustWorksPairingEnabled,
+                               base::Value(container.value()));
+  }
 
   if (policy.has_device_scheduled_reboot()) {
     const em::DeviceScheduledRebootProto& scheduled_reboot_policy =
@@ -1368,6 +1377,16 @@ void DecodeGenericPolicies(const em::ChromeDeviceSettingsProto& policy,
     if (container.has_value()) {
       new_values_cache->SetValue(kDeviceUserInitiatedFirmwareUpdatesEnabled,
                                  base::Value(container.value()));
+    }
+  }
+
+  if (policy.has_deviceuserinitiatedflexsystemfirmwareupdatesenabled()) {
+    const em::BooleanPolicyProto& container(
+        policy.deviceuserinitiatedflexsystemfirmwareupdatesenabled());
+    if (container.has_value()) {
+      new_values_cache->SetValue(
+          kDeviceUserInitiatedFlexSystemFirmwareUpdatesEnabled,
+          base::Value(container.value()));
     }
   }
 

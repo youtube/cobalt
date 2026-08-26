@@ -12,7 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-@import "theme";
+@import "../theme";
+
+@mixin intent_color($color) {
+  color: $color;
+  border-color: lighten($color, 30%);
+  background: lighten($color, 50%);
+}
 
 .pf-callout {
   display: flex;
@@ -29,5 +35,21 @@
     font-size: inherit;
     margin-right: 6px;
     align-items: baseline;
+  }
+
+  &.pf-intent-primary {
+    @include intent_color($color-primary);
+  }
+
+  &.pf-intent-danger {
+    @include intent_color($color-danger);
+  }
+
+  &.pf-intent-success {
+    @include intent_color($color-success);
+  }
+
+  &.pf-intent-warning {
+    @include intent_color($color-warning);
   }
 }

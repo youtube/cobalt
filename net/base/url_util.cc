@@ -187,7 +187,9 @@ bool GetValueForKeyInQuery(const GURL& url,
                            std::string* out_value) {
   for (QueryIterator it(url); !it.IsAtEnd(); it.Advance()) {
     if (it.GetKey() == search_key) {
-      *out_value = it.GetUnescapedValue();
+      if (out_value) {
+        *out_value = it.GetUnescapedValue();
+      }
       return true;
     }
   }
@@ -501,8 +503,7 @@ bool IsStandardSchemeWithNetworkHost(std::string_view scheme) {
     return true;
 
   url::SchemeType scheme_type;
-  if (!url::GetStandardSchemeType(
-          scheme.data(), url::Component(0, scheme.length()), &scheme_type)) {
+  if (!url::GetStandardSchemeType(scheme, &scheme_type)) {
     return false;
   }
   return scheme_type == url::SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION ||

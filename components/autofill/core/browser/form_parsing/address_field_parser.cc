@@ -103,11 +103,11 @@ std::unique_ptr<FormFieldParser> AddressFieldParser::Parse(
   if (address_field->company_ || address_field->address1_ ||
       address_field->address2_ || address_field->address3_ ||
       address_field->street_address_ || address_field->city_ ||
-      address_field->state_ || address_field->zip_ || address_field->zip4_ ||
-      address_field->street_name_ || address_field->house_number_ ||
-      address_field->country_ || address_field->apartment_number_ ||
-      address_field->dependent_locality_ || address_field->landmark_ ||
-      address_field->between_streets_ ||
+      address_field->state_ || address_field->zip_ ||
+      address_field->zip_suffix_ || address_field->street_name_ ||
+      address_field->house_number_ || address_field->country_ ||
+      address_field->apartment_number_ || address_field->dependent_locality_ ||
+      address_field->landmark_ || address_field->between_streets_ ||
       address_field->between_streets_line_1_ ||
       address_field->between_streets_line_2_ || address_field->admin_level2_ ||
       address_field->between_streets_or_landmark_ ||
@@ -142,6 +142,9 @@ std::unique_ptr<FormFieldParser> AddressFieldParser::ParseStandaloneZip(
   size_t saved_cursor = scanner->SaveCursor();
 
   address_field->ParseZipCode(context, scanner);
+  if (base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode)) {
+    address_field->ParseZipCodeSuffix(context, scanner);
+  }
   if (address_field->zip_) {
     return std::move(address_field);
   }
@@ -182,6 +185,10 @@ void AddressFieldParser::AddClassifications(
                     field_candidates);
   AddClassification(zip_, ADDRESS_HOME_ZIP, kBaseAddressParserScore,
                     field_candidates);
+  if (base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode)) {
+    AddClassification(zip_suffix_, ADDRESS_HOME_ZIP_SUFFIX,
+                      kBaseAddressParserScore, field_candidates);
+  }
   AddClassification(country_, ADDRESS_HOME_COUNTRY, kBaseAddressParserScore,
                     field_candidates);
   AddClassification(house_number_, ADDRESS_HOME_HOUSE_NUMBER,
@@ -265,7 +272,7 @@ bool AddressFieldParser::ParseAddressFieldSequence(ParsingContext& context,
       between_streets_line_2_;
   std::optional<FieldAndMatchInfo> old_house_number = house_number_;
   std::optional<FieldAndMatchInfo> old_zip = zip_;
-  std::optional<FieldAndMatchInfo> old_zip4 = zip4_;
+  std::optional<FieldAndMatchInfo> old_zip_suffix = zip_suffix_;
   std::optional<FieldAndMatchInfo> old_apartment_number = apartment_number_;
   std::optional<FieldAndMatchInfo> old_house_number_and_apt_ =
       house_number_and_apt_;
@@ -291,6 +298,11 @@ bool AddressFieldParser::ParseAddressFieldSequence(ParsingContext& context,
     }
 
     if (ParseZipCode(context, scanner)) {
+      continue;
+    }
+
+    if (base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode) &&
+        ParseZipCodeSuffix(context, scanner)) {
       continue;
     }
 
@@ -360,7 +372,7 @@ bool AddressFieldParser::ParseAddressFieldSequence(ParsingContext& context,
   between_streets_line_1_ = old_between_streets_line_1;
   between_streets_line_2_ = old_between_streets_line_2;
   zip_ = old_zip;
-  zip4_ = old_zip4;
+  zip_suffix_ = old_zip_suffix;
   apartment_number_ = old_apartment_number;
   house_number_and_apt_ = old_house_number_and_apt_;
   dependent_locality_ = old_dependent_locality;
@@ -448,8 +460,7 @@ bool AddressFieldParser::ParseHouseNumAptNumStreetNameSequence(
   // TODO(crbug.com/383972664) Extend to other countries where prioritizing
   // house number is beneficial.
   // Currently, we only support this sequence in NL.
-  if (context.client_country != GeoIpCountryCode("NL") ||
-      !base::FeatureList::IsEnabled(features::kAutofillUseNLAddressModel)) {
+  if (context.client_country != GeoIpCountryCode("NL")) {
     return false;
   }
 
@@ -498,10 +509,23 @@ bool AddressFieldParser::ParseZipCode(ParsingContext& context,
     return false;
   }
 
-  // Look for a zip+4, whose field name will also often contain
-  // the substring "zip".
-  ParseField(context, scanner, "ZIP_4", &zip4_);
+  if (!base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode)) {
+    // Look for a zip suffix, whose field name will also often contain
+    // the substring "zip". If kAutofillSupportSplitZipCode is enabled, other
+    // code paths take care of the zip code suffix.
+    ParseField(context, scanner, "ZIP_4", &zip_suffix_);
+  }
+
   return true;
+}
+
+bool AddressFieldParser::ParseZipCodeSuffix(ParsingContext& context,
+                                            AutofillScanner* scanner) {
+  if (!zip_ || zip_suffix_) {
+    return false;
+  }
+
+  return ParseField(context, scanner, "ZIP_4", &zip_suffix_);
 }
 
 bool AddressFieldParser::ParseCity(ParsingContext& context,
@@ -782,11 +806,18 @@ bool AddressFieldParser::ParseAddressField(ParsingContext& context,
   if (zip_result == RESULT_MATCH_NAME_LABEL) {
     return true;
   }
+  ParseNameLabelResult zip_suffix_result = RESULT_MATCH_NONE;
+  if (base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode)) {
+    zip_suffix_result = ParseNameAndLabelForZipCodeSuffix(context, scanner);
+    if (zip_suffix_result == RESULT_MATCH_NAME_LABEL) {
+      return true;
+    }
+  }
 
   int num_of_matches = 0;
   for (const auto result :
        {dependent_locality_result, city_result, state_result, country_result,
-        zip_result, landmark_result, between_streets_result,
+        zip_result, zip_suffix_result, landmark_result, between_streets_result,
         between_street_lines12_result, admin_level2_result,
         between_streets_or_landmark_result, overflow_and_landmark_result,
         overflow_result, street_location_result}) {
@@ -842,8 +873,17 @@ bool AddressFieldParser::ParseAddressField(ParsingContext& context,
       return SetFieldAndAdvanceCursor(scanner, admin_level2_result,
                                       &admin_level2_);
     }
-    if (zip_result != RESULT_MATCH_NONE)
-      return ParseZipCode(context, scanner);
+    if (zip_result != RESULT_MATCH_NONE) {
+      if (base::FeatureList::IsEnabled(
+              features::kAutofillSupportSplitZipCode)) {
+        return SetFieldAndAdvanceCursor(scanner, zip_result, &zip_);
+      } else {
+        return ParseZipCode(context, scanner);
+      }
+    }
+    if (zip_suffix_result != RESULT_MATCH_NONE) {
+      return SetFieldAndAdvanceCursor(scanner, zip_suffix_result, &zip_suffix_);
+    }
   }
 
   // If there is a clash between the country and the state, set the type of
@@ -919,8 +959,17 @@ bool AddressFieldParser::ParseAddressField(ParsingContext& context,
       return SetFieldAndAdvanceCursor(scanner, admin_level2_result,
                                       &admin_level2_);
     }
-    if (zip_result == result)
-      return ParseZipCode(context, scanner);
+    if (zip_result == result) {
+      if (base::FeatureList::IsEnabled(
+              features::kAutofillSupportSplitZipCode)) {
+        return SetFieldAndAdvanceCursor(scanner, zip_result, &zip_);
+      } else {
+        return ParseZipCode(context, scanner);
+      }
+    }
+    if (zip_suffix_result == result) {
+      return SetFieldAndAdvanceCursor(scanner, zip_suffix_result, &zip_suffix_);
+    }
   }
 
   return false;
@@ -929,33 +978,71 @@ bool AddressFieldParser::ParseAddressField(ParsingContext& context,
 AddressFieldParser::ParseNameLabelResult
 AddressFieldParser::ParseNameAndLabelForZipCode(ParsingContext& context,
                                                 AutofillScanner* scanner) {
-  if (zip_)
+  if (zip_) {
     return RESULT_MATCH_NONE;
+  }
 
   ParseNameLabelResult result =
       ParseNameAndLabelSeparately(context, scanner, "ZIP_CODE", &zip_);
 
-  if (result != RESULT_MATCH_NAME_LABEL || scanner->IsEnd())
+  // If kAutofillSupportSplitZipCode is enabled,
+  // ParseNameAndLabelForZipCodeSuffix takes care of the zip code suffix.
+  if (result != RESULT_MATCH_NAME_LABEL || scanner->IsEnd() ||
+      base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode)) {
     return result;
+  }
 
   size_t saved_cursor = scanner->SaveCursor();
-  bool found_non_zip4 = ParseCity(context, scanner);
-  if (found_non_zip4) {
+  bool found_non_zip_suffix = ParseCity(context, scanner);
+  if (found_non_zip_suffix) {
     city_.reset();
   }
   scanner->RewindTo(saved_cursor);
-  if (!found_non_zip4) {
-    found_non_zip4 = ParseState(context, scanner);
-    if (found_non_zip4) {
+  if (!found_non_zip_suffix) {
+    found_non_zip_suffix = ParseState(context, scanner);
+    if (found_non_zip_suffix) {
       state_.reset();
     }
     scanner->RewindTo(saved_cursor);
   }
 
-  if (!found_non_zip4) {
-    // Look for a zip+4, whose field name will also often contain
+  if (!found_non_zip_suffix) {
+    // Look for a zip suffix, whose field name will also often contain
     // the substring "zip".
-    ParseField(context, scanner, "ZIP_4", &zip4_);
+    ParseField(context, scanner, "ZIP_4", &zip_suffix_);
+  }
+  return result;
+}
+
+AddressFieldParser::ParseNameLabelResult
+AddressFieldParser::ParseNameAndLabelForZipCodeSuffix(
+    ParsingContext& context,
+    AutofillScanner* scanner) {
+  if (!zip_ || zip_suffix_) {
+    return RESULT_MATCH_NONE;
+  }
+
+  ParseNameLabelResult result =
+      ParseNameAndLabelSeparately(context, scanner, "ZIP_4", &zip_suffix_);
+
+  if (result == RESULT_MATCH_NAME_LABEL || result == RESULT_MATCH_NONE) {
+    return result;
+  }
+
+  // At this point either the name or the label matched the ZIP_4 regex but not
+  // both.
+  std::optional<FieldAndMatchInfo> zip;
+  size_t saved_cursor = scanner->SaveCursor();
+  ParseNameLabelResult result_extended =
+      ParseNameAndLabelSeparately(context, scanner, "ZIP_CODE", &zip);
+  scanner->RewindTo(saved_cursor);
+
+  // If at least one field attribute matched the ZIP_4 regex and both the label
+  // and name matched the ZIP_CODE regex, there is a high chance that this is a
+  // zip suffix field.
+  if (result_extended == RESULT_MATCH_NAME_LABEL) {
+    SetFieldAndAdvanceCursor(scanner, RESULT_MATCH_NAME_LABEL, &zip_suffix_);
+    return RESULT_MATCH_NAME_LABEL;
   }
   return result;
 }
@@ -1187,9 +1274,10 @@ bool AddressFieldParser::PossiblyAStructuredAddressForm(
   // Record success if the house number and at least one of the other
   // fields were found because that indicates a structured address form.
   if (house_number_ &&
-      (street_name_ || zip_ || overflow_ || overflow_and_landmark_ ||
-       between_streets_or_landmark_ || apartment_number_ || between_streets_ ||
-       between_streets_line_1_ || between_streets_line_2_)) {
+      (street_name_ || zip_ || zip_suffix_ || overflow_ ||
+       overflow_and_landmark_ || between_streets_or_landmark_ ||
+       apartment_number_ || between_streets_ || between_streets_line_1_ ||
+       between_streets_line_2_)) {
     return true;
   }
 

@@ -19,7 +19,7 @@ generate_jni("jni_headers") {
 }
 
 java_cpp_enum("java_enum_srcjar") {
-  sources = [ "//chrome/browser/ui/safety_hub/revoked_permissions_service.h" ]
+  sources = [ "//chrome/browser/ui/safety_hub/revoked_permissions_result.h" ]
 }
 
 android_library("java") {
@@ -43,7 +43,6 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubFragment.java",
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubHatsBridge.java",
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubHatsHelper.java",
-    "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubLocalPasswordsCheckingModuleHelper.java",
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubLocalPasswordsDataSource.java",
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubLocalPasswordsModuleMediator.java",
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubMagicStackBuilder.java",
@@ -65,6 +64,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubNotificationsFragment.java",
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubNotificationsModuleMediator.java",
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubNotificationsPreference.java",
+    "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubPasswordsCheckingModuleHelper.java",
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubPasswordsFetchService.java",
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubPasswordsModuleMediator.java",
     "java/src/org/chromium/chrome/browser/safety_hub/SafetyHubPermissionsFragment.java",
@@ -207,6 +207,7 @@ robolectric_library("junit") {
     "//components/user_prefs/android:java",
     "//content/public/android:content_full_java",
     "//content/public/test/android:content_java_test_support",
+    "//google_apis/gaia/android:java",
     "//third_party/android_deps:espresso_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_preference_preference_java",
@@ -214,7 +215,7 @@ robolectric_library("junit") {
     "//third_party/hamcrest:hamcrest_core_java",
     "//third_party/hamcrest:hamcrest_library_java",
     "//third_party/jni_zero:jni_zero_java",
-    "//third_party/junit:junit",
+    "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java",
     "//ui/android:ui_java_test_support",
@@ -254,6 +255,7 @@ android_library("javatests") {
     "//chrome/browser/tabmodel:java",
     "//chrome/test/android:chrome_java_integration_test_support",
     "//chrome/test/android:chrome_java_test_support_common",
+    "//chrome/test/android:chrome_java_transit",
     "//components/browser_ui/notifications/android:java",
     "//components/browser_ui/notifications/android:test_support_java",
     "//components/browser_ui/notifications/android:utils_java",
@@ -272,7 +274,7 @@ android_library("javatests") {
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_java",
     "//third_party/jni_zero:jni_zero_java",
-    "//third_party/junit:junit",
+    "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java_test_support",
     "//ui/android:ui_no_recycler_view_java",
@@ -300,7 +302,7 @@ source_set("android") {
     "//chrome/browser/ui/hats",
     "//chrome/common:constants",
     "//components/content_settings/core/common",
-    "//components/page_info:page_info",
+    "//components/page_info",
     "//components/pref_registry",
     "//components/prefs",
   ]
@@ -317,7 +319,7 @@ source_set("unit_tests") {
     ":android",
     "//base/test:test_support",
     "//chrome/browser/content_settings:content_settings_factory",
-    "//chrome/browser/permissions:permissions",
+    "//chrome/browser/permissions",
     "//chrome/browser/ui",
     "//chrome/browser/ui/safety_hub",
     "//chrome/browser/ui/safety_hub:test_support",
@@ -327,6 +329,10 @@ source_set("unit_tests") {
     "//components/permissions:permissions_common",
     "//content/test:test_support",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 android_resources("java_resources") {

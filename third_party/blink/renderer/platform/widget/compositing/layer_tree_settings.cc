@@ -20,7 +20,6 @@
 #include "cc/trees/layer_tree_settings.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/switches.h"
-#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "media/base/media_switches.h"
 #include "third_party/blink/public/common/features.h"
@@ -169,11 +168,11 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   // If the value was overridden on the command line, use the specified value.
   static bool client_hard_limit_bytes_overridden =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
-          ::switches::kForceGpuMemAvailableMb);
+          switches::kForceGpuMemAvailableMb);
   if (client_hard_limit_bytes_overridden) {
     if (base::StringToSizeT(
             base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-                ::switches::kForceGpuMemAvailableMb),
+                switches::kForceGpuMemAvailableMb),
             &actual.bytes_limit_when_visible)) {
       actual.bytes_limit_when_visible *= 1024 * 1024;
     }
@@ -494,9 +493,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     settings.max_memory_for_prepaint_percentage = 50;
   }
 
-  // TODO(danakj): Only do this on low end devices.
-  settings.create_low_res_tiling = true;
-
 #else   // BUILDFLAG(IS_ANDROID)
   const bool using_low_memory_policy = base::SysInfo::IsLowEndDevice();
 
@@ -532,6 +528,12 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   settings.decoded_image_working_set_budget_bytes =
       cc::ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
           /*for_renderer=*/true);
+#if BUILDFLAG(IS_COBALT)
+  settings.decoded_image_persistent_cache_budget_count =
+      cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetCount();
+  settings.decoded_image_persistent_cache_budget_bytes =
+      cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes();
+#endif
 
   if (using_low_memory_policy) {
     // RGBA_4444 textures are only enabled:
@@ -557,11 +559,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
       settings.max_gpu_raster_tile_size = gfx::Size(512, 256);
     }
   }
-
-  if (cmd.HasSwitch(switches::kEnableLowResTiling))
-    settings.create_low_res_tiling = true;
-  if (cmd.HasSwitch(switches::kDisableLowResTiling))
-    settings.create_low_res_tiling = false;
 
   if (cmd.HasSwitch(switches::kEnableRGBA4444Textures) &&
       !cmd.HasSwitch(switches::kDisableRGBA4444Textures)) {

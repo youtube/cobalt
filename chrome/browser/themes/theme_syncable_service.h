@@ -99,11 +99,14 @@ class ThemeSyncableService final : public syncer::SyncableService,
       std::unique_ptr<syncer::SyncChangeProcessor> sync_processor) override;
   void StopSyncing(syncer::DataType type) override;
   void OnBrowserShutdown(syncer::DataType type) override;
+  void StayStoppedAndMaybeClearData(syncer::DataType type) override;
   syncer::SyncDataList GetAllSyncDataForTesting(syncer::DataType type) const;
   std::optional<syncer::ModelError> ProcessSyncChanges(
       const base::Location& from_here,
       const syncer::SyncChangeList& change_list) override;
   base::WeakPtr<SyncableService> AsWeakPtr() override;
+  std::string GetClientTag(
+      const syncer::EntityData& entity_data) const override;
 
   // Returns a ThemeSpecifics based on the currently applied theme.
   sync_pb::ThemeSpecifics GetThemeSpecificsFromCurrentThemeForTesting() const;

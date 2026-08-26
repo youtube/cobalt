@@ -8,9 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stdint.h>
-
 #include <atomic>
+#include <cstdint>
 #include <cstdlib>
 #include <iterator>
 #include <memory>
@@ -63,6 +62,7 @@ namespace {
 using ::testing::Eq;
 using ::testing::IsTrue;
 using ::testing::Ne;
+using ::testing::NotNull;
 using ::testing::ValuesIn;
 
 // All tests in this file require SCTP support.
@@ -74,6 +74,13 @@ using ::testing::ValuesIn;
 #else
 #define DISABLED_ON_ANDROID(t) t
 #endif
+
+void VerifySctpState(PeerConnectionIntegrationWrapper* pc,
+                     SctpTransportState expected_state) {
+  auto sctp_transport = pc->pc()->GetSctpTransport();
+  ASSERT_TRUE(sctp_transport);
+  EXPECT_EQ(sctp_transport->Information().state(), expected_state);
+}
 
 class DataChannelIntegrationTest
     : public PeerConnectionIntegrationBaseTest,
@@ -950,7 +957,7 @@ TEST_P(DataChannelIntegrationTest, SctpDataChannelToAudioVideoUpgrade) {
   ASSERT_TRUE(ExpectNewFrames(media_expectations));
 }
 
-static void MakeSpecCompliantSctpOffer(
+void MakeSpecCompliantSctpOffer(
     std::unique_ptr<SessionDescriptionInterface>& desc) {
   SctpDataContentDescription* dcd_offer =
       GetFirstSctpDataContentDescription(desc->description());
@@ -1383,6 +1390,94 @@ TEST_P(DataChannelIntegrationTest,
             callee()->data_observer()->received_message_count());
 }
 
+TEST_P(DataChannelIntegrationTest, ChangingSctpPortIsNotAllowed) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->CreateDataChannel();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
+              IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
+      IsRtcOk());
+
+  std::unique_ptr<SessionDescriptionInterface> answer;
+  caller()->SetReceivedSdpMunger(
+      [&answer](std::unique_ptr<SessionDescriptionInterface>& desc) {
+        // Change the SCTP port.
+        ContentInfo* sctp_content = GetFirstDataContent(desc->description());
+        ASSERT_TRUE(sctp_content);
+        auto sctp_description = sctp_content->media_description()->as_sctp();
+        ASSERT_TRUE(sctp_description);
+        sctp_description->set_port(sctp_description->port() + 1);
+
+        // Capture and suppress the answer.
+        answer.reset(desc.release());
+      });
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(answer, NotNull());
+
+  // Currently SRD succeeds.
+  EXPECT_TRUE(caller()->SetRemoteDescription(std::move(answer)));
+  // Check the state of the SCTP transport.
+  VerifySctpState(caller(), SctpTransportState::kClosed);
+}
+
+TEST_P(DataChannelIntegrationTest, ChangingSctpPortIsAllowedWithDtlsRestart) {
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignaling();
+  caller()->CreateDataChannel();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return callee()->data_channel(); }, Ne(nullptr)),
+              IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return caller()->data_observer()->IsOpen(); }, IsTrue()),
+      IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return callee()->data_observer()->IsOpen(); }, IsTrue()),
+      IsRtcOk());
+
+  // Recreate the second peerconnection.
+  PeerConnectionDependencies dependencies(nullptr);
+  std::unique_ptr<FakeRTCCertificateGenerator> cert_generator(
+      new FakeRTCCertificateGenerator());
+  cert_generator->use_alternate_key();
+  dependencies.cert_generator = std::move(cert_generator);
+  SetCalleePcWrapperAndReturnCurrent(CreatePeerConnectionWrapper(
+      "Callee2", nullptr, {}, std::move(dependencies), nullptr,
+      /*reset_encoder_factory=*/false,
+      /*reset_decoder_factory=*/false,
+      /*create_media_engine=*/false));
+  ConnectFakeSignaling();
+
+  std::unique_ptr<SessionDescriptionInterface> answer;
+  caller()->SetReceivedSdpMunger(
+      [&answer](std::unique_ptr<SessionDescriptionInterface>& desc) {
+        // Change the SCTP port.
+        ContentInfo* sctp_content = GetFirstDataContent(desc->description());
+        ASSERT_TRUE(sctp_content);
+        auto sctp_description = sctp_content->media_description()->as_sctp();
+        ASSERT_TRUE(sctp_description);
+        sctp_description->set_port(sctp_description->port() + 1);
+
+        // Capture and suppress the answer.
+        answer.reset(desc.release());
+      });
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(answer, NotNull());
+
+  EXPECT_TRUE(caller()->SetRemoteDescription(std::move(answer)));
+  // Check the state of the SCTP transport.
+  VerifySctpState(caller(), SctpTransportState::kConnected);
+}
+
 INSTANTIATE_TEST_SUITE_P(DataChannelIntegrationTest,
                          DataChannelIntegrationTest,
                          Combine(Values(SdpSemantics::kPlanB_DEPRECATED,
@@ -1626,19 +1721,22 @@ class DataChannelIntegrationTestUnifiedPlanFieldTrials
 
   const char* CheckSupported() {
     const bool callee_active = std::get<0>(GetParam());
+    const bool caller_has_dtls_in_stun = absl::StrContains(
+        std::get<1>(GetParam()), "WebRTC-IceHandshakeDtls/Enabled/");
     const bool callee_has_dtls_in_stun = absl::StrContains(
         std::get<2>(GetParam()), "WebRTC-IceHandshakeDtls/Enabled/");
     const bool callee2_has_dtls_in_stun = absl::StrContains(
         std::get<3>(GetParam()), "WebRTC-IceHandshakeDtls/Enabled/");
-    if (callee_active &&
-        (callee_has_dtls_in_stun || callee2_has_dtls_in_stun)) {
+    if (callee_active && (caller_has_dtls_in_stun || callee_has_dtls_in_stun ||
+                          callee2_has_dtls_in_stun)) {
       return "dtls-in-stun when callee(s) are dtls clients";
     }
+
     return nullptr;
   }
 };
 
-static const char* kTrialsVariants[] = {
+const char* kTrialsVariants[] = {
     "",
     "WebRTC-ForceDtls13/Enabled/",
     "WebRTC-IceHandshakeDtls/Enabled/",
@@ -1674,10 +1772,26 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
         // Capture offer so that it can be sent to Callee2 too.
         offer = sdp->Clone();
       });
+  callee2->SetReceivedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        if (callee_active) {
+          MakeOfferHavePassiveDtlsRole(sdp);
+        } else {
+          MakeOfferHaveActiveDtlsRole(sdp);
+        }
+      });
   callee()->SetGeneratedSdpMunger(
       [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
         // Modify offer to kPrAnswer
         SetSdpType(sdp, SdpType::kPrAnswer);
+        if (callee_active) {
+          MakeOfferHaveActiveDtlsRole(sdp);
+        } else {
+          MakeOfferHavePassiveDtlsRole(sdp);
+        }
+      });
+  callee2->SetGeneratedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
         if (callee_active) {
           MakeOfferHaveActiveDtlsRole(sdp);
         } else {
@@ -1716,6 +1830,9 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
   VerifyReceivedDcMessages(caller(), "KENT", callee2_sent_on_dc);
   VerifyReceivedDcMessages(callee2.get(), "KESO", caller_sent_on_dc);
   VerifyDtlsRoles(caller(), callee2.get());
+  VerifySctpState(caller(), SctpTransportState::kConnected);
+  VerifySctpState(callee(), SctpTransportState::kClosed);
+  VerifySctpState(callee2.get(), SctpTransportState::kConnected);
   ASSERT_FALSE(HasFailure());
 }
 
@@ -1738,10 +1855,26 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
         // Capture offer so that it can be sent to Callee2 too.
         offer = sdp->Clone();
       });
+  callee2->SetReceivedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
+        if (callee_active) {
+          MakeOfferHavePassiveDtlsRole(sdp);
+        } else {
+          MakeOfferHaveActiveDtlsRole(sdp);
+        }
+      });
   callee()->SetGeneratedSdpMunger(
       [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
         // Modify offer to kPrAnswer
         SetSdpType(sdp, SdpType::kPrAnswer);
+        if (callee_active) {
+          MakeOfferHaveActiveDtlsRole(sdp);
+        } else {
+          MakeOfferHavePassiveDtlsRole(sdp);
+        }
+      });
+  callee2->SetGeneratedSdpMunger(
+      [&](std::unique_ptr<SessionDescriptionInterface>& sdp) {
         if (callee_active) {
           MakeOfferHaveActiveDtlsRole(sdp);
         } else {
@@ -1771,8 +1904,7 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
 
   // Forward turn ice candidate also to callee2.
   auto candidate = caller()->last_gathered_ice_candidate();
-  std::string ice_sdp;
-  EXPECT_TRUE(candidate->ToString(&ice_sdp));
+  std::string ice_sdp = candidate->ToString();
   callee2->ReceiveIceMessage(candidate->sdp_mid(), candidate->sdp_mline_index(),
                              ice_sdp);
 
@@ -1807,6 +1939,7 @@ TEST_P(DataChannelIntegrationTestUnifiedPlanFieldTrials,
   ASSERT_THAT(answer, testing::Not(testing::IsNull()));
   std::string answer_sdp;
   EXPECT_TRUE(answer->ToString(&answer_sdp));
+
   caller()->ReceiveSdpMessage(SdpType::kAnswer, answer_sdp);
 
   EXPECT_EQ(caller()->pc()->signaling_state(),

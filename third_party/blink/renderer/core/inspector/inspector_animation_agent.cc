@@ -269,7 +269,8 @@ BuildObjectForAnimationEffect(KeyframeEffect* effect) {
 static std::unique_ptr<protocol::Animation::KeyframeStyle>
 BuildObjectForStringKeyframe(const StringKeyframe* keyframe,
                              double computed_offset) {
-  String offset = String::NumberToStringECMAScript(computed_offset * 100) + "%";
+  String offset =
+      StrCat({String::NumberToStringECMAScript(computed_offset * 100), "%"});
 
   std::unique_ptr<protocol::Animation::KeyframeStyle> keyframe_object =
       protocol::Animation::KeyframeStyle::create()
@@ -563,7 +564,7 @@ String InspectorAnimationAgent::CreateCSSId(blink::Animation& animation) {
   Element* element = effect->EffectTarget();
   HeapVector<Member<CSSStyleDeclaration>> styles =
       css_agent_->MatchingStyles(element);
-  Digestor digestor(kHashAlgorithmSha1);
+  Digestor digestor(kHashAlgorithmSha256);
   digestor.UpdateUtf8(IsA<CSSTransition>(animation)
                           ? AnimationType::CSSTransition
                           : AnimationType::CSSAnimation);

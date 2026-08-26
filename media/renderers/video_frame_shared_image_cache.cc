@@ -11,39 +11,9 @@
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/common/sync_token.h"
+#include "media/base/format_utils.h"
 
 namespace media {
-
-namespace {
-
-// Returns multiplanar format equivalent of a VideoPixelFormat.
-viz::SharedImageFormat VideoPixelFormatToSharedImageFormat(
-    VideoPixelFormat video_format) {
-  switch (video_format) {
-    case PIXEL_FORMAT_NV12:
-      return viz::MultiPlaneFormat::kNV12;
-    case PIXEL_FORMAT_NV16:
-      return viz::MultiPlaneFormat::kNV16;
-    case PIXEL_FORMAT_NV24:
-      return viz::MultiPlaneFormat::kNV24;
-    case PIXEL_FORMAT_NV12A:
-      return viz::MultiPlaneFormat::kNV12A;
-    case PIXEL_FORMAT_P010LE:
-      return viz::MultiPlaneFormat::kP010;
-    case PIXEL_FORMAT_P210LE:
-      return viz::MultiPlaneFormat::kP210;
-    case PIXEL_FORMAT_P410LE:
-      return viz::MultiPlaneFormat::kP410;
-    case PIXEL_FORMAT_I420:
-      return viz::MultiPlaneFormat::kI420;
-    case PIXEL_FORMAT_I420A:
-      return viz::MultiPlaneFormat::kI420A;
-    default:
-      NOTREACHED();
-  }
-}
-
-}  // namespace
 
 VideoFrameSharedImageCache::VideoFrameSharedImageCache() = default;
 
@@ -70,10 +40,11 @@ VideoFrameSharedImageCache::GetOrCreateSharedImage(
     viz::RasterContextProvider* raster_context_provider,
     const gpu::SharedImageUsageSet& usage) {
   viz::SharedImageFormat format =
-      VideoPixelFormatToSharedImageFormat(video_frame->format());
+      VideoPixelFormatToSharedImageFormat(video_frame->format()).value();
   CHECK(format.is_multi_plane());
   return GetOrCreateSharedImage(video_frame, raster_context_provider, usage,
-                                format, video_frame->ColorSpace());
+                                format, kUnpremul_SkAlphaType,
+                                video_frame->ColorSpace());
 }
 
 VideoFrameSharedImageCache::CachedData
@@ -82,6 +53,7 @@ VideoFrameSharedImageCache::GetOrCreateSharedImage(
     viz::RasterContextProvider* raster_context_provider,
     const gpu::SharedImageUsageSet& usage,
     const viz::SharedImageFormat& format,
+    SkAlphaType alpha_type,
     const gfx::ColorSpace& color_space) {
   if (shared_image_ && provider_ == raster_context_provider) {
     // Return the cached shared image if it is the same video frame.
@@ -92,7 +64,8 @@ VideoFrameSharedImageCache::GetOrCreateSharedImage(
     // image data.
     if (video_frame->coded_size() == shared_image_->size() &&
         color_space == shared_image_->color_space() &&
-        format == shared_image_->format() && usage == shared_image_->usage()) {
+        format == shared_image_->format() && usage == shared_image_->usage() &&
+        alpha_type == shared_image_->alpha_type()) {
       return {shared_image_, sync_token_, Status::kMatchedSharedImageMetaData};
     }
   }
@@ -107,7 +80,7 @@ VideoFrameSharedImageCache::GetOrCreateSharedImage(
 
   shared_image_ = sii->CreateSharedImage(
       {format, video_frame->coded_size(), color_space, kTopLeft_GrSurfaceOrigin,
-       kUnpremul_SkAlphaType, usage, "VideoFrameSharedImageCache"},
+       alpha_type, usage, "VideoFrameSharedImageCache"},
       gpu::kNullSurfaceHandle);
   CHECK(shared_image_);
   video_frame_id_ = video_frame->unique_id();

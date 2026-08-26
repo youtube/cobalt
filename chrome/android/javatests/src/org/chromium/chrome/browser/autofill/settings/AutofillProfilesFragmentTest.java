@@ -4,17 +4,21 @@
 
 package org.chromium.chrome.browser.autofill.settings;
 
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.intent.Intents.intended;
 import static androidx.test.espresso.intent.Intents.intending;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasData;
+import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -24,15 +28,14 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.view.KeyEvent;
-import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.test.espresso.intent.Intents;
+import androidx.test.espresso.matcher.ViewMatchers.Visibility;
 import androidx.test.filters.MediumTest;
 
 import org.hamcrest.Matchers;
@@ -52,9 +55,12 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.DisableIf;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
+import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
 import org.chromium.chrome.browser.autofill.editors.EditorDialogView;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -68,6 +74,7 @@ import org.chromium.chrome.test.R;
 import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.components.autofill.FieldType;
 import org.chromium.components.autofill.RecordType;
+import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
@@ -213,6 +220,11 @@ public class AutofillProfilesFragmentTest {
                         .setEmailAddress("fourth@gmail.com")
                         .setLanguageCode("en-US")
                         .build());
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.SETTING_TURNED_OFF);
+                });
     }
 
     @After
@@ -233,7 +245,6 @@ public class AutofillProfilesFragmentTest {
         AutofillProfileEditorPreference addProfile =
                 autofillProfileFragment.findPreference(AutofillProfilesFragment.PREF_NEW_PROFILE);
         assertNotNull(addProfile);
-        assertFalse(addProfile.getRecordType().isPresent());
 
         // Add a profile.
         updatePreferencesAndWait(
@@ -292,17 +303,20 @@ public class AutofillProfilesFragmentTest {
     @Feature({"Preferences"})
     public void testHomeEntry() throws Exception {
         mHelper.setProfile(sHomeProfile);
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
 
         AutofillProfileEditorPreference homeProfilePreference =
-                findPreference(sHomeProfile.getInfo(FieldType.NAME_FULL));
+                autofillProfileFragment.findPreference(sHomeProfile.getInfo(FieldType.NAME_FULL));
         assertNotNull(homeProfilePreference);
-        assertFalse(homeProfilePreference.shouldShowLocalProfileIcon());
-        assertTrue(homeProfilePreference.getRecordType().isPresent());
-        assertEquals(RecordType.ACCOUNT_HOME, homeProfilePreference.getRecordType().getAsInt());
-        assertTrue(homeProfilePreference.getIcon().isVisible());
+        assertEquals(
+                R.layout.autofill_settings_home_profile_icon,
+                homeProfilePreference.getWidgetLayoutResource());
+
+        // Edit a profile.
+        ThreadUtils.runOnUiThreadBlocking(homeProfilePreference::performClick);
 
         // Define a fake result to return immediately when the intent is caught.
-        // This prevents the actual Custom Tab from launching.
+        // This prevents the actual urls from being launched.
         Instrumentation.ActivityResult ok_result =
                 new Instrumentation.ActivityResult(Activity.RESULT_OK, null);
         var homeIntentMatcher =
@@ -314,8 +328,9 @@ public class AutofillProfilesFragmentTest {
                                                 .GOOGLE_ACCOUNT_HOME_ADDRESS_EDIT_URL)));
         intending(homeIntentMatcher).respondWith(ok_result);
 
-        // Test that Custom Tab with the correct url is launched when Work address clicked.
-        ThreadUtils.runOnUiThreadBlocking(homeProfilePreference::performClick);
+        // Try to find a view with "Link" and click on it.
+        Context context = autofillProfileFragment.getContext();
+        onView(withText(context.getString(R.string.autofill_edit_address_label))).perform(click());
         intended(homeIntentMatcher);
     }
 
@@ -324,18 +339,20 @@ public class AutofillProfilesFragmentTest {
     @Feature({"Preferences"})
     public void testWorkEntry() throws Exception {
         mHelper.setProfile(sWorkProfile);
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
 
-        // Test work profile
         AutofillProfileEditorPreference workProfilePreference =
-                findPreference(sWorkProfile.getInfo(FieldType.NAME_FULL));
+                autofillProfileFragment.findPreference(sWorkProfile.getInfo(FieldType.NAME_FULL));
         assertNotNull(workProfilePreference);
-        assertFalse(workProfilePreference.shouldShowLocalProfileIcon());
-        assertTrue(workProfilePreference.getRecordType().isPresent());
-        assertEquals(RecordType.ACCOUNT_WORK, workProfilePreference.getRecordType().getAsInt());
-        assertTrue(workProfilePreference.getIcon().isVisible());
+        assertEquals(
+                R.layout.autofill_settings_work_profile_icon,
+                workProfilePreference.getWidgetLayoutResource());
+
+        // Edit a profile.
+        ThreadUtils.runOnUiThreadBlocking(workProfilePreference::performClick);
 
         // Define a fake result to return immediately when the intent is caught.
-        // This prevents the actual Custom Tab from launching.
+        // This prevents the actual urls from being launched.
         Instrumentation.ActivityResult ok_result =
                 new Instrumentation.ActivityResult(Activity.RESULT_OK, null);
         var workIntentMatcher =
@@ -347,8 +364,9 @@ public class AutofillProfilesFragmentTest {
                                                 .GOOGLE_ACCOUNT_WORK_ADDRESS_EDIT_URL)));
         intending(workIntentMatcher).respondWith(ok_result);
 
-        // Test that Custom Tab with the correct url is launched when Home address clicked.
-        ThreadUtils.runOnUiThreadBlocking(workProfilePreference::performClick);
+        // Try to find a view with "Link" and click on it.
+        Context context = autofillProfileFragment.getContext();
+        onView(withText(context.getString(R.string.autofill_edit_address_label))).perform(click());
         intended(workIntentMatcher);
     }
 
@@ -364,7 +382,6 @@ public class AutofillProfilesFragmentTest {
         AutofillProfileEditorPreference addProfile =
                 findPreference(AutofillProfilesFragment.PREF_NEW_PROFILE);
         assertNotNull(addProfile);
-        assertFalse(addProfile.getRecordType().isPresent());
 
         // Add an incomplete profile.
         updatePreferencesAndWait(
@@ -392,7 +409,6 @@ public class AutofillProfilesFragmentTest {
         AutofillProfileEditorPreference addProfile =
                 autofillProfileFragment.findPreference(AutofillProfilesFragment.PREF_NEW_PROFILE);
         assertNotNull(addProfile);
-        assertFalse(addProfile.getRecordType().isPresent());
 
         // Try to add a profile with invalid phone.
         updatePreferencesAndWait(
@@ -525,13 +541,11 @@ public class AutofillProfilesFragmentTest {
                 autofillProfileFragment.findPreference("John Doe");
         assertNotNull(johnProfile);
         assertEquals("John Doe", johnProfile.getTitle());
-        assertTrue(johnProfile.getIcon().isVisible());
 
         // Make sure that the icon is visible for non-HW profiles too.
         AutofillProfileEditorPreference billProfile =
                 autofillProfileFragment.findPreference("Bill Doe");
         assertNotNull(billProfile);
-        assertTrue(billProfile.getIcon().isVisible());
 
         // Edit a profile.
         ThreadUtils.runOnUiThreadBlocking(johnProfile::performClick);
@@ -548,10 +562,6 @@ public class AutofillProfilesFragmentTest {
                     "650-253-0000",
                     "edit@profile.com"
                 });
-
-        // Verify the absence of the profile source notice.
-        TextView footerMessage = editorDialog.findViewById(R.id.footer_message);
-        assertEquals(View.GONE, footerMessage.getVisibility());
 
         rule.clickInEditorAndWait(
                 R.id.editor_dialog_done_button, /* waitForPreferenceUpdate= */ true);
@@ -601,14 +611,13 @@ public class AutofillProfilesFragmentTest {
         rule.setEditorDialogAndWait(editorDialog);
 
         // Verify the profile source notice.
-        TextView footerMessage = editorDialog.findViewById(R.id.footer_message);
-        assertEquals(View.VISIBLE, footerMessage.getVisibility());
         String expectedMessage =
                 context.getString(
                                 R.string
                                         .autofill_address_already_saved_in_account_record_type_notice)
                         .replace("$1", email);
-        assertEquals(expectedMessage, footerMessage.getText());
+        onView(withText(expectedMessage))
+                .check(matches(withEffectiveVisibility(Visibility.VISIBLE)));
 
         // Invalid input.
         rule.setTextInEditorAndWait(
@@ -744,15 +753,12 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
-    @DisableIf.Build(
-            sdk_is_less_than = Build.VERSION_CODES.TIRAMISU,
-            message = "https://crbug.com/381982174")
+    @DisabledTest(message = "https://crbug.com/381982174")
     public void testKeyboardShownOnDpadCenter() throws TimeoutException {
         AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
         AutofillProfileEditorPreference addProfile =
                 fragment.findPreference(AutofillProfilesFragment.PREF_NEW_PROFILE);
         assertNotNull(addProfile);
-        assertFalse(addProfile.getRecordType().isPresent());
 
         // Open AutofillProfileEditorPreference.
         ThreadUtils.runOnUiThreadBlocking(addProfile::performClick);
@@ -803,17 +809,11 @@ public class AutofillProfilesFragmentTest {
         mHelper.setProfile(sAccountProfile);
         AutofillProfileEditorPreference accountProfilePreference =
                 findPreference(sAccountProfile.getInfo(FieldType.NAME_FULL));
-        assertFalse(accountProfilePreference.shouldShowLocalProfileIcon());
-        assertTrue(accountProfilePreference.getRecordType().isPresent());
-        assertEquals(RecordType.ACCOUNT, accountProfilePreference.getRecordType().getAsInt());
+        assertEquals(0, accountProfilePreference.getWidgetLayoutResource());
 
         AutofillProfileEditorPreference localOrSyncProfilePreference =
                 findPreference(sLocalOrSyncProfile.getInfo(FieldType.NAME_FULL));
-        assertFalse(localOrSyncProfilePreference.shouldShowLocalProfileIcon());
-        assertTrue(localOrSyncProfilePreference.getRecordType().isPresent());
-        assertEquals(
-                RecordType.LOCAL_OR_SYNCABLE,
-                localOrSyncProfilePreference.getRecordType().getAsInt());
+        assertEquals(0, localOrSyncProfilePreference.getWidgetLayoutResource());
     }
 
     @Test
@@ -827,23 +827,19 @@ public class AutofillProfilesFragmentTest {
         mHelper.setProfile(sAccountProfile);
         AutofillProfileEditorPreference accountProfilePreference =
                 findPreference(sAccountProfile.getInfo(FieldType.NAME_FULL));
-        assertFalse(accountProfilePreference.shouldShowLocalProfileIcon());
-        assertTrue(accountProfilePreference.getRecordType().isPresent());
-        assertEquals(RecordType.ACCOUNT, accountProfilePreference.getRecordType().getAsInt());
+        assertEquals(0, accountProfilePreference.getWidgetLayoutResource());
 
         AutofillProfileEditorPreference localOrSyncProfilePreference =
                 findPreference(sLocalOrSyncProfile.getInfo(FieldType.NAME_FULL));
-        assertTrue(localOrSyncProfilePreference.shouldShowLocalProfileIcon());
-        assertTrue(localOrSyncProfilePreference.getRecordType().isPresent());
         assertEquals(
-                RecordType.LOCAL_OR_SYNCABLE,
-                localOrSyncProfilePreference.getRecordType().getAsInt());
+                R.layout.autofill_settings_local_profile_icon,
+                localOrSyncProfilePreference.getWidgetLayoutResource());
     }
 
     @Test
     @MediumTest
     @Feature({"Preferences"})
-    public void testLocalProfiles_AddressesNotSynced() throws Exception {
+    public void testDisplayedProfileIcons__AddressesNotSynced() throws Exception {
         setUpMockPrimaryAccount("test@account.com");
         setUpMockSyncService(true, new HashSet());
 
@@ -851,23 +847,19 @@ public class AutofillProfilesFragmentTest {
         mHelper.setProfile(sAccountProfile);
         AutofillProfileEditorPreference accountProfilePreference =
                 findPreference(sAccountProfile.getInfo(FieldType.NAME_FULL));
-        assertFalse(accountProfilePreference.shouldShowLocalProfileIcon());
-        assertTrue(accountProfilePreference.getRecordType().isPresent());
-        assertEquals(RecordType.ACCOUNT, accountProfilePreference.getRecordType().getAsInt());
+        assertEquals(0, accountProfilePreference.getWidgetLayoutResource());
 
         AutofillProfileEditorPreference localOrSyncProfilePreference =
                 findPreference(sLocalOrSyncProfile.getInfo(FieldType.NAME_FULL));
-        assertTrue(localOrSyncProfilePreference.shouldShowLocalProfileIcon());
-        assertTrue(localOrSyncProfilePreference.getRecordType().isPresent());
         assertEquals(
-                RecordType.LOCAL_OR_SYNCABLE,
-                localOrSyncProfilePreference.getRecordType().getAsInt());
+                R.layout.autofill_settings_local_profile_icon,
+                localOrSyncProfilePreference.getWidgetLayoutResource());
     }
 
     @Test
     @MediumTest
     @Feature({"Preferences"})
-    public void testLocalProfiles_AddressesSynced() throws Exception {
+    public void testDisplayedProfileIcons_AddressesSynced() throws Exception {
         setUpMockPrimaryAccount("test@account.com");
         setUpMockSyncService(true, Collections.singleton(UserSelectableType.AUTOFILL));
 
@@ -875,17 +867,76 @@ public class AutofillProfilesFragmentTest {
         mHelper.setProfile(sAccountProfile);
         AutofillProfileEditorPreference accountProfilePreference =
                 findPreference(sAccountProfile.getInfo(FieldType.NAME_FULL));
-        assertFalse(accountProfilePreference.shouldShowLocalProfileIcon());
-        assertTrue(accountProfilePreference.getRecordType().isPresent());
-        assertEquals(RecordType.ACCOUNT, accountProfilePreference.getRecordType().getAsInt());
+        assertEquals(0, accountProfilePreference.getWidgetLayoutResource());
 
         AutofillProfileEditorPreference localOrSyncProfilePreference =
                 findPreference(sLocalOrSyncProfile.getInfo(FieldType.NAME_FULL));
-        assertFalse(localOrSyncProfilePreference.shouldShowLocalProfileIcon());
-        assertTrue(localOrSyncProfilePreference.getRecordType().isPresent());
-        assertEquals(
-                RecordType.LOCAL_OR_SYNCABLE,
-                localOrSyncProfilePreference.getRecordType().getAsInt());
+        assertEquals(0, localOrSyncProfilePreference.getWidgetLayoutResource());
+    }
+
+    @Test
+    @MediumTest
+    @Features.EnableFeatures({
+        ChromeFeatureList.THIRD_PARTY_DISABLE_CHROME_AUTOFILL_SETTINGS_SCREEN
+    })
+    public void testSettingsState_thirdPartyMode() throws Exception {
+        setUpMockPrimaryAccount("test@account.com");
+        setUpMockSyncService(true, Collections.singleton(UserSelectableType.AUTOFILL));
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.AVAILABLE);
+                });
+
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
+
+        // Trigger address profile list rebuild.
+        mHelper.setProfile(sAccountProfile);
+        AutofillProfileEditorPreference accountProfilePreference =
+                findPreference(sAccountProfile.getInfo(FieldType.NAME_FULL));
+
+        // Save and fill addresses toggle should be disabled.
+        ChromeSwitchPreference saveAndFillToggle =
+                autofillProfileFragment.findPreference(
+                        AutofillProfilesFragment.SAVE_AND_FILL_ADDRESSES);
+        assertFalse(saveAndFillToggle.isEnabled());
+
+        // Address list should be shown.
+        AutofillProfileEditorPreference localOrSyncProfilePreference =
+                findPreference(sLocalOrSyncProfile.getInfo(FieldType.NAME_FULL));
+
+        // Add address button should be hidden.
+        AutofillProfileEditorPreference addProfile =
+                autofillProfileFragment.findPreference(AutofillProfilesFragment.PREF_NEW_PROFILE);
+        assertNull(addProfile);
+
+        // Plus address entry should be shown.
+        AutofillProfileEditorPreference plusAddressEntry =
+                autofillProfileFragment.findPreference(
+                        AutofillProfilesFragment.MANAGE_PLUS_ADDRESSES);
+        assertNotNull(plusAddressEntry);
+    }
+
+    @Test
+    @MediumTest
+    @Features.EnableFeatures({
+        ChromeFeatureList.THIRD_PARTY_DISABLE_CHROME_AUTOFILL_SETTINGS_SCREEN
+    })
+    public void testDisabledSettingsText_shownInThirdPartyMode() throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.AVAILABLE);
+                });
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
+
+        // Trigger address profile list rebuild.
+        mHelper.setProfile(sAccountProfile);
+
+        assertNotNull(
+                autofillProfileFragment.findPreference(
+                        AutofillProfilesFragment.DISABLED_SETTINGS_INFO));
     }
 
     private void checkPreferenceCount(int expectedPreferenceCount) {

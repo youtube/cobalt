@@ -2,11 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/builders.star", "builder", "cpu", "defaults", "free_space", "os")
-load("//lib/ci.star", "ci")
-load("//lib/consoles.star", "consoles")
-load("//lib/dimensions.star", "dimensions")
-load("//lib/polymorphic.star", "polymorphic")
+load("@chromium-luci//builders.star", "builder", "cpu", "defaults", "free_space", "os")
+load("@chromium-luci//consoles.star", "consoles")
+load("@chromium-luci//dimensions.star", "dimensions")
+load("@chromium-luci//polymorphic.star", "polymorphic")
+load("//lib/ci_constants.star", "ci_constants")
 
 luci.bucket(
     name = "reviver",
@@ -37,7 +37,7 @@ consoles.list_view(
 
 defaults.set(
     bucket = "reviver",
-    pool = ci.DEFAULT_POOL,
+    pool = ci_constants.DEFAULT_POOL,
     cores = 8,
     os = os.LINUX_DEFAULT,
     list_view = "reviver",
@@ -48,17 +48,20 @@ polymorphic.launcher(
     name = "android-launcher",
     # To avoid peak hours, we run it at 2 AM, 5 AM, 8 AM, 11AM, 2 PM UTC.
     schedule = "0 2,5,8,11,14 * * *",
-    pool = ci.DEFAULT_POOL,
+    pool = ci_constants.DEFAULT_POOL,
     cores = 8,
     os = os.LINUX_DEFAULT,
     runner = "reviver/runner",
     target_builders = [
-        "ci/android-oreo-x86-rel",
-        "ci/android-pie-x86-rel",
         "ci/android-10-x86-rel",
         "ci/android-12-x64-rel",
         "ci/android-13-x64-rel",
+        "ci/android-14-x64-rel",
         "ci/android-15-x64-rel",
+        "ci/android-15-tablet-x64-rel",
+        "ci/android-15-tablet-landscape-x64-rel",
+        "ci/android-16-x64-rel",
+        "ci/android-16-x64-dbg-tests",
     ],
 )
 
@@ -66,7 +69,7 @@ polymorphic.launcher(
     name = "android-coverage-launcher",
     # Match the replicated builders' schedule for comparable data
     schedule = "0 4 * * *",
-    pool = ci.DEFAULT_POOL,
+    pool = ci_constants.DEFAULT_POOL,
     os = os.LINUX_DEFAULT,
     runner = "reviver/coverage-runner",
     target_builders = [
@@ -79,11 +82,11 @@ polymorphic.launcher(
     name = "android-device-launcher",
     # To avoid peak hours, we run it at 5 AM, 8 AM, 11AM UTC.
     schedule = "0 5,8,11 * * *",
-    pool = ci.DEFAULT_POOL,
+    pool = ci_constants.DEFAULT_POOL,
     os = os.LINUX_DEFAULT,
     runner = "reviver/runner",
     target_builders = [
-        "ci/android-pie-arm64-rel",
+        "ci/android-14-arm64-rel",
     ],
 )
 
@@ -91,7 +94,7 @@ polymorphic.launcher(
     name = "android-x64-launcher",
     # To avoid peak hours, we run it at 2 AM, 5 AM, 8 AM, 11AM, 2 PM UTC.
     schedule = "0 2,5,8,11,14 * * *",
-    pool = ci.DEFAULT_POOL,
+    pool = ci_constants.DEFAULT_POOL,
     cores = 8,
     os = os.LINUX_DEFAULT,
     runner = "reviver/runner",
@@ -177,7 +180,7 @@ polymorphic.launcher(
     name = "fuchsia-coordinator",
     # Avoid peak hours.
     schedule = "0 2,4,6,8,10,12,14 * * *",
-    pool = ci.DEFAULT_POOL,
+    pool = ci_constants.DEFAULT_POOL,
     os = os.LINUX_DEFAULT,
     runner = "reviver/runner",
     target_builders = [
@@ -190,7 +193,7 @@ polymorphic.launcher(
 builder(
     name = "runner",
     executable = "recipe:reviver/chromium/runner",
-    pool = ci.DEFAULT_POOL,
+    pool = ci_constants.DEFAULT_POOL,
     builderless = 1,
     os = os.LINUX_DEFAULT,
     cpu = cpu.X86_64,
@@ -205,13 +208,13 @@ builder(
     ],
     # TODO(crbug.com/40232487) Remove this once the reviver service account has
     # necessary permissions
-    service_account = ci.DEFAULT_SERVICE_ACCOUNT,
+    service_account = ci_constants.DEFAULT_SERVICE_ACCOUNT,
 )
 
 builder(
     name = "coverage-runner",
     executable = "recipe:reviver/chromium/runner",
-    pool = ci.DEFAULT_POOL,
+    pool = ci_constants.DEFAULT_POOL,
     builderless = 1,
     cores = 32,
     os = os.LINUX_DEFAULT,
@@ -227,5 +230,5 @@ builder(
     ],
     # TODO(crbug.com/40232487) Remove this once the reviver service account has
     # necessary permissions
-    service_account = ci.DEFAULT_SERVICE_ACCOUNT,
+    service_account = ci_constants.DEFAULT_SERVICE_ACCOUNT,
 )

@@ -13,6 +13,7 @@
 using extensions::FeatureSwitch;
 using extensions::OptionsPageInfo;
 
+namespace extensions {
 namespace {
 
 class OptionsPageManifestTest : public ChromeManifestTest {
@@ -85,9 +86,8 @@ TEST_F(OptionsPageManifestTest, OptionsPageInApps) {
                extensions::manifest_errors::kInvalidOptionsPageInHostedApp),
 
       // Forbid absolute URL for options page in packaged apps.
-      Testcase(
-          "packaged_app_absolute_options.json",
-          extensions::manifest_errors::kInvalidOptionsPageExpectUrlInPackage)};
+      Testcase("packaged_app_absolute_options.json",
+               extensions::manifest_errors::kInvalidOptionsPage)};
   RunTestcases(testcases, EXPECT_TYPE_ERROR);
 }
 
@@ -149,3 +149,4 @@ TEST_F(OptionsPageManifestTest, OptionsPageChromeStyleManifestV3) {
 }
 
 }  // namespace
+}  // namespace extensions

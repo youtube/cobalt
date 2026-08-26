@@ -43,8 +43,8 @@ class CobaltMetricsServicesManagerClient
   std::unique_ptr<::metrics::MetricsServiceClient> CreateMetricsServiceClient(
       variations::SyntheticTrialRegistry* synthetic_trial_registry) override;
 
-  std::unique_ptr<variations::VariationsService> CreateVariationsService(
-      variations::SyntheticTrialRegistry* synthetic_trial_registry) override;
+  std::unique_ptr<variations::VariationsService> CreateVariationsService()
+      override;
 
   // Returns whether there are any Incognito browsers/tabs open. Cobalt has no
   // icognito mode.

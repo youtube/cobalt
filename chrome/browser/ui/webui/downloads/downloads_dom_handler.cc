@@ -24,7 +24,6 @@
 #include "base/threading/thread.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
 #include "chrome/browser/download/download_danger_prompt.h"
 #include "chrome/browser/download/download_history.h"
 #include "chrome/browser/download/download_item_model.h"
@@ -50,6 +49,8 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/url_constants.h"
 #include "components/download/public/common/download_item.h"
+#include "components/feature_engagement/public/feature_constants.h"
+#include "components/feature_engagement/public/tracker.h"
 #include "components/history/core/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/features.h"
@@ -74,6 +75,10 @@
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "chrome/browser/safe_browsing/download_protection/download_protection_util.h"
+#endif
+
+#if !BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
 #endif
 
 using content::BrowserThread;
@@ -120,6 +125,9 @@ bool CanLogWarningMetrics(download::DownloadItem* file) {
 
 void PromptForScanningInBubble(content::WebContents* web_contents,
                                download::DownloadItem* download) {
+  // ChromeOS does not have the download bubble and does not support local
+  // password prompts for deep scans.
+#if !BUILDFLAG(IS_CHROMEOS)
   Browser* browser = chrome::FindBrowserWithTab(web_contents);
   if (!browser) {
     return;
@@ -129,6 +137,7 @@ void PromptForScanningInBubble(content::WebContents* web_contents,
       ->GetDownloadDisplayController()
       ->OpenSecuritySubpage(
           OfflineItemUtils::GetContentIdForDownload(download));
+#endif
 }
 
 // Records DownloadItemWarningData and maybe sends the Safe Browsing report.
@@ -493,7 +502,7 @@ void DownloadsDOMHandler::Undo() {
     }
 
     DownloadItemModel model(download);
-    model.SetShouldShowInShelf(true);
+    model.SetShouldShowInUi(true);
     model.SetIsBeingRevived(true);
 
     download->UpdateObservers();
@@ -548,12 +557,12 @@ void DownloadsDOMHandler::RemoveDownloads(const DownloadVector& to_remove) {
     }
 
     DownloadItemModel item_model(download);
-    if (!item_model.ShouldShowInShelf() ||
+    if (!item_model.ShouldShowInUi() ||
         download->GetState() == download::DownloadItem::IN_PROGRESS) {
       continue;
     }
 
-    item_model.SetShouldShowInShelf(false);
+    item_model.SetShouldShowInUi(false);
     ids.insert(download->GetId());
     download->UpdateObservers();
   }

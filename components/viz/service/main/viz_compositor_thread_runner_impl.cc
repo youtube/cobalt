@@ -13,13 +13,13 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/threading/hang_watcher.h"
 #include "base/threading/thread.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/switches.h"
-#include "components/viz/service/display_embedder/in_process_gpu_memory_buffer_manager.h"
 #include "components/viz/service/display_embedder/output_surface_provider_impl.h"
 #include "components/viz/service/frame_sinks/frame_sink_manager_impl.h"
 #include "components/viz/service/frame_sinks/gmb_video_frame_pool_context_provider_impl.h"
@@ -29,7 +29,6 @@
 #include "gpu/command_buffer/service/scheduler_sequence.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_switches.h"
-#include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "ui/gfx/switches.h"
 
 #if BUILDFLAG(IS_OZONE)
@@ -41,25 +40,64 @@ namespace {
 
 const char kThreadName[] = "VizCompositorThread";
 
+#if BUILDFLAG(IS_ANDROID)
+class VizCompositorThread : public base::android::JavaHandlerThread {
+ public:
+  using ParentType = base::android::JavaHandlerThread;
+  explicit VizCompositorThread(base::ThreadType thread_type)
+      : ParentType(kThreadName, thread_type) {}
+#else   // BUILDFLAG(IS_ANDROID)
+class VizCompositorThread : public base::Thread {
+ public:
+  using ParentType = base::Thread;
+  VizCompositorThread() : ParentType(kThreadName) {}
+#endif  // BUILDFLAG(IS_ANDROID)
+
+ private:
+  void Init() override {
+    ParentType::Init();
+    if (base::HangWatcher::IsCompositorThreadHangWatchingEnabled()) {
+      unregister_thread_closure_ = base::HangWatcher::RegisterThread(
+          base::HangWatcher::ThreadType::kCompositorThread);
+    }
+  }
+  void CleanUp() override {
+    unregister_thread_closure_.RunAndReset();
+    ParentType::CleanUp();
+  }
+
+  base::ScopedClosureRunner unregister_thread_closure_;
+};
+
 std::unique_ptr<VizCompositorThreadType> CreateAndStartCompositorThread() {
   const base::ThreadType thread_type = base::ThreadType::kDisplayCritical;
 #if BUILDFLAG(IS_ANDROID)
-  auto thread = std::make_unique<base::android::JavaHandlerThread>(kThreadName,
-                                                                   thread_type);
+  auto thread = std::make_unique<VizCompositorThread>(thread_type);
   thread->Start();
+  thread->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce([]() {
+        mojo::InterfaceEndpointClient::SetThreadNameSuffixForMetrics(
+            "VizCompositor");
+      }));
   return thread;
 #else  // !BUILDFLAG(IS_ANDROID)
 
   std::unique_ptr<base::Thread> thread;
   base::Thread::Options thread_options;
+  // DirectReceiver requires an I/O MessagePump, or the pump to expose an
+  // IOWatcher like MessagePumpAndroid.
+  if (mojo::IsDirectReceiverSupported() &&
+      features::IsVizDirectCompositorThreadIpcNonRootEnabled()) {
+    thread_options.message_pump_type = base::MessagePumpType::IO;
+  }
 #if BUILDFLAG(IS_OZONE)
   auto* platform = ui::OzonePlatform::GetInstance();
   thread_options.message_pump_type =
       platform->GetPlatformProperties().message_pump_type_for_viz_compositor;
-  thread = std::make_unique<base::Thread>(kThreadName);
+  thread = std::make_unique<VizCompositorThread>();
 #endif
   if (!thread)
-    thread = std::make_unique<base::Thread>(kThreadName);
+    thread = std::make_unique<VizCompositorThread>();
 
 #if BUILDFLAG(IS_FUCHSIA)
   // An IO message pump is needed to use FIDL.
@@ -74,6 +112,12 @@ std::unique_ptr<VizCompositorThreadType> CreateAndStartCompositorThread() {
   thread_options.thread_type = thread_type;
 
   CHECK(thread->StartWithOptions(std::move(thread_options)));
+
+  thread->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce([]() {
+        mojo::InterfaceEndpointClient::SetThreadNameSuffixForMetrics(
+            "VizCompositor");
+      }));
 
   return thread;
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -165,10 +209,6 @@ void VizCompositorThreadRunnerImpl::CreateFrameSinkManagerOnCompositorThread(
 
   if (gpu_service) {
     // Create OutputSurfaceProvider usable for GPU + software compositing.
-    gpu_memory_buffer_manager_ =
-        std::make_unique<InProcessGpuMemoryBufferManager>(
-            gpu_service->gpu_memory_buffer_factory(),
-            gpu_service->sync_point_manager());
     output_surface_provider_ =
         std::make_unique<OutputSurfaceProviderImpl>(gpu_service, headless);
 
@@ -176,8 +216,7 @@ void VizCompositorThreadRunnerImpl::CreateFrameSinkManagerOnCompositorThread(
     // manager to create GMB-backed video frames.
     gmb_video_frame_pool_context_provider_ =
         std::make_unique<GmbVideoFramePoolContextProviderImpl>(
-            gpu_service, gpu_memory_buffer_manager_.get(),
-            gpu_service->gpu_memory_buffer_factory());
+            gpu_service, gpu_service->gpu_memory_buffer_factory());
   } else {
     // Create OutputSurfaceProvider usable for software compositing only.
     output_surface_provider_ =
@@ -239,7 +278,6 @@ void VizCompositorThreadRunnerImpl::TearDownOnCompositorThread() {
   hint_session_factory_.reset();
   output_surface_provider_.reset();
   gmb_video_frame_pool_context_provider_.reset();
-  gpu_memory_buffer_manager_.reset();
 }
 
 }  // namespace viz

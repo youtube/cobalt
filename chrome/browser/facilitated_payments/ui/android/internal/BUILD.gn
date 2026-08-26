@@ -28,6 +28,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/facilitated_payments/FacilitatedPaymentsPaymentMethodsViewBinder.java",
     "java/src/org/chromium/chrome/browser/facilitated_payments/FacilitatedPaymentsPaymentMethodsViewBridge.java",
     "java/src/org/chromium/chrome/browser/facilitated_payments/FacilitatedPaymentsProgressScreen.java",
+    "java/src/org/chromium/chrome/browser/facilitated_payments/PaymentAppViewBinder.java",
     "java/src/org/chromium/chrome/browser/facilitated_payments/PixAccountLinkingPrompt.java",
   ]
 
@@ -39,6 +40,7 @@ android_library("java") {
     "//chrome/android:chrome_app_java_resources",
     "//chrome/browser/autofill/android:java",
     "//chrome/browser/facilitated_payments/ui/android:public_java",
+    "//chrome/browser/flags:java",
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/settings:java",
     "//chrome/browser/touch_to_fill/common/android:java",
@@ -81,6 +83,7 @@ android_resources("java_resources") {
     "java/res/layout/facilitated_payments_payment_methods_sheet_header_item.xml",
     "java/res/layout/facilitated_payments_progress_screen.xml",
     "java/res/layout/facilitated_payments_sequence_view.xml",
+    "java/res/layout/payment_app_item.xml",
     "java/res/layout/pix_account_linking_prompt.xml",
     "java/res/values/dimens.xml",
   ]
@@ -103,7 +106,9 @@ robolectric_library("junit") {
     "//chrome/android:chrome_java",
     "//chrome/browser/autofill/android:java",
     "//chrome/browser/facilitated_payments/ui/android:public_java",
+    "//chrome/browser/flags:java",
     "//chrome/browser/profiles/android:java",
+    "//chrome/browser/settings:factory_java",
     "//components/autofill/android:autofill_java",
     "//components/browser_ui/bottomsheet/android:factory_java",
     "//components/browser_ui/bottomsheet/android:java",
@@ -118,7 +123,7 @@ robolectric_library("junit") {
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_core_java",
     "//third_party/hamcrest:hamcrest_library_java",
-    "//third_party/junit:junit",
+    "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java",
   ]
@@ -141,6 +146,7 @@ android_library("javatests") {
     "//chrome/browser/profiles/android:java",
     "//chrome/browser/touch_to_fill/common/android:java_resources",
     "//chrome/test/android:chrome_java_integration_test_support",
+    "//chrome/test/android:chrome_java_transit",
     "//components/browser_ui/bottomsheet/android:java",
     "//components/browser_ui/bottomsheet/android:manager_java",
     "//components/browser_ui/bottomsheet/android/test:java",

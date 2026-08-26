@@ -2118,8 +2118,14 @@ message ChromeDeviceSettingsProto {
       1268;
   optional BooleanPolicyProto DevicePostQuantumKeyAgreementEnabled = 1276;
   optional StringPolicyProto DeviceRestrictionSchedule = 1290;
-  optional BooleanPolicyProto DeviceNativeClientForceAllowed = 1314;
+  optional BooleanPolicyProto DeviceNativeClientForceAllowed = 1314
+      [deprecated = true];
   optional IntegerPolicyProto DevicePowerBatteryChargingOptimization = 1319;
   optional BooleanPolicyProto DeviceFlexArcPreloadEnabled = 1320;
   optional BooleanPolicyProto DeviceUserInitiatedFirmwareUpdatesEnabled = 1356;
+  optional BooleanPolicyProto DeviceBluetoothJustWorksPairingEnabled = 1373;
+  optional BooleanPolicyProto
+      DeviceUserInitiatedFlexSystemFirmwareUpdatesEnabled = 1375;
+  optional StringListPolicyProto DeviceLoginScreenSecurityKeyPermitAttestation =
+      1385;
 }

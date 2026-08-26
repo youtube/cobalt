@@ -51,14 +51,5 @@ struct TransportStats {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::TransportChannelStats;
-using ::webrtc::TransportChannelStatsList;
-using ::webrtc::TransportStats;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // PC_TRANSPORT_STATS_H_

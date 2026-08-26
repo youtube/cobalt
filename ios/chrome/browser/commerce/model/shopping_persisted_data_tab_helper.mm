@@ -9,7 +9,8 @@
 #import "base/strings/stringprintf.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
-#import "components/optimization_guide/core/optimization_metadata.h"
+#import "components/application_locale_storage/application_locale_storage.h"
+#import "components/optimization_guide/core/hints/optimization_metadata.h"
 #import "ios/chrome/browser/commerce/model/price_alert_util.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
@@ -77,7 +78,7 @@ ShoppingPersistedDataTabHelper::PriceDrop::~PriceDrop() = default;
 
 const ShoppingPersistedDataTabHelper::PriceDrop*
 ShoppingPersistedDataTabHelper::GetPriceDrop() {
-  if (!IsPriceAlertsEligible(web_state_->GetBrowserState())) {
+  if (!IsPriceAlertsEligibleForWebState(web_state_)) {
     return nullptr;
   }
   const GURL& url = web_state_->GetLastCommittedURL().is_valid()
@@ -171,7 +172,7 @@ std::u16string ShoppingPersistedDataTabHelper::FormatPrice(
 void ShoppingPersistedDataTabHelper::DidFinishNavigation(
     web::WebState* web_state,
     web::NavigationContext* navigation_context) {
-  if (!IsPriceAlertsEligible(web_state->GetBrowserState())) {
+  if (!IsPriceAlertsEligibleForWebState(web_state)) {
     return;
   }
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -261,9 +262,9 @@ void ShoppingPersistedDataTabHelper::ParseProto(
 
   // TODO(crbug.com/40794608) Filter out non-qualifying price drops (< 10% or
   // < 2 units).
-  payments::CurrencyFormatter* currencyFormatter =
-      GetCurrencyFormatter(product_update.old_price().currency_code(),
-                           GetApplicationContext()->GetApplicationLocale());
+  payments::CurrencyFormatter* currencyFormatter = GetCurrencyFormatter(
+      product_update.old_price().currency_code(),
+      GetApplicationContext()->GetApplicationLocaleStorage()->Get());
   price_drop_->current_price = base::SysUTF16ToNSString(FormatPrice(
       currencyFormatter, product_update.new_price().amount_micros()));
   price_drop_->previous_price = base::SysUTF16ToNSString(FormatPrice(

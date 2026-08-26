@@ -6,9 +6,9 @@
   "scripts/gl_angle_ext.xml":
     "da4ecccdd77635f1b0e9d4664f856706",
   "scripts/registry_xml.py":
-    "c56e84017783474a6b4698370cf5864a",
+    "15b29345de1215203addd0a2a7af530e",
   "src/libGLESv2/egl_stubs_getprocaddress_autogen.cpp":
-    "0509998531cd46780dda07f371be3277",
+    "d394fb57688dc5eb89c19aeae23d8bf3",
   "src/libGLESv2/proc_table_cl_autogen.cpp":
     "ed003b0f041aaaa35b67d3fe07e61f91",
   "src/libOpenCL/libOpenCL_autogen.map":
@@ -18,9 +18,9 @@
   "third_party/OpenCL-Docs/src/xml/cl.xml":
     "6d0bf09e20a8f8c3ae440d79eda08bf9",
   "third_party/OpenGL-Registry/src/xml/gl.xml":
-    "49f0afe5cac23951c74420e457b0cb23",
+    "d7ed846c15f72e084763c22d70adf1e2",
   "third_party/OpenGL-Registry/src/xml/glx.xml":
-    "94f3eee4b076801d117804eb466714b7",
+    "6e1745b04a1ac673c60aaa5dd819f3c4",
   "third_party/OpenGL-Registry/src/xml/wgl.xml":
     "eae784bf4d1b983a42af5671b140b7c4"
 }

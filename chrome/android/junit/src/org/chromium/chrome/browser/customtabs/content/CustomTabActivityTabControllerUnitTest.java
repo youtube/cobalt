@@ -15,7 +15,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
@@ -366,7 +365,6 @@ public class CustomTabActivityTabControllerUnitTest {
     public void setsTabObserverRegistrarOnEngagementSignalsHandler() {
         var handler = mock(EngagementSignalsHandler.class);
         when(env.connection.getEngagementSignalsHandler(eq(env.session))).thenReturn(handler);
-        when(env.connection.isDynamicFeatureEnabled(anyString())).thenReturn(true);
         when(mPrivacyPreferencesManager.isUsageAndCrashReportingPermitted()).thenReturn(true);
         mTabController.setUpInitialTab(null);
         mTabController.finishNativeInitialization();
@@ -387,5 +385,23 @@ public class CustomTabActivityTabControllerUnitTest {
         mTabController.setUpInitialTab(null);
         mTabController.finishNativeInitialization();
         assertEquals(tab, env.tabProvider.getTab());
+    }
+
+    @Test
+    public void getTabCount_noTabs() {
+        when(env.tabModel.getCount()).thenReturn(0);
+        assertEquals(0, mTabController.getTabCount());
+    }
+
+    @Test
+    public void getTabCount_oneTab() {
+        when(env.tabModel.getCount()).thenReturn(1);
+        assertEquals(1, mTabController.getTabCount());
+    }
+
+    @Test
+    public void getTabCount_multipleTabs() {
+        when(env.tabModel.getCount()).thenReturn(5);
+        assertEquals(5, mTabController.getTabCount());
     }
 }

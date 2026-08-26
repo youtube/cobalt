@@ -10,10 +10,9 @@
 
 #include "media/engine/webrtc_video_engine.h"
 
-#include <stdio.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <functional>
 #include <initializer_list>
 #include <map>
@@ -128,14 +127,6 @@ const char* StreamTypeToString(VideoSendStream::StreamStats::StreamType type) {
   return nullptr;
 }
 
-bool IsEnabled(const FieldTrialsView& trials, absl::string_view name) {
-  return absl::StartsWith(trials.Lookup(name), "Enabled");
-}
-
-bool IsDisabled(const FieldTrialsView& trials, absl::string_view name) {
-  return absl::StartsWith(trials.Lookup(name), "Disabled");
-}
-
 void AddDefaultFeedbackParams(Codec* codec, const FieldTrialsView& trials) {
   // Don't add any feedback params for RED and ULPFEC.
   if (codec->name == kRedCodecName || codec->name == kUlpfecCodecName)
@@ -150,7 +141,7 @@ void AddDefaultFeedbackParams(Codec* codec, const FieldTrialsView& trials) {
   codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamNack, kParamValueEmpty));
   codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamNack, kRtcpFbNackParamPli));
   if (codec->name == kVp8CodecName &&
-      IsEnabled(trials, "WebRTC-RtcpLossNotification")) {
+      trials.IsEnabled("WebRTC-RtcpLossNotification")) {
     codec->AddFeedbackParam(FeedbackParam(kRtcpFbParamLntf, kParamValueEmpty));
   }
 }
@@ -161,7 +152,7 @@ void AddDefaultFeedbackParams(Codec* codec, const FieldTrialsView& trials) {
 // Also, is_decoder_factory is used to decide whether FlexFEC video format
 // should be advertised as supported.
 template <class T>
-std::vector<webrtc::SdpVideoFormat> GetDefaultSupportedFormats(
+std::vector<SdpVideoFormat> GetDefaultSupportedFormats(
     const T* factory,
     bool is_decoder_factory,
     const FieldTrialsView& trials) {
@@ -182,7 +173,7 @@ std::vector<webrtc::SdpVideoFormat> GetDefaultSupportedFormats(
   supported_formats.push_back(SdpVideoFormat(kUlpfecCodecName));
   // flexfec-03 is always supported as receive codec and as send codec
   // only if WebRTC-FlexFEC-03-Advertised is enabled
-  if (is_decoder_factory || IsEnabled(trials, "WebRTC-FlexFEC-03-Advertised")) {
+  if (is_decoder_factory || trials.IsEnabled("WebRTC-FlexFEC-03-Advertised")) {
     SdpVideoFormat flexfec_format(kFlexfecCodecName);
     // This value is currently arbitrarily set to 10 seconds. (The unit
     // is microseconds.) This parameter MUST be present in the SDP, but
@@ -228,7 +219,7 @@ RTCErrorOr<Codec> AddRtx(const Codec& primary_codec,
 // TODO(kron): Perhaps it is better to move the implicit knowledge to the place
 // where codecs are negotiated.
 template <class T>
-std::vector<webrtc::Codec> GetPayloadTypesAndDefaultCodecs(
+std::vector<Codec> GetPayloadTypesAndDefaultCodecs(
     const T* factory,
     bool is_decoder_factory,
     bool include_rtx,
@@ -277,7 +268,7 @@ std::vector<webrtc::Codec> GetPayloadTypesAndDefaultCodecs(
   return output_codecs;
 }
 
-static std::string CodecVectorToString(const std::vector<Codec>& codecs) {
+std::string CodecVectorToString(const std::vector<Codec>& codecs) {
   StringBuilder out;
   out << "{";
   for (size_t i = 0; i < codecs.size(); ++i) {
@@ -290,7 +281,7 @@ static std::string CodecVectorToString(const std::vector<Codec>& codecs) {
   return out.Release();
 }
 
-static bool ValidateCodecFormats(const std::vector<Codec>& codecs) {
+bool ValidateCodecFormats(const std::vector<Codec>& codecs) {
   bool has_video = false;
   for (size_t i = 0; i < codecs.size(); ++i) {
     if (!codecs[i].ValidateCodecFormat()) {
@@ -308,7 +299,7 @@ static bool ValidateCodecFormats(const std::vector<Codec>& codecs) {
   return true;
 }
 
-static bool ValidateStreamParams(const StreamParams& sp) {
+bool ValidateStreamParams(const StreamParams& sp) {
   if (sp.ssrcs.empty()) {
     RTC_LOG(LS_ERROR) << "No SSRCs in stream parameters: " << sp.ToString();
     return false;
@@ -514,11 +505,9 @@ void FallbackToDefaultScalabilityModeIfNotSupported(
     const Codec& codec,
     const VideoSendStream::Config& config,
     std::vector<RtpEncodingParameters>& encodings) {
-  if (!absl::c_any_of(encodings,
-                      [](const webrtc::RtpEncodingParameters& encoding) {
-                        return encoding.scalability_mode &&
-                               !encoding.scalability_mode->empty();
-                      })) {
+  if (!absl::c_any_of(encodings, [](const RtpEncodingParameters& encoding) {
+        return encoding.scalability_mode && !encoding.scalability_mode->empty();
+      })) {
     // Fallback is only enabled if the scalability mode is configured for any of
     // the encodings for now.
     return;
@@ -888,22 +877,21 @@ WebRtcVideoEngine::GetRtpHeaderExtensions() const {
     result.emplace_back(uri, id, RtpTransceiverDirection::kStopped);
   }
   result.emplace_back(RtpExtension::kGenericFrameDescriptorUri00, id,
-                      IsEnabled(trials_, "WebRTC-GenericDescriptorAdvertised")
+                      trials_.IsEnabled("WebRTC-GenericDescriptorAdvertised")
+                          ? RtpTransceiverDirection::kSendRecv
+                          : RtpTransceiverDirection::kStopped);
+  result.emplace_back(RtpExtension::kDependencyDescriptorUri, id,
+                      trials_.IsEnabled("WebRTC-DependencyDescriptorAdvertised")
                           ? RtpTransceiverDirection::kSendRecv
                           : RtpTransceiverDirection::kStopped);
   result.emplace_back(
-      RtpExtension::kDependencyDescriptorUri, id,
-      IsEnabled(trials_, "WebRTC-DependencyDescriptorAdvertised")
-          ? RtpTransceiverDirection::kSendRecv
-          : RtpTransceiverDirection::kStopped);
-  result.emplace_back(
       RtpExtension::kVideoLayersAllocationUri, id,
-      IsEnabled(trials_, "WebRTC-VideoLayersAllocationAdvertised")
+      trials_.IsEnabled("WebRTC-VideoLayersAllocationAdvertised")
           ? RtpTransceiverDirection::kSendRecv
           : RtpTransceiverDirection::kStopped);
 
   // VideoFrameTrackingId is a test-only extension.
-  if (IsEnabled(trials_, "WebRTC-VideoFrameTrackingIdAdvertised")) {
+  if (trials_.IsEnabled("WebRTC-VideoFrameTrackingIdAdvertised")) {
     result.emplace_back(RtpExtension::kVideoFrameTrackingIdUri, id,
                         RtpTransceiverDirection::kSendRecv);
   }
@@ -937,9 +925,8 @@ WebRtcVideoSendChannel::WebRtcVideoSendChannel(
       default_send_options_(options),
       last_send_stats_log_ms_(-1),
       last_receive_stats_log_ms_(-1),
-      discard_unknown_ssrc_packets_(
-          IsEnabled(call_->trials(),
-                    "WebRTC-Video-DiscardPacketsWithUnknownSsrc")),
+      discard_unknown_ssrc_packets_(call_->trials().IsEnabled(
+          "WebRTC-Video-DiscardPacketsWithUnknownSsrc")),
       crypto_options_(crypto_options) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   rtcp_receiver_report_ssrc_ = kDefaultRtcpReceiverReportSsrc;
@@ -1022,7 +1009,7 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::ConfigureVideoEncoderSettings(
 
       // TODO(webrtc:329396373): Remove after flexible mode is fully deployed.
       vp9_settings.flexibleMode =
-          !IsDisabled(call_->trials(), "WebRTC-Video-Vp9FlexibleMode");
+          !call_->trials().IsDisabled("WebRTC-Video-Vp9FlexibleMode");
     } else {
       // Multiple spatial layers vp9 screenshare needs flexible mode.
       vp9_settings.flexibleMode = vp9_settings.numberOfSpatialLayers > 1;
@@ -1106,7 +1093,7 @@ bool WebRtcVideoSendChannel::GetChangedSenderParameters(
   }
 
   // Never enable sending FlexFEC, unless we are in the experiment.
-  if (!IsEnabled(call_->trials(), "WebRTC-FlexFEC-03")) {
+  if (!call_->trials().IsEnabled("WebRTC-FlexFEC-03")) {
     for (VideoCodecSettings& codec : negotiated_codecs)
       codec.flexfec_payload_type = -1;
   }
@@ -1809,7 +1796,7 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::WebRtcVideoSendStream(
       rtp_parameters_(CreateRtpParametersWithEncodings(sp)),
       sending_(false),
       disable_automatic_resize_(
-          IsEnabled(call->trials(), "WebRTC-Video-DisableAutomaticResize")) {
+          call->trials().IsEnabled("WebRTC-Video-DisableAutomaticResize")) {
   // Maximum packet size may come in RtpConfig from external transport, for
   // example from QuicTransportInterface implementation, so do not exceed
   // given max_packet_size.
@@ -1830,7 +1817,7 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::WebRtcVideoSendStream(
   // FlexFEC SSRCs.
   // TODO(brandtr): This code needs to be generalized when we add support for
   // multistream protection.
-  if (IsEnabled(call_->trials(), "WebRTC-FlexFEC-03")) {
+  if (call_->trials().IsEnabled("WebRTC-FlexFEC-03")) {
     uint32_t flexfec_ssrc;
     bool flexfec_enabled = false;
     for (uint32_t primary_ssrc : parameters_.config.rtp.ssrcs) {
@@ -1943,7 +1930,7 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetDegradationPreference()
                parameters_.options.content_hint ==
                    VideoTrackInterface::ContentHint::kText) {
       degradation_preference = DegradationPreference::MAINTAIN_RESOLUTION;
-    } else if (IsEnabled(call_->trials(), "WebRTC-Video-BalancedDegradation")) {
+    } else if (call_->trials().IsEnabled("WebRTC-Video-BalancedDegradation")) {
       // Standard wants balanced by default, but it needs to be tuned first.
       degradation_preference = DegradationPreference::BALANCED;
     } else {
@@ -2155,6 +2142,9 @@ RTCError WebRtcVideoSendChannel::WebRtcVideoSendStream::SetRtpParameters(
       new_send_state = true;
     }
   }
+  bool new_csrcs =
+      (new_parameters.encodings[0].csrcs.has_value() &&
+       new_parameters.encodings[0].csrcs != rtp_parameters_.encodings[0].csrcs);
 
   rtp_parameters_ = new_parameters;
   // Codecs are currently handled at the WebRtcVideoSendChannel level.
@@ -2168,6 +2158,9 @@ RTCError WebRtcVideoSendChannel::WebRtcVideoSendStream::SetRtpParameters(
     if (source_ && stream_) {
       stream_->SetSource(source_, GetDegradationPreference());
     }
+  }
+  if (stream_ && new_csrcs) {
+    stream_->SetCsrcs(rtp_parameters_.encodings[0].csrcs.value());
   }
   // Check if a key frame was requested via setParameters.
   std::vector<std::string> key_frames_requested_by_rid;
@@ -2366,7 +2359,7 @@ void WebRtcVideoSendChannel::WebRtcVideoSendStream::ReconfigureEncoder(
     SetParametersCallback callback) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
   if (!stream_) {
-    // The webrtc::VideoSendStream `stream_` has not yet been created but other
+    // The VideoSendStream `stream_` has not yet been created but other
     // parameters has changed.
     InvokeSetParametersCallback(callback, RTCError::OK());
     return;
@@ -2671,6 +2664,10 @@ void WebRtcVideoSendChannel::WebRtcVideoSendStream::RecreateWebRtcStream() {
     stream_ = call_->CreateVideoSendStream(std::move(config),
                                            parameters_.encoder_config.Copy());
   }
+  if (!rtp_parameters_.encodings.empty() &&
+      rtp_parameters_.encodings[0].csrcs.has_value()) {
+    stream_->SetCsrcs(rtp_parameters_.encodings[0].csrcs.value());
+  }
 
   parameters_.encoder_config.encoder_specific_settings = nullptr;
 
@@ -2737,9 +2734,8 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveChannel(
       decoder_factory_(decoder_factory),
       default_send_options_(options),
       last_receive_stats_log_ms_(-1),
-      discard_unknown_ssrc_packets_(
-          IsEnabled(call_->trials(),
-                    "WebRTC-Video-DiscardPacketsWithUnknownSsrc")),
+      discard_unknown_ssrc_packets_(call_->trials().IsEnabled(
+          "WebRTC-Video-DiscardPacketsWithUnknownSsrc")),
       crypto_options_(crypto_options),
       receive_buffer_size_(ParseReceiveBufferSize(call_->trials())) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
@@ -3068,7 +3064,7 @@ void WebRtcVideoReceiveChannel::ConfigureReceiverRtp(
 
   // TODO(brandtr): Generalize when we add support for multistream protection.
   flexfec_config->payload_type = recv_flexfec_payload_type_;
-  if (!IsDisabled(call_->trials(), "WebRTC-FlexFEC-03-Advertised") &&
+  if (!call_->trials().IsDisabled("WebRTC-FlexFEC-03-Advertised") &&
       sp.GetFecFrSsrc(ssrc, &flexfec_config->rtp.remote_ssrc)) {
     flexfec_config->protected_media_ssrcs = {ssrc};
     flexfec_config->rtp.local_ssrc = config->rtp.local_ssrc;

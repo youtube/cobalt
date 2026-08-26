@@ -52,6 +52,7 @@
 #include "net/quic/quic_connectivity_monitor.h"
 #include "net/quic/quic_context.h"
 #include "net/quic/quic_crypto_client_config_handle.h"
+#include "net/quic/quic_endpoint.h"
 #include "net/quic/quic_proxy_datagram_client_socket.h"
 #include "net/quic/quic_session_alias_key.h"
 #include "net/quic/quic_session_attempt.h"
@@ -68,10 +69,6 @@
 #include "net/third_party/quiche/src/quiche/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_versions.h"
 #include "url/scheme_host_port.h"
-
-namespace base {
-class Value;
-}  // namespace base
 
 namespace quic {
 class QuicAlarmFactory;
@@ -96,6 +93,7 @@ class QuicChromiumConnectionHelper;
 class QuicCryptoClientStreamFactory;
 class QuicServerInfo;
 class QuicSessionPool;
+class QuicSessionAttemptManager;
 class QuicContext;
 class SCTAuditingDelegate;
 class SocketPerformanceWatcherFactory;
@@ -298,21 +296,6 @@ class NET_EXPORT_PRIVATE QuicSessionRequest {
   CompletionOnceCallback host_resolution_callback_;
 
   CompletionOnceCallback create_session_callback_;
-};
-
-// Represents a single QUIC endpoint and the information necessary to attempt
-// a QUIC session.
-struct NET_EXPORT_PRIVATE QuicEndpoint {
-  QuicEndpoint(quic::ParsedQuicVersion quic_version,
-               IPEndPoint ip_endpoint,
-               ConnectionEndpointMetadata metadata);
-  ~QuicEndpoint();
-
-  quic::ParsedQuicVersion quic_version = quic::ParsedQuicVersion::Unsupported();
-  IPEndPoint ip_endpoint;
-  ConnectionEndpointMetadata metadata;
-
-  base::Value::Dict ToValue() const;
 };
 
 // Manages a pool of QuicChromiumClientSessions.
@@ -550,6 +533,14 @@ class NET_EXPORT_PRIVATE QuicSessionPool
       const ConnectionEndpointMetadata& metadata,
       bool svcb_optional) const;
 
+  bool IsHappyEyeballsV3Enabled() const {
+    return host_resolver_->IsHappyEyeballsV3Enabled();
+  }
+
+  QuicSessionAttemptManager* session_attempt_manager() {
+    return session_attempt_manager_.get();
+  }
+
   struct QuicCryptoClientConfigKey;
 
  private:
@@ -559,6 +550,7 @@ class NET_EXPORT_PRIVATE QuicSessionPool
   class QuicCryptoClientConfigOwner;
   class CryptoClientConfigHandle;
   friend class QuicSessionAttempt;
+  friend class QuicSessionAttemptManager;
   friend class MockQuicSessionPool;
   friend class test::QuicSessionPoolPeer;
 
@@ -929,6 +921,8 @@ class NET_EXPORT_PRIVATE QuicSessionPool
   quic::DeterministicConnectionIdGenerator connection_id_generator_{
       quic::kQuicDefaultConnectionIdLength};
 
+  std::unique_ptr<QuicSessionAttemptManager> session_attempt_manager_;
+
   std::optional<base::TimeDelta> time_delay_for_waiting_job_for_testing_;
 
   base::WeakPtrFactory<QuicSessionPool> weak_factory_{this};
@@ -982,15 +976,13 @@ class QuicSessionPool::QuicCryptoClientConfigOwner {
   const raw_ptr<QuicSessionPool> quic_session_pool_;
 };
 
-// Key for QuicCryptoClienConfigOwners within a session pool.k
+// Key for QuicCryptoClienConfigOwners within a session pool.
 struct NET_EXPORT_PRIVATE QuicSessionPool::QuicCryptoClientConfigKey {
   QuicCryptoClientConfigKey() = default;
   explicit QuicCryptoClientConfigKey(const QuicSessionKey& session_key)
       : network_anonymization_key(session_key.network_anonymization_key()),
         proxy_chain(session_key.proxy_chain()),
         session_usage(session_key.session_usage()) {}
-  explicit QuicCryptoClientConfigKey(const NetworkAnonymizationKey& nak)
-      : network_anonymization_key(nak) {}
 
   bool operator==(const QuicCryptoClientConfigKey& other) const;
   bool operator<(const QuicCryptoClientConfigKey& other) const;

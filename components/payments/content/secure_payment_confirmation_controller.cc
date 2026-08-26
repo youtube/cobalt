@@ -15,6 +15,7 @@
 #include "components/payments/content/content_payment_request_delegate.h"
 #include "components/payments/content/payment_request.h"
 #include "components/payments/content/secure_payment_confirmation_app.h"
+#include "components/payments/content/secure_payment_confirmation_transaction_mode.h"
 #include "components/payments/core/currency_formatter.h"
 #include "components/payments/core/features.h"
 #include "components/payments/core/method_strings.h"
@@ -102,16 +103,8 @@ void SecurePaymentConfirmationController::
   model_.set_cancel_button_label(l10n_util::GetStringUTF16(IDS_CANCEL));
   model_.set_progress_bar_visible(false);
 
-  if (base::FeatureList::IsEnabled(
-          blink::features::kSecurePaymentConfirmationNetworkAndIssuerIcons)) {
-    model_.set_title(l10n_util::GetStringUTF16(
-        IDS_SECURE_PAYMENT_CONFIRMATION_INLINE_TITLE));
-    model_.set_description(l10n_util::GetStringUTF16(
-        IDS_SECURE_PAYMENT_CONFIRMATION_INLINE_DESCRIPTION));
-  } else {
-    model_.set_title(l10n_util::GetStringUTF16(
-        IDS_SECURE_PAYMENT_CONFIRMATION_VERIFY_PURCHASE));
-  }
+  model_.set_title(l10n_util::GetStringUTF16(
+      IDS_SECURE_PAYMENT_CONFIRMATION_VERIFY_PURCHASE));
 
   model_.set_merchant_label(
       l10n_util::GetStringUTF16(IDS_SECURE_PAYMENT_CONFIRMATION_STORE_LABEL));
@@ -144,16 +137,6 @@ void SecurePaymentConfirmationController::
       IDS_PAYMENT_REQUEST_PAYMENT_METHOD_SECTION_NAME));
   model_.set_instrument_value(app->GetLabel());
   model_.set_instrument_icon(app->icon_bitmap());
-
-  model_.set_network_label(
-      l10n_util::GetStringUTF16(IDS_SECURE_PAYMENT_CONFIRMATION_NETWORK_LABEL));
-  model_.set_network_value(app->network_label());
-  model_.set_network_icon(app->network_bitmap());
-
-  model_.set_issuer_label(
-      l10n_util::GetStringUTF16(IDS_SECURE_PAYMENT_CONFIRMATION_ISSUER_LABEL));
-  model_.set_issuer_value(app->issuer_label());
-  model_.set_issuer_icon(app->issuer_bitmap());
 
   model_.set_total_label(
       l10n_util::GetStringUTF16(IDS_SECURE_PAYMENT_CONFIRMATION_TOTAL_LABEL));
@@ -197,6 +180,9 @@ void SecurePaymentConfirmationController::
   // after the dialog is created and shown to handle this, in order to keep the
   // automation codepath as close to the 'real' one as possible.
   if (request_->spc_transaction_mode() != SPCTransactionMode::NONE) {
+    // TODO(crbug.com/417426346): Once the desktop SPC controller supports the
+    // new fallback flow, it should handle SPCTransactionMode::
+    // AUTOAUTHANOTHERWAY here.
     if (request_->spc_transaction_mode() == SPCTransactionMode::AUTOACCEPT) {
       OnConfirm();
     } else if (request_->spc_transaction_mode() ==

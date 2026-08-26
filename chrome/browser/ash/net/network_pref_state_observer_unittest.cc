@@ -13,7 +13,6 @@
 #include "base/values.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/components/network/network_handler.h"
@@ -55,7 +54,7 @@ class NetworkPrefStateObserverTest : public testing::Test {
         TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(profile_manager_->SetUp());
     network_pref_state_observer_ = std::make_unique<NetworkPrefStateObserver>(
-        *profile_manager_->local_state()->Get());
+        *TestingBrowserProcess::GetGlobal()->local_state());
   }
 
   void TearDown() override {

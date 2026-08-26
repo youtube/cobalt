@@ -16,12 +16,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.AdvancedProtectionTestRule;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.content_settings.ContentSettingValues;
@@ -29,36 +31,35 @@ import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ContentSwitches;
 import org.chromium.net.test.EmbeddedTestServer;
-import org.chromium.net.test.EmbeddedTestServerRule;
 import org.chromium.url.GURL;
 
 /** Integration test for Android OS disabling Javascript Optimizers. */
 @RunWith(ChromeJUnit4ClassRunner.class)
-// TODO(crbug.com/396239388) Make tests work without {@link ContentSwitches.SITE_PER_PROCESS}.
 @CommandLineFlags.Add({
     ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
-    ContentSwitches.SITE_PER_PROCESS
+    ContentSwitches.HOST_RESOLVER_RULES + "=MAP * 127.0.0.1",
+    "ignore-certificate-errors"
 })
-@Batch(Batch.PER_CLASS)
+@DoNotBatch(reason = "Tests manipulate global profile state")
 public class JavascriptOptimizerFeatureTest {
     private static final String TEST_PAGE = "/chrome/test/data/android/test.html";
 
-    private EmbeddedTestServer mTestServer;
-
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @ClassRule
     public static AdvancedProtectionTestRule sAdvancedProtectionRule =
             new AdvancedProtectionTestRule();
 
+    private EmbeddedTestServer mTestServer;
+    private WebPageStation mPage;
+
     @Before
     public void setUp() {
-        EmbeddedTestServerRule embeddedTestServerRule =
-                mActivityTestRule.getEmbeddedTestServerRule();
-        mTestServer = embeddedTestServerRule.getServer();
+        mTestServer = mActivityTestRule.getTestServer();
         sAdvancedProtectionRule.setIsAdvancedProtectionRequestedByOs(false);
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
     }
 
     private boolean queryJavascriptOptimizersEnabledForActiveWebContents() {
@@ -94,14 +95,14 @@ public class JavascriptOptimizerFeatureTest {
         assertFalse(queryJavascriptOptimizersEnabledForActiveWebContents());
     }
 
-    /*
-     * Test that specifying an exception in site settings has higher priority than the
-     * {@link OsAdditionalSecurityPermissionProvider}-provided setting.
+    /**
+     * Test that specifying an exception in site settings has higher priority than the {@link
+     * OsAdditionalSecurityPermissionProvider}-provided setting.
      */
     @Test
     @MediumTest
     public void testCustomExceptionHasHigherPriorityThanService() {
-        GURL pageUrl = new GURL(mTestServer.getURL(TEST_PAGE));
+        GURL pageUrl = new GURL(mTestServer.getURLWithHostName("allowed.test", TEST_PAGE));
         sAdvancedProtectionRule.setIsAdvancedProtectionRequestedByOs(true);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -117,5 +118,97 @@ public class JavascriptOptimizerFeatureTest {
 
         mActivityTestRule.loadUrl(pageUrl.getSpec());
         assertTrue(queryJavascriptOptimizersEnabledForActiveWebContents());
+    }
+
+    /*
+     * Test that specifying an exception in site settings has higher priority than the
+     * default setting.
+     */
+    @Test
+    @MediumTest
+    public void testCustomAllowExceptionHasHigherPriorityThanDefaultBlockSetting() {
+        GURL pageUrl = new GURL(mTestServer.getURLWithHostName("allowed.test", TEST_PAGE));
+        // Ensure that APM is disabled, because APM actuates site-per-process.
+        sAdvancedProtectionRule.setIsAdvancedProtectionRequestedByOs(false);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    GURL pageOrigin = new GURL(pageUrl.getScheme() + "://" + pageUrl.getHost());
+                    Profile profile = mActivityTestRule.getProfile(/* incognito= */ false);
+                    WebsitePreferenceBridge.setDefaultContentSetting(
+                            profile,
+                            ContentSettingsType.JAVASCRIPT_OPTIMIZER,
+                            ContentSettingValues.BLOCK);
+                    WebsitePreferenceBridge.setContentSettingCustomScope(
+                            profile,
+                            ContentSettingsType.JAVASCRIPT_OPTIMIZER,
+                            pageOrigin.getHost(),
+                            "*",
+                            ContentSettingValues.ALLOW);
+                });
+
+        mActivityTestRule.loadUrl(pageUrl.getSpec());
+        assertTrue(queryJavascriptOptimizersEnabledForActiveWebContents());
+    }
+
+    /*
+     * Test that specifying an exception in site settings has higher priority than the
+     * default setting.
+     */
+    @Test
+    @MediumTest
+    public void testCustomAllowExceptionForSiteAlsoAppliesToSubdomain() {
+        GURL pageUrl = new GURL(mTestServer.getURLWithHostName("www.allowed.test", TEST_PAGE));
+        // Ensure that APM is disabled, because APM actuates site-per-process.
+        sAdvancedProtectionRule.setIsAdvancedProtectionRequestedByOs(false);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Profile profile = mActivityTestRule.getProfile(/* incognito= */ false);
+                    WebsitePreferenceBridge.setDefaultContentSetting(
+                            profile,
+                            ContentSettingsType.JAVASCRIPT_OPTIMIZER,
+                            ContentSettingValues.BLOCK);
+                    WebsitePreferenceBridge.setContentSettingCustomScope(
+                            profile,
+                            ContentSettingsType.JAVASCRIPT_OPTIMIZER,
+                            "http://[*.]allowed.test",
+                            "*",
+                            ContentSettingValues.ALLOW);
+                });
+
+        mActivityTestRule.loadUrl(pageUrl.getSpec());
+        assertTrue(queryJavascriptOptimizersEnabledForActiveWebContents());
+    }
+
+    /*
+     * Test that specifying an exception in site settings has higher priority than the
+     * default setting.
+     */
+    @Test
+    @MediumTest
+    public void testCustomBlockExceptionHasHigherPriorityThanDefaultAllowSetting() {
+        GURL pageUrl = new GURL(mTestServer.getURLWithHostName("blocked.test", TEST_PAGE));
+        // Ensure that APM is disabled, because APM actuates site-per-process.
+        sAdvancedProtectionRule.setIsAdvancedProtectionRequestedByOs(false);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    GURL pageOrigin = new GURL(pageUrl.getScheme() + "://" + pageUrl.getHost());
+                    Profile profile = mActivityTestRule.getProfile(/* incognito= */ false);
+                    WebsitePreferenceBridge.setDefaultContentSetting(
+                            profile,
+                            ContentSettingsType.JAVASCRIPT_OPTIMIZER,
+                            ContentSettingValues.ALLOW);
+                    WebsitePreferenceBridge.setContentSettingCustomScope(
+                            profile,
+                            ContentSettingsType.JAVASCRIPT_OPTIMIZER,
+                            pageOrigin.getHost(),
+                            "*",
+                            ContentSettingValues.BLOCK);
+                });
+
+        mActivityTestRule.loadUrl(pageUrl.getSpec());
+        assertFalse(queryJavascriptOptimizersEnabledForActiveWebContents());
     }
 }

@@ -14,7 +14,6 @@
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/client/context_support.h"
-#include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 #include "gpu/command_buffer/client/raster_interface.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/shared_image_capabilities.h"
@@ -69,9 +68,6 @@ class Context : public media::RenderableGpuMemoryBufferVideoFramePool::Context {
     if (!client_shared_image) {
       return nullptr;
     }
-#if BUILDFLAG(IS_MAC)
-    client_shared_image->SetColorSpaceOnNativeBuffer(color_space);
-#endif
     sync_token = sii->GenVerifiedSyncToken();
     return client_shared_image;
   }

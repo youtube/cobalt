@@ -12,11 +12,11 @@
 
 #include "base/base64.h"
 #include "base/check.h"
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
-#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
-#include "base/types/zip.h"
 #include "base/values.h"
 #include "chrome/browser/autocomplete/autocomplete_scoring_model_service_factory.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
@@ -30,7 +30,7 @@
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/webui/omnibox/omnibox_internals.mojom-forward.h"
-#include "components/bookmarks/browser/bookmark_model.h"
+#include "chrome/browser/ui/webui/omnibox/omnibox_mojom_traits.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/url_database.h"
 #include "components/omnibox/browser/actions/omnibox_pedal.h"
@@ -55,290 +55,6 @@
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "components/omnibox/browser/autocomplete_scoring_model_service.h"
 #endif
-
-using bookmarks::BookmarkModel;
-
-namespace {
-
-std::string AnswerTypeToString(int answer_type) {
-  switch (answer_type) {
-    case omnibox::ANSWER_TYPE_UNSPECIFIED:
-      return "invalid";
-    case omnibox::ANSWER_TYPE_DICTIONARY:
-      return "dictionary";
-    case omnibox::ANSWER_TYPE_FINANCE:
-      return "finance";
-    case omnibox::ANSWER_TYPE_GENERIC_ANSWER:
-      return "knowledge graph";
-    case omnibox::ANSWER_TYPE_SPORTS:
-      return "sports";
-    case omnibox::ANSWER_TYPE_SUNRISE_SUNSET:
-      return "sunrise";
-    case omnibox::ANSWER_TYPE_TRANSLATION:
-      return "translation";
-    case omnibox::ANSWER_TYPE_WEATHER:
-      return "weather";
-    case omnibox::ANSWER_TYPE_WHEN_IS:
-      return "when is";
-    case omnibox::ANSWER_TYPE_CURRENCY:
-      return "currency";
-    case omnibox::ANSWER_TYPE_LOCAL_TIME:
-      return "local time";
-    case omnibox::ANSWER_TYPE_PLAY_INSTALL:
-      return "play install";
-    default:
-      return base::NumberToString(answer_type);
-  }
-}
-
-}  // namespace
-
-namespace mojo {
-
-template <>
-struct TypeConverter<std::vector<mojom::ACMatchClassificationPtr>,
-                     AutocompleteMatch::ACMatchClassifications> {
-  static std::vector<mojom::ACMatchClassificationPtr> Convert(
-      const AutocompleteMatch::ACMatchClassifications& input) {
-    std::vector<mojom::ACMatchClassificationPtr> array;
-    for (auto classification : input) {
-      auto item = mojom::ACMatchClassification::New(classification.offset,
-                                                    classification.style);
-      array.push_back(std::move(item));
-    }
-    return array;
-  }
-};
-
-// Boilerplate for `mojom.field = proto.field`.
-#define PROTO_TO_MOJOM_SIGNAL(field) \
-  mojom_signals->field =             \
-      signals.has_##field() ? std::optional{signals.field()} : std::nullopt;
-// Boilerplate for `proto.field = mojom.field`.
-#define MOJOM_TO_PROTO_SIGNAL(field)    \
-  if (mojom_signals->field.has_value()) \
-    signals.set_##field(mojom_signals->field.value());
-
-template <>
-struct TypeConverter<mojom::SignalsPtr, AutocompleteMatch::ScoringSignals> {
-  static mojom::SignalsPtr Convert(
-      const AutocompleteMatch::ScoringSignals signals) {
-    // Keep consistent:
-    // - omnibox_event.proto `ScoringSignals`
-    // - omnibox_scoring_signals.proto `OmniboxScoringSignals`
-    // - autocomplete_scoring_model_handler.cc
-    //   `AutocompleteScoringModelHandler::ExtractInputFromScoringSignals()`
-    // - autocomplete_match.cc `AutocompleteMatch::MergeScoringSignals()`
-    // - autocomplete_controller.cc `RecordScoringSignalCoverageForProvider()`
-    // - omnibox_metrics_provider.cc `GetScoringSignalsForLogging()`
-    // - omnibox.mojom `struct Signals`
-    // - omnibox_page_handler.cc
-    //   `TypeConverter<AutocompleteMatch::ScoringSignals, mojom::SignalsPtr>`
-    // - omnibox_page_handler.cc `TypeConverter<mojom::SignalsPtr,
-    //   AutocompleteMatch::ScoringSignals>`
-    // - omnibox_util.ts `signalNames`
-    // - omnibox/histograms.xml
-    //   `Omnibox.URLScoringModelExecuted.ScoringSignalCoverage`
-
-    mojom::SignalsPtr mojom_signals(mojom::Signals::New());
-
-    PROTO_TO_MOJOM_SIGNAL(typed_count);
-    PROTO_TO_MOJOM_SIGNAL(visit_count);
-    PROTO_TO_MOJOM_SIGNAL(elapsed_time_last_visit_secs);
-    PROTO_TO_MOJOM_SIGNAL(shortcut_visit_count);
-    PROTO_TO_MOJOM_SIGNAL(shortest_shortcut_len);
-    PROTO_TO_MOJOM_SIGNAL(elapsed_time_last_shortcut_visit_sec);
-    PROTO_TO_MOJOM_SIGNAL(is_host_only);
-    PROTO_TO_MOJOM_SIGNAL(num_bookmarks_of_url);
-    PROTO_TO_MOJOM_SIGNAL(first_bookmark_title_match_position);
-    PROTO_TO_MOJOM_SIGNAL(total_bookmark_title_match_length);
-    PROTO_TO_MOJOM_SIGNAL(num_input_terms_matched_by_bookmark_title);
-    PROTO_TO_MOJOM_SIGNAL(first_url_match_position);
-    PROTO_TO_MOJOM_SIGNAL(total_url_match_length);
-    PROTO_TO_MOJOM_SIGNAL(host_match_at_word_boundary);
-    PROTO_TO_MOJOM_SIGNAL(total_host_match_length);
-    PROTO_TO_MOJOM_SIGNAL(total_path_match_length);
-    PROTO_TO_MOJOM_SIGNAL(total_query_or_ref_match_length);
-    PROTO_TO_MOJOM_SIGNAL(total_title_match_length);
-    PROTO_TO_MOJOM_SIGNAL(has_non_scheme_www_match);
-    PROTO_TO_MOJOM_SIGNAL(num_input_terms_matched_by_title);
-    PROTO_TO_MOJOM_SIGNAL(num_input_terms_matched_by_url);
-    PROTO_TO_MOJOM_SIGNAL(length_of_url);
-    PROTO_TO_MOJOM_SIGNAL(site_engagement);
-    PROTO_TO_MOJOM_SIGNAL(allowed_to_be_default_match);
-    PROTO_TO_MOJOM_SIGNAL(search_suggest_relevance);
-    PROTO_TO_MOJOM_SIGNAL(is_search_suggest_entity);
-    PROTO_TO_MOJOM_SIGNAL(is_verbatim);
-    PROTO_TO_MOJOM_SIGNAL(is_navsuggest);
-    PROTO_TO_MOJOM_SIGNAL(is_search_suggest_tail);
-    PROTO_TO_MOJOM_SIGNAL(is_answer_suggest);
-    PROTO_TO_MOJOM_SIGNAL(is_calculator_suggest);
-
-    return mojom_signals;
-  }
-};
-
-template <>
-struct TypeConverter<AutocompleteMatch::ScoringSignals, mojom::SignalsPtr> {
-  static AutocompleteMatch::ScoringSignals Convert(
-      const mojom::SignalsPtr& mojom_signals) {
-    // Keep consistent:
-    // - omnibox_event.proto `ScoringSignals`
-    // - omnibox_scoring_signals.proto `OmniboxScoringSignals`
-    // - autocomplete_scoring_model_handler.cc
-    //   `AutocompleteScoringModelHandler::ExtractInputFromScoringSignals()`
-    // - autocomplete_match.cc `AutocompleteMatch::MergeScoringSignals()`
-    // - autocomplete_controller.cc `RecordScoringSignalCoverageForProvider()`
-    // - omnibox_metrics_provider.cc `GetScoringSignalsForLogging()`
-    // - omnibox.mojom `struct Signals`
-    // - omnibox_page_handler.cc
-    //   `TypeConverter<AutocompleteMatch::ScoringSignals, mojom::SignalsPtr>`
-    // - omnibox_page_handler.cc `TypeConverter<mojom::SignalsPtr,
-    //   AutocompleteMatch::ScoringSignals>`
-    // - omnibox_util.ts `signalNames`
-    // - omnibox/histograms.xml
-    //   `Omnibox.URLScoringModelExecuted.ScoringSignalCoverage`
-
-    AutocompleteMatch::ScoringSignals signals;
-
-    MOJOM_TO_PROTO_SIGNAL(typed_count);
-    MOJOM_TO_PROTO_SIGNAL(visit_count);
-    MOJOM_TO_PROTO_SIGNAL(elapsed_time_last_visit_secs);
-    MOJOM_TO_PROTO_SIGNAL(shortcut_visit_count);
-    MOJOM_TO_PROTO_SIGNAL(shortest_shortcut_len);
-    MOJOM_TO_PROTO_SIGNAL(elapsed_time_last_shortcut_visit_sec);
-    MOJOM_TO_PROTO_SIGNAL(is_host_only);
-    MOJOM_TO_PROTO_SIGNAL(num_bookmarks_of_url);
-    MOJOM_TO_PROTO_SIGNAL(first_bookmark_title_match_position);
-    MOJOM_TO_PROTO_SIGNAL(total_bookmark_title_match_length);
-    MOJOM_TO_PROTO_SIGNAL(num_input_terms_matched_by_bookmark_title);
-    MOJOM_TO_PROTO_SIGNAL(first_url_match_position);
-    MOJOM_TO_PROTO_SIGNAL(total_url_match_length);
-    MOJOM_TO_PROTO_SIGNAL(host_match_at_word_boundary);
-    MOJOM_TO_PROTO_SIGNAL(total_host_match_length);
-    MOJOM_TO_PROTO_SIGNAL(total_path_match_length);
-    MOJOM_TO_PROTO_SIGNAL(total_query_or_ref_match_length);
-    MOJOM_TO_PROTO_SIGNAL(total_title_match_length);
-    MOJOM_TO_PROTO_SIGNAL(has_non_scheme_www_match);
-    MOJOM_TO_PROTO_SIGNAL(num_input_terms_matched_by_title);
-    MOJOM_TO_PROTO_SIGNAL(num_input_terms_matched_by_url);
-    MOJOM_TO_PROTO_SIGNAL(length_of_url);
-    MOJOM_TO_PROTO_SIGNAL(site_engagement);
-    MOJOM_TO_PROTO_SIGNAL(allowed_to_be_default_match);
-    MOJOM_TO_PROTO_SIGNAL(search_suggest_relevance);
-    MOJOM_TO_PROTO_SIGNAL(is_search_suggest_entity);
-    MOJOM_TO_PROTO_SIGNAL(is_verbatim);
-    MOJOM_TO_PROTO_SIGNAL(is_navsuggest);
-    MOJOM_TO_PROTO_SIGNAL(is_search_suggest_tail);
-    MOJOM_TO_PROTO_SIGNAL(is_answer_suggest);
-    MOJOM_TO_PROTO_SIGNAL(is_calculator_suggest);
-
-    return signals;
-  }
-};
-
-#undef PROTO_TO_MOJOM_SIGNAL
-#undef MOJOM_TO_PROTO_SIGNAL
-
-template <>
-struct TypeConverter<std::vector<mojom::DictionaryEntryPtr>,
-                     AutocompleteMatch::AdditionalInfo> {
-  static std::vector<mojom::DictionaryEntryPtr> Convert(
-      const AutocompleteMatch::AdditionalInfo& input) {
-    std::vector<mojom::DictionaryEntryPtr> output(input.size());
-    for (auto [input_element, output_element] : base::zip(input, output)) {
-      output_element = mojom::DictionaryEntry::New();
-      output_element->key = input_element.first;
-      output_element->value = input_element.second;
-    }
-    return output;
-  }
-};
-
-template <>
-struct TypeConverter<mojom::AutocompleteMatchPtr, AutocompleteMatch> {
-  static mojom::AutocompleteMatchPtr Convert(const AutocompleteMatch& input) {
-    mojom::AutocompleteMatchPtr result(mojom::AutocompleteMatch::New());
-    if (input.provider) {
-      result->provider_name = std::string(input.provider->GetName());
-      result->provider_done = input.provider->done();
-    }
-    result->relevance = input.relevance;
-    result->deletable = input.deletable;
-    result->fill_into_edit = base::UTF16ToUTF8(input.fill_into_edit);
-    result->inline_autocompletion =
-        base::UTF16ToUTF8(input.inline_autocompletion);
-    result->destination_url = input.destination_url.spec();
-    result->stripped_destination_url = input.stripped_destination_url.spec();
-
-    result->icon = input.icon_url.spec().c_str();
-    result->image = input.ImageUrl().spec().c_str();
-
-    result->contents = base::UTF16ToUTF8(input.contents);
-    result->contents_class =
-        mojo::ConvertTo<std::vector<mojom::ACMatchClassificationPtr>>(
-            input.contents_class);
-    result->description = base::UTF16ToUTF8(input.description);
-    result->description_class =
-        mojo::ConvertTo<std::vector<mojom::ACMatchClassificationPtr>>(
-            input.description_class);
-    result->swap_contents_and_description = input.swap_contents_and_description;
-    if (input.answer_template.has_value()) {
-      omnibox::AnswerData answer_data = input.answer_template->answers(0);
-      result->answer = answer_data.headline().text() + " / " +
-                       answer_data.subhead().text() + " / " +
-                       AnswerTypeToString(input.answer_type);
-    }
-    result->transition =
-        ui::PageTransitionGetCoreTransitionString(input.transition);
-    result->allowed_to_be_default_match = input.allowed_to_be_default_match;
-    result->type = AutocompleteMatchType::ToString(input.type);
-    result->is_search_type = AutocompleteMatch::IsSearchType(input.type);
-    omnibox::SuggestType type = input.suggest_type;
-    auto subtypes = input.subtypes;
-    AutocompleteController::ExtendMatchSubtypes(input, &subtypes);
-    std::vector<std::string> subtypes_str;
-    subtypes_str.push_back(base::NumberToString(type));
-    std::ranges::transform(
-        subtypes, std::back_inserter(subtypes_str),
-        [](int subtype) { return base::NumberToString(subtype); });
-    result->aqs_type_subtypes = base::JoinString(subtypes_str, ",");
-    result->has_tab_match = input.has_tab_match.value_or(false);
-    if (input.associated_keyword.get()) {
-      result->associated_keyword =
-          base::UTF16ToUTF8(input.associated_keyword->keyword);
-    }
-    result->keyword = base::UTF16ToUTF8(input.keyword);
-    result->duplicates = static_cast<int32_t>(input.duplicate_matches.size());
-    result->from_previous = input.from_previous;
-    const auto* pedal = OmniboxPedal::FromAction(input.GetActionAt(0u));
-    result->pedal_id =
-        pedal == nullptr ? 0 : static_cast<int32_t>(pedal->PedalId());
-    result->scoring_signals = mojo::ConvertTo<mojom::SignalsPtr>(
-        input.scoring_signals.value_or(AutocompleteMatch::ScoringSignals{}));
-    result->additional_info =
-        mojo::ConvertTo<std::vector<mojom::DictionaryEntryPtr>>(
-            input.additional_info);
-    return result;
-  }
-};
-
-template <>
-struct TypeConverter<mojom::AutocompleteResultsForProviderPtr,
-                     scoped_refptr<AutocompleteProvider>> {
-  static mojom::AutocompleteResultsForProviderPtr Convert(
-      const scoped_refptr<AutocompleteProvider>& input) {
-    mojom::AutocompleteResultsForProviderPtr resultsForProvider(
-        mojom::AutocompleteResultsForProvider::New());
-    resultsForProvider->provider_name = input->GetName();
-    resultsForProvider->results =
-        mojo::ConvertTo<std::vector<mojom::AutocompleteMatchPtr>>(
-            input->matches());
-    return resultsForProvider;
-  }
-};
-
-}  // namespace mojo
 
 OmniboxPageHandler::OmniboxPageHandler(
     Profile* profile,
@@ -383,49 +99,40 @@ void OmniboxPageHandler::OnResultChanged(AutocompleteController* controller,
   response->is_typed_host = is_typed_host;
   response->input_text = base::UTF16ToUTF8(input_.text());
 
-  {
-    // Copy to an ACMatches to make conversion easier. Since this isn't
-    // performance critical we don't worry about the cost here.
-    ACMatches matches(controller->result().begin(), controller->result().end());
-    response->combined_results =
-        mojo::ConvertTo<std::vector<mojom::AutocompleteMatchPtr>>(matches);
-  }
+  // `AutocompleteMatch` cannot be serialized directly, since the Mojo type
+  // includes fields that can only be calculated in `//chrome` and not
+  // `//components`.
+  bookmarks::BookmarkModel* bookmark_model =
+      BookmarkModelFactory::GetForBrowserContext(profile_);
+  response->combined_results = base::ToVector(
+      controller->result(), [&](const ::AutocompleteMatch& match) {
+        return ::AutocompleteMatchWrapper(bookmark_model, match);
+      });
   std::vector<scoped_refptr<AutocompleteProvider>> providers = {};
   for (const auto& provider : controller->providers()) {
     if (controller->ShouldRunProvider(provider.get())) {
       providers.push_back(provider);
     }
   }
-  response->results_by_provider =
-      mojo::ConvertTo<std::vector<mojom::AutocompleteResultsForProviderPtr>>(
-          providers);
+  response->results_by_provider = base::ToVector(
+      providers, [&](const scoped_refptr<AutocompleteProvider>& input) {
+        return mojom::AutocompleteResultsForProvider::New(
+            input->GetName(),
+            base::ToVector(
+                input->matches(), [&](const ::AutocompleteMatch& match) {
+                  return ::AutocompleteMatchWrapper(bookmark_model, match);
+                }));
+      });
 
-  // Fill AutocompleteMatch::starred.
-  BookmarkModel* bookmark_model =
-      BookmarkModelFactory::GetForBrowserContext(profile_);
-  if (bookmark_model) {
-    for (const auto& match : response->combined_results) {
-      match->starred =
-          bookmark_model->IsBookmarked(GURL(match->destination_url));
-    }
-    for (const auto& results_by_provider : response->results_by_provider) {
-      for (const auto& match : results_by_provider->results) {
-        match->starred =
-            bookmark_model->IsBookmarked(GURL(match->destination_url));
-      }
-    }
-  }
-
-  // Obtain a vector of all image urls required.
-  std::vector<std::string> image_urls;
-  for (const auto& match : response->combined_results) {
-    image_urls.push_back(match->icon);
-    image_urls.push_back(match->image);
+  std::vector<GURL> image_urls;
+  for (const auto& wrapper : response->combined_results) {
+    image_urls.push_back(wrapper.wrapped_match().icon_url);
+    image_urls.push_back(wrapper.wrapped_match().ImageUrl());
   }
   for (const auto& results_by_provider : response->results_by_provider) {
-    for (const auto& match : results_by_provider->results) {
-      image_urls.push_back(match->icon);
-      image_urls.push_back(match->image);
+    for (const auto& wrapper : results_by_provider->results) {
+      image_urls.push_back(wrapper.wrapped_match().icon_url);
+      image_urls.push_back(wrapper.wrapped_match().ImageUrl());
     }
   }
 
@@ -436,29 +143,29 @@ void OmniboxPageHandler::OnResultChanged(AutocompleteController* controller,
   BitmapFetcherService* bitmap_fetcher_service =
       BitmapFetcherServiceFactory::GetForBrowserContext(profile_);
 
-  for (const std::string& image_url : image_urls) {
-    if (image_url.empty()) {
+  for (const GURL& image_url : image_urls) {
+    if (!image_url.is_valid()) {
       continue;
     }
     bitmap_fetcher_service->RequestImage(
-        GURL(image_url),
-        base::BindOnce(&OmniboxPageHandler::OnBitmapFetched,
-                       weak_factory_.GetWeakPtr(), type, image_url));
+        image_url, base::BindOnce(&OmniboxPageHandler::OnBitmapFetched,
+                                  weak_factory_.GetWeakPtr(), type, image_url));
   }
 }
 
 void OmniboxPageHandler::OnMlScored(AutocompleteController* controller,
                                     const AutocompleteResult& result) {
-  ACMatches matches(result.begin(), result.end());
   auto combined_results =
-      mojo::ConvertTo<std::vector<mojom::AutocompleteMatchPtr>>(matches);
+      base::ToVector(result, [](const ::AutocompleteMatch& match) {
+        return ::AutocompleteMatchWrapper(nullptr, match);
+      });
   page_->HandleNewMlResponse(GetAutocompleteControllerType(controller),
                              base::UTF16ToUTF8(controller->input().text()),
                              std::move(combined_results));
 }
 
 void OmniboxPageHandler::OnBitmapFetched(mojom::AutocompleteControllerType type,
-                                         const std::string& image_url,
+                                         const GURL& image_url,
                                          const SkBitmap& bitmap) {
   auto data = gfx::Image::CreateFrom1xBitmap(bitmap).As1xPNGBytes();
   std::string base_64 = base::Base64Encode(*data);
@@ -545,12 +252,11 @@ void OmniboxPageHandler::GetMlModelVersion(GetMlModelVersionCallback callback) {
 #endif
 }
 
-void OmniboxPageHandler::StartMl(mojom::SignalsPtr mojom_signals,
-                                 StartMlCallback callback) {
+void OmniboxPageHandler::StartMl(
+    const AutocompleteMatch::ScoringSignals& signals,
+    StartMlCallback callback) {
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   if (auto* service = GetMlService()) {
-    AutocompleteMatch::ScoringSignals signals =
-        mojo::ConvertTo<AutocompleteMatch::ScoringSignals>(mojom_signals);
     std::vector<AutocompleteScoringModelService::Result> result =
         service->BatchScoreAutocompleteUrlMatchesSync({&signals});
     std::move(callback).Run(result.size() ? result[0].value_or(-1) : -1);

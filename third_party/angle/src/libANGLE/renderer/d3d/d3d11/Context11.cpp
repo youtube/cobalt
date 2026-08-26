@@ -15,6 +15,7 @@
 #include "libANGLE/Context.h"
 #include "libANGLE/Context.inl.h"
 #include "libANGLE/MemoryProgramCache.h"
+#include "libANGLE/histogram_macros.h"
 #include "libANGLE/renderer/OverlayImpl.h"
 #include "libANGLE/renderer/d3d/CompilerD3D.h"
 #include "libANGLE/renderer/d3d/ProgramExecutableD3D.h"
@@ -205,9 +206,10 @@ BufferImpl *Context11::createBuffer(const gl::BufferState &state)
     return buffer;
 }
 
-VertexArrayImpl *Context11::createVertexArray(const gl::VertexArrayState &data)
+VertexArrayImpl *Context11::createVertexArray(const gl::VertexArrayState &data,
+                                              const gl::VertexArrayBuffers &vertexArrayBuffers)
 {
-    return new VertexArray11(data);
+    return new VertexArray11(data, vertexArrayBuffers);
 }
 
 QueryImpl *Context11::createQuery(gl::QueryType type)
@@ -1131,6 +1133,8 @@ void Context11::handleResult(HRESULT hr,
     {
         HRESULT removalReason = mRenderer->getDevice()->GetDeviceRemovedReason();
         errorStream << " (removal reason: " << gl::FmtHR(removalReason) << ")";
+        ANGLE_HISTOGRAM_SPARSE_SLOWLY("GPU.ANGLE.D3DDeviceRemovedReason",
+                                      static_cast<int>(removalReason));
         mRenderer->notifyDeviceLost();
     }
 

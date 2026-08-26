@@ -11,10 +11,16 @@
 // This file contains tests that verify that congestion control options
 // are correctly negotiated in the SDP offer/answer.
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "api/jsep.h"
+#include "api/media_types.h"
 #include "api/peer_connection_interface.h"
+#include "api/rtp_parameters.h"
+#include "api/rtp_transceiver_direction.h"
 #include "api/test/rtc_error_matchers.h"
 #include "pc/test/integration_test_helpers.h"
 #include "test/gmock.h"
@@ -23,11 +29,12 @@
 
 namespace webrtc {
 
-using testing::Eq;
+using ::testing::Eq;
+using ::testing::Field;
 using ::testing::Gt;
-using testing::HasSubstr;
+using ::testing::HasSubstr;
 using ::testing::IsTrue;
-using testing::Not;
+using ::testing::Not;
 
 class PeerConnectionCongestionControlTest
     : public PeerConnectionIntegrationBaseTest {
@@ -40,7 +47,8 @@ TEST_F(PeerConnectionCongestionControlTest, OfferContainsCcfbIfEnabled) {
   SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   caller()->AddAudioVideoTracks();
-  auto offer = caller()->CreateOfferAndWait();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
   std::string offer_str = absl::StrCat(*offer);
   EXPECT_THAT(offer_str, HasSubstr("a=rtcp-fb:* ack ccfb\r\n"));
 }
@@ -75,6 +83,54 @@ TEST_F(PeerConnectionCongestionControlTest, ReceiveOfferSetsCcfbFlag) {
   // Check that the answer does not contain transport-cc
   std::string answer_str = absl::StrCat(*caller()->pc()->remote_description());
   EXPECT_THAT(answer_str, Not(HasSubstr("transport-cc")));
+}
+
+TEST_F(PeerConnectionCongestionControlTest, NegotiatingCcfbRemovesTsn) {
+  SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignalingForSdpOnly();
+  callee()->AddVideoTrack();
+  // Add transceivers to caller in order to accomodate reception
+  caller()->pc()->AddTransceiver(MediaType::VIDEO);
+  auto parameters = caller()->pc()->GetSenders()[0]->GetParameters();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+
+  std::vector<RtpHeaderExtensionCapability> negotiated_header_extensions =
+      caller()->pc()->GetTransceivers()[0]->GetNegotiatedHeaderExtensions();
+  EXPECT_THAT(
+      negotiated_header_extensions,
+      Not(Contains(
+          AllOf(Field("uri", &RtpHeaderExtensionCapability::uri,
+                      RtpExtension::kTransportSequenceNumberUri),
+                Not(Field("direction", &RtpHeaderExtensionCapability::direction,
+                          RtpTransceiverDirection::kStopped))))))
+      << " in caller negotiated header extensions";
+
+  parameters = caller()->pc()->GetSenders()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in caller sender parameters";
+  parameters = caller()->pc()->GetReceivers()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in caller receiver parameters";
+  /* Callee senders are not fixed yet.
+     TODO: issues.webrtc.org/383078466 - enable
+  parameters = callee()->pc()->GetSenders()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in callee sender parameters";
+  */
+  parameters = callee()->pc()->GetReceivers()[0]->GetParameters();
+  EXPECT_THAT(parameters.header_extensions,
+              Not(Contains(Field("uri", &RtpExtension::uri,
+                                 RtpExtension::kTransportSequenceNumberUri))))
+      << " in callee receiver parameters";
 }
 
 TEST_F(PeerConnectionCongestionControlTest, CcfbGetsUsed) {

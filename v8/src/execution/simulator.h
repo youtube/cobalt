@@ -117,7 +117,7 @@ class SimulatorStack : public v8::internal::AllStatic {
   }
 
   static int JSStackLimitMargin() {
-    return wasm::StackMemory::JSStackLimitMarginKB() * KB;
+    return wasm::StackMemory::JSCentralStackLimitMarginKB() * KB;
   }
 #endif
 
@@ -212,6 +212,11 @@ class GeneratedCode {
 #endif  // ABI_USES_FUNCTION_DESCRIPTORS
   }
 #endif  // USE_SIMULATOR
+
+  DISABLE_CFI_ICALL Return CallSandboxed(Args... args) {
+    EnterSandboxScope sandboxed;
+    return Call(args...);
+  }
 
  private:
   friend class GeneratedCode<Return(Args...)>;

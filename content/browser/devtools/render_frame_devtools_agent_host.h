@@ -13,6 +13,12 @@
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/cobalt/render_frame_devtools_agent_host_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/render_process_host_observer.h"
@@ -52,11 +58,18 @@ class CONTENT_EXPORT RenderFrameDevToolsAgentHost
   // Returns appropriate agent host for given frame tree node, traversing
   // up to local root as needed.
   static DevToolsAgentHostImpl* GetFor(FrameTreeNode* frame_tree_node);
+
   // Returns appropriate agent host for given RenderFrameHost, traversing
   // up to local root as needed. This will have an effect different from
   // calling the above overload as GetFor(rfh->frame_tree_node()) when
   // given RFH is a pending local root.
   static DevToolsAgentHostImpl* GetFor(RenderFrameHostImpl* rfh);
+
+  // Returns appropriate agent host for given frame tree node, traversing
+  // up to local root as needed. If no agent host exists for the local root,
+  // use the (potentially cross-process) root of the FTNs parent.
+  static DevToolsAgentHostImpl* GetForWithAncestorFallback(
+      FrameTreeNode* frame_tree_node);
 
   // Similar to GetFor(), but creates a host if it doesn't exist yet.
   static scoped_refptr<DevToolsAgentHost> GetOrCreateFor(
@@ -198,5 +211,7 @@ class CONTENT_EXPORT RenderFrameDevToolsAgentHost
 FrameTreeNode* GetFrameTreeNodeAncestor(FrameTreeNode* frame_tree_node);
 
 }  // namespace content
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_RENDER_FRAME_DEVTOOLS_AGENT_HOST_H_

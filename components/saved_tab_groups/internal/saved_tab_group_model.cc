@@ -16,6 +16,7 @@
 #include "base/metrics/user_metrics_action.h"
 #include "base/observer_list.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "base/uuid.h"
 #include "components/saved_tab_groups/internal/saved_tab_group_model_observer.h"
 #include "components/saved_tab_groups/internal/stats.h"
@@ -382,6 +383,15 @@ void SavedTabGroupModel::UpdateTabInGroup(const base::Uuid& group_id,
 
   // Make a copy before moving the `tab`.
   const base::Uuid tab_guid_copy = tab.saved_tab_guid();
+
+  if (notify_observers) {
+    // This is a locally generated navigation event. Update the navigation
+    // timestamp of the SavedTabGroupTab since we will not get the tab
+    // modification time back from sync in the standard way due to reflection
+    // blocking.
+    tab.SetNavigationTime(base::Time::Now());
+  }
+
   group->UpdateTab(std::move(tab));
 
   if (!notify_observers) {
@@ -514,10 +524,10 @@ void SavedTabGroupModel::UpdateLastUserInteractionTimeLocally(
   }
 }
 
-void SavedTabGroupModel::UpdateTabLastSeenTime(const base::Uuid& group_id,
-                                               const base::Uuid& tab_id,
-                                               base::Time time,
-                                               TriggerSource source) {
+void SavedTabGroupModel::UpdateTabLastSeenTimeFromSync(
+    const base::Uuid& group_id,
+    const base::Uuid& tab_id,
+    base::Time time) {
   SavedTabGroup* group = GetMutableGroup(group_id);
   CHECK(group);
 
@@ -528,18 +538,43 @@ void SavedTabGroupModel::UpdateTabLastSeenTime(const base::Uuid& group_id,
   SavedTabGroupTab* tab = group->GetTab(tab_id);
   CHECK(tab);
 
-  // If the new time is not more recent than the one in the model,
-  // ignore it. This data is managed by the account data sync bridge,
-  // which always prefers the more recent time.
-  const std::optional<base::Time>& current_model_time = tab->last_seen_time();
-  if (current_model_time.has_value() && current_model_time.value() >= time) {
+  // Only accept the incoming last seen time from sync if it is newer than what
+  // we have locally.
+  if (tab->last_seen_time().has_value() &&
+      tab->last_seen_time().value() >= time) {
     return;
   }
 
   tab->SetLastSeenTime(time);
 
   for (SavedTabGroupModelObserver& observer : observers_) {
-    observer.SavedTabGroupTabLastSeenTimeUpdated(tab_id, source);
+    observer.SavedTabGroupTabLastSeenTimeUpdated(tab_id, TriggerSource::REMOTE);
+  }
+}
+
+void SavedTabGroupModel::UpdateTabLastSeenTimeFromLocal(
+    const base::Uuid& group_id,
+    const base::Uuid& tab_id) {
+  SavedTabGroup* group = GetMutableGroup(group_id);
+  CHECK(group);
+
+  if (!group->is_shared_tab_group()) {
+    return;
+  }
+
+  SavedTabGroupTab* tab = group->GetTab(tab_id);
+  CHECK(tab);
+
+  // Only update the last seen time if the navigation time of the tab is newer.
+  if (tab->last_seen_time().has_value() &&
+      tab->last_seen_time() >= tab->navigation_time()) {
+    return;
+  }
+
+  tab->SetLastSeenTime(tab->navigation_time());
+
+  for (SavedTabGroupModelObserver& observer : observers_) {
+    observer.SavedTabGroupTabLastSeenTimeUpdated(tab_id, TriggerSource::LOCAL);
   }
 }
 

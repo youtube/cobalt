@@ -32,7 +32,6 @@
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/buttons/toolbar_tab_group_state.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/tab_groups/tab_group_indicator_features_utils.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/toolbar_consumer.h"
 #import "ios/chrome/browser/url_loading/model/image_search_param_generator.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -638,11 +637,9 @@ std::optional<tab_groups::LocalTabGroupID> LocalTabGroupID(
 
 // Returns the tab group of the active web state, if any.
 - (const TabGroup*)activeWebStateTabGroup {
-  if (IsTabGroupInGridEnabled()) {
-    const int active_index = _webStateList->active_index();
-    if (active_index != WebStateList::kInvalidIndex) {
-      return _webStateList->GetGroupOfWebStateAt(active_index);
-    }
+  const int active_index = _webStateList->active_index();
+  if (active_index != WebStateList::kInvalidIndex) {
+    return _webStateList->GetGroupOfWebStateAt(active_index);
   }
   return nullptr;
 }
@@ -654,9 +651,7 @@ std::optional<tab_groups::LocalTabGroupID> LocalTabGroupID(
     return _webStateList->count();
   }
 
-  return IsTabGroupIndicatorEnabled() && HasTabGroupIndicatorButtonsUpdated()
-             ? activeTabGroup->range().count()
-             : _webStateList->count();
+  return activeTabGroup->range().count();
 }
 
 // Returns the tab group state to display in the Tab Grid button.
@@ -666,9 +661,7 @@ std::optional<tab_groups::LocalTabGroupID> LocalTabGroupID(
     return ToolbarTabGroupState::kNormal;
   }
 
-  return IsTabGroupIndicatorEnabled() && HasTabGroupIndicatorButtonsUpdated()
-             ? ToolbarTabGroupState::kTabGroup
-             : ToolbarTabGroupState::kNormal;
+  return ToolbarTabGroupState::kTabGroup;
 }
 
 // Updates the blue dot in the Tab Grid button depending on the messages and the

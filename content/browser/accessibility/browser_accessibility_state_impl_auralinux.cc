@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 
+#include "base/debug/crash_logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/thread_pool.h"
 #include "content/browser/accessibility/browser_accessibility_state_impl.h"
@@ -33,8 +34,7 @@ bool CheckCmdlineForOrca(const std::string& cmdline_all) {
   std::string cmdline;
   std::stringstream ss(cmdline_all);
   while (std::getline(ss, cmdline, '\0')) {
-    re2::RE2 orca_regex(R"((^|/)(usr/)?bin/orca(\s|$))");
-    if (re2::RE2::PartialMatch(cmdline, orca_regex)) {
+    if (cmdline == "orca") {
       return true;  // Orca was found
     }
   }

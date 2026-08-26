@@ -40,7 +40,7 @@ found in the LICENSE file.
 
     <!-- Custom Menu dimensions -->
     <dimen name="tab_switcher_menu_width">250dp</dimen>
-    <dimen name="tab_switcher_menu_vertical_padding">8dp</dimen>
+    <dimen name="tab_switcher_menu_vertical_padding">4dp</dimen>
     <dimen name="adaptive_button_menu_vertical_padding">8dp</dimen>
 
     <!-- Custom Tabs dimensions -->
@@ -79,4 +79,15 @@ found in the LICENSE file.
     <!-- Extension Action Button Menu dimensions -->
     <dimen name="extension_action_button_list_menu_width" tools:ignore="UnusedResources">300dp</dimen>
 
+    <!-- Extension Action Popup dimensions -->
+    <dimen name="extension_action_popup_min_width" tools:ignore="UnusedResources">25dp</dimen>
+    <dimen name="extension_action_popup_min_height" tools:ignore="UnusedResources">25dp</dimen>
+    <dimen name="extension_action_popup_elevation" tools:ignore="UnusedResources">6dp</dimen>
+
+    <!-- Extensions Menu dimensions -->
+    <dimen name="extensions_menu_horizontal_padding" tools:ignore="UnusedResources">24dp</dimen>
+
+    <!-- Divider dimensions -->
+    <dimen name="toolbar_divider_width" tools:ignore="UnusedResources">2dp</dimen>
+    <dimen name="toolbar_divider_height" tools:ignore="UnusedResources">16dp</dimen>
 </resources>

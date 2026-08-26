@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_ON_DEVICE_TRANSLATION_LANGUAGE_PACK_UTIL_H_
 #define CHROME_BROWSER_ON_DEVICE_TRANSLATION_LANGUAGE_PACK_UTIL_H_
 
+#include <stdint.h>
+
 #include <optional>
 #include <set>
 #include <string>
@@ -12,6 +14,7 @@
 #include <vector>
 
 #include "base/containers/fixed_flat_map.h"
+#include "base/containers/fixed_flat_set.h"
 
 namespace on_device_translation {
 
@@ -65,16 +68,24 @@ enum class SupportedLanguage {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/translate/enums.xml:SupportedLanguage)
 
+// The supported languages for on-device translation.
+static constexpr auto kSupportedLanguageCodes =
+    base::MakeFixedFlatSet<std::string_view>({
+        "en", "es", "ja", "ar", "bn", "de", "fr", "hi", "it",      "ko",
+        "nl", "pl", "pt", "ru", "th", "tr", "vi", "zh", "zh-Hant", "bg",
+        "cs", "da", "el", "fi", "hr", "hu", "id", "iw", "lt",      "no",
+        "ro", "sk", "sl", "sv", "uk", "kn", "ta", "te", "mr",
+    });
+static_assert(std::size(kSupportedLanguageCodes) ==
+                  static_cast<unsigned>(SupportedLanguage::kMaxValue) + 1,
+              "All languages must be in kSupportedLanguageCodes.");
+
 // Converts a SupportedLanguage to a language code.
 std::string_view ToLanguageCode(SupportedLanguage supported_language);
 
 // Converts a language code to a SupportedLanguage.
 std::optional<SupportedLanguage> ToSupportedLanguage(
     std::string_view language_code);
-
-// Returns whether the language is in the top 12 by number of native speakers.
-// https://en.wikipedia.org/wiki/List_of_languages_by_number_of_native_speakers#Top_languages_by_population
-bool IsPopularLanguage(SupportedLanguage supported_language);
 
 // The key for language pack components.
 enum class LanguagePackKey {
@@ -124,6 +135,20 @@ struct LanguagePackComponentConfig {
   const SupportedLanguage language1;
   const SupportedLanguage language2;
   const uint8_t public_key_sha[32];
+};
+
+// The return type for `CalculateLanguagePackRequirements`.
+struct LanguagePackRequirements {
+  LanguagePackRequirements();
+  ~LanguagePackRequirements();
+  LanguagePackRequirements(const LanguagePackRequirements&) = delete;
+  LanguagePackRequirements& operator=(const LanguagePackRequirements&) = delete;
+  LanguagePackRequirements(LanguagePackRequirements&&) noexcept;
+  LanguagePackRequirements& operator=(LanguagePackRequirements&&) noexcept;
+
+  std::set<LanguagePackKey> required_packs;
+  std::vector<LanguagePackKey> required_not_installed_packs;
+  std::vector<LanguagePackKey> to_be_registered_packs;
 };
 
 // Converts a LanguagePackKey to a SupportedLanguage which is not English part
@@ -539,6 +564,12 @@ const LanguagePackComponentConfig& GetLanguagePackComponentConfig(
 // Calculates the required language packs for a translation from source_lang to
 // target_lang.
 std::set<LanguagePackKey> CalculateRequiredLanguagePacks(
+    const std::string& source_lang,
+    const std::string& target_lang);
+
+// Calculates and updates the passed in values for a translation's required
+// packs, required not installed packs, and to be registered packs.
+LanguagePackRequirements CalculateLanguagePackRequirements(
     const std::string& source_lang,
     const std::string& target_lang);
 

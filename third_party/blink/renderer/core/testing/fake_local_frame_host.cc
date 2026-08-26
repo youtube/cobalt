@@ -20,7 +20,7 @@ void FakeLocalFrameHost::Init(blink::AssociatedInterfaceProvider* provider) {
   provider->OverrideBinderForTesting(
       mojom::blink::LocalFrameHost::Name_,
       WTF::BindRepeating(&FakeLocalFrameHost::BindFrameHostReceiver,
-                         base::Unretained(this)));
+                         WTF::Unretained(this)));
 }
 
 void FakeLocalFrameHost::EnterFullscreen(
@@ -105,6 +105,7 @@ void FakeLocalFrameHost::DispatchLoad() {}
 void FakeLocalFrameHost::GoToEntryAtOffset(
     int32_t offset,
     bool has_user_gesture,
+    base::TimeTicks actual_navigation_start,
     std::optional<blink::scheduler::TaskAttributionId>) {}
 
 void FakeLocalFrameHost::UpdateTitle(
@@ -321,6 +322,15 @@ void FakeLocalFrameHost::NotifyStorageAccessed(
 void FakeLocalFrameHost::RecordWindowProxyUsageMetrics(
     const blink::FrameToken& target_frame_token,
     blink::mojom::WindowProxyAccessType access_type) {}
+
+void FakeLocalFrameHost::SetCrashReportStorageKey(
+    const WTF::String& key,
+    const WTF::String& value,
+    SetCrashReportStorageKeyCallback callback) {}
+
+void FakeLocalFrameHost::RemoveCrashReportStorageKey(
+    const WTF::String& key,
+    RemoveCrashReportStorageKeyCallback callback) {}
 
 void FakeLocalFrameHost::NotifyDocumentInteractive() {}
 

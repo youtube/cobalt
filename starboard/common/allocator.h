@@ -29,6 +29,12 @@ namespace starboard {
 // through derived classes.
 class Allocator {
  public:
+  enum class DecommitMode {
+    kCold,          // Mark inactive/cold (e.g. MADV_COLD).
+    kConservative,  // Soft/lazy decommit (e.g. MADV_FREE).
+    kAggressive,    // Immediate decommit (e.g. MADV_DONTNEED).
+  };
+
   // Using a minimum value for alignment keeps things rounded and aligned
   // and help us avoid creating tiny and/or badly misaligned free blocks.  Also
   // ensures even for a 0-byte request will get a unique block.
@@ -77,9 +83,9 @@ class Allocator {
 
   // Hints to the allocator that the physical memory backing this range is no
   // longer needed, but the virtual address space should remain reserved.
-  // When |conservative| is true, the allocator may use a softer decommit
-  // option like MADV_FREE if supported.
-  virtual void Decommit(void* memory, size_t size, bool conservative) {}
+  // |mode| specifies whether the decommit operation should mark memory as cold,
+  // conservative (e.g. MADV_FREE), or aggressive (e.g. MADV_DONTNEED).
+  virtual void Decommit(void* memory, size_t size, DecommitMode mode) {}
 
   // Returns the allocator's total capacity for allocations.  It will always
   // be true that GetSize() <= GetCapacity(), though it is possible for

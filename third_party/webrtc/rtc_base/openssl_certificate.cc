@@ -10,33 +10,26 @@
 
 #include "rtc_base/openssl_certificate.h"
 
+#include <openssl/bio.h>
+#include <openssl/bn.h>
+#include <openssl/pem.h>
+
 #include <cstdint>
+#include <ctime>
+#include <memory>
 #include <string>
 
 #include "absl/strings/string_view.h"
 #include "rtc_base/buffer.h"
-#include "rtc_base/ssl_certificate.h"
-#include "rtc_base/ssl_identity.h"
-
-#if defined(WEBRTC_WIN)
-// Must be included first before openssl headers.
-#include "rtc_base/win32.h"  // NOLINT
-#endif                       // WEBRTC_WIN
-
-#include <openssl/bio.h>
-#include <openssl/bn.h>
-#include <openssl/pem.h>
-#include <time.h>
-
-#include <memory>
-
 #include "rtc_base/checks.h"
 #include "rtc_base/crypto_random.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/message_digest.h"
 #include "rtc_base/openssl_digest.h"
-#include "rtc_base/openssl_identity.h"
+#include "rtc_base/openssl_key_pair.h"
 #include "rtc_base/openssl_utility.h"
+#include "rtc_base/ssl_certificate.h"
+#include "rtc_base/ssl_identity.h"
 
 namespace webrtc {
 namespace {

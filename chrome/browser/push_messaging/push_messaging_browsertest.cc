@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -537,11 +538,15 @@ void PushMessagingBrowserTestBase::EndpointToToken(const std::string& endpoint,
   size_t last_slash = endpoint.rfind('/');
   ASSERT_NE(last_slash, std::string::npos);
 
-  ASSERT_EQ(base::FeatureList::IsEnabled(
-                features::kPushMessagingGcmEndpointEnvironment)
-                ? push_messaging::GetGcmEndpointForChannel(chrome::GetChannel())
-                : kPushMessagingGcmEndpoint,
+  ASSERT_EQ(push_messaging::GetGcmEndpointForChannel(chrome::GetChannel()),
             endpoint.substr(0, last_slash + 1));
+  if (base::FeatureList::IsEnabled(features::kPushMessagingGcmEndpointWebpushPath)) {
+    ASSERT_TRUE(endpoint.substr(0, last_slash + 1) == kPushMessagingWebpushEndpoint ||
+                endpoint.substr(0, last_slash + 1) == kPushMessagingStagingWebpushEndpoint);
+  } else {
+    ASSERT_TRUE(endpoint.substr(0, last_slash + 1) == kPushMessagingGcmEndpoint ||
+                endpoint.substr(0, last_slash + 1) == kPushMessagingStagingGcmEndpoint);
+  }
 
   ASSERT_LT(last_slash + 1, endpoint.length());  // Token must not be empty.
 

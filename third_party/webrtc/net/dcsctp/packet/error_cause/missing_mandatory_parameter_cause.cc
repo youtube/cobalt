@@ -9,18 +9,15 @@
  */
 #include "net/dcsctp/packet/error_cause/missing_mandatory_parameter_cause.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include "api/array_view.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
-#include "net/dcsctp/packet/tlv_trait.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/str_join.h"
 #include "rtc_base/strings/string_builder.h"

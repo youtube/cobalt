@@ -1,6 +1,11 @@
 // Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
 #ifndef PARTITION_ALLOC_PARTITION_BUCKET_H_
 #define PARTITION_ALLOC_PARTITION_BUCKET_H_
 
@@ -26,16 +31,15 @@ uint8_t ComputeSystemPagesPerSlotSpan(size_t slot_size,
 
 // Visible for testing.
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-bool CompareSlotSpans(const SlotSpanMetadata<MetadataKind::kReadOnly>* a,
-                      const SlotSpanMetadata<MetadataKind::kReadOnly>* b);
+bool CompareSlotSpans(const SlotSpanMetadata* a, const SlotSpanMetadata* b);
 
 struct PartitionBucket {
   // Accessed most in hot path => goes first. Only nullptr for invalid buckets,
   // may be pointing to the sentinel.
-  SlotSpanMetadata<MetadataKind::kReadOnly>* active_slot_spans_head;
+  SlotSpanMetadata* active_slot_spans_head;
 
-  SlotSpanMetadata<MetadataKind::kReadOnly>* empty_slot_spans_head;
-  SlotSpanMetadata<MetadataKind::kReadOnly>* decommitted_slot_spans_head;
+  SlotSpanMetadata* empty_slot_spans_head;
+  SlotSpanMetadata* decommitted_slot_spans_head;
   uint32_t slot_size;
   uint32_t num_system_pages_per_slot_span
       : kPartitionNumSystemPagesPerSlotSpanBits;
@@ -66,7 +70,7 @@ struct PartitionBucket {
 
   // Public API.
   PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-  void Init(uint32_t new_slot_size, bool use_small_single_slot_spans);
+  void Init(uint32_t new_slot_size);
 
   // Sets |is_already_zeroed| to true if the allocation was satisfied by
   // requesting (a) new page(s) from the operating system, or false otherwise.
@@ -81,7 +85,7 @@ struct PartitionBucket {
                     AllocFlags flags,
                     size_t raw_size,
                     size_t slot_span_alignment,
-                    SlotSpanMetadata<MetadataKind::kReadOnly>** slot_span,
+                    SlotSpanMetadata** slot_span,
                     bool* is_already_zeroed)
           PA_EXCLUSIVE_LOCKS_REQUIRED(PartitionRootLock(root));
 
@@ -127,13 +131,12 @@ struct PartitionBucket {
   // decommitted list and full slot spans are unlinked from any list.
   //
   // This is where the guts of the bucket maintenance is done!
-  bool SetNewActiveSlotSpan(PartitionRoot* root);
+  bool SetNewActiveSlotSpan();
 
   // Walks the entire active slot span list, and perform regular maintenance,
   // where empty, decommitted and full slot spans are moved to their
   // steady-state place.
-  PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-  void MaintainActiveList(PartitionRoot* root);
+  PA_COMPONENT_EXPORT(PARTITION_ALLOC) void MaintainActiveList();
 
   // Returns a slot number starting from the beginning of the slot span.
   PA_ALWAYS_INLINE size_t GetSlotNumber(size_t offset_in_slot_span) const {
@@ -156,10 +159,9 @@ struct PartitionBucket {
   }
 
   // Sort the freelists of all slot spans.
-  void SortSmallerSlotSpanFreeLists(PartitionRoot* root);
+  void SortSmallerSlotSpanFreeLists([[maybe_unused]] const PartitionRoot* root);
   // Sort the active slot span list in ascending freelist length.
-  PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-  void SortActiveSlotSpans(PartitionRoot* root);
+  PA_COMPONENT_EXPORT(PARTITION_ALLOC) void SortActiveSlotSpans();
 
   // We need `AllocNewSuperPageSpan` and `InitializeSlotSpan` to stay
   // PA_ALWAYS_INLINE for speed, but we also need to use them from a separate
@@ -168,15 +170,13 @@ struct PartitionBucket {
                                             size_t super_page_count,
                                             AllocFlags flags)
       PA_EXCLUSIVE_LOCKS_REQUIRED(PartitionRootLock(root));
-  void InitializeSlotSpanForGwpAsan(
-      SlotSpanMetadata<MetadataKind::kReadOnly>* slot_span,
-      PartitionRoot* root);
+  void InitializeSlotSpanForGwpAsan(SlotSpanMetadata* slot_span);
 
   size_t SlotSpanCommittedSize(PartitionRoot* root) const;
 
  private:
   // Sets `this->can_store_raw_size`.
-  void InitCanStoreRawSize(bool use_small_single_slot_spans);
+  void InitCanStoreRawSize();
 
   // Allocates several consecutive super pages. Returns the address of the first
   // super page.
@@ -187,7 +187,7 @@ struct PartitionBucket {
   // Allocates a new slot span with size |num_partition_pages| from the
   // current extent. Metadata within this slot span will be initialized.
   // Returns nullptr on error.
-  PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>* AllocNewSlotSpan(
+  PA_ALWAYS_INLINE SlotSpanMetadata* AllocNewSlotSpan(
       PartitionRoot* root,
       AllocFlags flags,
       size_t slot_span_alignment)
@@ -207,9 +207,7 @@ struct PartitionBucket {
   // for the span (in PartitionPage::SlotSpanMetadata) and registers this bucket
   // as the owner of the span. It does NOT put the slots into the bucket's
   // freelist.
-  PA_ALWAYS_INLINE void InitializeSlotSpan(
-      SlotSpanMetadata<MetadataKind::kReadOnly>* slot_span,
-      PartitionRoot* root);
+  PA_ALWAYS_INLINE void InitializeSlotSpan(SlotSpanMetadata* slot_span);
 
   // Initializes a super page. Returns the address of the super page's payload.
   PA_ALWAYS_INLINE uintptr_t InitializeSuperPage(PartitionRoot* root,
@@ -224,10 +222,10 @@ struct PartitionBucket {
   //
   // If |slot_span| was freshly allocated, it must have been passed through
   // InitializeSlotSpan() first.
-  PA_ALWAYS_INLINE uintptr_t ProvisionMoreSlotsAndAllocOne(
-      PartitionRoot* root,
-      AllocFlags flags,
-      SlotSpanMetadata<MetadataKind::kReadOnly>* slot_span)
+  PA_ALWAYS_INLINE uintptr_t
+  ProvisionMoreSlotsAndAllocOne(PartitionRoot* root,
+                                AllocFlags flags,
+                                SlotSpanMetadata* slot_span)
       PA_EXCLUSIVE_LOCKS_REQUIRED(PartitionRootLock(root));
 };
 

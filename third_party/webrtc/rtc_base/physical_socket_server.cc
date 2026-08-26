@@ -10,6 +10,7 @@
 #include "rtc_base/physical_socket_server.h"
 
 #include <array>
+#include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -19,14 +20,19 @@
 #include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "rtc_base/async_dns_resolver.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/deprecated/recursive_critical_section.h"
+#include "rtc_base/event.h"
+#include "rtc_base/ip_address.h"
+#include "rtc_base/logging.h"
+#include "rtc_base/net_helpers.h"
+#include "rtc_base/network_monitor.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
-
-#if defined(_MSC_VER) && _MSC_VER < 1300
-#pragma warning(disable : 4786)
-#endif
+#include "rtc_base/time_utils.h"
 
 #ifdef MEMORY_SANITIZER
 #include <sanitizer/msan_interface.h>
@@ -34,9 +40,11 @@
 
 #if defined(WEBRTC_POSIX)
 #include <fcntl.h>
+#include <netinet/tcp.h>  // for TCP_NODELAY
 #if defined(WEBRTC_USE_EPOLL)
 // "poll" will be used to wait for the signal dispatcher.
 #include <poll.h>
+#include <sys/poll.h>
 #elif defined(WEBRTC_USE_POLL)
 #include <poll.h>
 #endif
@@ -53,36 +61,21 @@
 #undef SetPort
 #endif
 
-#include <errno.h>
-
-#include "rtc_base/async_dns_resolver.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/event.h"
-#include "rtc_base/ip_address.h"
-#include "rtc_base/logging.h"
-#include "rtc_base/network/ecn_marking.h"
-#include "rtc_base/network_monitor.h"
-#include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/time_utils.h"
-
 #if defined(WEBRTC_LINUX)
+#include <asm-generic/socket.h>
 #include <linux/sockios.h>
+#include <sys/epoll.h>
 #endif
 
 #if defined(WEBRTC_WIN)
 #define LAST_SYSTEM_ERROR (::GetLastError())
-#elif defined(__native_client__) && __native_client__
-#define LAST_SYSTEM_ERROR (0)
 #elif defined(WEBRTC_POSIX)
 #define LAST_SYSTEM_ERROR (errno)
 #endif  // WEBRTC_WIN
 
 #if defined(WEBRTC_POSIX)
-#include <netinet/tcp.h>  // for TCP_NODELAY
-
 #define IP_MTU 14  // Until this is integrated from linux/in.h to netinet/in.h
 typedef void* SockOptArg;
-
 #endif  // WEBRTC_POSIX
 
 #if defined(STARBOARD)
@@ -109,7 +102,7 @@ int64_t GetSocketRecvTimestamp(int socket) {
   return -1;
 }
 
-#elif defined(WEBRTC_POSIX) && !defined(WEBRTC_MAC) && !defined(__native_client__)
+#elif defined(WEBRTC_POSIX) && !defined(WEBRTC_MAC)
 
 int64_t GetSocketRecvTimestamp(int socket) {
   struct timeval tv_ioctl;
@@ -123,7 +116,6 @@ int64_t GetSocketRecvTimestamp(int socket) {
 }
 
 #else
-
 int64_t GetSocketRecvTimestamp(int /* socket */) {
   return -1;
 }
@@ -146,7 +138,7 @@ typedef char* SockOptArg;
 namespace {
 
 // RFC-3168, Section 5. ECN is the two least significant bits.
-static constexpr uint8_t kEcnMask = 0x03;
+constexpr uint8_t kEcnMask = 0x03;
 
 #if defined(WEBRTC_POSIX)
 
@@ -731,7 +723,7 @@ int PhysicalSocket::TranslateOption(Option opt, int* slevel, int* sopt) {
       *slevel = IPPROTO_IP;
       *sopt = IP_DONTFRAGMENT;
       break;
-#elif defined(WEBRTC_MAC) || defined(BSD) || defined(__native_client__)
+#elif defined(WEBRTC_MAC) || defined(BSD)
       RTC_LOG(LS_WARNING) << "Socket::OPT_DONTFRAGMENT not supported.";
       return -1;
 #elif defined(WEBRTC_POSIX)
@@ -1849,7 +1841,7 @@ bool PhysicalSocketServer::WaitPoll(int cmsWait, bool process_io) {
   int64_t msStop = -1;
   if (cmsWait != kForeverMs) {
     msWait = cmsWait;
-    msStop = webrtc::TimeAfter(cmsWait);
+    msStop = TimeAfter(cmsWait);
   }
 
   std::vector<pollfd> pollfds;
@@ -1857,7 +1849,7 @@ bool PhysicalSocketServer::WaitPoll(int cmsWait, bool process_io) {
 
   while (fWait_) {
     {
-      webrtc::CritScope cr(&crit_);
+      CritScope cr(&crit_);
       current_dispatcher_keys_.clear();
       pollfds.clear();
       pollfds.reserve(dispatcher_by_key_.size());
@@ -1891,7 +1883,7 @@ bool PhysicalSocketServer::WaitPoll(int cmsWait, bool process_io) {
       return true;
     } else {
       // We have signaled descriptors
-      webrtc::CritScope cr(&crit_);
+      CritScope cr(&crit_);
       // Iterate only on the dispatchers whose file descriptors were passed into
       // poll; this avoids the ABA problem (a socket being destroyed and a new
       // one created with the same file descriptor).
@@ -1904,7 +1896,7 @@ bool PhysicalSocketServer::WaitPoll(int cmsWait, bool process_io) {
     }
 
     if (cmsWait != kForeverMs) {
-      msWait = webrtc::TimeDiff(msStop, webrtc::TimeMillis());
+      msWait = TimeDiff(msStop, TimeMillis());
       if (msWait < 0) {
         // Return success on timeout.
         return true;
@@ -1920,8 +1912,7 @@ bool PhysicalSocketServer::WaitPoll(int cmsWait, bool process_io) {
 #endif  // WEBRTC_POSIX
 
 #if defined(WEBRTC_WIN)
-bool PhysicalSocketServer::Wait(webrtc::TimeDelta max_wait_duration,
-                                bool process_io) {
+bool PhysicalSocketServer::Wait(TimeDelta max_wait_duration, bool process_io) {
   // We don't support reentrant waiting.
   RTC_DCHECK(!waiting_);
   ScopedSetTrue set(&waiting_);
@@ -1929,7 +1920,7 @@ bool PhysicalSocketServer::Wait(webrtc::TimeDelta max_wait_duration,
   int cmsWait = ToCmsWait(max_wait_duration);
   int64_t cmsTotal = cmsWait;
   int64_t cmsElapsed = 0;
-  int64_t msStart = webrtc::Time();
+  int64_t msStart = Time();
 
   fWait_ = true;
   while (fWait_) {
@@ -1939,7 +1930,7 @@ bool PhysicalSocketServer::Wait(webrtc::TimeDelta max_wait_duration,
     events.push_back(socket_ev_);
 
     {
-      webrtc::CritScope cr(&crit_);
+      CritScope cr(&crit_);
       // Get a snapshot of all current dispatchers; this is used to avoid the
       // ABA problem (see later comment) and avoids the dispatcher_by_key_
       // iterator being invalidated by calling CheckSignalClose, which may
@@ -1995,7 +1986,7 @@ bool PhysicalSocketServer::Wait(webrtc::TimeDelta max_wait_duration,
       return true;
     } else {
       // Figure out which one it is and call it
-      webrtc::CritScope cr(&crit_);
+      CritScope cr(&crit_);
       int index = dw - WSA_WAIT_EVENT_0;
       if (index > 0) {
         --index;  // The first event is the socket event
@@ -2088,7 +2079,7 @@ bool PhysicalSocketServer::Wait(webrtc::TimeDelta max_wait_duration,
     // Break?
     if (!fWait_)
       break;
-    cmsElapsed = webrtc::TimeSince(msStart);
+    cmsElapsed = TimeSince(msStart);
     if ((cmsWait != kForeverMs) && (cmsElapsed >= cmsWait)) {
       break;
     }
