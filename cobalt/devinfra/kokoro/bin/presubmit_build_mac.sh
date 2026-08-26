@@ -17,6 +17,37 @@ cd "${WORKSPACE_COBALT}"
 trap "bash ${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/cleanup.sh" EXIT INT TERM
 
 
+resign_tvos_app_if_needed () {
+  local target_name="$1"
+  local out_dir="$2"
+
+  if [[ -z "${KOKORO_PIPER_DIR:-}" ]]; then
+    echo "Not running in internal Kokoro (KOKORO_PIPER_DIR absent). Skipping re-signing for simulator build."
+    return 0
+  fi
+
+  local tvos_profile="${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/YouTube/YouTube_Dev_tvOS.mobileprovision"
+  if [[ ! -f "${tvos_profile}" ]]; then
+    echo "ERROR: Provisioning profile not found at ${tvos_profile}" >&2
+    exit 1
+  fi
+
+  echo "Embedding ${tvos_profile} into ${target_name}.app..."
+  cp -f "${tvos_profile}" "${out_dir}/${target_name}.app/embedded.mobileprovision"
+
+  # Extract entitlements from the provisioning profile
+  local entitlements_plist="${out_dir}/${target_name}_entitlements.plist"
+  if ! security cms -D -i "${tvos_profile}" 2>/dev/null | plutil -extract Entitlements xml1 -o "${entitlements_plist}" - 2>/dev/null; then
+    echo "ERROR: Failed to extract entitlements from ${tvos_profile}" >&2
+    exit 1
+  fi
+
+  # Re-sign app bundle using Kokoro's installed development certificate
+  echo "Signing ${target_name}.app for physical lab devices..."
+  codesign --force --deep --sign "Apple Development" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app"
+  rm -f "${entitlements_plist}"
+}
+
 # Mac build script.
 pipeline () {
   # Run common configuration steps.
@@ -131,42 +162,8 @@ EOF
     elif [[ " ${json_targets} " == *" ${target_name} "* ]] && [[ -d "${out_dir}/${target_name}.app" ]]; then
       echo "Archiving and uploading test package ${target_name}.app..."
 
-      # --------------------------------------------------------------------------
-      # Embed Provisioning Profile & Re-sign App (Internal Kokoro Device Builds Only)
-      # --------------------------------------------------------------------------
-      if [[ -n "${KOKORO_PIPER_DIR:-}" ]]; then
-        local tvos_profile="${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/YouTube/YouTube_Dev_tvOS.mobileprovision"
-        if [[ ! -f "${tvos_profile}" ]]; then
-          tvos_profile="${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/Google_Development_tvOS.mobileprovision"
-        fi
-
-        if [[ -f "${tvos_profile}" ]]; then
-          echo "Embedding ${tvos_profile} into ${target_name}.app..."
-          cp -f "${tvos_profile}" "${out_dir}/${target_name}.app/embedded.mobileprovision"
-
-          # Extract entitlements from the provisioning profile
-          local entitlements_plist="${out_dir}/${target_name}_entitlements.plist"
-          if ! security cms -D -i "${tvos_profile}" 2>/dev/null | plutil -extract Entitlements xml1 -o "${entitlements_plist}" - 2>/dev/null; then
-            rm -f "${entitlements_plist}"
-          fi
-
-          # Re-sign app bundle using Kokoro's installed development certificate
-          echo "Signing ${target_name}.app for physical lab devices..."
-          if [[ -f "${entitlements_plist}" ]]; then
-            codesign --force --deep --sign "Apple Development" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app" || \
-            codesign --force --deep --sign "iPhone Developer" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app"
-            rm -f "${entitlements_plist}"
-          else
-            codesign --force --deep --sign "Apple Development" "${out_dir}/${target_name}.app" || \
-            codesign --force --deep --sign "iPhone Developer" "${out_dir}/${target_name}.app"
-          fi
-        else
-          echo "KOKORO_PIPER_DIR is present, but provisioning profile not found at ${tvos_profile}. Skipping re-signing."
-        fi
-      else
-        echo "Not running in internal Kokoro (KOKORO_PIPER_DIR absent). Skipping re-signing for simulator build."
-      fi
-      # --------------------------------------------------------------------------
+      # Re-sign app for physical lab devices if running in internal Kokoro
+      resign_tvos_app_if_needed "${target_name}" "${out_dir}"
 
       local archive_file="${WORKSPACE_COBALT}/package/${target_name}.tar.gz"
       mkdir -p "${WORKSPACE_COBALT}/package"
