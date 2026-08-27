@@ -1801,7 +1801,7 @@ bool RenderProcessHostImpl::Init() {
         base::checked_cast<int32_t>(id_.GetUnsafeValue())));
 
     base::Thread::Options options;
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
     // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
     // helper threads is reduced to 256KB to save virtual memory. However, the
     // in-process renderer thread is a high-risk thread that can use a
