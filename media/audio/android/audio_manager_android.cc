@@ -1144,22 +1144,6 @@ AudioManagerAndroid::JniDelegate& AudioManagerAndroid::GetJniDelegate() {
   return *jni_delegate_;
 }
 
-<<<<<<< HEAD
-int AudioManagerAndroid::SelectSampleRate(
-    const AudioDevice& device,
-    std::optional<int> preferred_sample_rate) {
-  const std::optional<std::vector<int>>& supported_sample_rates =
-      device.GetSampleRates();
-
-  if (!supported_sample_rates.has_value()) {
-    // The set of supported sample rates is unknown.
-    //
-    // For the specific case where supported sample rates are unknown and there
-    // is no preferred sample rate, the OS provides a system-wide "native"
-    // sample rate which can be used as a default.
-    return preferred_sample_rate.value_or(
-        GetJniDelegate().GetNativeOutputSampleRate());
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void AudioManagerAndroid::PreStartStream(
     const base::UnguessableToken& session_token,
@@ -1225,11 +1209,20 @@ AudioManagerAndroid::PreStartedEntry::PreStartedEntry() = default;
 AudioManagerAndroid::PreStartedEntry::~PreStartedEntry() = default;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-int AudioManagerAndroid::GetOptimalOutputFrameSize(int sample_rate,
-                                                   int channels) {
-  if (GetJniDelegate().IsAudioLowLatencySupported()) {
-    return GetJniDelegate().GetAudioLowLatencyOutputFrameSize();
->>>>>>> parent of 99ff9ad6c11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+int AudioManagerAndroid::SelectSampleRate(
+    const AudioDevice& device,
+    std::optional<int> preferred_sample_rate) {
+  const std::optional<std::vector<int>>& supported_sample_rates =
+      device.GetSampleRates();
+
+  if (!supported_sample_rates.has_value()) {
+    // The set of supported sample rates is unknown.
+    //
+    // For the specific case where supported sample rates are unknown and there
+    // is no preferred sample rate, the OS provides a system-wide "native"
+    // sample rate which can be used as a default.
+    return preferred_sample_rate.value_or(
+        GetJniDelegate().GetNativeOutputSampleRate());
   }
 
   constexpr int kDefaultTargetSampleRate = 48000;
