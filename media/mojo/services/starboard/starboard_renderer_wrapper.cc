@@ -216,6 +216,10 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(init_cb);
 
+  base::OnceClosure subscribe_cb = base::BindOnce(
+      &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
+      weak_factory_.GetWeakPtr(), media_resource, client);
+
   if (video_geometry_setter_service_) {
     video_geometry_setter_service_->GetVideoGeometryChangeSubscriber(
         video_geometry_change_subcriber_remote_.BindNewPipeAndPassReceiver());
@@ -223,15 +227,10 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
     video_geometry_change_subcriber_remote_->SubscribeToVideoGeometryChange(
         overlay_plane_id_,
         video_geometry_change_client_receiver_.BindNewPipeAndPassRemote(),
-        base::BindOnce(
-            &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
-            weak_factory_.GetWeakPtr(), media_resource, client));
+        std::move(subscribe_cb));
   } else {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
-            weak_factory_.GetWeakPtr(), media_resource, client));
+        FROM_HERE, std::move(subscribe_cb));
   }
 
   GetRenderer()->SetStarboardRendererCallbacks(
