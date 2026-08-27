@@ -37,6 +37,16 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
    - Use `TOOL_GREP: Class` or `TOOL_GREP: Method` to locate the class declaration (`.h`) and implementation (`.cc`) files.
    - Use `TOOL_READ_FILE: <path/to/header.h>` and `TOOL_READ_FILE: <path/to/source.cc>` to verify if the method/constructor was declared in the header but its implementation is missing in the `.cc` file.
    - If the implementation is missing in `.cc`, provide the definition in the `.cc` file (`FILE: path/to/source.cc`) instead of modifying GN build files.
+7. Missing Include Headers ('<header.h>' file not found):
+   - When Clang reports `'<header.h>' file not found`:
+   - NEVER guess or invent alternative include paths or namespaces.
+   - You MUST first issue a `TOOL_FIND_FILE: *<header_stem>*` or `TOOL_GREP: <SymbolOrClassName>` query to find where the header or class was relocated in the Chromium milestone.
+   - Once the tool returns the true path on disk, update the `#include` line with the exact matching path.
+8. Siso Build Diagnostics & Target Names (cobalt_apk, *.apk, *.ninja):
+   - Siso error outputs often start with high-level build targets (e.g. `FAILED: obj/.../wrappers.o`, `build step: cobalt_apk`).
+   - `cobalt_apk` is the top-level build target, NOT a source code file! NEVER generate a patch targeting `FILE: cobalt_apk`, `FILE: *.apk`, or `FILE: *.ninja`.
+   - Trace through the compiler error log or `In file included from ...` lines to identify the actual `.cc`, `.cpp`, `.h`, `.inc`, or `.java` source file that failed compilation.
+   - If the exact source file is not obvious, use `TOOL_FIND_FILE` or `TOOL_READ_FILE` on the referenced source file before outputting your `FILE: <relative_path>` patch block.
 
 ## Core Rules
 1. THIRD-PARTY MISSING HEADERS (Fix in BUILD.gn, NOT in third-party C++):

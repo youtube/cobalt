@@ -162,6 +162,15 @@ def validate_patch_target(target_file: str,
   Returns False (and prints guard warnings to sys.stderr) if target_file is
   a generated build artifact or an unmodified third-party source file.
   """
+  if (rel_file.endswith((".apk", ".ninja", ".so", ".a", ".o")) or
+      rel_file in ("cobalt_apk", "all")):
+    print(
+        f"  [GUARD] Rejecting {operation_name} on build target / binary: "
+        f"{rel_file}. Locate and patch the referencing source (.cc/.h) or "
+        "BUILD.gn file.",
+        file=sys.stderr,
+    )
+    return False
   if is_generated_build_artifact(target_file, repo_path):
     print(
         f"  [GUARD] Rejecting {operation_name} on generated build artifact: "
