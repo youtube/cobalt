@@ -195,7 +195,6 @@ const DrmSystem::Callbacks kStubDrmSystemCallbacks = {
     StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
     StubDrmSessionKeyStatusesChangedFunc};
 
-<<<<<<< HEAD
 // Makes a global ref out of `surface_view`, which callers hand us as a raw
 // jobject that is usually a global ref. jni_zero only accepts local refs when
 // wrapping a raw jobject, so go through NewLocalRef() first.
@@ -208,12 +207,12 @@ jni_zero::ScopedJavaGlobalRef<jobject> SurfaceViewToGlobalRef(
   return jni_zero::ScopedJavaGlobalRef<jobject>(
       env, jni_zero::ScopedJavaLocalRef<jobject>::Adopt(
                env, env->NewLocalRef(static_cast<jobject>(surface_view))));
-=======
+}
+
 bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
                                       const Size& max_video_size) {
   return frame_size.width > max_video_size.width ||
          frame_size.height > max_video_size.height;
->>>>>>> df94e047a5 (android: Handle video size cap from `max_video_capabilities` (#11876))
 }
 
 }  // namespace
