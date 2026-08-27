@@ -302,8 +302,8 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
     seek_to_time_ = seek_to_time;
   }
   paused_ = true;
-  decoded_audios_ = std::queue<scoped_refptr<DecodedAudio>>();  // clear it
-  decoded_audio_writing_in_progress_ = nullptr;
+  decoded_audios_ = std::queue<DecodedAudio>();  // clear it
+  decoded_audio_writing_in_progress_ = std::nullopt;
   decoded_audio_writing_offset_ = 0;
   total_frames_written_on_audio_track_thread_ = 0;
 }
@@ -527,7 +527,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         playback_head_position_when_stopped_ =
             audio_track_bridge_->GetAudioTimestamp(&stopped_at_);
         total_frames_written_ = total_frames_written_on_audio_track_thread_;
-        decoded_audio_writing_in_progress_ = nullptr;
+        decoded_audio_writing_in_progress_ = std::nullopt;
         SB_LOG(INFO) << "Audio track stopped at " << stopped_at_
                      << ", playback head: "
                      << playback_head_position_when_stopped_;
@@ -576,7 +576,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       if (decoded_audio_writing_offset_ ==
           decoded_audio_writing_in_progress_->size_in_bytes()) {
         total_frames_written_on_audio_track_thread_ += frames_per_input_buffer_;
-        decoded_audio_writing_in_progress_ = nullptr;
+        decoded_audio_writing_in_progress_ = std::nullopt;
         decoded_audio_writing_offset_ = 0;
         fully_written = true;
       } else if (!prerolled_.exchange(true)) {
@@ -641,7 +641,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   }
 
   std::lock_guard scoped_lock(mutex_);
-  decoded_audios_.push(std::move(decoded_audio));
+  decoded_audios_.push(std::move(*decoded_audio));
 }
 
 }  // namespace starboard
