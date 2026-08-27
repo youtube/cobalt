@@ -131,11 +131,11 @@ class AudioRendererPassthrough : public AudioRenderer,
   double volume_ = 1.0;
   bool paused_ = true;
   double playback_rate_ = 1.0;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<DecodedAudio> decoded_audios_;
 
   // The following variable group is only accessed on |audio_track_thread_|, or
   // after |audio_track_thread_| is destroyed (in Seek()).
-  scoped_refptr<DecodedAudio> decoded_audio_writing_in_progress_;
+  std::optional<DecodedAudio> decoded_audio_writing_in_progress_;
   int decoded_audio_writing_offset_ = 0;
   JobQueue::JobToken update_status_and_write_data_token_ =
       JobQueue::JobToken::kUnscheduled;
