@@ -895,27 +895,16 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
     const LogCallback& log_callback) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
 
-<<<<<<< HEAD
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return new StarboardAudioInputStream(this, params);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   if (UseAAudioInput()) {
     std::optional<AudioDevice> device =
         GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
     if (!device.has_value()) {
       return nullptr;
-=======
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  return new StarboardAudioInputStream(this, params);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    if (UseAAudioInput()) {
-      std::optional<AudioDevice> device =
-          GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
-      if (!device.has_value()) {
-        return nullptr;
-      }
-      return new AAudioInputStream(this, params, std::move(device).value());
->>>>>>> parent of 99ff9ad6c11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
     return new AAudioInputStream(this, params, std::move(device).value());
   }
@@ -924,7 +913,7 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
   return new OpenSLESInputStream(this, params);
 #else
   return nullptr;
-#endif  // BUILDFLAG(USE_OPENSLES)
+#endif
 #endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
