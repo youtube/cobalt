@@ -186,7 +186,7 @@ class AudioTimeStretcher {
   // number of requested samples. Furthermore, due to overlap-and-add,
   // the last half-window of the output is incomplete, which is stored in this
   // buffer.
-  DecodedAudio wsola_output_;
+  DecodedAudio wsola_output_ = DecodedAudio::CreateEOSBuffer();
 
   // Overlap-and-add window.
   std::unique_ptr<float[]> ola_window_;
@@ -196,19 +196,22 @@ class AudioTimeStretcher {
   std::unique_ptr<float[]> transition_window_;
 
   // Auxiliary variables to avoid allocation in every iteration.
+  // For now, we initialize DecodedAudio buffers with EOS to serve as
+  // placeholders.
+  // TODO: b/553577796 - Handle placeholders properly (e.g. std::optional).
 
   // Stores the optimal block in every iteration. This is the most
   // similar block to |target_block_| within |search_block_| and it is
   // overlap-and-added to |wsola_output_|.
-  DecodedAudio optimal_block_;
+  DecodedAudio optimal_block_ = DecodedAudio::CreateEOSBuffer();
 
   // A block of data that search is performed over to find the |optimal_block_|.
-  DecodedAudio search_block_;
+  DecodedAudio search_block_ = DecodedAudio::CreateEOSBuffer();
 
   // Stores the target block, denoted as |target| above. |search_block_| is
   // searched for a block (|optimal_block_|) that is most similar to
   // |target_block_|.
-  DecodedAudio target_block_;
+  DecodedAudio target_block_ = DecodedAudio::CreateEOSBuffer();
 
   // The initial and maximum capacity calculated by Initialize().
   int initial_capacity_;

@@ -172,8 +172,8 @@ void Verify(const DecodedAudio& decoded_audio) {
   }
 }
 
-TEST(DecodedAudioTest, DefaultCtor) {
-  DecodedAudio decoded_audio;
+TEST(DecodedAudioTest, CreateEOSBuffer) {
+  DecodedAudio decoded_audio = DecodedAudio::CreateEOSBuffer();
   EXPECT_TRUE(decoded_audio.is_end_of_stream());
 }
 

@@ -271,7 +271,7 @@ void FfmpegAudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
   // to ensure that Decode() is not called when the stream is ended.
   stream_ended_ = true;
   // Put EOS into the queue.
-  decoded_audios_.push(DecodedAudio());
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
 
   Schedule(output_cb_);
 }

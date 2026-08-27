@@ -290,7 +290,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
   if (dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream) {
     {
       std::lock_guard lock(decoded_audios_mutex_);
-      decoded_audios_.push(DecodedAudio());
+      decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
     }
     audio_frame_discarder_.OnDecodedAudioEndOfStream();
     Schedule(output_cb_);
