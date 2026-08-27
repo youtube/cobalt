@@ -336,7 +336,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     std::string* error_message)
     : JobOwner(job_queue),
       video_codec_(stream_config.video_stream_info.codec),
-      video_mime_(stream_config.video_stream_info.mime),
       drm_system_(static_cast<DrmSystem*>(stream_config.drm_system)),
       output_mode_(stream_config.output_mode),
       decode_target_graphics_context_provider_(
@@ -382,6 +381,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
+      video_mime_(stream_config.video_stream_info.mime),
       has_new_texture_available_(false),
       initial_number_of_preroll_frames_(
           pipeline_config.experimental_features
@@ -534,9 +534,10 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     video_mime_ = stream_info.mime;
   }
 
-  if (codec_reinit_state_ != CodecReinitState::kNone) {
-    pending_reinit_buffers_.insert(pending_reinit_buffers_.end(),
-                                   input_buffers.begin(), input_buffers.end());
+  if (codec_transition_state_ != CodecTransitionState::kNone) {
+    pending_codec_transition_buffers_.insert(
+        pending_codec_transition_buffers_.end(), input_buffers.begin(),
+        input_buffers.end());
     return;
   }
 
@@ -576,11 +577,12 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
 
   if (input_buffer_written_ > 0 && new_is_hdr != current_is_hdr) {
     SB_LOG(INFO) << "Color space change detected (HDR <-> SDR). "
-                    "Initiating EOS draining for codec re-initialization...";
-    codec_reinit_state_ = CodecReinitState::kDraining;
-    pending_reinit_stream_info_ = stream_info;
-    pending_reinit_buffers_.insert(pending_reinit_buffers_.end(),
-                                   input_buffers.begin(), input_buffers.end());
+                    "Initiating EOS draining for codec transition...";
+    codec_transition_state_ = CodecTransitionState::kDraining;
+    pending_codec_transition_stream_info_ = stream_info;
+    pending_codec_transition_buffers_.insert(
+        pending_codec_transition_buffers_.end(), input_buffers.begin(),
+        input_buffers.end());
     media_decoder_->WriteEndOfStream();
     return;
   }
@@ -1017,14 +1019,13 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
 
-  if (is_end_of_stream && codec_reinit_state_ == CodecReinitState::kDraining) {
-    SB_LOG(INFO)
-        << "EOS received during codec re-initialization draining. Scheduling "
-           "codec re-initialization.";
-    codec_reinit_state_ = CodecReinitState::kReinitScheduled;
+  if (is_end_of_stream &&
+      codec_transition_state_ == CodecTransitionState::kDraining) {
+    SB_LOG(INFO) << "EOS received during codec transition draining. Scheduling "
+                    "codec transition.";
+    codec_transition_state_ = CodecTransitionState::kTransitionScheduled;
     media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
-    Schedule(
-        std::bind(&MediaCodecVideoDecoder::PerformCodecReinitialization, this));
+    Schedule(std::bind(&MediaCodecVideoDecoder::PerformCodecTransition, this));
     if (decoder_status_cb_) {
       decoder_status_cb_(kNeedMoreInput, NULL);
     }
@@ -1278,9 +1279,9 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   tunnel_mode_prerolled_frames_.store(0);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
-  pending_reinit_buffers_.clear();
-  codec_reinit_state_ = CodecReinitState::kNone;
-  pending_reinit_stream_info_ = VideoStreamInfo();
+  pending_codec_transition_buffers_.clear();
+  codec_transition_state_ = CodecTransitionState::kNone;
+  pending_codec_transition_stream_info_ = VideoStreamInfo();
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
@@ -1288,18 +1289,18 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
-void MediaCodecVideoDecoder::PerformCodecReinitialization() {
+void MediaCodecVideoDecoder::PerformCodecTransition() {
   SB_CHECK(BelongsToCurrentThread());
-  if (codec_reinit_state_ != CodecReinitState::kReinitScheduled) {
+  if (codec_transition_state_ != CodecTransitionState::kTransitionScheduled) {
     return;
   }
 
-  SB_LOG(INFO)
-      << "Reinitializing MediaCodec for mid-stream codec re-initialization.";
+  SB_LOG(INFO) << "Reinitializing MediaCodec for mid-stream codec transition.";
 
   TeardownCodec();
 
-  const auto& color_metadata = pending_reinit_stream_info_.color_metadata;
+  const auto& color_metadata =
+      pending_codec_transition_stream_info_.color_metadata;
   color_metadata_ = !IsIdentity(color_metadata)
                         ? std::make_optional(color_metadata)
                         : std::nullopt;
@@ -1309,17 +1310,17 @@ void MediaCodecVideoDecoder::PerformCodecReinitialization() {
   video_fps_ = 0;
   end_of_stream_written_ = false;
 
-  codec_reinit_state_ = CodecReinitState::kNone;
-  VideoStreamInfo stream_info = pending_reinit_stream_info_;
-  pending_reinit_stream_info_ = VideoStreamInfo();
+  codec_transition_state_ = CodecTransitionState::kNone;
+  VideoStreamInfo stream_info = pending_codec_transition_stream_info_;
+  pending_codec_transition_stream_info_ = VideoStreamInfo();
 
   if (decoder_status_cb_) {
     decoder_status_cb_(kReleaseAllFrames, NULL);
   }
 
-  if (!pending_reinit_buffers_.empty()) {
+  if (!pending_codec_transition_buffers_.empty()) {
     InputBuffers buffers_to_write;
-    buffers_to_write.swap(pending_reinit_buffers_);
+    buffers_to_write.swap(pending_codec_transition_buffers_);
     WriteInputBuffers(buffers_to_write);
   }
 }
