@@ -29,8 +29,9 @@ import tempfile
 import time
 import urllib.request
 
-# Global configuration default for target repository.
-DEFAULT_REPO = os.environ.get('GITHUB_REPOSITORY', 'youtube/cobalt_sandbox')
+# Global configuration for target repository.
+REPO_OWNER_PATH = os.environ.get('GITHUB_REPOSITORY', 'youtube/cobalt_sandbox')
+REPO_URL = f'https://github.com/{REPO_OWNER_PATH}.git'
 
 # GitHub App IDs for cobalt-github-releaser.
 APP_ID = '3203510'
@@ -129,13 +130,13 @@ def read_private_key():
   return key_content
 
 
-def find_open_autoroll_pr(source, target, env, repo):
+def find_open_autoroll_pr(source, target, env):
   head_branch = f'autoroll-{source}-to-{target}'
   prs_json = gh(
       'pr',
       'list',
       '--repo',
-      repo,
+      REPO_OWNER_PATH,
       '--state',
       'open',
       '--head',
@@ -175,7 +176,7 @@ def has_conflicts(filepath):
   return False
 
 
-def rebase_and_push(target, pr, env, repo_url, apply=False):
+def rebase_and_push(target, pr, env, apply=False):
   head = pr['headRefName']
   pr_number = pr['number']
   log(f'Found PR #{pr_number}: {head} -> {target}')
@@ -186,7 +187,7 @@ def rebase_and_push(target, pr, env, repo_url, apply=False):
   try:
     log('Fetching branches...')
     git('fetch',
-        repo_url,
+        REPO_URL,
         f'+{target}:refs/remotes/origin/{target}',
         f'+{head}:refs/remotes/origin/{head}',
         authenticated=True,
@@ -218,12 +219,12 @@ def rebase_and_push(target, pr, env, repo_url, apply=False):
     log(f'Pushing {target}...')
     if apply:
       git('push',
-          repo_url,
+          REPO_URL,
           f'HEAD:{target}',
           authenticated=True,
           env=env)
     else:
-      log(f'[DRY RUN] Would run: git push {repo_url} HEAD:{target}')
+      log(f'[DRY RUN] Would run: git push {REPO_URL} HEAD:{target}')
   finally:
     log('Cleaning up temporary worktree...')
     os.chdir(orig_cwd)
@@ -234,7 +235,9 @@ def rebase_and_push(target, pr, env, repo_url, apply=False):
 
 
 def main():
-  parser = argparse.ArgumentParser(description='Merge autoroll PRs.')
+  parser = argparse.ArgumentParser(
+      description=('Merge autoroll PRs. Target repository can be configured via '
+                   'the GITHUB_REPOSITORY environment variable.'))
   parser.add_argument(
       '--source-branch', required=True, help='Source branch name')
   parser.add_argument(
@@ -243,9 +246,6 @@ def main():
       '--key-file',
       help=('Path to GitHub App Private Key (.pem file).'
             'Omit to provide key from stdin.'))
-  parser.add_argument(
-      '--repo',
-      help='GitHub repository (owner/repo).')
   parser.add_argument(
       '--apply',
       action='store_true',
@@ -256,9 +256,6 @@ def main():
   target = args.target_branch
   key_file = args.key_file
 
-  repo = args.repo or DEFAULT_REPO
-  repo_url = f'https://github.com/{repo}.git'
-
   if not key_file:
     private_key = read_private_key()
     temp_fd, key_file = tempfile.mkstemp(suffix='.pem')
@@ -268,8 +265,8 @@ def main():
   token = get_installation_access_token(APP_ID, key_file)
   env = {'GITHUB_TOKEN': token}
 
-  pr = find_open_autoroll_pr(source, target, env, repo)
-  rebase_and_push(target, pr, env, repo_url, apply=args.apply)
+  pr = find_open_autoroll_pr(source, target, env)
+  rebase_and_push(target, pr, env, apply=args.apply)
 
 
 if __name__ == '__main__':
