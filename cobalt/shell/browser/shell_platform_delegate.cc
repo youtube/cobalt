@@ -322,7 +322,9 @@ void ShellPlatformDelegate::OnAllFramesVisible(
 
 void ShellPlatformDelegate::OnAllFramesConcealed(
     content::WebContents* web_contents) {
-  // Stop observing as we only need one notification per conceal.
+  // Step 1: Called by CobaltLifecycleManager when all renderer frames have
+  // acknowledged JS conceal deactivation. Unmap platform windows and initiate
+  // asynchronous GPU resource and EGL display teardown.
   cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
       static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
 
@@ -338,9 +340,9 @@ void ShellPlatformDelegate::OnAllFramesConcealed(
   // device) and terminate EGLDisplay.
   content::CleanupGpuProcessOnUI(base::BindOnce(
       [](base::WeakPtr<content::WebContents> wc) {
-        // Notify the lifecycle manager to unblock the main run loop which is
-        // waiting for the background transition (and GPU tearing down) to
-        // finish.
+        // Step 2: Now that all GPU resources and the EGL display have been
+        // torn down on the GPU thread, notify the lifecycle manager that
+        // the entire conceal sequence is complete (unblocking AppEventRunner).
         cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
             wc ? wc.get() : nullptr);
       },

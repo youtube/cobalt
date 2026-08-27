@@ -469,6 +469,9 @@ class AppEventRunnerImpl : public AppEventRunner,
     }
   }
 
+  // Called by CobaltLifecycleManager when the full conceal sequence (renderer
+  // frame ACKs, platform window unmapping, and GPU resource/EGLDisplay
+  // teardown) has completed, unblocking WaitForAck(PendingAck::kConceal).
   void OnConcealCompleted(content::WebContents* web_contents) override {
     base::AutoLock lock(lock_);
     if (pending_ack_ == PendingAck::kConceal) {

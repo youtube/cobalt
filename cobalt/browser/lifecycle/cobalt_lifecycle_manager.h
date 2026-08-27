@@ -71,12 +71,16 @@ class CobaltLifecycleManagerObserver {
   // focus if it arrives too early.
   virtual void OnStartWaitingForReveal(content::WebContents* web_contents) {}
 
-  // Called when all frames of a WebContents have reported hidden to begin
-  // platform/GPU conceal teardown.
+  // Step 1 of Conceal: Called when all renderer-side Blink frames have finished
+  // acknowledging page deactivation (visibilitychange/pagehide). This signals
+  // ShellPlatformDelegate to unmap platform windows and initiate asynchronous
+  // GPU teardown.
   virtual void OnAllFramesConcealed(content::WebContents* web_contents) {}
 
-  // Called when the entire conceal sequence (including GPU cleanup and window
-  // destruction) has completed.
+  // Step 2 of Conceal: Called after the entire platform window and GPU teardown
+  // sequence (destroying EGL surfaces, contexts, and terminating the
+  // EGLDisplay) has fully completed on the GPU thread. This unblocks
+  // AppEventRunner's conceal wait barrier.
   virtual void OnConcealCompleted(content::WebContents* web_contents) {}
 
   // Called when a WebContents has completed blur.
