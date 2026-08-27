@@ -1242,7 +1242,7 @@ class WasmWrapperTSGraphBuilder : public WasmGraphBuilderBase {
  private:
   const CanonicalSig* const sig_;
 };
->>>>>>> parent of b388db2bb68 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 99ff9ad6c11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                       AccountingAllocator* allocator,

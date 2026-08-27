@@ -87,7 +87,7 @@ constexpr int kDefaultLowLatencyOutputBufferSize = 256;
 const int kDefaultInputBufferSize = 1024;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 const int kDefaultOutputBufferSize = 2048;
->>>>>>> parent of b388db2bb68 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 99ff9ad6c11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
  public:
@@ -920,7 +920,7 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
         return nullptr;
       }
       return new AAudioInputStream(this, params, std::move(device).value());
->>>>>>> parent of b388db2bb68 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 99ff9ad6c11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
     return new AAudioInputStream(this, params, std::move(device).value());
   }
@@ -1245,7 +1245,7 @@ int AudioManagerAndroid::GetOptimalOutputFrameSize(int sample_rate,
                                                    int channels) {
   if (GetJniDelegate().IsAudioLowLatencySupported()) {
     return GetJniDelegate().GetAudioLowLatencyOutputFrameSize();
->>>>>>> parent of b388db2bb68 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 99ff9ad6c11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   constexpr int kDefaultTargetSampleRate = 48000;

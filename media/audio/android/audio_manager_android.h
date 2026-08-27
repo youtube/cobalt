@@ -164,7 +164,7 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 
   void SetMute(JNIEnv* env,
                jboolean muted);
->>>>>>> parent of b388db2bb68 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 99ff9ad6c11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // Sets a volume that applies to all this manager's output audio streams.
   // This overrides other SetVolume calls (e.g. through AudioHostMsg_SetVolume).
