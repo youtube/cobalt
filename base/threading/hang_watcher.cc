@@ -544,27 +544,6 @@ void HangWatcher::UpdateConfiguration() {
     return;
   }
 
-<<<<<<< HEAD
-  if (auto configured_timeout = delegate->GetHangWatchTime()) {
-    g_hang_watch_time_us.store(configured_timeout->InMicroseconds(),
-                               std::memory_order_relaxed);
-  } else {
-    g_hang_watch_time_us.store(
-        WatchHangsInScope::kDefaultHangWatchTime.InMicroseconds(),
-        std::memory_order_relaxed);
-  }
-
-  if (auto configured_period = delegate->GetHangWatchMonitoringPeriod()) {
-    g_hang_watch_monitoring_period_us.store(configured_period->InMicroseconds(),
-                                            std::memory_order_relaxed);
-  } else {
-    g_hang_watch_monitoring_period_us.store(
-        kHangWatcherMonitoringPeriod.Get().InMicroseconds(),
-        std::memory_order_relaxed);
-  }
-
-=======
->>>>>>> 2041438482 (cobalt: Add Finch fallbacks for HangWatcher (#12164))
   g_hang_reporting_enabled.store(delegate->IsHangReportingEnabled(),
                                  std::memory_order_relaxed);
 
