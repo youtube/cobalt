@@ -16,7 +16,8 @@ cd "${WORKSPACE_COBALT}"
 # Clean up workspace on exit or error.
 trap "bash ${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/cleanup.sh" EXIT INT TERM
 
-
+# TODO(b/538697105): Unify build_mac.sh and presubmit_build_mac.sh, and consolidate
+# tvOS app code-signing logic into the unified CI build script.
 resign_tvos_app_if_needed () {
   local target_name="$1"
   local out_dir="$2"
