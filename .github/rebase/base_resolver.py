@@ -169,6 +169,14 @@ def validate_patch_target(target_file: str,
         file=sys.stderr,
     )
     return False
+  if rel_file.startswith("cobalt/build/configs/") or rel_file.endswith(
+      "args.gn"):
+    print(
+        f"  [GUARD] Rejecting {operation_name} on global build config file: "
+        f"{rel_file}. Modify component BUILD.gn or source code instead.",
+        file=sys.stderr,
+    )
+    return False
   if (not target_file.endswith((".gn", ".gni", ".star")) and
       is_unmodified_third_party(target_file, repo_path)):
     print(

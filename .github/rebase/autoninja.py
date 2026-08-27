@@ -266,14 +266,23 @@ def parse_compiler_errors(build_output: str,
 
 
 def read_siso_output_snippet(siso_out_path: str, max_bytes: int = 65536) -> str:
-  """Safely reads the top failed action traces from siso_output."""
-  if not os.path.isfile(siso_out_path):
-    return ""
-  try:
-    with open(siso_out_path, "r", encoding="utf-8", errors="replace") as sf:
-      return sf.read(max_bytes)
-  except OSError:
-    return ""
+  """Safely reads the top failed action traces from siso_output or siso.log."""
+  candidate_paths = [
+      siso_out_path,
+      siso_out_path.replace("siso_output", ".siso_output"),
+      siso_out_path.replace("siso_output", "siso.log"),
+      siso_out_path.replace("siso_output", ".siso.log"),
+  ]
+  for p in candidate_paths:
+    if os.path.isfile(p):
+      try:
+        with open(p, "r", encoding="utf-8", errors="replace") as sf:
+          content = sf.read(max_bytes)
+          if content.strip():
+            return content
+      except OSError:
+        pass
+  return ""
 
 
 class AutoninjaResolver(BaseResolver):
@@ -329,19 +338,52 @@ class AutoninjaResolver(BaseResolver):
           env=clean_env,
           check=False,
       )
-      combined_output = f"{proc.stdout}\n{proc.stderr}"
+      combined_output = f"{proc.stdout}\n{proc.stderr}".strip()
       siso_path = os.path.join(self.repo_path, "out", self.out_dir,
                                "siso_output")
       siso_snippet = read_siso_output_snippet(siso_path)
+
+      if proc.returncode != 0:
+        print(
+            f"\n[autoninja FAIL (exit code {proc.returncode})]",
+            file=sys.stderr,
+        )
+        if proc.stdout and proc.stdout.strip():
+          print(
+              f"--- stdout ---\n{proc.stdout.strip()[:10000]}", file=sys.stderr)
+        if proc.stderr and proc.stderr.strip():
+          print(
+              f"--- stderr ---\n{proc.stderr.strip()[:10000]}", file=sys.stderr)
+        if siso_snippet and siso_snippet.strip():
+          print(
+              f"--- siso_output ---\n{siso_snippet.strip()[:10000]}",
+              file=sys.stderr)
+
       return proc.returncode == 0, combined_output, siso_snippet
     except Exception as e:  # pylint: disable=broad-exception-caught
-      return False, f"Subprocess execution failed: {e}", ""
+      err_msg = f"Subprocess execution failed: {e}"
+      print(f"[autoninja ERROR] {err_msg}", file=sys.stderr)
+      return False, err_msg, ""
 
   def extract_diagnostics(self, build_output: str,
                           siso_output: str) -> List[Any]:
     diags = parse_compiler_errors(build_output, self.repo_path)
     if not diags and siso_output:
       diags = parse_compiler_errors(siso_output, self.repo_path)
+    if not diags:
+      raw_chunks = []
+      if siso_output and siso_output.strip():
+        raw_chunks.append(f"Siso output:\n{siso_output.strip()[:8192]}")
+      if build_output and build_output.strip():
+        meaningful_lines = [
+            l for l in build_output.splitlines()
+            if not l.startswith("ninja: Entering directory")
+        ]
+        if meaningful_lines:
+          raw_chunks.append("Build stdout/stderr:\n" +
+                            "\n".join(meaningful_lines[:100]))
+      if raw_chunks:
+        diags = ["\n\n".join(raw_chunks)]
     return diags
 
   def resolve_diagnostic(
