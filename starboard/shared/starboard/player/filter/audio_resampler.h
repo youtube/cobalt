@@ -16,8 +16,8 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RESAMPLER_H_
 
 #include <memory>
+#include <optional>
 
-#include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
@@ -37,14 +37,13 @@ class AudioResampler {
 
   // Write frames to the AudioResampler.  The format of the frames is determined
   // by the input formats passed to Create().
-  virtual scoped_refptr<DecodedAudio> Resample(
-      scoped_refptr<DecodedAudio> audio_data) = 0;
+  virtual std::optional<DecodedAudio> Resample(DecodedAudio audio_data) = 0;
 
   // Signal that the last audio input frame has been written.  The resampler
   // should allow for reading of any audio data inside its internal cache.  The
   // caller should continue call Read() after calling this function until Read()
   // returns EOS.
-  virtual scoped_refptr<DecodedAudio> WriteEndOfStream() = 0;
+  virtual std::optional<DecodedAudio> WriteEndOfStream() = 0;
 
   // Create an AudioResampler that takes input specified by |source_*| and
   // produce output specified by |destination_*|.  The input and output have to
