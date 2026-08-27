@@ -131,10 +131,11 @@ class TestMergeAutoroll(unittest.TestCase):
     mock_run.side_effect = run_side_effect
 
   @patch('subprocess.run')
-  def test_main_success(self, mock_run):
+  @patch('builtins.input', return_value='no')
+  def test_main_success(self, mock_input, mock_run):
     self._setup_mock_run(mock_run)
 
-    # By default, dry_run=True, so push is NOT called.
+    # By default, confirmation is 'no', so push is NOT called.
     with patch('sys.stdout'), patch('sys.stderr'):
       merge_autoroll.main()
 
@@ -142,7 +143,7 @@ class TestMergeAutoroll(unittest.TestCase):
     mock_run.assert_any_call([
         'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
         '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
-        'number,headRefName,baseRefName,title'
+        'number,headRefName,baseRefName,title,url'
     ],
                              capture_output=True,
                              text=True,
@@ -182,13 +183,13 @@ class TestMergeAutoroll(unittest.TestCase):
     self.mock_get_token.assert_called_once_with('3203510', '/tmp/fake_key.pem')
 
   @patch('subprocess.run')
-  def test_main_success_apply(self, mock_run):
+  @patch('builtins.input', return_value='yes')
+  def test_main_success_confirm_yes(self, mock_input, mock_run):
     self._setup_mock_run(mock_run)
 
-    # Test with --apply which disables dry-run mode
-    with patch('sys.argv', sys.argv + ['--apply']):
-      with patch('sys.stdout'), patch('sys.stderr'):
-        merge_autoroll.main()
+    # Test with confirmation 'yes' which triggers push
+    with patch('sys.stdout'), patch('sys.stderr'):
+      merge_autoroll.main()
 
     # Verify git push was called
     mock_run.assert_any_call([
@@ -209,7 +210,7 @@ class TestMergeAutoroll(unittest.TestCase):
     mock_run.assert_called_once_with([
         'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
         '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
-        'number,headRefName,baseRefName,title'
+        'number,headRefName,baseRefName,title,url'
     ],
                                      capture_output=True,
                                      text=True,
@@ -236,7 +237,7 @@ class TestMergeAutoroll(unittest.TestCase):
     mock_run.assert_called_once_with([
         'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
         '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
-        'number,headRefName,baseRefName,title'
+        'number,headRefName,baseRefName,title,url'
     ],
                                      capture_output=True,
                                      text=True,
@@ -279,7 +280,7 @@ class TestMergeAutoroll(unittest.TestCase):
     mock_run.assert_called_once_with([
         'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
         '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
-        'number,headRefName,baseRefName,title'
+        'number,headRefName,baseRefName,title,url'
     ],
                                      capture_output=True,
                                      text=True,

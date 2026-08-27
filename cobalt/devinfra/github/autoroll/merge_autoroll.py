@@ -142,7 +142,7 @@ def find_open_autoroll_pr(source, target, env):
       '--head',
       head_branch,
       '--json',
-      'number,headRefName,baseRefName,title',
+      'number,headRefName,baseRefName,title,url',
       capture_output=True,
       text=True,
       env=env)
@@ -176,7 +176,7 @@ def has_conflicts(filepath):
   return False
 
 
-def rebase_and_push(target, pr, env, apply=False):
+def rebase_and_push(target, pr, env):
   head = pr['headRefName']
   pr_number = pr['number']
   log(f'Found PR #{pr_number}: {head} -> {target}')
@@ -217,14 +217,24 @@ def rebase_and_push(target, pr, env, apply=False):
     git('rebase', f'origin/{target}')
 
     log(f'Pushing {target}...')
-    if apply:
+    pr_url = pr.get('url', 'URL not found')
+    log(f'PR URL: {pr_url}')
+    try:
+      response = input(
+          'Do you want to merge this PR? Type "yes" to confirm: '
+      )
+    except EOFError:
+      log('No input provided (EOF). Aborting.')
+      response = 'no'
+
+    if response.strip().lower() == 'yes':
       git('push',
           REPO_URL,
           f'HEAD:{target}',
           authenticated=True,
           env=env)
     else:
-      log(f'[DRY RUN] Would run: git push {REPO_URL} HEAD:{target}')
+      log('Aborting push.')
   finally:
     log('Cleaning up temporary worktree...')
     os.chdir(orig_cwd)
@@ -246,10 +256,6 @@ def main():
       '--key-file',
       help=('Path to GitHub App Private Key (.pem file).'
             'Omit to provide key from stdin.'))
-  parser.add_argument(
-      '--apply',
-      action='store_true',
-      help='Apply changes (disable dry-run mode).')
   args = parser.parse_args()
 
   source = args.source_branch
@@ -266,7 +272,7 @@ def main():
   env = {'GITHUB_TOKEN': token}
 
   pr = find_open_autoroll_pr(source, target, env)
-  rebase_and_push(target, pr, env, apply=args.apply)
+  rebase_and_push(target, pr, env)
 
 
 if __name__ == '__main__':
