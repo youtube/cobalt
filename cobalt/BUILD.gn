@@ -414,6 +414,7 @@ test("cobalt_unittests") {
     "//cobalt/browser:metrics",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/constants:cobalt_experiment_names",
+    "//cobalt/browser/constants:cobalt_pref_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_native_stability",
     "//cobalt/browser/h5vcc_native_stability/public/mojom",
