@@ -36,6 +36,7 @@
 #include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/result.h"
+#include "starboard/common/size.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -177,7 +178,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
-  const std::string max_video_capabilities_;
+  std::optional<Size> max_video_size_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.
