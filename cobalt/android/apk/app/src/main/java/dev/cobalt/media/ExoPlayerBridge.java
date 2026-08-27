@@ -62,6 +62,10 @@ public class ExoPlayerBridge {
   private long mPlaybackPosLastUpdatedMsec = 0;
   private float mPlaybackRate = 1.0f;
   private boolean mIsProgressing = false;
+  // Tracks whether playback was explicitly paused by a client pause() call vs implicitly paused
+  // by setting playback rate to 0.0. When playback rate transitions back to > 0.0, playback will
+  // automatically resume only if the client has not explicitly requested a pause.
+  private boolean mIsPausedByClient = false;
   private volatile boolean mIsReleased = false;
 
   private final ExoPlayerListener mPlayerListener;
@@ -337,6 +341,7 @@ public class ExoPlayerBridge {
         () -> {
           mPlayer.pause();
           synchronized (mPositionLock) {
+            mIsPausedByClient = true;
             updatePositionAnchorLocked();
           }
         });
@@ -350,15 +355,18 @@ public class ExoPlayerBridge {
     }
     mExoPlayerHandler.post(
         () -> {
-          boolean shouldPlay;
+          float currentRate;
           synchronized (mPositionLock) {
-            shouldPlay = !mPlayer.isPlaying() && mPlaybackRate > 0.0;
+            mIsPausedByClient = false;
+            currentRate = mPlaybackRate;
           }
+
+          boolean shouldPlay = !mPlayer.isPlaying() && currentRate > 0.0f;
           if (shouldPlay) {
-            mPlayer.play();
             synchronized (mPositionLock) {
               updatePositionAnchorLocked();
             }
+            mPlayer.play();
           }
         });
   }
@@ -370,16 +378,25 @@ public class ExoPlayerBridge {
       return;
     }
 
-    synchronized (mPositionLock) {
-      mPlaybackRate = playbackRate;
-    }
+    mExoPlayerHandler.post(
+        () -> {
+          float rate = Math.max(0.0f, playbackRate);
+          boolean isPausedByClient;
+          synchronized (mPositionLock) {
+            mPlaybackRate = rate;
+            updatePositionAnchorLocked();
+            isPausedByClient = mIsPausedByClient;
+          }
 
-    if (playbackRate > 0.0f) {
-      mExoPlayerHandler.post(
-          () -> {
-            mPlayer.setPlaybackParameters(new PlaybackParameters(playbackRate, 1.0f));
-          });
-    }
+          if (rate == 0.0f) {
+            mPlayer.pause();
+          } else {
+            mPlayer.setPlaybackParameters(new PlaybackParameters(rate, 1.0f));
+            if (!isPausedByClient) {
+              mPlayer.play();
+            }
+          }
+        });
   }
 
   @CalledByNative
