@@ -695,8 +695,9 @@ void HangWatcher::UninitializeOnMainThreadForTesting() {
   g_hang_watch_time_us.store(
       WatchHangsInScope::kDefaultHangWatchTime.InMicroseconds(),
       std::memory_order_relaxed);
-  g_hang_watch_monitoring_period_us.store(kMonitoringPeriod.InMicroseconds(),
-                                          std::memory_order_relaxed);
+  g_hang_watch_monitoring_period_us.store(
+      kHangWatcherMonitoringPeriod.Get().InMicroseconds(),
+      std::memory_order_relaxed);
   g_enable_long_hang_detection.store(false, std::memory_order_relaxed);
   g_enable_long_hang_kill.store(false, std::memory_order_relaxed);
   g_long_hang_timeout_seconds.store(20, std::memory_order_relaxed);
