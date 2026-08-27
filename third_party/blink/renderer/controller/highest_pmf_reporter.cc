@@ -317,14 +317,20 @@ void HighestPmfReporter::OnReportMetrics() {
 
 void HighestPmfReporter::ReportMetrics() {
 #if BUILDFLAG(IS_COBALT)
-  std::string metric_name = is_foreground_measuring_ ? metrics_[report_count_].pmf_foregrounded_name.Utf8() : metrics_[report_count_].pmf_name.Utf8();
-  std::string peak_name = is_foreground_measuring_ ? metrics_[report_count_].peak_rss_foregrounded_name.Utf8() : metrics_[report_count_].peak_rss_name.Utf8();
-  base::UmaHistogramMemoryMB(metric_name,
-                             base::saturated_cast<base::Histogram::Sample32>(
-                                 current_highest_pmf_ / 1024 / 1024));
-  base::UmaHistogramMemoryMB(peak_name,
-                             base::saturated_cast<base::Histogram::Sample32>(
-                                 peak_resident_bytes_at_current_highest_pmf_ / 1024 / 1024));
+  const MetricInfo& metric_info = metrics_[report_count_];
+  const std::string metric_name =
+      is_foreground_measuring_ ? metric_info.pmf_foregrounded_name.Utf8()
+                               : metric_info.pmf_name.Utf8();
+  const std::string peak_name =
+      is_foreground_measuring_ ? metric_info.peak_rss_foregrounded_name.Utf8()
+                               : metric_info.peak_rss_name.Utf8();
+
+  base::UmaHistogramMemoryMB(
+      metric_name, base::saturated_cast<base::Histogram::Sample32>(
+                       current_highest_pmf_ / 1024 / 1024));
+  base::UmaHistogramMemoryMB(
+      peak_name, base::saturated_cast<base::Histogram::Sample32>(
+                     peak_resident_bytes_at_current_highest_pmf_ / 1024 / 1024));
 #else
   base::UmaHistogramMemoryMB(kHighestPmfMetricNames[report_count_],
                              base::saturated_cast<base::Histogram::Sample32>(
