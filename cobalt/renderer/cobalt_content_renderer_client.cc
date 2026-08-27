@@ -167,6 +167,12 @@ CobaltContentRendererClient::CobaltContentRendererClient()
 
 CobaltContentRendererClient::~CobaltContentRendererClient() {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
+  // In single-process mode, CobaltContentRendererClient is destroyed on the
+  // browser main thread during process termination.
+  // HangWatcher::UnregisterThread can only be called on the registered thread
+  // itself, so release the closure to avoid invoking it on the wrong thread
+  // during shutdown.
+  std::ignore = unregister_thread_closure.Release();
 }
 
 void CobaltContentRendererClient::RenderFrameCreated(

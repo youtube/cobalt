@@ -138,12 +138,12 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     content::InitializeMojoCore();
   }
 
+  InitializeHangWatcher();
+
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV)
-  // This delegate is for reading the flag value.
+  // This delegate is for reading the flag value and updates the configuration.
   cobalt::browser::CobaltHangWatcherDelegate::Initialize();
 #endif
-
-  InitializeHangWatcher();
 
   const std::string process_type =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
