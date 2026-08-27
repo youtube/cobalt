@@ -4357,12 +4357,12 @@ void MediaStreamManager::OnRegionCaptureRectChanged(
   }
 }
 
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamManager::SetCapturedDisplaySurfaceFocus(
     const std::string& label,
     bool focus,
     bool is_from_microtask,
     bool is_from_timer) {
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   DeviceRequest* const request = FindRequest(label);
@@ -4402,8 +4402,8 @@ void MediaStreamManager::SetCapturedDisplaySurfaceFocus(
 
   request->ui_proxy->SetFocus(media_id, focus, is_from_microtask,
                               is_from_timer);
-}
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+}
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 void MediaStreamManager::SendWheel(

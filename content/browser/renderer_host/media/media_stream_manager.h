@@ -424,7 +424,6 @@ class CONTENT_EXPORT MediaStreamManager
       const base::UnguessableToken& session_id,
       const std::optional<gfx::Rect>& region_capture_rect);
 
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   // Determines whether the captured surface (tab/window) should be focused.
   // This can be called at most once, and only within the first 1s of the
   // capture session being initiated. If a call with |focus=false| is not
@@ -439,7 +438,6 @@ class CONTENT_EXPORT MediaStreamManager
                                       bool focus,
                                       bool is_from_microtask,
                                       bool is_from_timer);
-#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   // Captured Surface Control APIs.

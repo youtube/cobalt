@@ -73,21 +73,16 @@ namespace {
 // Maximum number of output streams that can be open simultaneously.
 constexpr int kMaxOutputStreams = 10;
 
-<<<<<<< HEAD
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+[[maybe_unused]] constexpr int kDefaultInputBufferSize = 1024;
+#else
 constexpr int kDefaultInputBufferSize = 1024;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 constexpr int kDefaultOutputBufferSize = 2048;
 // Randomly picked up frame size which is close to return value on N4.
 // Return this value when getProperty(PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
 // fails.
 constexpr int kDefaultLowLatencyOutputBufferSize = 256;
-=======
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-[[maybe_unused]] const int kDefaultInputBufferSize = 1024;
-#else
-const int kDefaultInputBufferSize = 1024;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-const int kDefaultOutputBufferSize = 2048;
->>>>>>> parent of b388db2bb68 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
  public:
@@ -900,27 +895,16 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
     const LogCallback& log_callback) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
 
-<<<<<<< HEAD
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return new StarboardAudioInputStream(this, params);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   if (UseAAudioInput()) {
     std::optional<AudioDevice> device =
         GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
     if (!device.has_value()) {
       return nullptr;
-=======
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  return new StarboardAudioInputStream(this, params);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (__builtin_available(android AAUDIO_MIN_API, *)) {
-    if (UseAAudioInput()) {
-      std::optional<AudioDevice> device =
-          GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
-      if (!device.has_value()) {
-        return nullptr;
-      }
-      return new AAudioInputStream(this, params, std::move(device).value());
->>>>>>> parent of b388db2bb68 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
     return new AAudioInputStream(this, params, std::move(device).value());
   }
@@ -929,7 +913,7 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
   return new OpenSLESInputStream(this, params);
 #else
   return nullptr;
-#endif  // BUILDFLAG(USE_OPENSLES)
+#endif
 #endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
@@ -1160,22 +1144,6 @@ AudioManagerAndroid::JniDelegate& AudioManagerAndroid::GetJniDelegate() {
   return *jni_delegate_;
 }
 
-<<<<<<< HEAD
-int AudioManagerAndroid::SelectSampleRate(
-    const AudioDevice& device,
-    std::optional<int> preferred_sample_rate) {
-  const std::optional<std::vector<int>>& supported_sample_rates =
-      device.GetSampleRates();
-
-  if (!supported_sample_rates.has_value()) {
-    // The set of supported sample rates is unknown.
-    //
-    // For the specific case where supported sample rates are unknown and there
-    // is no preferred sample rate, the OS provides a system-wide "native"
-    // sample rate which can be used as a default.
-    return preferred_sample_rate.value_or(
-        GetJniDelegate().GetNativeOutputSampleRate());
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void AudioManagerAndroid::PreStartStream(
     const base::UnguessableToken& session_token,
@@ -1241,11 +1209,20 @@ AudioManagerAndroid::PreStartedEntry::PreStartedEntry() = default;
 AudioManagerAndroid::PreStartedEntry::~PreStartedEntry() = default;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-int AudioManagerAndroid::GetOptimalOutputFrameSize(int sample_rate,
-                                                   int channels) {
-  if (GetJniDelegate().IsAudioLowLatencySupported()) {
-    return GetJniDelegate().GetAudioLowLatencyOutputFrameSize();
->>>>>>> parent of b388db2bb68 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+int AudioManagerAndroid::SelectSampleRate(
+    const AudioDevice& device,
+    std::optional<int> preferred_sample_rate) {
+  const std::optional<std::vector<int>>& supported_sample_rates =
+      device.GetSampleRates();
+
+  if (!supported_sample_rates.has_value()) {
+    // The set of supported sample rates is unknown.
+    //
+    // For the specific case where supported sample rates are unknown and there
+    // is no preferred sample rate, the OS provides a system-wide "native"
+    // sample rate which can be used as a default.
+    return preferred_sample_rate.value_or(
+        GetJniDelegate().GetNativeOutputSampleRate());
   }
 
   constexpr int kDefaultTargetSampleRate = 48000;
