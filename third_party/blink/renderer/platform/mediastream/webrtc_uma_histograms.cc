@@ -26,7 +26,9 @@ void UpdateWebRTCMethodCount(RTCAPIName api_name) {
 }
 
 PerSessionWebRTCAPIMetrics::~PerSessionWebRTCAPIMetrics() {
+#if !BUILDFLAG(IS_STARBOARD)
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#endif
 }
 
 // static

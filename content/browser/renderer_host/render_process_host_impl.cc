@@ -1674,7 +1674,15 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
 
   // Make sure to clean up the in-process renderer before the channel, otherwise
   // it may still run and have its IPCs fail, causing asserts.
+#if BUILDFLAG(IS_STARBOARD)
+  // In single-process mode on Starboard, RenderThreadImpl and WebThreadScheduler
+  // do not support a clean synchronous shutdown sequence after lifecycle
+  // suspend/resume cycles. Releasing the thread object during process teardown
+  // avoids hanging on PlatformThread::Join while the process is stopping.
+  std::ignore = in_process_renderer_.release();
+#else
   in_process_renderer_.reset();
+#endif
   g_in_process_thread = nullptr;
 
   ChildProcessSecurityPolicyImpl::GetInstance()->Remove(GetDeprecatedID());
