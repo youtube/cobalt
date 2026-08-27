@@ -28,8 +28,22 @@
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
-
 namespace {
+
+template <typename SampleType>
+void InterleavePlanarAudio(const uint8_t* const* planar_data,
+                           int channels,
+                           int frames,
+                           uint8_t* destination) {
+  const auto* const* src =
+      reinterpret_cast<const SampleType* const*>(planar_data);
+  auto* dst = reinterpret_cast<SampleType*>(destination);
+  for (int frame = 0; frame < frames; ++frame) {
+    for (int ch = 0; ch < channels; ++ch) {
+      *dst++ = src[ch][frame];
+    }
+  }
+}
 
 SbMediaAudioSampleType GetSupportedSampleType() {
   if (SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)) {
@@ -238,22 +252,21 @@ void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
   }
 
   DecodedAudio decoded_audio(
-      channel_count, GetSampleType(), GetStorageType(),
+      channel_count, GetSampleType(), kSbMediaAudioFrameStorageTypeInterleaved,
       input_buffer.timestamp(),
       channel_count * av_frame.nb_samples * GetBytesPerSample(GetSampleType()));
-  if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
+  bool is_planar = (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16P ||
+                    codec_context_->sample_fmt == AV_SAMPLE_FMT_FLTP);
+  if (!is_planar) {
     memcpy(decoded_audio.data(), *av_frame.extended_data,
            decoded_audio.size_in_bytes());
+  } else if (GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated) {
+    InterleavePlanarAudio<int16_t>(av_frame.extended_data, channel_count,
+                                   av_frame.nb_samples, decoded_audio.data());
   } else {
-    SB_DCHECK_EQ(GetStorageType(), kSbMediaAudioFrameStorageTypePlanar);
-    const int per_channel_size_in_bytes =
-        decoded_audio.size_in_bytes() / decoded_audio.channels();
-    for (int i = 0; i < decoded_audio.channels(); ++i) {
-      memcpy(decoded_audio.data() + per_channel_size_in_bytes * i,
-             av_frame.extended_data[i], per_channel_size_in_bytes);
-    }
-    decoded_audio = decoded_audio.SwitchFormatTo(
-        GetSampleType(), kSbMediaAudioFrameStorageTypeInterleaved);
+    SB_CHECK_EQ(GetSampleType(), kSbMediaAudioSampleTypeFloat32);
+    InterleavePlanarAudio<float>(av_frame.extended_data, channel_count,
+                                 av_frame.nb_samples, decoded_audio.data());
   }
   decoded_audio.AdjustForDiscardedDurations(
       audio_stream_info_.samples_per_second,
@@ -321,23 +334,6 @@ SbMediaAudioSampleType FfmpegAudioDecoderImpl<FFMPEG>::GetSampleType() const {
   SB_NOTREACHED();
 
   return kSbMediaAudioSampleTypeFloat32;
-}
-
-SbMediaAudioFrameStorageType FfmpegAudioDecoderImpl<FFMPEG>::GetStorageType()
-    const {
-  SB_CHECK(BelongsToCurrentThread());
-
-  if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16 ||
-      codec_context_->sample_fmt == AV_SAMPLE_FMT_FLT) {
-    return kSbMediaAudioFrameStorageTypeInterleaved;
-  }
-  if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16P ||
-      codec_context_->sample_fmt == AV_SAMPLE_FMT_FLTP) {
-    return kSbMediaAudioFrameStorageTypePlanar;
-  }
-
-  SB_NOTREACHED();
-  return kSbMediaAudioFrameStorageTypeInterleaved;
 }
 
 bool FfmpegAudioDecoderImpl<FFMPEG>::InitializeCodec() {
