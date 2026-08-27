@@ -18,7 +18,10 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/task/thread_pool.h"
 #include "cobalt/browser/resource_scheduler/cobalt_resource_throttle.h"
+#include "content/public/browser/browser_task_traits.h"
+#include "content/public/browser/browser_thread.h"
 
 namespace cobalt {
 
@@ -28,7 +31,7 @@ BASE_FEATURE(kCobaltAdaptiveResourceScheduler,
 
 namespace {
 constexpr base::TimeDelta kDefaultScrollSettleDelay = base::Milliseconds(350);
-constexpr base::TimeDelta kDefaultStartupFallbackTimeout = base::Seconds(5);
+constexpr base::TimeDelta kDefaultStartupFallbackTimeout = base::Seconds(10);
 }  // namespace
 
 // static
@@ -40,17 +43,34 @@ CobaltAdaptiveResourceScheduler::GetInstance() {
 
 CobaltAdaptiveResourceScheduler::CobaltAdaptiveResourceScheduler()
     : settle_delay_(kDefaultScrollSettleDelay) {
-  DETACH_FROM_SEQUENCE(sequence_checker_);
-  DLOG(INFO) << "CobaltAdaptiveResourceScheduler: Initialized successfully. "
-                "Feature enabled: "
-             << IsEnabled();
+  LOG(INFO) << "CobaltAdaptiveResourceScheduler: Initialized successfully. "
+               "Feature enabled: "
+            << IsEnabled();
 
-  // Safety fallback timer to guarantee startup mode exits even if splash screen
-  // events are not fired.
-  startup_fallback_timer_.Start(
-      FROM_HERE, kDefaultStartupFallbackTimeout,
-      base::BindOnce(&CobaltAdaptiveResourceScheduler::OnStartupCompleted,
-                     weak_ptr_factory_.GetWeakPtr()));
+  // 1. Post a BEST_EFFORT task to the UI/Renderer Main Thread.
+  // In Chromium, BEST_EFFORT tasks on the UI thread will NOT run while
+  // high-priority V8 JS compilation, bytecode generation, and synchronous DOM
+  // construction tasks are active. The moment the main thread finishes
+  // compiling and running the initial JS scripts and goes IDLE, this callback
+  // executes immediately!
+  content::GetUIThreadTaskRunner({base::TaskPriority::BEST_EFFORT})
+      ->PostTask(FROM_HERE, base::BindOnce([]() {
+                   LOG(INFO)
+                       << "CobaltAdaptiveResourceScheduler: UI Main Thread "
+                          "reached BEST_EFFORT Idle (JS compilation complete).";
+                   CobaltAdaptiveResourceScheduler::GetInstance()
+                       ->OnStartupCompleted();
+                 }));
+
+  // 2. Safety fallback using thread pool delayed task (10s safety net in case
+  // of network errors).
+  base::ThreadPool::PostDelayedTask(
+      FROM_HERE, base::BindOnce([]() {
+        LOG(INFO) << "CobaltAdaptiveResourceScheduler: 10s safety fallback "
+                     "timer expired.";
+        CobaltAdaptiveResourceScheduler::GetInstance()->OnStartupCompleted();
+      }),
+      kDefaultStartupFallbackTimeout);
 }
 
 CobaltAdaptiveResourceScheduler::~CobaltAdaptiveResourceScheduler() = default;
@@ -59,130 +79,158 @@ bool CobaltAdaptiveResourceScheduler::IsEnabled() const {
   return base::FeatureList::IsEnabled(kCobaltAdaptiveResourceScheduler);
 }
 
-bool CobaltAdaptiveResourceScheduler::ShouldDeferRequests() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+bool CobaltAdaptiveResourceScheduler::ShouldDeferRequests() {
+  base::AutoLock lock(lock_);
   return is_starting_up_ || is_scrolling_;
 }
 
-bool CobaltAdaptiveResourceScheduler::IsStartingUp() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+bool CobaltAdaptiveResourceScheduler::IsStartingUp() {
+  base::AutoLock lock(lock_);
   return is_starting_up_;
 }
 
-bool CobaltAdaptiveResourceScheduler::IsScrolling() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+bool CobaltAdaptiveResourceScheduler::IsScrolling() {
+  base::AutoLock lock(lock_);
   return is_scrolling_;
 }
 
 void CobaltAdaptiveResourceScheduler::OnStartupCompleted() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!is_starting_up_) {
-    return;
+  {
+    base::AutoLock lock(lock_);
+    if (!is_starting_up_) {
+      return;
+    }
+    is_starting_up_ = false;
+    LOG(INFO) << "CobaltAdaptiveResourceScheduler: Startup completed. Draining "
+                 "startup queue. "
+              << "Deferred count: " << deferred_throttles_.size();
+    if (is_scrolling_) {
+      return;
+    }
   }
-  is_starting_up_ = false;
-  startup_fallback_timer_.Stop();
-  DLOG(INFO) << "CobaltAdaptiveResourceScheduler: Startup completed. Draining "
-                "startup queue. "
-             << "Deferred count: " << deferred_throttles_.size();
-  if (!is_scrolling_) {
-    DrainDeferredQueue();
-  }
+  DrainDeferredQueue();
 }
 
 void CobaltAdaptiveResourceScheduler::SetStartupStateForTesting(
     bool is_starting_up) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  is_starting_up_ = is_starting_up;
-  startup_fallback_timer_.Stop();
-  if (!is_starting_up_ && !is_scrolling_) {
-    DrainDeferredQueue();
+  {
+    base::AutoLock lock(lock_);
+    is_starting_up_ = is_starting_up;
+    if (is_starting_up || is_scrolling_) {
+      return;
+    }
   }
+  DrainDeferredQueue();
 }
 
 void CobaltAdaptiveResourceScheduler::OnUserInteraction(int key_code) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!IsEnabled()) {
     return;
   }
 
-  if (!is_scrolling_) {
-    DLOG(INFO) << "CobaltAdaptiveResourceScheduler: Interaction detected (key "
-               << key_code << "). Transitioning to SCROLLING state.";
+  base::TimeTicks now = base::TimeTicks::Now();
+  base::TimeDelta delay;
+  {
+    base::AutoLock lock(lock_);
+    if (!is_scrolling_) {
+      LOG(INFO) << "CobaltAdaptiveResourceScheduler: Interaction detected (key "
+                << key_code << "). Transitioning to SCROLLING state.";
+    }
+    is_scrolling_ = true;
+    last_interaction_time_ = now;
+    delay = settle_delay_;
   }
-  is_scrolling_ = true;
 
-  // Restart the debounce timer.
-  settle_timer_.Stop();
-  settle_timer_.Start(
-      FROM_HERE, settle_delay_,
-      base::BindOnce(&CobaltAdaptiveResourceScheduler::OnScrollSettled,
-                     weak_ptr_factory_.GetWeakPtr()));
+  // Post a thread-safe debounce check to the ThreadPool (NoDestructor
+  // singleton, unretained is 100% safe).
+  base::ThreadPool::PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&CobaltAdaptiveResourceScheduler::CheckScrollSettled,
+                     base::Unretained(this), now),
+      delay);
+}
+
+void CobaltAdaptiveResourceScheduler::CheckScrollSettled(
+    base::TimeTicks scheduled_time) {
+  {
+    base::AutoLock lock(lock_);
+    if (!is_scrolling_) {
+      return;
+    }
+    // If another user interaction occurred after this task was scheduled, let
+    // the later task handle it.
+    if (last_interaction_time_ > scheduled_time) {
+      return;
+    }
+    is_scrolling_ = false;
+    LOG(INFO) << "CobaltAdaptiveResourceScheduler: Settle timer expired. "
+                 "Transitioning to IDLE. "
+              << "Draining " << deferred_throttles_.size()
+              << " deferred requests.";
+    if (is_starting_up_) {
+      return;
+    }
+  }
+  DrainDeferredQueue();
 }
 
 void CobaltAdaptiveResourceScheduler::SetScrollState(bool is_scrolling) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!IsEnabled()) {
     return;
   }
 
-  DLOG(INFO) << "CobaltAdaptiveResourceScheduler: SetScrollState("
-             << is_scrolling << ")";
+  LOG(INFO) << "CobaltAdaptiveResourceScheduler: SetScrollState("
+            << is_scrolling << ")";
   if (is_scrolling) {
+    base::AutoLock lock(lock_);
     is_scrolling_ = true;
-    settle_timer_.Stop();
   } else {
-    OnScrollSettled();
+    CheckScrollSettled(base::TimeTicks::Now());
   }
 }
 
 void CobaltAdaptiveResourceScheduler::RegisterDeferredThrottle(
     CobaltResourceThrottle* throttle) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(throttle);
+  base::AutoLock lock(lock_);
   deferred_throttles_.insert(throttle);
-  DLOG(INFO) << "CobaltAdaptiveResourceScheduler: Registered deferred "
-                "throttle. Total in queue: "
-             << deferred_throttles_.size();
+  LOG(INFO) << "CobaltAdaptiveResourceScheduler: Registered deferred throttle. "
+               "Total in queue: "
+            << deferred_throttles_.size();
 }
 
 void CobaltAdaptiveResourceScheduler::UnregisterDeferredThrottle(
     CobaltResourceThrottle* throttle) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  base::AutoLock lock(lock_);
   deferred_throttles_.erase(throttle);
 }
 
-size_t CobaltAdaptiveResourceScheduler::GetDeferredCount() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+size_t CobaltAdaptiveResourceScheduler::GetDeferredCount() {
+  base::AutoLock lock(lock_);
   return deferred_throttles_.size();
 }
 
 void CobaltAdaptiveResourceScheduler::SetSettleDelayForTesting(
     base::TimeDelta delay) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  base::AutoLock lock(lock_);
   settle_delay_ = delay;
 }
 
-void CobaltAdaptiveResourceScheduler::OnScrollSettled() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  is_scrolling_ = false;
-  DLOG(INFO) << "CobaltAdaptiveResourceScheduler: Settle timer expired. "
-                "Transitioning to IDLE. "
-             << "Draining " << deferred_throttles_.size()
-             << " deferred requests.";
-  if (!is_starting_up_) {
-    DrainDeferredQueue();
-  }
-}
-
 void CobaltAdaptiveResourceScheduler::DrainDeferredQueue() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Pop throttles one-by-one from the set to avoid re-entrancy use-after-free
-  // bugs if resuming a throttle causes another throttle to be cancelled and
-  // destroyed.
-  while (!deferred_throttles_.empty()) {
-    auto it = deferred_throttles_.begin();
-    CobaltResourceThrottle* throttle = *it;
-    deferred_throttles_.erase(it);
+  std::vector<CobaltResourceThrottle*> throttles_to_resume;
+  {
+    base::AutoLock lock(lock_);
+    while (!deferred_throttles_.empty()) {
+      auto it = deferred_throttles_.begin();
+      throttles_to_resume.push_back(*it);
+      deferred_throttles_.erase(it);
+    }
+  }
+
+  // Resume each throttle outside the lock.
+  // CobaltResourceThrottle::ResumeLoading() safely handles sequence hopping to
+  // the throttle's originating thread.
+  for (auto* throttle : throttles_to_resume) {
     if (throttle) {
       throttle->ResumeLoading();
     }

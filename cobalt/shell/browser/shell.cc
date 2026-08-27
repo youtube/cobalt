@@ -1234,14 +1234,12 @@ void Shell::SwitchToMainWebContents() {
   // instead of a lock due to it is on a single thread.
   // This could be called multiple times.
   if (!has_switched_to_main_frame_) {
-    VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
+    LOG(INFO) << "NativeSplash: Switching to main frame WebContents.";
     has_switched_to_main_frame_ = true;
-    content::GetIOThreadTaskRunner({})->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            &cobalt::CobaltAdaptiveResourceScheduler::OnStartupCompleted,
-            base::Unretained(
-                cobalt::CobaltAdaptiveResourceScheduler::GetInstance())));
+    auto* scheduler = cobalt::CobaltAdaptiveResourceScheduler::GetInstance();
+    if (scheduler) {
+      scheduler->OnStartupCompleted();
+    }
     if (web_contents_) {
       CHECK(GetPlatform());
       GetPlatform()->UpdateContents(this);
@@ -1271,7 +1269,7 @@ void Shell::OnSplashScreenLoadComplete() {
 }
 
 void Shell::ClosingSplashScreenWebContents() {
-  VLOG(1) << "NativeSplash: Closing splash screen WebContents.";
+  LOG(INFO) << "NativeSplash: Closing splash screen WebContents.";
   splash_state_ = STATE_SPLASH_SCREEN_ENDED;
   if (is_main_frame_loaded_) {
     // If main frame WebContents is loaded, switch to it.

@@ -32,6 +32,7 @@
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/starboard/renderer_factory_traits.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/blink/public/platform/url_loader_throttle_provider.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace content {
@@ -60,6 +61,9 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   // ContentRendererClient implementation.
   void RenderFrameCreated(content::RenderFrame* render_frame) override;
   void RenderThreadStarted() override;
+  std::unique_ptr<blink::URLLoaderThrottleProvider>
+  CreateURLLoaderThrottleProvider(
+      blink::URLLoaderThrottleProviderType provider_type) override;
 
   // Thread safety: The following media capability query methods can be called
   // from any thread (main thread or worker threads, e.g., when MSE is used in

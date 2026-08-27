@@ -1,3 +1,5 @@
+#include "cobalt/browser/resource_scheduler/cobalt_resource_throttle.h"
+#include "third_party/blink/public/common/loader/url_loader_throttle.h"
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/renderer/cobalt_content_renderer_client.h"
-
 #include <memory>
 #include <string>
 #include <variant>
@@ -22,6 +22,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
+#include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
@@ -52,6 +53,42 @@
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace cobalt {
+namespace {
+
+class CobaltUrlLoaderThrottleProvider
+    : public blink::URLLoaderThrottleProvider {
+ public:
+  explicit CobaltUrlLoaderThrottleProvider(
+      blink::URLLoaderThrottleProviderType type)
+      : type_(type) {}
+  ~CobaltUrlLoaderThrottleProvider() override = default;
+
+  CobaltUrlLoaderThrottleProvider(const CobaltUrlLoaderThrottleProvider&) =
+      delete;
+  CobaltUrlLoaderThrottleProvider& operator=(
+      const CobaltUrlLoaderThrottleProvider&) = delete;
+
+  std::unique_ptr<blink::URLLoaderThrottleProvider> Clone() override {
+    return std::make_unique<CobaltUrlLoaderThrottleProvider>(type_);
+  }
+
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>> CreateThrottles(
+      base::optional_ref<const blink::LocalFrameToken> local_frame_token,
+      const network::ResourceRequest& request) override {
+    std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
+    if (auto throttle = cobalt::CobaltResourceThrottle::MaybeCreate(request)) {
+      throttles.push_back(std::move(throttle));
+    }
+    return throttles;
+  }
+
+  void SetOnline(bool is_online) override {}
+
+ private:
+  blink::URLLoaderThrottleProviderType type_;
+};
+
+}  // namespace
 
 namespace {
 using ::media::ExperimentalFeatures;
@@ -213,6 +250,13 @@ void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
   LOG(INFO) << "Renderer received SbWindow handle: "
             << reinterpret_cast<void*>(handle);
   sb_window_handle_ = handle;
+}
+
+std::unique_ptr<blink::URLLoaderThrottleProvider>
+CobaltContentRendererClient::CreateURLLoaderThrottleProvider(
+    blink::URLLoaderThrottleProviderType provider_type) {
+  LOG(INFO) << "CobaltContentRendererClient::CreateURLLoaderThrottleProvider";
+  return std::make_unique<CobaltUrlLoaderThrottleProvider>(provider_type);
 }
 
 void CobaltContentRendererClient::RenderThreadStarted() {

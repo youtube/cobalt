@@ -199,6 +199,29 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   }
 }
 
+void CobaltWebContentsObserver::DidFinishLoad(
+    content::RenderFrameHost* render_frame_host,
+    const GURL& validated_url) {
+  LOG(INFO) << "CobaltWebContentsObserver::DidFinishLoad: url=" << validated_url
+            << ", is_primary_main_frame="
+            << render_frame_host->IsInPrimaryMainFrame();
+}
+
+void CobaltWebContentsObserver::DocumentOnLoadCompletedInPrimaryMainFrame() {
+  const GURL& url =
+      web_contents() ? web_contents()->GetLastCommittedURL() : GURL();
+  LOG(INFO) << "CobaltWebContentsObserver::"
+               "DocumentOnLoadCompletedInPrimaryMainFrame for "
+            << url;
+}
+
+void CobaltWebContentsObserver::DidFirstVisuallyNonEmptyPaint() {
+  const GURL& url =
+      web_contents() ? web_contents()->GetLastCommittedURL() : GURL();
+  LOG(INFO) << "CobaltWebContentsObserver::DidFirstVisuallyNonEmptyPaint for "
+            << url;
+}
+
 void CobaltWebContentsObserver::DidGetUserInteraction(
     const blink::WebInputEvent& event) {
   int key_code = 0;
@@ -209,15 +232,10 @@ void CobaltWebContentsObserver::DidGetUserInteraction(
   LOG(INFO) << "CobaltWebContentsObserver::"
                "DidGetUserInteraction: type="
             << static_cast<int>(event.GetType()) << ", key_code=" << key_code;
-  // Post task to the IO thread where
-  // CobaltAdaptiveResourceScheduler resides to ensure
-  // thread-safety.
-  content::GetIOThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          &CobaltAdaptiveResourceScheduler::OnUserInteraction,
-          base::Unretained(CobaltAdaptiveResourceScheduler::GetInstance()),
-          key_code));
+  auto* scheduler = CobaltAdaptiveResourceScheduler::GetInstance();
+  if (scheduler) {
+    scheduler->OnUserInteraction(key_code);
+  }
 }
 
 void CobaltWebContentsObserver::OnVisibilityChanged(

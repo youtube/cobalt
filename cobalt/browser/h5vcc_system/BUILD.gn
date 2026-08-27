@@ -33,6 +33,7 @@ source_set("h5vcc_system") {
 
   deps = [
     "//base",
+    "//cobalt/browser:resource_scheduler",
     "//cobalt/browser/h5vcc_system/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",

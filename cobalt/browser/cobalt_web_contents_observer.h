@@ -49,6 +49,10 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
       content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
+  void DidFinishLoad(content::RenderFrameHost* render_frame_host,
+                     const GURL& validated_url) override;
+  void DocumentOnLoadCompletedInPrimaryMainFrame() override;
+  void DidFirstVisuallyNonEmptyPaint() override;
   void OnVisibilityChanged(content::Visibility visibility) override;
   void DidGetUserInteraction(const blink::WebInputEvent& event) override;
   virtual void RaisePlatformError(int64_t navigation_id,

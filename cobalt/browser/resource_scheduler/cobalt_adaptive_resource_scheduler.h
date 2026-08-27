@@ -20,11 +20,10 @@
 
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
-#include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
-#include "base/sequence_checker.h"
+#include "base/synchronization/lock.h"
+#include "base/task/thread_pool.h"
 #include "base/time/time.h"
-#include "base/timer/timer.h"
 
 namespace cobalt {
 
@@ -36,16 +35,9 @@ BASE_DECLARE_FEATURE(kCobaltAdaptiveResourceScheduler);
 // Manages TV interaction, startup, and playback states to coordinate network
 // task scheduling in single-process Chrobalt.
 //
-// During cold startup and active spatial navigation (e.g. D-pad carousel
-// scrolling), non-critical requests (such as off-screen image thumbnails and
-// background telemetry) are deferred to prevent socket futex locks and thread
-// contention from starving Blink main JS, V8 compilation, and Compositor
-// threads.
-//
-// Lifetime: This is a singleton managed by base::NoDestructor and lives for the
-// duration of the browser process.
-// Threading: This class is sequence-affine and must be accessed solely on the
-// IO/Network thread.
+// Threading: 100% thread-safe. Internal state is protected by base::Lock, and
+// debounce checks use base::ThreadPool delayed tasks (zero sequence-bound
+// timers).
 class CobaltAdaptiveResourceScheduler {
  public:
   static CobaltAdaptiveResourceScheduler* GetInstance();
@@ -60,21 +52,19 @@ class CobaltAdaptiveResourceScheduler {
 
   // Returns true if requests should currently be deferred (either starting up
   // or scrolling).
-  bool ShouldDeferRequests() const;
+  bool ShouldDeferRequests();
 
   // Returns true if the application is currently in the cold startup phase.
-  bool IsStartingUp() const;
+  bool IsStartingUp();
 
   // Returns true if the user is actively scrolling/navigating or UI is
   // animating.
-  bool IsScrolling() const;
+  bool IsScrolling();
 
-  // Called when cold startup is complete (e.g. splash screen dismissed / main
-  // frame rendered).
+  // Called when cold startup is complete (e.g. main frame rendered).
   void OnStartupCompleted();
 
   // Called when a D-Pad key event or navigation input is detected.
-  // Sets `is_scrolling_ = true` and restarts the settle debounce timer.
   void OnUserInteraction(int key_code);
 
   // Explicitly notify the scheduler when a scroll animation starts or ends.
@@ -88,7 +78,7 @@ class CobaltAdaptiveResourceScheduler {
   void UnregisterDeferredThrottle(CobaltResourceThrottle* throttle);
 
   // Total count of currently deferred throttles (useful for testing & metrics).
-  size_t GetDeferredCount() const;
+  size_t GetDeferredCount();
 
   // For testing: override settle debounce duration.
   void SetSettleDelayForTesting(base::TimeDelta delay);
@@ -99,23 +89,21 @@ class CobaltAdaptiveResourceScheduler {
   CobaltAdaptiveResourceScheduler();
   ~CobaltAdaptiveResourceScheduler();
 
-  // Called when the settle debounce timer expires.
-  void OnScrollSettled();
+  // Debounce check executed on thread pool after delay.
+  void CheckScrollSettled(base::TimeTicks scheduled_time);
 
-  // Drains deferred requests and throttles in a re-entrant safe manner.
+  // Drains deferred requests and throttles in a thread-safe and re-entrant safe
+  // manner.
   void DrainDeferredQueue();
 
-  SEQUENCE_CHECKER(sequence_checker_);
+  mutable base::Lock lock_;
 
-  bool is_starting_up_ = true;
-  bool is_scrolling_ = false;
-  base::TimeDelta settle_delay_;
-  base::OneShotTimer settle_timer_;
-  base::OneShotTimer startup_fallback_timer_;
+  bool is_starting_up_ GUARDED_BY(lock_) = true;
+  bool is_scrolling_ GUARDED_BY(lock_) = false;
+  base::TimeDelta settle_delay_ GUARDED_BY(lock_);
+  base::TimeTicks last_interaction_time_ GUARDED_BY(lock_);
 
-  std::set<CobaltResourceThrottle*> deferred_throttles_;
-
-  base::WeakPtrFactory<CobaltAdaptiveResourceScheduler> weak_ptr_factory_{this};
+  std::set<CobaltResourceThrottle*> deferred_throttles_ GUARDED_BY(lock_);
 };
 
 }  // namespace cobalt

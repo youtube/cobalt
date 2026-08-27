@@ -308,6 +308,7 @@ source_set("resource_scheduler") {
   ]
   deps = [
     "//base",
+    "//content/public/browser",
     "//net",
     "//services/network/public/cpp",
     "//third_party/blink/public/common",
