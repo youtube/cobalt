@@ -468,6 +468,13 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
   std::string created_video_mime;
   base::Lock lock;
 
+  EXPECT_CALL(mock_player_interface_, Destroy(testing::_))
+      .WillRepeatedly(testing::Invoke([](SbPlayer player) {
+        if (player) {
+          delete reinterpret_cast<media::MockSbPlayer*>(player);
+        }
+      }));
+
   EXPECT_CALL(mock_player_interface_,
               Create(testing::_, testing::_, testing::_, testing::_, testing::_,
                      testing::_, testing::_, testing::_))
@@ -529,6 +536,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
     EXPECT_EQ(created_video_mime, kCustomMime);
   }
   testing::Mock::VerifyAndClearExpectations(&mock_player_interface_);
+  mock_player_interface_.SetupDefaultExpectations();
 }
 
 }  // namespace cobalt
