@@ -36,8 +36,8 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_TIME_STRETCHER_H_
 
 #include <memory>
+#include <optional>
 
-#include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/decoded_audio_queue.h"
@@ -63,14 +63,14 @@ class AudioTimeStretcher {
   // |dest_offset| is the offset in frames for writing into |dest|.
   //
   // Returns the number of frames copied into |dest|.
-  scoped_refptr<DecodedAudio> Read(int requested_frames, double playback_rate);
+  DecodedAudio Read(int requested_frames, double playback_rate);
 
   // Clears |audio_buffer_|.
   void FlushBuffers();
 
   // Enqueues a buffer. It is called from the owner of the algorithm after a
   // read completes.
-  void EnqueueBuffer(const scoped_refptr<DecodedAudio>& audio_data);
+  void EnqueueBuffer(DecodedAudio&& audio_data);
 
   // Returns true if |audio_buffer_| is at or exceeds capacity.
   bool IsQueueFull() const;
@@ -186,7 +186,7 @@ class AudioTimeStretcher {
   // number of requested samples. Furthermore, due to overlap-and-add,
   // the last half-window of the output is incomplete, which is stored in this
   // buffer.
-  scoped_refptr<DecodedAudio> wsola_output_;
+  DecodedAudio wsola_output_;
 
   // Overlap-and-add window.
   std::unique_ptr<float[]> ola_window_;
@@ -200,15 +200,15 @@ class AudioTimeStretcher {
   // Stores the optimal block in every iteration. This is the most
   // similar block to |target_block_| within |search_block_| and it is
   // overlap-and-added to |wsola_output_|.
-  scoped_refptr<DecodedAudio> optimal_block_;
+  DecodedAudio optimal_block_;
 
   // A block of data that search is performed over to find the |optimal_block_|.
-  scoped_refptr<DecodedAudio> search_block_;
+  DecodedAudio search_block_;
 
   // Stores the target block, denoted as |target| above. |search_block_| is
   // searched for a block (|optimal_block_|) that is most similar to
   // |target_block_|.
-  scoped_refptr<DecodedAudio> target_block_;
+  DecodedAudio target_block_;
 
   // The initial and maximum capacity calculated by Initialize().
   int initial_capacity_;
