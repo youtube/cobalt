@@ -158,10 +158,9 @@ MediaDrmBridge::~MediaDrmBridge() {
   }
 }
 
-DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
-    int ticket,
-    std::string_view init_data,
-    std::string_view mime) const {
+DrmOperationResult MediaDrmBridge::CreateSession(int ticket,
+                                                 std::string_view init_data,
+                                                 std::string_view mime) const {
   JNIEnv* env = AttachCurrentThread();
 
   jint j_ticket = static_cast<jint>(ticket);
@@ -169,8 +168,8 @@ DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
   auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
 
   return ToOperationResult(
-      env, Java_MediaDrmBridge_createSessionWithAppProvisioning(
-               env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime));
+      env, Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, j_ticket,
+                                             j_init_data, j_mime));
 }
 
 std::string MediaDrmBridge::GenerateProvisionRequest() const {
