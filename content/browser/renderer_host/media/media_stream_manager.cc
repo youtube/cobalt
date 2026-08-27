@@ -3282,8 +3282,7 @@ void MediaStreamManager::PanTiltZoomPermissionChecked(
     return;
   }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && \
-    BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   // 1. Only the first call to SetCapturedDisplaySurfaceFocus() has an
   //    effect, so a direct call to SetCapturedDisplaySurfaceFocus()
   //    before the scheduled task is executed would render the scheduled
@@ -3301,8 +3300,7 @@ void MediaStreamManager::PanTiltZoomPermissionChecked(
                      /*is_from_microtask=*/false,
                      /*is_from_timer=*/true),
       conditional_focus_window_);
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) &&
-        // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+#endif
 
   // We only start tracking once stream generation is truly complete.
   // If the CaptureHandle observable by this capturer has changed asynchronously
@@ -4359,12 +4357,12 @@ void MediaStreamManager::OnRegionCaptureRectChanged(
   }
 }
 
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamManager::SetCapturedDisplaySurfaceFocus(
     const std::string& label,
     bool focus,
     bool is_from_microtask,
     bool is_from_timer) {
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   DeviceRequest* const request = FindRequest(label);
@@ -4404,8 +4402,8 @@ void MediaStreamManager::SetCapturedDisplaySurfaceFocus(
 
   request->ui_proxy->SetFocus(media_id, focus, is_from_microtask,
                               is_from_timer);
-}
 #endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+}
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 void MediaStreamManager::SendWheel(

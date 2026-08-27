@@ -314,12 +314,10 @@ void MediaDevicesDispatcherHost::SetCaptureHandleConfig(
 
 void MediaDevicesDispatcherHost::CloseFocusWindowOfOpportunity(
     const std::string& label) {
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   media_stream_manager_->SetCapturedDisplaySurfaceFocus(
       label, /*focus=*/true,
       /*is_from_microtask=*/true,
       /*is_from_timer=*/false);
-#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 }
 
 void MediaDevicesDispatcherHost::ProduceSubCaptureTargetId(

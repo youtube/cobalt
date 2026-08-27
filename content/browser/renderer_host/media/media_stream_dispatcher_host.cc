@@ -679,12 +679,10 @@ void MediaStreamDispatcherHost::FocusCapturedSurface(const std::string& label,
                                                      bool focus) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   media_stream_manager_->SetCapturedDisplaySurfaceFocus(
       label, focus,
       /*is_from_microtask=*/false,
       /*is_from_timer=*/false);
-#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 }
 
 
