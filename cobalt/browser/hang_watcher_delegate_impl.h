@@ -32,14 +32,28 @@ class CobaltHangWatcherDelegate : public base::HangWatcher::Delegate {
 
   static void Initialize();
 
+  // Configuration is resolved across three tiers:
+  //   1. Dynamic JavaScript runtime settings (GlobalFeatures / H5VCC)
+  //   2. Server-side Finch feature flags and parameters (cobalt::features)
+  //   3. Hardcoded compiled defaults (base::WatchHangsInScope,
+  //   cobalt::features)
+  //
+  // GlobalFeatures (H5VCC) and Finch are treated as mutually exclusive
+  // configuration paths. If an embedder explicitly provides a setting via
+  // GlobalFeatures, that configuration is authoritative. If the provided
+  // setting is invalid, the system logs a message and falls back directly to
+  // the safe compiled default rather than silently switching to a Finch value
+  // (which the embedder may not have configured or intended to use). Fallback
+  // to Finch is reserved strictly for when GlobalFeatures settings are omitted
+  // entirely.
   bool IsHangReportingEnabled() override;
-  std::optional<base::TimeDelta> GetHangWatchTime() override;
-  std::optional<base::TimeDelta> GetHangWatchMonitoringPeriod() override;
-  std::optional<bool> IsThreadDumpingEnabled(
+  base::TimeDelta GetHangWatchTime() override;
+  base::TimeDelta GetHangWatchMonitoringPeriod() override;
+  bool IsThreadDumpingEnabled(
       base::HangWatcher::ThreadType thread_type) override;
-  std::optional<bool> IsLongHangDetectionEnabled() override;
-  std::optional<bool> IsLongHangKillEnabled() override;
-  std::optional<base::TimeDelta> GetLongHangTimeout() override;
+  bool IsLongHangDetectionEnabled() override;
+  bool IsLongHangKillEnabled() override;
+  base::TimeDelta GetLongHangTimeout() override;
   void RecordHangStarted(const std::string& hang_uuid) override;
   void RecordHangRecovered(const std::string& hang_uuid) override;
 

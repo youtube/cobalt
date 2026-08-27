@@ -43,6 +43,39 @@ BASE_FEATURE(kHangReporting,
              "HangReporting",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+const base::FeatureParam<int> kHangWatchTimeSeconds{&kHangReporting,
+                                                    "HangWatchTimeSeconds", 10};
+
+const base::FeatureParam<int> kHangWatchMonitoringPeriodSeconds{
+    &kHangReporting, "HangWatchMonitoringPeriodSeconds", 10};
+
+BASE_FEATURE(kHangWatchMainThreadDump,
+             "HangWatchMainThreadDump",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kHangWatchIOThreadDump,
+             "HangWatchIOThreadDump",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kHangWatchThreadPoolDump,
+             "HangWatchThreadPoolDump",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kHangWatchRendererThreadDump,
+             "HangWatchRendererThreadDump",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kHangWatcherLongHangDetection,
+             "HangWatcherLongHangDetection",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kHangWatcherLongHangKill,
+             "HangWatcherLongHangKill",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kLongHangTimeoutSeconds{
+    &kHangWatcherLongHangDetection, "LongHangTimeoutSeconds", 20};
+
 BASE_FEATURE(kCobaltMetricsIntervalFeature,
              "CobaltMetricsInterval",
              base::FEATURE_DISABLED_BY_DEFAULT);
