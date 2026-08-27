@@ -149,24 +149,18 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
     // Returns true if hang reporting should be enabled
     // potentially overriding default settings.
     virtual bool IsHangReportingEnabled() = 0;
-    // Returns a custom timeout for hang watching, or std::nullopt to use
-    // default.
-    virtual std::optional<base::TimeDelta> GetHangWatchTime() = 0;
-    // Returns a custom monitoring period, or std::nullopt to use default.
-    virtual std::optional<base::TimeDelta> GetHangWatchMonitoringPeriod() = 0;
+    // Returns the timeout for hang watching.
+    virtual base::TimeDelta GetHangWatchTime() = 0;
+    // Returns the monitoring period.
+    virtual base::TimeDelta GetHangWatchMonitoringPeriod() = 0;
     // Returns whether crash dumps are enabled for a specific thread type.
-    // Returns std::nullopt if the embedder has no specific override.
-    virtual std::optional<bool> IsThreadDumpingEnabled(
-        ThreadType thread_type) = 0;
-    // Returns whether long hang detection is enabled. Returns std::nullopt
-    // if the embedder has no specific override.
-    virtual std::optional<bool> IsLongHangDetectionEnabled() = 0;
-    // Returns whether force kill is enabled on long hang. Returns std::nullopt
-    // if the embedder has no specific override.
-    virtual std::optional<bool> IsLongHangKillEnabled() = 0;
-    // Returns the threshold duration for a long hang. Returns std::nullopt
-    // if the embedder has no specific override.
-    virtual std::optional<base::TimeDelta> GetLongHangTimeout() = 0;
+    virtual bool IsThreadDumpingEnabled(ThreadType thread_type) = 0;
+    // Returns whether long hang detection is enabled.
+    virtual bool IsLongHangDetectionEnabled() = 0;
+    // Returns whether force kill is enabled on long hang.
+    virtual bool IsLongHangKillEnabled() = 0;
+    // Returns the threshold duration for a long hang.
+    virtual base::TimeDelta GetLongHangTimeout() = 0;
   };
 #endif
 
