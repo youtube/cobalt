@@ -27,10 +27,17 @@ namespace browser {
 
 namespace {
 
+GetExtensionCallback g_get_extension_for_testing;
+
 const StarboardExtensionLoaderAppMetricsApi* GetLoaderAppMetricsExtension() {
+  const void* extension =
+      g_get_extension_for_testing
+          ? g_get_extension_for_testing.Run(
+                kStarboardExtensionLoaderAppMetricsName)
+          : SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName);
+
   const auto* metrics_extension =
-      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
-          SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
+      static_cast<const StarboardExtensionLoaderAppMetricsApi*>(extension);
 
   if (!metrics_extension) {
     LOG(WARNING) << "LoaderAppMetrics: Extension not found.";
@@ -112,6 +119,10 @@ void RecordLoaderAppSpaceMetrics(
 }
 
 }  // namespace
+
+void SetGetExtensionForTesting(GetExtensionCallback get_extension_callback) {
+  g_get_extension_for_testing = std::move(get_extension_callback);
+}
 
 void RecordLoaderAppMetrics() {
   const auto* metrics_extension = GetLoaderAppMetricsExtension();
