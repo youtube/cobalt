@@ -117,7 +117,7 @@ void FdkAacAudioDecoder::WriteEndOfStream() {
   }
   stream_ended_ = true;
   // Put EOS into the queue.
-  decoded_audios_.push(DecodedAudio());
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
   Schedule(output_cb_);
 }
 
