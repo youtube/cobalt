@@ -22,6 +22,7 @@ namespace blink {
 
 class HTMLVideoElement;
 class WebGLRenderingContextBase;
+class ExecutionContext;
 
 // COBALT_video_texture_transform
 //
@@ -49,7 +50,8 @@ class CobaltVideoTextureTransform final : public WebGLExtension {
   static bool Supported(WebGLRenderingContextBase*);
   static const char* ExtensionName();
 
-  explicit CobaltVideoTextureTransform(WebGLRenderingContextBase*);
+  CobaltVideoTextureTransform(WebGLRenderingContextBase*,
+                              ExecutionContext*);
 
   WebGLExtensionName GetName() const override;
 

@@ -26,7 +26,8 @@
 namespace blink {
 
 CobaltVideoTextureTransform::CobaltVideoTextureTransform(
-    WebGLRenderingContextBase* context)
+    WebGLRenderingContextBase* context,
+    ExecutionContext*)
     : WebGLExtension(context) {}
 
 WebGLExtensionName CobaltVideoTextureTransform::GetName() const {
