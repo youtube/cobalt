@@ -730,3 +730,17 @@ Much of the optimization work remains in the Starboard layer and configuration
 so you should still expect good performance using Cobalt Evergreen. That being
 said, the Cobalt Evergreen configuration allows you to customize Cobalt features
 and settings as before.
+
+### How to use mmap to save memory with more storage?
+
+On platforms with storage space to spare, memory can be saved by using memory mapping (`mmap`) to load the Cobalt shared library. To enable this feature:
+
+1. **Use an uncompressed `libcobalt.so`:** The Cobalt Core binary library cannot be compressed. You will need to ensure that the uncompressed `.so` variant is packaged rather than a compressed `.lz4` file in the system image slot.
+2. **Hook up the Memory Mapped File API:** Ensure that the `CobaltExtensionMemoryMappedFileApi` is hooked up by returning it from your platform's implementation of `SbSystemGetExtension()`. For reference on a Linux build, see `starboard/linux/shared/system_get_extensions.cc` where this is configured using `kCobaltExtensionMemoryMappedFileName`:
+
+   ```cpp
+     if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {
+       return starboard::GetMemoryMappedFileApi();
+     }
+   ```
+3. **Pass Launch Flag:** When launching the Cobalt `loader_app` binary on your platform, pass the `--loader_use_mmap_file` flag to enable memory mapped file loading. Note that mmap is incompatible with binary compression. When `--loader_use_mmap_file` is set, the Cobalt Updater will automatically request and download uncompressed `libcobalt.so` binaries for subsequent updates. Because the updates will remain uncompressed on disk, total storage usage will increase.
