@@ -8,11 +8,8 @@ import("//build/toolchain/kythe.gni")
 import("//build/toolchain/rbe.gni")
 import("//build/toolchain/siso.gni")
 import("//build/toolchain/toolchain.gni")
-<<<<<<< HEAD
 import("//build_overrides/build.gni")
-=======
 import("//cobalt/build/configs/cobalt.gni")
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 default_clang_base_path = "//third_party/llvm-build/Release+Asserts"
 
