@@ -28,9 +28,8 @@ import tempfile
 import time
 import urllib.request
 
-# Global configuration for target repository.
-REPO_OWNER_PATH = os.environ.get('GITHUB_REPOSITORY', 'youtube/cobalt_sandbox')
-REPO_URL = f'https://github.com/{REPO_OWNER_PATH}.git'
+# Global configuration default for target repository.
+DEFAULT_REPO = os.environ.get('GITHUB_REPOSITORY', 'youtube/cobalt_sandbox')
 
 # GitHub App IDs for cobalt-github-releaser.
 APP_ID = '3203510'
@@ -42,6 +41,8 @@ def log(msg):
 
 
 def run_cmd(cmd, check=True, **kwargs):
+  cmd_str = ' '.join(str(x) for x in cmd)
+  print(f'+ {cmd_str}')
   return subprocess.run(cmd, check=check, **kwargs).stdout
 
 
@@ -127,13 +128,13 @@ def read_private_key():
   return key_content
 
 
-def find_open_autoroll_pr(source, target, env):
+def find_open_autoroll_pr(source, target, env, repo):
   head_branch = f'autoroll-{source}-to-{target}'
   prs_json = gh(
       'pr',
       'list',
       '--repo',
-      REPO_OWNER_PATH,
+      repo,
       '--state',
       'open',
       '--head',
@@ -173,7 +174,7 @@ def has_conflicts(filepath):
   return False
 
 
-def rebase_and_push(target, pr, env):
+def rebase_and_push(target, pr, env, repo_url, dry_run=True):
   head = pr['headRefName']
   pr_number = pr['number']
   log(f'Found PR #{pr_number}: {head} -> {target}')
@@ -184,7 +185,7 @@ def rebase_and_push(target, pr, env):
   try:
     log('Fetching branches...')
     git('fetch',
-        REPO_URL,
+        repo_url,
         f'+{target}:refs/remotes/origin/{target}',
         f'+{head}:refs/remotes/origin/{head}',
         authenticated=True,
@@ -214,11 +215,14 @@ def rebase_and_push(target, pr, env):
     git('rebase', f'origin/{target}')
 
     log(f'Pushing {target}...')
-    git('push',
-        REPO_URL,
-        f'HEAD:{target}',
-        authenticated=True,
-        env=env)
+    if dry_run:
+      log(f'[DRY RUN] Would run: git push {repo_url} HEAD:{target}')
+    else:
+      git('push',
+          repo_url,
+          f'HEAD:{target}',
+          authenticated=True,
+          env=env)
   finally:
     log('Cleaning up temporary worktree...')
     os.chdir(orig_cwd)
@@ -238,11 +242,23 @@ def main():
       '--key-file',
       help=('Path to GitHub App Private Key (.pem file).'
             'Omit to provide key from stdin.'))
+  parser.add_argument(
+      '--repo',
+      help='GitHub repository (owner/repo).')
+  parser.add_argument(
+      '--apply',
+      action='store_true',
+      help='Apply changes (disable dry-run mode).')
   args = parser.parse_args()
 
   source = args.source_branch
   target = args.target_branch
   key_file = args.key_file
+
+  repo = args.repo or DEFAULT_REPO
+  repo_url = f'https://github.com/{repo}.git'
+
+  dry_run = not args.apply
 
   if not key_file:
     private_key = read_private_key()
@@ -253,8 +269,8 @@ def main():
   token = get_installation_access_token(APP_ID, key_file)
   env = {'GITHUB_TOKEN': token}
 
-  pr = find_open_autoroll_pr(source, target, env)
-  rebase_and_push(target, pr, env)
+  pr = find_open_autoroll_pr(source, target, env, repo)
+  rebase_and_push(target, pr, env, repo_url, dry_run=dry_run)
 
 
 if __name__ == '__main__':

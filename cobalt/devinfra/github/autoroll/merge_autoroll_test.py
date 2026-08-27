@@ -134,12 +134,13 @@ class TestMergeAutoroll(unittest.TestCase):
   def test_main_success(self, mock_run):
     self._setup_mock_run(mock_run)
 
+    # By default, dry_run=True, so push is NOT called.
     with patch('sys.stdout'), patch('sys.stderr'):
       merge_autoroll.main()
 
     # Verify gh pr list call
     mock_run.assert_any_call([
-        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
+        'gh', 'pr', 'list', '--repo', merge_autoroll.DEFAULT_REPO,
         '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title'
     ],
@@ -148,11 +149,11 @@ class TestMergeAutoroll(unittest.TestCase):
                              check=True,
                              env=unittest.mock.ANY)
 
-    # Verify key subprocess calls
+    # Verify key subprocess calls (push should NOT be present)
     mock_run.assert_any_call([
         'git', '-c', 'credential.helper=', '-c',
         'credential.helper=!gh auth git-credential', 'fetch',
-        merge_autoroll.REPO_URL, '+target:refs/remotes/origin/target',
+        f'https://github.com/{merge_autoroll.DEFAULT_REPO}.git', '+target:refs/remotes/origin/target',
         '+autoroll-main-to-target:refs/remotes/origin/autoroll-main-to-target'
     ],
                              check=True,
@@ -168,18 +169,67 @@ class TestMergeAutoroll(unittest.TestCase):
                              check=True)
     mock_run.assert_any_call(['git', 'checkout'], check=True)
     mock_run.assert_any_call(['git', 'rebase', 'origin/target'], check=True)
-    mock_run.assert_any_call([
-        'git', '-c', 'credential.helper=', '-c',
-        'credential.helper=!gh auth git-credential', 'push',
-        merge_autoroll.REPO_URL, 'HEAD:target'
-    ],
-                             check=True,
-                             env=unittest.mock.ANY)
+
+    # Assert git push was NOT called
+    for call in mock_run.call_args_list:
+      args = call[0][0]
+      self.assertFalse(len(args) > 1 and args[0] == 'git' and args[1] == 'push')
+
     mock_run.assert_any_call(
         ['git', 'worktree', 'remove', '--force', unittest.mock.ANY],
         check=False)
 
     self.mock_get_token.assert_called_once_with('3203510', '/tmp/fake_key.pem')
+
+  @patch('subprocess.run')
+  def test_main_success_apply(self, mock_run):
+    self._setup_mock_run(mock_run)
+
+    # Test with --apply which disables dry-run mode
+    with patch('sys.argv', sys.argv + ['--apply']):
+      with patch('sys.stdout'), patch('sys.stderr'):
+        merge_autoroll.main()
+
+    # Verify git push was called
+    mock_run.assert_any_call([
+        'git', '-c', 'credential.helper=', '-c',
+        'credential.helper=!gh auth git-credential', 'push',
+        f'https://github.com/{merge_autoroll.DEFAULT_REPO}.git', 'HEAD:target'
+    ],
+                             check=True,
+                             env=unittest.mock.ANY)
+
+  @patch('subprocess.run')
+  def test_main_custom_repo(self, mock_run):
+    self._setup_mock_run(mock_run)
+    custom_repo = 'my-org/my-repo'
+    custom_url = f'https://github.com/{custom_repo}.git'
+
+    # Test with --repo parameter
+    with patch('sys.argv', sys.argv + ['--repo', custom_repo, '--apply']):
+      with patch('sys.stdout'), patch('sys.stderr'):
+        merge_autoroll.main()
+
+    # Verify gh pr list call uses custom repo
+    mock_run.assert_any_call([
+        'gh', 'pr', 'list', '--repo', custom_repo,
+        '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
+        'number,headRefName,baseRefName,title'
+    ],
+                             capture_output=True,
+                             text=True,
+                             check=True,
+                             env=unittest.mock.ANY)
+
+    # Verify git fetch call uses custom repo url
+    mock_run.assert_any_call([
+        'git', '-c', 'credential.helper=', '-c',
+        'credential.helper=!gh auth git-credential', 'fetch',
+        custom_url, '+target:refs/remotes/origin/target',
+        '+autoroll-main-to-target:refs/remotes/origin/autoroll-main-to-target'
+    ],
+                             check=True,
+                             env=unittest.mock.ANY)
 
   @patch('subprocess.run')
   def test_main_no_pr_found(self, mock_run):
@@ -189,7 +239,7 @@ class TestMergeAutoroll(unittest.TestCase):
         merge_autoroll.main()
     self.assertEqual(cm.exception.code, 0)
     mock_run.assert_called_once_with([
-        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
+        'gh', 'pr', 'list', '--repo', merge_autoroll.DEFAULT_REPO,
         '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title'
     ],
@@ -216,7 +266,7 @@ class TestMergeAutoroll(unittest.TestCase):
 
     self.assertEqual(cm.exception.code, 1)
     mock_run.assert_called_once_with([
-        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
+        'gh', 'pr', 'list', '--repo', merge_autoroll.DEFAULT_REPO,
         '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title'
     ],
@@ -259,7 +309,7 @@ class TestMergeAutoroll(unittest.TestCase):
       with self.assertRaises(subprocess.CalledProcessError):
         merge_autoroll.main()
     mock_run.assert_called_once_with([
-        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
+        'gh', 'pr', 'list', '--repo', merge_autoroll.DEFAULT_REPO,
         '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title'
     ],
