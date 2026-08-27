@@ -143,14 +143,6 @@ void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
   shell->web_contents()->GetRenderWidgetHostView()->SetSize(content_size);
 }
 
-void ShellPlatformDelegate::EnableUIControl(Shell* shell,
-                                            UIControl control,
-                                            bool is_enabled) {}
-
-void ShellPlatformDelegate::SetAddressBarURL(Shell* shell, const GURL& url) {}
-
-void ShellPlatformDelegate::SetIsLoading(Shell* shell, bool loading) {}
-
 void ShellPlatformDelegate::SetTitle(Shell* shell,
                                      const std::u16string& title) {}
 

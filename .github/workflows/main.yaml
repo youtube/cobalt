@@ -66,7 +66,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -395,7 +395,7 @@ jobs:
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -419,7 +419,7 @@ jobs:
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -442,7 +442,7 @@ jobs:
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -495,7 +495,7 @@ jobs:
             echo "TMPDIR=${RUNNER_TEMP}" >> "${GITHUB_ENV}"
           fi
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -588,7 +588,7 @@ jobs:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -634,7 +634,7 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -670,7 +670,7 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -698,7 +698,7 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -724,7 +724,7 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -758,7 +758,7 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -789,7 +789,7 @@ jobs:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -853,7 +853,7 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -910,7 +910,7 @@ jobs:
         test_info: ${{ fromJson(needs.initialize.outputs.expected_tests_json) }}
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -944,7 +944,7 @@ jobs:
         shell: bash
       - name: Download Test Results
         if: steps.filter.outputs.skipped != 'true'
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
@@ -993,7 +993,7 @@ jobs:
         test_target: ${{ fromJson(needs.initialize.outputs.browser_test_targets_json || '[]') }}
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
@@ -1005,7 +1005,7 @@ jobs:
         run: echo "test_target=${test_target_with_path#*:}" >> "${GITHUB_OUTPUT}"
         shell: bash
       - name: Download Test Results
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         continue-on-error: true
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}
@@ -1056,13 +1056,13 @@ jobs:
         config: [devel]
     steps:
       - name: Restore CI Essentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
       - name: Download Unit Test Results
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         continue-on-error: true
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*

@@ -23,6 +23,7 @@
 
 namespace blink {
 
+class ExceptionState;
 class Performance;
 class ScriptState;
 
@@ -36,6 +37,16 @@ class CORE_EXPORT PerformanceExtensions final {
   static uint64_t measureUsedSwapMemory(ScriptState*, const Performance&);
   static uint64_t measureReservedVirtualMemory(ScriptState*,
                                                const Performance&);
+  static uint64_t measureRssHighWaterMarkMemory(ScriptState*,
+                                                const Performance&);
+  static uint64_t measureUsedRssAnonMemory(ScriptState*, const Performance&);
+  static uint64_t measureTotalCpuMemory(ScriptState*, const Performance&);
+  static uint64_t measureUsedPssMemory(ScriptState*, const Performance&);
+  static uint64_t measureApplicationLimitMemory(ScriptState*,
+                                                const Performance&);
+  static uint64_t measureUsedGpuMemory(ScriptState*,
+                                       const Performance&,
+                                       ExceptionState&);
   static ScriptPromise<IDLDouble> getAppStartupTimeStamp(ScriptState*,
                                                          const Performance&,
                                                          ExceptionState&);
