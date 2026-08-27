@@ -237,29 +237,29 @@ void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
     return;
   }
 
-  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+  DecodedAudio decoded_audio(
       channel_count, GetSampleType(), GetStorageType(),
       input_buffer.timestamp(),
       channel_count * av_frame.nb_samples * GetBytesPerSample(GetSampleType()));
   if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
-    memcpy(decoded_audio->data(), *av_frame.extended_data,
-           decoded_audio->size_in_bytes());
+    memcpy(decoded_audio.data(), *av_frame.extended_data,
+           decoded_audio.size_in_bytes());
   } else {
     SB_DCHECK_EQ(GetStorageType(), kSbMediaAudioFrameStorageTypePlanar);
     const int per_channel_size_in_bytes =
-        decoded_audio->size_in_bytes() / decoded_audio->channels();
-    for (int i = 0; i < decoded_audio->channels(); ++i) {
-      memcpy(decoded_audio->data() + per_channel_size_in_bytes * i,
+        decoded_audio.size_in_bytes() / decoded_audio.channels();
+    for (int i = 0; i < decoded_audio.channels(); ++i) {
+      memcpy(decoded_audio.data() + per_channel_size_in_bytes * i,
              av_frame.extended_data[i], per_channel_size_in_bytes);
     }
-    decoded_audio = decoded_audio->SwitchFormatTo(
+    decoded_audio = decoded_audio.SwitchFormatTo(
         GetSampleType(), kSbMediaAudioFrameStorageTypeInterleaved);
   }
-  decoded_audio->AdjustForDiscardedDurations(
+  decoded_audio.AdjustForDiscardedDurations(
       audio_stream_info_.samples_per_second,
       input_buffer.audio_sample_info().discarded_duration_from_front,
       input_buffer.audio_sample_info().discarded_duration_from_back);
-  decoded_audios_.push(decoded_audio);
+  decoded_audios_.push(std::move(decoded_audio));
   Schedule(output_cb_);
 }
 
@@ -271,20 +271,20 @@ void FfmpegAudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
   // to ensure that Decode() is not called when the stream is ended.
   stream_ended_ = true;
   // Put EOS into the queue.
-  decoded_audios_.push(new DecodedAudio);
+  decoded_audios_.push(DecodedAudio());
 
   Schedule(output_cb_);
 }
 
-scoped_refptr<DecodedAudio> FfmpegAudioDecoderImpl<FFMPEG>::Read(
+std::optional<DecodedAudio> FfmpegAudioDecoderImpl<FFMPEG>::Read(
     int* samples_per_second) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
 
-  scoped_refptr<DecodedAudio> result;
+  std::optional<DecodedAudio> result;
   if (!decoded_audios_.empty()) {
-    result = decoded_audios_.front();
+    result = std::move(decoded_audios_.front());
     decoded_audios_.pop();
   }
   *samples_per_second = audio_stream_info_.samples_per_second;
