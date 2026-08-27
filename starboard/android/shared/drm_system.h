@@ -107,7 +107,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
                          std::string_view initialization_data);
     ~SessionUpdateRequest() = default;
 
-    MediaDrmBridge::OperationResult GenerateWithAppProvisioning(
+    MediaDrmBridge::OperationResult Generate(
         const MediaDrmBridge* media_drm_bridge) const;
 
     // Returns the ticket. On the first call, it returns a valid ticket and
@@ -123,11 +123,11 @@ class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
   void HandlePendingRequests();
-  void GenerateSessionUpdateRequestWithAppProvisioning(
+  void GenerateSessionUpdateRequest(
       std::unique_ptr<SessionUpdateRequest> request);
-  void UpdateSessionWithAppProvisioning(int ticket,
-                                        std::string_view key,
-                                        std::string_view session_id);
+  void UpdateSession(int ticket,
+                     std::string_view key,
+                     std::string_view session_id);
 
   const std::string key_system_;
   const raw_ptr<void> context_;

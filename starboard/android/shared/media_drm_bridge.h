@@ -87,9 +87,9 @@ class MediaDrmBridge {
     return j_media_crypto_;
   }
 
-  OperationResult CreateSessionWithAppProvisioning(int ticket,
-                                                   std::string_view init_data,
-                                                   std::string_view mime) const;
+  OperationResult CreateSession(int ticket,
+                                std::string_view init_data,
+                                std::string_view mime) const;
   std::string GenerateProvisionRequest() const;
   OperationResult ProvideProvisionResponse(std::string_view response) const;
 
