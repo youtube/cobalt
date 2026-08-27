@@ -238,22 +238,34 @@ void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
   }
 
   DecodedAudio decoded_audio(
-      channel_count, GetSampleType(), GetStorageType(),
-      input_buffer.timestamp(),
+      channel_count, GetSampleType(), input_buffer.timestamp(),
       channel_count * av_frame.nb_samples * GetBytesPerSample(GetSampleType()));
-  if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
+  bool is_planar = (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16P ||
+                    codec_context_->sample_fmt == AV_SAMPLE_FMT_FLTP);
+  if (!is_planar) {
     memcpy(decoded_audio.data(), *av_frame.extended_data,
            decoded_audio.size_in_bytes());
   } else {
-    SB_DCHECK_EQ(GetStorageType(), kSbMediaAudioFrameStorageTypePlanar);
-    const int per_channel_size_in_bytes =
-        decoded_audio.size_in_bytes() / decoded_audio.channels();
-    for (int i = 0; i < decoded_audio.channels(); ++i) {
-      memcpy(decoded_audio.data() + per_channel_size_in_bytes * i,
-             av_frame.extended_data[i], per_channel_size_in_bytes);
+    if (GetSampleType() == kSbMediaAudioSampleTypeInt16Deprecated) {
+      const int16_t* const* src =
+          reinterpret_cast<const int16_t* const*>(av_frame.extended_data);
+      int16_t* dst = reinterpret_cast<int16_t*>(decoded_audio.data());
+      for (int frame = 0; frame < av_frame.nb_samples; ++frame) {
+        for (int ch = 0; ch < channel_count; ++ch) {
+          *dst++ = src[ch][frame];
+        }
+      }
+    } else {
+      SB_DCHECK_EQ(GetSampleType(), kSbMediaAudioSampleTypeFloat32);
+      const float* const* src =
+          reinterpret_cast<const float* const*>(av_frame.extended_data);
+      float* dst = reinterpret_cast<float*>(decoded_audio.data());
+      for (int frame = 0; frame < av_frame.nb_samples; ++frame) {
+        for (int ch = 0; ch < channel_count; ++ch) {
+          *dst++ = src[ch][frame];
+        }
+      }
     }
-    decoded_audio = decoded_audio.SwitchFormatTo(
-        GetSampleType(), kSbMediaAudioFrameStorageTypeInterleaved);
   }
   decoded_audio.AdjustForDiscardedDurations(
       audio_stream_info_.samples_per_second,
@@ -321,23 +333,6 @@ SbMediaAudioSampleType FfmpegAudioDecoderImpl<FFMPEG>::GetSampleType() const {
   SB_NOTREACHED();
 
   return kSbMediaAudioSampleTypeFloat32;
-}
-
-SbMediaAudioFrameStorageType FfmpegAudioDecoderImpl<FFMPEG>::GetStorageType()
-    const {
-  SB_CHECK(BelongsToCurrentThread());
-
-  if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16 ||
-      codec_context_->sample_fmt == AV_SAMPLE_FMT_FLT) {
-    return kSbMediaAudioFrameStorageTypeInterleaved;
-  }
-  if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16P ||
-      codec_context_->sample_fmt == AV_SAMPLE_FMT_FLTP) {
-    return kSbMediaAudioFrameStorageTypePlanar;
-  }
-
-  SB_NOTREACHED();
-  return kSbMediaAudioFrameStorageTypeInterleaved;
 }
 
 bool FfmpegAudioDecoderImpl<FFMPEG>::InitializeCodec() {

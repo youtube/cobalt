@@ -157,49 +157,6 @@ const float kFivePointOneToQuadMatrix[] = {
     1.0f,
 };
 
-// Get the samples of frames at |frame_index|.  If |input| is already
-// interleaved, the return pointer points to the buffer contained inside
-// |input|. If |input| is planar, it will copy all samples into |aux_buffer| and
-// return |aux_buffer| instead.  Note that |aux_buffer| should be large enough
-// to hold samples from all channels of the frame.
-template <typename SampleType>
-const SampleType* GetInterleavedSamplesOfFrame(const DecodedAudio& input,
-                                               int frame_index,
-                                               SampleType* aux_buffer) {
-  const SampleType* input_buffer =
-      reinterpret_cast<const SampleType*>(input.data());
-  if (input.storage_type() == kSbMediaAudioFrameStorageTypeInterleaved) {
-    return input_buffer + frame_index * input.channels();
-  }
-  SB_DCHECK_EQ(input.storage_type(), kSbMediaAudioFrameStorageTypePlanar);
-  for (int channel_index = 0; channel_index < input.channels();
-       channel_index++) {
-    aux_buffer[channel_index] =
-        input_buffer[channel_index * input.frames() + frame_index];
-  }
-  return aux_buffer;
-}
-
-template <typename SampleType>
-void StoreInterleavedSamplesOfFrame(const SampleType* samples,
-                                    DecodedAudio* destination,
-                                    int frame_index) {
-  SampleType* dest_buffer = reinterpret_cast<SampleType*>(destination->data());
-  for (int channel_index = 0; channel_index < destination->channels();
-       channel_index++) {
-    if (destination->storage_type() ==
-        kSbMediaAudioFrameStorageTypeInterleaved) {
-      dest_buffer[frame_index * destination->channels() + channel_index] =
-          samples[channel_index];
-    } else {
-      SB_DCHECK_EQ(destination->storage_type(),
-                   kSbMediaAudioFrameStorageTypePlanar);
-      dest_buffer[channel_index * destination->frames() + frame_index] =
-          samples[channel_index];
-    }
-  }
-}
-
 template <typename SampleType>
 SampleType ClipSample(float sample);
 
@@ -243,7 +200,6 @@ void MixFrameWithMatrix(const SampleType* input_frame,
 class AudioChannelLayoutMixerImpl : public AudioChannelLayoutMixer {
  public:
   AudioChannelLayoutMixerImpl(SbMediaAudioSampleType sample_type,
-                              SbMediaAudioFrameStorageType storage_type,
                               int output_channels);
 
   DecodedAudio Mix(DecodedAudio input) override;
@@ -255,21 +211,16 @@ class AudioChannelLayoutMixerImpl : public AudioChannelLayoutMixer {
   DecodedAudio MixMonoToStereoOptimized(const DecodedAudio& input);
 
   SbMediaAudioSampleType sample_type_;
-  SbMediaAudioFrameStorageType storage_type_;
   int output_channels_;
 };
 
 AudioChannelLayoutMixerImpl::AudioChannelLayoutMixerImpl(
     SbMediaAudioSampleType sample_type,
-    SbMediaAudioFrameStorageType storage_type,
     int output_channels)
-    : sample_type_(sample_type),
-      storage_type_(storage_type),
-      output_channels_(output_channels) {}
+    : sample_type_(sample_type), output_channels_(output_channels) {}
 
 DecodedAudio AudioChannelLayoutMixerImpl::Mix(DecodedAudio input) {
   SB_DCHECK_EQ(input.sample_type(), sample_type_);
-  SB_DCHECK_EQ(input.storage_type(), storage_type_);
 
   if (input.channels() == output_channels_) {
     return input;
@@ -334,16 +285,17 @@ DecodedAudio AudioChannelLayoutMixerImpl::Mix(const DecodedAudio& input,
                                               const float* matrix) {
   size_t frames = input.frames();
   DecodedAudio output(
-      output_channels_, sample_type_, storage_type_, input.timestamp(),
+      output_channels_, sample_type_, input.timestamp(),
       frames * output_channels_ * GetBytesPerSample(sample_type_));
-  SampleType aux_buffer[8];
-  SampleType output_buffer[8];
+  const SampleType* input_buffer =
+      reinterpret_cast<const SampleType*>(input.data());
+  SampleType* output_buffer = reinterpret_cast<SampleType*>(output.data());
   for (size_t frame_index = 0; frame_index < frames; frame_index++) {
-    const SampleType* interleavedSamplesOfFrame =
-        GetInterleavedSamplesOfFrame(input, frame_index, aux_buffer);
-    MixFrameWithMatrix(interleavedSamplesOfFrame, input.channels(), matrix,
-                       output_buffer, output_channels_);
-    StoreInterleavedSamplesOfFrame(output_buffer, &output, frame_index);
+    const SampleType* input_frame =
+        input_buffer + frame_index * input.channels();
+    SampleType* output_frame = output_buffer + frame_index * output_channels_;
+    MixFrameWithMatrix(input_frame, input.channels(), matrix, output_frame,
+                       output_channels_);
   }
   return output;
 }
@@ -353,26 +305,19 @@ DecodedAudio AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
   SB_DCHECK_EQ(output_channels_, 2);
   SB_DCHECK_EQ(input.channels(), 1);
 
-  DecodedAudio output(output_channels_, sample_type_, storage_type_,
-                      input.timestamp(), input.size_in_bytes() * 2);
-  if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
-    size_t frames_left = input.frames();
-    size_t bytes_per_sample = GetBytesPerSample(sample_type_);
-    const uint8_t* src_buffer_ptr = input.data();
-    uint8_t* dest_buffer_ptr = output.data();
-    while (frames_left > 0) {
-      memcpy(dest_buffer_ptr, src_buffer_ptr, bytes_per_sample);
-      dest_buffer_ptr += bytes_per_sample;
-      memcpy(dest_buffer_ptr, src_buffer_ptr, bytes_per_sample);
-      dest_buffer_ptr += bytes_per_sample;
-      src_buffer_ptr += bytes_per_sample;
-      frames_left--;
-    }
-  } else {
-    SB_DCHECK_EQ(storage_type_, kSbMediaAudioFrameStorageTypePlanar);
-    memcpy(output.data(), input.data(), input.size_in_bytes());
-    memcpy(output.data() + input.size_in_bytes(), input.data(),
-           input.size_in_bytes());
+  DecodedAudio output(output_channels_, sample_type_, input.timestamp(),
+                      input.size_in_bytes() * 2);
+  size_t frames_left = input.frames();
+  size_t bytes_per_sample = GetBytesPerSample(sample_type_);
+  const uint8_t* src_buffer_ptr = input.data();
+  uint8_t* dest_buffer_ptr = output.data();
+  while (frames_left > 0) {
+    memcpy(dest_buffer_ptr, src_buffer_ptr, bytes_per_sample);
+    dest_buffer_ptr += bytes_per_sample;
+    memcpy(dest_buffer_ptr, src_buffer_ptr, bytes_per_sample);
+    dest_buffer_ptr += bytes_per_sample;
+    src_buffer_ptr += bytes_per_sample;
+    frames_left--;
   }
   return output;
 }
@@ -382,11 +327,9 @@ DecodedAudio AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
 // static
 std::unique_ptr<AudioChannelLayoutMixer> AudioChannelLayoutMixer::Create(
     SbMediaAudioSampleType sample_type,
-    SbMediaAudioFrameStorageType storage_type,
     int output_channels) {
   return std::unique_ptr<AudioChannelLayoutMixer>(
-      new AudioChannelLayoutMixerImpl(sample_type, storage_type,
-                                      output_channels));
+      new AudioChannelLayoutMixerImpl(sample_type, output_channels));
 }
 
 }  // namespace starboard

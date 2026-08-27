@@ -53,10 +53,8 @@ class AudioResampler {
   // AudioResampler can call Read() to read the next chunk of resampled data.
   static std::unique_ptr<AudioResampler> Create(
       SbMediaAudioSampleType source_sample_type,
-      SbMediaAudioFrameStorageType source_storage_type,
       int source_sample_rate,
       SbMediaAudioSampleType destination_sample_type,
-      SbMediaAudioFrameStorageType destination_storage_type,
       int destination_sample_rate,
       int channels);
 };

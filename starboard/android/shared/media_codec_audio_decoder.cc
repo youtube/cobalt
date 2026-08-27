@@ -270,7 +270,6 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
 
     DecodedAudio decoded_audio(
         audio_stream_info_.number_of_channels, sample_type_,
-        kSbMediaAudioFrameStorageTypeInterleaved,
         dequeue_output_result.presentation_time_microseconds, size);
 
     memcpy(decoded_audio.data(), data, size);
