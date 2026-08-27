@@ -141,11 +141,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFrameAvailable() override;
 
  private:
-  // Tracks mid-stream color space transitions (HDR <-> SDR).
-  enum class ColorChangeState {
+  // Tracks mid-stream codec re-initializations (e.g. HDR <-> SDR transitions).
+  enum class CodecReinitState {
     kNone,
     kDraining,
-    kColorChangeScheduled,
+    kReinitScheduled,
   };
 
   // Attempt to initialize the codec.
@@ -175,7 +175,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void ResetInternal(bool skip_flush);
 
-  void PerformColorChangeReinitialization();
+  void PerformCodecReinitialization();
 
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
@@ -284,9 +284,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
 
-  ColorChangeState color_change_state_ = ColorChangeState::kNone;
-  VideoStreamInfo pending_color_change_stream_info_;
-  std::vector<scoped_refptr<InputBuffer>> pending_color_change_buffers_;
+  CodecReinitState codec_reinit_state_ = CodecReinitState::kNone;
+  VideoStreamInfo pending_reinit_stream_info_;
+  std::vector<scoped_refptr<InputBuffer>> pending_reinit_buffers_;
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
 

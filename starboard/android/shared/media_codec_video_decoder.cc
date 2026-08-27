@@ -534,10 +534,9 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     video_mime_ = stream_info.mime;
   }
 
-  if (color_change_state_ != ColorChangeState::kNone) {
-    pending_color_change_buffers_.insert(pending_color_change_buffers_.end(),
-                                         input_buffers.begin(),
-                                         input_buffers.end());
+  if (codec_reinit_state_ != CodecReinitState::kNone) {
+    pending_reinit_buffers_.insert(pending_reinit_buffers_.end(),
+                                   input_buffers.begin(), input_buffers.end());
     return;
   }
 
@@ -577,12 +576,11 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
 
   if (input_buffer_written_ > 0 && new_is_hdr != current_is_hdr) {
     SB_LOG(INFO) << "Color space change detected (HDR <-> SDR). "
-                    "Initiating EOS draining...";
-    color_change_state_ = ColorChangeState::kDraining;
-    pending_color_change_stream_info_ = stream_info;
-    pending_color_change_buffers_.insert(pending_color_change_buffers_.end(),
-                                         input_buffers.begin(),
-                                         input_buffers.end());
+                    "Initiating EOS draining for codec re-initialization...";
+    codec_reinit_state_ = CodecReinitState::kDraining;
+    pending_reinit_stream_info_ = stream_info;
+    pending_reinit_buffers_.insert(pending_reinit_buffers_.end(),
+                                   input_buffers.begin(), input_buffers.end());
     media_decoder_->WriteEndOfStream();
     return;
   }
@@ -1019,13 +1017,14 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
 
-  if (is_end_of_stream && color_change_state_ == ColorChangeState::kDraining) {
-    SB_LOG(INFO) << "EOS received during color change draining. Scheduling "
-                    "codec re-initialization.";
-    color_change_state_ = ColorChangeState::kColorChangeScheduled;
+  if (is_end_of_stream && codec_reinit_state_ == CodecReinitState::kDraining) {
+    SB_LOG(INFO)
+        << "EOS received during codec re-initialization draining. Scheduling "
+           "codec re-initialization.";
+    codec_reinit_state_ = CodecReinitState::kReinitScheduled;
     media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
-    Schedule(std::bind(
-        &MediaCodecVideoDecoder::PerformColorChangeReinitialization, this));
+    Schedule(
+        std::bind(&MediaCodecVideoDecoder::PerformCodecReinitialization, this));
     if (decoder_status_cb_) {
       decoder_status_cb_(kNeedMoreInput, NULL);
     }
@@ -1279,9 +1278,9 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   tunnel_mode_prerolled_frames_.store(0);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
-  pending_color_change_buffers_.clear();
-  color_change_state_ = ColorChangeState::kNone;
-  pending_color_change_stream_info_ = VideoStreamInfo();
+  pending_reinit_buffers_.clear();
+  codec_reinit_state_ = CodecReinitState::kNone;
+  pending_reinit_stream_info_ = VideoStreamInfo();
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
@@ -1289,18 +1288,18 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
-void MediaCodecVideoDecoder::PerformColorChangeReinitialization() {
+void MediaCodecVideoDecoder::PerformCodecReinitialization() {
   SB_CHECK(BelongsToCurrentThread());
-  if (color_change_state_ != ColorChangeState::kColorChangeScheduled) {
+  if (codec_reinit_state_ != CodecReinitState::kReinitScheduled) {
     return;
   }
 
   SB_LOG(INFO)
-      << "Reinitializing MediaCodec for color space change (HDR <-> SDR).";
+      << "Reinitializing MediaCodec for mid-stream codec re-initialization.";
 
   TeardownCodec();
 
-  const auto& color_metadata = pending_color_change_stream_info_.color_metadata;
+  const auto& color_metadata = pending_reinit_stream_info_.color_metadata;
   color_metadata_ = !IsIdentity(color_metadata)
                         ? std::make_optional(color_metadata)
                         : std::nullopt;
@@ -1310,17 +1309,17 @@ void MediaCodecVideoDecoder::PerformColorChangeReinitialization() {
   video_fps_ = 0;
   end_of_stream_written_ = false;
 
-  color_change_state_ = ColorChangeState::kNone;
-  VideoStreamInfo stream_info = pending_color_change_stream_info_;
-  pending_color_change_stream_info_ = VideoStreamInfo();
+  codec_reinit_state_ = CodecReinitState::kNone;
+  VideoStreamInfo stream_info = pending_reinit_stream_info_;
+  pending_reinit_stream_info_ = VideoStreamInfo();
 
   if (decoder_status_cb_) {
     decoder_status_cb_(kReleaseAllFrames, NULL);
   }
 
-  if (!pending_color_change_buffers_.empty()) {
+  if (!pending_reinit_buffers_.empty()) {
     InputBuffers buffers_to_write;
-    buffers_to_write.swap(pending_color_change_buffers_);
+    buffers_to_write.swap(pending_reinit_buffers_);
     WriteInputBuffers(buffers_to_write);
   }
 }
