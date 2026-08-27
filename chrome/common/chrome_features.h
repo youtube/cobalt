@@ -215,6 +215,12 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 extern const char kGlicActorUiToastName[];
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const char kGlicActorUiHandoffButtonName[];
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const char kGlicActorUiTabIndicatorName[];
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const char kGlicActorUiBorderGlowName[];
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const char kGlicActorUiCompletedTaskExpiryDelaySecondsName[];
 
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<bool>(kGlicActorUiTaskIcon);
@@ -228,6 +234,11 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<bool>(kGlicActorUiHandoffButton);
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<bool>(kGlicActorUiTabIndicator);
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<bool>(kGlicActorUiBorderGlow);
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<int>(
+    kGlicActorUiCompletedTaskExpiryDelaySeconds);
 
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<base::TimeDelta>(
@@ -238,6 +249,9 @@ extern const base::FeatureParam<base::TimeDelta>(
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<base::TimeDelta>(
     kGlicActorPageStabilityInvokeCallbackDelay);
+
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<bool> kGlicActorScrollTargetIntoView;
 
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicActorIncrementalTyping);
@@ -415,6 +429,11 @@ BASE_DECLARE_FEATURE(kGlicPanelResetSizeAndLocationOnOpen);
 
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicRecordActorJournal);
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<int> kGlicRecordActorJournalFeedbackProductId;
+COMPONENT_EXPORT(CHROME_FEATURES)
+extern const base::FeatureParam<std::string>
+    kGlicRecordActorJournalFeedbackCategoryTag;
 
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicWebClientUnresponsiveMetrics);
@@ -1208,6 +1227,9 @@ BASE_DECLARE_FEATURE(kUseManagedPrintJobOptionsInPrintPreview);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN)
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kWinPinPWAShortcutWithLAF);
+
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kWin10AcceleratedDefaultBrowserFlow);
 #endif  // BUILDFLAG(IS_WIN)

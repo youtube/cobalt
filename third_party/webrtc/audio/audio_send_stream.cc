@@ -98,8 +98,6 @@ void UpdateEventLogStreamConfig(RtcEventLog& event_log,
 
 }  // namespace
 
-constexpr char AudioAllocationConfig::kKey[];
-
 std::unique_ptr<StructParametersParser> AudioAllocationConfig::Parser() {
   return StructParametersParser::Create(       //
       "min", &min_bitrate,                     //
@@ -442,6 +440,7 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
       call_stats.header_and_padding_bytes_sent;
   stats.retransmitted_bytes_sent = call_stats.retransmitted_bytes_sent;
   stats.packets_sent = call_stats.packetsSent;
+  stats.packets_sent_with_ect1 = call_stats.packets_sent_with_ect1;
   stats.total_packet_send_delay = call_stats.total_packet_send_delay;
   stats.retransmitted_packets_sent = call_stats.retransmitted_packets_sent;
   // RTT isn't known until a RTCP report is received. Until then, VoiceEngine

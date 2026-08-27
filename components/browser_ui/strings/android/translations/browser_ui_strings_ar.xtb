@@ -444,6 +444,7 @@
 <translation id="5975083100439434680">تصغير</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">تفعيل خلاصة "الاقتراحات"</translation>
+<translation id="6012967556075291653">الاختصار المثبَّت</translation>
 <translation id="6015775454662021376">يمكنك التحكّم بإمكانية وصول هذا الموقع إلى جهازك.</translation>
 <translation id="6040143037577758943">إغلاق</translation>
 <translation id="6042308850641462728">عرض المزيد</translation>
@@ -643,7 +644,7 @@
 <translation id="8447861592752582886">إبطال إذن الجهاز</translation>
 <translation id="8471525937465764768">‏تتّصل المواقع الإلكترونية عادةً بأجهزة USB لتتيح ميزات مثل طباعة مستند أو حفظ مستند على جهاز تخزين.</translation>
 <translation id="8473055640493819707">إصدار "<ph name="APP_NAME" />" قديم. يُرجى إعادة تثبيت التطبيق.</translation>
-<translation id="847433688444405067">التصفّح على جميع الأجهزة</translation>
+<translation id="847433688444405067">تابِع التصفّح أينما كنت</translation>
 <translation id="8487700953926739672">التوفر بلا إنترنت</translation>
 <translation id="848952951823693243">دائمًا طلب الموقع الإلكتروني المتوافق مع الأجهزة الجوّالة</translation>
 <translation id="8492822722330266509">السماح للمواقع الإلكترونية بإرسال النوافذ المنبثقة واستخدام عمليات إعادة التوجيه</translation>

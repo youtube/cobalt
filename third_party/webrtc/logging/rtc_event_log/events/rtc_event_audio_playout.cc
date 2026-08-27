@@ -15,14 +15,8 @@
 
 #include "absl/memory/memory.h"
 #include "api/rtc_event_log/rtc_event.h"
-#include "logging/rtc_event_log/events/rtc_event_definition.h"
 
 namespace webrtc {
-
-constexpr RtcEventDefinition<RtcEventAudioPlayout,
-                             LoggedAudioPlayoutEvent,
-                             uint32_t>
-    RtcEventAudioPlayout::definition_;
 
 RtcEventAudioPlayout::RtcEventAudioPlayout(uint32_t ssrc) : ssrc_(ssrc) {}
 

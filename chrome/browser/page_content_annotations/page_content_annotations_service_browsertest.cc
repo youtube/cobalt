@@ -241,12 +241,6 @@ class PageContentAnnotationsServiceBrowserTest : public InProcessBrowserTest {
   }
   ~PageContentAnnotationsServiceBrowserTest() override = default;
 
-  // TODO(crbug.com/40285326): This fails with the field trial testing config.
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    InProcessBrowserTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitch("disable-field-trial-config");
-  }
-
   void set_load_model_on_startup(bool load_model_on_startup) {
     load_model_on_startup_ = load_model_on_startup;
   }
@@ -946,15 +940,8 @@ IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceNoHistoryTest,
   EXPECT_FALSE(ModelAnnotationsFieldsAreSetForURL(url));
 }
 
-// Times out on Linux Tests (dbg)(1); see https://crbug.com/40229591.
-#if BUILDFLAG(IS_LINUX) && !defined(NDEBUG)
-#define MAYBE_ModelExecutesAndUsesCachedResult \
-  DISABLED_ModelExecutesAndUsesCachedResult
-#else
-#define MAYBE_ModelExecutesAndUsesCachedResult ModelExecutesAndUsesCachedResult
-#endif
 IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceNoHistoryTest,
-                       MAYBE_ModelExecutesAndUsesCachedResult) {
+                       ModelExecutesAndUsesCachedResult) {
   TestPageContentAnnotator test_annotator;
   test_annotator.UseVisibilityScores(std::nullopt, {{"Test Page", 0.5}});
   service()->OverridePageContentAnnotatorForTesting(&test_annotator);
@@ -968,7 +955,7 @@ IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceNoHistoryTest,
     optimization_guide::RetryForHistogramUntilCountReached(
         &histogram_tester,
         "OptimizationGuide.PageContentAnnotationsService.ContentAnnotated", 1);
-
+    base::RunLoop().RunUntilIdle();
     histogram_tester.ExpectUniqueSample(
         "OptimizationGuide.PageContentAnnotations.AnnotateVisitResultCached",
         false, 1);
@@ -1585,20 +1572,19 @@ class PageContentAnnotationsServiceContentExtractionPdfTest
     : public PageContentAnnotationsServiceContentExtractionTest {
  public:
   void InitializeFeatureList() override {
+    const char* capture_delay = "5s";
+#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || !defined(NDEBUG)
+    capture_delay = "10s";
+#endif  // defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) ||
+        // !defined(NDEBUG)
     scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        features::kAnnotatedPageContentExtraction, {{"capture_delay", "4s"}});
+        features::kAnnotatedPageContentExtraction,
+        {{"capture_delay", capture_delay}});
   }
 };
 
-// TODO(crbug.com/410068541): Test is slow for debug/sanitized builds.
-// Reenable once timeouts are fixed.
-#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || !defined(NDEBUG)
-#define MAYBE_PdfPageCount DISABLED_PdfPageCount
-#else
-#define MAYBE_PdfPageCount PdfPageCount
-#endif
 IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceContentExtractionPdfTest,
-                       MAYBE_PdfPageCount) {
+                       PdfPageCount) {
   ukm::TestAutoSetUkmRecorder ukm_recorder;
   base::test::TestFuture<void> future;
   ukm_recorder.SetOnAddEntryCallback(
@@ -1618,15 +1604,8 @@ IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceContentExtractionPdfTest,
                               kPdfPageCountName));
 }
 
-// TODO(crbug.com/410068541): Test is slow for debug/sanitized builds.
-// Reenable once timeouts are fixed.
-#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || !defined(NDEBUG)
-#define MAYBE_TwoPdfPageLoads DISABLED_TwoPdfPageLoads
-#else
-#define MAYBE_TwoPdfPageLoads TwoPdfPageLoads
-#endif
 IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceContentExtractionPdfTest,
-                       MAYBE_TwoPdfPageLoads) {
+                       TwoPdfPageLoads) {
   ukm::TestAutoSetUkmRecorder ukm_recorder;
   base::test::TestFuture<void> future;
   ukm_recorder.SetOnAddEntryCallback(

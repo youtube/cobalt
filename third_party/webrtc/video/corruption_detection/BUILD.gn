@@ -48,10 +48,10 @@ rtc_library("frame_instrumentation_generator") {
     ":generic_mapping_functions",
     ":halton_frame_sampler",
     "../../api:scoped_refptr",
-    "../../api/video:corruption_detection_filter_settings",
     "../../api/video:encoded_image",
     "../../api/video:video_frame",
     "../../api/video:video_frame_type",
+    "../../api/video/corruption_detection:filter_settings",
     "../../api/video_codecs:video_codecs_api",
     "../../common_video:frame_instrumentation_data",
     "../../modules:module_api_public",
@@ -75,8 +75,8 @@ rtc_library("frame_pair_corruption_score") {
     ":halton_frame_sampler",
     ":utils",
     "../../api:scoped_refptr",
-    "../../api/video:corruption_detection_filter_settings",
     "../../api/video:video_frame",
+    "../../api/video/corruption_detection:filter_settings",
     "../../rtc_base:checks",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -88,8 +88,8 @@ rtc_library("generic_mapping_functions") {
     "generic_mapping_functions.h",
   ]
   deps = [
-    "../../api/video:corruption_detection_filter_settings",
     "../../api/video:video_frame",
+    "../../api/video/corruption_detection:filter_settings",
     "../../api/video_codecs:video_codecs_api",
     "../../rtc_base:checks",
   ]
@@ -176,10 +176,10 @@ if (rtc_include_tests) {
       ":frame_instrumentation_generator",
       "../../api:make_ref_counted",
       "../../api:scoped_refptr",
-      "../../api/video:corruption_detection_filter_settings",
       "../../api/video:encoded_image",
       "../../api/video:video_frame",
       "../../api/video:video_frame_type",
+      "../../api/video/corruption_detection:filter_settings",
       "../../common_video:frame_instrumentation_data",
       "../../rtc_base:refcount",
       "../../test:test_support",

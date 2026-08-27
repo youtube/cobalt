@@ -282,7 +282,7 @@ void snap_src_and_dst_rect_to_pixels(const Transform& localToDevice,
 
     // Assume snapping will succeed and always update 'src' to match; in the event snapping
     // returns the original dst rect, then the recalculated src rect is a no-op.
-    SkMatrix dstToSrc = SkMatrix::RectToRect(*dstRect, *srcRect);
+    SkMatrix dstToSrc = SkMatrix::RectToRectOrIdentity(*dstRect, *srcRect);
     *dstRect = snap_rect_to_pixels(localToDevice, *dstRect).asSkRect();
     *srcRect = dstToSrc.mapRect(*dstRect);
 }
@@ -1569,12 +1569,9 @@ void Device::drawGeometry(const Transform& localToDevice,
     // Decide if we have any reason to flush pending work. We want to flush before updating the clip
     // state or making any permanent changes to a path atlas, since otherwise clip operations and/or
     // atlas entries for the current draw will be flushed.
-    const bool requiresMSAA = (renderer && renderer->requiresMSAA()) ||
-                              (secondaryRenderer && secondaryRenderer->requiresMSAA());
-    DstReadStrategy dstReadStrategy = dstReadRequired ? fDC->dstReadStrategy(requiresMSAA)
-                                                      : DstReadStrategy::kNoneRequired;
-    const bool needsFlush =
-            this->needsFlushBeforeDraw(numNewRenderSteps, dstReadStrategy, requiresMSAA);
+    DstReadStrategy dstReadStrategy =
+            dstReadRequired ? fDC->dstReadStrategy() : DstReadStrategy::kNoneRequired;
+    const bool needsFlush = this->needsFlushBeforeDraw(numNewRenderSteps, dstReadStrategy);
     if (needsFlush) {
         if (pathAtlas != nullptr) {
             // We need to flush work for all devices associated with the current Recorder.
@@ -1630,7 +1627,7 @@ void Device::drawGeometry(const Transform& localToDevice,
 #if defined(SK_DEBUG)
     // Renderers and their component RenderSteps have flexibility in defining their
     // DepthStencilSettings. However, the clipping and ordering managed between Device and ClipStack
-    // requires that only GREATER or GEQUAL depth tests are used for draws recorded through the
+    // requires that only LESS or LEQUAL depth tests are used for draws recorded through the
     // client-facing, painters-order-oriented API. We assert here vs. in Renderer's constructor to
     // allow internal-oriented Renderers that are never selected for a "regular" draw call to have
     // more flexibility in their settings.
@@ -1639,8 +1636,8 @@ void Device::drawGeometry(const Transform& localToDevice,
         auto dss = step->depthStencilSettings();
         SkASSERT((!step->performsShading() || dss.fDepthTestEnabled) &&
                  (!dss.fDepthTestEnabled ||
-                  dss.fDepthCompareOp == CompareOp::kGreater ||
-                  dss.fDepthCompareOp == CompareOp::kGEqual));
+                  dss.fDepthCompareOp == CompareOp::kLess ||
+                  dss.fDepthCompareOp == CompareOp::kLEqual));
     }
 #endif
 
@@ -1667,6 +1664,14 @@ void Device::drawGeometry(const Transform& localToDevice,
         DisjointStencilIndex setIndex = fDisjointStencilSet->add(order.paintOrder(),
                                                                  clip.drawBounds());
         order.dependsOnStencil(setIndex);
+    } else if (!dependsOnDst && renderer->coverage() == Coverage::kNone && style.isFillStyle() &&
+               ((geometry.isEdgeAAQuad() && geometry.edgeAAQuad().isRect()) ||
+                (geometry.isShape() && geometry.shape().isRect()))) {
+        // Sort this draw front to back since it will not blend against what came before it.
+        // We could do this for all opaque/non-blending draws but that can hurt the performance of
+        // the std::sort in DrawPass::Make if it has to effectively reverse a large list. For now,
+        // limit it to filled rectangles (here and for the later non-AA inner fill).
+        order.reverseDepthAsStencil();
     }
 
     // TODO(b/330864257): This is an extra traversal of all paint effects, that can be avoided when
@@ -1702,6 +1707,10 @@ void Device::drawGeometry(const Transform& localToDevice,
                 SkASSERT(!dependsOnDst && renderer->useNonAAInnerFill());
                 DrawOrder orderWithoutCoverage{order.depth()};
                 orderWithoutCoverage.dependsOnPaintersOrder(clipOrder);
+                // The regular draw has analytic coverage, so isn't being sorted front to back, but
+                // we do want to sort the inner fill to maximize overdraw reduction
+                orderWithoutCoverage.reverseDepthAsStencil();
+
                 fDC->recordDraw(fRecorder->priv().rendererProvider()->nonAABounds(),
                                 localToDevice, Geometry(Shape(innerFillBounds)),
                                 clip, orderWithoutCoverage, &shading, nullptr);
@@ -2045,38 +2054,16 @@ void Device::internalFlush() {
 
      // Any cleanup in the AtlasProvider
     fRecorder->priv().atlasProvider()->compact();
-
-    // Upon flushing, reset the last recorded dst read strategy. We do not want a dst read
-    // performed in a prior draw pass to impact draws in a fresh pass.
-    fPriorDrawDstReadStrategy = DstReadStrategy::kNoneRequired;
 }
 
-bool Device::needsFlushBeforeDraw(int numNewRenderSteps,
-                                  DstReadStrategy dstReadStrategy,
-                                  bool requiresMSAA) {
+bool Device::needsFlushBeforeDraw(int numNewRenderSteps, DstReadStrategy dstReadStrategy) {
     // Must also account for the elements in the clip stack that might need to be recorded.
     numNewRenderSteps += fClip.maxDeferredClipDraws() * Renderer::kMaxRenderSteps;
     bool needsFlush =
-           // Need flush if we don't have room to record into the current list.
-           (DrawList::kMaxRenderSteps - fDC->pendingRenderSteps()) < numNewRenderSteps ||
-           // Need flush if this draw needs to copy the dst surface for reading.
-           dstReadStrategy == DstReadStrategy::kTextureCopy ||
-           // Need flush if we were performing a dst copy but now can read as an input
-           // attachment (we must perform the copy operation prior to reading).
-           (fPriorDrawDstReadStrategy == DstReadStrategy::kTextureCopy &&
-            dstReadStrategy == DstReadStrategy::kReadFromInput) ||
-           // Need flush if going from reading the dst as an input attachment to a draw that
-           // requires MSAA (we must ensure the loading of the MSAA attachment from resolve
-           // occurs after any prior draw operations).
-           (fPriorDrawDstReadStrategy == DstReadStrategy::kReadFromInput && requiresMSAA);
-
-    // After making this determination, update the last recorded DstReadStrategy. Only update if
-    // a dst read is actually performed (i.e. the strategy used for this draw is not kNoneRequired).
-    // This is because we must maintain a record of the last strategy used to actually perform a dst
-    // read (even if this draw does not perform one) as that informs whether a flush is needed.
-    if (dstReadStrategy != DstReadStrategy::kNoneRequired) {
-        fPriorDrawDstReadStrategy = dstReadStrategy;
-    }
+            // Need flush if we don't have room to record into the current list.
+            (DrawList::kMaxRenderSteps - fDC->pendingRenderSteps()) < numNewRenderSteps ||
+            // Need flush if this draw needs to copy the dst surface for reading.
+            dstReadStrategy == DstReadStrategy::kTextureCopy;
 
     return needsFlush;
 }

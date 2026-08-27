@@ -38,6 +38,7 @@
 #include "modules/video_coding/codecs/h264/include/h264.h"
 #include "modules/video_coding/codecs/h264/include/h264_globals.h"
 #include "modules/video_coding/svc/scalable_video_controller.h"
+#include "modules/video_coding/utility/frame_sampler.h"
 #include "third_party/openh264/src/codec/api/wels/codec_app_def.h"
 
 #if defined(WEBRTC_WIN) && !defined(__clang__)
@@ -126,6 +127,11 @@ class H264EncoderImpl : public VideoEncoder {
   bool has_reported_error_;
 
   std::vector<uint8_t> tl0sync_limit_;
+
+  // Determine whether the frame should be sampled for PSNR.
+  FrameSampler psnr_frame_sampler_;
+  // TODO(webrtc:388070060): Remove after rollout.
+  const bool calculate_psnr_;
 };
 
 }  // namespace webrtc

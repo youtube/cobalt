@@ -31,7 +31,6 @@
 #include "rtc_base/task_utils/repeating_task.h"
 #include "rtc_base/test_client.h"
 #include "rtc_base/test_utils.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
@@ -85,7 +84,7 @@ struct Sender {
   char dummy[4096];
 };
 
-struct Receiver : public sigslot::has_slots<> {
+struct Receiver {
   Receiver(Thread* th, Socket* s, uint32_t bw)
       : thread(th),
         socket(std::make_unique<AsyncUDPSocket>(s)),
@@ -111,7 +110,7 @@ struct Receiver : public sigslot::has_slots<> {
         });
   }
 
-  ~Receiver() override { periodic.Stop(); }
+  ~Receiver() { periodic.Stop(); }
 
   void OnReadPacket(AsyncPacketSocket* s, const ReceivedIpPacket& packet) {
     ASSERT_EQ(socket.get(), s);

@@ -69,18 +69,9 @@ declare_args() {
   # annotated symbols.
   rtc_enable_objc_symbol_export = rtc_enable_symbol_export
 
-  # Setting this to true will define WEBRTC_EXCLUDE_FIELD_TRIAL_DEFAULT which
-  # will tell the pre-processor to remove the default definition of symbols
-  # needed to use field_trial. In that case a new implementation needs to be
-  # provided.
-  if (build_with_chromium) {
-    # When WebRTC is built as part of Chromium it should exclude the default
-    # implementation of field_trial unless it is building for NACL or
-    # Chromecast.
-    rtc_exclude_field_trial_default = !is_nacl && !is_castos && !is_cast_android
-  } else {
-    rtc_exclude_field_trial_default = false
-  }
+  # Deprecated, this flag has no effect.
+  # TODO: bugs.webrtc.org/42220378 - Delete after August 15, 2025.
+  rtc_exclude_field_trial_default = false
 
   # Setting this to true will define WEBRTC_EXCLUDE_METRICS_DEFAULT which
   # will tell the pre-processor to remove the default definition of symbols

@@ -28,17 +28,13 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "third_party/blink/renderer/platform/graphics/gpu/drawing_buffer.h"
 
 #include <algorithm>
 #include <memory>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/read_only_shared_memory_region.h"
@@ -103,11 +99,12 @@ void FlipVertically(base::span<uint8_t> framebuffer,
   DCHECK_EQ(framebuffer.size(), num_rows * row_bytes);
   std::vector<uint8_t> scanline(row_bytes);
   for (size_t i = 0; i < num_rows / 2; i++) {
-    uint8_t* row_a = framebuffer.data() + i * row_bytes;
-    uint8_t* row_b = framebuffer.data() + (num_rows - i - 1) * row_bytes;
-    memcpy(scanline.data(), row_b, row_bytes);
-    memcpy(row_b, row_a, row_bytes);
-    memcpy(row_a, scanline.data(), row_bytes);
+    uint8_t* row_a = UNSAFE_TODO(framebuffer.data() + i * row_bytes);
+    uint8_t* row_b =
+        UNSAFE_TODO(framebuffer.data() + (num_rows - i - 1) * row_bytes);
+    UNSAFE_TODO(memcpy(scanline.data(), row_b, row_bytes));
+    UNSAFE_TODO(memcpy(row_b, row_a, row_bytes));
+    UNSAFE_TODO(memcpy(row_a, scanline.data(), row_bytes));
   }
 }
 
@@ -1979,12 +1976,13 @@ scoped_refptr<DrawingBuffer::ColorBuffer> DrawingBuffer::CreateColorBuffer(
   // format matches shared image format. This is necessary for Graphite where
   // IOSurfaces are always used to allow sharing between ANGLE and Dawn.
   if (color_buffer_format_ == viz::SinglePlaneFormat::kRGBA_8888 &&
-      gpu::IsImageFromGpuMemoryBufferFormatSupported(
-          gfx::BufferFormat::BGRA_8888, ContextProvider()->GetCapabilities())) {
+      gpu::IsFormatSupportedForSIWithNativeBuffer(
+          viz::SinglePlaneFormat::kBGRA_8888,
+          ContextProvider()->GetCapabilities())) {
     color_buffer_format_ = viz::SinglePlaneFormat::kBGRA_8888;
   } else if (color_buffer_format_ == viz::SinglePlaneFormat::kRGBX_8888 &&
-             gpu::IsImageFromGpuMemoryBufferFormatSupported(
-                 gfx::BufferFormat::BGRX_8888,
+             gpu::IsFormatSupportedForSIWithNativeBuffer(
+                 viz::SinglePlaneFormat::kBGRX_8888,
                  ContextProvider()->GetCapabilities())) {
     color_buffer_format_ = viz::SinglePlaneFormat::kBGRX_8888;
   }
@@ -2028,17 +2026,15 @@ scoped_refptr<DrawingBuffer::ColorBuffer> DrawingBuffer::CreateColorBuffer(
       // Intel GPUs (i8xx) don't support RGBX overlays.
       if (color_buffer_format_ == viz::SinglePlaneFormat::kRGBX_8888 &&
           allow_bgrx &&
-          gpu::IsImageFromGpuMemoryBufferFormatSupported(
-              gfx::BufferFormat::BGRX_8888,
+          gpu::IsFormatSupportedForSIWithNativeBuffer(
+              viz::SinglePlaneFormat::kBGRX_8888,
               ContextProvider()->GetCapabilities())) {
         color_buffer_format_ = viz::SinglePlaneFormat::kBGRX_8888;
       }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-      if (gpu::IsImageFromGpuMemoryBufferFormatSupported(
-              viz::SinglePlaneSharedImageFormatToBufferFormat(
-                  color_buffer_format_),
-              ContextProvider()->GetCapabilities())) {
+      if (gpu::IsFormatSupportedForSIWithNativeBuffer(
+              color_buffer_format_, ContextProvider()->GetCapabilities())) {
         usage = usage | gpu::SHARED_IMAGE_USAGE_SCANOUT;
         if (low_latency_enabled()) {
           usage = usage | gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;

@@ -397,6 +397,10 @@ void SetInboundRTPStreamStatsFromMediaReceiverInfo(
   inbound_stats->ssrc = media_receiver_info.ssrc();
   inbound_stats->packets_received =
       static_cast<uint32_t>(media_receiver_info.packets_received);
+  inbound_stats->packets_received_with_ect1 =
+      media_receiver_info.packets_received_with_ect1;
+  inbound_stats->packets_received_with_ce =
+      media_receiver_info.packets_received_with_ce;
   inbound_stats->bytes_received =
       static_cast<uint64_t>(media_receiver_info.payload_bytes_received);
   inbound_stats->header_bytes_received = static_cast<uint64_t>(
@@ -730,6 +734,8 @@ void SetOutboundRTPStreamStatsFromMediaSenderInfo(
   if (media_sender_info.active.has_value()) {
     outbound_stats->active = *media_sender_info.active;
   }
+  outbound_stats->packets_sent_with_ect1 =
+      media_sender_info.packets_sent_with_ect1;
 }
 
 std::unique_ptr<RTCOutboundRtpStreamStats>
@@ -2011,7 +2017,7 @@ void RTCStatsCollector::ProduceTransportStats_n(
       channel_transport_stats->dtls_cipher =
           channel_stats.tls_cipher_suite_name;
       if (channel_stats.srtp_crypto_suite != kSrtpInvalidCryptoSuite &&
-          SrtpCryptoSuiteToName(channel_stats.srtp_crypto_suite).length()) {
+          !SrtpCryptoSuiteToName(channel_stats.srtp_crypto_suite).empty()) {
         channel_transport_stats->srtp_cipher =
             SrtpCryptoSuiteToName(channel_stats.srtp_crypto_suite);
       }

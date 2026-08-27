@@ -535,6 +535,7 @@ if (rtc_enable_protobuf) {
       "../api/video:video_frame",
       "../modules:module_api_public",
       "../modules/audio_coding:audio_network_adaptor",
+      "../modules/rtp_rtcp:ntp_time_util",
       "../modules/rtp_rtcp:rtp_rtcp_format",
       "../rtc_base:checks",
       "../rtc_base:copy_on_write_buffer",

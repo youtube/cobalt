@@ -285,8 +285,10 @@ void CodeGenerator::AssembleCode() {
     // Align loop headers on vendor recommended boundaries.
     if (block->ShouldAlignLoopHeader()) {
       masm()->LoopHeaderAlign();
-    } else if (block->ShouldAlignCodeTarget()) {
-      masm()->CodeTargetAlign();
+    } else if (block->ShouldAlignSwitchTarget()) {
+      masm()->SwitchTargetAlign();
+    } else if (block->ShouldAlignBranchTarget()) {
+      masm()->BranchTargetAlign();
     }
 
     if (info->trace_turbo_json()) {
@@ -333,7 +335,7 @@ void CodeGenerator::AssembleCode() {
         masm()->InitializeRootRegister();
       }
     }
-#ifdef CAN_USE_RVV_INSTRUCTIONS
+#if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
     // RVV uses VectorUnit to emit vset{i}vl{i}, reducing the static and dynamic
     // overhead of the vset{i}vl{i} instruction. However there are some jumps
     // back between blocks. the Rvv instruction may get an incorrect vtype. so

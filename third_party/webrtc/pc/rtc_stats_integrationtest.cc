@@ -556,6 +556,12 @@ class RTCStatsReportVerifier {
         inbound_stream.remote_id, RTCRemoteOutboundRtpStreamStats::kType);
     verifier.TestAttributeIsDefined(inbound_stream.mid);
     verifier.TestAttributeIsDefined(inbound_stream.track_identifier);
+    // TODO: bugs.webrtc.org/42225697 - move to RTCReceivedRtpStreamStats
+    // when wiring the RFC 8888 feedback to stats.
+    verifier.TestAttributeIsNonNegative<int64_t>(
+        inbound_stream.packets_received_with_ect1);
+    verifier.TestAttributeIsNonNegative<int64_t>(
+        inbound_stream.packets_received_with_ce);
     if (inbound_stream.kind.has_value() && *inbound_stream.kind == "video") {
       verifier.TestAttributeIsNonNegative<uint64_t>(inbound_stream.qp_sum);
       verifier.TestAttributeIsDefined(inbound_stream.decoder_implementation);
@@ -799,6 +805,8 @@ class RTCStatsReportVerifier {
     verifier.TestAttributeIsNonNegative<uint64_t>(
         outbound_stream.retransmitted_bytes_sent);
     verifier.TestAttributeIsNonNegative<double>(outbound_stream.target_bitrate);
+    verifier.TestAttributeIsNonNegative<int64_t>(
+        outbound_stream.packets_sent_with_ect1);
     if (outbound_stream.kind.has_value() && *outbound_stream.kind == "video") {
       verifier.TestAttributeIsDefined(outbound_stream.frames_encoded);
       verifier.TestAttributeIsDefined(outbound_stream.key_frames_encoded);
@@ -894,6 +902,12 @@ class RTCStatsReportVerifier {
         remote_inbound_stream.total_round_trip_time);
     verifier.TestAttributeIsNonNegative<int32_t>(
         remote_inbound_stream.round_trip_time_measurements);
+    // TODO: bugs.webrtc.org/42225697 - move to RTCReceivedRtpStreamStats
+    // when wiring the RFC 8888 feedback to stats.
+    verifier.TestAttributeIsUndefined<int64_t>(
+        remote_inbound_stream.packets_received_with_ect1);
+    verifier.TestAttributeIsUndefined<int64_t>(
+        remote_inbound_stream.packets_received_with_ce);
     return verifier.ExpectAllAttributesSuccessfullyTested();
   }
 

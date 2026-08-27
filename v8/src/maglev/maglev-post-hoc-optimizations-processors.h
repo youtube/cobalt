@@ -28,7 +28,7 @@ class SweepIdentityNodes {
   void PostPhiProcessing() {}
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     for (int i = 0; i < node->input_count(); i++) {
-      Input& input = node->input(i);
+      Input input = node->input(i);
       while (input.node() && input.node()->Is<Identity>()) {
         node->change_input(i, input.node()->input(0).node());
       }
@@ -42,6 +42,11 @@ class SweepIdentityNodes {
       node->eager_deopt_info()->ForEachInput([&](ValueNode* node) {});
     }
     return ProcessResult::kContinue;
+  }
+  ProcessResult Process(Identity* node, const ProcessingState& state) {
+    // Since we're bypassing all the identity node uses, we can remove them from
+    // the graph.
+    return ProcessResult::kRemove;
   }
 };
 
@@ -310,7 +315,7 @@ class AnyUseMarkingProcessor {
     }
   }
 
-  void DropInputUses(Input& input) {
+  void DropInputUses(Input input) {
     ValueNode* input_node = input.node();
     if (input_node->properties().is_required_when_unused() &&
         !input_node->Is<ArgumentsElements>())
@@ -322,7 +327,7 @@ class AnyUseMarkingProcessor {
   }
 
   void DropInputUses(ValueNode* node) {
-    for (Input& input : *node) {
+    for (Input input : node->inputs()) {
       DropInputUses(input);
     }
     DCHECK(!node->properties().can_eager_deopt());

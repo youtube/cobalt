@@ -589,10 +589,7 @@ both_builders(
             "CMAKE_ASM_FLAGS": "-m32 -msse2",
             "CMAKE_CXX_FLAGS": "-m32 -msse2",
             "CMAKE_C_FLAGS": "-m32 -msse2",
-            "RUST_BINDINGS": "i686-unknown-linux-gnu",
         },
-        # Also build and test the Rust code.
-        "rust": True,
     },
 )
 both_builders(

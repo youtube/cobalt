@@ -533,7 +533,7 @@ Network* NetworkManagerBase::GetNetworkFromAddress(const IPAddress& ip) const {
 }
 
 bool NetworkManagerBase::IsVpnMacAddress(ArrayView<const uint8_t> address) {
-  if (address.data() == nullptr && address.size() == 0) {
+  if (address.data() == nullptr && address.empty()) {
     return false;
   }
   for (const auto& vpn : kVpns) {
@@ -1142,7 +1142,7 @@ bool Network::SetIPs(const std::vector<InterfaceAddress>& ips, bool changed) {
 
 // Select the best IP address to use from this Network.
 IPAddress Network::GetBestIP() const {
-  if (ips_.size() == 0) {
+  if (ips_.empty()) {
     return IPAddress();
   }
 

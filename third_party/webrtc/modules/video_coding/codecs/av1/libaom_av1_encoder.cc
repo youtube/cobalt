@@ -41,6 +41,7 @@
 #include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/svc/create_scalability_structure.h"
 #include "modules/video_coding/svc/scalable_video_controller.h"
+#include "modules/video_coding/utility/frame_sampler.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/encoder_info_settings.h"
 #include "rtc_base/logging.h"
@@ -154,6 +155,11 @@ class LibaomAv1Encoder final : public VideoEncoder {
   // TODO(webrtc:351644568): Remove this kill-switch after the feature is fully
   // deployed.
   const bool post_encode_frame_drop_;
+
+  // Determine whether the frame should be sampled for PSNR.
+  FrameSampler psnr_frame_sampler_;
+  // TODO(webrtc:388070060): Remove after rollout.
+  const bool calculate_psnr_;
 };
 
 int32_t VerifyCodecSettings(const VideoCodec& codec_settings) {
@@ -195,7 +201,9 @@ LibaomAv1Encoder::LibaomAv1Encoder(const Environment& env,
       timestamp_(0),
       encoder_info_override_(env.field_trials()),
       post_encode_frame_drop_(!env.field_trials().IsDisabled(
-          "WebRTC-LibaomAv1Encoder-PostEncodeFrameDrop")) {}
+          "WebRTC-LibaomAv1Encoder-PostEncodeFrameDrop")),
+      calculate_psnr_(
+          env.field_trials().IsEnabled("WebRTC-Video-CalculatePsnr")) {}
 
 LibaomAv1Encoder::~LibaomAv1Encoder() {
   Release();
@@ -747,6 +755,11 @@ int32_t LibaomAv1Encoder::Encode(
 
     aom_enc_frame_flags_t flags =
         layer_frame->IsKeyframe() ? AOM_EFLAG_FORCE_KF : 0;
+#ifdef AOM_EFLAG_CALCULATE_PSNR
+    if (calculate_psnr_ && psnr_frame_sampler_.ShouldBeSampled(frame)) {
+      flags |= AOM_EFLAG_CALCULATE_PSNR;
+    }
+#endif
 
     if (SvcEnabled()) {
       SetSvcLayerId(*layer_frame);
@@ -770,10 +783,10 @@ int32_t LibaomAv1Encoder::Encode(
 
     // Get encoded image data.
     EncodedImage encoded_image;
+    const aom_codec_cx_pkt_t* pkt;
     aom_codec_iter_t iter = nullptr;
     int data_pkt_count = 0;
-    while (const aom_codec_cx_pkt_t* pkt =
-               aom_codec_get_cx_data(&ctx_, &iter)) {
+    while ((pkt = aom_codec_get_cx_data(&ctx_, &iter)) != nullptr) {
       if (pkt->kind == AOM_CODEC_CX_FRAME_PKT && pkt->data.frame.sz > 0) {
         if (data_pkt_count > 0) {
           RTC_LOG(LS_WARNING) << "LibaomAv1Encoder::Encoder returned more than "
@@ -817,6 +830,12 @@ int32_t LibaomAv1Encoder::Encode(
 
         encoded_image.SetColorSpace(frame.color_space());
         ++data_pkt_count;
+      } else if (pkt->kind == AOM_CODEC_PSNR_PKT) {
+        // PSNR index: 0: total, 1: Y, 2: U, 3: V
+        encoded_image.set_psnr(
+            EncodedImage::Psnr({.y = pkt->data.psnr.psnr[1],
+                                .u = pkt->data.psnr.psnr[2],
+                                .v = pkt->data.psnr.psnr[3]}));
       }
     }
 

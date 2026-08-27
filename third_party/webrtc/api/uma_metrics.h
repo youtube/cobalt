@@ -185,6 +185,7 @@ enum SdpMungingType {
   kWithoutCreateAnswer = 2,
   kWithoutCreateOffer = 3,
   kNumberOfContents = 4,
+  kCurrentDescriptionFailedToParse = 5,  // This is an internal error.
   // Transport-related munging.
   kIceOptions = 20,
   kIcePwd = 21,

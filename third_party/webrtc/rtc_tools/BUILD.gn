@@ -178,7 +178,6 @@ if (!is_component_build) {
       "../api/environment:environment_factory",
       "../api/task_queue",
       "../api/test/video:function_video_factory",
-      "../api/transport:field_trial_based_config",
       "../api/units:time_delta",
       "../api/units:timestamp",
       "../api/video:encoded_image",

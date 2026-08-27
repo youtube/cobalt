@@ -1234,6 +1234,19 @@ public class WebContentsImpl
     }
 
     @Override
+    public void setCanAcceptLoadDrops(boolean enabled) {
+        checkNotDestroyed();
+        WebContentsImplJni.get().setCanAcceptLoadDrops(mNativeWebContentsAndroid, enabled);
+    }
+
+    @Override
+    public boolean getCanAcceptLoadDropsForTesting() {
+        checkNotDestroyed();
+        return WebContentsImplJni.get()
+                .getCanAcceptLoadDropsForTesting(mNativeWebContentsAndroid); // IN-TEST
+    }
+
+    @Override
     public void updateOffsetTagDefinitions(
             BrowserControlsOffsetTagDefinitions offsetTagDefinitions) {
         if (mNativeWebContentsAndroid == 0) return;
@@ -1482,6 +1495,10 @@ public class WebContentsImpl
         int getCurrentBackForwardTransitionStage(long nativeWebContentsAndroid);
 
         void setLongPressLinkSelectText(long nativeWebContentsAndroid, boolean enabled);
+
+        void setCanAcceptLoadDrops(long nativeWebContentsAndroid, boolean enabled);
+
+        boolean getCanAcceptLoadDropsForTesting(long nativeWebContentsAndroid);
 
         void updateOffsetTagDefinitions(
                 long nativeWebContentsAndroid,

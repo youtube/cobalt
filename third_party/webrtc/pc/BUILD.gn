@@ -2528,7 +2528,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../api/transport:bitrate_settings",
       "../api/transport:datagram_transport_interface",
       "../api/transport:enums",
-      "../api/transport:field_trial_based_config",
       "../api/transport:sctp_transport_factory_interface",
       "../api/transport/rtp:rtp_source",
       "../api/units:data_rate",

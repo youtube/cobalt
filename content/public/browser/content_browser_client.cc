@@ -384,6 +384,11 @@ bool ContentBrowserClient::ShouldEnableStrictSiteIsolation() {
 #endif
 }
 
+std::optional<bool>
+ContentBrowserClient::GetOverrideValueForOriginKeyedProcesses() {
+  return std::nullopt;
+}
+
 bool ContentBrowserClient::ShouldDisableSiteIsolation(
     SiteIsolationMode site_isolation_mode) {
   return false;

@@ -239,7 +239,7 @@ IN_PROC_BROWSER_TEST_F(CrashReportPrivateApiTest, RedactMessage) {
 
 IN_PROC_BROWSER_TEST_F(CrashReportPrivateApiTest, SuppressedIfDevtoolsOpen) {
   // Open devtools, should suppress crash report.
-  ProcessManager* process_manager = ProcessManager::Get(browser()->profile());
+  ProcessManager* process_manager = ProcessManager::Get(profile());
   ExtensionHost* host =
       process_manager->GetBackgroundHostForExtension(extension_->id());
   ASSERT_TRUE(host);
@@ -279,8 +279,7 @@ IN_PROC_BROWSER_TEST_F(CrashReportPrivateApiTest, CalledFromWebContentsInTab) {
   const GURL extension_context_url(
       "chrome-extension://jjeoclcdfjddkdjokiejckgcildcflpp/"
       "_generated_background_page.html");
-  content::WebContents* web_content =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* web_content = GetActiveWebContents();
   EXPECT_TRUE(content::NavigateToURL(web_content, extension_context_url));
 
   static constexpr char kTestScript[] = R"(

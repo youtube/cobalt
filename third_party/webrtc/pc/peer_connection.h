@@ -413,9 +413,8 @@ class PeerConnection : public PeerConnectionInternal,
   // `sctp_mid()` if set. Called as part of setting the local description.
   RTCError StartSctpTransport(const SctpOptions& options) override;
 
-  // Returns the CryptoOptions for this PeerConnection. This will always
-  // return the RTCConfiguration.crypto_options if set and return a stock
-  // configuration if nothing was set.
+  // Returns the CryptoOptions set as RTCConfiguration.crypto_options for this
+  // PeerConnection.
   CryptoOptions GetCryptoOptions() override;
 
   // Internal implementation for AddTransceiver family of methods. If

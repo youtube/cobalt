@@ -1323,7 +1323,6 @@ if (!build_with_chromium) {
       "../api/task_queue",
       "../api/test/video:function_video_factory",
       "../api/transport:bitrate_settings",
-      "../api/transport:field_trial_based_config",
       "../api/transport:network_control",
       "../api/units:time_delta",
       "../api/units:timestamp",
@@ -1512,6 +1511,7 @@ rtc_library("wait_until") {
   ]
   deps = [
     ":test_support",
+    "../api:function_view",
     "../api:rtc_error",
     "../api:time_controller",
     "../api/units:time_delta",

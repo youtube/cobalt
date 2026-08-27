@@ -280,6 +280,8 @@ AudioReceiveStreamInterface::Stats AudioReceiveStreamImpl::GetStats(
   stats.header_and_padding_bytes_received =
       call_stats.header_and_padding_bytes_received;
   stats.packets_received = call_stats.packets_received;
+  stats.packets_received_with_ect1 = call_stats.packets_received_with_ect1;
+  stats.packets_received_with_ce = call_stats.packets_received_with_ce;
   stats.packets_lost = call_stats.packets_lost;
   stats.jitter_ms = call_stats.jitter_ms;
   stats.nacks_sent = call_stats.nacks_sent;

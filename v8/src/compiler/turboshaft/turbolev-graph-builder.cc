@@ -2807,7 +2807,8 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::StringEqual* node,
                                 const maglev::ProcessingState& state) {
-    if (node->inputs() == maglev::StringEqualInputs::kStringsOrOddballs) {
+    if (node->input_mode() ==
+        maglev::StringEqualInputMode::kStringsOrOddballs) {
       // TODO(marja): Can we get rid of the StringOrOddballStrictEqual operator,
       // by handling the oddballs somewhere and delegating strings to
       // StringEqual?
@@ -6191,7 +6192,7 @@ class GraphBuildingNodeProcessor {
 
   void SetMapMaybeMultiReturn(maglev::NodeBase* node, V<Any> idx) {
     const Operation& op = __ output_graph().Get(idx);
-    if (const TupleOp* tuple = op.TryCast<TupleOp>()) {
+    if (const MakeTupleOp* tuple = op.TryCast<MakeTupleOp>()) {
       // If the call returned multiple values, then in Maglev, {node} is
       // used as the 1st returned value, and a GetSecondReturnedValue node is
       // used to access the 2nd value. We thus call `SetMap` with the 1st
@@ -6423,9 +6424,7 @@ void RunMaglevOptimizations(PipelineData* data,
     maglev::MaglevInliner inliner(maglev_graph);
     inliner.Run();
 
-    maglev::GraphProcessor<maglev::SweepIdentityNodes,
-                           /* visit_identity_nodes */ true>
-        sweep;
+    maglev::GraphProcessor<maglev::SweepIdentityNodes> sweep;
     sweep.ProcessGraph(maglev_graph);
   }
 
@@ -6531,7 +6530,7 @@ std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
   data->InitializeGraphComponent(nullptr);
 
   std::optional<BailoutReason> bailout;
-  maglev::GraphProcessor<NodeProcessorBase, true> builder(
+  maglev::GraphProcessor<NodeProcessorBase> builder(
       data, data->graph(), temp_zone,
       compilation_info->toplevel_compilation_unit(), &bailout);
   builder.ProcessGraph(maglev_graph);

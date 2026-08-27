@@ -1233,6 +1233,8 @@ class MaglevGraphBuilder {
   bool CanTrackObjectChanges(ValueNode* object, TrackObjectMode mode);
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
 
+  ValueNode* BuildLoadMap(ValueNode* object);
+
   void BuildInitializeStore(InlinedAllocation* alloc, ValueNode* value,
                             int offset);
   void TryBuildStoreTaggedFieldToAllocation(ValueNode* object, ValueNode* value,
@@ -1361,7 +1363,7 @@ class MaglevGraphBuilder {
                                          ElementsKind elements_kind);
   ReduceResult BuildLoadTypedArrayElement(ValueNode* object, ValueNode* index,
                                           ElementsKind elements_kind);
-  ValueNode* BuildLoadConstantTypedArrayElement(
+  ReduceResult BuildLoadConstantTypedArrayElement(
       compiler::JSTypedArrayRef typed_array, ValueNode* index,
       ElementsKind elements_kind);
   ReduceResult BuildStoreTypedArrayElement(ValueNode* object, ValueNode* index,
@@ -1430,7 +1432,7 @@ class MaglevGraphBuilder {
                            compiler::AccessMode access_mode);
   MaybeReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                               compiler::NameRef name);
-  ValueNode* BuildLoadStringLength(ValueNode* string);
+  ReduceResult BuildLoadStringLength(ValueNode* string);
 
   // Converts the input node to a representation that's valid to store into an
   // array with elements kind |kind|.
@@ -1593,6 +1595,11 @@ class MaglevGraphBuilder {
   ReduceResult VisitBinarySmiOperation();
 
   ReduceResult BuildUnwrapStringWrapper(ValueNode* input);
+  // Given two arbitrary inputs, this builds a string-concat operation if
+  // at least one operand is a String. If so, it appropriately converts the
+  // other operand if needed, and then emits the most specialized concat
+  // operation possible.
+  MaybeReduceResult TryBuildStringConcat(ValueNode* left, ValueNode* right);
   ReduceResult BuildStringConcat(ValueNode* left, ValueNode* right);
   ReduceResult BuildNewConsStringMap(ValueNode* left, ValueNode* right);
   size_t StringLengthStaticLowerBound(ValueNode* string, int max_depth = 2);

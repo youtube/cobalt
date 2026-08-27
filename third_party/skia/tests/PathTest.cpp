@@ -772,10 +772,10 @@ static void test_bounds_crbug_513799(skiatest::Reporter* reporter) {
     dump_if_ne(reporter, SkRect::MakeLTRB(-5, -8, -5, -8), path.getBounds());
 
     path.addRect(SkRect::MakeLTRB(1, 2, 3, 4)); // should extend the bounds
-    dump_if_ne(reporter, SkRect::MakeLTRB(-5, -8, 3, 4), path.getBounds());
+    dump_if_ne(reporter, SkRect::MakeLTRB(1, 2, 3, 4), path.getBounds());
 
-    path.moveTo(1, 2);  // don't expect this to have changed the bounds
-    dump_if_ne(reporter, SkRect::MakeLTRB(-5, -8, 3, 4), path.getBounds());
+    path.moveTo(2, 3);  // don't expect this to have changed the bounds
+    dump_if_ne(reporter, SkRect::MakeLTRB(1, 2, 3, 4), path.getBounds());
 #endif
 }
 
@@ -2443,84 +2443,6 @@ static void test_is_closed_rect(skiatest::Reporter* reporter) {
 
 }
 
-static void test_isArc(skiatest::Reporter* reporter) {
-    SkPath path;
-    REPORTER_ASSERT(reporter, !path.isArc(nullptr));
-
-    // One circle, one oval:
-    const SkRect kOvals[] = { SkRect::MakeWH(100, 100), SkRect::MakeWH(100, 200)};
-
-    // Various start and sweep angles. Note that we can't test with more than a full revolution,
-    // those cases are automatically converted to ovals by SkPath.
-    const SkScalar kStartAngles[] = { -270, -135, -45, 0, 10, 70, 180, 350 };
-    const SkScalar kSweepAngles[] = { -350, -190, -90, -5, 5, 89, 180, 270, 350 };
-
-    int mutator = 0;
-
-    for (SkRect oval : kOvals) {
-        for (SkScalar startAngle : kStartAngles) {
-            for (SkScalar sweepAngle : kSweepAngles) {
-                // For now, isArc only works for arcs where useCenter is false!
-                // TODO: When that's fixed, add more tests cases here.
-                path.rewind();
-                // Include an extra moveTo at the start - this should not interfere with isArc
-                path.moveTo(oval.center());
-                path.addArc(oval, startAngle, sweepAngle);
-
-                SkArc arc;
-                REPORTER_ASSERT(reporter, path.isArc(&arc));
-                REPORTER_ASSERT(reporter,
-                                oval == arc.fOval &&
-                                startAngle == arc.fStartAngle &&
-                                sweepAngle == arc.fSweepAngle &&
-                                !arc.isWedge());
-
-                // Apply some mutation. All of these should cause the path to no longer be an arc:
-                switch (mutator) {
-                    case 0:
-                        path.addArc(oval, startAngle, sweepAngle);
-                        break;
-                    case 1:
-                        path.lineTo(oval.center());
-                        break;
-                    case 2:
-                        path.lineTo(path.getPoint(0));
-                        break;
-                    case 3:
-                        path.close();
-                        break;
-                    case 4:
-                        path.moveTo(oval.center());
-                        break;
-                    default:
-                        SkUNREACHABLE;
-                }
-                mutator = (mutator + 1) % 5;
-                REPORTER_ASSERT(reporter, !path.isArc(nullptr));
-            }
-        }
-    }
-
-    // Having any non-move verb before the arc should cause isArc to return false:
-    path.rewind();
-    path.lineTo(kOvals[0].center());
-    path.addArc(kOvals[0], kStartAngles[0], kSweepAngles[0]);
-    REPORTER_ASSERT(reporter, !path.isArc(nullptr));
-
-    // Finally, transforming an arc path by a non-identity should always result in a non-arc path:
-    // TODO: We could clearly preserve arcs for translation, and for scale/rotation with extra work.
-    for (SkMatrix m :
-         {SkMatrix::Translate(10, 10), SkMatrix::RotateDeg(90), SkMatrix::Scale(2, 2)}) {
-        path.rewind();
-        path.addArc(kOvals[0], kStartAngles[0], kSweepAngles[0]);
-        REPORTER_ASSERT(reporter, path.isArc(nullptr));
-        path.transform(SkMatrix::I());
-        REPORTER_ASSERT(reporter, path.isArc(nullptr));
-        path.transform(m);
-        REPORTER_ASSERT(reporter, !path.isArc(nullptr));
-    }
-}
-
 static void test_isNestedFillRects(skiatest::Reporter* reporter) {
     // passing tests (all moveTo / lineTo...
     SkPoint r1[] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}}; // CW
@@ -2889,9 +2811,9 @@ static void test_transform(skiatest::Reporter* reporter) {
         SkPath p1;
         p1.moveTo(SkPoint::Make(0, 0));
 
-        p.transform(matrix, &p1, SkApplyPerspectiveClip::kNo);
+        p.transform(matrix, &p1);
         REPORTER_ASSERT(reporter, matrix.invert(&matrix));
-        p1.transform(matrix, nullptr, SkApplyPerspectiveClip::kNo);
+        p1.transform(matrix, nullptr);
         SkRect pBounds = p.getBounds();
         SkRect p1Bounds = p1.getBounds();
         REPORTER_ASSERT(reporter, SkScalarNearlyEqual(pBounds.fLeft, p1Bounds.fLeft));
@@ -2966,7 +2888,6 @@ static void test_zero_length_paths(skiatest::Reporter* reporter) {
     };
 
     static const SkPath::Verb resultVerbs1[] = { SkPath::kMove_Verb };
-    static const SkPath::Verb resultVerbs2[] = { SkPath::kMove_Verb, SkPath::kMove_Verb };
     static const SkPath::Verb resultVerbs3[] = { SkPath::kMove_Verb, SkPath::kClose_Verb };
     static const SkPath::Verb resultVerbs4[] = { SkPath::kMove_Verb, SkPath::kClose_Verb, SkPath::kMove_Verb, SkPath::kClose_Verb };
     static const SkPath::Verb resultVerbs5[] = { SkPath::kMove_Verb, SkPath::kLine_Verb };
@@ -2989,7 +2910,6 @@ static void test_zero_length_paths(skiatest::Reporter* reporter) {
     };
     static const struct zeroPathTestData gZeroLengthTests[] = {
         { "M 1 1", 1, {1, 1, 1, 1}, resultVerbs1, std::size(resultVerbs1) },
-        { "M 1 1 M 2 1", 2, {SK_Scalar1, SK_Scalar1, 2*SK_Scalar1, SK_Scalar1}, resultVerbs2, std::size(resultVerbs2) },
         { "M 1 1 z", 1, {1, 1, 1, 1}, resultVerbs3, std::size(resultVerbs3) },
         { "M 1 1 z M 2 1 z", 2, {SK_Scalar1, SK_Scalar1, 2*SK_Scalar1, SK_Scalar1}, resultVerbs4, std::size(resultVerbs4) },
         { "M 1 1 L 1 1", 2, {SK_Scalar1, SK_Scalar1, SK_Scalar1, SK_Scalar1}, resultVerbs5, std::size(resultVerbs5) },
@@ -3209,39 +3129,26 @@ static void test_range_iter(skiatest::Reporter* reporter) {
     REPORTER_ASSERT(reporter, iterate.begin() == iterate.end());
 
     // Test that a move-only path returns the move.
-    path.moveTo(SK_Scalar1, 0);
+    path.moveTo(1, 0);
     iterate = SkPathPriv::Iterate(path);
     SkPathPriv::RangeIter iter = iterate.begin();
     {
         auto [verb, pts, w] = *iter++;
         REPORTER_ASSERT(reporter, verb == SkPathVerb::kMove);
-        REPORTER_ASSERT(reporter, pts[0].fX == SK_Scalar1);
+        REPORTER_ASSERT(reporter, pts[0].fX == 1);
         REPORTER_ASSERT(reporter, pts[0].fY == 0);
     }
     REPORTER_ASSERT(reporter, iter == iterate.end());
 
-    // No matter how many moves we add, we should get them all back
-    path.moveTo(SK_Scalar1*2, SK_Scalar1);
-    path.moveTo(SK_Scalar1*3, SK_Scalar1*2);
+    // another moveTo just replace the previous position
+    path.moveTo(2, 3);
     iterate = SkPathPriv::Iterate(path);
     iter = iterate.begin();
     {
         auto [verb, pts, w] = *iter++;
         REPORTER_ASSERT(reporter, verb == SkPathVerb::kMove);
-        REPORTER_ASSERT(reporter, pts[0].fX == SK_Scalar1);
-        REPORTER_ASSERT(reporter, pts[0].fY == 0);
-    }
-    {
-        auto [verb, pts, w] = *iter++;
-        REPORTER_ASSERT(reporter, verb == SkPathVerb::kMove);
-        REPORTER_ASSERT(reporter, pts[0].fX == SK_Scalar1*2);
-        REPORTER_ASSERT(reporter, pts[0].fY == SK_Scalar1);
-    }
-    {
-        auto [verb, pts, w] = *iter++;
-        REPORTER_ASSERT(reporter, verb == SkPathVerb::kMove);
-        REPORTER_ASSERT(reporter, pts[0].fX == SK_Scalar1*3);
-        REPORTER_ASSERT(reporter, pts[0].fY == SK_Scalar1*2);
+        REPORTER_ASSERT(reporter, pts[0].fX == 2);
+        REPORTER_ASSERT(reporter, pts[0].fY == 3);
     }
     REPORTER_ASSERT(reporter, iter == iterate.end());
 
@@ -3260,7 +3167,7 @@ static void test_range_iter(skiatest::Reporter* reporter) {
     path.moveTo(SK_Scalar1*2, SK_Scalar1);
     path.close();
     path.moveTo(SK_Scalar1*3, SK_Scalar1*2);
-    path.moveTo(SK_Scalar1*4, SK_Scalar1*3);
+    path.moveTo(SK_Scalar1*4, SK_Scalar1*3); // replaces previous moveTo
     path.close();
     iterate = SkPathPriv::Iterate(path);
     iter = iterate.begin();
@@ -3283,12 +3190,6 @@ static void test_range_iter(skiatest::Reporter* reporter) {
     {
         auto [verb, pts, w] = *iter++;
         REPORTER_ASSERT(reporter, verb == SkPathVerb::kClose);
-    }
-    {
-        auto [verb, pts, w] = *iter++;
-        REPORTER_ASSERT(reporter, verb == SkPathVerb::kMove);
-        REPORTER_ASSERT(reporter, pts[0].fX == SK_Scalar1*3);
-        REPORTER_ASSERT(reporter, pts[0].fY == SK_Scalar1*2);
     }
     {
         auto [verb, pts, w] = *iter++;
@@ -3316,6 +3217,7 @@ static void test_range_iter(skiatest::Reporter* reporter) {
     SkPathVerb expectedVerbs[22]; // May have leading moveTo
     SkPathVerb nextVerb;
 
+    SkPathVerb prevVerb = static_cast<SkPathVerb>(0xFF); // need something illegal to start twith
     for (int i = 0; i < 500; ++i) {
         path.reset();
         bool lastWasClose = true;
@@ -3327,7 +3229,8 @@ static void test_range_iter(skiatest::Reporter* reporter) {
         for (int j = 0; j < numVerbs; ++j) {
             do {
                 nextVerb = static_cast<SkPathVerb>((rand.nextU() >> 16) % SkPath::kDone_Verb);
-            } while (lastWasClose && nextVerb == SkPathVerb::kClose);
+            } while ((lastWasClose && nextVerb == SkPathVerb::kClose) ||
+                     (prevVerb == SkPathVerb::kMove && nextVerb == SkPathVerb::kMove));
             switch (nextVerb) {
                 case SkPathVerb::kMove:
                     expectedPts[numPoints] = randomPts[(rand.nextU() >> 16) % 25];
@@ -3396,6 +3299,7 @@ static void test_range_iter(skiatest::Reporter* reporter) {
                     SkDEBUGFAIL("unexpected verb");
             }
             expectedVerbs[numIterVerbs++] = nextVerb;
+            prevVerb = nextVerb;
         }
 
         numVerbs = numIterVerbs;
@@ -4960,6 +4864,25 @@ DEF_TEST(PathInterp, reporter) {
     test_interp(reporter);
 }
 
+DEF_TEST(Path_multipleMoveTos, reporter) {
+    SkPath path;
+    REPORTER_ASSERT(reporter, path.isEmpty());
+
+    auto check_last_pt = [&](float x, float y) {
+        REPORTER_ASSERT(reporter, path.countPoints() == 1);
+        REPORTER_ASSERT(reporter, path.getBounds() == SkRect::MakeXYWH(x, y, 0, 0));
+        return path.getPoint(0) == SkPoint{x, y};
+    };
+
+    path.moveTo(1, 2);
+    REPORTER_ASSERT(reporter, check_last_pt(1, 2));
+
+    path.moveTo(3, 4);
+    path.moveTo(5, 6);
+    path.moveTo(7, 8);
+    REPORTER_ASSERT(reporter, check_last_pt(7, 8));
+}
+
 DEF_TEST(PathBigCubic, reporter) {
     SkPath path;
     path.moveTo(SkBits2Float(0x00000000), SkBits2Float(0x00000000));  // 0, 0
@@ -5090,7 +5013,6 @@ DEF_TEST(Paths, reporter) {
     test_isRect(reporter);
     test_is_closed_rect(reporter);
     test_isNestedFillRects(reporter);
-    test_isArc(reporter);
     test_zero_length_paths(reporter);
     test_direction(reporter);
     test_convexity(reporter);
@@ -5195,11 +5117,13 @@ DEF_TEST(skbug_6450, r) {
 
 DEF_TEST(PathRefSerialization, reporter) {
     SkPath path;
-    const size_t numMoves = 5;
+
+    const size_t numMoves = 1;
+    path.moveTo(1, 2);
+
     const size_t numConics = 7;
     const size_t numPoints = numMoves + 2 * numConics;
     const size_t numVerbs = numMoves + numConics;
-    for (size_t i = 0; i < numMoves; ++i) path.moveTo(1, 2);
     for (size_t i = 0; i < numConics; ++i) path.conicTo(1, 2, 3, 4, 5);
     REPORTER_ASSERT(reporter, path.countPoints() == numPoints);
     REPORTER_ASSERT(reporter, path.countVerbs() == numVerbs);
@@ -5593,13 +5517,13 @@ DEF_TEST(Path_shrinkToFit, reporter) {
 DEF_TEST(Path_setLastPt, r) {
     // There was a time where SkPath::setLastPoint() didn't invalidate cached path bounds.
     SkPath p;
-    p.moveTo(0,0);
-    p.moveTo(20,01);
-    p.moveTo(20,10);
-    p.moveTo(20,61);
+    p.moveTo( 0, 0);
+    p.lineTo(20, 1);
+    p.lineTo(20,10);
+    p.lineTo(20,61);
     REPORTER_ASSERT(r, p.getBounds() == SkRect::MakeLTRB(0,0, 20,61));
 
-    p.setLastPt(30,01);
+    p.setLastPt(30, 1);
     REPORTER_ASSERT(r, p.getBounds() == SkRect::MakeLTRB(0,0, 30,10));  // was {0,0, 20,61}
 
     REPORTER_ASSERT(r, p.isValid());
@@ -5828,12 +5752,11 @@ static void test_addRect_and_trailing_lineTo(skiatest::Reporter* reporter) {
     // now add a moveTo before the rect, just to be sure we don't always look at
     // the "first" point in the path when we handle the trailing lineTo
     path.reset();
-    path.moveTo(7, 8);
+    path.moveTo(7, 8);  // will be replaced by rect's first moveTo
     path.addRect(r, SkPathDirection::kCW, 2);
     path.lineTo(5, 6);
 
     assert_points(reporter, path, {
-        {7,8},                  // initial moveTo
         p[2], p[3], p[0], p[1], // rect
         p[2], {5, 6},           // trailing line
     });
@@ -5981,9 +5904,7 @@ DEF_TEST(path_moveto_addrect, r) {
             for (int i = 0; i < numExtraMoveTos; ++i) {
                 path.moveTo(i, i);
             }
-            path.addRect(rect);
-
-            REPORTER_ASSERT(r, (numExtraMoveTos + 1) == SkPathPriv::LeadingMoveToCount(path));
+            path.addRect(rect); // this will replace the prev moveTos
 
             // addRect should mark the path as known convex automatically (i.e. it wasn't set
             // to unknown after edits)

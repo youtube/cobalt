@@ -168,6 +168,7 @@
 <translation id="3003694935412297923">Alle opgaver</translation>
 <translation id="3018957014024118866">Slet også data fra Chrome (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Genstart for at opdatere &amp;ChromeOS Flex</translation>
+<translation id="3037517125981011456">Viser anmodninger om at logge ind i Chrome</translation>
 <translation id="3037838751736561277">Google Chrome kører i baggrunden.</translation>
 <translation id="3038232873781883849">Venter på at installere…</translation>
 <translation id="3045032126857188731">Oversat sprog: <ph name="LANGUAGE" /></translation>
@@ -311,6 +312,7 @@
 <translation id="4747730611090640388">Chrome kan estimere dine interesser.  Senere kan et website, du besøger, anmode Chrome om at se dine interesser med henblik på at personligt tilpasse de annoncer, du ser.</translation>
 <translation id="475321580758063259">Opdater Chrome for at fortsætte med at bruge Chrome-dataene på din Google-konto, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Gør websites hurtigere ved hjælp af Chromes V8-maskine, men gør Chrome en smule mindre modstandsdygtig over for angreb</translation>
 <translation id="479167709087336770">Dette anvender den samme stavekontrol, som anvendes i Google Søgning. Tekst, som du angiver i browseren, sendes til Google. Du kan altid ændre denne adfærd i indstillingerne.</translation>
 <translation id="4793679854893018356">Se, hvordan Chrome beskytter dig</translation>
 <translation id="4828579605166583682">Google Chrome forsøger at erstatte eksisterende adgangskoder. Angiv din Windows-adgangskode for at tillade dette.</translation>
@@ -399,6 +401,7 @@
 <translation id="5980111191913430208">Udvidelser, apps og temaer fra ukendte kilder kan skade din enhed. Chrome anbefaler, at de kun installeres via <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="6003112304606738118">Downloader… Der er <ph name="HOURS" /> timer tilbage</translation>
 <translation id="6008161919456049856">De adgangskoder, betalingsmetoder og adresser, du har gemt på din Google-konto, fjernes fra denne enhed. Hvis du vil bruge dem igen i Chrome, skal du logge ind igen.</translation>
+<translation id="6009821354356307391">Stil et opfølgende spørgsmål</translation>
 <translation id="6014316319780893079">Med <ph name="BEGIN_LINK" />værktøjer fra Chrome<ph name="END_LINK" /> kan du søge sikkert på nettet og bevare styringen</translation>
 <translation id="6022659036123304283">Gør Chrome til din egen</translation>
 <translation id="6025087594896450715">Google Chrome genstarter om <ph name="REMAINING_TIME" /></translation>
@@ -593,6 +596,7 @@
 <translation id="8342675569599923794">Denne fil er farlig, så Chrome har blokeret den.</translation>
 <translation id="8349094670477064572">Du kan gemme og bruge adgangskoder m.m. på din Google-konto, når du er logget ind i Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Oversæt til</translation>
+<translation id="8366770919198174997">Reducerer ydeevnen, men gør Chrome mere modstandsdygtig over for angreb</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. Alle rettigheder forbeholdes.</translation>
 <translation id="8387459386171870978">Fortsæt med at bruge Chrome</translation>
 <translation id="8394720698884623075">Webadresser tjekkes i forhold til en liste over usikre websites, der er gemt i Chrome</translation>
@@ -637,6 +641,7 @@
 <translation id="8843516219908676469">Chrome forstår formularer bedre og kan udfylde dem automatisk for dig</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome anbefaler, at du fjerner den}one{Chrome anbefaler, at du fjerner den}other{Chrome anbefaler, at du fjerner dem}}</translation>
 <translation id="8862326446509486874">Du har ikke de nødvendige rettigheder til en installation på systemniveau. Prøv at køre installationsprogrammet igen som administrator.</translation>
+<translation id="8865415417596392024">Chrome-data på din konto</translation>
 <translation id="8883862939660515976">Stil Google Lens spørgsmål om dette billede</translation>
 <translation id="8914504000324227558">Genstart Chrome</translation>
 <translation id="8922193594870374009">Hvis du vil sende et nummer fra <ph name="ORIGIN" /> til din Android-telefon, skal du logge ind på Chrome på begge enheder.</translation>

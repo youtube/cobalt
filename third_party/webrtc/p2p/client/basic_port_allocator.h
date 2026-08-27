@@ -247,7 +247,7 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   void OnConfigStop();
   void AllocatePorts();
   void OnAllocate(int allocation_epoch);
-  void DoAllocate(bool disable_equivalent_phases);
+  void DoAllocate();
   void OnNetworksChanged();
   void OnAllocationSequenceObjectsCreated();
   void DisableEquivalentPhases(const Network* network,
@@ -266,7 +266,6 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   std::vector<const Network*> GetNetworks();
   std::vector<const Network*> GetFailedNetworks();
   void Regather(const std::vector<const Network*>& networks,
-                bool disable_equivalent_phases,
                 IceRegatheringReason reason);
 
   bool CheckCandidateFilter(const Candidate& c) const;

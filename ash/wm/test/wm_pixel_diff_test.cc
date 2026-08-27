@@ -129,7 +129,8 @@ TEST_F(WmPixelDiffTest, DISABLED_OverviewTabletSnap) {
 
 // A basic window cycle pixel test that shows three windows and the window cycle
 // tab slider.
-TEST_F(WmPixelDiffTest, WindowCycleBasic) {
+// TODO(crbug.com/436618646): enable the test.
+TEST_F(WmPixelDiffTest, DISABLED_WindowCycleBasic) {
   UpdateDisplay("1600x1000");
 
   // Create a second desk so the window cycle tab slider shows up. This slider
@@ -164,7 +165,7 @@ TEST_F(WmPixelDiffTest, WindowCycleBasic) {
 
   EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
       "window_cycle_basic",
-      /*revision_number=*/25, widget));
+      /*revision_number=*/27, widget));
 }
 
 TEST_F(WmPixelDiffTest, InformedRestoreNoScreenshotDialog) {

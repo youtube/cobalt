@@ -57,9 +57,6 @@ struct LayerRateInfo {
   }
 };
 }  // namespace
-constexpr TimeDelta EncoderBitrateAdjuster::kWindowSize;
-constexpr size_t EncoderBitrateAdjuster::kMinFramesSinceLayoutChange;
-constexpr double EncoderBitrateAdjuster::kDefaultUtilizationFactor;
 
 EncoderBitrateAdjuster::EncoderBitrateAdjuster(
     const VideoCodec& codec_settings,

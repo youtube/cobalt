@@ -131,7 +131,7 @@ class AsyncStunTCPSocketTest : public ::testing::Test,
 
   bool CheckData(const void* data, int len) {
     bool ret = false;
-    if (recv_packets_.size()) {
+    if (!recv_packets_.empty()) {
       std::string packet = recv_packets_.front();
       recv_packets_.pop_front();
       ret = (memcmp(data, packet.c_str(), len) == 0);

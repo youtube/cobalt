@@ -70,7 +70,7 @@ void VideoQualityMetricsReporter::OnStatsReports(
 
   std::vector<const RTCTransportStats*> transport_stats =
       report->GetStatsOfType<RTCTransportStats>();
-  if (transport_stats.size() == 0u ||
+  if (transport_stats.empty() ||
       !transport_stats[0]->selected_candidate_pair_id.has_value()) {
     return;
   }

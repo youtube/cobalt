@@ -11,6 +11,10 @@
 #ifndef MODULES_VIDEO_CAPTURE_LINUX_VIDEO_CAPTURE_PIPEWIRE_H_
 #define MODULES_VIDEO_CAPTURE_LINUX_VIDEO_CAPTURE_PIPEWIRE_H_
 
+#include <pipewire/pipewire.h>
+#include <spa/pod/pod.h>
+#include <spa/utils/hook.h>
+
 #include <cstdint>
 
 #include "api/scoped_refptr.h"

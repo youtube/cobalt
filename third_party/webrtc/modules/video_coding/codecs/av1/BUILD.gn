@@ -60,6 +60,8 @@ rtc_library("libaom_av1_encoder") {
   ]
   deps = [
     "../..:video_codec_interface",
+    "../..:video_coding_utility",
+    "../../:frame_sampler",
     "../../../../api:field_trials_view",
     "../../../../api:scoped_refptr",
     "../../../../api/environment",

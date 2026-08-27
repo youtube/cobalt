@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/events/simulated_click_options.h"
 #include "third_party/blink/renderer/core/dom/focusgroup_flags.h"
+#include "third_party/blink/renderer/core/dom/named_animation_trigger_map.h"
 #include "third_party/blink/renderer/core/dom/names_map.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/whitespace_attacher.h"
@@ -74,6 +75,7 @@ namespace blink {
 
 class AnchorElementObserver;
 class AnchorPositionScrollData;
+class AnimationTrigger;
 class AriaNotificationOptions;
 class Attr;
 class Attribute;
@@ -86,7 +88,6 @@ class CSSPseudoElement;
 class CSSStyleDeclaration;
 class CustomElementDefinition;
 class CustomElementRegistry;
-class DOMPatchStatus;
 class DOMRect;
 class DOMRectList;
 class DOMStringMap;
@@ -112,6 +113,7 @@ class Locale;
 class MutableCSSPropertyValueSet;
 class NamedNodeMap;
 class OutOfFlowData;
+class Patch;
 class PointerLockOptions;
 class PopoverData;
 class PseudoElement;
@@ -120,6 +122,7 @@ class ResizeObserver;
 class ResizeObserverSize;
 class ScrollIntoViewOptions;
 class CheckVisibilityOptions;
+class ScopedCSSName;
 class ScrollMarkerGroupData;
 class ScrollMarkerPseudoElement;
 class ScrollToOptions;
@@ -229,6 +232,8 @@ enum class CommandEventType {
   // kClose
   // Input / Select
   kShowPicker,
+  // Interest invokers (`interestfor`)
+  kToggleInterest,
   // Number Input
   kStepUp,
   kStepDown,
@@ -932,7 +937,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
                                    SlotAssignmentMode,
                                    bool serializable,
                                    bool clonable,
-                                   const AtomicString& reference_target);
+                                   const AtomicString& reference_target,
+                                   const bool waiting_for_scoped_registry);
 
   ShadowRoot& CreateUserAgentShadowRoot(
       SlotAssignmentMode = SlotAssignmentMode::kNamed);
@@ -945,14 +951,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
                                        const AtomicString& reference_target);
   // This version is for testing only, and allows easy attachment of a shadow
   // root, specifying only the type and none of the other arguments.
-  ShadowRoot& AttachShadowRootForTesting(ShadowRootMode type) {
-    return AttachShadowRootInternal(type, FocusDelegation::kNone,
-                                    SlotAssignmentMode::kNamed,
-                                    /*registry*/ nullptr,
-                                    /*serializable*/ false,
-                                    /*clonable*/ false,
-                                    /*reference_target*/ g_null_atom);
-  }
+  ShadowRoot& AttachShadowRootForTesting(ShadowRootMode type);
 
   // Returns the shadow root attached to this element if it is a shadow host.
   ShadowRoot* GetShadowRoot() const;
@@ -1206,9 +1205,9 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // Used in some situations (e.g. target popover closed via other means) to
   // immediately lose interest in an element, ignoring any hide delays that may
   // be set on the element. Element must already be an an interest invoker that
-  // has interest in the provided target, or a DCHECK will fail. If the target
-  // of the interest invoker is a popover, the popover will be hidden.
-  void LoseInterestNow(Element* target);
+  // has interest, or a DCHECK will fail. If the target of the interest invoker
+  // is a popover, the popover will be hidden.
+  void LoseInterestNow();
 
   // Returns true if any of its (non-inclusive) flat tree descendants is
   // keyboard focusable. Note that this is quite slow, since it traverses the
@@ -1515,7 +1514,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   EditContext* editContext() const;
 
   // https://github.com/WICG/declarative-partial-updates
-  DOMPatchStatus* currentPatch();
+  Patch* currentPatch();
 
   // Helpers for V8DOMActivityLogger::logEvent.  They call logEvent only if
   // the element is isConnected() and the context is an isolated world.
@@ -1772,6 +1771,10 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   bool IsClickableFormControlNode() const;
 
   bool HasTabIndexWasSetExplicitly() const;
+
+  void SetNamedTriggers(NamedAnimationTriggerMap&& named_triggers);
+  NamedAnimationTriggerMap* NamedTriggers() const;
+  AnimationTrigger* NamedTrigger(const ScopedCSSName* name) const;
 
  protected:
   bool HasElementData() const { return static_cast<bool>(element_data_); }
@@ -2069,6 +2072,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   }
 
   void AttachSucceedingPseudoElements(AttachContext& context) {
+    AttachPseudoElement(kPseudoIdInterestHint, context);
     AttachPseudoElement(kPseudoIdPickerIcon, context);
     AttachPseudoElement(kPseudoIdAfter, context);
     AttachDocumentElementSucceedingPseudoElements(context);
@@ -2098,6 +2102,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   }
 
   void DetachSucceedingPseudoElements(bool performing_reattach) {
+    DetachPseudoElement(kPseudoIdInterestHint, performing_reattach);
     DetachPseudoElement(kPseudoIdPickerIcon, performing_reattach);
     DetachPseudoElement(kPseudoIdAfter, performing_reattach);
     DetachPseudoElement(kPseudoIdScrollButtonBlockStart, performing_reattach);

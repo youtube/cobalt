@@ -87,7 +87,7 @@ inline bool TooLongWithoutResponse(
     const std::vector<Connection::SentPing>& pings_since_last_response,
     int64_t maximum_time,
     int64_t now) {
-  if (pings_since_last_response.size() == 0)
+  if (pings_since_last_response.empty())
     return false;
 
   auto first = pings_since_last_response[0];

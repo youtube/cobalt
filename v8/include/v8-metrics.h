@@ -41,12 +41,11 @@ struct GarbageCollectionLimits {
   int64_t bytes_baseline = -1;
   int64_t bytes_limit = -1;
   int64_t bytes_current = -1;
-  int64_t growing_bytes = -1;
-  double growing_factor = -1;
 };
 
 struct GarbageCollectionFullCycle {
   int reason = -1;
+  int incremental_marking_reason = -1;
   // The priority of the isolate during the GC cycle. A nullopt value denotes a
   // mixed priority cycle, meaning the Isolate's priority was changed while the
   // cycle was in progress.

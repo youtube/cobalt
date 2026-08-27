@@ -70,12 +70,6 @@ class FieldTrials : public FieldTrialsRegistry {
   // Setting empty `group` is valid and removes the `trial`.
   void Set(absl::string_view trial, absl::string_view group);
 
-  // TODO: bugs.webrtc.org/42220378 - Delete after August 1, 2025.
-  [[deprecated]]
-  static std::unique_ptr<FieldTrials> CreateNoGlobal(absl::string_view s) {
-    return std::make_unique<FieldTrials>(s);
-  }
-
  private:
   explicit FieldTrials(flat_map<std::string, std::string> key_value_map)
       : key_value_map_(std::move(key_value_map)) {}

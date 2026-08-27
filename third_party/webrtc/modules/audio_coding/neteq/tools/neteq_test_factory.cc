@@ -271,7 +271,7 @@ std::unique_ptr<NetEqTest> NetEqTestFactory::InitializeTest(
       CreateBuiltinAudioDecoderFactory();
 
   // Check if a replacement audio file was provided.
-  if (config.replacement_audio_file.size() > 0) {
+  if (!config.replacement_audio_file.empty()) {
     // Find largest unused payload type.
     int replacement_pt = 127;
     while (codecs.find(replacement_pt) != codecs.end()) {

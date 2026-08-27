@@ -112,54 +112,32 @@ TEST(KyberTest, Basic) {
 }
 
 static void KyberFileTest(FileTest *t) {
-  std::vector<uint8_t> seed, public_key_expected, private_key_expected,
-      ciphertext_expected, shared_secret_expected, given_generate_entropy,
-      given_encap_entropy_pre_hash;
+  std::vector<uint8_t> public_key_expected, private_key_expected,
+      ciphertext_expected, shared_secret_expected, generate_entropy,
+      encap_entropy_pre_hash;
   t->IgnoreAttribute("count");
-  ASSERT_TRUE(t->GetBytes(&seed, "seed"));
   ASSERT_TRUE(t->GetBytes(&public_key_expected, "pk"));
   ASSERT_TRUE(t->GetBytes(&private_key_expected, "sk"));
   ASSERT_TRUE(t->GetBytes(&ciphertext_expected, "ct"));
   ASSERT_TRUE(t->GetBytes(&shared_secret_expected, "ss"));
-  ASSERT_TRUE(t->GetBytes(&given_generate_entropy, "generateEntropy"));
-  ASSERT_TRUE(
-      t->GetBytes(&given_encap_entropy_pre_hash, "encapEntropyPreHash"));
+  ASSERT_TRUE(t->GetBytes(&generate_entropy, "generateEntropy"));
+  ASSERT_TRUE(t->GetBytes(&encap_entropy_pre_hash, "encapEntropyPreHash"));
 
   KYBER_private_key priv;
   uint8_t encoded_private_key[KYBER_PRIVATE_KEY_BYTES];
   KYBER_public_key pub;
   uint8_t encoded_public_key[KYBER_PUBLIC_KEY_BYTES];
   uint8_t ciphertext[KYBER_CIPHERTEXT_BYTES];
-  uint8_t gen_key_entropy[KYBER_GENERATE_KEY_ENTROPY];
   uint8_t encap_entropy[KYBER_ENCAP_ENTROPY];
   uint8_t encapsulated_key[KYBER_SHARED_SECRET_BYTES];
   uint8_t decapsulated_key[KYBER_SHARED_SECRET_BYTES];
-  // The test vectors provide a CTR-DRBG seed which is used to generate the
-  // input entropy.
-  ASSERT_EQ(seed.size(), size_t{CTR_DRBG_ENTROPY_LEN});
-  CONSTTIME_SECRET(seed.data(), seed.size());
-  {
-    bssl::UniquePtr<CTR_DRBG_STATE> state(
-        CTR_DRBG_new(seed.data(), nullptr, 0));
-    ASSERT_TRUE(state);
-    ASSERT_TRUE(
-        CTR_DRBG_generate(state.get(), gen_key_entropy, 32, nullptr, 0));
-    ASSERT_TRUE(
-        CTR_DRBG_generate(state.get(), gen_key_entropy + 32, 32, nullptr, 0));
-    ASSERT_TRUE(CTR_DRBG_generate(state.get(), encap_entropy,
-                                  KYBER_ENCAP_ENTROPY, nullptr, 0));
-  }
 
-  EXPECT_EQ(Bytes(Declassified(gen_key_entropy)),
-            Bytes(given_generate_entropy));
-  EXPECT_EQ(Bytes(Declassified(encap_entropy)),
-            Bytes(given_encap_entropy_pre_hash));
-
-  BORINGSSL_keccak(encap_entropy, sizeof(encap_entropy), encap_entropy,
-                   sizeof(encap_entropy), boringssl_sha3_256);
+  BORINGSSL_keccak(encap_entropy, sizeof(encap_entropy),
+                   encap_entropy_pre_hash.data(), encap_entropy_pre_hash.size(),
+                   boringssl_sha3_256);
 
   KYBER_generate_key_external_entropy(encoded_public_key, &priv,
-                                      gen_key_entropy);
+                                      generate_entropy.data());
   CBB cbb;
   CBB_init_fixed(&cbb, encoded_private_key, sizeof(encoded_private_key));
   ASSERT_TRUE(KYBER_marshal_private_key(&cbb, &priv));

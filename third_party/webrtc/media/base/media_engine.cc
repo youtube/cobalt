@@ -65,7 +65,7 @@ RtpParameters CreateRtpParametersWithEncodings(StreamParams sp) {
   }
 
   const std::vector<RidDescription>& rids = sp.rids();
-  RTC_DCHECK(rids.size() == 0 || rids.size() == encoding_count);
+  RTC_DCHECK(rids.empty() || rids.size() == encoding_count);
   for (size_t i = 0; i < rids.size(); ++i) {
     encodings[i].rid = rids[i].rid;
   }

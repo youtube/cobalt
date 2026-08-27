@@ -13,11 +13,38 @@
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 
+namespace {
+
+IOSGeminiFirstPromptSubmissionMethod ConvertBWGInputTypeToHistogramEnum(
+    BWGInputType input_type) {
+  switch (input_type) {
+    case BWGInputTypeText:
+      return IOSGeminiFirstPromptSubmissionMethod::kText;
+    case BWGInputTypeSummarize:
+      return IOSGeminiFirstPromptSubmissionMethod::kSummarize;
+    case BWGInputTypeCheckThisSite:
+      return IOSGeminiFirstPromptSubmissionMethod::kCheckThisSite;
+    case BWGInputTypeFindRelatedSites:
+      return IOSGeminiFirstPromptSubmissionMethod::kFindRelatedSites;
+    case BWGInputTypeAskAboutPage:
+      return IOSGeminiFirstPromptSubmissionMethod::kAskAboutPage;
+    case BWGInputTypeUnknown:
+    default:
+      return IOSGeminiFirstPromptSubmissionMethod::kUnknown;
+  }
+}
+
+}  // namespace
+
 @implementation BWGSessionHandler {
   // The associated WebStateList.
   raw_ptr<WebStateList> _webStateList;
   // Session start time for duration tracking.
   base::TimeTicks _sessionStartTime;
+  // Tracks if user has received the first response in current session.
+  BOOL _hasReceivedFirstResponse;
+  // Tracks if user has sent their first prompt in current session.
+  BOOL _hasSubmittedFirstPrompt;
 }
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList {
@@ -41,6 +68,10 @@
   [self setSessionActive:YES clientID:clientID];
   // Start session timer.
   _sessionStartTime = base::TimeTicks::Now();
+  // Reset first response flag for new session.
+  _hasReceivedFirstResponse = NO;
+  // Reset first prompt flag for new session.
+  _hasSubmittedFirstPrompt = NO;
 }
 
 - (void)UIDidDisappearWithClientID:(NSString*)clientID
@@ -59,6 +90,12 @@
 - (void)responseReceivedWithClientID:(NSString*)clientID
                             serverID:(NSString*)serverID {
   [self updateSessionWithClientID:clientID serverID:serverID];
+  if (!_hasReceivedFirstResponse) {
+    _hasReceivedFirstResponse = YES;
+    RecordFirstResponseReceived();
+  }
+  // Track all responses for conversation engagement.
+  RecordBWGResponseReceived();
 }
 
 - (void)didTapBWGSettingsButton {
@@ -67,7 +104,13 @@
 
 - (void)didSendQueryWithInputType:(BWGInputType)inputType
               pageContextAttached:(BOOL)pageContextAttached {
-  // TODO(crbug.com/434758568): Add metrics logging for query sent events.
+  // Check if this is the user's first prompt.
+  if (!_hasSubmittedFirstPrompt) {
+    _hasSubmittedFirstPrompt = YES;
+    IOSGeminiFirstPromptSubmissionMethod method =
+        ConvertBWGInputTypeToHistogramEnum(inputType);
+    RecordFirstPromptSubmission(method);
+  }
 }
 
 // Called when a new chat button is tapped.

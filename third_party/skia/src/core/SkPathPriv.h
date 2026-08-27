@@ -105,22 +105,13 @@ public:
         return IsClosedSingleContour(path.fPathRef->verbs());
     }
 
-    // In some scenarios (e.g. fill or convexity checking all but the last leading move to are
-    // irrelevant to behavior). SkPath::injectMoveToIfNeeded should ensure that this is always at
-    // least 1.
-    static int LeadingMoveToCount(SkSpan<const SkPathVerb> verbs) {
-        const int N = SkToInt(verbs.size());
-        for (int i = 0; i < N; i++) {
-            if (verbs[i] != SkPathVerb::kMove) {
-                return i;
-            }
-        }
-        return N; // path is all move verbs
-    }
-
-    static int LeadingMoveToCount(const SkPath& path) {
-        return LeadingMoveToCount(path.fPathRef->verbs());
-    }
+    /*
+     *  If we're transforming a known shape (oval or rrect), this computes what happens to its
+     *  - winding direction
+     *  - start index
+     */
+    static std::pair<SkPathDirection, unsigned>
+    TransformDirAndStart(const SkMatrix&, bool isRRect, SkPathDirection dir, unsigned start);
 
     static void AddGenIDChangeListener(const SkPath& path, sk_sp<SkIDChangeListener> listener) {
         path.fPathRef->addGenIDChangeListener(std::move(listener));
@@ -309,10 +300,6 @@ public:
         return true;
     }
 
-    static bool AllPointsEq(const SkPoint pts[], int count) {
-        return AllPointsEq({pts, count});
-    }
-
     static int LastMoveToIndex(const SkPath& path) { return path.fLastMoveToIndex; }
 
     struct RectContour {
@@ -346,6 +333,19 @@ public:
 
     static bool IsInverseFillType(SkPathFillType fill) {
         return (static_cast<int>(fill) & 2) != 0;
+    }
+
+    /*
+     *  We are effectively empty if we have zero or one verbs.
+     *  Zero obviously means we're empty.
+     *  One means we only have a MoveTo -- but no segments, so this is effectively
+     *  empty (e.g. when adding another contour, this moveTo will be overwritten).
+     */
+    static bool IsEffectivelyEmpty(const SkPath& path) {
+        return path.countVerbs() <= 1;
+    }
+    static bool IsEffectivelyEmpty(const SkPathBuilder& builder) {
+        return builder.verbs().size() <= 1;
     }
 
     /** Returns equivalent SkPath::FillType representing SkPath fill inside its bounds.
@@ -436,6 +436,18 @@ public:
             SkTo<uint8_t>(path.getSegmentMasks()),
         };
     }
+
+    static SkPathRaw Raw(const SkPathBuilder& builder) {
+        return {
+            builder.points(),
+            builder.verbs(),
+            builder.conicWeights(),
+            builder.computeBounds(),
+            builder.fillType(),
+            builder.fConvexity == SkPathConvexity::kConvex,
+            SkTo<uint8_t>(builder.fSegmentMask),
+        };
+    }
 };
 
 // Lightweight variant of SkPath::Iter that only returns segments (e.g. lines/conics).
@@ -475,6 +487,7 @@ public:
         return SkPathVerb(e);
     }
 
+    // todo: return as optional? fPts become span?
     struct Result {
         const SkPoint*  fPts;   // points for the segment, or null if done
         Edge            fEdge;

@@ -163,7 +163,7 @@ inline bool AlreadyInARegister(Arg arg) {
 
 inline bool AlreadyInARegister(Register reg) { return true; }
 
-inline bool AlreadyInARegister(const Input& input) {
+inline bool AlreadyInARegister(ConstInput input) {
   if (input.operand().IsConstant()) {
     return false;
   }
@@ -191,7 +191,7 @@ inline Register ToRegister(MaglevAssembler* masm,
 }
 inline Register ToRegister(MaglevAssembler* masm,
                            MaglevAssembler::TemporaryRegisterScope* scratch,
-                           const Input& input) {
+                           Input input) {
   if (input.operand().IsConstant()) {
     Register reg = scratch->AcquireScratch();
     input.node()->LoadToRegister(masm, reg);
@@ -204,7 +204,7 @@ inline Register ToRegister(MaglevAssembler* masm,
   } else {
     DCHECK(operand.IsStackSlot());
     Register reg = scratch->AcquireScratch();
-    masm->Move(reg, masm->ToMemOperand(input));
+    masm->Move(reg, masm->ToMemOperand(operand));
     return reg;
   }
 }
@@ -218,7 +218,7 @@ struct PushAllHelper<> {
   static void PushReverse(MaglevAssembler* masm) {}
 };
 
-inline void PushInput(MaglevAssembler* masm, const Input& input) {
+inline void PushInput(MaglevAssembler* masm, ConstInput input) {
   if (input.operand().IsConstant()) {
     MaglevAssembler::TemporaryRegisterScope temps(masm);
     Register scratch = temps.AcquireScratch();
@@ -241,9 +241,8 @@ inline void PushInput(MaglevAssembler* masm, const Input& input) {
   }
 }
 
-template <typename T, typename... Args>
-inline void PushIterator(MaglevAssembler* masm, base::iterator_range<T> range,
-                         Args... args) {
+template <std::ranges::range Range, typename... Args>
+inline void PushIterator(MaglevAssembler* masm, Range range, Args... args) {
   for (auto iter = range.begin(), end = range.end(); iter != end; ++iter) {
     masm->Push(*iter);
   }
@@ -261,12 +260,11 @@ inline void PushIteratorReverse(MaglevAssembler* masm,
 
 template <typename... Args>
 struct PushAllHelper<Input, Args...> {
-  static void Push(MaglevAssembler* masm, const Input& arg, Args... args) {
+  static void Push(MaglevAssembler* masm, Input arg, Args... args) {
     PushInput(masm, arg);
     PushAllHelper<Args...>::Push(masm, args...);
   }
-  static void PushReverse(MaglevAssembler* masm, const Input& arg,
-                          Args... args) {
+  static void PushReverse(MaglevAssembler* masm, Input arg, Args... args) {
     PushAllHelper<Args...>::PushReverse(masm, args...);
     PushInput(masm, arg);
   }
@@ -274,7 +272,7 @@ struct PushAllHelper<Input, Args...> {
 template <typename Arg, typename... Args>
 struct PushAllHelper<Arg, Args...> {
   static void Push(MaglevAssembler* masm, Arg arg, Args... args) {
-    if constexpr (is_iterator_range<Arg>::value) {
+    if constexpr (is_iterator_range<Arg>::value || std::ranges::range<Arg>) {
       PushIterator(masm, arg, args...);
     } else {
       masm->MacroAssembler::Push(arg);
@@ -284,6 +282,9 @@ struct PushAllHelper<Arg, Args...> {
   static void PushReverse(MaglevAssembler* masm, Arg arg, Args... args) {
     if constexpr (is_iterator_range<Arg>::value) {
       PushIteratorReverse(masm, arg, args...);
+    } else if constexpr (std::ranges::range<Arg>) {
+      PushIteratorReverse(
+          masm, base::make_iterator_range(arg.begin(), arg.end()), args...);
     } else {
       PushAllHelper<Args...>::PushReverse(masm, args...);
       masm->Push(arg);
@@ -340,40 +341,31 @@ inline void MaglevAssembler::AssertMap(Register object) {
 #endif
 
 inline Condition MaglevAssembler::TrySmiTagInt32(Register dst, Register src) {
-  // FIXME check callsites and subsequent calls to Assert!
-  ASM_CODE_COMMENT(this);
-  static_assert(kSmiTag == 0);
-  // NB: JumpIf expects the result in dedicated "flag" register
+  CHECK(!SmiValuesAre32Bits());
+  // NB: JumpIf expects the result in dedicated "flag" register.
   Register overflow_flag = MaglevAssembler::GetFlagsRegister();
-  if (SmiValuesAre31Bits()) {
-    // Smi is shifted left by 1, so double incoming integer using 64- and 32-bit
-    // addition operations and then compare the results to detect overflow. The
-    // order does matter cuz in common way dst != src is NOT guarantied
-    Add64(overflow_flag, src, src);
-    Add32(dst, src, src);
-    Sne(overflow_flag, overflow_flag, Operand(dst));
-  } else {
-    // Smi goes to upper 32
-    slli(dst, src, 32);
-    // no overflow happens (check!)
-    Move(overflow_flag, zero_reg);
-  }
+  // Smi is shifted left by 1, so double incoming integer using 64- and 32-bit
+  // addition operations and then compare the results to detect overflow. The
+  // order matters because the dst and src registers may be the same.
+  Add64(overflow_flag, src, src);
+  Add32(dst, src, src);
+  Sne(overflow_flag, overflow_flag, Operand(dst));
   return kNoOverflow;
 }
 
-inline void MaglevAssembler::CheckInt32IsSmi(Register maybeSmi, Label* fail,
+inline void MaglevAssembler::CheckInt32IsSmi(Register maybe_smi, Label* fail,
                                              Register scratch) {
-  DCHECK(!SmiValuesAre32Bits());
-  // Smi is shifted left by 1
+  CHECK(!SmiValuesAre32Bits());
+  // Smi is shifted left by 1.
   MaglevAssembler::TemporaryRegisterScope temps(this);
   if (scratch == Register::no_reg()) {
     scratch = temps.AcquireScratch();
   }
   Register sum32 = scratch;
   Register sum64 = temps.AcquireScratch();
-  Add32(sum32, maybeSmi, Operand(maybeSmi));
-  Add64(sum64, maybeSmi, Operand(maybeSmi));
-  // overflow happened if sum64 != sum32
+  Add32(sum32, maybe_smi, Operand(maybe_smi));
+  Add64(sum64, maybe_smi, Operand(maybe_smi));
+  // Overflow happened if sum64 != sum32.
   MacroAssembler::Branch(fail, ne, sum64, Operand(sum32));
 }
 
@@ -467,7 +459,7 @@ inline Condition MaglevAssembler::IsRootConstant(Input input,
     DCHECK(input.operand().IsStackSlot());
     MaglevAssembler::TemporaryRegisterScope temps(this);
     Register scratch = temps.AcquireScratch();
-    LoadWord(scratch, ToMemOperand(input));
+    LoadWord(scratch, ToMemOperand(input.operand()));
     MacroAssembler::CompareRoot(scratch, root_index, aflag);
   }
   return eq;
@@ -488,10 +480,6 @@ inline MemOperand MaglevAssembler::GetStackSlot(
 inline MemOperand MaglevAssembler::ToMemOperand(
     const compiler::InstructionOperand& operand) {
   return GetStackSlot(compiler::AllocatedOperand::cast(operand));
-}
-
-inline MemOperand MaglevAssembler::ToMemOperand(const ValueLocation& location) {
-  return ToMemOperand(location.operand());
 }
 
 inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,

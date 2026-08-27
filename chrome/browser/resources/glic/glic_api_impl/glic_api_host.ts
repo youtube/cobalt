@@ -6,6 +6,7 @@
 // Communicates with the web client side in
 // glic_api_host/glic_api_impl.ts.
 
+import {assertNotReached} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {BigBuffer} from '//resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 import type {TimeDelta} from '//resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
@@ -16,11 +17,13 @@ import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import type {BrowserProxy} from '../browser_proxy.js';
 import {ContentSettingsType} from '../content_settings_types.mojom-webui.js';
-import type {ActorTaskState as ActorTaskStateMojo, FocusedTabData as FocusedTabDataMojo, GetPinCandidatesOptions as GetPinCandidatesOptionsMojo, GetTabContextOptions as TabContextOptionsMojo, OpenPanelInfo as OpenPanelInfoMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PanelOpeningData as PanelOpeningDataMojo, PanelState as PanelStateMojo, PinCandidate as PinCandidateMojo, PinCandidatesObserver, ScrollToSelector as ScrollToSelectorMojo, TabContext as TabContextMojo, TabData as TabDataMojo, ViewChangeRequest as ViewChangeRequestMojo, WebClientHandlerInterface, WebClientInterface, ZeroStateSuggestionsOptions as ZeroStateSuggestionsOptionsMojo, ZeroStateSuggestionsV2 as ZeroStateSuggestionsV2Mojo} from '../glic.mojom-webui.js';
+import type {ActorTaskPauseReason as ActorTaskPauseReasonMojo, ActorTaskState as ActorTaskStateMojo, ActorTaskStopReason as ActorTaskStopReasonMojo, FocusedTabData as FocusedTabDataMojo, GetPinCandidatesOptions as GetPinCandidatesOptionsMojo, GetTabContextOptions as TabContextOptionsMojo, OpenPanelInfo as OpenPanelInfoMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PanelOpeningData as PanelOpeningDataMojo, PanelState as PanelStateMojo, PinCandidate as PinCandidateMojo, PinCandidatesObserver, ScrollToSelector as ScrollToSelectorMojo, TabContext as TabContextMojo, TabData as TabDataMojo, ViewChangeRequest as ViewChangeRequestMojo, WebClientHandlerInterface, WebClientInterface, ZeroStateSuggestionsOptions as ZeroStateSuggestionsOptionsMojo, ZeroStateSuggestionsV2 as ZeroStateSuggestionsV2Mojo} from '../glic.mojom-webui.js';
 import {CurrentView as CurrentViewMojo, PinCandidatesObserverReceiver, SettingsPageField as SettingsPageFieldMojo, WebClientHandlerRemote, WebClientMode, WebClientReceiver} from '../glic.mojom-webui.js';
 import type {HostCapability as HostCapabilityMojo} from '../glic.mojom-webui.js';
-import type {ActorTaskState, DraggableArea, GetPinCandidatesOptions, HostCapability, Journal, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, Screenshot, ScrollToParams, TabContextOptions, ViewChangedNotification, ViewChangeRequest, WebPageData, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
-import {CaptureScreenshotErrorReason, ClientView, CreateTaskErrorReason, DEFAULT_INNER_TEXT_BYTES_LIMIT, DEFAULT_PDF_SIZE_LIMIT, PerformActionsErrorReason, ScrollToErrorReason} from '../glic_api/glic_api.js';
+import {ResponseStopCause as ResponseStopCauseMojo} from '../glic.mojom-webui.js';
+import type {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, DraggableArea, GetPinCandidatesOptions, HostCapability, Journal, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, Screenshot, ScrollToParams, TabContextOptions, ViewChangedNotification, ViewChangeRequest, WebPageData, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import {CaptureScreenshotErrorReason, ClientView, CreateTaskErrorReason, DEFAULT_INNER_TEXT_BYTES_LIMIT, DEFAULT_PDF_SIZE_LIMIT, PerformActionsErrorReason, ResponseStopCause, ScrollToErrorReason} from '../glic_api/glic_api.js';
+import type {OnResponseStoppedDetails} from '../glic_api/glic_api.js';
 import {ObservableValue} from '../observable.js';
 import type {ObservableValueReadOnly} from '../observable.js';
 import {OneShotTimer} from '../timer.js';
@@ -260,8 +263,34 @@ class WebClientImpl implements WebClientInterface {
 }
 
 class PinCandidatesObserverImpl implements PinCandidatesObserver {
+  receiver?: PinCandidatesObserverReceiver;
   constructor(
-      private sender: PostMessageRequestSender, public observationId: number) {}
+      private sender: PostMessageRequestSender,
+      private handler: WebClientHandlerInterface,
+      private options: GetPinCandidatesOptions, public observationId: number) {
+    this.connectToSource();
+  }
+
+  // Stops requesting updates. This should be called on destruction, as well as
+  // when the panel is hidden to avoid incurring unnecessary costs.
+  disconnectFromSource() {
+    if (!this.receiver) {
+      return;
+    }
+    this.receiver.$.close();
+    this.receiver = undefined;
+  }
+
+  // Start/resume requesting updates.
+  connectToSource() {
+    if (this.receiver) {
+      return;
+    }
+    this.receiver = new PinCandidatesObserverReceiver(this);
+    this.handler.subscribeToPinCandidates(
+        getPinCandidatesOptionsFromClient(this.options),
+        this.receiver.$.bindNewPipeAndPassRemote());
+  }
 
   onPinCandidatesChanged(candidates: PinCandidateMojo[]): void {
     const extras = new ResponseExtras();
@@ -508,12 +537,18 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     }
   }
 
-  glicBrowserStopActorTask(request: {taskId: number}): void {
-    this.handler.stopActorTask(request.taskId);
+  glicBrowserStopActorTask(
+      request: {taskId: number, stopReason: ActorTaskStopReason}): void {
+    const actorTaskStopReason =
+        request.stopReason as number as ActorTaskStopReasonMojo;
+    this.handler.stopActorTask(request.taskId, actorTaskStopReason);
   }
 
-  glicBrowserPauseActorTask(request: {taskId: number}): void {
-    this.handler.pauseActorTask(request.taskId);
+  glicBrowserPauseActorTask(
+      request: {taskId: number, pauseReason: ActorTaskPauseReason}): void {
+    const actorTaskPauseReason =
+        request.pauseReason as number as ActorTaskPauseReasonMojo;
+    this.handler.pauseActorTask(request.taskId, actorTaskPauseReason);
   }
 
   async glicBrowserResumeActorTask(
@@ -632,8 +667,24 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     this.handler.onResponseStarted();
   }
 
-  glicBrowserOnResponseStopped(): void {
-    this.handler.onResponseStopped();
+  glicBrowserOnResponseStopped(request: {details?: OnResponseStoppedDetails}):
+      void {
+    const cause = request.details?.cause;
+
+    let causeMojo = ResponseStopCauseMojo.kUnknown;
+    if (cause !== undefined) {
+      switch (cause) {
+        case ResponseStopCause.USER:
+          causeMojo = ResponseStopCauseMojo.kUser;
+          break;
+        case ResponseStopCause.OTHER:
+          causeMojo = ResponseStopCauseMojo.kOther;
+          break;
+        default:
+          assertNotReached();
+      }
+    }
+    this.handler.onResponseStopped({cause: causeMojo});
   }
 
   glicBrowserOnSessionTerminated(): void {
@@ -819,13 +870,9 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     options: GetPinCandidatesOptions,
     observationId: number,
   }): void {
-    const observer =
-        new PinCandidatesObserverImpl(this.sender, request.observationId);
-    const receiver = new PinCandidatesObserverReceiver(observer);
-    this.host.pinCandidatesObserver = {receiver, observer};
-    this.handler.subscribeToPinCandidates(
-        getPinCandidatesOptionsFromClient(request.options),
-        receiver.$.bindNewPipeAndPassRemote());
+    this.host.pinCandidatesObserver?.disconnectFromSource();
+    this.host.pinCandidatesObserver = new PinCandidatesObserverImpl(
+        this.sender, this.handler, request.options, request.observationId);
   }
 
   glicBrowserUnsubscribeFromPinCandidates(request: {observationId: number}):
@@ -833,9 +880,9 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     if (!this.host.pinCandidatesObserver) {
       return;
     }
-    if (this.host.pinCandidatesObserver.observer.observationId ===
+    if (this.host.pinCandidatesObserver.observationId ===
         request.observationId) {
-      this.host.pinCandidatesObserver.receiver.$.close();
+      this.host.pinCandidatesObserver.disconnectFromSource();
       this.host.pinCandidatesObserver = undefined;
     }
   }
@@ -929,10 +976,8 @@ export class GlicApiHost implements PostMessageRequestHandler {
   private browserIsActive = true;
   private hasShownDebuggerAttachedWarning = false;
   detailedWebClientState = DetailedWebClientState.BOOTSTRAP_PENDING;
-  pinCandidatesObserver?: {
-    receiver: PinCandidatesObserverReceiver,
-    observer: PinCandidatesObserverImpl,
-  };
+  // Present while the client is monitoring pin candidates.
+  pinCandidatesObserver?: PinCandidatesObserverImpl;
 
   constructor(
       private browserProxy: BrowserProxy, private windowProxy: WindowProxy,
@@ -965,7 +1010,7 @@ export class GlicApiHost implements PostMessageRequestHandler {
     this.postMessageReceiver.destroy();
     this.messageHandler.destroy();
     this.sender.destroy();
-    this.closePinCandidatesObserver();
+    this.pinCandidatesObserver?.disconnectFromSource();
   }
 
   // Called when the webview page is loaded.
@@ -988,7 +1033,9 @@ export class GlicApiHost implements PostMessageRequestHandler {
     this.panelOpenState = state;
     this.clientActiveObs.assignAndSignal(this.isClientActive());
     if (state === PanelOpenState.CLOSED) {
-      this.closePinCandidatesObserver();
+      this.pinCandidatesObserver?.disconnectFromSource();
+    } else {
+      this.pinCandidatesObserver?.connectToSource();
     }
   }
 
@@ -1223,13 +1270,6 @@ export class GlicApiHost implements PostMessageRequestHandler {
     chrome.metricsPrivate.recordEnumerationValue(
         `Glic.Api.RequestCounts.${suffix}`, event,
         GlicRequestEvent.MAX_VALUE + 1);
-  }
-
-  closePinCandidatesObserver() {
-    if (this.pinCandidatesObserver) {
-      this.pinCandidatesObserver.receiver.$.close();
-      this.pinCandidatesObserver = undefined;
-    }
   }
 }
 

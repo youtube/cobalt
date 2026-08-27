@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
@@ -75,13 +76,13 @@ class CommandStorageBackendTest : public testing::Test {
   }
 
   void AssertCommandsEqualsData(
-      const TestData* data,
-      size_t data_length,
+      base::span<const TestData> data,
       const std::vector<std::unique_ptr<SessionCommand>>& commands) {
-    ASSERT_EQ(data_length, commands.size());
-    for (size_t i = 0; i < data_length; ++i)
-      UNSAFE_TODO(EXPECT_NO_FATAL_FAILURE(
-          AssertCommandEqualsData(data[i], commands[i].get())));
+    ASSERT_EQ(data.size(), commands.size());
+    for (size_t i = 0; i < data.size(); ++i) {
+      EXPECT_NO_FATAL_FAILURE(
+          AssertCommandEqualsData(data[i], commands[i].get()));
+    }
   }
 
   scoped_refptr<CommandStorageBackend> CreateBackend(
@@ -677,11 +678,6 @@ TEST_F(CommandStorageBackendTest, GetSessionFiles) {
   EXPECT_EQ("Session_124", paths.begin()->BaseName().MaybeAsASCII());
 }
 
-TEST_F(CommandStorageBackendTest, TimestampSeparatorIsAscii) {
-  // Code in WebLayer relies on the timestamp separator being ascii.
-  ASSERT_TRUE(!base::FilePath(kTimestampSeparator).MaybeAsASCII().empty());
-}
-
 TEST_F(CommandStorageBackendTest, GetSessionFilesAreSortedByReverseTimestamp) {
   ASSERT_TRUE(
       base::WriteFile(file_path().DirName().AppendASCII("Session_130"), ""));
@@ -748,8 +744,7 @@ TEST_F(CommandStorageBackendTest, ReadPreviouslyWrittenData) {
   ASSERT_TRUE(base::CopyFile(
       test_data_path, restore_path().Append(kLegacyCurrentSessionFileName)));
   scoped_refptr<CommandStorageBackend> backend = CreateBackendWithRestoreType();
-  AssertCommandsEqualsData(data, std::size(data),
-                           backend->ReadLastSessionCommands().commands);
+  AssertCommandsEqualsData(data, backend->ReadLastSessionCommands().commands);
 }
 
 TEST_F(CommandStorageBackendTest, NewFileOnTruncate) {

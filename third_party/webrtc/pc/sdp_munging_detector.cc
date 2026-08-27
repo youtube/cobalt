@@ -372,7 +372,10 @@ SdpMungingType DetermineSdpMungingType(
     const SessionDescriptionInterface* last_created_desc) {
   if (!sdesc || !sdesc->description()) {
     RTC_LOG(LS_WARNING) << "SDP munging: Failed to parse session description.";
-    return SdpMungingType::kUnknownModification;
+    // This is done to ensure the pointers are valid and should not happen at
+    // this point.
+    RTC_DCHECK_NOTREACHED();
+    return SdpMungingType::kCurrentDescriptionFailedToParse;
   }
 
   if (!last_created_desc || !last_created_desc->description()) {
@@ -598,8 +601,14 @@ bool HasUfragSdpMunging(const SessionDescriptionInterface* sdesc,
 
 bool IsSdpMungingAllowed(SdpMungingType sdp_munging_type,
                          const FieldTrialsView& trials) {
-  if (sdp_munging_type == SdpMungingType::kNoModification) {
-    return true;
+  switch (sdp_munging_type) {
+    case SdpMungingType::kNoModification:
+      return true;
+    case SdpMungingType::kNumberOfContents:
+      return false;
+    default:
+      // Handled below.
+      break;
   }
   std::string type_as_string =
       std::to_string(static_cast<int>(sdp_munging_type));

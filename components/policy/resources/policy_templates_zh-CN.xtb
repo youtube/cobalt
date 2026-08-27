@@ -3198,6 +3198,11 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
           如需详细了解有效网址格式，请访问 https://chromeenterprise.google/intl/zh_cn/policies/url-patterns/。允许使用通配符 <ph name="WILDCARD_VALUE" />。</translation>
 <translation id="3273221114520206906">默认 JavaScript 设置</translation>
 <translation id="3278042410658310805">为登录屏幕停用语音反馈，并允许用户暂时启用它</translation>
+<translation id="3279532732818711062">设置此政策，以允许列出的源使用 Device Attributes API 获取设备属性，例如序列号、主机名。
+
+源必须对应于使用 <ph name="ISOLATED_WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> 政策强制安装的独立式 Web 应用 (IWA)（自 125 版起）、设置为自助服务终端应用的 Web 应用，或使用 <ph name="WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> 强制安装的 Web 应用（140 版之前）。如需了解 Device Attributes API 规范，请访问 https://wicg.github.io/WebApiDevice/device_attributes。
+
+如需详细了解有效的<ph name="URL_LABEL" />格式（自 127 版起），请访问 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。<ph name="WILDCARD_VALUE" /> 不是此政策可接受的值。</translation>
 <translation id="328347261792478720">默认情况下，浏览器会显示为用户量身定制的媒体推荐内容。如果此政策已停用，系统将对用户隐藏这些推荐内容。如果此政策已启用或未设置，系统则会向用户显示媒体推荐内容。</translation>
 <translation id="3284094172359247914">控制对 WebUSB API 的使用</translation>
 <translation id="3285231260918855067">水印文字的轮廓不透明度，范围为 0（透明）到 100（不透明）。</translation>
@@ -4242,6 +4247,7 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="4051723201852944592">启用窗口遮挡</translation>
 <translation id="4052529125939620019">在浏览器启动时加载 CryptoToken 组件扩展程序</translation>
 <translation id="4053157306171963473">停用设备活动时长报告功能</translation>
+<translation id="4053168888967633418">设备属性设置</translation>
 <translation id="4056842786707010434">选择是否允许清除顶层跨网站导航的 window.name，以便产生新的浏览上下文群组。</translation>
 <translation id="4056910949759281379">停用 SPDY 协议</translation>
 <translation id="4057442294431066708">此政策旨在控制用于在“重新映射键盘按键”子页面中将事件重新映射到 F11/F12 的选定快捷键选项。这些设置仅适用于 ChromeOS 键盘；如果未设置此政策，这些设置默认处于停用状态。</translation>
@@ -11289,13 +11295,6 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 
       如果此政策已停用，已注册的设备将不会报告版本信息。</translation>
 <translation id="8934296213794658971">Gemini 集成的设置</translation>
-<translation id="8934485887744460569">配置 <ph name="PRODUCT_NAME" /> 如何下载基础生成式 AI 模型并在本地用于推理。
-
-如果此政策设为“允许 (0)”或未设置，系统会自动下载模型，并将其用于推理。
-
-如果此政策设为“已停用 (1)”，系统将不会下载模型。
-
-也可以通过 <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> 停用模型下载功能。</translation>
 <translation id="8937282917198525844"> 从 M81 开始，我们不仅更新了标准表单控件元素（例如 &lt;select&gt;、&lt;button&gt;、&lt;input type=date&gt;）的外观和风格，还改进了无障碍功能并提升了平台统一性。此政策用于在 M84 之前的版本中恢复“旧版”表单控件元素。
 
       如果此政策设为 True，系统将会为所有网站使用“旧版”表单控件元素。

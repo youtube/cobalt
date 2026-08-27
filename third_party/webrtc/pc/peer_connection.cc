@@ -404,7 +404,7 @@ bool PeerConnectionInterface::RTCConfiguration::operator==(
     SdpSemantics sdp_semantics;
     std::optional<AdapterType> network_preference;
     bool active_reset_srtp_params;
-    std::optional<CryptoOptions> crypto_options;
+    CryptoOptions crypto_options;
     bool offer_extmap_allow_mixed;
     std::string turn_logging_id;
     bool enable_implicit_rollback;
@@ -687,9 +687,7 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
   config.disable_encryption = options_.disable_encryption;
   config.bundle_policy = configuration.bundle_policy;
   config.rtcp_mux_policy = configuration.rtcp_mux_policy;
-  config.crypto_options = configuration.crypto_options.has_value()
-                              ? *configuration.crypto_options
-                              : CryptoOptions();
+  config.crypto_options = configuration.crypto_options;
 
   // Maybe enable PQC from FieldTrials
   config.crypto_options.ephemeral_key_exchange_cipher_groups.Update(
@@ -1366,7 +1364,7 @@ std::optional<bool> PeerConnection::can_trickle_ice_candidates() {
     return std::nullopt;
   }
   // TODO(bugs.webrtc.org/7443): Change to retrieve from session-level option.
-  if (description->description()->transport_infos().size() < 1) {
+  if (description->description()->transport_infos().empty()) {
     return std::nullopt;
   }
   return description->description()->transport_infos()[0].description.HasOption(
@@ -1494,8 +1492,7 @@ RTCError PeerConnection::SetConfiguration(
   }
 
   if (has_local_description &&
-      configuration.crypto_options.value_or(CryptoOptions()) !=
-          configuration_.crypto_options) {
+      configuration.crypto_options != configuration_.crypto_options) {
     LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_MODIFICATION,
                          "Can't change crypto_options after calling "
                          "SetLocalDescription.");
@@ -2973,10 +2970,7 @@ RTCError PeerConnection::StartSctpTransport(const SctpOptions& options) {
 
 CryptoOptions PeerConnection::GetCryptoOptions() {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  if (!configuration_.crypto_options) {
-    configuration_.crypto_options = CryptoOptions();
-  }
-  return *configuration_.crypto_options;
+  return configuration_.crypto_options;
 }
 
 void PeerConnection::ClearStatsCache() {

@@ -139,7 +139,7 @@ void EncodeDecodeSpeech(AudioEncoderOpusImpl& encoder,
     encoder.Encode(rtp_timestamp++, audio_frame.data_view().data(), &payload);
 
     // Ignore empty payloads: the encoder needs more audio to produce a packet.
-    if (payload.size() == 0) {
+    if (payload.empty()) {
       continue;
     }
 
@@ -171,7 +171,7 @@ void EncodeDecodeNoiseUntilDecoderInDtxMode(AudioEncoderOpusImpl& encoder,
         encoder.Encode(rtp_timestamp++, input_frame, &payload);
 
     // Ignore empty payloads: the encoder needs more audio to produce a packet.
-    if (payload.size() == 0) {
+    if (payload.empty()) {
       continue;
     }
 
@@ -222,7 +222,7 @@ std::vector<int16_t> EncodeDecodeSpeechUntilOneFrameIsDecoded(
     encoder.Encode(rtp_timestamp++, audio_frame.data_view().data(), &payload);
 
     // Ignore empty payloads: the encoder needs more audio to produce a packet.
-    if (payload.size() == 0) {
+    if (payload.empty()) {
       continue;
     }
 
@@ -265,7 +265,7 @@ TEST(AudioDecoderOpusTest, MonoEncoderStereoDecoderOutputsTrivialStereo) {
     generator.GenerateNextFrame(input_frame);
     Buffer payload;
     encoder.Encode(rtp_timestamp++, input_frame, &payload);
-    if (payload.size() == 0) {
+    if (payload.empty()) {
       continue;
     }
 

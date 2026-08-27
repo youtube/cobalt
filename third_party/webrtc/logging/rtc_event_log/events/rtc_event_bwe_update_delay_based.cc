@@ -16,15 +16,8 @@
 #include "absl/memory/memory.h"
 #include "api/rtc_event_log/rtc_event.h"
 #include "api/transport/bandwidth_usage.h"
-#include "logging/rtc_event_log/events/rtc_event_definition.h"
 
 namespace webrtc {
-
-constexpr RtcEventDefinition<RtcEventBweUpdateDelayBased,
-                             LoggedBweDelayBasedUpdate,
-                             int32_t,
-                             BandwidthUsage>
-    RtcEventBweUpdateDelayBased::definition_;
 
 RtcEventBweUpdateDelayBased::RtcEventBweUpdateDelayBased(
     int32_t bitrate_bps,

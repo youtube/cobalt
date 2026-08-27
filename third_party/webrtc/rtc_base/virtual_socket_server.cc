@@ -1217,7 +1217,7 @@ struct FunctionDomainCmp {
 
 std::unique_ptr<VirtualSocketServer::Function> VirtualSocketServer::Accumulate(
     std::unique_ptr<Function> f) {
-  RTC_DCHECK(f->size() >= 1);
+  RTC_DCHECK(!f->empty());
   double v = 0;
   for (Function::size_type i = 0; i < f->size() - 1; ++i) {
     double dx = (*f)[i + 1].first - (*f)[i].first;
@@ -1260,7 +1260,7 @@ double VirtualSocketServer::Evaluate(const Function* f, double x) {
   if (iter == f->begin()) {
     return (*f)[0].second;
   } else if (iter == f->end()) {
-    RTC_DCHECK(f->size() >= 1);
+    RTC_DCHECK(!f->empty());
     return (*f)[f->size() - 1].second;
   } else if (iter->first == x) {
     return iter->second;

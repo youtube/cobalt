@@ -15,19 +15,18 @@
 namespace webrtc {
 namespace jni {
 
-std::optional<CryptoOptions> JavaToNativeOptionalCryptoOptions(
+CryptoOptions JavaToNativeCryptoOptions(
     JNIEnv* jni,
     const JavaRef<jobject>& j_crypto_options) {
+  CryptoOptions native_crypto_options;
   if (j_crypto_options.is_null()) {
-    return std::nullopt;
+    return native_crypto_options;
   }
-
   ScopedJavaLocalRef<jobject> j_srtp =
       Java_CryptoOptions_getSrtp(jni, j_crypto_options);
   ScopedJavaLocalRef<jobject> j_sframe =
       Java_CryptoOptions_getSFrame(jni, j_crypto_options);
 
-  CryptoOptions native_crypto_options;
   native_crypto_options.srtp.enable_gcm_crypto_suites =
       Java_Srtp_getEnableGcmCryptoSuites(jni, j_srtp);
   native_crypto_options.srtp.enable_aes128_sha1_32_crypto_cipher =
@@ -36,7 +35,7 @@ std::optional<CryptoOptions> JavaToNativeOptionalCryptoOptions(
       Java_Srtp_getEnableEncryptedRtpHeaderExtensions(jni, j_srtp);
   native_crypto_options.sframe.require_frame_encryption =
       Java_SFrame_getRequireFrameEncryption(jni, j_sframe);
-  return std::optional<CryptoOptions>(native_crypto_options);
+  return native_crypto_options;
 }
 
 }  // namespace jni

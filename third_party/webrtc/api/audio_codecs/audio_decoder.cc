@@ -174,5 +174,4 @@ AudioDecoder::SpeechType AudioDecoder::ConvertSpeechType(int16_t type) {
   }
 }
 
-constexpr int AudioDecoder::kMaxNumberOfChannels;
 }  // namespace webrtc

@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/video/corruption_detection_filter_settings.h"
+#include "api/video/corruption_detection/corruption_detection_filter_settings.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"

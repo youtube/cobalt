@@ -71,12 +71,20 @@ class MaglevGraphLabeller {
       os << "v" << node->id() << "/";
     }
     os << "n" << node_id_it->second.label;
+
+    if (node->Is<Identity>()) {
+      os << ":ID[";
+      PrintNodeLabel(os, node->input(0).node(), has_regalloc_data);
+      os << "]";
+      return;
+    }
   }
 
-  void PrintInput(std::ostream& os, const Input& input,
-                  bool has_regalloc_data) {
+  void PrintInput(std::ostream& os, ConstInput input, bool has_regalloc_data) {
     PrintNodeLabel(os, input.node(), has_regalloc_data);
-    os << ":" << input.operand();
+    if (has_regalloc_data) {
+      os << ":" << input.operand();
+    }
   }
 
  private:
@@ -128,7 +136,8 @@ class PrintNodeLabel {
 
 class PrintNode {
  public:
-  explicit PrintNode(const NodeBase* node, bool skip_targets = false) {}
+  explicit PrintNode(const NodeBase* node, bool has_regalloc_data = false,
+                     bool skip_targets = false) {}
   void Print(std::ostream& os) const {}
 };
 

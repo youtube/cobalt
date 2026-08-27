@@ -443,16 +443,12 @@ void VulkanPreferredFeatures::addFeaturesToQuery(const VkExtensionProperties* de
     // For now, pretend these extensions are not supported. This de-risks using this API by users
     // who didn't previously enable them. Those already in use by Skia will be re-enabled shortly
     // after. Those not yet in use by Skia will be enabled in the future when they start to get used.
-    exts.fExtendedDynamicStateEXT = false;
-    exts.fExtendedDynamicState2EXT = false;
     exts.fVertexInputDynamicStateEXT = false;
     exts.fPipelineLibraryKHR = false;
     exts.fGraphicsPipelineLibraryEXT = false;
     exts.fSynchronization2KHR = false;
     exts.fDynamicRenderingKHR = false;
     exts.fDynamicRenderingLocalReadKHR = false;
-    exts.fMultisampledRenderToSingleSampledEXT = false;
-    exts.fDepthStencilResolveKHR = false;
     exts.fHostImageCopyEXT = false;
     exts.fCopyCommands2KHR = false;
     exts.fShaderDrawParametersKHR = false;

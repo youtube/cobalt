@@ -668,6 +668,8 @@ chromium-metrics-reviews@google.com.
   <int value="156" label="WebSettingsCompat.getBackForwardCacheSettings"/>
   <int value="157" label="BackForwardCacheSettings.getTimeoutInSeconds"/>
   <int value="158" label="BackForwardCacheSettings.getMaxPagesInCache"/>
+  <int value="159" label="Profile.preconnect"/>
+  <int value="160" label="WebSettingsCompat.setHyperlinkContextMenuItems"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -1139,6 +1141,8 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Incognito searchbox"/>
   <int value="2" label="Regular loupe"/>
   <int value="3" label="Incognito loupe"/>
+  <int value="4" label="Tab groups searchbox"/>
+  <int value="5" label="Tab groups loupe"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/hub/internal/android/java/src/org/chromium/chrome/browser/hub/HubToolbarMediator.java:HubSearchEntrypoint) -->

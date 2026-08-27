@@ -709,8 +709,22 @@ public class InstanceSwitcherCoordinator {
         dialog.show();
     }
 
+    @Nullable
+    private ListItem getInstanceListItem(InstanceInfo item) {
+        ModelList list = mIsInactiveListShowing ? mInactiveModelList : mActiveModelList;
+        for (ListItem listItem : list) {
+            if (listItem.model.get(InstanceSwitcherItemProperties.INSTANCE_ID) == item.instanceId) {
+                return listItem;
+            }
+        }
+        return null;
+    }
+
     private void showNameWindowDialog(InstanceInfo item) {
+        RecordUserAction.record("Android.WindowManager.NameWindow");
         int style = R.style.Theme_Chromium_Multiwindow_RenameWindowDialog;
+        ListItem listItem = assumeNonNull(getInstanceListItem(item));
+        String currentTitle = listItem.model.get(InstanceSwitcherItemProperties.TITLE);
         Dialog dialog = new Dialog(mContext, style);
         dialog.setCanceledOnTouchOutside(true);
         dialog.setContentView(R.layout.rename_window_dialog);
@@ -721,7 +735,7 @@ public class InstanceSwitcherCoordinator {
 
         TextInputLayout textInputLayout = dialog.findViewById(R.id.new_window_title);
         TextInputEditText editText = dialog.findViewById(R.id.title_input_text);
-        editText.setText(mUiUtils.getItemTitle(item));
+        editText.setText(currentTitle);
         editText.requestFocus();
         Window window = assumeNonNull(dialog.getWindow());
         window.setSoftInputMode(
@@ -733,15 +747,11 @@ public class InstanceSwitcherCoordinator {
                 v -> {
                     String newTitle = Objects.toString(editText.getText(), "").trim();
                     if (!TextUtils.isEmpty(newTitle)) {
-                        mRenameWindowCallback.onResult(new Pair<>(item.instanceId, newTitle));
-                        ModelList list =
-                                mIsInactiveListShowing ? mInactiveModelList : mActiveModelList;
-                        for (ListItem listItem : list) {
-                            if (listItem.model.get(InstanceSwitcherItemProperties.INSTANCE_ID)
-                                    == item.instanceId) {
-                                listItem.model.set(InstanceSwitcherItemProperties.TITLE, newTitle);
-                                break;
-                            }
+                        RecordUserAction.record("Android.WindowManager.SaveWindowName");
+                        if (!newTitle.equals(currentTitle)) {
+                            listItem.model.set(InstanceSwitcherItemProperties.TITLE, newTitle);
+                            RecordUserAction.record("Android.WindowManager.ChangeWindowName");
+                            mRenameWindowCallback.onResult(new Pair<>(item.instanceId, newTitle));
                         }
                         dialog.dismiss();
                     } else {

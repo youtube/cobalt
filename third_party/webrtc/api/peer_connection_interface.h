@@ -660,16 +660,7 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
 
     // Defines advanced optional cryptographic settings related to SRTP and
     // frame encryption for native WebRTC.
-    std::optional<CryptoOptions> crypto_options;
-
-    // TODO: bugs.webrtc.org/42235111 - remove after converting callers that
-    // expect an optional.
-    CryptoOptions& GetWritableCryptoOptions() {
-      if (!crypto_options) {
-        crypto_options = CryptoOptions();
-      }
-      return *crypto_options;
-    }
+    CryptoOptions crypto_options;
 
     // Configure if we should include the SDP attribute extmap-allow-mixed in
     // our offer on session level.

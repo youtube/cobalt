@@ -1542,4 +1542,55 @@ inline void ContextPrivateEnableVertexAttribArray(PrivateState *privateState,
     privateStateCache->onVertexArrayStateChange();
 }
 
+inline void ContextPrivateVertexAttribDivisor(PrivateState *privateState,
+                                              PrivateStateCache *privateStateCache,
+                                              GLuint index,
+                                              GLuint divisor)
+{
+    privateState->setVertexAttribDivisor(index, divisor);
+    privateStateCache->onVertexArrayStateChange();
+}
+
+inline void ContextPrivateVertexAttribBinding(PrivateState *privateState,
+                                              PrivateStateCache *privateStateCache,
+                                              GLuint attribIndex,
+                                              GLuint bindingIndex)
+{
+    privateState->setVertexAttribBinding(attribIndex, bindingIndex);
+    privateStateCache->onVertexArrayStateChange();
+}
+
+inline void ContextPrivateVertexBindingDivisor(PrivateState *privateState,
+                                               PrivateStateCache *privateStateCache,
+                                               GLuint bindingIndex,
+                                               GLuint divisor)
+{
+    privateState->setVertexBindingDivisor(bindingIndex, divisor);
+    privateStateCache->onVertexArrayFormatChange();
+}
+
+inline void ContextPrivateVertexAttribFormat(PrivateState *privateState,
+                                             PrivateStateCache *privateStateCache,
+                                             GLuint attribIndex,
+                                             GLint size,
+                                             VertexAttribType type,
+                                             GLboolean normalized,
+                                             GLuint relativeOffset)
+{
+    privateState->setVertexAttribFormat(attribIndex, size, type, ConvertToBool(normalized), false,
+                                        relativeOffset);
+    privateStateCache->onVertexArrayFormatChange();
+}
+
+inline void ContextPrivateVertexAttribIFormat(PrivateState *privateState,
+                                              PrivateStateCache *privateStateCache,
+                                              GLuint attribIndex,
+                                              GLint size,
+                                              VertexAttribType type,
+                                              GLuint relativeOffset)
+{
+    privateState->setVertexAttribFormat(attribIndex, size, type, false, true, relativeOffset);
+    privateStateCache->onVertexArrayFormatChange();
+}
+
 }  // namespace gl

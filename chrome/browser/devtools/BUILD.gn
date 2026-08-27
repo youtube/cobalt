@@ -23,7 +23,7 @@ _protocol_generated = [
   "protocol/target.h",
 ]
 
-if (!is_android || is_desktop_android) {
+if (enable_devtools_frontend) {
   _protocol_generated += [
     "protocol/autofill.cc",
     "protocol/autofill.h",
@@ -232,6 +232,8 @@ static_library("devtools") {
       "//chrome/browser/ui/exclusive_access",
       "//chrome/browser/ui/tab_contents",
       "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/browser/ui/user_education",
+      "//chrome/browser/user_education",
       "//chrome/browser/web_applications",
       "//chrome/common",
       "//components/guest_view/browser",
@@ -302,6 +304,8 @@ static_library("devtools") {
       "devtools_infobar_delegate.h",
       "devtools_targets_ui.cc",
       "devtools_targets_ui.h",
+      "devtools_ui_controller.cc",
+      "devtools_ui_controller.h",
       "devtools_window_views.cc",
       "global_confirm_info_bar.cc",
       "global_confirm_info_bar.h",
@@ -369,7 +373,10 @@ static_library("devtools") {
       "protocol/target_handler.h",
     ]
     if (is_chromeos) {
-      deps += [ "//ash" ]
+      deps += [
+        "//ash",
+        "//chromeos/dbus/constants",
+      ]
       sources += [
         "protocol/window_manager_handler.cc",
         "protocol/window_manager_handler.h",

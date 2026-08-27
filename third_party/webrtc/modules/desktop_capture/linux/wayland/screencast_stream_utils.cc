@@ -12,7 +12,13 @@
 
 #include <libdrm/drm_fourcc.h>
 #include <pipewire/pipewire.h>
-#include <spa/param/video/format-utils.h>
+#include <spa/param/format.h>
+#include <spa/param/param.h>
+#include <spa/pod/builder.h>
+#include <spa/pod/iter.h>
+#include <spa/pod/pod.h>
+#include <spa/pod/vararg.h>
+#include <spa/utils/type.h>
 
 #include <cstdint>
 #include <optional>
@@ -85,7 +91,7 @@ spa_pod* BuildFormat(spa_pod_builder* builder,
                       SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw), 0);
   spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_format, SPA_POD_Id(format), 0);
 
-  if (modifiers.size()) {
+  if (!modifiers.empty()) {
     if (modifiers.size() == 1 && modifiers[0] == DRM_FORMAT_MOD_INVALID) {
       spa_pod_builder_prop(builder, SPA_FORMAT_VIDEO_modifier,
                            SPA_POD_PROP_FLAG_MANDATORY);

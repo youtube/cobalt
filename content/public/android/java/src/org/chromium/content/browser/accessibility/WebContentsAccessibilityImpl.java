@@ -1421,11 +1421,11 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                             .getIdForElementAfterElementHostingAutofillPopup(mNativeObj);
             if (id == 0) return;
             if (ContentFeatureList.sAccessibilityDeprecateJavaNodeCacheOptimizeScroll.getValue()) {
-                scrollToMakeNodeVisible(mAccessibilityFocusId);
+                scrollToMakeNodeVisible(id);
                 moveAccessibilityFocusToId(id);
             } else {
                 moveAccessibilityFocusToId(id);
-                scrollToMakeNodeVisible(mAccessibilityFocusId);
+                scrollToMakeNodeVisible(id);
             }
         }
     }
@@ -1471,8 +1471,13 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     @Override
     public void restoreFocus() {
         if (isAccessibilityEnabled() && mLastAccessibilityFocusId != View.NO_ID) {
-            moveAccessibilityFocusToId(mLastAccessibilityFocusId);
-            scrollToMakeNodeVisible(mLastAccessibilityFocusId);
+            if (ContentFeatureList.sAccessibilityDeprecateJavaNodeCacheOptimizeScroll.getValue()) {
+                scrollToMakeNodeVisible(mLastAccessibilityFocusId);
+                moveAccessibilityFocusToId(mLastAccessibilityFocusId);
+            } else {
+                moveAccessibilityFocusToId(mLastAccessibilityFocusId);
+                scrollToMakeNodeVisible(mLastAccessibilityFocusId);
+            }
         }
     }
 
@@ -1523,8 +1528,13 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
             WebContentsAccessibilityImplJni.get().setSequentialFocusStartingPoint(mNativeObj, id);
         }
 
-        moveAccessibilityFocusToId(id);
-        scrollToMakeNodeVisible(mAccessibilityFocusId);
+        if (ContentFeatureList.sAccessibilityDeprecateJavaNodeCacheOptimizeScroll.getValue()) {
+            scrollToMakeNodeVisible(id);
+            moveAccessibilityFocusToId(id);
+        } else {
+            moveAccessibilityFocusToId(id);
+            scrollToMakeNodeVisible(mAccessibilityFocusId);
+        }
         return true;
     }
 

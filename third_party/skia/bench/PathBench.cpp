@@ -519,6 +519,49 @@ private:
     using INHERITED = RandomPathBench;
 };
 
+class PathTransformPerspectiveBench : public Benchmark {
+public:
+    PathTransformPerspectiveBench(bool useBuilder) : fUseBuilder(useBuilder) {}
+
+protected:
+    const char* onGetName() override {
+        return fUseBuilder ? "transform_perspective_builder" : "transform_perspective_path";
+    }
+
+    bool isSuitableFor(Backend backend) override {
+        return backend == Backend::kNonRendering;
+    }
+
+    void onDelayedSetup() override {
+        const SkRect r = {0, 0, 100, 100};
+        fBuilderSrc.addOval(r);
+        fBuilderSrc.addOval(r.makeInset(10, 10));
+        fPathSrc = fBuilderSrc.snapshot();
+
+        fMatrix[6] = 1;
+    }
+
+    void onDraw(int loops, SkCanvas*) override {
+        if (fUseBuilder) {
+            for (int i = 0; i < loops; ++i) {
+                fBuilderSrc.transform(fMatrix);
+                (void)fBuilderSrc.snapshot();
+            }
+        } else {
+            for (int i = 0; i < loops; ++i) {
+                (void)fPathSrc.makeTransform(fMatrix);
+            }
+        }
+    }
+
+private:
+    SkPath          fPathSrc;
+    SkPathBuilder   fBuilderSrc;
+
+    SkMatrix fMatrix;
+    bool fUseBuilder;
+};
+
 class PathEqualityBench : public RandomPathBench {
 public:
     PathEqualityBench() { }
@@ -1208,6 +1251,9 @@ DEF_BENCH( return new PathTransformBench(true); )
 DEF_BENCH( return new PathTransformBench(false); )
 DEF_BENCH( return new PathEqualityBench(); )
 
+DEF_BENCH( return new PathTransformPerspectiveBench(true); )
+DEF_BENCH( return new PathTransformPerspectiveBench(false); )
+
 DEF_BENCH( return new SkBench_AddPathTest(SkBench_AddPathTest::kAdd_AddType); )
 DEF_BENCH( return new SkBench_AddPathTest(SkBench_AddPathTest::kAddTrans_AddType); )
 DEF_BENCH( return new SkBench_AddPathTest(SkBench_AddPathTest::kAddMatrix_AddType); )
@@ -1286,3 +1332,46 @@ DEF_BENCH( return new CommonConvexBench(200, 16, false, false); )
 DEF_BENCH( return new CommonConvexBench(200, 16, true,  false); )
 DEF_BENCH( return new CommonConvexBench(200, 16, false, true); )
 DEF_BENCH( return new CommonConvexBench(200, 16, true,  true); )
+
+class PathBuildBench : public Benchmark {
+public:
+    using Builder = void(SkPath*, const SkRect&);
+
+    Builder* fBuilder;
+    SkString fName;
+
+    PathBuildBench(const char name[], Builder* builder) : fBuilder(builder) {
+        fName.printf("path_buider_%s", name);
+    }
+
+protected:
+    const char* onGetName() override {
+        return fName.c_str();
+    }
+
+    void onDraw(int loops, SkCanvas* canvas) override {
+        const SkRect r = {1, 2, 3, 4};
+        for (int i = 0; i < loops; ++i) {
+            SkPath path;
+            fBuilder(&path, r);
+            (void)path.getBounds();
+        }
+    }
+
+    bool isSuitableFor(Backend backend) override {
+        return backend == Backend::kNonRendering;
+    }
+
+private:
+    using INHERITED = Benchmark;
+};
+
+DEF_BENCH( return new PathBuildBench("addRect", [](SkPath* path, const SkRect& r) {
+    path->addRect(r);
+}));
+DEF_BENCH( return new PathBuildBench("addOval", [](SkPath* path, const SkRect& r) {
+    path->addOval(r);
+}));
+DEF_BENCH( return new PathBuildBench("addRRect", [](SkPath* path, const SkRect& r) {
+    path->addRRect(SkRRect::MakeRectXY(r, 0.1f, 0.1f));
+}));

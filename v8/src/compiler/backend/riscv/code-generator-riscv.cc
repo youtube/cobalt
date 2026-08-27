@@ -2924,7 +2924,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register src = i.InputSimd128Register(0);
       Simd128Register dst = i.OutputSimd128Register();
       __ VU.set(kScratchReg, E64, m1);
-      __ li(kScratchReg, 0x1 << i.InputInt8(1));
+      __ li(kScratchReg, 1 << i.InputInt8(1));
       __ vmv_sx(v0, kScratchReg);
       __ VU.set(kScratchReg, E8, m1);
       __ vmerge_vx(dst, i.InputRegister(2), src);
@@ -3003,6 +3003,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvI8x16Shuffle: {
+      CheckRegisterConstraints(
+          opcode, i, RiscvRegisterConstraint::kNoDestinationSourceOverlap);
       VRegister dst = i.OutputSimd128Register(),
                 src0 = i.InputSimd128Register(0),
                 src1 = i.InputSimd128Register(1);
@@ -3029,14 +3031,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vslideup_vi(kSimd128ScratchReg, kSimd128ScratchReg2, 2);
 #endif
 
+      DCHECK_NE(dst, src0);
+      DCHECK_NE(dst, src1);
       __ VU.set(kScratchReg, E8, m1);
-      if (dst == src0) {
-        __ vmv_vv(kSimd128ScratchReg2, src0);
-        src0 = kSimd128ScratchReg2;
-      } else if (dst == src1) {
-        __ vmv_vv(kSimd128ScratchReg2, src1);
-        src1 = kSimd128ScratchReg2;
-      }
       __ vrgather_vv(dst, src0, kSimd128ScratchReg);
       __ vadd_vi(kSimd128ScratchReg, kSimd128ScratchReg, -16);
       __ vrgather_vv(kSimd128ScratchReg3, src1, kSimd128ScratchReg);
@@ -3049,11 +3046,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Label t;
 
       __ VU.set(kScratchReg, E8, m1);
+      // The output and input register might be the same.
+      // We could add a register constraint to avoid this, but in this
+      // case it's simpler to just copy the source into a scratch register.
       __ vmv_vv(kSimd128ScratchReg, src);
-      __ vmv_vv(dst, kSimd128RegZero);
+      auto zero_reg = kSimd128ScratchReg4;
+      __ vmv_vi(zero_reg, 0);
+      __ vmv_vv(dst, zero_reg);
 
       __ bind(&t);
-      __ vmsne_vv(v0, kSimd128ScratchReg, kSimd128RegZero);
+      __ vmsne_vv(v0, kSimd128ScratchReg, zero_reg);
       __ vadd_vi(dst, dst, 1, Mask);
       __ vadd_vi(kSimd128ScratchReg2, kSimd128ScratchReg, -1, Mask);
       __ vand_vv(kSimd128ScratchReg, kSimd128ScratchReg, kSimd128ScratchReg2);
@@ -3389,14 +3391,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvI32x4SConvertI16x8Low: {
       __ VU.set(kScratchReg, E32, m1);
-      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
-      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      auto src = i.InputSimd128Register(0);
+      if (i.OutputSimd128Register() == src) {
+        // We could also add a register constraint to avoid this, but
+        // in this case it's simpler to just copy the source into a scratch
+        // register.
+        __ vmv_vv(kSimd128ScratchReg, src);
+        src = kSimd128ScratchReg;
+      }
+      __ vsext_vf2(i.OutputSimd128Register(), src);
       break;
     }
     case kRiscvI32x4UConvertI16x8Low: {
       __ VU.set(kScratchReg, E32, m1);
-      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
-      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      auto src = i.InputSimd128Register(0);
+      if (i.OutputSimd128Register() == src) {
+        // We could also add a register constraint to avoid this, but
+        // in this case it's simpler to just copy the source into a scratch
+        // register.
+        __ vmv_vv(kSimd128ScratchReg, src);
+        src = kSimd128ScratchReg;
+      }
+      __ vzext_vf2(i.OutputSimd128Register(), src);
       break;
     }
     case kRiscvI16x8SConvertI8x16High: {
@@ -3620,8 +3636,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvI64x2SConvertI32x4Low: {
       __ VU.set(kScratchReg, E64, m1);
-      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
-      __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      auto src = i.InputSimd128Register(0);
+      if (i.OutputSimd128Register() == src) {
+        // We could also add a register constraint to avoid this, but
+        // in this case it's simpler to just copy the source into a scratch
+        // register.
+        __ vmv_vv(kSimd128ScratchReg, src);
+        src = kSimd128ScratchReg;
+      }
+      __ vsext_vf2(i.OutputSimd128Register(), src);
       break;
     }
     case kRiscvI64x2SConvertI32x4High: {
@@ -3633,8 +3656,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvI64x2UConvertI32x4Low: {
       __ VU.set(kScratchReg, E64, m1);
-      __ vmv_vv(kSimd128ScratchReg, i.InputSimd128Register(0));
-      __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
+      auto src = i.InputSimd128Register(0);
+      if (i.OutputSimd128Register() == src) {
+        // We could also add a register constraint to avoid this, but
+        // in this case it's simpler to just copy the source into a scratch
+        // register.
+        __ vmv_vv(kSimd128ScratchReg, src);
+        src = kSimd128ScratchReg;
+      }
+      __ vzext_vf2(i.OutputSimd128Register(), src);
       break;
     }
     case kRiscvI64x2UConvertI32x4High: {
@@ -3692,9 +3722,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvI16x8SConvertI8x16Low: {
       __ VU.set(kScratchReg, E16, m1);
-      Simd128Register temp = kSimd128ScratchReg;
-      __ vmv_vv(temp, i.InputSimd128Register(0));
-      __ vsext_vf2(i.OutputSimd128Register(), temp);
+      auto src = i.InputSimd128Register(0);
+      if (i.OutputSimd128Register() == src) {
+        // We could also add a register constraint to avoid this, but
+        // in this case it's simpler to just copy the source into a scratch
+        // register.
+        __ vmv_vv(kSimd128ScratchReg, src);
+        src = kSimd128ScratchReg;
+      }
+      __ vsext_vf2(i.OutputSimd128Register(), src);
       break;
     }
     case kRiscvI16x8UConvertI8x16High: {
@@ -3707,21 +3743,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvI16x8UConvertI8x16Low: {
       __ VU.set(kScratchReg, E16, m1);
-      Simd128Register temp = kSimd128ScratchReg;
-      __ vmv_vv(temp, i.InputSimd128Register(0));
-      __ vzext_vf2(i.OutputSimd128Register(), temp);
+      auto src = i.InputSimd128Register(0);
+      if (i.OutputSimd128Register() == src) {
+        // We could also add a register constraint to avoid this, but
+        // in this case it's simpler to just copy the source into a scratch
+        // register.
+        __ vmv_vv(kSimd128ScratchReg, src);
+        src = kSimd128ScratchReg;
+      }
+      __ vzext_vf2(i.OutputSimd128Register(), src);
       break;
     }
     case kRiscvExtAddPairwiseS: {
       auto sew = DecodeElementWidth(opcode);
-      Simd128Register src1 = i.TempSimd128Register(0);
-      Simd128Register src2 = i.TempSimd128Register(1);
-      Simd128Register src = i.InputSimd128Register(0);
       DCHECK(sew == E8 || sew == E16);
       uint64_t index1 = (sew == E8) ? 0x0E0C0A0806040200 : 0x0006000400020000;
       uint64_t index2 = (sew == E8) ? 0x0F0D0B0907050301 : 0x0007000500030001;
       Simd128Register index_reg1 = kSimd128ScratchReg;
-      Simd128Register index_reg2 = kSimd128ScratchReg3;
+      Simd128Register index_reg2 = kSimd128ScratchReg2;
 #if V8_TARGET_ARCH_RISCV64
       __ VU.set(kScratchReg, E64, m1);
       __ li(kScratchReg, index1);
@@ -3739,23 +3778,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ li(kScratchReg, static_cast<uint32_t>(index2 & 0xFFFFFFFF));
       __ vmv_sx(index_reg2, kScratchReg);
 #endif
+      Simd128Register src1 = kSimd128ScratchReg3;
+      Simd128Register src2 = kSimd128ScratchReg4;
       __ VU.set(kScratchReg, sew, m1);
-      __ vrgather_vv(src1, src, index_reg1);
-      __ vrgather_vv(src2, src, index_reg2);
+      __ vrgather_vv(src1, i.InputSimd128Register(0), index_reg1);
+      __ vrgather_vv(src2, i.InputSimd128Register(0), index_reg2);
       __ VU.set(kScratchReg, sew, mf2);
       __ vwadd_vv(i.OutputSimd128Register(), src1, src2);
       break;
     }
     case kRiscvExtAddPairwiseU: {
       auto sew = DecodeElementWidth(opcode);
-      Simd128Register src1 = i.TempSimd128Register(0);
-      Simd128Register src2 = i.TempSimd128Register(1);
-      Simd128Register src = i.InputSimd128Register(0);
       DCHECK(sew == E8 || sew == E16);
       uint64_t index1 = (sew == E8) ? 0x0E0C0A0806040200 : 0x0006000400020000;
       uint64_t index2 = (sew == E8) ? 0x0F0D0B0907050301 : 0x0007000500030001;
       Simd128Register index_reg1 = kSimd128ScratchReg;
-      Simd128Register index_reg2 = kSimd128ScratchReg3;
+      Simd128Register index_reg2 = kSimd128ScratchReg2;
 #if V8_TARGET_ARCH_RISCV64
       __ VU.set(kScratchReg, E64, m1);
       __ li(kScratchReg, index1);
@@ -3778,9 +3816,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ li(kScratchReg, static_cast<uint32_t>(index2 & 0xFFFFFFFF));
       __ vmv_sx(index_reg2, kScratchReg);
 #endif
+      Simd128Register src1 = kSimd128ScratchReg3;
+      Simd128Register src2 = kSimd128ScratchReg4;
       __ VU.set(kScratchReg, sew, m1);
-      __ vrgather_vv(src1, src, index_reg1);
-      __ vrgather_vv(src2, src, index_reg2);
+      __ vrgather_vv(src1, i.InputSimd128Register(0), index_reg1);
+      __ vrgather_vv(src2, i.InputSimd128Register(0), index_reg2);
       __ VU.set(kScratchReg, sew, mf2);
       __ vwaddu_vv(i.OutputSimd128Register(), src1, src2);
       break;

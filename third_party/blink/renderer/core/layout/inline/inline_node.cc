@@ -35,7 +35,6 @@
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_text_combine.h"
-#include "third_party/blink/renderer/core/layout/legacy_layout_tree_walking.h"
 #include "third_party/blink/renderer/core/layout/length_utils.h"
 #include "third_party/blink/renderer/core/layout/list/layout_inline_list_item.h"
 #include "third_party/blink/renderer/core/layout/list/layout_list_item.h"
@@ -323,7 +322,7 @@ void CollectInlinesInternal(ItemsBuilder* builder,
                             const InlineNodeData* previous_data) {
   LayoutBlockFlow* const block = builder->GetLayoutBlockFlow();
   builder->EnterBlock(block->Style());
-  LayoutObject* node = GetLayoutObjectForFirstChildNode(block);
+  LayoutObject* node = block->FirstChild();
 
   const LayoutObject* symbol =
       LayoutListItem::FindSymbolMarkerLayoutText(block);
@@ -434,7 +433,7 @@ void CollectInlinesInternal(ItemsBuilder* builder,
         node = next;
         break;
       }
-      node = GetLayoutObjectForParentNode(node);
+      node = node->Parent();
       if (node == block || !node) {
         // Set |node| to |nullptr| to break out of the outer loop.
         node = nullptr;
@@ -559,7 +558,6 @@ void TruncateOrPadText(String* text, unsigned length) {
 InlineNode::InlineNode(LayoutBlockFlow* block)
     : LayoutInputNode(block, kInline) {
   DCHECK(block);
-  DCHECK(block->IsLayoutNGObject());
   if (!block->GetInlineNodeData()) {
     block->ResetInlineNodeData();
   }
@@ -1028,15 +1026,7 @@ void InlineNode::ComputeOffsetMapping(LayoutBlockFlow* layout_block_flow,
       EstimateOffsetMappingItemsCount(*layout_block_flow));
   CollectInlinesInternal(&builder, nullptr);
 
-  // For non-NG object, we need the text, and also the inline items to resolve
-  // bidi levels. Otherwise |data| already has the text from the pre-layout
-  // phase, check they match.
-  if (data->text_content.IsNull()) {
-    DCHECK(!layout_block_flow->IsLayoutNGObject());
-    data->text_content = builder.ToString();
-  } else {
-    DCHECK(layout_block_flow->IsLayoutNGObject());
-  }
+  DCHECK(!data->text_content.IsNull());
 
   // TODO(xiaochengh): This doesn't compute offset mapping correctly when
   // text-transform CSS property changes text length.

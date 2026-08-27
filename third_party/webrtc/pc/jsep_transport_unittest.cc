@@ -52,7 +52,6 @@
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "test/create_test_field_trials.h"
 #include "test/gtest.h"
@@ -96,7 +95,7 @@ scoped_refptr<IceTransportInterface> CreateIceTransport(
   return make_ref_counted<FakeIceTransportWrapper>(std::move(internal));
 }
 
-class JsepTransport2Test : public ::testing::Test, public sigslot::has_slots<> {
+class JsepTransport2Test : public ::testing::Test {
  protected:
   std::unique_ptr<SrtpTransport> CreateSdesTransport(
       PacketTransportInternal* rtp_packet_transport,

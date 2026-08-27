@@ -10,11 +10,18 @@
 
 #include "modules/video_capture/linux/pipewire_session.h"
 
+#include <pipewire/pipewire.h>
 #include <spa/monitor/device.h>
 #include <spa/param/format-utils.h>
 #include <spa/param/format.h>
+#include <spa/param/param.h>
 #include <spa/param/video/raw.h>
-#include <spa/pod/parser.h>
+#include <spa/pod/iter.h>
+#include <spa/pod/pod.h>
+#include <spa/utils/defs.h>
+#include <spa/utils/dict.h>
+#include <spa/utils/hook.h>
+#include <spa/utils/type.h>
 
 #include <algorithm>
 #include <cstdint>

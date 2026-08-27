@@ -26,7 +26,6 @@
 #include <optional>
 #include <tuple>
 
-struct SkArc;
 class SkData;
 class SkPathRef;
 class SkRRect;
@@ -274,16 +273,6 @@ public:
         example: https://fiddle.skia.org/c/@Path_isRRect
     */
     bool isRRect(SkRRect* rrect) const;
-
-    /** Returns true if path is representable as an oval arc. In other words, could this
-        path be drawn using SkCanvas::drawArc.
-
-        arc  receives parameters of arc
-
-       @param arc  storage for arc; may be nullptr
-       @return     true if SkPath contains only a single arc from an oval
-    */
-    bool isArc(SkArc* arc) const;
 
     /** Returns if SkPath is empty.
         Empty SkPath may have FillType but has no SkPoint, SkPath::Verb, or conic weight.
@@ -600,16 +589,27 @@ public:
         @param pc      whether to apply perspective clipping
         @return        SkPath
     */
-    SkPath makeTransform(const SkMatrix& m,
-                         SkApplyPerspectiveClip pc = SkApplyPerspectiveClip::kYes) const {
+    SkPath makeTransform(const SkMatrix& matrix) const {
         SkPath dst;
-        this->transform(m, &dst, pc);
+        this->transform(matrix, &dst);
         return dst;
     }
 
     SkPath makeScale(SkScalar sx, SkScalar sy) const {
-        return this->makeTransform(SkMatrix::Scale(sx, sy), SkApplyPerspectiveClip::kNo);
+        return this->makeTransform(SkMatrix::Scale(sx, sy));
     }
+
+#ifdef SK_SUPPORT_LEGACY_APPLYPERSPECTIVECLIP
+    void transform(const SkMatrix& matrix, SkPath* dst, SkApplyPerspectiveClip) const {
+        this->transform(matrix, dst);
+    }
+    void transform(const SkMatrix& matrix, SkApplyPerspectiveClip) {
+        this->transform(matrix);
+    }
+    SkPath makeTransform(const SkMatrix& m, SkApplyPerspectiveClip) const {
+        return this->makeTransform(m);
+    }
+#endif
 
     /** Returns last point on SkPath in lastPt. Returns false if SkPoint array is empty,
         storing (0, 0) if lastPt is not nullptr.
@@ -773,24 +773,16 @@ private:
     */
     void incReserve(int extraPtCount, int extraVerbCount = 0, int extraConicCount = 0);
 
-    /** Adds beginning of contour at SkPoint (x, y).
-
-        @param x  x-axis value of contour start
-        @param y  y-axis value of contour start
-        @return   reference to SkPath
-
-        example: https://fiddle.skia.org/c/@Path_moveTo
-    */
-    SkPath& moveTo(SkScalar x, SkScalar y);
-
-    /** Adds beginning of contour at SkPoint p.
-
-        @param p  contour start
-        @return   reference to SkPath
-    */
-    SkPath& moveTo(const SkPoint& p) {
+    /** Specifies the beginning of contour. If the previous verb was a "move" verb,
+     *  then this just replaces the point value of that move, otherwise it appends a new
+     *  "move" verb to the path using the point.
+     *
+     *  Thus, each contour can only have 1 move verb in it (the last one specified).
+     */
+    SkPath& moveTo(SkPoint p) {
         return this->moveTo(p.fX, p.fY);
     }
+    SkPath& moveTo(SkScalar x, SkScalar y);
 
     /** Adds beginning of contour relative to last point.
         If SkPath is empty, starts contour at (dx, dy).
@@ -1473,8 +1465,7 @@ private:
 
         example: https://fiddle.skia.org/c/@Path_transform
     */
-    void transform(const SkMatrix& matrix, SkPath* dst,
-                   SkApplyPerspectiveClip pc = SkApplyPerspectiveClip::kYes) const;
+    void transform(const SkMatrix& matrix, SkPath* dst) const;
 
     /** Transforms verb array, SkPoint array, and weight by matrix.
         transform may change verbs and increase their number.
@@ -1483,9 +1474,8 @@ private:
         @param matrix  SkMatrix to apply to SkPath
         @param pc      whether to apply perspective clipping
     */
-    SkPath& transform(const SkMatrix& matrix,
-                      SkApplyPerspectiveClip pc = SkApplyPerspectiveClip::kYes) {
-        this->transform(matrix, this, pc);
+    SkPath& transform(const SkMatrix& matrix) {
+        this->transform(matrix, this);
         return *this;
     }
 
@@ -2013,9 +2003,8 @@ private:
                                SkPathFillType fillType,
                                bool isVolatile);
 
-    friend class SkAutoPathBoundsUpdate;
+    friend class SkAutoAddSimpleShape;
     friend class SkAutoDisableOvalCheck;
-    friend class SkAutoDisableDirectionCheck;
     friend class SkPathBuilder;
     friend class SkPathEdgeIter;
     friend class SkPathWriter;

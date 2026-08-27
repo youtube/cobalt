@@ -16,7 +16,7 @@
 # the revision where we bump the version.
 module(
     name = "boringssl",
-    version = "0.20250701.0",
+    version = "0.20250807.0",
     compatibility_level = 2,
 )
 
@@ -32,5 +32,5 @@ module(
 # this.
 bazel_dep(name = "googletest", version = "1.17.0")
 bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "rules_cc", version = "0.1.2")
+bazel_dep(name = "rules_cc", version = "0.2.0")
 bazel_dep(name = "rules_license", version = "1.0.0")

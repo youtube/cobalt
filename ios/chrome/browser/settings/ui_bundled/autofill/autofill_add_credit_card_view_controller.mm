@@ -7,8 +7,10 @@
 #import "base/apple/foundation_util.h"
 #import "base/feature_list.h"
 #import "base/metrics/user_metrics.h"
+#import "components/autofill/core/common/autofill_payments_features.h"
 #import "ios/chrome/browser/autofill/ui_bundled/cells/autofill_credit_card_edit_item.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_add_credit_card_view_controller_delegate.h"
+#import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_add_credit_card_view_controller_presentation_delegate.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_edit_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_edit_item_delegate.h"
@@ -39,6 +41,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
   ItemTypeExpirationMonth,
   ItemTypeExpirationYear,
   ItemTypeCardNickname,
+  ItemTypeCardCvc,
+  ItemTypeUseCameraButton,
 };
 
 }  // namespace
@@ -66,6 +70,9 @@ typedef NS_ENUM(NSInteger, ItemType) {
 
   // The user provided nickname for the credit card.
   NSString* _cardNickname;
+
+  // The card CVC in the UI.
+  NSString* _cardCvc;
 }
 
 - (instancetype)initWithDelegate:
@@ -114,8 +121,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
   [self updateCreditCardData];
 
   BOOL hasUserInput = _cardHolderName.length || _cardNumber.length ||
-                      _expirationMonth.length || _expirationYear.length ||
-                      _cardNickname.length;
+                      _cardCvc.length || _expirationMonth.length ||
+                      _expirationYear.length || _cardNickname.length;
 
   return hasUserInput;
 }
@@ -134,6 +141,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
   AutofillCreditCardEditItem* cardNumberItem = [self cardNumberItem];
   AutofillCreditCardEditItem* expirationMonthItem = [self expirationMonthItem];
   AutofillCreditCardEditItem* expirationYearItem = [self expirationYearItem];
+  AutofillCreditCardEditItem* cardCvcItem = [self cardCvcItem];
 
   [model addSectionWithIdentifier:SectionIdentifierCreditCardDetails];
   [model addItem:cardNumberItem
@@ -146,6 +154,49 @@ typedef NS_ENUM(NSInteger, ItemType) {
       toSectionWithIdentifier:SectionIdentifierCreditCardDetails];
   [model addItem:[self cardNicknameItem]
       toSectionWithIdentifier:SectionIdentifierCreditCardDetails];
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableCvcStorageAndFilling)) {
+    [model addItem:cardCvcItem
+        toSectionWithIdentifier:SectionIdentifierCreditCardDetails];
+  }
+
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillCreditCardScannerIos)) {
+    TableViewTextItem* cameraButtonItem =
+        [[TableViewTextItem alloc] initWithType:ItemTypeUseCameraButton];
+    cameraButtonItem.textColor = [UIColor colorNamed:kBlueColor];
+    cameraButtonItem.text = l10n_util::GetNSString(
+        IDS_IOS_AUTOFILL_ADD_CREDIT_CARD_OPEN_CAMERA_BUTTON_LABEL);
+    cameraButtonItem.textAlignment = NSTextAlignmentCenter;
+    cameraButtonItem.accessibilityTraits |= UIAccessibilityTraitButton;
+
+    [model addSectionWithIdentifier:SectionIdentifierCameraButton];
+    [model addItem:cameraButtonItem
+        toSectionWithIdentifier:SectionIdentifierCameraButton];
+  }
+}
+
+#pragma mark - UITableViewDelegate
+
+- (void)tableView:(UITableView*)tableView
+    didSelectRowAtIndexPath:(NSIndexPath*)indexPath {
+  if ([self.tableViewModel itemTypeForIndexPath:indexPath] ==
+          ItemTypeUseCameraButton &&
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillCreditCardScannerIos)) {
+    [self.presentationDelegate
+        addCreditCardViewControllerRequestedCameraScan:self];
+  }
+  [tableView deselectRowAtIndexPath:indexPath animated:YES];
+}
+
+- (NSIndexPath*)tableView:(UITableView*)tableView
+    willSelectRowAtIndexPath:(NSIndexPath*)indexPath {
+  if ([self.tableViewModel itemTypeForIndexPath:indexPath] ==
+      ItemTypeUseCameraButton) {
+    return indexPath;
+  }
+  return [super tableView:tableView willSelectRowAtIndexPath:indexPath];
 }
 
 #pragma mark - TableViewTextEditItemDelegate
@@ -168,7 +219,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
                      isValidCreditCardNumber:_cardNumber
                              expirationMonth:_expirationMonth
                               expirationYear:_expirationYear
-                                cardNickname:_cardNickname];
+                                cardNickname:_cardNickname
+                                     cardCvc:_cardCvc];
 
   [self reconfigureCellsForItems:@[ tableViewTextEditItem ]];
 }
@@ -186,6 +238,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
     return;
   }
 
+  CHECK_NE(tableViewTextEditItem.type, ItemTypeUseCameraButton);
   switch (tableViewTextEditItem.type) {
     case ItemTypeCardNumber:
       tableViewTextEditItem.hasValidText =
@@ -207,8 +260,12 @@ typedef NS_ENUM(NSInteger, ItemType) {
           [_delegate addCreditCardViewController:self
                              isValidCardNickname:_cardNickname];
       break;
+    case ItemTypeCardCvc:
+      tableViewTextEditItem.hasValidText =
+          [_delegate addCreditCardViewController:self isValidCardCvc:_cardCvc];
+      break;
     default:
-      // For the 'Name on card' textfield.
+      // For the 'Name on card' and 'Security code' textfield.
       tableViewTextEditItem.hasValidText = YES;
   }
   [self reconfigureCellsForItems:@[ tableViewTextEditItem ]];
@@ -242,7 +299,10 @@ typedef NS_ENUM(NSInteger, ItemType) {
     case ItemTypeExpirationMonth:
     case ItemTypeExpirationYear:
     case ItemTypeCardNickname:
+    case ItemTypeCardCvc:
       return YES;
+    case ItemTypeUseCameraButton:
+      return NO;
   }
   NOTREACHED();
 }
@@ -257,7 +317,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
                               cardNumber:_cardNumber
                          expirationMonth:_expirationMonth
                           expirationYear:_expirationYear
-                            cardNickname:_cardNickname];
+                            cardNickname:_cardNickname
+                                 cardCvc:_cardCvc];
 }
 
 // Updates credit card data properties with the text in TableView cells.
@@ -280,6 +341,12 @@ typedef NS_ENUM(NSInteger, ItemType) {
   _cardNickname =
       [self readTextFromItemtype:ItemTypeCardNickname
                sectionIdentifier:SectionIdentifierCreditCardDetails];
+
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableCvcStorageAndFilling)) {
+    _cardCvc = [self readTextFromItemtype:ItemTypeCardCvc
+                        sectionIdentifier:SectionIdentifierCreditCardDetails];
+  }
 }
 
 // Reads and returns the data from the item with passed `itemType` and
@@ -406,6 +473,20 @@ typedef NS_ENUM(NSInteger, ItemType) {
                            keyboardType:UIKeyboardTypeDefault
                autofillCreditCardUIType:AutofillCreditCardUIType::kUnknown];
   return cardNicknameItem;
+}
+
+- (AutofillCreditCardEditItem*)cardCvcItem {
+  AutofillCreditCardEditItem* cardCvcItem =
+      [self createTableViewItemWithType:ItemTypeCardCvc
+                     fieldNameLabelText:l10n_util::GetNSString(
+                                            IDS_IOS_AUTOFILL_SECURITY_CODE)
+                         textFieldValue:_cardCvc
+                   textFieldPlaceholder:
+                       l10n_util::GetNSString(
+                           IDS_IOS_AUTOFILL_DIALOG_PLACEHOLDER_CVC_OPTIONAL)
+                           keyboardType:UIKeyboardTypeNumberPad
+               autofillCreditCardUIType:AutofillCreditCardUIType::kUnknown];
+  return cardCvcItem;
 }
 
 @end

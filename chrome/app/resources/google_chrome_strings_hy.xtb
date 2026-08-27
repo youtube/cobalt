@@ -170,6 +170,7 @@
 <translation id="3003694935412297923">Բոլոր առաջադրանքները</translation>
 <translation id="3018957014024118866">Նաև հեռացնել տվյալները Chrome-ից (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Վերագործարկել՝ &amp;ChromeOS Flex-ը թարմացնելու համար</translation>
+<translation id="3037517125981011456">Ցույց է տալիս հաղորդագրություն Chrome-ում մուտք գործելու համար</translation>
 <translation id="3037838751736561277">Google Chrome-ն աշխատում է ֆոնային ռեժիմում:</translation>
 <translation id="3038232873781883849">Սպասում ենք տեղադրմանը…</translation>
 <translation id="3045032126857188731">Թարգմանության լեզուն՝ <ph name="LANGUAGE" /></translation>
@@ -312,6 +313,7 @@
 <translation id="4747730611090640388">Chrome-ը կարող է որոշել ձեր հետաքրքրությունները։  Ավելի ուշ կայքը, որն այցելում եք, կարող է Chrome-ից ձեր հետաքրքրությունները տեսնելու թույլտվություն խնդրել՝ ձեզ ցուցադրվող գովազդն անհատականացնելու նպատակով։</translation>
 <translation id="475321580758063259">Թարմացրեք Chrome-ը, որպեսզի շարունակեք օգտագործել Chrome-ի տվյալները ձեր <ph name="ACCOUNT_EMAIL" /> Google հաշվում։</translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Արագացնում է կայքերի աշխատանքը Chrome-ի V8 շարժիչի օգնությամբ, սակայն փոքր-ինչ խոցելի է դարձնում Chrome-ը հարձակումների նկատմամբ</translation>
 <translation id="479167709087336770">Օգտագործվում է միևնույն ուղղագրիչը, ինչ Google Որոնման մեջ: Դիտարկիչում մուտքագրված տեքստերն ուղարկվում են Google-ին: Սա կարող եք փոխել կարգավորումներում։</translation>
 <translation id="4793679854893018356">Ինչպես է Chrome-ն ապահով պահում ձեր տվյալները</translation>
 <translation id="4828579605166583682">Google Chrome-ը փորձում է փոխարինել գոյություն ունեցող գաղտնաբառերը։ Թույլատրելու համար մուտքագրեք Windows-ի ձեր գաղտնաբառը։</translation>
@@ -404,6 +406,7 @@ Google Chrome-ը չի կարողանում վերականգնել ձեր կար�
 <translation id="5980111191913430208">Անհայտ աղբյուրներից ընդլայնումները, հավելվածներն ու թեմաները կարող են վնասել ձեր սարքը։ Chrome-ը խորհուրդ է տալիս դրանք տեղադրել միայն <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />-ից։</translation>
 <translation id="6003112304606738118">Ներբեռնում… Մնաց <ph name="HOURS" /> ժամ</translation>
 <translation id="6008161919456049856">Ձեր գաղտնաբառերը, վճարման եղանակները և հասցեները, որոնք պահել եք ձեր Google հաշվում, կհեռացվեն այս սարքից։ Chrome-ում դրանք նորից օգտագործելու համար պետք է նորից մուտք գործեք։</translation>
+<translation id="6009821354356307391">Լրացուցիչ հարցեր տվեք</translation>
 <translation id="6014316319780893079"><ph name="BEGIN_LINK" />Chrome-ի գործիքների<ph name="END_LINK" /> միջոցով դուք կարող եք ապահով դիտարկել և կառավարել կարգավորումները</translation>
 <translation id="6022659036123304283">Անհատականացրեք Chrome դիտարկիչը</translation>
 <translation id="6025087594896450715">Google Chrome-ը կվերագործարկվի <ph name="REMAINING_TIME" />ից</translation>
@@ -598,6 +601,7 @@ Google Chrome-ը չի կարողանում վերականգնել ձեր կար�
 <translation id="8342675569599923794">Այս ֆայլը վտանգավոր է, և Chrome-ն արգելափակել է այն։</translation>
 <translation id="8349094670477064572">Դուք կկարողանաք պահել գաղտնաբառեր ու այլ տվյալներ և օգտագործել դրանք ձեր Google հաշվում, եթե մտած եք հաշիվ Chrome-ում։ <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Թարգմանության լեզու</translation>
+<translation id="8366770919198174997">Արդյունավետությունը կնվազի, սակայն Chrome-ն ավելի դիմակայուն կդառնա հարձակումների նկատմամբ</translation>
 <translation id="8370517070665726704">© Google LLC <ph name="YEAR" />։ Բոլոր իրավունքները պահպանված են:</translation>
 <translation id="8387459386171870978">Շարունակել Chrome-ի օգտագործումը</translation>
 <translation id="8394720698884623075">Ստուգում է URL-ները Chrome-ում պահված վտանգավոր կայքերի ցանկի միջոցով։</translation>
@@ -642,6 +646,7 @@ Google Chrome-ը չի կարողանում վերականգնել ձեր կար�
 <translation id="8843516219908676469">Chrome-ը ավելի լավ է որոշում ձևերը և ավելի արագ ավտոմատ լրացնում դրանք</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome-ը խորհուրդ է տալիս հեռացնել այն}one{Chrome-ը խորհուրդ է տալիս հեռացնել այն}other{Chrome-ը խորհուրդ է տալիս հեռացնել դրանք}}</translation>
 <translation id="8862326446509486874">Դուք չունեք համապատասխան իրավունքներ՝ համակարգի մակարդակով տեղադրում կատարելու համար: Փորձեք տեղադրումը կատարել որպես Ադմինիստրատոր:</translation>
+<translation id="8865415417596392024">Chrome-ի տվյալները ձեր հաշվում</translation>
 <translation id="8883862939660515976">Հարցնել Google Տեսապակուն այս պատկերի մասին</translation>
 <translation id="8914504000324227558">Chrome-ի վերագործարկում</translation>
 <translation id="8922193594870374009">Հեռախոսահամարը <ph name="ORIGIN" /> կայքից ձեր Android հեռախոսին ուղարկելու համար երկու սարքերի Chrome դիտարկիչներում մտեք հաշիվ։</translation>

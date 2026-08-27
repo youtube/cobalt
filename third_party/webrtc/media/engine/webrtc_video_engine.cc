@@ -2171,7 +2171,7 @@ RTCError WebRtcVideoSendChannel::WebRtcVideoSendStream::SetRtpParameters(
   }
   if (!key_frames_requested_by_rid.empty()) {
     if (key_frames_requested_by_rid.size() == 1 &&
-        key_frames_requested_by_rid[0] == "") {
+        key_frames_requested_by_rid[0].empty()) {
       // For non-simulcast cases there is no rid,
       // request a keyframe on all layers.
       key_frames_requested_by_rid.clear();
@@ -2514,6 +2514,8 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetPerLayerVideoSenderInfos(
         stream_stats.rtp_stats.transmitted.header_bytes +
         stream_stats.rtp_stats.transmitted.padding_bytes;
     info.packets_sent = stream_stats.rtp_stats.transmitted.packets;
+    info.packets_sent_with_ect1 =
+        stream_stats.rtp_stats.transmitted.packets_with_ect1;
     info.total_packet_send_delay +=
         stream_stats.rtp_stats.transmitted.total_packet_delay;
     info.send_frame_width = stream_stats.width;
@@ -2535,6 +2537,8 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetPerLayerVideoSenderInfos(
       info.report_block_datas.push_back(*stream_stats.report_block_data);
     }
     info.qp_sum = stream_stats.qp_sum;
+    info.psnr_sum = stream_stats.psnr_sum;
+    info.psnr_measurements = stream_stats.psnr_measurements;
     info.total_encode_time_ms = stream_stats.total_encode_time_ms;
     info.total_encoded_bytes_target = stream_stats.total_encoded_bytes_target;
     info.huge_frames_sent = stream_stats.huge_frames_sent;
@@ -2579,13 +2583,19 @@ WebRtcVideoSendChannel::WebRtcVideoSendStream::GetAggregatedVideoSenderInfo(
     info.firs_received += infos[i].firs_received;
     info.nacks_received += infos[i].nacks_received;
     info.plis_received += infos[i].plis_received;
-    if (infos[i].report_block_datas.size())
+    if (!infos[i].report_block_datas.empty())
       info.report_block_datas.push_back(infos[i].report_block_datas[0]);
     if (infos[i].qp_sum) {
       if (!info.qp_sum) {
         info.qp_sum = 0;
       }
       info.qp_sum = *info.qp_sum + *infos[i].qp_sum;
+    }
+    if (infos[i].psnr_measurements > 0) {
+      info.psnr_measurements += infos[i].psnr_measurements;
+      info.psnr_sum.y += infos[i].psnr_sum.y;
+      info.psnr_sum.u += infos[i].psnr_sum.u;
+      info.psnr_sum.v += infos[i].psnr_sum.v;
     }
     info.frames_encoded += infos[i].frames_encoded;
     info.frames_sent += infos[i].frames_sent;
@@ -3785,6 +3795,10 @@ WebRtcVideoReceiveChannel::WebRtcVideoReceiveStream::GetVideoReceiverInfo(
       stats.rtp_stats.packet_counter.header_bytes +
       stats.rtp_stats.packet_counter.padding_bytes;
   info.packets_received = stats.rtp_stats.packet_counter.packets;
+  info.packets_received_with_ect1 =
+      stats.rtp_stats.packet_counter.packets_with_ect1;
+  info.packets_received_with_ce =
+      stats.rtp_stats.packet_counter.packets_with_ce;
   info.packets_lost = stats.rtp_stats.packets_lost;
   info.jitter_ms = stats.rtp_stats.jitter / (kVideoCodecClockrate / 1000);
 

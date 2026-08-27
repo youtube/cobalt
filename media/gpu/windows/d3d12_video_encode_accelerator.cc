@@ -11,6 +11,8 @@
 #include "base/check_is_test.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/strings/strcat.h"
+#include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -26,11 +28,11 @@
 #include "media/base/media_switches.h"
 #include "media/base/video_util.h"
 #include "media/gpu/command_buffer_helper.h"
+#include "media/gpu/gpu_video_encode_accelerator_helpers.h"
 #include "media/gpu/macros.h"
 #include "media/gpu/windows/d3d12_video_encode_av1_delegate.h"
 #include "media/gpu/windows/d3d12_video_encode_delegate.h"
 #include "media/gpu/windows/d3d12_video_encode_h264_delegate.h"
-#include "media/gpu/windows/format_utils.h"
 #include "third_party/microsoft_dxheaders/src/include/directx/d3dx12_core.h"
 #include "ui/gfx/gpu_memory_buffer_handle.h"
 
@@ -357,9 +359,21 @@ EncoderStatus D3D12VideoEncodeAccelerator::Initialize(
     return {EncoderStatus::Codes::kEncoderInitializationError};
   }
 
-  if (config.HasSpatialLayer() || config.HasTemporalLayer()) {
-    MEDIA_LOG(ERROR, media_log_) << "Only L1T1 mode is supported";
-    return {EncoderStatus::Codes::kEncoderInitializationError};
+  if (config.HasSpatialLayer()) {
+    MEDIA_LOG(ERROR, media_log_)
+        << "D3D12VideoEncodeAccelerator don't support spatial layers";
+    return {EncoderStatus::Codes::kEncoderUnsupportedConfig};
+  }
+  uint8_t num_of_temporal_layers =
+      config.spatial_layers.empty()
+          ? 1
+          : config.spatial_layers[0].num_of_temporal_layers;
+  CHECK_GT(num_of_temporal_layers, 0u);
+  if (num_of_temporal_layers > 3) {
+    MEDIA_LOG(ERROR, media_log_) << base::StringPrintf(
+        "D3D12VideoEncodeAccelerator don't support %u temporal layers",
+        num_of_temporal_layers);
+    return {EncoderStatus::Codes::kEncoderUnsupportedConfig};
   }
 
   SupportedProfiles profiles = GetSupportedProfiles();
@@ -369,6 +383,15 @@ EncoderStatus D3D12VideoEncodeAccelerator::Initialize(
     MEDIA_LOG(ERROR, media_log_) << "Unsupported output profile "
                                  << GetProfileName(config.output_profile);
     return {EncoderStatus::Codes::kEncoderUnsupportedProfile};
+  }
+  SVCScalabilityMode scalability_mode = GetSVCScalabilityMode(
+      1, num_of_temporal_layers, SVCInterLayerPredMode::kOff);
+  if (std::ranges::find(profile->scalability_modes, scalability_mode) ==
+      std::ranges::end(profile->scalability_modes)) {
+    MEDIA_LOG(ERROR, media_log_)
+        << base::StrCat({"Unsupported scalability mode ",
+                         GetScalabilityModeName(scalability_mode)});
+    return {EncoderStatus::Codes::kEncoderUnsupportedConfig};
   }
 
   if (config.input_visible_size.width() > profile->max_resolution.width() ||
@@ -428,6 +451,7 @@ void D3D12VideoEncodeAccelerator::Destroy() {
   DVLOGF(2);
   DCHECK_CALLED_ON_VALID_SEQUENCE(child_sequence_checker_);
 
+  destroy_requested_ = true;
   child_weak_this_factory_.InvalidateWeakPtrs();
 
   // We're destroying; cancel all callbacks.
@@ -482,13 +506,14 @@ void D3D12VideoEncodeAccelerator::InitializeTask(const Config& config) {
       BindOnce(&Client::RequireBitstreamBuffers, client_, num_frames_in_flight_,
                config.input_visible_size, bitstream_buffer_size_));
 
-  // TODO(crbug.com/40275246): This needs to be populated when temporal layers
-  // support is implemented.
-  constexpr uint8_t kFullFramerate = 255;
-  encoder_info_.fps_allocation[0] = {kFullFramerate};
+  // Set the fps allocation for the first spatial layer
+  encoder_info_.fps_allocation[0] =
+      GetFpsAllocation(encoder_->GetNumTemporalLayers());
   encoder_info_.reports_average_qp = encoder_->ReportsAverageQp();
   encoder_info_.requested_resolution_alignment = 2;
   encoder_info_.apply_alignment_to_all_simulcast_layers = true;
+  encoder_info_.number_of_manual_reference_buffers =
+      encoder_->GetMaxNumOfRefFrames();
 
   child_task_runner_->PostTask(
       FROM_HERE,
@@ -504,7 +529,7 @@ void D3D12VideoEncodeAccelerator::UseOutputBitstreamBufferTask(
   }
 
   bitstream_buffers_.push(std::move(buffer));
-  TryEncodeNextFrame();
+  TryEncodeFrames();
 }
 
 void D3D12VideoEncodeAccelerator::RequestEncodingParametersChangeTask(
@@ -647,29 +672,35 @@ void D3D12VideoEncodeAccelerator::EncodeTask(
         {std::move(frame), options, /*resolving_shared_image=*/false});
   }
   if (!bitstream_buffers_.empty()) {
-    TryEncodeNextFrame();
+    TryEncodeFrames();
   }
 }
 
-void D3D12VideoEncodeAccelerator::TryEncodeNextFrame() {
+void D3D12VideoEncodeAccelerator::TryEncodeFrames() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(encoder_sequence_checker_);
-  if (input_frames_queue_.empty() || bitstream_buffers_.empty()) {
-    return;
+
+  while (!input_frames_queue_.empty() && !bitstream_buffers_.empty()) {
+    auto& next_input = input_frames_queue_.front();
+    if (next_input.resolving_shared_image ||
+        (!next_input.frame->HasMappableGpuBuffer() &&
+         next_input.frame->HasSharedImage() && !next_input.resolved_resource)) {
+      // D3D12 VEA encodes frames one-by-one, so we will not try following
+      // frames.
+      break;
+    }
+
+    DoEncodeTask(next_input.frame, next_input.resolved_resource,
+                 next_input.options, bitstream_buffers_.front());
+    input_frames_queue_.pop_front();
+    bitstream_buffers_.pop();
   }
 
-  auto& next_input = input_frames_queue_.front();
-  if (next_input.resolving_shared_image ||
-      (!next_input.frame->HasMappableGpuBuffer() &&
-       next_input.frame->HasSharedImage() && !next_input.resolved_resource)) {
-    // D3D12 VEA encodes frames one-by-one, so we will not try following
-    // frames.
-    return;
+  if (flush_requested_ && input_frames_queue_.empty()) {
+    flush_requested_ = false;
+    child_task_runner_->PostTask(
+        FROM_HERE, BindOnce(&D3D12VideoEncodeAccelerator::NotifyFlushDone,
+                            child_weak_this_, /*succeed=*/true));
   }
-
-  DoEncodeTask(next_input.frame, next_input.resolved_resource,
-               next_input.options, bitstream_buffers_.front());
-  input_frames_queue_.pop_front();
-  bitstream_buffers_.pop();
 }
 
 void D3D12VideoEncodeAccelerator::DoEncodeTask(
@@ -712,10 +743,10 @@ void D3D12VideoEncodeAccelerator::DoEncodeTask(
 
   D3D12VideoEncodeDelegate::EncodeResult result =
       std::move(result_or_error).value();
-  result.metadata_.timestamp = frame->timestamp();
+  result.metadata.timestamp = frame->timestamp();
   child_task_runner_->PostTask(
       FROM_HERE, BindOnce(&Client::BitstreamBufferReady, client_,
-                          result.bitstream_buffer_id_, result.metadata_));
+                          result.bitstream_buffer_id, result.metadata));
 }
 
 void D3D12VideoEncodeAccelerator::DestroyTask() {
@@ -810,8 +841,8 @@ void D3D12VideoEncodeAccelerator::OnSharedImageResolved(
   it->resolving_shared_image = false;
   it->resolved_resource = std::move(input_texture);
 
-  // Check if we can encode the front frame now.
-  TryEncodeNextFrame();
+  // Check if we can encode the front frames now.
+  TryEncodeFrames();
 }
 
 void D3D12VideoEncodeAccelerator::ResolveQueuedSharedImages() {
@@ -834,6 +865,44 @@ void D3D12VideoEncodeAccelerator::ResolveQueuedSharedImages() {
                       encoder_weak_this_))));
     }
   }
+}
+
+bool D3D12VideoEncodeAccelerator::IsFlushSupported() {
+  return true;
+}
+
+void D3D12VideoEncodeAccelerator::Flush(FlushCallback flush_callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(child_sequence_checker_);
+
+  if (destroy_requested_) {
+    std::move(flush_callback).Run(/*succeed=*/false);
+    return;
+  }
+
+  flush_callback_ = std::move(flush_callback);
+  encoder_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&D3D12VideoEncodeAccelerator::FlushTask,
+                                encoder_weak_this_));
+}
+
+void D3D12VideoEncodeAccelerator::FlushTask() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(encoder_sequence_checker_);
+
+  if (!encoder_) {
+    child_task_runner_->PostTask(
+        FROM_HERE, BindOnce(&D3D12VideoEncodeAccelerator::NotifyFlushDone,
+                            child_weak_this_, /*succeed=*/false));
+    return;
+  }
+
+  flush_requested_ = true;
+  TryEncodeFrames();
+}
+
+void D3D12VideoEncodeAccelerator::NotifyFlushDone(bool succeed) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(child_sequence_checker_);
+
+  std::move(flush_callback_).Run(succeed);
 }
 
 }  // namespace media

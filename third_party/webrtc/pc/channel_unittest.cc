@@ -57,7 +57,6 @@
 #include "rtc_base/socket.h"
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/task_queue_for_test.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/unique_id_generator.h"
 #include "test/create_test_field_trials.h"
@@ -137,7 +136,7 @@ class VideoTraits : public Traits<webrtc::VideoChannel,
 
 // Base class for Voice/Video tests
 template <class T>
-class ChannelTest : public ::testing::Test, public sigslot::has_slots<> {
+class ChannelTest : public ::testing::Test {
  public:
   enum Flags {
     RTCP_MUX = 0x1,

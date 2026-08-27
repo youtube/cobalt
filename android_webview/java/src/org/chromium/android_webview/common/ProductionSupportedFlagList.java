@@ -183,9 +183,6 @@ public final class ProductionSupportedFlagList {
                 VizFeatures.ALLOW_UNDAMAGED_NONROOT_RENDER_PASS_TO_SKIP,
                 "Enable optimization for skipping undamaged nonroot render passes."),
         Flag.baseFeature(
-                VizFeatures.DRAW_IMMEDIATELY_WHEN_INTERACTIVE,
-                "Enable optimization for immediate activation and draw when interactive."),
-        Flag.baseFeature(
                 VizFeatures.AVOID_DUPLICATE_DELAY_BEGIN_FRAME,
                 "For epsilonic judder avoid sending duplicate (delay source) begin frames."),
         Flag.baseFeature(
@@ -239,6 +236,9 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AndroidAutofillFeatures.ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER_NAME,
                 "Enable lazily initializing framework Autofill wrapper."),
+        Flag.baseFeature(
+                AndroidAutofillFeatures.ANDROID_AUTOFILL_FORWARD_IFRAME_ORIGIN_NAME,
+                "Enable attaching the origin of iframes to form fields."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_ACCEPT_DOM_MUTATION_AFTER_AUTOFILL_SUBMISSION,
                 "Accepts DOM_MUTATION_AFTER_AUTOFILL submissions detected on password forms."),
@@ -639,12 +639,17 @@ public final class ProductionSupportedFlagList {
                 "Enables the Extreme Lightweight UAF Detector."),
         Flag.baseFeature("UseAAudioInput", "Enables the use of AAudio for capturing audio input."),
         Flag.baseFeature(
+                "AlwaysUseAudioManagerOutputFramesPerBuffer",
+                "Use buffer size from AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER for "
+                        + "optimal output frame size."),
+        Flag.baseFeature(
                 "AudioInputConfirmReadsViaShmem",
                 "Enables an audio input optimization that uses shared memory instead of"
                         + " socket messages for audio IPC read confirmations."),
         Flag.baseFeature("UseRustJsonParser"),
         Flag.baseFeature("V8BaselineBatchCompilation"),
         Flag.baseFeature("V8ConcurrentSparkplug"),
+        Flag.baseFeature("V8Flag_incremental_marking_always_user_visible"),
         Flag.baseFeature("V8Flag_large_page_pool"),
         Flag.baseFeature("V8Flag_late_heap_limit_check"),
         Flag.baseFeature("V8Flag_minor_gc_task_with_lower_priority"),
@@ -691,10 +696,6 @@ public final class ProductionSupportedFlagList {
                 "BatteryStatusManagerBroadcastReceiverInBackground",
                 "Register, unregister Battery Status Manager broadcast receiver on a background"
                         + " thread."),
-        Flag.baseFeature(
-                BlinkFeatures.INCREMENT_LOCAL_SURFACE_ID_FOR_MAINFRAME_SAME_DOC_NAVIGATION,
-                "When enabled, every mainframe same-doc navigation will increment the"
-                        + " `viz::LocalSurfaceId` from the impl thread."),
         Flag.baseFeature(
                 BaseFeatures.BACKGROUND_NOT_PERCEPTIBLE_BINDING,
                 "If enabled, not perceptible binding put processes to the background cpu cgroup"),
@@ -849,10 +850,6 @@ public final class ProductionSupportedFlagList {
                 "While scrolling, attempts to wait for late arriving input events before"
                         + " rendering."),
         Flag.baseFeature(
-                CcFeatures.EVICTION_THROTTLES_DRAW,
-                "Enables Renderers to not draw and submit frames when they've been evicted by the"
-                        + " GPU process."),
-        Flag.baseFeature(
                 CcFeatures.DONT_ALWAYS_PUSH_PICTURE_LAYER_IMPLS,
                 "Stop always pushing PictureLayerImpl properties on tree Activation."),
         Flag.baseFeature(CcFeatures.CC_SLIMMING, "Reduce unnecessary work in CC frame updates."),
@@ -993,15 +990,13 @@ public final class ProductionSupportedFlagList {
         Flag.commandLine(
                 AwSwitches.WEBVIEW_USE_STARTUP_TASKS_LOGIC,
                 "When enabled, webview chromium initialization uses the startup tasks logic where"
-                        + " it:\n"
-                        + " - runs the startup tasks asynchronously if startup is triggered from a"
-                        + " background thread. Otherwise runs startup synchronously.\n"
-                        + " - caches any chromium startup exception and rethrows it if startup is"
-                        + " retried without a restart."),
-        Flag.baseFeature(
-                CcFeatures.EXPORT_FRAME_TIMING_AFTER_FRAME_DONE,
-                "When enabled, moves the layer tree client's metric export call for from beginning"
-                        + " of the subsequent frame to the end of the subsequent frame."),
+                    + " it:\n"
+                    + " - runs the startup tasks asynchronously if startup is triggered from a"
+                    + " background thread. Otherwise runs startup synchronously.\n"
+                    + " - caches any chromium startup exception and rethrows it if startup is"
+                    + " retried without a restart.\n"
+                    + " Note: WebViewUseStartupTasksLogicP2 and kWebViewStartupTasksYieldToNative"
+                    + " also enable the same behaviour as this flag."),
         Flag.baseFeature(
                 BlinkFeatures.ASYNC_SET_COOKIE,
                 "When enabled, the communication between renderer and network service is "
@@ -1053,21 +1048,35 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 BlinkFeatures.BLINK_LIFECYCLE_SCRIPT_FORBIDDEN,
                 "Disallow script execution during blink lifecycle update."),
+        Flag.baseFeature(
+                BlinkFeatures.SOFT_NAVIGATION_DETECTION_PRE_PAINT_BASED_ATTRIBUTION,
+                "Enable the PrePaint-based paint attribution mode for soft navigation detect."),
         Flag.commandLine(
                 AwSwitches.WEBVIEW_USE_STARTUP_TASKS_LOGIC_P2,
                 "Enables phase 2 of using startup tasks logic for webview chromium initialization"
                     + " which also starts browser processes asynchronously, when starting webview"
-                    + " asynchronously."),
+                    + " asynchronously.\n"
+                    + " Note: This also enables the same behaviour as WebViewUseStartupTasksLogic"
+                    + " and WebViewStartupTasksYieldToNative with minor differences."),
         Flag.baseFeature("ServiceWorkerAutoPreload"),
         Flag.baseFeature(GpuFeatures.WEB_GPU_USE_SPIRV14, "Use WebGPU's SPIR-V 1.4"),
         Flag.commandLine(
                 AwSwitches.WEBVIEW_STARTUP_TASKS_YIELD_TO_NATIVE,
                 "Enables running native startup tasks asynchronously if WebView startup is"
-                        + " asynchronous"),
+                    + " asynchronous.\n"
+                    + " Note: This also enables the same behaviour as WebViewUseStartupTasksLogic"
+                    + " and WebViewUseStartupTasksLogicP2, with minor additions."),
         Flag.baseFeature(
                 AccessibilityFeatures.ACCESSIBILITY_TEXT_FORMATTING,
                 "Enables text formatting information to be surfaced as Spans on"
                     + " AccessibilityNodeInfo text for consumption by ATs like screen readers."),
+        Flag.baseFeature(
+                ContentFeatures.SPARE_RENDERER_PROCESS_PRIORITY,
+                "When enabled, sends the spare renderer information when setting the priority of"
+                        + " renderers. Currently only Android handles the spare renderer"
+                        + " information in priority. The target priority of a spare renderer in"
+                        + " Android is decided by the feature parameters in"
+                        + " ContentFeatureList.java."),
         Flag.baseFeature(
                 ContentFeatures.WEBVIEW_ASYNC_DRAW_ONLY,
                 "Disable synchronous draw. Experiment to reduce ANRs."),
@@ -1108,6 +1117,13 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "SubframePriorityContribution",
                 "Stops priority contributions from subframes in back-forward cache."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_USE_RENDERING_HEURISTIC,
+                "Apply smoothing Skia options when WebView detects it's running on a TV device."),
+        Flag.commandLine(
+                AwSwitches.WEBVIEW_USE_BACKGROUND_THREAD_FOR_GMS,
+                "Tells the Google Service, GMS, to use a background thread for its Service bind and"
+                        + " connection calls."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

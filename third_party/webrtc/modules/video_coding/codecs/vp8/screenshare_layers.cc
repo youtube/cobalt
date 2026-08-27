@@ -51,8 +51,6 @@ constexpr auto kSwitch = DecodeTargetIndication::kSwitch;
 const double ScreenshareLayers::kMaxTL0FpsReduction = 2.5;
 const double ScreenshareLayers::kAcceptableTargetOvershoot = 2.0;
 
-constexpr int ScreenshareLayers::kMaxNumTemporalLayers;
-
 // Always emit a frame with certain interval, even if bitrate targets have
 // been exceeded. This prevents needless keyframe requests.
 const int ScreenshareLayers::kMaxFrameIntervalMs = 2750;

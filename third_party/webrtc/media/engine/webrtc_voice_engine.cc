@@ -1791,7 +1791,7 @@ bool WebRtcVoiceSendChannel::GetStats(VoiceMediaSendInfo* info) {
   // With separate send and receive channels, we expect GetStats to be called on
   // both, and accumulate info, but only one channel (the send one) should have
   // senders.
-  RTC_DCHECK(info->senders.size() == 0U || send_streams_.size() == 0);
+  RTC_DCHECK(info->senders.empty() || send_streams_.empty());
   for (const auto& stream : send_streams_) {
     AudioSendStream::Stats stats = stream.second->GetStats(false);
     VoiceSenderInfo sinfo;
@@ -1800,6 +1800,7 @@ bool WebRtcVoiceSendChannel::GetStats(VoiceMediaSendInfo* info) {
     sinfo.header_and_padding_bytes_sent = stats.header_and_padding_bytes_sent;
     sinfo.retransmitted_bytes_sent = stats.retransmitted_bytes_sent;
     sinfo.packets_sent = stats.packets_sent;
+    sinfo.packets_sent_with_ect1 = stats.packets_sent_with_ect1;
     sinfo.total_packet_send_delay = stats.total_packet_send_delay;
     sinfo.retransmitted_packets_sent = stats.retransmitted_packets_sent;
     sinfo.packets_lost = stats.packets_lost;

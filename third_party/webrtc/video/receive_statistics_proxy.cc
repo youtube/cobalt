@@ -616,7 +616,7 @@ void ReceiveStatisticsProxy::OnDecodedFrame(const VideoFrame& frame,
   Timestamp current_time = clock_->CurrentTime();
   // TODO(bugs.webrtc.org/13984): some tests do not fill packet_infos().
   TimeDelta assembly_time = TimeDelta::Zero();
-  if (frame.packet_infos().size() > 0) {
+  if (!frame.packet_infos().empty()) {
     const auto [first_packet, last_packet] = std::minmax_element(
         frame.packet_infos().cbegin(), frame.packet_infos().cend(),
         [](const webrtc::RtpPacketInfo& a, const webrtc::RtpPacketInfo& b) {

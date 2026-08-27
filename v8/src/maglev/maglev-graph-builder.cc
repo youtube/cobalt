@@ -2410,8 +2410,10 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
     return MaybeReduceResult::Fail();
   }
 
-  ValueNode* left_length = BuildLoadStringLength(left);
-  ValueNode* right_length = BuildLoadStringLength(right);
+  ValueNode* left_length;
+  GET_VALUE_OR_ABORT(left_length, BuildLoadStringLength(left));
+  ValueNode* right_length;
+  GET_VALUE_OR_ABORT(right_length, BuildLoadStringLength(right));
 
   auto BuildConsString = [&]() -> ReduceResult {
     ValueNode* new_length;
@@ -2469,6 +2471,46 @@ ReduceResult MaglevGraphBuilder::BuildUnwrapStringWrapper(ValueNode* input) {
   DCHECK(NodeTypeIs(GetType(input), NodeType::kStringOrStringWrapper));
   if (NodeTypeIs(GetType(input), NodeType::kString)) return input;
   return AddNewNode<UnwrapStringWrapper>({input});
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryBuildStringConcat(ValueNode* left,
+                                                           ValueNode* right) {
+  auto left_type = GetType(left);
+  auto right_type = GetType(right);
+  auto left_is_string = NodeTypeIs(left_type, NodeType::kString);
+  auto right_is_string = NodeTypeIs(right_type, NodeType::kString);
+
+  if (!left_is_string && !right_is_string) {
+    return MaybeReduceResult::Fail();
+  }
+
+  // Build the necessary ToString conversions.
+  //
+  // JSReceivers need special handling due to ToPrimitive in
+  // https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
+  // which uses preferredType NUMBER, unlike the same call in ToString, which
+  // uses STRING. For now, pass these on to StringAddConvertLeft/Right builtins.
+  // TODO(jgruber): consider inlining this instead, and properly converting
+  // operands using `ToString(ToPrimitive(op))`.
+  if (!left_is_string) {
+    if (NodeTypeCanBe(left_type, NodeType::kJSReceiver)) {
+      constexpr auto kTarget = Builtin::kStringAddConvertLeft;
+      auto result = BuildCallBuiltin<kTarget>({left, right});
+      SetAccumulator(result);
+      return result;
+    }
+    left = BuildToString(left, ToString::kThrowOnSymbol);
+  } else if (!right_is_string) {
+    if (NodeTypeCanBe(right_type, NodeType::kJSReceiver)) {
+      constexpr auto kTarget = Builtin::kStringAddConvertRight;
+      auto result = BuildCallBuiltin<kTarget>({left, right});
+      SetAccumulator(result);
+      return result;
+    }
+    right = BuildToString(right, ToString::kThrowOnSymbol);
+  }
+
+  return BuildStringConcat(left, right);
 }
 
 ReduceResult MaglevGraphBuilder::BuildStringConcat(ValueNode* left,
@@ -2568,6 +2610,18 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
       // Fallback to generic node.
       break;
   }
+
+  if constexpr (kOperation == Operation::kAdd) {
+    // Since feedback describes both operands, it is only set to a value if
+    // both operands fulfill the condition (e.g. if both are strings).
+    // But we can do better for strings, since only one operand must be a
+    // string to result in a string-add operation.
+    DCHECK_NE(feedback_hint, BinaryOperationHint::kString);
+    ValueNode* left = LoadRegister(0);
+    ValueNode* right = GetAccumulator();
+    RETURN_IF_DONE(TryBuildStringConcat(left, right));
+  }
+
   return BuildGenericBinaryOperationNode<kOperation>();
 }
 
@@ -2971,7 +3025,7 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
         case Operation::kEqual:
         case Operation::kStrictEqual: {
           result = AddNewNodeNoInputConversion<StringEqual>(
-              {tagged_left, tagged_right}, StringEqualInputs::kOnlyStrings);
+              {tagged_left, tagged_right}, StringEqualInputMode::kOnlyStrings);
           break;
         }
         case Operation::kLessThan:
@@ -3010,7 +3064,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
         ValueNode* tagged_left = GetTaggedValue(left);
         ValueNode* tagged_right = GetTaggedValue(right);
         ValueNode* result = AddNewNodeNoInputConversion<StringEqual>(
-            {tagged_left, tagged_right}, StringEqualInputs::kStringsOrOddballs);
+            {tagged_left, tagged_right},
+            StringEqualInputMode::kStringsOrOddballs);
         SetAccumulator(result);
         return ReduceResult::Done();
       }
@@ -4456,6 +4511,14 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
       // TODO(leszeks): Insert an unconditional deopt if the constant map
       // doesn't match the required map.
     }
+  } else if (!object->is_tagged() && !object->is_holey_float64()) {
+    // TODO(victorgomes): Implement the holey float64 case.
+    auto heap_number_map =
+        MakeRef(broker(), local_isolate()->factory()->heap_number_map());
+    if (std::find(maps.begin(), maps.end(), heap_number_map) != maps.end()) {
+      return ReduceResult::Done();
+    }
+    return ReduceResult::DoneWithAbort();
   }
 
   NodeInfo* known_info = GetOrCreateInfoFor(object);
@@ -4468,7 +4531,6 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   if (IsEmptyNodeType(IntersectType(merger.node_type(), GetType(object)))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
-
   // If the known maps are the subset of the maps to check, we are done.
   if (merger.known_maps_are_subset_of_requested_maps()) {
     // The node type of known_info can get out of sync with the possible maps.
@@ -4550,14 +4612,24 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
 }
 
 ReduceResult MaglevGraphBuilder::BuildCompareMaps(
-    ValueNode* heap_object, ValueNode* object_map,
+    ValueNode* object, ValueNode* object_map,
     base::Vector<const compiler::MapRef> maps, MaglevSubGraphBuilder* sub_graph,
     std::optional<MaglevSubGraphBuilder::Label>& if_not_matched) {
-  GetOrCreateInfoFor(heap_object);
+  GetOrCreateInfoFor(object);
   KnownMapsMerger merger(broker(), zone(), maps);
-  merger.IntersectWithKnownNodeAspects(heap_object, known_node_aspects());
+  merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
 
   if (merger.intersect_set().is_empty()) {
+    return ReduceResult::DoneWithAbort();
+  }
+
+  if (!object->is_tagged() && !object->is_holey_float64()) {
+    // TODO(victorgomes): Implement the holey float64 case.
+    auto heap_number_map =
+        MakeRef(broker(), local_isolate()->factory()->heap_number_map());
+    if (std::find(maps.begin(), maps.end(), heap_number_map) != maps.end()) {
+      return ReduceResult::Done();
+    }
     return ReduceResult::DoneWithAbort();
   }
 
@@ -4582,7 +4654,7 @@ ReduceResult MaglevGraphBuilder::BuildCompareMaps(
     sub_graph->Goto(&*map_matched);
     sub_graph->Bind(&*map_matched);
   }
-  merger.UpdateKnownNodeAspects(heap_object, known_node_aspects());
+  merger.UpdateKnownNodeAspects(object, known_node_aspects());
   return ReduceResult::Done();
 }
 
@@ -5448,7 +5520,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     }
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
-      ValueNode* result = BuildLoadStringLength(receiver);
+      ValueNode* result;
+      GET_VALUE_OR_ABORT(result, BuildLoadStringLength(receiver));
       RecordKnownProperty(lookup_start_object, name, result,
                           AccessInfoGuaranteedConst(access_info),
                           compiler::AccessMode::kLoad);
@@ -5781,7 +5854,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
     RETURN_IF_ABORT(BuildCheckString(object));
   }
 
-  ValueNode* length = BuildLoadStringLength(object);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(object));
   ValueNode* index;
   GET_VALUE_OR_ABORT(index, GetInt32ElementIndex(index_object));
   auto emit_load = [&]() -> ValueNode* {
@@ -5987,7 +6061,7 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayElement(
 #undef BUILD_AND_RETURN_LOAD_TYPED_ARRAY
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadConstantTypedArrayElement(
+ReduceResult MaglevGraphBuilder::BuildLoadConstantTypedArrayElement(
     compiler::JSTypedArrayRef typed_array, ValueNode* index,
     ElementsKind elements_kind) {
 #define BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(Type)    \
@@ -6706,10 +6780,15 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     is_number.emplace(&sub_graph, 2);
     sub_graph.GotoIfTrue<BranchIfSmi>(&*is_number, {lookup_start_object});
   } else {
+    // The lookup start object is a HeapNumber, but we haven't seen the
+    // HeapNumber map in the access infos.
+    if (!lookup_start_object->is_tagged() &&
+        !lookup_start_object->is_holey_float64()) {
+      return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+    }
     RETURN_IF_ABORT(BuildCheckHeapObject(lookup_start_object));
   }
-  ValueNode* lookup_start_object_map =
-      BuildLoadTaggedField(lookup_start_object, HeapObject::kMapOffset);
+  ValueNode* lookup_start_object_map = BuildLoadMap(lookup_start_object);
 
   if (needs_migration) {
     // TODO(marja, v8:7700): Try migrating only if all comparisons failed.
@@ -7079,7 +7158,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReuseKnownPropertyLoad(
   return {};
 }
 
-ValueNode* MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
+ReduceResult MaglevGraphBuilder::BuildLoadStringLength(ValueNode* string) {
   DCHECK(NodeTypeIs(GetType(string), NodeType::kString));
   if (auto vo_string = string->TryCast<InlinedAllocation>()) {
     if (vo_string->object()->type() == VirtualObject::kConsString) {
@@ -9204,7 +9283,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharAt(
   // Ensure that {receiver} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
-  ValueNode* length = BuildLoadStringLength(receiver);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
 
   auto GetCharAt = [&]() -> ValueNode* {
     bool is_seq_one_byte =
@@ -9271,7 +9351,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   // Ensure that {receiver} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
-  ValueNode* length = BuildLoadStringLength(receiver);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
   auto GetCharCodeAt = [&]() -> ValueNode* {
     bool is_seq_one_byte =
         v8_flags.specialize_code_for_one_byte_seq_strings &&
@@ -9325,7 +9406,8 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   // Ensure that {receiver} is actually a String.
   RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
-  ValueNode* length = BuildLoadStringLength(receiver);
+  ValueNode* length;
+  GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
 
   auto GetCodePointAt = [&]() -> ValueNode* {
     bool is_seq_one_byte =
@@ -14031,6 +14113,7 @@ BasicBlock* MaglevGraphBuilder::FinishInlinedBlockForCaller(
   reducer_.FlushNodesToBlock();
   set_current_block(nullptr);
   for (Node* n : rem_nodes_in_call_block) {
+    if (n == nullptr) continue;
     n->set_owner(result);
     result->nodes().push_back(n);
   }
@@ -16309,6 +16392,14 @@ void MaglevGraphBuilder::StartFallthroughBlock(int next_block_offset,
   } else {
     MergeIntoFrameState(predecessor, next_block_offset);
   }
+}
+
+ValueNode* MaglevGraphBuilder::BuildLoadMap(ValueNode* object) {
+  if (!object->is_tagged() && !object->is_holey_float64()) {
+    // TODO(victorgomes): Implement the holey float64 case.
+    return GetConstant(broker()->heap_number_map());
+  }
+  return BuildLoadTaggedField(object, HeapObject::kMapOffset);
 }
 
 template <typename Instruction, typename... Args>

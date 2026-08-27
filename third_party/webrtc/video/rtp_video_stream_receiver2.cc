@@ -739,7 +739,7 @@ bool RtpVideoStreamReceiver2::OnReceivedPayloadData(
 
   packet->times_nacked = times_nacked;
 
-  if (codec_payload.size() == 0) {
+  if (codec_payload.empty()) {
     NotifyReceiverOfEmptyPacket(packet->seq_num(),
                                 GetCodecFromPayloadType(packet->payload_type));
     rtcp_feedback_buffer_.SendBufferedRtcpFeedback();

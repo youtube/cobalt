@@ -12,7 +12,7 @@
 
 #include <cmath>
 
-#include "api/video/corruption_detection_filter_settings.h"
+#include "api/video/corruption_detection/corruption_detection_filter_settings.h"
 #include "api/video/video_codec_type.h"
 #include "api/video_codecs/video_codec.h"
 #include "rtc_base/checks.h"

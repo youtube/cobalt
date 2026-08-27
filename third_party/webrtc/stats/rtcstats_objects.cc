@@ -186,7 +186,9 @@ RTCRtpStreamStats::~RTCRtpStreamStats() {}
 WEBRTC_RTCSTATS_IMPL(
     RTCReceivedRtpStreamStats, RTCRtpStreamStats, "received-rtp",
     AttributeInit("jitter", &jitter),
-    AttributeInit("packetsLost", &packets_lost))
+    AttributeInit("packetsLost", &packets_lost),
+    AttributeInit("packetsReceivedWithEct1", &packets_received_with_ect1),
+    AttributeInit("packetsReceivedWithCn", &packets_received_with_ce))
 // clang-format on
 
 RTCReceivedRtpStreamStats::RTCReceivedRtpStreamStats(std::string id,
@@ -324,7 +326,8 @@ WEBRTC_RTCSTATS_IMPL(
     AttributeInit("active", &active),
     AttributeInit("powerEfficientEncoder", &power_efficient_encoder),
     AttributeInit("scalabilityMode", &scalability_mode),
-    AttributeInit("rtxSsrc", &rtx_ssrc))
+    AttributeInit("rtxSsrc", &rtx_ssrc),
+    AttributeInit("packetsSentWithEct1", &packets_sent_with_ect1))
 // clang-format on
 
 RTCOutboundRtpStreamStats::RTCOutboundRtpStreamStats(std::string id,

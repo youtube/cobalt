@@ -11,6 +11,7 @@
 #include "base/containers/to_vector.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/icu_test_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
@@ -63,17 +64,22 @@ AttributeInstance CreateAttribute(AttributeTypeName name,
   return instance;
 }
 
-void AddPrediction(AutofillField& field, FieldType field_type) {
-  FieldPrediction prediction;
-  prediction.set_type(field_type);
-  prediction.set_source(AutofillQueryResponse::FormSuggestion::FieldSuggestion::
-                            FieldPrediction::SOURCE_AUTOFILL_AI);
-  field.set_server_predictions({prediction});
+void AddPrediction(AutofillField& field,
+                   const std::vector<FieldType>& field_types) {
+  field.set_server_predictions(
+      base::ToVector(field_types, [](FieldType field_type) {
+        FieldPrediction prediction;
+        prediction.set_type(field_type);
+        prediction.set_source(
+            AutofillQueryResponse::FormSuggestion::FieldSuggestion::
+                FieldPrediction::SOURCE_AUTOFILL_AI);
+        return prediction;
+      }));
 }
 
 std::unique_ptr<AutofillField> CreateInput(
     FormControlType form_control_type,
-    FieldType field_type,
+    const std::vector<FieldType>& field_types,
     std::string_view value,
     std::string_view format_string = "",
     std::string_view initial_value = "") {
@@ -89,14 +95,25 @@ std::unique_ptr<AutofillField> CreateInput(
         base::UTF8ToUTF16(format_string),
         AutofillField::FormatStringSource::kServer);
   }
-  AddPrediction(*field, field_type);
+  AddPrediction(*field, field_types);
   return field;
 }
 
-std::unique_ptr<AutofillField> CreateSelect(std::vector<std::string> values,
-                                            std::vector<std::string> texts,
-                                            FieldType field_type,
-                                            std::string value) {
+std::unique_ptr<AutofillField> CreateInput(
+    FormControlType form_control_type,
+    FieldType field_type,
+    std::string_view value,
+    std::string_view format_string = "",
+    std::string_view initial_value = "") {
+  return CreateInput(form_control_type, std::vector<FieldType>{field_type},
+                     value, format_string, initial_value);
+}
+
+std::unique_ptr<AutofillField> CreateSelect(
+    std::vector<std::string> values,
+    std::vector<std::string> texts,
+    const std::vector<FieldType>& field_types,
+    std::string value) {
   values.resize(std::max(values.size(), texts.size()));
   texts.resize(std::max(values.size(), texts.size()));
   auto field = std::make_unique<AutofillField>(test::CreateTestSelectField(
@@ -104,8 +121,15 @@ std::unique_ptr<AutofillField> CreateSelect(std::vector<std::string> values,
       /*autocomplete=*/"",
       /*values=*/base::ToVector(values, &std::string::c_str),
       /*contents=*/base::ToVector(texts, &std::string::c_str)));
-  AddPrediction(*field, field_type);
+  AddPrediction(*field, field_types);
   return field;
+}
+
+std::unique_ptr<AutofillField> CreateSelect(std::vector<std::string> values,
+                                            std::vector<std::string> texts,
+                                            FieldType field_type,
+                                            std::string value) {
+  return CreateSelect(values, texts, std::vector<FieldType>{field_type}, value);
 }
 
 class AutofillAiImportUtilsTest : public testing::Test {
@@ -234,8 +258,32 @@ TEST_F(AutofillAiImportUtilsTest, DoNotImportAffixes) {
               CreateAttribute(kDriversLicenseName, "Karlsson on the Roof")))));
 }
 
+// Tests that entities created from overloaded fields (i.e., fields that
+// contribute to multiple entities) are not offered for imported.
+TEST_F(AutofillAiImportUtilsTest, DoNotImportOverloadedFields) {
+  std::vector<std::unique_ptr<AutofillField>> fields;
+  fields.push_back(CreateInput(FormControlType::kInputText,
+                               {PASSPORT_NUMBER, DRIVERS_LICENSE_NUMBER},
+                               "123"));
+  fields.push_back(CreateInput(FormControlType::kInputText, NAME_FULL,
+                               "Karlsson on the Roof"));
+  EXPECT_THAT(GetPossibleEntitiesFromSubmittedForm(fields, "en-US"), IsEmpty());
+
+  fields.push_back(
+      CreateInput(FormControlType::kInputText, VEHICLE_VIN, "456"));
+  EXPECT_THAT(
+      GetPossibleEntitiesFromSubmittedForm(fields, "en-US"),
+      ElementsAre(Property(
+          &EntityInstance::attributes,
+          UnorderedElementsAre(
+              CreateAttribute(kVehicleVin, "456"),
+              CreateAttribute(kVehicleOwner, "Karlsson on the Roof")))));
+}
+
 TEST_F(AutofillAiImportUtilsTest, MaybeGetLocalizedDate) {
   using enum AttributeTypeName;
+  base::test::ScopedRestoreICUDefaultLocale restore_default_locale;
+
   EntityInstance entity =
       test::GetPassportEntityInstance({.expiry_date = u"2025-12-30"});
   {

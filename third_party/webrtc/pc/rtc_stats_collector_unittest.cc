@@ -2147,6 +2147,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio) {
   voice_media_info.receivers[0].packets_lost = -1;  // Signed per RFC3550
   voice_media_info.receivers[0].packets_discarded = 7788;
   voice_media_info.receivers[0].packets_received = 2;
+  voice_media_info.receivers[0].packets_received_with_ect1 = 7;
+  voice_media_info.receivers[0].packets_received_with_ce = 5;
   voice_media_info.receivers[0].nacks_sent = 5;
   voice_media_info.receivers[0].fec_packets_discarded = 5566;
   voice_media_info.receivers[0].fec_packets_received = 6677;
@@ -2204,6 +2206,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio) {
   expected_audio.transport_id = "TTransportName1";
   expected_audio.codec_id = "CITTransportName1_42";
   expected_audio.packets_received = 2;
+  expected_audio.packets_received_with_ect1 = 7;
+  expected_audio.packets_received_with_ce = 5;
   expected_audio.nack_count = 5;
   expected_audio.fec_packets_discarded = 5566;
   expected_audio.fec_packets_received = 6677;
@@ -2300,6 +2304,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Video) {
   video_media_info.receivers[0].local_stats.push_back(SsrcReceiverInfo());
   video_media_info.receivers[0].local_stats[0].ssrc = 1;
   video_media_info.receivers[0].packets_received = 2;
+  video_media_info.receivers[0].packets_received_with_ect1 = 7;
+  video_media_info.receivers[0].packets_received_with_ce = 5;
   video_media_info.receivers[0].packets_lost = 42;
   video_media_info.receivers[0].payload_bytes_received = 3;
   video_media_info.receivers[0].header_and_padding_bytes_received = 12;
@@ -2377,6 +2383,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Video) {
   expected_video.pli_count = 6;
   expected_video.nack_count = 7;
   expected_video.packets_received = 2;
+  expected_video.packets_received_with_ect1 = 7;
+  expected_video.packets_received_with_ce = 5;
   expected_video.bytes_received = 3;
   expected_video.header_bytes_received = 12;
   expected_video.packets_lost = 42;
@@ -2523,6 +2531,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Audio) {
   voice_media_info.senders[0].local_stats.push_back(SsrcSenderInfo());
   voice_media_info.senders[0].local_stats[0].ssrc = 1;
   voice_media_info.senders[0].packets_sent = 2;
+  voice_media_info.senders[0].packets_sent_with_ect1 = 2;
   voice_media_info.senders[0].total_packet_send_delay = TimeDelta::Seconds(1);
   voice_media_info.senders[0].retransmitted_packets_sent = 20;
   voice_media_info.senders[0].payload_bytes_sent = 3;
@@ -2558,6 +2567,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Audio) {
   expected_audio.transport_id = "TTransportName1";
   expected_audio.codec_id = "COTTransportName1_42";
   expected_audio.packets_sent = 2;
+  expected_audio.packets_sent_with_ect1 = 2;
   expected_audio.total_packet_send_delay = 1;
   expected_audio.retransmitted_packets_sent = 20;
   expected_audio.bytes_sent = 3;
@@ -2592,6 +2602,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
   video_media_info.senders[0].plis_received = 3;
   video_media_info.senders[0].nacks_received = 4;
   video_media_info.senders[0].packets_sent = 5;
+  video_media_info.senders[0].packets_sent_with_ect1 = 3;
   video_media_info.senders[0].retransmitted_packets_sent = 50;
   video_media_info.senders[0].payload_bytes_sent = 6;
   video_media_info.senders[0].header_and_padding_bytes_sent = 12;
@@ -2669,6 +2680,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
   expected_video.pli_count = 3;
   expected_video.nack_count = 4;
   expected_video.packets_sent = 5;
+  expected_video.packets_sent_with_ect1 = 3;
   expected_video.retransmitted_packets_sent = 50;
   expected_video.bytes_sent = 6;
   expected_video.header_bytes_sent = 12;
@@ -2971,6 +2983,7 @@ TEST_F(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRtpStreamStats_Audio) {
   voice_media_info.senders[0].local_stats.push_back(SsrcSenderInfo());
   voice_media_info.senders[0].local_stats[0].ssrc = 1;
   voice_media_info.senders[0].packets_sent = 2;
+  voice_media_info.senders[0].packets_sent_with_ect1 = 0;
   voice_media_info.senders[0].total_packet_send_delay = TimeDelta::Seconds(0.5);
   voice_media_info.senders[0].retransmitted_packets_sent = 20;
   voice_media_info.senders[0].payload_bytes_sent = 3;
@@ -3005,6 +3018,7 @@ TEST_F(RTCStatsCollectorTest, CollectNoStreamRTCOutboundRtpStreamStats_Audio) {
   expected_audio.transport_id = "TTransportName1";
   expected_audio.codec_id = "COTTransportName1_42";
   expected_audio.packets_sent = 2;
+  expected_audio.packets_sent_with_ect1 = 0;
   expected_audio.total_packet_send_delay = 0.5;
   expected_audio.retransmitted_packets_sent = 20;
   expected_audio.bytes_sent = 3;

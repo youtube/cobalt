@@ -56,7 +56,7 @@ namespace {
 
 media::VideoDecoderConfig ToClearMediaVideoDecoderConfig(
     const cdm::VideoDecoderConfig_3& config) {
-  gfx::Size coded_size(config.coded_size.width, config.coded_size.width);
+  gfx::Size coded_size(config.coded_size.width, config.coded_size.height);
 
   VideoDecoderConfig media_config(
       ToMediaVideoCodec(config.codec), ToMediaVideoCodecProfile(config.profile),

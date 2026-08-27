@@ -1131,7 +1131,6 @@ if (is_ios || is_mac) {
         "../api/environment:environment_factory",
         "../api/rtc_event_log:rtc_event_log_factory",
         "../api/task_queue:default_task_queue_factory",
-        "../api/transport:field_trial_based_config",
         "../api/transport:network_control",
         "../api/transport/rtp:rtp_source",
         "../api/video:video_frame",

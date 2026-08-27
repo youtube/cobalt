@@ -851,6 +851,9 @@ CallReceiveStatistics ChannelReceive::GetRTCPStatistics() const {
         rtp_stats.packet_counter.header_bytes +
         rtp_stats.packet_counter.padding_bytes;
     stats.packets_received = rtp_stats.packet_counter.packets;
+    stats.packets_received_with_ect1 =
+        rtp_stats.packet_counter.packets_with_ect1;
+    stats.packets_received_with_ce = rtp_stats.packet_counter.packets_with_ce;
     stats.last_packet_received = rtp_stats.last_packet_received;
   }
 

@@ -139,7 +139,7 @@ int AsyncTCPSocketBase::FlushOutBuffer() {
   RTC_DCHECK_GT(outbuf_.size(), 0);
   ArrayView<uint8_t> view = outbuf_;
   int res;
-  while (view.size() > 0) {
+  while (!view.empty()) {
     res = socket_->Send(view.data(), view.size());
     if (res <= 0) {
       break;
@@ -231,11 +231,11 @@ void AsyncTCPSocketBase::OnReadEvent(Socket* socket) {
 void AsyncTCPSocketBase::OnWriteEvent(Socket* socket) {
   RTC_DCHECK(socket_.get() == socket);
 
-  if (outbuf_.size() > 0) {
+  if (!outbuf_.empty()) {
     FlushOutBuffer();
   }
 
-  if (outbuf_.size() == 0) {
+  if (outbuf_.empty()) {
     SignalReadyToSend(this);
   }
 }

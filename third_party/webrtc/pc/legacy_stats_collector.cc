@@ -1013,7 +1013,7 @@ void LegacyStatsCollector::ExtractSessionInfo_s(SessionStats& session_stats) {
       }
       int srtp_crypto_suite = channel_iter.srtp_crypto_suite;
       if (srtp_crypto_suite != kSrtpInvalidCryptoSuite &&
-          SrtpCryptoSuiteToName(srtp_crypto_suite).length()) {
+          !SrtpCryptoSuiteToName(srtp_crypto_suite).empty()) {
         channel_report->AddString(StatsReport::kStatsValueNameSrtpCipher,
                                   SrtpCryptoSuiteToName(srtp_crypto_suite));
       }

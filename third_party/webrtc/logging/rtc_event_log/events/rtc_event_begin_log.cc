@@ -23,9 +23,6 @@
 #include "logging/rtc_event_log/events/rtc_event_log_parse_status.h"
 
 namespace webrtc {
-constexpr RtcEvent::Type RtcEventBeginLog::kType;
-constexpr EventParameters RtcEventBeginLog::event_params_;
-constexpr FieldParameters RtcEventBeginLog::utc_start_time_params_;
 
 RtcEventBeginLog::RtcEventBeginLog(Timestamp timestamp,
                                    Timestamp utc_start_time)

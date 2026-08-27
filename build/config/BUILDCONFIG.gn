@@ -409,7 +409,6 @@ default_compiler_configs = [
   "//build/config/compiler:default_symbols",
   "//build/config/compiler:disallow_unstable_features",
   "//build/config/compiler:libcxx_hardening",
-  "//build/config/compiler:libcxx_module",
   "//build/config/compiler:no_exceptions",
   "//build/config/compiler:no_rtti",
   "//build/config/compiler:no_unresolved_symbols",
@@ -635,8 +634,8 @@ foreach(_target_type,
         # directory) regardless of whether the libc++ module is used in this
         # target.
         public_deps += [
-          "//buildtools/third_party/libc++:copy_custom_headers",
-          "//buildtools/third_party/libc++:copy_libcxx_headers",
+          "//buildtools/third_party/libc++:copy_custom_headers($default_toolchain)",
+          "//buildtools/third_party/libc++:copy_libcxx_headers($default_toolchain)",
         ]
       }
 
@@ -668,10 +667,6 @@ foreach(_target_type,
           defines = []
         }
         defines += [ "USE_LIBCXX_MODULES" ]
-      } else if (filter_include(configs,
-                                [ "//build/config/compiler:libcxx_module" ]) !=
-                 []) {
-        configs -= [ "//build/config/compiler:libcxx_module" ]
       }
 
       # Consumed by the unsafe-buffers plugin during compile.
@@ -767,8 +762,8 @@ foreach(_target_type,
         # directory) regardless of whether the libc++ module is used in this
         # target.
         public_deps += [
-          "//buildtools/third_party/libc++:copy_custom_headers",
-          "//buildtools/third_party/libc++:copy_libcxx_headers",
+          "//buildtools/third_party/libc++:copy_custom_headers($default_toolchain)",
+          "//buildtools/third_party/libc++:copy_libcxx_headers($default_toolchain)",
         ]
       }
 
@@ -800,10 +795,6 @@ foreach(_target_type,
           defines = []
         }
         defines += [ "USE_LIBCXX_MODULES" ]
-      } else if (filter_include(configs,
-                                [ "//build/config/compiler:libcxx_module" ]) !=
-                 []) {
-        configs -= [ "//build/config/compiler:libcxx_module" ]
       }
 
       # On Android, write shared library output file to metadata. We will use

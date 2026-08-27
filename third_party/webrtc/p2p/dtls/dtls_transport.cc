@@ -380,7 +380,7 @@ bool DtlsTransportInternalImpl::SetRemoteFingerprint(
   }
 
   // At this point we know we are doing DTLS
-  bool fingerprint_changing = remote_fingerprint_value_.size() > 0u;
+  bool fingerprint_changing = !remote_fingerprint_value_.empty();
   remote_fingerprint_value_ = std::move(remote_fingerprint_value);
   remote_fingerprint_algorithm_ = std::string(digest_alg);
 
@@ -471,7 +471,7 @@ bool DtlsTransportInternalImpl::SetupDtls() {
   dtls_->SetServerRole(*dtls_role_);
   dtls_->SetEventCallback(
       [this](int events, int err) { OnDtlsEvent(events, err); });
-  if (remote_fingerprint_value_.size() &&
+  if (!remote_fingerprint_value_.empty() &&
       dtls_->SetPeerCertificateDigest(remote_fingerprint_algorithm_,
                                       remote_fingerprint_value_) !=
           SSLPeerCertificateDigestError::NONE) {

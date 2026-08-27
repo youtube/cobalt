@@ -4,9 +4,15 @@
 
 #import "ios/chrome/browser/prerender/model/fake_prerender_service.h"
 
+#import "ios/chrome/browser/prerender/model/prerender_tab_helper.h"
+
 FakePrerenderService::FakePrerenderService() = default;
 
 FakePrerenderService::~FakePrerenderService() = default;
+
+void FakePrerenderService::SetPrerenderWebState(web::WebState* web_state) {
+  PrerenderTabHelper::CreateForWebState(web_state, this);
+}
 
 void FakePrerenderService::SetDelegate(id<PreloadControllerDelegate> delegate) {
 }
@@ -31,7 +37,7 @@ bool FakePrerenderService::IsLoadingPrerender() {
   return false;
 }
 
-void FakePrerenderService::CancelPrerender() {
+void FakePrerenderService::CancelAllPrerenders() {
   preload_url_ = GURL();
 }
 
@@ -39,6 +45,6 @@ bool FakePrerenderService::HasPrerenderForUrl(const GURL& url) {
   return preload_url_ == url;
 }
 
-bool FakePrerenderService::IsWebStatePrerendered(web::WebState* web_state) {
-  return web_state == prerender_web_state_;
+void FakePrerenderService::CancelPrerender() {
+  CancelAllPrerenders();
 }

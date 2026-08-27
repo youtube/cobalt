@@ -373,8 +373,8 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan11, reporter) {
     CHECK_EXT_DISABLED(VK_ARM_RASTERIZATION_ORDER_ATTACHMENT_ACCESS);
     CHECK_EXT_ENABLED(VK_EXT_RASTERIZATION_ORDER_ATTACHMENT_ACCESS);
     CHECK_EXT_ENABLED(VK_EXT_BLEND_OPERATION_ADVANCED);
-    //CHECK_EXT_ENABLED(VK_EXT_EXTENDED_DYNAMIC_STATE);
-    //CHECK_EXT_ENABLED(VK_EXT_EXTENDED_DYNAMIC_STATE_2);
+    CHECK_EXT_ENABLED(VK_EXT_EXTENDED_DYNAMIC_STATE);
+    CHECK_EXT_ENABLED(VK_EXT_EXTENDED_DYNAMIC_STATE_2);
     //CHECK_EXT_ENABLED(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE);
     //CHECK_EXT_ENABLED(VK_EXT_GRAPHICS_PIPELINE_LIBRARY);
     CHECK_EXT_ENABLED(VK_KHR_SAMPLER_YCBCR_CONVERSION);
@@ -382,7 +382,7 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan11, reporter) {
     //CHECK_EXT_ENABLED(VK_KHR_SYNCHRONIZATION_2);
     //CHECK_EXT_ENABLED(VK_KHR_DYNAMIC_RENDERING);
     //CHECK_EXT_ENABLED(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ);
-    //CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
+    CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
     //CHECK_EXT_ENABLED(VK_EXT_HOST_IMAGE_COPY);
     CHECK_EXT_ENABLED(VK_EXT_PIPELINE_CREATION_CACHE_CONTROL);
     CHECK_EXT_ENABLED(VK_KHR_DRIVER_PROPERTIES);
@@ -393,7 +393,7 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan11, reporter) {
     //CHECK_EXT_ENABLED(VK_KHR_PIPELINE_LIBRARY);
     //CHECK_EXT_ENABLED(VK_KHR_COPY_COMMANDS_2);
     //CHECK_EXT_ENABLED(VK_KHR_FORMAT_FEATURE_FLAGS_2);
-    //CHECK_EXT_ENABLED(VK_KHR_DEPTH_STENCIL_RESOLVE);
+    CHECK_EXT_ENABLED(VK_KHR_DEPTH_STENCIL_RESOLVE);
     CHECK_EXT_DISABLED(VK_KHR_SHADER_DRAW_PARAMETERS);
     CHECK_EXT_DISABLED(VK_KHR_DRAW_INDIRECT_COUNT);
     CHECK_EXT_DISABLED(VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE);
@@ -416,13 +416,13 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan11, reporter) {
                           BlendOperationAdvancedFeaturesEXT,
                           advancedBlendCoherentOperations);
 
-    //CHECK_FEATURE_ENABLED(EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
-    //                      ExtendedDynamicStateFeaturesEXT,
-    //                      extendedDynamicState);
+    CHECK_FEATURE_ENABLED(EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+                          ExtendedDynamicStateFeaturesEXT,
+                          extendedDynamicState);
 
-    //CHECK_FEATURE_ENABLED(EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT,
-    //                      ExtendedDynamicState2FeaturesEXT,
-    //                      extendedDynamicState2);
+    CHECK_FEATURE_ENABLED(EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT,
+                          ExtendedDynamicState2FeaturesEXT,
+                          extendedDynamicState2);
     CHECK_FEATURE_DISABLED(EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT,
                            ExtendedDynamicState2FeaturesEXT,
                            extendedDynamicState2LogicOp);
@@ -454,9 +454,9 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan11, reporter) {
     //                      DynamicRenderingLocalReadFeatures,
     //                      dynamicRenderingLocalRead);
 
-    //CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
-    //                      MultisampledRenderToSingleSampledFeaturesEXT,
-    //                      multisampledRenderToSingleSampled);
+    CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
+                          MultisampledRenderToSingleSampledFeaturesEXT,
+                          multisampledRenderToSingleSampled);
 
     //CHECK_FEATURE_ENABLED(HOST_IMAGE_COPY_FEATURES, HostImageCopyFeatures, hostImageCopy);
 
@@ -499,8 +499,8 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan12, reporter) {
     CHECK_EXT_DISABLED(VK_ARM_RASTERIZATION_ORDER_ATTACHMENT_ACCESS);
     CHECK_EXT_ENABLED(VK_EXT_RASTERIZATION_ORDER_ATTACHMENT_ACCESS);
     CHECK_EXT_ENABLED(VK_EXT_BLEND_OPERATION_ADVANCED);
-    //CHECK_EXT_ENABLED(VK_EXT_EXTENDED_DYNAMIC_STATE);
-    //CHECK_EXT_ENABLED(VK_EXT_EXTENDED_DYNAMIC_STATE_2);
+    CHECK_EXT_ENABLED(VK_EXT_EXTENDED_DYNAMIC_STATE);
+    CHECK_EXT_ENABLED(VK_EXT_EXTENDED_DYNAMIC_STATE_2);
     //CHECK_EXT_ENABLED(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE);
     //CHECK_EXT_ENABLED(VK_EXT_GRAPHICS_PIPELINE_LIBRARY);
     CHECK_EXT_DISABLED(VK_KHR_SAMPLER_YCBCR_CONVERSION);
@@ -508,7 +508,7 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan12, reporter) {
     //CHECK_EXT_ENABLED(VK_KHR_SYNCHRONIZATION_2);
     //CHECK_EXT_ENABLED(VK_KHR_DYNAMIC_RENDERING);
     //CHECK_EXT_ENABLED(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ);
-    //CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
+    CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
     //CHECK_EXT_ENABLED(VK_EXT_HOST_IMAGE_COPY);
     CHECK_EXT_ENABLED(VK_EXT_PIPELINE_CREATION_CACHE_CONTROL);
     CHECK_EXT_DISABLED(VK_KHR_DRIVER_PROPERTIES);
@@ -572,13 +572,13 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan12, reporter) {
                           BlendOperationAdvancedFeaturesEXT,
                           advancedBlendCoherentOperations);
 
-    //CHECK_FEATURE_ENABLED(EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
-    //                      ExtendedDynamicStateFeaturesEXT,
-    //                      extendedDynamicState);
+    CHECK_FEATURE_ENABLED(EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+                          ExtendedDynamicStateFeaturesEXT,
+                          extendedDynamicState);
 
-    //CHECK_FEATURE_ENABLED(EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT,
-    //                      ExtendedDynamicState2FeaturesEXT,
-    //                      extendedDynamicState2);
+    CHECK_FEATURE_ENABLED(EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT,
+                          ExtendedDynamicState2FeaturesEXT,
+                          extendedDynamicState2);
     CHECK_FEATURE_DISABLED(EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT,
                            ExtendedDynamicState2FeaturesEXT,
                            extendedDynamicState2LogicOp);
@@ -610,9 +610,9 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan12, reporter) {
     //                      DynamicRenderingLocalReadFeatures,
     //                      dynamicRenderingLocalRead);
 
-    //CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
-    //                      MultisampledRenderToSingleSampledFeaturesEXT,
-    //                      multisampledRenderToSingleSampled);
+    CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
+                          MultisampledRenderToSingleSampledFeaturesEXT,
+                          multisampledRenderToSingleSampled);
 
     //CHECK_FEATURE_ENABLED(HOST_IMAGE_COPY_FEATURES, HostImageCopyFeatures, hostImageCopy);
 
@@ -664,7 +664,7 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan13, reporter) {
     CHECK_EXT_DISABLED(VK_KHR_SYNCHRONIZATION_2);
     CHECK_EXT_DISABLED(VK_KHR_DYNAMIC_RENDERING);
     //CHECK_EXT_ENABLED(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ);
-    //CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
+    CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
     //CHECK_EXT_ENABLED(VK_EXT_HOST_IMAGE_COPY);
     CHECK_EXT_DISABLED(VK_EXT_PIPELINE_CREATION_CACHE_CONTROL);
     CHECK_EXT_DISABLED(VK_KHR_DRIVER_PROPERTIES);
@@ -781,9 +781,9 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan13, reporter) {
     //                      DynamicRenderingLocalReadFeatures,
     //                      dynamicRenderingLocalRead);
 
-    //CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
-    //                      MultisampledRenderToSingleSampledFeaturesEXT,
-    //                      multisampledRenderToSingleSampled);
+    CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
+                          MultisampledRenderToSingleSampledFeaturesEXT,
+                          multisampledRenderToSingleSampled);
 
     //CHECK_FEATURE_ENABLED(HOST_IMAGE_COPY_FEATURES, HostImageCopyFeatures, hostImageCopy);
 
@@ -835,7 +835,7 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan14, reporter) {
     CHECK_EXT_DISABLED(VK_KHR_SYNCHRONIZATION_2);
     CHECK_EXT_DISABLED(VK_KHR_DYNAMIC_RENDERING);
     CHECK_EXT_DISABLED(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ);
-    //CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
+    CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
     CHECK_EXT_DISABLED(VK_EXT_HOST_IMAGE_COPY);
     CHECK_EXT_DISABLED(VK_EXT_PIPELINE_CREATION_CACHE_CONTROL);
     CHECK_EXT_DISABLED(VK_KHR_DRIVER_PROPERTIES);
@@ -967,9 +967,9 @@ DEF_TEST(VkPreferredFeaturesTest_BasicVulkan14, reporter) {
                            DynamicRenderingLocalReadFeatures,
                            dynamicRenderingLocalRead);
 
-    //CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
-    //                      MultisampledRenderToSingleSampledFeaturesEXT,
-    //                      multisampledRenderToSingleSampled);
+    CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
+                          MultisampledRenderToSingleSampledFeaturesEXT,
+                          multisampledRenderToSingleSampled);
 
     CHECK_FEATURE_DISABLED(HOST_IMAGE_COPY_FEATURES, HostImageCopyFeatures, hostImageCopy);
 
@@ -1043,7 +1043,7 @@ DEF_TEST(VkPreferredFeaturesTest_CustomVulkan11, reporter) {
     CHECK_EXT_DISABLED(VK_ARM_RASTERIZATION_ORDER_ATTACHMENT_ACCESS);
     CHECK_EXT_ENABLED(VK_EXT_RASTERIZATION_ORDER_ATTACHMENT_ACCESS);
     CHECK_EXT_ENABLED(VK_EXT_BLEND_OPERATION_ADVANCED);
-    //CHECK_EXT_ENABLED(VK_EXT_EXTENDED_DYNAMIC_STATE);
+    CHECK_EXT_ENABLED(VK_EXT_EXTENDED_DYNAMIC_STATE);
     CHECK_EXT_DISABLED(VK_EXT_EXTENDED_DYNAMIC_STATE_2);
     //CHECK_EXT_ENABLED(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE);
     CHECK_EXT_DISABLED(VK_EXT_GRAPHICS_PIPELINE_LIBRARY);
@@ -1089,9 +1089,9 @@ DEF_TEST(VkPreferredFeaturesTest_CustomVulkan11, reporter) {
                           BlendOperationAdvancedFeaturesEXT,
                           advancedBlendCoherentOperations);
 
-    //CHECK_FEATURE_ENABLED(EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
-    //                      ExtendedDynamicStateFeaturesEXT,
-    //                      extendedDynamicState);
+    CHECK_FEATURE_ENABLED(EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+                          ExtendedDynamicStateFeaturesEXT,
+                          extendedDynamicState);
 
     CHECK_FEATURE_DISABLED(EXTENDED_DYNAMIC_STATE_2_FEATURES_EXT,
                            ExtendedDynamicState2FeaturesEXT,
@@ -1215,7 +1215,7 @@ DEF_TEST(VkPreferredFeaturesTest_CustomVulkan12, reporter) {
     //CHECK_EXT_ENABLED(VK_KHR_SYNCHRONIZATION_2);
     //CHECK_EXT_ENABLED(VK_KHR_DYNAMIC_RENDERING);
     //CHECK_EXT_ENABLED(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ);
-    //CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
+    CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
     CHECK_EXT_DISABLED(VK_EXT_HOST_IMAGE_COPY);
     CHECK_EXT_ENABLED(VK_EXT_PIPELINE_CREATION_CACHE_CONTROL);
     CHECK_EXT_DISABLED(VK_KHR_DRIVER_PROPERTIES);
@@ -1338,9 +1338,9 @@ DEF_TEST(VkPreferredFeaturesTest_CustomVulkan12, reporter) {
     //                      DynamicRenderingLocalReadFeatures,
     //                      dynamicRenderingLocalRead);
 
-    //CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
-    //                      MultisampledRenderToSingleSampledFeaturesEXT,
-    //                      multisampledRenderToSingleSampled);
+    CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
+                          MultisampledRenderToSingleSampledFeaturesEXT,
+                          multisampledRenderToSingleSampled);
 
     CHECK_FEATURE_DISABLED(HOST_IMAGE_COPY_FEATURES, HostImageCopyFeatures, hostImageCopy);
 
@@ -1437,7 +1437,7 @@ DEF_TEST(VkPreferredFeaturesTest_CustomVulkan13, reporter) {
     CHECK_EXT_DISABLED(VK_EXT_RGBA10X6_FORMATS);
     CHECK_EXT_DISABLED(VK_KHR_SYNCHRONIZATION_2);
     //CHECK_EXT_ENABLED(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ);
-    //CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
+    CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
     CHECK_EXT_DISABLED(VK_EXT_HOST_IMAGE_COPY);
     CHECK_EXT_DISABLED(VK_EXT_PIPELINE_CREATION_CACHE_CONTROL);
     CHECK_EXT_DISABLED(VK_KHR_CREATE_RENDERPASS_2);
@@ -1554,9 +1554,9 @@ DEF_TEST(VkPreferredFeaturesTest_CustomVulkan13, reporter) {
     //                      DynamicRenderingLocalReadFeatures,
     //                      dynamicRenderingLocalRead);
 
-    //CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
-    //                      MultisampledRenderToSingleSampledFeaturesEXT,
-    //                      multisampledRenderToSingleSampled);
+    CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
+                          MultisampledRenderToSingleSampledFeaturesEXT,
+                          multisampledRenderToSingleSampled);
 
     CHECK_FEATURE_DISABLED(HOST_IMAGE_COPY_FEATURES, HostImageCopyFeatures, hostImageCopy);
 
@@ -1637,7 +1637,7 @@ DEF_TEST(VkPreferredFeaturesTest_CustomVulkan14, reporter) {
     CHECK_EXT_ENABLED(VK_EXT_RGBA10X6_FORMATS);
     CHECK_EXT_DISABLED(VK_KHR_SYNCHRONIZATION_2);
     CHECK_EXT_DISABLED(VK_KHR_DYNAMIC_RENDERING);
-    //CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
+    CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
     CHECK_EXT_DISABLED(VK_EXT_HOST_IMAGE_COPY);
     CHECK_EXT_DISABLED(VK_EXT_PIPELINE_CREATION_CACHE_CONTROL);
     CHECK_EXT_DISABLED(VK_KHR_DRIVER_PROPERTIES);
@@ -1709,9 +1709,9 @@ DEF_TEST(VkPreferredFeaturesTest_CustomVulkan14, reporter) {
                           RGBA10X6FormatsFeaturesEXT,
                           formatRgba10x6WithoutYCbCrSampler);
 
-    //CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
-    //                      MultisampledRenderToSingleSampledFeaturesEXT,
-    //                      multisampledRenderToSingleSampled);
+    CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
+                          MultisampledRenderToSingleSampledFeaturesEXT,
+                          multisampledRenderToSingleSampled);
 
     // Features enabled by the app must remain enabled
     CHECK_FEATURE_ENABLED(SHADER_OBJECT_FEATURES_EXT, ShaderObjectFeaturesEXT, shaderObject);
@@ -1789,7 +1789,7 @@ DEF_TEST(VkPreferredFeaturesTest_EmptyEnableChain, reporter) {
     CHECK_EXT_DISABLED(VK_KHR_SYNCHRONIZATION_2);
     CHECK_EXT_DISABLED(VK_KHR_DYNAMIC_RENDERING);
     //CHECK_EXT_ENABLED(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ);
-    //CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
+    CHECK_EXT_ENABLED(VK_EXT_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED);
     //CHECK_EXT_ENABLED(VK_EXT_HOST_IMAGE_COPY);
     CHECK_EXT_DISABLED(VK_EXT_PIPELINE_CREATION_CACHE_CONTROL);
     CHECK_EXT_DISABLED(VK_KHR_DRIVER_PROPERTIES);
@@ -1857,9 +1857,9 @@ DEF_TEST(VkPreferredFeaturesTest_EmptyEnableChain, reporter) {
     //                      DynamicRenderingLocalReadFeatures,
     //                      dynamicRenderingLocalRead);
 
-    //CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
-    //                      MultisampledRenderToSingleSampledFeaturesEXT,
-    //                      multisampledRenderToSingleSampled);
+    CHECK_FEATURE_ENABLED(MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_FEATURES_EXT,
+                          MultisampledRenderToSingleSampledFeaturesEXT,
+                          multisampledRenderToSingleSampled);
 
     // Features enabled by the app must remain enabled
     CHECK_FEATURE_ENABLED(SHADER_OBJECT_FEATURES_EXT, ShaderObjectFeaturesEXT, shaderObject);

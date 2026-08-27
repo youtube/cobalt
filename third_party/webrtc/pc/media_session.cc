@@ -847,6 +847,9 @@ MediaSessionDescriptionFactory::CreateAnswerOrError(
   if (transport_desc_factory_->trials().IsEnabled(
           "WebRTC-RFC8888CongestionControlFeedback")) {
     for (const auto& content : offer->contents()) {
+      if (content.type != MediaProtocolType::kRtp) {
+        continue;
+      }
       if (content.media_description()->rtcp_fb_ack_ccfb()) {
         has_ack_ccfb = true;
       } else if (has_ack_ccfb) {
@@ -1341,11 +1344,13 @@ RTCError MediaSessionDescriptionFactory::AddRtpContentForAnswer(
   // RFC 8888 support. Only answer with "ack ccfb" if offer has it and
   // experiment is enabled.
   if (offer_content_description->rtcp_fb_ack_ccfb()) {
-    answer_content->set_rtcp_fb_ack_ccfb(
-        transport_desc_factory_->trials().IsEnabled(
-            "WebRTC-RFC8888CongestionControlFeedback"));
-    for (auto& codec : codecs_to_include) {
-      codec.feedback_params.Remove(FeedbackParam(kRtcpFbParamTransportCc));
+    bool use_ccfb = transport_desc_factory_->trials().IsEnabled(
+        "WebRTC-RFC8888CongestionControlFeedback");
+    if (use_ccfb) {
+      answer_content->set_rtcp_fb_ack_ccfb(use_ccfb);
+      for (auto& codec : codecs_to_include) {
+        codec.feedback_params.Remove(FeedbackParam(kRtcpFbParamTransportCc));
+      }
     }
   }
   if (!SetCodecsInAnswer(offer_content_description, codecs_to_include,

@@ -473,6 +473,48 @@ static void test_addPath_and_injected_moveTo(skiatest::Reporter* reporter) {
     test_before_after_lineto(path3c, {20,50}, {20,50});
 }
 
+static void test_addPath_convexity(skiatest::Reporter* reporter) {
+    auto circle = SkPath::Circle(10, 10, 10);
+    REPORTER_ASSERT(reporter, circle.isConvex());
+
+    auto path_add = [&](bool startWithMove, SkPath::AddPathMode mode) {
+        SkPath path;
+        if (startWithMove) {
+            path.moveTo(0, 0);
+        }
+        path.addPath(circle, mode);
+        return path;
+    };
+
+    auto builder_add = [&](bool startWithMove, SkPath::AddPathMode mode) {
+        SkPathBuilder builder;
+        if (startWithMove) {
+            builder.moveTo(0, 0);
+        }
+        builder.addPath(circle, mode);
+        return builder.detach();
+    };
+
+    const struct Expect {
+        bool                fStartWithMove;
+        SkPath::AddPathMode fMode;
+        bool                fShouldBeConvex;
+    } expectations[] = {
+        { false, SkPath::AddPathMode::kAppend_AddPathMode,  true  },
+        { true,  SkPath::AddPathMode::kAppend_AddPathMode,  true  },
+        { false, SkPath::AddPathMode::kExtend_AddPathMode,  true  },
+        { true,  SkPath::AddPathMode::kExtend_AddPathMode,  false },
+    };
+
+    for (auto e : expectations) {
+        auto path = path_add(e.fStartWithMove, e.fMode);
+        REPORTER_ASSERT(reporter, path.isConvex() == e.fShouldBeConvex);
+
+        path = builder_add(e.fStartWithMove, e.fMode);
+        REPORTER_ASSERT(reporter, path.isConvex() == e.fShouldBeConvex);
+    }
+}
+
 DEF_TEST(pathbuilder_addPath, reporter) {
     const auto p = SkPath()
         .moveTo(10, 10)
@@ -494,6 +536,8 @@ DEF_TEST(pathbuilder_addPath, reporter) {
     test_addEmptyPath(reporter, SkPath::kExtend_AddPathMode);
     test_addEmptyPath(reporter, SkPath::kAppend_AddPathMode);
     test_addPath_and_injected_moveTo(reporter);
+
+    test_addPath_convexity(reporter);
 }
 
 DEF_TEST(pathbuilder_addpath_crbug_1153516, r) {
@@ -582,9 +626,31 @@ static void assertIsDone(skiatest::Reporter* reporter, SkPathPriv::RangeIter* it
     REPORTER_ASSERT(reporter, *iter == SkPathPriv::Iterate(*p).end(), "Iterator is not done yet");
 }
 
+DEF_TEST(SkPathBuilder_multipleMoveTos, reporter) {
+    SkPathBuilder pb;
+    REPORTER_ASSERT(reporter, pb.isEmpty());
+
+    auto check_last_pt = [&](float x, float y) {
+        auto lastPt = pb.getLastPt();
+        REPORTER_ASSERT(reporter, lastPt.has_value());
+        return *lastPt == SkPoint{x, y};
+    };
+
+    pb.moveTo(1, 2);
+    REPORTER_ASSERT(reporter, pb.points().size() == 1);
+    REPORTER_ASSERT(reporter, check_last_pt(1, 2));
+    REPORTER_ASSERT(reporter, pb.computeBounds() == SkRect::MakeXYWH(1, 2, 0, 0));
+
+    pb.moveTo(3, 4);
+    pb.moveTo(5, 6);
+    pb.moveTo(7, 8);
+    REPORTER_ASSERT(reporter, pb.points().size() == 1);
+    REPORTER_ASSERT(reporter, check_last_pt(7, 8));
+    REPORTER_ASSERT(reporter, pb.computeBounds() == SkRect::MakeXYWH(7, 8, 0, 0));
+}
+
 DEF_TEST(SkPathBuilder_lineToMoveTo, reporter) {
     SkPathBuilder pb;
-    pb.moveTo(5, -1);
     pb.moveTo(20, 3);
     pb.lineTo(7, 11);
     pb.lineTo(8, 12);
@@ -594,7 +660,6 @@ DEF_TEST(SkPathBuilder_lineToMoveTo, reporter) {
     SkPath result = pb.detach();
 
     auto iter = SkPathPriv::Iterate(result).begin();
-    assertIsMoveTo(reporter, &iter, 5, -1);
     assertIsMoveTo(reporter, &iter, 20, 3);
     assertIsLineTo(reporter, &iter, 7, 11);
     assertIsLineTo(reporter, &iter, 8, 12);
@@ -713,9 +778,9 @@ DEF_TEST(SkPathBuilder_transform, reporter) {
 
         SkPathBuilder b1 = SkPathBuilder(b.snapshot())
             .moveTo(SkPoint::Make(0, 0))
-            .transform(matrix, SkApplyPerspectiveClip::kNo);
+            .transform(matrix);
         REPORTER_ASSERT(reporter, matrix.invert(&matrix));
-        b1.transform(matrix, SkApplyPerspectiveClip::kNo);
+        b1.transform(matrix);
         SkRect pBounds = b.snapshot().getBounds();
         SkRect p1Bounds = b1.detach().getBounds();
         REPORTER_ASSERT(reporter, SkScalarNearlyEqual(pBounds.fLeft, p1Bounds.fLeft));

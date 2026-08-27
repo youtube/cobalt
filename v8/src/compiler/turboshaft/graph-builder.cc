@@ -431,7 +431,7 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kInt32Constant:
       return __ Word32Constant(static_cast<uint32_t>(OpParameter<int32_t>(op)));
     case IrOpcode::kFloat64Constant:
-      return __ Float64Constant(OpParameter<double>(op));
+      return __ Float64Constant(OpParameter<i::Float64>(op));
     case IrOpcode::kFloat32Constant:
       return __ Float32Constant(OpParameter<float>(op));
     case IrOpcode::kNumberConstant:
@@ -1065,6 +1065,8 @@ OpIndex GraphBuilder::Process(
                                        NumberOrOddball)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeTaggedToFloat64, Float64,
                                        NumberOrOddball)
+      CONVERT_OBJECT_TO_PRIMITIVE_CASE(ChangeNumberOrHoleToFloat64, Float64,
+                                       NumberOrHole)
       CONVERT_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToFloat64, Float64,
                                        NumberOrOddball)
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
@@ -1080,8 +1082,10 @@ OpIndex GraphBuilder::Process(
         TruncateJSPrimitiveToUntaggedOp::UntaggedKind::k##kind,          \
         TruncateJSPrimitiveToUntaggedOp::InputAssumptions::              \
             k##input_assumptions);
-      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToWord32, Int32,
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateNumberOrOddballToWord32, Int32,
                                         NumberOrOddball)
+      TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateNumberOrOddballOrHoleToWord32,
+                                        Int32, NumberOrOddballOrHole)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateBigIntToWord64, Int64, BigInt)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedToBit, Bit, Object)
       TRUNCATE_OBJECT_TO_PRIMITIVE_CASE(TruncateTaggedPointerToBit, Bit,

@@ -949,7 +949,7 @@ class Decoder : public DecodedImageCallback {
       MutexLock lock(&mutex_);
       spatial_idx = *spatial_idx_;
 
-      if (ref_frames_.size() > 0) {
+      if (!ref_frames_.empty()) {
         auto it = ref_frames_.find(decoded_frame.rtp_timestamp());
         RTC_CHECK(it != ref_frames_.end());
         ref_frame = it->second;

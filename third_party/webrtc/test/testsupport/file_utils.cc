@@ -149,7 +149,7 @@ std::string GenerateTempFilename(absl::string_view dir,
 }
 
 std::optional<std::vector<std::string>> ReadDirectory(absl::string_view path) {
-  if (path.length() == 0)
+  if (path.empty())
     return std::optional<std::vector<std::string>>();
 
   std::string path_str(path);

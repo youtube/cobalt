@@ -610,7 +610,7 @@ void UDPPort::MaybeSetPortCompleteOrError() {
 
   // The port is "completed" if there is no stun server provided, or the bind
   // request succeeded for any stun server, or the socket is shared.
-  if (server_addresses_.empty() || bind_request_succeeded_servers_.size() > 0 ||
+  if (server_addresses_.empty() || !bind_request_succeeded_servers_.empty() ||
       SharedSocket()) {
     SignalPortComplete(this);
   } else {

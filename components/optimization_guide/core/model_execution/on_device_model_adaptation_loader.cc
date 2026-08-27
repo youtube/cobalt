@@ -18,6 +18,7 @@
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_feature_adapter.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
+#include "components/optimization_guide/core/model_execution/usage_tracker.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
@@ -88,11 +89,8 @@ bool ArePerformanceHintsCompatible(
     return true;
   }
   // Check if the adaptation model supports any of the base model's hints.
-  return std::ranges::any_of(
-      adaptation_metadata.supported_performance_hints(), [&](int hint) {
-        return base_spec.supported_performance_hints.Has(
-            static_cast<proto::OnDeviceModelPerformanceHint>(hint));
-      });
+  return base::Contains(adaptation_metadata.supported_performance_hints(),
+                        base_spec.selected_performance_hint);
 }
 
 std::optional<OnDeviceModelAdaptationAvailability>
@@ -170,6 +168,7 @@ OnDeviceModelAdaptationLoader::OnDeviceModelAdaptationLoader(
     OptimizationGuideModelProvider* model_provider,
     base::WeakPtr<OnDeviceModelComponentStateManager>
         on_device_component_state_manager,
+    UsageTracker& usage_tracker,
     PrefService* local_state,
     OnLoadFn on_load_fn)
     : feature_(feature),
@@ -177,6 +176,7 @@ OnDeviceModelAdaptationLoader::OnDeviceModelAdaptationLoader(
           *features::internal::GetOptimizationTargetForCapability(feature_)),
       model_provider_(model_provider),
       on_device_component_state_manager_(on_device_component_state_manager),
+      usage_tracker_(usage_tracker),
       local_state_(local_state),
       on_load_fn_(on_load_fn),
       background_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
@@ -185,6 +185,7 @@ OnDeviceModelAdaptationLoader::OnDeviceModelAdaptationLoader(
     return;
   }
 
+  usage_tracker_observation_.Observe(&usage_tracker);
   component_state_manager_observation_.Observe(
       on_device_component_state_manager.get());
   if (auto* state = on_device_component_state_manager->GetState()) {
@@ -206,7 +207,7 @@ void OnDeviceModelAdaptationLoader::Unregister() {
 void OnDeviceModelAdaptationLoader::StateChanged(
     const OnDeviceModelComponentState* state) {
   MaybeRegisterModelDownload(
-      state, WasOnDeviceEligibleFeatureRecentlyUsed(feature_, *local_state_));
+      state, usage_tracker_->WasOnDeviceEligibleFeatureRecentlyUsed(feature_));
 }
 
 void OnDeviceModelAdaptationLoader::MaybeRegisterModelDownload(
@@ -246,9 +247,8 @@ void OnDeviceModelAdaptationLoader::MaybeRegisterModelDownload(
     proto::OnDeviceBaseModelMetadata model_metadata;
     model_metadata.set_base_model_version(registered_spec_->model_version);
     model_metadata.set_base_model_name(registered_spec_->model_name);
-    *model_metadata.mutable_supported_performance_hints() = {
-        registered_spec_->supported_performance_hints.begin(),
-        registered_spec_->supported_performance_hints.end()};
+    model_metadata.add_supported_performance_hints(
+        registered_spec_->selected_performance_hint);
     model_metadata.SerializeToString(any_metadata.mutable_value());
   }
 
@@ -266,7 +266,7 @@ void OnDeviceModelAdaptationLoader::OnDeviceEligibleFeatureFirstUsed(
   }
   MaybeRegisterModelDownload(
       on_device_component_state_manager_->GetState(),
-      WasOnDeviceEligibleFeatureRecentlyUsed(feature_, *local_state_));
+      usage_tracker_->WasOnDeviceEligibleFeatureRecentlyUsed(feature_));
 }
 
 void OnDeviceModelAdaptationLoader::OnModelUpdated(

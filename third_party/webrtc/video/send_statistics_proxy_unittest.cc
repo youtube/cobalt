@@ -476,8 +476,7 @@ TEST_F(SendStatisticsProxyTest,
   // TODO(https://crbug.com/webrtc/10640): When the RateTracker uses a Clock
   // this test can stop relying on ScopedFakeClock.
   ScopedFakeClock fake_global_clock;
-  fake_global_clock.SetTime(
-      Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+  fake_global_clock.SetTime(fake_clock_.CurrentTime());
 
   statistics_proxy_->OnSetEncoderTargetRate(kTargetBytesPerSecond * 8);
   EncodedImage encoded_image;
@@ -488,8 +487,7 @@ TEST_F(SendStatisticsProxyTest,
       statistics_proxy_->GetStats().total_encoded_bytes_target;
   // Second frame
   fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-  fake_global_clock.SetTime(
-      Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+  fake_global_clock.SetTime(fake_clock_.CurrentTime());
   encoded_image.SetRtpTimestamp(encoded_image.RtpTimestamp() +
                                 90 * kInterframeDelayMs);
   statistics_proxy_->OnSendEncodedImage(encoded_image, nullptr);
@@ -507,22 +505,19 @@ TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStream) {
   const int kInterframeDelayMs = 100;
   const auto ssrc = config_.rtp.ssrcs[0];
   ScopedFakeClock fake_global_clock;
-  fake_global_clock.SetTime(
-      Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+  fake_global_clock.SetTime(fake_clock_.CurrentTime());
 
   // First frame
   EncodedImage encoded_image;
   statistics_proxy_->OnSendEncodedImage(encoded_image, nullptr);
   fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-  fake_global_clock.SetTime(
-      Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+  fake_global_clock.SetTime(fake_clock_.CurrentTime());
   // Second frame
   encoded_image.SetRtpTimestamp(encoded_image.RtpTimestamp() +
                                 90 * kInterframeDelayMs);
   statistics_proxy_->OnSendEncodedImage(encoded_image, nullptr);
   fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-  fake_global_clock.SetTime(
-      Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+  fake_global_clock.SetTime(fake_clock_.CurrentTime());
 
   auto stats = statistics_proxy_->GetStats();
   EXPECT_EQ(stats.substreams[ssrc].encode_frame_rate, 10);
@@ -531,8 +526,7 @@ TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStream) {
 TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStreamsVp8Simulcast) {
   const int kInterframeDelayMs = 100;
   ScopedFakeClock fake_global_clock;
-  fake_global_clock.SetTime(
-      Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+  fake_global_clock.SetTime(fake_clock_.CurrentTime());
   EncodedImage encoded_image;
   CodecSpecificInfo codec_info;
   codec_info.codecType = kVideoCodecVP8;
@@ -545,8 +539,7 @@ TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStreamsVp8Simulcast) {
     encoded_image.SetSimulcastIndex(1);
     statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
     fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-    fake_global_clock.SetTime(
-        Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+    fake_global_clock.SetTime(fake_clock_.CurrentTime());
   }
 
   VideoSendStream::Stats stats = statistics_proxy_->GetStats();
@@ -561,8 +554,7 @@ TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStreamsVp8Simulcast) {
     encoded_image.SetSimulcastIndex(0);
     statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
     fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-    fake_global_clock.SetTime(
-        Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+    fake_global_clock.SetTime(fake_clock_.CurrentTime());
   }
 
   stats = statistics_proxy_->GetStats();
@@ -579,8 +571,7 @@ TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStreamsVp8Simulcast) {
     encoded_image.SetSimulcastIndex(1);
     statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
     fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-    fake_global_clock.SetTime(
-        Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+    fake_global_clock.SetTime(fake_clock_.CurrentTime());
   }
 
   stats = statistics_proxy_->GetStats();
@@ -592,8 +583,7 @@ TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStreamsVp8Simulcast) {
 TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStreamsVp9Svc) {
   const int kInterframeDelayMs = 100;
   ScopedFakeClock fake_global_clock;
-  fake_global_clock.SetTime(
-      Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+  fake_global_clock.SetTime(fake_clock_.CurrentTime());
   EncodedImage encoded_image;
   CodecSpecificInfo codec_info;
   codec_info.codecType = kVideoCodecVP9;
@@ -608,8 +598,7 @@ TEST_F(SendStatisticsProxyTest, EncodeFrameRateInSubStreamsVp9Svc) {
     codec_info.end_of_picture = true;
     statistics_proxy_->OnSendEncodedImage(encoded_image, &codec_info);
     fake_clock_.AdvanceTimeMilliseconds(kInterframeDelayMs);
-    fake_global_clock.SetTime(
-        Timestamp::Millis(fake_clock_.TimeInMilliseconds()));
+    fake_global_clock.SetTime(fake_clock_.CurrentTime());
   }
 
   VideoSendStream::Stats stats = statistics_proxy_->GetStats();

@@ -417,6 +417,14 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "android_desktop_wpt_args",
+    generate_pyl_entry = False,
+    args = [
+        "--additional-driver-flag=--force-android-desktop",
+    ],
+)
+
+targets.mixin(
     name = "arm64",
     # All references have been moved to starlark
     generate_pyl_entry = False,
@@ -659,6 +667,16 @@ targets.mixin(
             "device_os_flavor": "google",
             "device_type": "walleye",
             "os": "Android",
+            "pool": "chromium.tests",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "chromium_tests_pool",
+    generate_pyl_entry = False,
+    swarming = targets.swarming(
+        dimensions = {
             "pool": "chromium.tests",
         },
     ),
@@ -2637,12 +2655,12 @@ targets.mixin(
     generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
-        "17a5285i",
+        "17a5295f",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a5285i",
+                name = "xcode_ios_17a5295f",
                 path = "Xcode.app",
             ),
         ],

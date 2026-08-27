@@ -8,6 +8,8 @@
 #import "base/check.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/application_locale_storage/application_locale_storage.h"
+#import "components/signin/public/identity_manager/account_info.h"
+#import "components/sync/service/sync_service.h"
 #import "components/user_data_importer/ios/ios_bookmark_parser.h"
 #import "components/user_data_importer/utility/safari_data_importer.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
@@ -40,11 +42,10 @@
   /// to be kept alive in the duration of the importer.
   std::unique_ptr<password_manager::SavedPasswordsPresenter>
       _savedPasswordsPresenter;
-  /// Whether we should allow the user to select a file. Workaround for file
-  /// picker latencies.
-  BOOL _disableFileSelection;
   /// Whether the mediator is disconnected.
   BOOL _disconnected;
+  /// The URL of the file being imported, which requires security-scoped access.
+  NSURL* _currentSecurityScopedURL;
 }
 
 - (instancetype)
@@ -61,6 +62,12 @@
   self = [super init];
   if (self) {
     CHECK(faviconLoader);
+    if (syncService) {
+      std::string email = syncService->GetAccountInfo().email;
+      if (!email.empty()) {
+        _email = [NSString stringWithUTF8String:email.c_str()];
+      }
+    }
     _importClient = std::make_unique<IOSSafariDataImportClient>();
     _savedPasswordsPresenter = std::move(savedPasswordsPresenter);
     _savedPasswordsPresenter->Init();
@@ -82,11 +89,14 @@
 }
 
 - (void)reset {
-  _disableFileSelection = NO;
+  if (_currentSecurityScopedURL) {
+    [_currentSecurityScopedURL stopAccessingSecurityScopedResource];
+    _currentSecurityScopedURL = nil;
+  }
 }
 
-- (void)importItems {
-  [self continueToImportPasswords:[NSArray array]];
+- (NSString*)filename {
+  return _currentSecurityScopedURL.lastPathComponent;
 }
 
 - (NSArray<PasswordImportItem*>*)conflictingPasswords {
@@ -98,6 +108,14 @@
 - (NSArray<PasswordImportItem*>*)invalidPasswords {
   return [self
       passwordItemsWithFaviconDataSource:_importClient->GetInvalidPasswords()];
+}
+
+- (NSError*)deleteFile {
+  NSError* error = nil;
+  [[NSFileManager defaultManager] removeItemAtURL:_currentSecurityScopedURL
+                                            error:&error];
+  [self reset];
+  return error;
 }
 
 - (void)disconnect {
@@ -137,16 +155,21 @@
 
 - (void)documentPicker:(UIDocumentPickerViewController*)controller
     didPickDocumentsAtURLs:(NSArray<NSURL*>*)urls {
-  if (_disableFileSelection) {
+  // Early exit. Workaround for file picker latencies.
+  if (_currentSecurityScopedURL) {
     return;
   }
-  NSURL* file = urls.firstObject;
-  if (!file) {
+  _currentSecurityScopedURL = urls.firstObject;
+  if (!_currentSecurityScopedURL) {
     return;
   }
-  _disableFileSelection = YES;
+  if (![_currentSecurityScopedURL startAccessingSecurityScopedResource]) {
+    _currentSecurityScopedURL = nil;
+    return;
+  }
   [self setUpImportClient];
-  _importer->PrepareImport(base::apple::NSURLToFilePath(file));
+  _importer->PrepareImport(
+      base::apple::NSURLToFilePath(_currentSecurityScopedURL));
 }
 
 - (void)documentPickerWasCancelled:(UIDocumentPickerViewController*)controller {

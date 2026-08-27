@@ -137,34 +137,6 @@ std::string RtpExtension::ToString() const {
   return sb.str();
 }
 
-constexpr char RtpExtension::kEncryptHeaderExtensionsUri[];
-constexpr char RtpExtension::kAudioLevelUri[];
-constexpr char RtpExtension::kTimestampOffsetUri[];
-constexpr char RtpExtension::kAbsSendTimeUri[];
-constexpr char RtpExtension::kAbsoluteCaptureTimeUri[];
-constexpr char RtpExtension::kVideoRotationUri[];
-constexpr char RtpExtension::kVideoContentTypeUri[];
-constexpr char RtpExtension::kVideoTimingUri[];
-constexpr char RtpExtension::kGenericFrameDescriptorUri00[];
-constexpr char RtpExtension::kDependencyDescriptorUri[];
-constexpr char RtpExtension::kVideoLayersAllocationUri[];
-constexpr char RtpExtension::kTransportSequenceNumberUri[];
-constexpr char RtpExtension::kTransportSequenceNumberV2Uri[];
-constexpr char RtpExtension::kPlayoutDelayUri[];
-constexpr char RtpExtension::kColorSpaceUri[];
-constexpr char RtpExtension::kMidUri[];
-constexpr char RtpExtension::kRidUri[];
-constexpr char RtpExtension::kRepairedRidUri[];
-constexpr char RtpExtension::kVideoFrameTrackingIdUri[];
-constexpr char RtpExtension::kCsrcAudioLevelsUri[];
-constexpr char RtpExtension::kCorruptionDetectionUri[];
-
-constexpr int RtpExtension::kMinId;
-constexpr int RtpExtension::kMaxId;
-constexpr int RtpExtension::kMaxValueSize;
-constexpr int RtpExtension::kOneByteHeaderExtensionMaxId;
-constexpr int RtpExtension::kOneByteHeaderExtensionMaxValueSize;
-
 bool RtpExtension::IsSupportedForAudio(absl::string_view uri) {
   return uri == RtpExtension::kAudioLevelUri ||
          uri == RtpExtension::kAbsSendTimeUri ||

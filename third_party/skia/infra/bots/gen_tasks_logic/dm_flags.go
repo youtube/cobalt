@@ -313,6 +313,7 @@ func (b *taskBuilder) dmFlags(internalHardwareLabel string) {
 			skip(ALL, "test", ALL, "MatrixColorFilter_TransparentBlack")
 			skip(ALL, "test", ALL, "MorphologyFilterRadiusWithMirrorCTM_Gpu")
 			skip(ALL, "test", ALL, "MultisampleRetainTest")
+			skip(ALL, "test", ALL, "MultisampleClearThenLoad")
 			skip(ALL, "test", ALL, "MutableImagesTest")
 			skip(ALL, "test", ALL, "OpsTaskFlushCount")
 			skip(ALL, "test", ALL, "OverdrawSurface_Gpu")
@@ -522,7 +523,6 @@ func (b *taskBuilder) dmFlags(internalHardwareLabel string) {
 					// Could not instantiate texture proxy for UploadTask!
 					skip(ALL, "test", ALL, "BigImageTest_Graphite")
 					// Test failures
-					skip(ALL, "test", ALL, "MultisampleRetainTest")
 					skip(ALL, "test", ALL, "PaintParamsKeyTest")
 					if b.matchOs("Android") {
 						// Currently broken on Android Vulkan (skbug.com/310180104)

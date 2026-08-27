@@ -264,12 +264,11 @@ constexpr uint64_t kSandboxedPointerShift = 64 - kSandboxSizeLog2;
 
 // Size of the guard regions surrounding the sandbox. This assumes a worst-case
 // scenario of a 32-bit unsigned index used to access an array of 64-bit values
-// with an additional offset of up to 32GB.
-// In particular, accesses to TypedArrays are effectively computed as
+// with an additional 4GB (compressed pointer) offset. In particular, accesses
+// to TypedArrays are effectively computed as
 // `entry_pointer = array->base + array->offset + index * array->element_size`.
-// (although in that case, the offset can only be up to 4GB large).
 // See also https://crbug.com/40070746 for more details.
-constexpr size_t kSandboxGuardRegionSize = 64ULL * GB;
+constexpr size_t kSandboxGuardRegionSize = 32ULL * GB + 4ULL * GB;
 
 static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
               "The size of the guard regions around the sandbox must be a "
@@ -422,6 +421,11 @@ constexpr size_t kMaxCppHeapPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
 
+// The number of tags reserved for embedder data. The value is picked
+// arbitrarily. In Chrome there are 4 embedders, so at least 4 tags are needed.
+// A generic tag was used for embedder data before, so one tag is used for that.
+#define V8_EMBEDDER_DATA_TAG_COUNT 5
+
 // Generic tag range struct to represent ranges of type tags.
 //
 // When referencing external objects via pointer tables, type tags are
@@ -571,7 +575,12 @@ enum ExternalPointerTag : uint16_t {
   // External pointers using these tags are kept in a per-Isolate external
   // pointer table and can only be accessed when this Isolate is active.
   kNativeContextMicrotaskQueueTag,
-  kEmbedderDataSlotPayloadTag,
+
+  // Placeholders for embedder data.
+  kFirstEmbedderDataTag,
+  kLastEmbedderDataTag =
+      kFirstEmbedderDataTag + V8_EMBEDDER_DATA_TAG_COUNT - 1,
+  kEmbedderDataSlotPayloadTag = kLastEmbedderDataTag,
   // This tag essentially stands for a `void*` pointer in the V8 API, and it is
   // the Embedder's responsibility to ensure type safety (against substitution)
   // and lifetime validity of these objects.

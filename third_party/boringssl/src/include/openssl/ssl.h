@@ -3057,7 +3057,7 @@ OPENSSL_EXPORT int SSL_add_bio_cert_subjects_to_stack(STACK_OF(X509_NAME) *out,
 // issuer of the final certificate in |cred|'s certificate chain.
 //
 // Additionally, |cred| must enable issuer matching (see
-// SSL_CREDENTIAL_set_must_match_issuer|) for this value to take effect.
+// |SSL_CREDENTIAL_set_must_match_issuer|) for this value to take effect.
 //
 // For better extensibility, callers are recommended to configure this
 // information with a CertificatePropertyList instead. See

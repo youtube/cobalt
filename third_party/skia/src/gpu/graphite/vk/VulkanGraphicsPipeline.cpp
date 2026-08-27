@@ -26,6 +26,7 @@
 #include "src/gpu/graphite/vk/VulkanRenderPass.h"
 #include "src/gpu/graphite/vk/VulkanResourceProvider.h"
 #include "src/gpu/graphite/vk/VulkanSharedContext.h"
+#include "src/gpu/graphite/vk/VulkanSpirvTransforms.h"
 #include "src/gpu/vk/VulkanUtilsPriv.h"
 #include "src/sksl/SkSLProgramKind.h"
 #include "src/sksl/SkSLProgramSettings.h"
@@ -881,6 +882,22 @@ sk_sp<VulkanGraphicsPipeline> VulkanGraphicsPipeline::Make(
                                 errorHandler)) {
             return nullptr;
         }
+
+        // Apply transformations to the fragment shader SPIR-V if needed.
+        //
+        // SkSL->SPIR-V compilations are relatively costly. In anticipation of caching those
+        // operations, we allow certain transformations to be applied directly on to compiled
+        // SPIR-V. This allows the SkSL to be compiled only once, and the SPIR-V from the cache can
+        // simply be directly modified afterwards as needed. This is why transform options exist
+        // independently from flags used in SkSL->SPIRV compilation.
+        SPIRVTransformOptions options;
+        options.fMultisampleInputLoad =
+                renderPassDesc.fSampleCount > 1 &&
+                shaderInfo->dstReadStrategy() == DstReadStrategy::kReadFromInput;
+        if (options.fMultisampleInputLoad) {
+            fsSPIRV = TransformSPIRV(fsSPIRV, options);
+        }
+
         if(!program->setFragmentShader(CreateVulkanShaderModule(
                 sharedContext, fsSPIRV, VK_SHADER_STAGE_FRAGMENT_BIT))) {
             return nullptr;
@@ -1021,7 +1038,7 @@ VkPipeline VulkanGraphicsPipeline::MakePipeline(
     setup_viewport_scissor_state(&viewportInfo);
 
     VkPipelineMultisampleStateCreateInfo multisampleInfo;
-    setup_multisample_state(renderPassDesc.fColorAttachment.fSampleCount, &multisampleInfo);
+    setup_multisample_state(renderPassDesc.fSampleCount, &multisampleInfo);
 
     // We will only have one color blend attachment per pipeline.
     VkPipelineColorBlendAttachmentState attachmentStates[1];

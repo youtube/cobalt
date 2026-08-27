@@ -150,6 +150,16 @@ BASE_DECLARE_FEATURE(kLensSearchAimM3);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayEntrypointLabelAlt);
 
+// Enables making the text selection context menu option a Lens overlay
+// entrypoint.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayTextSelectionContextMenuEntrypoint);
+
+// Force Lens overlay invocations to perform an empty CSB query. For internal
+// debugging only.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayForceEmptyCsbQuery);
+
 // The base URL for Lens.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern const base::FeatureParam<std::string> kHomepageURLForLens;
@@ -950,6 +960,16 @@ extern bool IsLensOverlayStraightToSrpEnabled();
 // If set, overrides the query text used in the Straight to SRP flow.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern std::string GetStraightToSrpQuery();
+
+// Whether the text selection context menu option should be a Lens overlay
+// entrypoint.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensOverlayTextSelectionContextMenuEntrypointEnabled();
+
+// Whether to force Lens overlay invocations to perform an empty CSB query. For
+// internal debugging only.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensOverlayForceEmptyCsbQueryEnabled();
 
 }  // namespace lens::features
 #endif  // COMPONENTS_LENS_LENS_FEATURES_H_

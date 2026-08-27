@@ -121,25 +121,6 @@
     "expires": "Jul 2, 2026"
   },
   {
-    "prefix": "attribution-reporting-in-browser-migration",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "http/tests/inspector-protocol/attribution-reporting"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=KeepAliveInBrowserMigration,AttributionReportingInBrowserMigration"
-    ],
-    "owners": [
-      "linnan@chromium.org"
-    ],
-    "expires": "Jul 2, 2025"
-  },
-  {
     "prefix": "autoplay-policy-no-user-gesture-required",
     "owners": [
       "leimy@google.com"
@@ -444,6 +425,15 @@
     "owners": ["samomekarajr@microsoft.com", "almaher@microsoft.com", "javiercon@microsoft.com"]
   },
   {
+    "prefix": "css-gap-decorations-optimized",
+    "platforms": ["Linux"],
+    "bases": [
+      "external/wpt/css/css-gaps"],
+    "args": ["--enable-blink-features=CSSGapDecorationOptimized"],
+    "expires": "Sep 1, 2026",
+    "owners": ["samomekarajr@microsoft.com", "javiercon@microsoft.com"]
+  },
+  {
     "prefix": "css-line-clamp-line-breaking-ellipsis",
     "platforms": [
       "Linux"
@@ -650,6 +640,25 @@
     "expires": "never"
   },
   {
+    "prefix": "file-system-access-write-mode",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/file-system-access",
+      "external/wpt/fs"
+    ],
+    "args": [
+      "--enable-features=FileSystemAccessWriteMode"
+    ],
+    "expires": "Sep 10, 2026",
+    "owners": [
+      "mych@chromium.org"
+    ]
+  },
+  {
     "prefix": "delay-async-when-lcp-in-html",
     "platforms": [
       "Linux",
@@ -783,25 +792,6 @@
     ],
     "expires": "Jul 1, 2025"
   },
-  {
-    "prefix": "disable-purpose-prefetch-header",
-    "owners": [
-      "stevenwei@microsoft.com"
-    ],
-    "platforms": [
-      "Mac",
-      "Win",
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/preload/prefetch-headers.https.html"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=RemovePurposeHeaderForPrefetch"
-    ],
-    "expires": "Nov 27, 2025"
-  },
   "Exclusive tests due to crbug.com/349939555",
   {
     "prefix": "disable-raster-inducing-scroll",
@@ -831,25 +821,6 @@
       "wangxianzhu@chromium.org"
     ],
     "expires": "Dev 31, 2024"
-  },
-  {
-    "prefix": "do-not-hide-visited-color",
-    "owners": [
-      "sesse@google.com"
-    ],
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/css/css-animations/",
-      "external/wpt/css/css-cascade/",
-      "external/wpt/css/css-color/",
-      "external/wpt/css/css-pseudo/"
-    ],
-    "args": [
-      "--enable-features=CSSDoNotHideVisitedColor"
-    ],
-    "expires": "Jun 3, 2026"
   },
   {
     "prefix": "document-picture-in-picture-user-activation",
@@ -944,6 +915,25 @@
     "owners": [
       "arakeri@microsoft.com"
     ]
+  },
+  {
+    "prefix": "enable-purpose-prefetch-header",
+    "owners": [
+      "stevenwei@microsoft.com"
+    ],
+    "platforms": [
+      "Mac",
+      "Win",
+      "Linux"
+    ],
+    "bases": [
+      "http/tests/misc/prefetch-purpose.html"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--disable-features=RemovePurposeHeaderForPrefetch"
+    ],
+    "expires": "Aug 1, 2026"
   },
   {
     "prefix": "enable-system-cursor-size-for-svg",
@@ -2691,50 +2681,6 @@
     ],
     "expires": "never"
   },
-  "These tests require the experimental speculative prefetch feature, and",
-  "requires extra switches to enable content implementation of speculation",
-  "rules prefetch.",
-  {
-    "prefix": "prefetch",
-    "owners": [
-      "jbroman@chromium.org",
-      "liviutinta@chromium.org"
-    ],
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "external/wpt/speculation-rules/prefetch",
-      "http/tests/inspector-protocol/prefetch"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--disable-features=PrefetchServiceWorker"
-    ],
-    "expires": "Oct 1, 2025"
-  },
-  {
-    "prefix": "prefetch-sw",
-    "owners": [
-      "hiroshige@chromium.org"
-    ],
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "external/wpt/speculation-rules/prefetch",
-      "http/tests/inspector-protocol/prefetch"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=Prerender2FallbackPrefetchSpecRules,PrefetchServiceWorker"
-    ],
-    "expires": "Oct 1, 2025"
-  },
   {
     "prefix": "preload-link-rel-dataurls-disabled",
     "owners": [
@@ -2776,6 +2722,7 @@
       "Win"
     ],
     "bases": [
+      "http/tests/inspector-protocol/prefetch",
       "http/tests/inspector-protocol/preload",
       "http/tests/inspector-protocol/prerender",
       "http/tests/inspector-protocol/tracing/prerender.js"
@@ -2785,33 +2732,6 @@
     ],
     "args": [
       "--enable-features=Prerender2FallbackPrefetchSpecRules:kPrerender2FallbackPrefetchSchedulerPolicy/Burst"
-    ],
-    "owners": [
-      "kenoss@chromium.org"
-    ],
-    "expires": "Nov 30, 2025"
-  },
-  "prerender2-fallback-prefetch-spec-rules for exclusive tests http/tests/inspector-protocol/prefetch",
-  "We maintain this separated from prerender2-fallback-prefetch-spec-rules because",
-  "- http/tests/inspector-protocol/prefetch is `exclusive_tests` in `prefetch`.",
-  "  If other suite wants to execute it, it needs include the directry to its `exclusive_tests`.",
-  "- It requires lots of feature flags. We don't need to mix them up.",
-  {
-    "prefix": "prerender2-fallback-prefetch-spec-rules-prefetch",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "http/tests/inspector-protocol/prefetch"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=Prerender2FallbackPrefetchSpecRules",
-      "--disable-features=PrefetchServiceWorker",
-      "--disable-threaded-compositing",
-      "--disable-threaded-animation"
     ],
     "owners": [
       "kenoss@chromium.org"
@@ -3099,10 +3019,7 @@
       "Win"
     ],
     "bases": [
-      "external/wpt/custom-elements/registries/Document-createElement.html",
-      "external/wpt/custom-elements/registries/Document-createElementNS.html",
-      "external/wpt/custom-elements/registries/Document-customElementRegistry.html",
-      "external/wpt/custom-elements/registries/ShadowRoot-init-customElementRegistry.html"
+      "external/wpt/custom-elements/registries"
     ],
     "args": [
       "--enable-blink-features=ScopedCustomElementRegistry"
@@ -4304,19 +4221,14 @@
     "expires": "Jul 1, 2026"
   },
   {
-    "prefix": "soft-navigation-heuristics-pre-paint-attribution",
+    "prefix": "soft-navs-pre-paint-attribution-disabled",
     "owners": ["shaseley@google.com", "mmocny@google.com"],
     "platforms": ["Linux"],
     "bases": [
       "external/wpt/soft-navigation-heuristics/"
     ],
-    "exclusive_tests": [
-      "external/wpt/soft-navigation-heuristics/smoke/tentative/late-url-change.html",
-      "external/wpt/soft-navigation-heuristics/detection/tentative/overwriting-text.html",
-      "external/wpt/soft-navigation-heuristics/detection/tentative/overwriting-text-once-per-interaction.html"
-    ],
     "args": [
-      "--enable-features=SoftNavigationDetectionPrePaintBasedAttribution"
+      "--disable-features=SoftNavigationDetectionPrePaintBasedAttribution"
     ],
     "expires": "Dec 1, 2025"
   },
@@ -6008,5 +5920,25 @@
       "--enable-features=ScriptSrcHashesV1"
     ],
     "expires": "Nov 1, 2025"
+  },
+  {
+    "prefix": "xslt-disabled",
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "fast/parser",
+      "fast/xsl",
+      "external/wpt/dom/xslt",
+      "http/tests/xsl",
+      "http/tests/document-policy/resources/document-policy-in-xsl.xslt",
+      "http/tests/misc/xslt-bad-import.html",
+      "loader/resources/document-updated-by-xslt.svg",
+      "svg/custom/invalid-xslt-crash.svg",
+      "external/wpt/fetch/metadata/xslt.https.sub.html"
+    ],
+    "args": [ "--disable-blink-features=XSLT" ],
+    "owners": [
+      "masonf@chromium.org"
+    ],
+    "expires": "Aug 1, 2026"
   }
 ]

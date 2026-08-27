@@ -453,14 +453,11 @@ void BasicPortAllocatorSession::RegatherOnFailedNetworks() {
     }
   }
 
-  bool disable_equivalent_phases = true;
-  Regather(failed_networks, disable_equivalent_phases,
-           IceRegatheringReason::NETWORK_FAILURE);
+  Regather(failed_networks, IceRegatheringReason::NETWORK_FAILURE);
 }
 
 void BasicPortAllocatorSession::Regather(
     const std::vector<const Network*>& networks,
-    bool disable_equivalent_phases,
     IceRegatheringReason reason) {
   RTC_DCHECK_RUN_ON(network_thread_);
   // Remove ports from being used locally and send signaling to remove
@@ -474,7 +471,7 @@ void BasicPortAllocatorSession::Regather(
   if (allocation_started_ && network_manager_started_ && !IsStopped()) {
     SignalIceRegathering(this, reason);
 
-    DoAllocate(disable_equivalent_phases);
+    DoAllocate();
   }
 }
 
@@ -662,8 +659,7 @@ void BasicPortAllocatorSession::OnAllocate(int allocation_epoch) {
     return;
 
   if (network_manager_started_ && !IsStopped()) {
-    bool disable_equivalent_phases = true;
-    DoAllocate(disable_equivalent_phases);
+    DoAllocate();
   }
 
   allocation_started_ = true;
@@ -798,7 +794,7 @@ std::vector<const Network*> BasicPortAllocatorSession::SelectIPv6Networks(
 
 // For each network, see if we have a sequence that covers it already.  If not,
 // create a new sequence to create the appropriate ports.
-void BasicPortAllocatorSession::DoAllocate(bool disable_equivalent) {
+void BasicPortAllocatorSession::DoAllocate() {
   RTC_DCHECK_RUN_ON(network_thread_);
   bool done_signal_needed = false;
   std::vector<const Network*> networks = GetNetworks();
@@ -837,15 +833,13 @@ void BasicPortAllocatorSession::DoAllocate(bool disable_equivalent) {
         continue;
       }
 
-      if (disable_equivalent) {
-        // Disable phases that would only create ports equivalent to
-        // ones that we have already made.
-        DisableEquivalentPhases(networks[i], config, &sequence_flags);
+      // Disable phases that would only create ports equivalent to
+      // ones that we have already made.
+      DisableEquivalentPhases(networks[i], config, &sequence_flags);
 
-        if ((sequence_flags & DISABLE_ALL_PHASES) == DISABLE_ALL_PHASES) {
-          // New AllocationSequence would have nothing to do, so don't make it.
-          continue;
-        }
+      if ((sequence_flags & DISABLE_ALL_PHASES) == DISABLE_ALL_PHASES) {
+        // New AllocationSequence would have nothing to do, so don't make it.
+        continue;
       }
 
       AllocationSequence* sequence =
@@ -892,8 +886,8 @@ void BasicPortAllocatorSession::OnNetworksChanged() {
       // If the network manager has started, it must be regathering.
       SignalIceRegathering(this, IceRegatheringReason::NETWORK_CHANGE);
     }
-    bool disable_equivalent_phases = true;
-    DoAllocate(disable_equivalent_phases);
+
+    DoAllocate();
   }
 
   if (!network_manager_started_) {

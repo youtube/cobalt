@@ -292,7 +292,7 @@ void ScreenCapturerX11::CaptureFrame() {
 }
 
 bool ScreenCapturerX11::GetSourceList(SourceList* sources) {
-  RTC_DCHECK(sources->size() == 0);
+  RTC_DCHECK(sources->empty());
   if (!use_randr_) {
     sources->push_back({});
     return true;

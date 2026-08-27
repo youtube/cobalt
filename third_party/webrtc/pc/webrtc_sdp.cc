@@ -2247,7 +2247,7 @@ bool ParseSsrcAttribute(absl::string_view line,
     // msid:identifier [appdata]
     std::vector<absl::string_view> fields =
         split(value, kSdpDelimiterSpaceChar);
-    if (fields.size() < 1 || fields.size() > 2) {
+    if (fields.empty() || fields.size() > 2) {
       return ParseFailed(
           line, "Expected format \"msid:<identifier>[ <appdata>]\".", error);
     }

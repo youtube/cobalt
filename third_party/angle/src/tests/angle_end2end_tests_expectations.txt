@@ -33,7 +33,6 @@
 42266871 : CopyTexImageTestES3.RedefineSameLevel/* = SKIP
 // Fails in Android with EGL_BAD_ALLOC
 374797737 : EGLSurfaceTest.CreateMultiWindowsSurfaceNoDestroy/* = SKIP
-// Currently fails on WebGPU as it's not fully implemented yet.
 
 381742474 : ShaderStorageBufferTest31.ExceedMaxShaderStorageBlockSize/* = SKIP
 
@@ -71,6 +70,10 @@
 42267047 PIXEL4ORXL VULKAN : GLSLTest_ES3.VaryingAnonymousStructEquality/* = SKIP
 42267047 PIXEL4ORXL VULKAN : GLSLTest_ES3.VaryingAnonymousStructWithInlineDefinition2/* = SKIP
 42267047 PIXEL4ORXL VULKAN : GLSLTest_ES3.VaryingAnonymousStructWithInlineDefinition3/* = SKIP
+
+// Propagate buffer changes to VertexArray fail on some desktop drivers
+433331119 LINUX NVIDIA OPENGL : ValidationStateChangeTest.RebindBufferShouldPickupBufferChange/* = SKIP
+433331119 LINUX INTEL OPENGL : ValidationStateChangeTest.RebindBufferShouldPickupBufferChange/* = SKIP
 
 // Shared context failing on OpenGL and D3D11
 42266326 METAL : MultithreadingTest.CreateMultiSharedContextAndDraw/* = SKIP
@@ -243,8 +246,8 @@ b/390710636 LINUX NVIDIA VULKAN : TextureBorderClampTestES32.CustomBorderColorWi
 374790899 LINUX INTEL OPENGL : GeometryShaderTest.GLLayerIneffectiveWithoutLayeredFramebuffer/* = SKIP
 // Base level greater than max level fails on Linux/OpenGL
 42267266 LINUX INTEL OPENGL : Texture2DTestES3.TextureBaseLevelGreaterThanMaxLevel3Levels/* = SKIP
-
 379758210 LINUX INTEL OPENGL : GLSLTest_ES3.SwizzledToBoolCoercion/* = SKIP
+437259106 LINUX INTEL : EGLDisplayTest.ContextLeakAfterTerminate/* = SKIP
 
 //Angle has bugs for sampler validation
 401546698 : TextureCubeTest.CubeMapBug2/* = SKIP

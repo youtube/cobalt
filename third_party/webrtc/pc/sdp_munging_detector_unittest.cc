@@ -679,7 +679,7 @@ TEST_F(SdpMungingTest, DtlsRole) {
       ElementsAre(Pair(SdpMungingType::kDtlsSetup, 1)));
 }
 
-TEST_F(SdpMungingTest, RemoveContentDefault) {
+TEST_F(SdpMungingTest, RemoveContentRejected) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
@@ -705,35 +705,6 @@ TEST_F(SdpMungingTest, RemoveContentDefault) {
   EXPECT_THAT(
       metrics::Samples("WebRTC.PeerConnection.SdpMunging.Outcome"),
       ElementsAre(Pair(static_cast<int>(SdpMungingOutcome::kRejected), 1)));
-}
-
-TEST_F(SdpMungingTest, RemoveContentKillswitch) {
-  auto pc =
-      CreatePeerConnection("WebRTC-NoSdpMangleNumberOfContents/Disabled/");
-  pc->AddAudioTrack("audio_track", {});
-
-  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
-  auto& contents = offer->description()->contents();
-  ASSERT_EQ(contents.size(), 1u);
-  auto name = contents[0].mid();
-  EXPECT_TRUE(offer->description()->RemoveContentByName(contents[0].mid()));
-  std::string sdp;
-  offer->ToString(&sdp);
-  auto modified_offer = CreateSessionDescription(
-      SdpType::kOffer,
-      absl::StrReplaceAll(sdp, {{"a=group:BUNDLE " + name, "a=group:BUNDLE"}}));
-
-  RTCError error;
-  EXPECT_TRUE(pc->SetLocalDescription(std::move(modified_offer), &error));
-  EXPECT_THAT(
-      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
-      ElementsAre(Pair(SdpMungingType::kNumberOfContents, 1)));
-  EXPECT_THAT(
-      metrics::Samples("WebRTC.PeerConnection.SdpMunging.SdpOutcome.Accepted"),
-      ElementsAre(Pair(SdpMungingType::kNumberOfContents, 1)));
-  EXPECT_THAT(
-      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Outcome"),
-      ElementsAre(Pair(static_cast<int>(SdpMungingOutcome::kAccepted), 1)));
 }
 
 TEST_F(SdpMungingTest, TransceiverDirection) {

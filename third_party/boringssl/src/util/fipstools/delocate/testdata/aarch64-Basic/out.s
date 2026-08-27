@@ -155,6 +155,9 @@ foo:
 	// comment.
 	fcmp d0, #0.0
 
+  # cnth allows a 4-bit immediate.
+  cnth x10, all, mul #15
+
 .Llocal_function_local_target:
 local_function:
 

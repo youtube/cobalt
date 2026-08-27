@@ -133,7 +133,7 @@ class WavFileReader final : public TestAudioDeviceModule::Capturer {
           }
           return read;
         });
-    return buffer->size() > 0;
+    return !buffer->empty();
   }
 
  private:
@@ -318,7 +318,7 @@ class RawFileReader final : public TestAudioDeviceModule::Capturer {
           memcpy(data.data(), read_buffer_view.data(), size);
           return read / 2;
         });
-    return buffer->size() > 0;
+    return !buffer->empty();
   }
 
  private:

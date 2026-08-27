@@ -207,8 +207,8 @@ bool MandatoryReauthBubbleControllerImpl::IsIconVisible() {
   return current_bubble_type_ != MandatoryReauthBubbleType::kInactive;
 }
 
-MandatoryReauthBubbleType MandatoryReauthBubbleControllerImpl::GetBubbleType()
-    const {
+MandatoryReauthBubbleType
+MandatoryReauthBubbleControllerImpl::GetMandatoryReauthBubbleType() const {
   return current_bubble_type_;
 }
 
@@ -236,6 +236,15 @@ void MandatoryReauthBubbleControllerImpl::DoShowBubble() {
   set_bubble_view(autofill_bubble_handler->ShowMandatoryReauthBubble(
       web_contents(), this, /*is_user_gesture=*/false, current_bubble_type_));
 #endif  // BUILDFLAG(IS_ANDROID)
+}
+
+BubbleType MandatoryReauthBubbleControllerImpl::GetBubbleType() const {
+  return BubbleType::kMandatoryReauth;
+}
+
+base::WeakPtr<BubbleControllerBase>
+MandatoryReauthBubbleControllerImpl::GetBubbleControllerBaseWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 #if BUILDFLAG(IS_ANDROID)

@@ -142,6 +142,7 @@ import org.chromium.chrome.browser.hub.HubProvider;
 import org.chromium.chrome.browser.hub.HubShowPaneHelper;
 import org.chromium.chrome.browser.hub.Pane;
 import org.chromium.chrome.browser.hub.PaneId;
+import org.chromium.chrome.browser.hub.PaneManager;
 import org.chromium.chrome.browser.incognito.IncognitoNotificationManager;
 import org.chromium.chrome.browser.incognito.IncognitoNotificationPresenceController;
 import org.chromium.chrome.browser.incognito.IncognitoProfileDestroyer;
@@ -223,6 +224,7 @@ import org.chromium.chrome.browser.tab.tab_restore.HistoricalTabModelObserver;
 import org.chromium.chrome.browser.tab_group_suggestion.GroupSuggestionsPromotionCoordinator;
 import org.chromium.chrome.browser.tab_group_suggestion.SuggestionEventObserver;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
+import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncUtils;
 import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tab_ui.TabGridIphDialogCoordinator;
 import org.chromium.chrome.browser.tab_ui.TabSwitcher;
@@ -244,6 +246,7 @@ import org.chromium.chrome.browser.tabmodel.TabGroupColorUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabGroupUtils;
+import org.chromium.chrome.browser.tabmodel.TabGroupVisualDataManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorBase;
@@ -251,6 +254,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.tabwindow.WindowId;
 import org.chromium.chrome.browser.tasks.HomeSurfaceTracker;
 import org.chromium.chrome.browser.tasks.ReturnToChromeUtil;
 import org.chromium.chrome.browser.tasks.tab_management.CloseAllTabsDialog;
@@ -258,7 +262,6 @@ import org.chromium.chrome.browser.tasks.tab_management.CloseAllTabsHelper;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupCreationUiDelegate;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupMenuActionHandler;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupUi;
-import org.chromium.chrome.browser.tasks.tab_management.TabGroupVisualDataManager;
 import org.chromium.chrome.browser.tasks.tab_management.TabManagementDelegate;
 import org.chromium.chrome.browser.tasks.tab_management.TabManagementDelegateProvider;
 import org.chromium.chrome.browser.tasks.tab_management.TabModelNotificationDotManager;
@@ -814,16 +817,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
                         }
 
                         @Override
-                        public void tabPendingClosure(
-                                Tab tab, @TabClosingSource int closingSource) {
-                            closeIfNoTabsAndHomepageEnabled(
-                                    true,
-                                    /* shouldRemoveWindowWithZeroTabs= */ closingSource
-                                            == TabClosingSource.TABLET_TAB_STRIP);
-                        }
-
-                        @Override
-                        public void multipleTabsPendingClosure(
+                        public void onTabClosePending(
                                 List<Tab> tabs,
                                 boolean isAllTabs,
                                 @TabClosingSource int closingSource) {
@@ -1251,6 +1245,11 @@ public class ChromeTabbedActivity extends ChromeActivity {
             assert activityWindowAndroid != null;
 
             var chromeAndroidTask = chromeAndroidTaskTracker.obtainTask(activityWindowAndroid);
+
+            mTabModelSelector
+                    .getCurrentModel()
+                    .associateWithBrowserWindow(
+                            chromeAndroidTask.getOrCreateNativeBrowserWindowPtr());
 
             var extensionWindowControllerBridge =
                     ExtensionWindowControllerBridgeFactory.create(chromeAndroidTask);
@@ -1688,26 +1687,68 @@ public class ChromeTabbedActivity extends ChromeActivity {
         // The following logic does not support operations for tab groups in incognito.
         // TODO(crbug.com/435227138): Update the PaneId and conversion of dependence on
         // TabGroupSyncService to the TabGroupModelFilter when opening the tab group dialog.
-        if (tabGroupSyncService != null && tabGroupId != null) {
-            TabSwitcherPaneBase tabSwitcherPaneBase =
-                    (TabSwitcherPaneBase)
-                            mHubProvider
-                                    .getHubManagerSupplier()
-                                    .get()
-                                    .getPaneManager()
-                                    .getPaneForId(PaneId.TAB_SWITCHER);
-            TabSwitcherUtils.openTabGroupDialog(
-                    tabGroupId,
-                    tabGroupSyncService,
-                    ((TabbedRootUiCoordinator) mRootUiCoordinator).getTabGroupSyncController(),
-                    mTabModelSelector
-                            .getTabGroupModelFilterProvider()
-                            .getTabGroupModelFilter(/* isIncognito= */ false),
-                    (rootId) -> {
-                        tabSwitcherPaneBase.requestOpenTabGroupDialog(rootId);
+        if (tabGroupSyncService == null || tabGroupId == null) return;
+
+        @Nullable SavedTabGroup syncGroup = tabGroupSyncService.getGroup(tabGroupId);
+        @Nullable TabGroupModelFilter filter =
+                mTabModelSelector
+                        .getTabGroupModelFilterProvider()
+                        .getTabGroupModelFilter(/* isIncognito= */ false);
+        if (syncGroup == null || filter == null) return;
+
+        // If the tab group does not exist locally or is in the current window, open it locally.
+        if (syncGroup.localId == null) {
+            openTabGroupFromHubSearchSuggestion(tabGroupId, tabGroupSyncService, filter);
+        } else {
+            TabModelUtils.runOnTabStateInitialized(
+                    mTabModelSelector,
+                    (ignored) -> {
+                        if (TabGroupSyncUtils.isInCurrentWindow(filter, syncGroup.localId)) {
+                            openTabGroupFromHubSearchSuggestion(
+                                    tabGroupId, tabGroupSyncService, filter);
+                        } else {
+                            if (ChromeFeatureList.isEnabled(ChromeFeatureList.HEADLESS_TAB_MODEL)) {
+                                final @WindowId int windowId =
+                                        TabWindowManagerSingleton.getInstance()
+                                                .findWindowIdForTabGroup(
+                                                        syncGroup.localId.tabGroupId);
+                                if (windowId == INVALID_WINDOW_ID) return;
+
+                                MultiWindowUtils.launchIntentInMaybeClosedWindow(
+                                        this, intent, windowId);
+                            }
+                        }
                     });
-            RecordUserAction.record("TabGroups.HubSearchTabGroupSuggestionClicked");
         }
+    }
+
+    private void openTabGroupFromHubSearchSuggestion(
+            String tabGroupId,
+            TabGroupSyncService tabGroupSyncService,
+            TabGroupModelFilter filter) {
+        Runnable openTabGroupRunnable =
+                () -> {
+                    PaneManager paneManager =
+                            mHubProvider.getHubManagerSupplier().get().getPaneManager();
+                    TabSwitcherPaneBase tabSwitcherPaneBase =
+                            (TabSwitcherPaneBase) paneManager.getPaneForId(PaneId.TAB_SWITCHER);
+                    TabSwitcherUtils.openTabGroupDialog(
+                            tabGroupId,
+                            tabGroupSyncService,
+                            ((TabbedRootUiCoordinator) mRootUiCoordinator)
+                                    .getTabGroupSyncController(),
+                            filter,
+                            (rootId) -> {
+                                if (paneManager.getFocusedPaneSupplier().get().getPaneId()
+                                        != PaneId.TAB_SWITCHER) {
+                                    paneManager.focusPane(PaneId.TAB_SWITCHER);
+                                }
+                                tabSwitcherPaneBase.requestOpenTabGroupDialog(rootId);
+                            });
+                };
+        // Navigate to the tab switcher while waiting for the layout and tab model to be available.
+        doRunnableOnTabSwitcher(openTabGroupRunnable);
+        RecordUserAction.record("TabGroups.HubSearchTabGroupSuggestionClicked");
     }
 
     /**
@@ -2112,6 +2153,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
                     // If launching tab or group drag was successful, ignore handling url intent
                     isIntentWithEffect =
                             isLaunchingDraggedTabOrGroup || maybeHandleUrlIntent(intent);
+                    maybeHandleOpenTabGroupIntent(intent);
                 }
 
                 if (IntentUtils.isMainIntentFromLauncher(intent)) {

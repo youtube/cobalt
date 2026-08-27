@@ -86,12 +86,6 @@ VideoEncoder::ScalingSettings::ScalingSettings(const ScalingSettings&) =
 
 VideoEncoder::ScalingSettings::~ScalingSettings() {}
 
-// static
-constexpr VideoEncoder::ScalingSettings::KOff
-    VideoEncoder::ScalingSettings::kOff;
-// static
-constexpr uint8_t VideoEncoder::EncoderInfo::kMaxFramerateFraction;
-
 bool VideoEncoder::ResolutionBitrateLimits::operator==(
     const ResolutionBitrateLimits& rhs) const {
   return frame_size_pixels == rhs.frame_size_pixels &&

@@ -241,10 +241,12 @@ export declare interface GlicBrowserHost {
    * rejected.
    *
    * If the task ID is not provided or 0, the most recent task is stopped.
+   * If the stopReason is not provided, it uses the default value
+   * ActorTaskStopReason.TASK_COMPLETE.
    *
    * @todo Require callers to provide a valid ID.
    */
-  stopActorTask?(taskId?: number): void;
+  stopActorTask?(taskId?: number, stopReason?: ActorTaskStopReason): void;
 
   /**
    * Pauses the actor task with the given ID in the browser if it exists. No-op
@@ -255,10 +257,12 @@ export declare interface GlicBrowserHost {
    * canceled and the associated Promises are rejected.
    *
    * If the task ID is 0, the most recent task is paused.
+   * If the pauseReason is not provided, it uses the default value
+   * ActorTaskPauseReason.PAUSED_BY_MODEL.
    *
    * @todo Require callers to provide a valid ID.
    */
-  pauseActorTask?(taskId: number): void;
+  pauseActorTask?(taskId: number, pauseReason?: ActorTaskPauseReason): void;
 
   /**
    * Resumes a previously paused actor task with the given ID.
@@ -605,8 +609,8 @@ export declare interface GlicBrowserHost {
    * `ObservableValue` instances. So if a previous one existed, it will stop
    * receiving updates when a new one is obtained.
    *
-   * Dynamic updates can be a costly operation so the observable value should be
-   * released/destroyed as soon as it's not useful anymore.
+   * Dynamic updates can be a costly operation so the observable should be
+   * subscribed only while it is required.
    */
   getPinCandidates?
       (options: GetPinCandidatesOptions): ObservableValue<PinCandidate[]>;
@@ -712,7 +716,7 @@ export declare interface GlicBrowserHostMetrics {
    * Called when the response was completed, cancelled, or paused for the first
    * time.
    */
-  onResponseStopped?(): void;
+  onResponseStopped?(details?: OnResponseStoppedDetails): void;
 
   /** Called when a session terminates. */
   onSessionTerminated?(): void;
@@ -746,6 +750,19 @@ export enum WebClientModel {
 
   /** Actor model. */
   ACTOR = 1,
+}
+
+export enum ResponseStopCause {
+  /** User cancelled response. */
+  USER = 0,
+
+  /** System cancelled response for another reason. */
+  OTHER = 1,
+}
+
+/** Details for metrics recording purposes. */
+export declare interface OnResponseStoppedDetails {
+  cause?: ResponseStopCause;
 }
 
 /** An encoded journal. */
@@ -919,6 +936,8 @@ export enum InvocationSource {
   AFTER_SIGN_IN = 10,
   /** User shared a tab. */
   SHARED_TAB = 11,
+  /** From the actor task icon. */
+  ACTOR_TASK_ICON = 12,
 }
 
 /** The default value of TabContextOptions.pdfSizeLimit. */
@@ -1272,6 +1291,22 @@ export enum ActorTaskState {
   STOPPED = 4,
 }
 
+/* The reason/source of why a actor task was paused. */
+export enum ActorTaskPauseReason {
+  /* Actor task was paused by the model. */
+  PAUSED_BY_MODEL = 0,
+  /* Actor task was puased by the user. */
+  PAUSED_BY_USER = 1,
+}
+
+/* The reason/source of why an actor task was stopped. */
+export enum ActorTaskStopReason {
+  /* Actor task is complete. */
+  TASK_COMPLETE = 0,
+  /* Actor task was stopped by the user. */
+  STOPPED_BY_USER = 1,
+}
+
 export enum PerformActionsErrorReason {
   UNKNOWN = 0,
 
@@ -1535,6 +1570,13 @@ export declare interface ViewChangedNotification {
 export declare interface Observable<T> {
   /** Receive updates for value changes. */
   subscribe(change: (newValue: T) => void): Subscriber;
+
+  /**
+   * Subscribe with an Observer.
+   * This API was added in later, and is not supported by all versions of
+   * Chrome.
+   */
+  subscribeObserver?(observer: Observer<T>): Subscriber;
 }
 
 /**
@@ -1556,6 +1598,16 @@ export interface ObservableValue<T> extends Observable<T> {
 /** Allows control of a subscription to an Observable. */
 export declare interface Subscriber {
   unsubscribe(): void;
+}
+
+/** Observes an Observable. */
+export declare interface Observer<T> {
+  /** Called when the Observable emits a value. */
+  next?(value: T): void;
+  /** Called if the Observable emits an error. */
+  error?(err: any): void;
+  /** Called when the Observable completes. */
+  complete?(): void;
 }
 
 /** Information from a signed-in Chrome user profile. */
@@ -1714,4 +1766,6 @@ export interface ExtensibleEnums {
   settingsPageField: typeof SettingsPageField;
   hostCapability: typeof HostCapability;
   actorTaskState: typeof ActorTaskState;
+  actorTaskPauseReason: typeof ActorTaskPauseReason;
+  actorTaskStopReason: typeof ActorTaskStopReason;
 }

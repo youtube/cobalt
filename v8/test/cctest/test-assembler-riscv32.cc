@@ -208,8 +208,9 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
                                                                      \
     CcTest::InitializeVM();                                          \
     auto fn = [](MacroAssembler& assm) {                             \
-      __ csrwi(csr_frm, rounding_mode);                              \
+      __ csrrwi(t0, csr_frm, rounding_mode);                         \
       __ instr_name(a0, fa0, DYN);                                   \
+      __ csrw(csr_frm, t0);                                          \
     };                                                               \
     auto res = GenAndRunTest<output_type, input_type>(rs1_fval, fn); \
     CHECK_EQ(expected_res, res);                                     \
@@ -232,6 +233,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
     int64_t expected_res = 111;                                             \
     Label exit, error;                                                      \
     auto fn = [&exit, &error, expected_res](MacroAssembler& assm) {         \
+      __ csrr(t1, csr_reg);                                                 \
       /* test csr-write and csr-read */                                     \
       __ csrwi(csr_reg, csr_write_val);                                     \
       __ csrr(a0, csr_reg);                                                 \
@@ -256,6 +258,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
       __ RV_li(a0, 666);                                                    \
                                                                             \
       __ bind(&exit);                                                       \
+      __ csrw(csr_reg, t1);                                                 \
     };                                                                      \
     auto res = GenAndRunTest(fn);                                           \
     CHECK_EQ(expected_res, res);                                            \
@@ -266,6 +269,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
     Label exit, error;                                              \
     int64_t expected_res = 111;                                     \
     auto fn = [&exit, &error, expected_res](MacroAssembler& assm) { \
+      __ csrr(t1, csr_reg);                                         \
       /* test csr-write and csr-read */                             \
       __ RV_li(t0, csr_write_val);                                  \
       __ csrw(csr_reg, t0);                                         \
@@ -293,6 +297,7 @@ using F5 = void*(void* p0, void* p1, int p2, int p3, int p4);
       __ RV_li(a0, 666);                                            \
                                                                     \
       __ bind(&exit);                                               \
+      __ csrw(csr_reg, t1);                                         \
     };                                                              \
                                                                     \
     auto res = GenAndRunTest(fn);                                   \
@@ -389,8 +394,8 @@ UTEST_R2_FORM_WITH_RES(orn, int32_t, LARGE_UINT_UNDER_32_BIT,
 
 UTEST_R2_FORM_WITH_RES(xnor, int32_t, LARGE_UINT_UNDER_32_BIT,
                        LARGE_INT_UNDER_32_BIT,
-                       int32_t((~LARGE_UINT_UNDER_32_BIT) ^
-                               (~LARGE_INT_UNDER_32_BIT)))
+                       int32_t(~(LARGE_UINT_UNDER_32_BIT ^
+                                 LARGE_INT_UNDER_32_BIT)))
 
 UTEST_R1_FORM_WITH_RES(clz, int32_t, int32_t, 0b000011000100000000000, 15)
 UTEST_R1_FORM_WITH_RES(ctz, int32_t, int32_t, 0b000011000100000000000, 11)
@@ -1809,7 +1814,6 @@ TEST(li_estimate) {
   }
 }
 
-#ifdef CAN_USE_RVV_INSTRUCTIONS
 #define UTEST_LOAD_STORE_RVV(ldname, stname, SEW, arry)                      \
   TEST(RISCV_UTEST_##stname##ldname##SEW) {                                  \
     if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;                       \
@@ -3100,7 +3104,6 @@ TEST(RISCV_UTEST_WasmRvvS128const) {
 }
 
 #undef UTEST_VCPOP_M_WITH_WIDTH
-#endif  // CAN_USE_RVV_INSTRUCTIONS
 #undef __
 }  // namespace internal
 }  // namespace v8

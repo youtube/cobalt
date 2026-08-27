@@ -40,6 +40,7 @@
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/svc/scalable_video_controller.h"
 #include "modules/video_coding/svc/simulcast_to_svc_converter.h"
+#include "modules/video_coding/utility/frame_sampler.h"
 #include "modules/video_coding/utility/framerate_controller_deprecated.h"
 #include "rtc_base/containers/flat_map.h"
 #include "rtc_base/experiments/encoder_info_settings.h"
@@ -248,6 +249,11 @@ class LibvpxVp9Encoder : public VideoEncoder {
   bool config_changed_;
 
   const LibvpxVp9EncoderInfoSettings encoder_info_override_;
+
+  // Determine whether the frame should be sampled for PSNR.
+  FrameSampler psnr_frame_sampler_;
+  // TODO(webrtc:388070060): Remove after rollout.
+  const bool calculate_psnr_;
 };
 
 }  // namespace webrtc

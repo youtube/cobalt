@@ -608,7 +608,7 @@ StreamResult OpenSSLStreamAdapter::Write(ArrayView<const uint8_t> data,
   }
 
   // OpenSSL will return an error if we try to write zero bytes
-  if (data.size() == 0) {
+  if (data.empty()) {
     written = 0;
     return SR_SUCCESS;
   }
@@ -665,7 +665,7 @@ StreamResult OpenSSLStreamAdapter::Read(ArrayView<uint8_t> data,
   }
 
   // Don't trust OpenSSL with zero byte reads
-  if (data.size() == 0) {
+  if (data.empty()) {
     read = 0;
     return SR_SUCCESS;
   }

@@ -127,16 +127,22 @@ void CryptoOptions::EphemeralKeyExchangeCipherGroups::Update(
           field_trials);
   // Remove all disabled.
   if (disabled_groups) {
-    default_groups.erase(std::remove_if(
-        default_groups.begin(), default_groups.end(), [&](uint16_t val) {
-          return std::find(disabled_groups->begin(), disabled_groups->end(),
-                           val) != disabled_groups->end();
-        }));
-    enabled_.erase(
-        std::remove_if(enabled_.begin(), enabled_.end(), [&](uint16_t val) {
-          return std::find(disabled_groups->begin(), disabled_groups->end(),
-                           val) != disabled_groups->end();
-        }));
+    default_groups.erase(
+        std::remove_if(default_groups.begin(), default_groups.end(),
+                       [&](uint16_t val) {
+                         return std::find(disabled_groups->begin(),
+                                          disabled_groups->end(),
+                                          val) != disabled_groups->end();
+                       }),
+        default_groups.end());
+    enabled_.erase(std::remove_if(enabled_.begin(), enabled_.end(),
+                                  [&](uint16_t val) {
+                                    return std::find(disabled_groups->begin(),
+                                                     disabled_groups->end(),
+                                                     val) !=
+                                           disabled_groups->end();
+                                  }),
+                   enabled_.end());
   }
 
   // Add those enabled by field-trials first.

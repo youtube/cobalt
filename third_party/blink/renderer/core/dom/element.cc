@@ -882,7 +882,7 @@ Node* Element::Clone(Document& factory,
           shadow_root->GetMode(),
           shadow_root->delegatesFocus() ? FocusDelegation::kDelegateFocus
                                         : FocusDelegation::kNone,
-          shadow_root->GetSlotAssignmentMode(), /*registry*/ nullptr,
+          shadow_root->GetSlotAssignmentMode(), customElementRegistry(),
           shadow_root->serializable(),
           /*clonable*/ true, shadow_root->referenceTarget());
 
@@ -3836,7 +3836,7 @@ Node::InsertionNotificationRequest Element::InsertedInto(
 }
 
 // https://github.com/WICG/declarative-partial-updates
-DOMPatchStatus* Element::currentPatch() {
+Patch* Element::currentPatch() {
   PatchSupplement* supplement = PatchSupplement::FromIfExists(GetDocument());
   if (!supplement) {
     return nullptr;
@@ -4368,6 +4368,10 @@ const ComputedStyle* Element::StyleForLayoutObject(
     style = HasCustomStyleCallbacks()
                 ? CustomStyleForLayoutObject(new_style_recalc_context)
                 : OriginalStyleForLayoutObject(new_style_recalc_context);
+    if (!style) {
+      DCHECK(IsPseudoElement());
+      return nullptr;
+    }
   }
 
   DisplayLockContext* context = GetDisplayLockContext();
@@ -4515,7 +4519,7 @@ void Element::MarkNonSlottedHostChildrenForStyleRecalc() {
 
 const ComputedStyle* Element::ParentComputedStyle() const {
   Element* parent = LayoutTreeBuilderTraversal::ParentElement(*this);
-  if (parent && parent->ChildrenCanHaveStyle()) {
+  if (parent && (parent->ChildrenCanHaveStyle() || IsBackdropPseudoElement())) {
     const ComputedStyle* parent_style = parent->GetComputedStyle();
     if (parent_style && !parent_style->IsEnsuredInDisplayNone()) {
       return parent_style;
@@ -4718,6 +4722,13 @@ void Element::RecalcStyle(const StyleRecalcChange change,
         UpdatePseudoElement(kPseudoIdPickerIcon, child_change,
                             child_recalc_context);
       }
+    }
+
+    if (RuntimeEnabledFeatures::HTMLInterestForInterestHintPseudoEnabled(
+            GetExecutionContext()) &&
+        InterestForElement()) {
+      UpdatePseudoElement(kPseudoIdInterestHint, child_change,
+                          child_recalc_context);
     }
 
     UpdateLayoutSiblingPseudoElement(kPseudoIdScrollMarkerGroupAfter,
@@ -5303,6 +5314,7 @@ void Element::RebuildLayoutTree(WhitespaceAttacher& whitespace_attacher) {
     }
     RebuildPseudoElementLayoutTree(kPseudoIdAfter, *child_attacher);
     RebuildPseudoElementLayoutTree(kPseudoIdPickerIcon, *child_attacher);
+    RebuildPseudoElementLayoutTree(kPseudoIdInterestHint, *child_attacher);
     if (GetShadowRoot()) {
       RebuildShadowRootLayoutTree(*child_attacher);
     } else {
@@ -6486,7 +6498,9 @@ CustomElementDefinition* Element::GetCustomElementDefinition() const {
 }
 
 CustomElementRegistry* Element::customElementRegistry() const {
-  DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
+  if (!RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
+    return nullptr;
+  }
   // TODO(crbug.com/429140221) Need to evaluate if storing registry
   // in element whenever needed is too memory consuming. For now
   // we'll take the naive approach and assume an element using its tree
@@ -6634,16 +6648,15 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
           ? AtomicString(shadow_root_init_dict->referenceTarget())
           : g_null_atom;
 
-  CustomElementRegistry* registry = nullptr;
-  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
-    // 1. Let registry be this's custom element registry
-    registry = customElementRegistry();
-    // 2. If init["customElementRegistry"] is not null, then set registry to it
-    if (shadow_root_init_dict->hasCustomElementRegistry() &&
-        shadow_root_init_dict->customElementRegistry()) {
-      registry = shadow_root_init_dict->customElementRegistry();
-    }
-  }
+  // 1. Let registry be this's custom element registry.
+  // 2. If init["customElementRegistry"] is not null, then set registry to it.
+  bool scoped_registry =
+      RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
+      shadow_root_init_dict->hasCustomElementRegistry() &&
+      shadow_root_init_dict->customElementRegistry();
+  auto* registry = scoped_registry
+                       ? shadow_root_init_dict->customElementRegistry()
+                       : customElementRegistry();
 
   ShadowRootMode mode;
   if (const char* error_message = ErrorMessageForAttachShadow(
@@ -6695,7 +6708,8 @@ bool Element::AttachDeclarativeShadowRoot(
     SlotAssignmentMode slot_assignment,
     bool serializable,
     bool clonable,
-    const AtomicString& reference_target) {
+    const AtomicString& reference_target,
+    const bool waiting_for_scoped_registry) {
   // 12. Run attach a shadow root with shadow host equal to declarative shadow
   // host element, mode equal to declarative shadow mode, and delegates focus
   // equal to declarative shadow delegates focus. If an exception was thrown by
@@ -6710,11 +6724,10 @@ bool Element::AttachDeclarativeShadowRoot(
   }
   CHECK(mode == ShadowRootMode::kOpen || mode == ShadowRootMode::kClosed);
 
-  // TODO(crbug.com/1523816): Declarative shadow roots should set the registry
-  // argument here.
   ShadowRoot& shadow_root = AttachShadowRootInternal(
       mode, focus_delegation, slot_assignment,
-      /*registry*/ nullptr, serializable, clonable, reference_target);
+      waiting_for_scoped_registry ? nullptr : customElementRegistry(),
+      serializable, clonable, reference_target);
   // 13.1. Set declarative shadow host element's shadow host's "is declarative
   // shadow root" property to true.
   shadow_root.SetIsDeclarativeShadowRoot(true);
@@ -6789,6 +6802,15 @@ ShadowRoot& Element::AttachShadowRootInternal(
 
   // 8. Set this’s shadow root to shadow.
   return shadow_root;
+}
+
+ShadowRoot& Element::AttachShadowRootForTesting(ShadowRootMode type) {
+  return AttachShadowRootInternal(type, FocusDelegation::kNone,
+                                  SlotAssignmentMode::kNamed,
+                                  /*registry*/ nullptr,
+                                  /*serializable*/ false,
+                                  /*clonable*/ false,
+                                  /*reference_target*/ g_null_atom);
 }
 
 ShadowRoot* Element::OpenShadowRoot() const {
@@ -7713,11 +7735,12 @@ void Element::ShowInterestNow() {
   GainOrLoseInterest(this, target, InterestState::kFullInterest);
 }
 
-void Element::LoseInterestNow(Element* target) {
+void Element::LoseInterestNow() {
   DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
       GetDocument().GetExecutionContext()));
-  DCHECK_EQ(InterestForElement(), target);
+  Element* target = InterestForElement();
   DCHECK_EQ(GetInvokerData()->ActiveInterestTarget(), target);
+  DCHECK_EQ(GetInterestState(), InterestState::kFullInterest);
   GainOrLoseInterest(this, target, InterestState::kNoInterest);
 }
 
@@ -9730,7 +9753,8 @@ const ComputedStyle* Element::StyleForPseudoElement(
 
   const bool is_before_or_after_like =
       pseudo_id == kPseudoIdCheckMark || pseudo_id == kPseudoIdBefore ||
-      pseudo_id == kPseudoIdAfter || pseudo_id == kPseudoIdPickerIcon;
+      pseudo_id == kPseudoIdAfter || pseudo_id == kPseudoIdPickerIcon ||
+      pseudo_id == kPseudoIdInterestHint;
 
   if (is_before_or_after_like) {
     DCHECK(request.parent_override);
@@ -12296,6 +12320,7 @@ Element* Element::ImplicitAnchorElement() const {
       case kPseudoIdBefore:
       case kPseudoIdAfter:
       case kPseudoIdPickerIcon:
+      case kPseudoIdInterestHint:
       case kPseudoIdBackdrop:
       case kPseudoIdScrollMarkerGroupBefore:
       case kPseudoIdScrollMarkerGroupAfter:
@@ -12440,6 +12465,35 @@ void Element::setHTML(const String& html,
   SetInnerHTMLInternal(html, ParseDeclarativeShadowRoots::kParse,
                        ForceHtml::kForce, exception_state);
   SanitizerAPI::SanitizeSafeInternal(this, options, exception_state);
+}
+
+void Element::SetNamedTriggers(NamedAnimationTriggerMap&& named_triggers) {
+  EnsureElementRareData().EnsureAnimationTriggerData().SetNamedTriggers(
+      named_triggers);
+}
+
+NamedAnimationTriggerMap* Element::NamedTriggers() const {
+  ElementRareDataVector* data = GetElementRareData();
+  if (!data) {
+    return nullptr;
+  }
+
+  ElementAnimationTriggerData* trigger_data = data->AnimationTriggerData();
+  if (!trigger_data) {
+    return nullptr;
+  }
+
+  return &trigger_data->NamedTriggers();
+}
+
+AnimationTrigger* Element::NamedTrigger(const ScopedCSSName* name) const {
+  NamedAnimationTriggerMap* trigger_map = NamedTriggers();
+  if (!trigger_map) {
+    return nullptr;
+  }
+
+  auto it = trigger_map->find(name);
+  return it == trigger_map->end() ? nullptr : it->value.Get();
 }
 
 }  // namespace blink

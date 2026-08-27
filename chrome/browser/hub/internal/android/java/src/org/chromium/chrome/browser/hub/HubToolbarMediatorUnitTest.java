@@ -58,6 +58,7 @@ import org.robolectric.Robolectric;
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.hub.HubToolbarMediator.HubSearchEntrypoint;
 import org.chromium.chrome.browser.hub.HubToolbarProperties.PaneButtonLookup;
@@ -65,6 +66,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient.IntentBuilder;
 import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -160,6 +162,8 @@ public class HubToolbarMediatorUnitTest {
                 .thenReturn(mIncognitoTabSwitcherReferenceButtonDataSupplier2);
         when(mIncognitoTabSwitcherPane.getPaneId()).thenReturn(PaneId.INCOGNITO_TAB_SWITCHER);
         when(mIncognitoTabSwitcherPane.getColorScheme()).thenReturn(HubColorScheme.INCOGNITO);
+
+        when(mTabGroupsPane.getPaneId()).thenReturn(PaneId.TAB_GROUPS);
 
         mTabSwitcherReferenceButtonDataSupplier1.set(mDisplayButtonData);
         mIncognitoTabSwitcherReferenceButtonDataSupplier2.set(mDisplayButtonData);
@@ -502,10 +506,41 @@ public class HubToolbarMediatorUnitTest {
         assertTrue(mModel.get(SEARCH_BOX_VISIBLE));
         assertFalse(mModel.get(SEARCH_LOUPE_VISIBLE));
 
-        when(mTabGroupsPane.getPaneId()).thenReturn(PaneId.TAB_GROUPS);
+        when(mTabGroupsPane.getPaneId()).thenReturn(PaneId.BOOKMARKS);
         mFocusedPaneSupplier.set(mTabGroupsPane);
         assertTrue(mModel.get(APPLY_DELAY_FOR_SEARCH_BOX_ANIMATION));
         assertFalse(mModel.get(SEARCH_BOX_VISIBLE));
+        assertFalse(mModel.get(SEARCH_LOUPE_VISIBLE));
+
+        when(mIncognitoTabSwitcherPane.getPaneId()).thenReturn(PaneId.INCOGNITO_TAB_SWITCHER);
+        mFocusedPaneSupplier.set(mIncognitoTabSwitcherPane);
+        assertFalse(mModel.get(APPLY_DELAY_FOR_SEARCH_BOX_ANIMATION));
+        assertTrue(mModel.get(SEARCH_BOX_VISIBLE));
+        assertFalse(mModel.get(SEARCH_LOUPE_VISIBLE));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS)
+    public void testSearchBoxToGroups_TogglePanesSearchBoxVisibility_Phone() {
+        when(mTabSwitcherPane.getPaneId()).thenReturn(PaneId.TAB_SWITCHER);
+        mFocusedPaneSupplier.set(mTabSwitcherPane);
+        new HubToolbarMediator(
+                Robolectric.buildActivity(Activity.class).get(),
+                mModel,
+                mPaneManager,
+                mTracker,
+                mSearchActivityClient,
+                mCurrentTabSupplier,
+                mExitHubRunnable);
+        assertFalse(mModel.get(APPLY_DELAY_FOR_SEARCH_BOX_ANIMATION));
+        assertTrue(mModel.get(SEARCH_BOX_VISIBLE));
+        assertFalse(mModel.get(SEARCH_LOUPE_VISIBLE));
+
+        when(mTabGroupsPane.getPaneId()).thenReturn(PaneId.TAB_GROUPS);
+        mFocusedPaneSupplier.set(mTabGroupsPane);
+        assertFalse(mModel.get(APPLY_DELAY_FOR_SEARCH_BOX_ANIMATION));
+        assertTrue(mModel.get(SEARCH_BOX_VISIBLE));
         assertFalse(mModel.get(SEARCH_LOUPE_VISIBLE));
 
         when(mIncognitoTabSwitcherPane.getPaneId()).thenReturn(PaneId.INCOGNITO_TAB_SWITCHER);
@@ -533,10 +568,39 @@ public class HubToolbarMediatorUnitTest {
         assertFalse(mModel.get(SEARCH_BOX_VISIBLE));
         assertTrue(mModel.get(SEARCH_LOUPE_VISIBLE));
 
-        when(mTabGroupsPane.getPaneId()).thenReturn(PaneId.TAB_GROUPS);
+        when(mTabGroupsPane.getPaneId()).thenReturn(PaneId.BOOKMARKS);
         mFocusedPaneSupplier.set(mTabGroupsPane);
         assertFalse(mModel.get(SEARCH_BOX_VISIBLE));
         assertFalse(mModel.get(SEARCH_LOUPE_VISIBLE));
+
+        when(mIncognitoTabSwitcherPane.getPaneId()).thenReturn(PaneId.INCOGNITO_TAB_SWITCHER);
+        mFocusedPaneSupplier.set(mIncognitoTabSwitcherPane);
+        assertFalse(mModel.get(SEARCH_BOX_VISIBLE));
+        assertTrue(mModel.get(SEARCH_LOUPE_VISIBLE));
+    }
+
+    @Test
+    @SmallTest
+    public void testSearchBoxToGroups_TogglePanesSearchBoxVisibility_Tablet() {
+        mConfiguration.screenWidthDp = WIDE_SCREEN_WIDTH_DP;
+
+        when(mTabSwitcherPane.getPaneId()).thenReturn(PaneId.TAB_SWITCHER);
+        mFocusedPaneSupplier.set(mTabSwitcherPane);
+        new HubToolbarMediator(
+                mActivity,
+                mModel,
+                mPaneManager,
+                mTracker,
+                mSearchActivityClient,
+                mCurrentTabSupplier,
+                mExitHubRunnable);
+        assertFalse(mModel.get(SEARCH_BOX_VISIBLE));
+        assertTrue(mModel.get(SEARCH_LOUPE_VISIBLE));
+
+        when(mTabGroupsPane.getPaneId()).thenReturn(PaneId.TAB_GROUPS);
+        mFocusedPaneSupplier.set(mTabGroupsPane);
+        assertFalse(mModel.get(SEARCH_BOX_VISIBLE));
+        assertTrue(mModel.get(SEARCH_LOUPE_VISIBLE));
 
         when(mIncognitoTabSwitcherPane.getPaneId()).thenReturn(PaneId.INCOGNITO_TAB_SWITCHER);
         mFocusedPaneSupplier.set(mIncognitoTabSwitcherPane);
@@ -568,6 +632,9 @@ public class HubToolbarMediatorUnitTest {
                         .expectIntRecord(
                                 "Android.HubSearch.SearchBoxEntrypointV2",
                                 HubSearchEntrypoint.INCOGNITO_SEARCHBOX)
+                        .expectIntRecord(
+                                "Android.HubSearch.SearchBoxEntrypointV2",
+                                HubSearchEntrypoint.TAB_GROUPS_SEARCHBOX)
                         .build();
 
         // Fake clicks on the search box.
@@ -578,6 +645,12 @@ public class HubToolbarMediatorUnitTest {
         // Toggle to incognito pane
         mFocusedPaneSupplier.set(mIncognitoTabSwitcherPane);
         mModel.get(SEARCH_LISTENER).run();
+        verify(mSearchActivityClient, times(2)).requestOmniboxForResult(any());
+
+        // Toggle to tab groups pane
+        mFocusedPaneSupplier.set(mTabGroupsPane);
+        mModel.get(SEARCH_LISTENER).run();
+        verify(mSearchActivityClient, times(3)).requestOmniboxForResult(any());
         histograms.assertExpected();
     }
 
@@ -606,6 +679,9 @@ public class HubToolbarMediatorUnitTest {
                         .expectIntRecord(
                                 "Android.HubSearch.SearchBoxEntrypointV2",
                                 HubSearchEntrypoint.INCOGNITO_LOUPE)
+                        .expectIntRecord(
+                                "Android.HubSearch.SearchBoxEntrypointV2",
+                                HubSearchEntrypoint.TAB_GROUPS_LOUPE)
                         .build();
 
         // Fake clicks on the search box.
@@ -616,6 +692,12 @@ public class HubToolbarMediatorUnitTest {
         // Toggle to incognito pane
         mFocusedPaneSupplier.set(mIncognitoTabSwitcherPane);
         mModel.get(SEARCH_LISTENER).run();
+        verify(mSearchActivityClient, times(2)).requestOmniboxForResult(any());
+
+        // Toggle to tab groups pane
+        mFocusedPaneSupplier.set(mTabGroupsPane);
+        mModel.get(SEARCH_LISTENER).run();
+        verify(mSearchActivityClient, times(3)).requestOmniboxForResult(any());
         histograms.assertExpected();
     }
 

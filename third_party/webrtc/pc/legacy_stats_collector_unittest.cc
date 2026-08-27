@@ -691,7 +691,7 @@ class LegacyStatsCollectorTest : public ::testing::Test {
     std::string local_certificate_id =
         ExtractStatsValue(StatsReport::kStatsReportTypeComponent, reports,
                           StatsReport::kStatsValueNameLocalCertificateId);
-    if (local_ders.size() > 0) {
+    if (!local_ders.empty()) {
       EXPECT_NE(kNotFound, local_certificate_id);
       StatsReport::Id id(IdFromCertIdString(local_certificate_id));
       CheckCertChainReports(reports, local_ders, id);
@@ -703,7 +703,7 @@ class LegacyStatsCollectorTest : public ::testing::Test {
     std::string remote_certificate_id =
         ExtractStatsValue(StatsReport::kStatsReportTypeComponent, reports,
                           StatsReport::kStatsValueNameRemoteCertificateId);
-    if (remote_ders.size() > 0) {
+    if (!remote_ders.empty()) {
       EXPECT_NE(kNotFound, remote_certificate_id);
       StatsReport::Id id(IdFromCertIdString(remote_certificate_id));
       CheckCertChainReports(reports, remote_ders, id);

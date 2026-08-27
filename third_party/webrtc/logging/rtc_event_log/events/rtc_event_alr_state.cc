@@ -20,9 +20,6 @@
 #include "logging/rtc_event_log/events/rtc_event_log_parse_status.h"
 
 namespace webrtc {
-constexpr RtcEvent::Type RtcEventAlrState::kType;
-constexpr RtcEventDefinition<RtcEventAlrState, LoggedAlrStateEvent, bool>
-    RtcEventAlrState::definition_;
 
 RtcEventAlrState::RtcEventAlrState(bool in_alr) : in_alr_(in_alr) {}
 

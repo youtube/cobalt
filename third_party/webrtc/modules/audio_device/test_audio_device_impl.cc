@@ -171,7 +171,7 @@ void TestAudioDevice::ProcessAudio() {
   if (capturing_ && capturer_ != nullptr) {
     // Capture 10ms of audio. 2 bytes per sample.
     const bool keep_capturing = capturer_->Capture(&recording_buffer_);
-    if (recording_buffer_.size() > 0) {
+    if (!recording_buffer_.empty()) {
       audio_buffer_->SetRecordedBuffer(
           recording_buffer_.data(),
           recording_buffer_.size() / capturer_->NumChannels(),

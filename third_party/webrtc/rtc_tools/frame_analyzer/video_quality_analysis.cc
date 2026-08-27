@@ -125,7 +125,7 @@ int GetTotalNumberOfSkippedFrames(const std::vector<Cluster>& clusters) {
 void PrintAnalysisResults(const std::string& label,
                           ResultsContainer& results,
                           MetricsLogger& logger) {
-  if (results.frames.size() > 0u) {
+  if (!results.frames.empty()) {
     logger.LogSingleValueMetric("Unique_frames_count", label,
                                 results.frames.size(), Unit::kUnitless,
                                 ImprovementDirection::kNeitherIsBetter);

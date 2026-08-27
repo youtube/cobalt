@@ -807,7 +807,7 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     IF_WASM(ALLOCATE_VARSIZE_MAP, WASM_DISPATCH_TABLE_TYPE,
             wasm_dispatch_table);
 
-    ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
+    ALLOCATE_MAP(WEAK_CELL_TYPE, sizeof(WeakCell), weak_cell)
     ALLOCATE_MAP(INTERPRETER_DATA_TYPE, sizeof(InterpreterData),
                  interpreter_data)
 
@@ -1160,10 +1160,6 @@ bool Heap::CreateReadOnlyObjects() {
   Oddball::Initialize(isolate(), factory->false_value(), "false",
                       direct_handle(Smi::zero(), isolate()), "boolean",
                       Oddball::kFalse);
-
-  // Initialize the_hole_value.
-  Hole::Initialize(isolate(), factory->the_hole_value(),
-                   factory->hole_nan_value());
 
   set_property_cell_hole_value(*factory->NewHole());
   set_hash_table_hole_value(*factory->NewHole());

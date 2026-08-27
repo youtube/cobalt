@@ -287,7 +287,6 @@ if (rtc_include_tests) {
         "../../../api/test/network_emulation",
         "../../../api/test/network_emulation:create_cross_traffic",
         "../../../api/transport:bandwidth_usage",
-        "../../../api/transport:field_trial_based_config",
         "../../../api/transport:goog_cc",
         "../../../api/transport:network_control",
         "../../../api/units:data_rate",

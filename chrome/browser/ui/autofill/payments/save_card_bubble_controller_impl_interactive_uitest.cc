@@ -82,48 +82,48 @@ class SaveCardBubbleControllerImplTest : public DialogBrowserTest {
                                            CardSaveType::kCardSaveOnly)
             .with_show_prompt(true);
 
-    BubbleType bubble_type = BubbleType::INACTIVE;
+    PaymentsBubbleType bubble_type = PaymentsBubbleType::kInactive;
     if (name.find("LocalSave") != std::string::npos) {
-      bubble_type = BubbleType::LOCAL_SAVE;
+      bubble_type = PaymentsBubbleType::kLocalSave;
     }
     if (name.find("LocalCvcSave") != std::string::npos) {
-      bubble_type = BubbleType::LOCAL_CVC_SAVE;
+      bubble_type = PaymentsBubbleType::kLocalCvcSave;
     }
     if (name.find("ServerSave") != std::string::npos) {
-      bubble_type = BubbleType::UPLOAD_SAVE;
+      bubble_type = PaymentsBubbleType::kUploadSave;
     }
     if (name.find("ServerCvcSave") != std::string::npos) {
-      bubble_type = BubbleType::UPLOAD_CVC_SAVE;
+      bubble_type = PaymentsBubbleType::kUploadCvcSave;
     }
     if (name.find("Manage") != std::string::npos) {
-      bubble_type = BubbleType::MANAGE_CARDS;
+      bubble_type = PaymentsBubbleType::kManageCards;
     }
 
     switch (bubble_type) {
-      case BubbleType::LOCAL_SAVE:
+      case PaymentsBubbleType::kLocalSave:
         controller_->OfferLocalSave(test::GetCreditCard(), options,
                                     base::DoNothing());
         break;
-      case BubbleType::LOCAL_CVC_SAVE:
+      case PaymentsBubbleType::kLocalCvcSave:
         controller_->OfferLocalSave(test::GetCreditCard(), options,
                                     base::DoNothing());
         break;
-      case BubbleType::UPLOAD_SAVE:
+      case PaymentsBubbleType::kUploadSave:
         controller_->OfferUploadSave(test::GetMaskedServerCard(),
                                      GetTestLegalMessage(), options,
                                      base::DoNothing());
         break;
-      case BubbleType::UPLOAD_CVC_SAVE:
+      case PaymentsBubbleType::kUploadCvcSave:
         controller_->OfferUploadSave(test::GetMaskedServerCard(),
                                      GetTestLegalMessage(), options,
                                      base::DoNothing());
         break;
-      case BubbleType::MANAGE_CARDS:
+      case PaymentsBubbleType::kManageCards:
         controller_->ShowBubbleForManageCardsForTesting(test::GetCreditCard());
         break;
-      case BubbleType::UPLOAD_IN_PROGRESS:
-      case BubbleType::UPLOAD_COMPLETED:
-      case BubbleType::INACTIVE:
+      case PaymentsBubbleType::kUploadInProgress:
+      case PaymentsBubbleType::kUploadComplete:
+      case PaymentsBubbleType::kInactive:
         break;
     }
   }

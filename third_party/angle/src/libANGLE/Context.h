@@ -147,6 +147,9 @@ class ErrorSet : angle::NonCopyable
     bool mContextLostForced;
     GraphicsResetStatus mResetStatus;
 
+    std::atomic<uint32_t> mErrorMessageCount;
+    uint32_t mMaxErrorMessages;
+
     // The following are atomic and lockless as they are very frequently accessed.
     std::atomic_int mSkipValidation;
     std::atomic_int mContextLost;
@@ -172,7 +175,7 @@ class PrivateStateCache final : angle::NonCopyable
     PrivateStateCache();
     ~PrivateStateCache();
 
-    void initialize();
+    void initialize(const Context *context);
 
     void onCapChange() { mIsCachedBasicDrawStatesErrorValid = false; }
     void onColorMaskChange() { mIsCachedBasicDrawStatesErrorValid = false; }
@@ -259,7 +262,19 @@ class PrivateStateCache final : angle::NonCopyable
         mCachedBasicDrawElementsError = drawElementsError;
     }
 
+    // Cannot change except on Context/Extension init.
+    VertexAttribTypeCase getVertexAttribTypeValidation(VertexAttribType type) const
+    {
+        return mCachedVertexAttribTypesValidation[type];
+    }
+    VertexAttribTypeCase getIntegerVertexAttribTypeValidation(VertexAttribType type) const
+    {
+        return mCachedIntegerVertexAttribTypesValidation[type];
+    }
+
   private:
+    void updateVertexAttribTypesValidation(const Context *context);
+
     static constexpr intptr_t kInvalidPointer = 1;
 
     // StateCache::mCachedBasicDrawStatesError* may be invalidated through numerous calls (see the
@@ -286,6 +301,13 @@ class PrivateStateCache final : angle::NonCopyable
     // This only gets modified by the current context, with or without shared lock. But it is always
     // thread safe since context can only be current in one thread.
     mutable intptr_t mCachedBasicDrawElementsError;
+
+    using VertexAttribTypesValidation =
+        angle::PackedEnumMap<VertexAttribType,
+                             VertexAttribTypeCase,
+                             angle::EnumSize<VertexAttribType>() + 1>;
+    VertexAttribTypesValidation mCachedVertexAttribTypesValidation;
+    VertexAttribTypesValidation mCachedIntegerVertexAttribTypesValidation;
 };
 
 // Helper class for managing cache variables and state changes.
@@ -427,17 +449,6 @@ class StateCache final : angle::NonCopyable
         return mCachedTransformFeedbackActiveUnpaused;
     }
 
-    // Cannot change except on Context/Extension init.
-    VertexAttribTypeCase getVertexAttribTypeValidation(VertexAttribType type) const
-    {
-        return mCachedVertexAttribTypesValidation[type];
-    }
-
-    VertexAttribTypeCase getIntegerVertexAttribTypeValidation(VertexAttribType type) const
-    {
-        return mCachedIntegerVertexAttribTypesValidation[type];
-    }
-
     // Places that can trigger updateActiveShaderStorageBufferIndices:
     // 1. onProgramExecutableChange.
     StorageBuffersMask getActiveShaderStorageBufferIndices() const
@@ -484,7 +495,6 @@ class StateCache final : angle::NonCopyable
     }
     void updateProgramPipelineError() { mCachedProgramPipelineError = kInvalidPointer; }
     void updateTransformFeedbackActiveUnpaused(Context *context);
-    void updateVertexAttribTypesValidation(Context *context);
     void updateActiveShaderStorageBufferIndices(Context *context);
     void updateActiveImageUnitIndices(Context *context);
     void updateCanDraw(Context *context);
@@ -575,14 +585,6 @@ class StateCache final : angle::NonCopyable
         mCachedValidBindTextureTypes;
     angle::PackedEnumMap<DrawElementsType, bool, angle::EnumSize<DrawElementsType>() + 1>
         mCachedValidDrawElementsTypes;
-    angle::PackedEnumMap<VertexAttribType,
-                         VertexAttribTypeCase,
-                         angle::EnumSize<VertexAttribType>() + 1>
-        mCachedVertexAttribTypesValidation;
-    angle::PackedEnumMap<VertexAttribType,
-                         VertexAttribTypeCase,
-                         angle::EnumSize<VertexAttribType>() + 1>
-        mCachedIntegerVertexAttribTypesValidation;
 
     bool mCachedCanDraw;
 };
@@ -752,9 +754,14 @@ class Context final : public egl::LabeledObject, angle::NonCopyable, public angl
         return mState.isCurrentVertexArray(va);
     }
 
-    ANGLE_INLINE bool isShared() const { return mShared; }
+    bool isShared() const { return mShared; }
+    bool isSharedContext() const { return mSharedContext; }
     // Once a context is setShared() it cannot be undone
-    void setShared() { mShared = true; }
+    void setShared()
+    {
+        mShared        = true;
+        mSharedContext = true;
+    }
 
     const State &getState() const { return mState; }
     const PrivateState &getPrivateState() const { return mState.privateState(); }
@@ -945,7 +952,8 @@ class Context final : public egl::LabeledObject, angle::NonCopyable, public angl
 
     // Only used by vulkan backend.
     void onSwapChainImageChanged() const { mDefaultFramebuffer->onSwapChainImageChanged(); }
-    void onBufferChanged(const angle::SubjectMessage message,
+    void onBufferChanged(const Buffer *buffer,
+                         const angle::SubjectMessage message,
                          VertexArrayBufferBindingMask vertexArrayBufferBindingMask) const
     {
         // Notify current vertex array of the buffer changed. Note that other vertex arrays of this
@@ -954,7 +962,8 @@ class Context final : public egl::LabeledObject, angle::NonCopyable, public angl
         if (vertexArrayBufferBindingMask.any())
         {
             ASSERT(mState.mVertexArray != nullptr);
-            mState.mVertexArray->onBufferChanged(this, message, vertexArrayBufferBindingMask);
+            mState.mVertexArray->onBufferChanged(this, buffer, message,
+                                                 vertexArrayBufferBindingMask);
         }
     }
 
@@ -1033,6 +1042,7 @@ class Context final : public egl::LabeledObject, angle::NonCopyable, public angl
 
     State mState;
     bool mShared;
+    bool mSharedContext;
     bool mDisplayTextureShareGroup;
     bool mDisplaySemaphoreShareGroup;
 

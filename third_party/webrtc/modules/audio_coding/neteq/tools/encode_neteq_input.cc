@@ -78,7 +78,7 @@ void EncodeNetEqInput::CreatePacket() {
   AudioEncoder::EncodedInfo info;
   RTC_DCHECK(!info.send_even_if_empty);
   int num_blocks = 0;
-  while (packet_data_->payload.size() == 0 && !info.send_even_if_empty) {
+  while (packet_data_->payload.empty() && !info.send_even_if_empty) {
     const size_t num_samples = CheckedDivExact(
         static_cast<int>(encoder_->SampleRateHz() * kOutputPeriodMs), 1000);
 

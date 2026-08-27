@@ -9,6 +9,8 @@
  */
 
 #include <atomic>
+#include <cstdint>
+#include <optional>
 #include <string>
 
 #include "absl/strings/str_cat.h"
@@ -43,6 +45,7 @@ namespace {
 using test::PeerScenario;
 using test::PeerScenarioClient;
 using ::testing::HasSubstr;
+using ::testing::TestWithParam;
 
 // Helper class used for counting RTCP feedback messages.
 class RtcpFeedbackCounter {
@@ -121,6 +124,33 @@ DataRate GetAvailableSendBitrate(
   return DataRate::BitsPerSec(*stats[0]->available_outgoing_bitrate);
 }
 
+std::optional<int64_t> GetPacketsSentWithEct1(
+    const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  if (stats.empty()) {
+    return std::nullopt;
+  }
+  return stats[0]->packets_sent_with_ect1;
+}
+
+std::optional<int64_t> GetPacketsReceivedWithEct1(
+    const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+  if (stats.empty()) {
+    return std::nullopt;
+  }
+  return stats[0]->packets_received_with_ect1;
+}
+
+std::optional<int64_t> GetPacketsReceivedWithCe(
+    const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCInboundRtpStreamStats>();
+  if (stats.empty()) {
+    return std::nullopt;
+  }
+  return stats[0]->packets_received_with_ce;
+}
+
 TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
   PeerScenario s(*test_info_);
 
@@ -192,20 +222,51 @@ TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
   EXPECT_EQ(ret_node_feedback_counter.FeedbackAccordingToTransportCc(), 0);
 }
 
-TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithoutEcn) {
-  PeerScenario s(*test_info_);
+struct SupportRfc8888Params {
+  bool caller_supports_rfc8888 = false;
+  bool callee_supports_rfc8888 = false;
+  std::string test_suffix;
+};
 
-  PeerScenarioClient::Config config;
-  config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback", "Enabled");
-  PeerScenarioClient* caller = s.CreateClient(config);
-  PeerScenarioClient* callee = s.CreateClient(config);
+class FeedbackFormatTest : public TestWithParam<SupportRfc8888Params> {};
+
+TEST_P(FeedbackFormatTest, AdaptToLinkCapacityWithoutEcn) {
+  const SupportRfc8888Params& params = GetParam();
+  PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
+
+  PeerScenarioClient::Config caller_config;
+  caller_config.disable_encryption = true;
+  caller_config.field_trials.Set(
+      "WebRTC-RFC8888CongestionControlFeedback",
+      params.caller_supports_rfc8888 ? "Enabled" : "Disabled");
+  PeerScenarioClient* caller = s.CreateClient(caller_config);
+
+  PeerScenarioClient::Config callee_config;
+  callee_config.disable_encryption = true;
+  callee_config.field_trials.Set(
+      "WebRTC-RFC8888CongestionControlFeedback",
+      params.callee_supports_rfc8888 ? "Enabled" : "Disabled");
+  PeerScenarioClient* callee = s.CreateClient(callee_config);
 
   auto caller_to_callee = s.net()
                               ->NodeBuilder()
                               .capacity(DataRate::KilobitsPerSec(600))
                               .Build()
                               .node;
-  auto callee_to_caller = s.net()->NodeBuilder().Build().node;
+  auto callee_to_caller = s.net()
+                              ->NodeBuilder()
+                              .capacity(DataRate::KilobitsPerSec(600))
+                              .Build()
+                              .node;
+  RtcpFeedbackCounter callee_feedback_counter;
+  caller_to_callee->router()->SetWatcher([&](const EmulatedIpPacket& packet) {
+    callee_feedback_counter.Count(packet);
+  });
+  RtcpFeedbackCounter caller_feedback_counter;
+  callee_to_caller->router()->SetWatcher([&](const EmulatedIpPacket& packet) {
+    caller_feedback_counter.Count(packet);
+  });
+
   s.net()->CreateRoute(caller->endpoint(), {caller_to_callee},
                        callee->endpoint());
   s.net()->CreateRoute(callee->endpoint(), {callee_to_caller},
@@ -217,7 +278,8 @@ TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithoutEcn) {
   video_conf.generator.squares_video->framerate = 30;
   video_conf.generator.squares_video->width = 640;
   video_conf.generator.squares_video->height = 360;
-  caller->CreateVideo("VIDEO_1", video_conf);
+  caller->CreateVideo("FROM_CALLER", video_conf);
+  callee->CreateVideo("FROM_CALLEE", video_conf);
 
   signaling.StartIceSignaling();
   std::atomic<bool> offer_exchange_done(false);
@@ -225,12 +287,45 @@ TEST(L4STest, CallerAdaptToLinkCapacityOnNetworkWithoutEcn) {
     offer_exchange_done = true;
   });
   s.WaitAndProcess(&offer_exchange_done);
-  s.ProcessMessages(TimeDelta::Seconds(3));
-  DataRate available_bwe =
+  s.ProcessMessages(TimeDelta::Seconds(5));
+
+  DataRate caller_available_bwe =
       GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
-  EXPECT_GT(available_bwe.kbps(), 450);
-  EXPECT_LT(available_bwe.kbps(), 610);
+  EXPECT_GT(caller_available_bwe.kbps(), 450);
+  EXPECT_LT(caller_available_bwe.kbps(), 610);
+
+  DataRate callee_available_bwe =
+      GetAvailableSendBitrate(GetStatsAndProcess(s, callee));
+  EXPECT_GT(callee_available_bwe.kbps(), 450);
+  EXPECT_LT(callee_available_bwe.kbps(), 610);
+
+  if (params.caller_supports_rfc8888 && params.callee_supports_rfc8888) {
+    EXPECT_GT(caller_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+    EXPECT_GT(callee_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+    EXPECT_EQ(caller_feedback_counter.FeedbackAccordingToTransportCc(), 0);
+    EXPECT_EQ(callee_feedback_counter.FeedbackAccordingToTransportCc(), 0);
+  } else {
+    EXPECT_EQ(caller_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+    EXPECT_EQ(callee_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+    EXPECT_GT(caller_feedback_counter.FeedbackAccordingToTransportCc(), 0);
+    EXPECT_GT(callee_feedback_counter.FeedbackAccordingToTransportCc(), 0);
+  }
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    L4STest,
+    FeedbackFormatTest,
+    testing::Values(
+        SupportRfc8888Params{.caller_supports_rfc8888 = true,
+                             .test_suffix = "OnlyCallerSupportsRfc8888"},
+        SupportRfc8888Params{.callee_supports_rfc8888 = true,
+                             .test_suffix = "OnlyCalleeSupportsRfc8888"},
+        SupportRfc8888Params{.caller_supports_rfc8888 = true,
+                             .callee_supports_rfc8888 = true,
+                             .test_suffix = "SupportsRfc8888"}),
+    [](const testing::TestParamInfo<SupportRfc8888Params>& info) {
+      return info.param.test_suffix;
+    });
 
 // Note - this test only test that the
 // caller adapt to the link capacity. It does not test that the caller uses ECN
@@ -303,11 +398,11 @@ TEST(L4STest, SendsEct1UntilFirstFeedback) {
     feedback_counter.Count(packet);
     if (feedback_counter.ect1() > 0) {
       seen_ect1_feedback = true;
-      RTC_LOG(LS_INFO) << " ect 1" << feedback_counter.ect1();
+      RTC_LOG(LS_INFO) << "ect 1 feedback: " << feedback_counter.ect1();
     }
     if (feedback_counter.not_ect() > 0) {
       seen_not_ect_feedback = true;
-      RTC_LOG(LS_INFO) << " not ect" << feedback_counter.not_ect();
+      RTC_LOG(LS_INFO) << "not ect feedback: " << feedback_counter.not_ect();
     }
   });
 
@@ -331,6 +426,9 @@ TEST(L4STest, SendsEct1UntilFirstFeedback) {
   EXPECT_TRUE(s.WaitAndProcess(&seen_ect1_feedback, TimeDelta::Seconds(1)));
   EXPECT_FALSE(seen_not_ect_feedback);
   EXPECT_TRUE(s.WaitAndProcess(&seen_not_ect_feedback, TimeDelta::Seconds(1)));
+  auto packets_sent_with_ect1_stats =
+      GetPacketsSentWithEct1(GetStatsAndProcess(s, caller));
+  EXPECT_EQ(packets_sent_with_ect1_stats, feedback_counter.ect1());
 }
 
 TEST(L4STest, SendsEct1AfterRouteChange) {
@@ -367,12 +465,12 @@ TEST(L4STest, SendsEct1AfterRouteChange) {
         wifi_feedback_counter.Count(packet);
         if (wifi_feedback_counter.ect1() > 0) {
           seen_ect1_on_wifi_feedback = true;
-          RTC_LOG(LS_INFO) << " ect 1 feedback on wifi: "
+          RTC_LOG(LS_INFO) << "ect 1 feedback on wifi: "
                            << wifi_feedback_counter.ect1();
         }
         if (wifi_feedback_counter.not_ect() > 0) {
           seen_not_ect_on_wifi_feedback = true;
-          RTC_LOG(LS_INFO) << " not ect feedback on wifi: "
+          RTC_LOG(LS_INFO) << "not ect feedback on wifi: "
                            << wifi_feedback_counter.not_ect();
         }
       });
@@ -407,7 +505,7 @@ TEST(L4STest, SendsEct1AfterRouteChange) {
         cellular_feedback_counter.Count(packet);
         if (cellular_feedback_counter.ect1() > 0) {
           seen_ect1_on_cellular_feedback = true;
-          RTC_LOG(LS_INFO) << " ect 1 feedback on cellular: "
+          RTC_LOG(LS_INFO) << "ect 1 feedback on cellular: "
                            << cellular_feedback_counter.ect1();
         }
       });
@@ -416,6 +514,20 @@ TEST(L4STest, SendsEct1AfterRouteChange) {
   s.net()->DisableEndpoint(callee->endpoint(0));
   EXPECT_TRUE(
       s.WaitAndProcess(&seen_ect1_on_cellular_feedback, TimeDelta::Seconds(5)));
+
+  // Check statistics.
+  auto packets_sent_with_ect1_stats =
+      GetPacketsSentWithEct1(GetStatsAndProcess(s, caller));
+  EXPECT_EQ(packets_sent_with_ect1_stats,
+            wifi_feedback_counter.ect1() + cellular_feedback_counter.ect1());
+
+  auto callee_stats = GetStatsAndProcess(s, callee);
+  auto packets_received_with_ect1_stats =
+      GetPacketsReceivedWithEct1(callee_stats);
+  auto packets_received_with_ce_stats = GetPacketsReceivedWithCe(callee_stats);
+  EXPECT_EQ(packets_received_with_ect1_stats, wifi_feedback_counter.ect1());
+  // TODO: bugs.webrtc.org/42225697 - testing CE would be useful.
+  EXPECT_EQ(packets_received_with_ce_stats, 0);
 }
 
 }  // namespace

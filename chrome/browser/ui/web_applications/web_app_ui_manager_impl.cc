@@ -167,6 +167,14 @@ std::unique_ptr<WebAppUiManager> WebAppUiManager::Create(Profile* profile) {
   return std::make_unique<WebAppUiManagerImpl>(profile);
 }
 
+// static
+void WebAppUiManager::TriggerInstallNotSupportedDialog(
+    content::WebContents* web_contents,
+    Profile* profile,
+    base::OnceClosure callback) {
+  ShowInstallNotSupportedDialog(web_contents, profile, std::move(callback));
+}
+
 WebAppUiManagerImpl::WebAppUiManagerImpl(Profile* profile)
     : profile_(profile) {}
 
@@ -494,7 +502,9 @@ void WebAppUiManagerImpl::PresentUserUninstallDialog(
   CHECK(provider);
 
   provider->icon_manager().ReadTrustedIconsWithFallbackToManifestIcons(
-      app_id, provider->registrar_unsafe().GetAppDownloadedIconSizesAny(app_id),
+      app_id,
+      provider->registrar_unsafe().GetAppTrustedIconSizesFallbackToUntrusted(
+          app_id),
       IconPurpose::ANY,
       base::BindOnce(&WebAppUiManagerImpl::OnIconsReadForUninstall,
                      weak_ptr_factory_.GetWeakPtr(), app_id, uninstall_source,

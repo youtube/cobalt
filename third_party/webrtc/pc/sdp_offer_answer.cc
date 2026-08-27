@@ -2483,10 +2483,6 @@ void SdpOfferAnswerHandler::DoSetLocalDescription(
         RTC_LOG(LS_ERROR) << "Rejecting SDP because of ufrag modification";
         reject_error = true;
       }
-    } else if (sdp_munging_type == kNumberOfContents &&
-               !pc_->trials().IsDisabled(
-                   "WebRTC-NoSdpMangleNumberOfContents")) {
-      reject_error = true;
     } else {
       reject_error = !IsSdpMungingAllowed(sdp_munging_type, pc_->trials());
     }
@@ -3695,7 +3691,7 @@ bool SdpOfferAnswerHandler::CheckIfNegotiationIsNeeded() {
     // m= section, or the MSID values themselves, differ from what is in
     // transceiver.sender.[[AssociatedMediaStreamIds]], return true.
     if (RtpTransceiverDirectionHasSend(transceiver->direction())) {
-      if (current_local_media_description->streams().size() == 0)
+      if (current_local_media_description->streams().empty())
         return true;
 
       std::vector<std::string> msection_msids;
