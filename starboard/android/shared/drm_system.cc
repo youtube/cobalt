@@ -25,8 +25,6 @@
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/string.h"
-#include "starboard/common/thread.h"
-#include "starboard/shared/starboard/features.h"
 
 // Declare the function as static instead of putting it in the above anonymous
 // namespace so it can be picked up by `std::vector<SbDrmKeyId>::operator==()`
@@ -73,21 +71,13 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
                      std::string_view key_system,
                      void* context,
                      Callbacks callbacks)
-    : Thread("DrmSystemThread"),
-      key_system_(key_system),
-      // We are launching drm app provisioning.
-      // TODO: b/537337783 - Remove dead code 2 weeks later (08/26/2026).
-      enable_app_provisioning_(true),
+    : key_system_(key_system),
       context_(context),
       callbacks_(callbacks),
       hdcp_lost_(false),
-      session_id_mapper_(enable_app_provisioning_
-                             ? std::make_unique<DrmSessionIdMapper>()
-                             : nullptr),
       media_drm_bridge_(
           MediaDrmBridge::Create(base::raw_ref<MediaDrmBridge::Host>(*this),
-                                 key_system_,
-                                 enable_app_provisioning_)) {
+                                 key_system_)) {
   SB_CHECK(callbacks_.update_request);
   SB_CHECK(callbacks_.session_updated);
   SB_CHECK(callbacks_.key_statuses_changed);
@@ -97,20 +87,11 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
   if (!media_drm_bridge_) {
     return;
   }
-  SB_LOG(INFO) << "Creating DrmSystem: key_system=" << key_system
-               << ", enable_app_provisioning="
-               << ToString(enable_app_provisioning_);
-
-  if (!enable_app_provisioning_) {
-    Start();
-  }
+  SB_LOG(INFO) << "Creating DrmSystem: key_system=" << key_system;
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
-  if (!enable_app_provisioning_) {
-    Join();
-  }
 }
 
 DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
@@ -123,20 +104,11 @@ int DrmSystem::SessionUpdateRequest::TakeTicket() {
   return std::exchange(ticket_, kSpontaneousDrmTicketId);
 }
 
-void DrmSystem::SessionUpdateRequest::Generate(
+MediaDrmBridge::OperationResult DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
   SB_LOG(INFO) << __func__;
   SB_CHECK(media_drm_bridge);
-  media_drm_bridge->CreateSession(ticket_, init_data_, mime_);
-}
-
-MediaDrmBridge::OperationResult
-DrmSystem::SessionUpdateRequest::GenerateWithAppProvisioning(
-    const MediaDrmBridge* media_drm_bridge) const {
-  SB_LOG(INFO) << __func__;
-  SB_CHECK(media_drm_bridge);
-  return media_drm_bridge->CreateSessionWithAppProvisioning(ticket_, init_data_,
-                                                            mime_);
+  return media_drm_bridge->CreateSession(ticket_, init_data_, mime_);
 }
 
 void DrmSystem::GenerateSessionUpdateRequest(int ticket,
@@ -144,27 +116,10 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
                                              const void* initialization_data,
                                              int initialization_data_size) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  auto session_update_request = std::make_unique<SessionUpdateRequest>(
+  GenerateSessionUpdateRequest(std::make_unique<SessionUpdateRequest>(
       ticket, type,
       std::string_view(static_cast<const char*>(initialization_data),
-                       initialization_data_size));
-  if (enable_app_provisioning_) {
-    GenerateSessionUpdateRequestWithAppProvisioning(
-        std::move(session_update_request));
-    return;
-  }
-
-  SB_LOG(INFO) << __func__;
-  if (created_media_crypto_session_.load()) {
-    session_update_request->Generate(media_drm_bridge_.get());
-  } else {
-    // Defer generating the update request.
-    std::lock_guard scoped_lock(mutex_);
-    deferred_session_update_requests_.push_back(
-        std::move(session_update_request));
-  }
-  // |update_request_callback_| will be called by Java calling into
-  // |onSessionMessage|.
+                       initialization_data_size)));
 }
 
 void DrmSystem::UpdateSession(int ticket,
@@ -173,21 +128,9 @@ void DrmSystem::UpdateSession(int ticket,
                               const void* session_id,
                               int session_id_size) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  if (enable_app_provisioning_) {
-    UpdateSessionWithAppProvisioning(
-        ticket, std::string_view(static_cast<const char*>(key), key_size),
-        std::string_view(static_cast<const char*>(session_id),
-                         session_id_size));
-    return;
-  }
-
-  MediaDrmBridge::OperationResult result = media_drm_bridge_->UpdateSession(
+  UpdateSession(
       ticket, std::string_view(static_cast<const char*>(key), key_size),
       std::string_view(static_cast<const char*>(session_id), session_id_size));
-  callbacks_.session_updated(
-      this, context_, ticket,
-      result.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
-      result.error_message.c_str(), session_id, session_id_size);
 }
 
 void DrmSystem::CloseSession(const void* session_id_data, int session_id_size) {
@@ -202,21 +145,16 @@ void DrmSystem::CloseSession(const void* session_id_data, int session_id_size) {
     }
   }
 
-  if (enable_app_provisioning_) {
-    std::string media_drm_session_id = [this, &session_id] {
-      std::lock_guard lock(mutex_);
-      return std::string(session_id_mapper_->GetMediaDrmSessionId(session_id));
-    }();
-    if (media_drm_session_id.empty()) {
-      // Skip closing the session because it's a provisioning session, which
-      // doesn't have a corresponding session in MediaDrm.
-      return;
-    }
-    media_drm_bridge_->CloseSession(media_drm_session_id);
+  std::string media_drm_session_id = [this, &session_id] {
+    std::lock_guard lock(mutex_);
+    return std::string(session_id_mapper_.GetMediaDrmSessionId(session_id));
+  }();
+  if (media_drm_session_id.empty()) {
+    // Skip closing the session because it's a provisioning session, which
+    // doesn't have a corresponding session in MediaDrm.
     return;
   }
-
-  media_drm_bridge_->CloseSession(session_id);
+  media_drm_bridge_->CloseSession(media_drm_session_id);
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
@@ -239,15 +177,13 @@ void DrmSystem::OnSessionUpdate(int ticket,
                                 SbDrmSessionRequestType request_type,
                                 std::string_view session_id,
                                 std::string_view content) {
-  std::string_view eme_session_id;
-  if (enable_app_provisioning_) {
+  std::string eme_session_id;
+  {
     std::lock_guard lock(mutex_);
-    if (session_id_mapper_->IsMediaDrmSessionIdForProvisioningRequired()) {
-      session_id_mapper_->RegisterMediaDrmSessionIdForProvisioning(session_id);
+    if (session_id_mapper_.IsMediaDrmSessionIdForProvisioningRequired()) {
+      session_id_mapper_.RegisterMediaDrmSessionIdForProvisioning(session_id);
     }
-    eme_session_id = session_id_mapper_->GetEmeSessionId(session_id);
-  } else {
-    eme_session_id = session_id;
+    eme_session_id = session_id_mapper_.GetEmeSessionId(session_id);
   }
 
   callbacks_.update_request(this, context_, ticket, kSbDrmStatusSuccess,
@@ -257,8 +193,6 @@ void DrmSystem::OnSessionUpdate(int ticket,
 }
 
 void DrmSystem::OnProvisioningRequest(std::string_view content) {
-  SB_CHECK(enable_app_provisioning_);
-
   SB_LOG(INFO) << __func__;
   std::string eme_session_id;
   int ticket;
@@ -267,7 +201,7 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
     SB_CHECK(!deferred_session_update_requests_.empty())
         << "Provisioning request is sent, even though there is no pending "
            "session update request.";
-    eme_session_id = session_id_mapper_->CreateOrGetBridgeEmeSessionId();
+    eme_session_id = session_id_mapper_.CreateOrGetBridgeEmeSessionId();
     SB_CHECK(!eme_session_id.empty());
     ticket = deferred_session_update_requests_.front()->TakeTicket();
   }
@@ -287,11 +221,9 @@ void DrmSystem::OnKeyStatusChange(
   SB_CHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
 
   std::string eme_session_id;
-  if (enable_app_provisioning_) {
+  {
     std::lock_guard lock(mutex_);
-    eme_session_id = session_id_mapper_->GetEmeSessionId(session_id);
-  } else {
-    eme_session_id = session_id;
+    eme_session_id = session_id_mapper_.GetEmeSessionId(session_id);
   }
 
   {
@@ -349,14 +281,12 @@ void DrmSystem::HandlePendingRequests() {
   }
 
   for (auto& request : pending_requests) {
-    GenerateSessionUpdateRequestWithAppProvisioning(std::move(request));
+    GenerateSessionUpdateRequest(std::move(request));
   }
 }
 
-void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
+void DrmSystem::GenerateSessionUpdateRequest(
     std::unique_ptr<SessionUpdateRequest> request) {
-  SB_CHECK(enable_app_provisioning_);
-
   {
     std::lock_guard scoped_lock(mutex_);
     if (!deferred_session_update_requests_.empty()) {
@@ -371,7 +301,7 @@ void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
   // |update_request_callback_| will be called asynchronously by Java calling
   // into |OnSessionUpdate| or |OnProvisioningRequest|.
   MediaDrmBridge::OperationResult result =
-      request->GenerateWithAppProvisioning(media_drm_bridge_.get());
+      request->Generate(media_drm_bridge_.get());
   switch (result.status) {
     case DRM_OPERATION_STATUS_SUCCESS:
       created_media_crypto_session_ = true;
@@ -386,23 +316,21 @@ void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
       return;
     case DRM_OPERATION_STATUS_OPERATION_FAILED:
     default:
-      SB_LOG(ERROR) << "GenerateWithAppProvisioning failed: " << result;
+      SB_LOG(ERROR) << "Generate failed: " << result;
       return;
   }
 }
 
-void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
-                                                 std::string_view key,
-                                                 std::string_view session_id) {
-  SB_CHECK(enable_app_provisioning_);
-
+void DrmSystem::UpdateSession(int ticket,
+                              std::string_view key,
+                              std::string_view session_id) {
   const auto media_drm_session_id =
       [this, &session_id]() -> std::optional<std::string> {
     std::lock_guard lock(mutex_);
     if (!deferred_session_update_requests_.empty()) {
       return std::nullopt;
     }
-    return std::string(session_id_mapper_->GetMediaDrmSessionId(session_id));
+    return std::string(session_id_mapper_.GetMediaDrmSessionId(session_id));
   }();
 
   bool provisioning_ok = false;
@@ -430,25 +358,6 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
 
   if (provisioning_ok) {
     HandlePendingRequests();
-  }
-}
-
-void DrmSystem::Run() {
-  SB_CHECK(!enable_app_provisioning_);
-
-  if (media_drm_bridge_->CreateMediaCryptoSession()) {
-    created_media_crypto_session_.store(true);
-  } else {
-    SB_LOG(INFO) << "Could not create media crypto session";
-    return;
-  }
-
-  std::lock_guard scoped_lock(mutex_);
-  if (!deferred_session_update_requests_.empty()) {
-    for (const auto& update_request : deferred_session_update_requests_) {
-      update_request->Generate(media_drm_bridge_.get());
-    }
-    deferred_session_update_requests_.clear();
   }
 }
 

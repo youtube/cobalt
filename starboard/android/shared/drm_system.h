@@ -34,14 +34,11 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/pass_key.h"
-#include "starboard/common/thread.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
 
-class DrmSystem : public ::SbDrmSystemPrivate,
-                  public MediaDrmBridge::Host,
-                  private Thread {
+class DrmSystem : public ::SbDrmSystemPrivate, public MediaDrmBridge::Host {
  public:
   struct Callbacks {
     SbDrmSessionUpdateRequestFunc update_request;
@@ -110,8 +107,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
                          std::string_view initialization_data);
     ~SessionUpdateRequest() = default;
 
-    void Generate(const MediaDrmBridge* media_drm_bridge) const;
-    MediaDrmBridge::OperationResult GenerateWithAppProvisioning(
+    MediaDrmBridge::OperationResult Generate(
         const MediaDrmBridge* media_drm_bridge) const;
 
     // Returns the ticket. On the first call, it returns a valid ticket and
@@ -127,17 +123,13 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
   void HandlePendingRequests();
-  void GenerateSessionUpdateRequestWithAppProvisioning(
+  void GenerateSessionUpdateRequest(
       std::unique_ptr<SessionUpdateRequest> request);
-  void UpdateSessionWithAppProvisioning(int ticket,
-                                        std::string_view key,
-                                        std::string_view session_id);
-
-  // From Thread.
-  void Run() override;
+  void UpdateSession(int ticket,
+                     std::string_view key,
+                     std::string_view session_id);
 
   const std::string key_system_;
-  const bool enable_app_provisioning_;
   const raw_ptr<void> context_;
   const Callbacks callbacks_;
 
@@ -158,8 +150,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // provisioned, we can't get a MediaDrm session ID (which can be generated
   // only after provisioning). In such scenarios, `DrmSystem` still needs an EME
   // session ID to interact with the Cobalt CDM module.
-  const std::unique_ptr<DrmSessionIdMapper>
-      session_id_mapper_;  //  Guarded by |mutex_|.
+  DrmSessionIdMapper session_id_mapper_;  //  Guarded by |mutex_|.
 
   // Guaranteed to be non-null for any instance returned by the factory method.
   // However, it can be null during destruction if the factory method fails
