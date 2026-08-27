@@ -25,6 +25,7 @@
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/renderer/render_thread_impl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/web/blink.h"
@@ -130,6 +131,8 @@ class HighestPmfReporterBrowserTest : public content::ContentBrowserTest {
   DISABLED_NoForegroundMetricWithoutForegroundTransition
 #define MAYBE_NoForegroundMetricWhenOnlyBackgrounded \
   DISABLED_NoForegroundMetricWhenOnlyBackgrounded
+#define MAYBE_RenderThreadStateTransitionForeground \
+  DISABLED_RenderThreadStateTransitionForeground
 #else
 #define MAYBE_ReportMetric ReportMetric
 #define MAYBE_ReportMetricForeground ReportMetricForeground
@@ -141,6 +144,8 @@ class HighestPmfReporterBrowserTest : public content::ContentBrowserTest {
   NoForegroundMetricWithoutForegroundTransition
 #define MAYBE_NoForegroundMetricWhenOnlyBackgrounded \
   NoForegroundMetricWhenOnlyBackgrounded
+#define MAYBE_RenderThreadStateTransitionForeground \
+  RenderThreadStateTransitionForeground
 #endif
 
 IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
@@ -544,6 +549,86 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
                       "PeakResidentSet."
                       "AtHighestPrivateMemoryFootprintWhenForegrounded.0to2min")
                   .empty());
+}
+
+IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
+                       MAYBE_RenderThreadStateTransitionForeground) {
+  content::RenderThreadImpl* render_thread =
+      content::RenderThreadImpl::current();
+  if (!render_thread) {
+    return;
+  }
+
+  content::mojom::Renderer* renderer = render_thread;
+  base::HistogramTester histogram_tester;
+
+  // 1. Transition render thread to background via Mojo Renderer interface
+  renderer->SetProcessState(base::Process::Priority::kBestEffort,
+                            content::mojom::RenderProcessVisibleState::kHidden);
+  base::RunLoop().RunUntilIdle();
+
+  // 2. Transition render thread to foreground (calls OnRendererForegrounded ->
+  // blink::OnProcessForegrounded)
+  renderer->SetProcessState(
+      base::Process::Priority::kUserBlocking,
+      content::mojom::RenderProcessVisibleState::kVisible);
+  base::RunLoop().RunUntilIdle();
+
+  // 3. Simulate memory ping and advance clock
+  memory_usage_monitor_->usage_.private_footprint_bytes =
+      1500.0 * 1024.0 * 1024.0;
+  memory_usage_monitor_->usage_.peak_resident_bytes = 1800.0 * 1024.0 * 1024.0;
+
+  test_task_runner_->FastForwardBy(base::Seconds(1));
+  test_task_runner_->FastForwardBy(base::Minutes(2) + base::Seconds(2));
+
+  // 4. Verify that HighestPmfReporter captured the foreground memory peak
+  // through the RenderThreadImpl transition!
+  auto samples_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest");
+  auto samples_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min");
+
+  EXPECT_FALSE(samples_override.empty() && samples_baseline.empty());
+  if (!samples_override.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "HighestPrivateMemoryFootprintWhenForegrounded.1minTest",
+        1500, 1);
+  }
+  if (!samples_baseline.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "HighestPrivateMemoryFootprintWhenForegrounded.0to2min",
+        1500, 1);
+  }
+
+  auto rss_samples_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+      "1minTest");
+  auto rss_samples_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+      "0to2min");
+
+  EXPECT_FALSE(rss_samples_override.empty() && rss_samples_baseline.empty());
+  if (!rss_samples_override.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+        "1minTest",
+        1800, 1);
+  }
+  if (!rss_samples_baseline.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+        "0to2min",
+        1800, 1);
+  }
 }
 
 }  // namespace metrics
