@@ -505,6 +505,8 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   }
 #if BUILDFLAG(IS_IOS_TVOS)
   if (IsUrlPlayer()) {
+    UpdateUrlPlayerVideoResolution();
+
     if (duration_change_cb_ && duration != kNoTimestamp &&
         duration != last_duration_) {
       last_duration_ = duration;
@@ -593,24 +595,38 @@ bool StarboardRenderer::IsUrlPlayer() const {
   return !source_url_.empty();
 }
 
+void StarboardRenderer::UpdateUrlPlayerVideoResolution() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!player_bridge_) {
+    return;
+  }
+
+  int width = 0, height = 0;
+  player_bridge_->GetVideoResolution(&width, &height);
+  if (width <= 0 || height <= 0) {
+    LOG(WARNING) << "Platform player reported invalid dimensions (" << width
+                 << "x" << height
+                 << ") at presenting; skipping video hole update.";
+    return;
+  }
+
+  const gfx::Size size(width, height);
+  if (size == url_player_video_size_) {
+    return;
+  }
+
+  url_player_video_size_ = size;
+  client_->OnVideoNaturalSizeChange(size);
+  paint_video_hole_frame_cb_.Run(size);
+}
+
 void StarboardRenderer::OnUrlPlayerPresenting() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (!player_bridge_) {
     return;
   }
-  int width = 0, height = 0;
-  player_bridge_->GetVideoResolution(&width, &height);
-  if (width > 0 && height > 0) {
-    gfx::Size size(width, height);
-    client_->OnVideoNaturalSizeChange(size);
-    // TODO(b/541996730): Handle resolution changes during adaptive HLS
-    // playback. Currently this is only called once at presenting state.
-    paint_video_hole_frame_cb_.Run(size);
-  } else {
-    LOG(WARNING) << "Platform player reported invalid dimensions (" << width
-                 << "x" << height
-                 << ") at presenting; skipping video hole update.";
-  }
+
+  UpdateUrlPlayerVideoResolution();
 
   // Re-apply playback rate; the platform player ignores rate changes
   // before it is ready to play.
