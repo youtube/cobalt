@@ -1030,10 +1030,11 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
   }
 
 #if BUILDFLAG(IS_COBALT)
-  // Queue requests received while backgrounded rather than returning a
-  // transient failure, avoiding an infinite retry loop from clients during
-  // suspend.
-  if (is_backgrounded_) {
+  // Queue requests received while the display is shut down for backgrounding
+  // rather than returning a transient failure, avoiding an infinite retry loop
+  // from clients during suspend.
+  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
+  if (display && !display->IsInitialized()) {
     pending_establish_gpu_channel_requests_.push_back(
         {client_id, client_tracing_id, is_gpu_host, std::move(callback)});
     return;
@@ -1228,7 +1229,6 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
   if (display && display->IsInitialized()) {
     display->Shutdown();
   }
-  is_backgrounded_ = true;
 #endif
 #else
   NOTREACHED();
@@ -1285,7 +1285,6 @@ void GpuServiceImpl::OnForegrounded() {
 
 void GpuServiceImpl::OnForegroundedOnMainThread() {
 #if BUILDFLAG(IS_COBALT)
-  is_backgrounded_ = false;
   // Re-initialize the EGL display and default offscreen surface before servicing
   // any channel establishment requests. On background cleanup, the display is
   // shut down to release all GPU resources. Re-initializing the platform display

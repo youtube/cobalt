@@ -632,7 +632,6 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   // upon resume in OnForegroundedOnMainThread().
   std::vector<PendingEstablishGpuChannelRequest>
       pending_establish_gpu_channel_requests_;
-  bool is_backgrounded_ = false;
 #endif
   base::WeakPtrFactory<GpuServiceImpl> weak_ptr_factory_{this};
 };

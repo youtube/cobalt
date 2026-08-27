@@ -38,7 +38,9 @@
 #include "ui/gl/scoped_make_current.h"
 #include "ui/gl/sync_control_vsync_provider.h"
 
+#if BUILDFLAG(IS_COBALT)
 using ui::GetEGLErrorString;
+#endif
 using ui::GetLastEGLErrorString;
 
 namespace gl {
@@ -558,7 +560,9 @@ void NativeViewGLSurfaceEGL::Destroy() {
 #endif
     surface_ = NULL;
   }
+#if BUILDFLAG(IS_COBALT)
   config_ = nullptr;
+#endif
 }
 
 bool NativeViewGLSurfaceEGL::IsOffscreen() {
@@ -1073,7 +1077,9 @@ void PbufferGLSurfaceEGL::Destroy() {
 #endif
     surface_ = NULL;
   }
+#if BUILDFLAG(IS_COBALT)
   config_ = nullptr;
+#endif
 }
 
 bool PbufferGLSurfaceEGL::IsOffscreen() {

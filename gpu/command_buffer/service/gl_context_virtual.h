@@ -58,13 +58,18 @@ class GPU_GLES2_EXPORT GLContextVirtual : public gl::GLContext {
 #endif
 
   gl::GLDisplayEGL* GetGLDisplayEGL() override;
+#if BUILDFLAG(IS_COBALT)
   void Destroy() override;
+#endif
 
  protected:
   ~GLContextVirtual() override;
   void ResetExtensions() override;
 
  private:
+#if !BUILDFLAG(IS_COBALT)
+  void Destroy();
+#endif
   scoped_refptr<gl::GLContext> shared_context_;
   base::WeakPtr<GLContextVirtualDelegate> delegate_;
 };

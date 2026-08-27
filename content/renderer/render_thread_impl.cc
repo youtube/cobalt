@@ -1363,6 +1363,10 @@ void RenderThreadImpl::OnChannelError() {
   // So, if we get a channel error, crash the whole process right now to get a
   // more informative stack, since we will otherwise just crash later when we
   // try to restart it.
+  // In Cobalt single-process mode, when BrowserMainLoop shuts down IPC channels
+  // during application termination, the in-process renderer thread naturally
+  // receives a channel error notification. Crashing here would prevent clean
+  // process exit.
 #if !BUILDFLAG(IS_COBALT)
   CHECK(!IsSingleProcess());
 #endif

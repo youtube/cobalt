@@ -143,6 +143,11 @@ void KillGpuProcess() {
 }
 
 #if BUILDFLAG(IS_COBALT)
+// Coordinates background GPU resource teardown from the browser UI thread.
+// Dispatches OnBackgroundCleanup() to the GPU service and establishes a Mojo
+// IPC barrier (via GetVideoMemoryUsageStats query) to ensure all asynchronous
+// GPU channel, context, surface, and display teardown operations on the GPU
+// thread are completed before |callback| is invoked to destroy native windows.
 void CleanupGpuProcessOnUI(base::OnceClosure callback) {
   GpuProcessHost::CallOnUI(
       FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
@@ -170,6 +175,9 @@ void CleanupGpuProcessOnUI(base::OnceClosure callback) {
           std::move(callback)));
 }
 
+// Notifies the GPU service from the browser UI thread to re-initialize the EGL
+// display, create the default offscreen surface, and fulfill any GPU channel
+// establishment requests queued while backgrounded.
 void RestoreGpuProcessOnUI() {
   GpuProcessHost::CallOnUI(
       FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
