@@ -529,23 +529,33 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
                     input_buffers.front()->timestamp(), "size",
                     input_buffers.size());
 
-  const std::string& new_mime = input_buffers.front()->video_stream_info().mime;
-  bool stream_info_changed = (!new_mime.empty() && new_mime != video_mime_);
+  const auto& stream_info = input_buffers.front()->video_stream_info();
+  if (!stream_info.mime.empty() && stream_info.mime != video_mime_) {
+    video_mime_ = stream_info.mime;
+  }
 
-  if (stream_info_changed && codec_change_state_ == CodecChangeState::kNone) {
-    bool can_recreate_immediately =
+  bool new_is_hdr = !IsIdentity(stream_info.color_metadata);
+  bool current_is_hdr =
+      color_metadata_.has_value() && !IsIdentity(*color_metadata_);
+
+  if (new_is_hdr != current_is_hdr &&
+      color_change_state_ == ColorChangeState::kNone) {
+    bool can_reinitialize_immediately =
         !media_decoder_ || input_buffer_written_ == 0;
 
-    if (can_recreate_immediately) {
-      SB_LOG(INFO) << "Stream info change detected (empty decoder). "
-                      "Recreating codec immediately without draining...";
-      UpdateStreamConfigAndTeardown(input_buffers.front()->video_stream_info());
+    if (can_reinitialize_immediately) {
+      SB_LOG(INFO) << "Color space change detected (empty decoder). "
+                      "Re-initializing codec immediately...";
+      TeardownCodec();
+      color_metadata_ = new_is_hdr
+                            ? std::make_optional(stream_info.color_metadata)
+                            : std::nullopt;
     } else {
-      SB_LOG(INFO) << "Stream info change detected during active decoding. "
-                      "Initiating codec draining...";
-      codec_change_state_ = CodecChangeState::kDraining;
-      pending_stream_info_ = input_buffers.front()->video_stream_info();
-      pending_codec_change_buffers_.insert(pending_codec_change_buffers_.end(),
+      SB_LOG(INFO) << "Color space change detected (HDR <-> SDR). "
+                      "Initiating EOS draining...";
+      color_change_state_ = ColorChangeState::kDraining;
+      pending_color_change_stream_info_ = stream_info;
+      pending_color_change_buffers_.insert(pending_color_change_buffers_.end(),
                                            input_buffers.begin(),
                                            input_buffers.end());
       media_decoder_->WriteEndOfStream();
@@ -553,8 +563,8 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     }
   }
 
-  if (codec_change_state_ != CodecChangeState::kNone) {
-    pending_codec_change_buffers_.insert(pending_codec_change_buffers_.end(),
+  if (color_change_state_ != ColorChangeState::kNone) {
+    pending_color_change_buffers_.insert(pending_color_change_buffers_.end(),
                                          input_buffers.begin(),
                                          input_buffers.end());
     return;
@@ -1022,13 +1032,13 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   bool is_end_of_stream =
       dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream;
 
-  if (is_end_of_stream && codec_change_state_ == CodecChangeState::kDraining) {
-    SB_LOG(INFO) << "EOS received during codec draining. Scheduling internal "
-                    "codec change.";
-    codec_change_state_ = CodecChangeState::kCodecChangeScheduled;
+  if (is_end_of_stream && color_change_state_ == ColorChangeState::kDraining) {
+    SB_LOG(INFO) << "EOS received during color change draining. Scheduling "
+                    "codec re-initialization.";
+    color_change_state_ = ColorChangeState::kColorChangeScheduled;
     media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
     Schedule(std::bind(
-        &MediaCodecVideoDecoder::PerformInternalDecoderCodecChange, this));
+        &MediaCodecVideoDecoder::PerformColorChangeReinitialization, this));
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
@@ -1280,9 +1290,9 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   tunnel_mode_prerolled_frames_.store(0);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
-  pending_codec_change_buffers_.clear();
-  codec_change_state_ = CodecChangeState::kNone;
-  pending_stream_info_ = VideoStreamInfo();
+  pending_color_change_buffers_.clear();
+  color_change_state_ = ColorChangeState::kNone;
+  pending_color_change_stream_info_ = VideoStreamInfo();
 
   // TODO: We rely on VideoRenderAlgorithmTunneled::Seek() to be called inside
   //       VideoRenderer::Seek() after calling MediaCodecVideoDecoder::Reset()
@@ -1290,47 +1300,38 @@ void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   //       slightly flaky as it depends on the behavior of the video renderer.
 }
 
-void MediaCodecVideoDecoder::UpdateStreamConfigAndTeardown(
-    const VideoStreamInfo& stream_info) {
+void MediaCodecVideoDecoder::PerformColorChangeReinitialization() {
+  SB_CHECK(BelongsToCurrentThread());
+  if (color_change_state_ != ColorChangeState::kColorChangeScheduled) {
+    return;
+  }
+
+  SB_LOG(INFO)
+      << "Reinitializing MediaCodec for color space change (HDR <-> SDR).";
+
   TeardownCodec();
-  video_codec_ = stream_info.codec;
-  video_mime_ = stream_info.mime;
-  color_metadata_ = stream_info.color_metadata;
-  needs_fps_to_initialize_codec_ =
-      (video_codec_ == kSbMediaVideoCodecAv1 &&
-       MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
+
+  const auto& color_metadata = pending_color_change_stream_info_.color_metadata;
+  color_metadata_ = !IsIdentity(color_metadata)
+                        ? std::make_optional(color_metadata)
+                        : std::nullopt;
+
   first_buffer_timestamp_ = 0;
   input_buffer_written_ = 0;
   video_fps_ = 0;
   end_of_stream_written_ = false;
-  tunnel_mode_prerolling_.store(true);
-  tunnel_mode_first_frame_rendered_.store(false);
-  tunnel_mode_prerolled_frames_.store(0);
-}
 
-// TODO b/PLACEHOLDER - Explore reducing dropped frames during codec change.
-void MediaCodecVideoDecoder::PerformInternalDecoderCodecChange() {
-  SB_CHECK(BelongsToCurrentThread());
-  if (codec_change_state_ != CodecChangeState::kCodecChangeScheduled) {
-    return;
-  }
-
-  SB_LOG(INFO) << "Performing internal decoder codec change from "
-               << GetMediaVideoCodecName(video_codec_) << " to "
-               << GetMediaVideoCodecName(pending_stream_info_.codec);
-
-  UpdateStreamConfigAndTeardown(pending_stream_info_);
-
-  codec_change_state_ = CodecChangeState::kNone;
-  pending_stream_info_ = VideoStreamInfo();
+  color_change_state_ = ColorChangeState::kNone;
+  VideoStreamInfo stream_info = pending_color_change_stream_info_;
+  pending_color_change_stream_info_ = VideoStreamInfo();
 
   if (decoder_status_cb_) {
     decoder_status_cb_(kReleaseAllFrames, NULL);
   }
 
-  if (!pending_codec_change_buffers_.empty()) {
+  if (!pending_color_change_buffers_.empty()) {
     InputBuffers buffers_to_write;
-    buffers_to_write.swap(pending_codec_change_buffers_);
+    buffers_to_write.swap(pending_color_change_buffers_);
     WriteInputBuffers(buffers_to_write);
   }
 }

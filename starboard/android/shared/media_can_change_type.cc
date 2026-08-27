@@ -13,10 +13,33 @@
 // limitations under the License.
 
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/parsed_mime_info.h"
 
 bool SbMediaCanChangeType(const char* current_mime, const char* new_mime) {
-  if (current_mime[0] == '\0' || new_mime[0] == '\0') {
+  if (!current_mime || !new_mime || current_mime[0] == '\0' ||
+      new_mime[0] == '\0') {
     return false;
+  }
+
+  auto current_info = starboard::ParsedMimeInfo::Create(current_mime);
+  auto new_info = starboard::ParsedMimeInfo::Create(new_mime);
+
+  if (!current_info || !new_info) {
+    return false;
+  }
+
+  // Reject cross-family video codec switches (e.g. VP9 -> AV1).
+  if (current_info->has_video_info() && new_info->has_video_info()) {
+    if (current_info->video_info().codec != new_info->video_info().codec) {
+      return false;
+    }
+  }
+
+  // Reject cross-family audio codec switches (e.g. AAC -> Opus).
+  if (current_info->has_audio_info() && new_info->has_audio_info()) {
+    if (current_info->audio_info().codec != new_info->audio_info().codec) {
+      return false;
+    }
   }
 
   return true;

@@ -141,12 +141,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFrameAvailable() override;
 
  private:
-  // Tracks mid-stream codec transitions (e.g., triggered by
-  // MediaSource.changeType()).
-  enum class CodecChangeState {
+  // Tracks mid-stream color space transitions (HDR <-> SDR).
+  enum class ColorChangeState {
     kNone,
     kDraining,
-    kCodecChangeScheduled,
+    kColorChangeScheduled,
   };
 
   // Attempt to initialize the codec.
@@ -176,11 +175,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void ResetInternal(bool skip_flush);
 
-  void UpdateStreamConfigAndTeardown(const VideoStreamInfo& stream_info);
-  void PerformInternalDecoderCodecChange();
+  void PerformColorChangeReinitialization();
 
-  // These variables will be initialized inside ctor or Initialize().
-  SbMediaVideoCodec video_codec_;
+  // These variables will be initialized inside ctor or Initialize() and will
+  // not be changed during the life time of this class.
+  const SbMediaVideoCodec video_codec_;
   std::string video_mime_;
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
@@ -216,7 +215,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
-  bool needs_fps_to_initialize_codec_;
+  const bool needs_fps_to_initialize_codec_;
   // Workaround for b/506257255, which skips some video frames to make the
   // effective frame rate no more than 60 fps. This is only used for tunnel
   // mode.
@@ -285,9 +284,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
 
-  CodecChangeState codec_change_state_ = CodecChangeState::kNone;
-  VideoStreamInfo pending_stream_info_;
-  std::vector<scoped_refptr<InputBuffer>> pending_codec_change_buffers_;
+  ColorChangeState color_change_state_ = ColorChangeState::kNone;
+  VideoStreamInfo pending_color_change_stream_info_;
+  std::vector<scoped_refptr<InputBuffer>> pending_color_change_buffers_;
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
 
