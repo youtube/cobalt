@@ -30,6 +30,11 @@ import org.chromium.native_test.NativeUnitTestActivity;
  *
  * <p>It ensures that the Chromium base library's application context, JNI class loader, and
  * StarboardBridge JNI instance are properly initialized before the native test harness starts.
+ *
+ * <p>Lifetime/Ownership: Created and managed by the Android system's activity lifecycle. It
+ * persists for the duration of the native test suite execution.
+ *
+ * <p>Threading: Must be created and accessed only on the main application thread (UI thread).
  */
 public class CobaltTestActivity extends NativeUnitTestActivity {
   /**
@@ -53,7 +58,7 @@ public class CobaltTestActivity extends NativeUnitTestActivity {
     // super.onCreate loads the native shared library (.so) into memory via System.loadLibrary.
     super.onCreate(savedInstanceState);
 
-    // Instantiate TestStarboardBridge AFTER super.onCreate so native JNI methods are bound.
+    // Instantiate TestStarboardBridge after super.onCreate so native JNI methods are bound.
     Holder<Activity> activityHolder = new Holder<>();
     activityHolder.set(this);
     mTestStarboardBridge = new TestStarboardBridge(getApplicationContext(), activityHolder);

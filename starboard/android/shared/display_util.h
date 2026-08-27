@@ -15,7 +15,9 @@
 #ifndef STARBOARD_ANDROID_SHARED_DISPLAY_UTIL_H_
 #define STARBOARD_ANDROID_SHARED_DISPLAY_UTIL_H_
 
-#include "base/android/scoped_java_ref.h"
+#include <vector>
+
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
@@ -32,8 +34,7 @@ class DisplayUtil {
   static Dpi GetDisplayDpi();
 
   // Returns supported HDR types.
-  static base::android::ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(
-      JNIEnv* env);
+  static std::vector<int> GetSupportedHdrTypes(JNIEnv* env);
 };
 
 }  // namespace starboard

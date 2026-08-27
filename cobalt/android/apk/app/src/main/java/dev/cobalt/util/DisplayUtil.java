@@ -18,6 +18,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayManager.DisplayListener;
+import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.Size;
 import android.view.Display;
@@ -77,6 +78,9 @@ public class DisplayUtil {
   @CalledByNative
   @Nullable
   public static int[] getSupportedHdrTypes() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+      return null;
+    }
     Display display = getDefaultDisplay();
     if (display == null) {
       return null;

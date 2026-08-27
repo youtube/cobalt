@@ -90,18 +90,7 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
     std::set<SbMediaTransferId> supported_transfer_ids;
 
     JNIEnv* env = AttachCurrentThread();
-    ScopedJavaLocalRef<jintArray> j_supported_hdr_types =
-        DisplayUtil::GetSupportedHdrTypes(env);
-
-    if (!j_supported_hdr_types) {
-      // Failed to get supported hdr types.
-      SB_LOG(ERROR) << "Failed to load supported hdr types.";
-      return std::set<SbMediaTransferId>();
-    }
-
-    std::vector<int> hdr_types;
-    base::android::JavaIntArrayToIntVector(env, j_supported_hdr_types,
-                                           &hdr_types);
+    std::vector<int> hdr_types = DisplayUtil::GetSupportedHdrTypes(env);
     for (int hdr_type : hdr_types) {
       switch (hdr_type) {
         case HDR_TYPE_DOLBY_VISION:
