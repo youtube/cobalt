@@ -26,4 +26,13 @@
         <category android:name="android.intent.category.LAUNCHER" />
     </intent-filter>
 </activity>
+<activity-alias
+        android:name="org.chromium.native_test.NativeUnitTestActivity"
+        android:targetActivity="dev.cobalt.testing.CobaltTestActivity"
+        android:exported="true">
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+</activity-alias>
 {% endblock %}
