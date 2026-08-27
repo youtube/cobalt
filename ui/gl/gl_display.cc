@@ -501,7 +501,7 @@ void GLDisplayEGL::Shutdown() {
 
 #if BUILDFLAG(IS_COBALT)
   // Ensure the calling thread has released any bound EGL context before
-  // terminating the display.
+  // terminating the display so driver thread-local storage is cleared.
   eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 #endif
   angle::ResetPlatform(display_);

@@ -826,19 +826,14 @@ void GpuChannelManager::OnBackgroundCleanup() {
     shared_context_state_.reset();
   }
 
-  // 4. Destroy the default offscreen pbuffer surface so zero EGL surfaces remain allocated on suspend.
+  // 4. Destroy the default offscreen pbuffer surface so zero EGL surfaces remain
+  // allocated on suspend.
   if (default_offscreen_surface_) {
     default_offscreen_surface_->Destroy();
     default_offscreen_surface_ = nullptr;
   }
 
-  // 5. Natively shut down the GL display connection so it is fully uninitialized.
-  gl::GLDisplayEGL* display = gl::GLSurfaceEGL::GetGLDisplayEGL();
-  if (display && display->IsInitialized()) {
-    display->Shutdown();
-  }
-
-  // 6. Clear CPU-side font and 2D raster caches.
+  // 5. Clear CPU-side font and 2D raster caches.
   SkGraphics::PurgeAllCaches();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -937,10 +932,10 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
   [[maybe_unused]] bool default_angle_metal =
       base::FeatureList::IsEnabled(features::kDefaultANGLEMetal);
 
-
-
   scoped_refptr<gl::GLSurface> surface = default_offscreen_surface();
 #if BUILDFLAG(IS_COBALT)
+  // When Cobalt is suspended/backgrounded, the offscreen surface is destroyed.
+  // Return transient failure so clients retry once foregrounded.
   if (!surface) {
     *result = ContextResult::kTransientFailure;
     return nullptr;

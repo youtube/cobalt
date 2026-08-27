@@ -537,6 +537,10 @@ void NativeViewGLSurfaceEGL::Destroy() {
 
   if (surface_) {
 #if BUILDFLAG(IS_COBALT)
+    // On Starboard, native windows and EGL displays may be torn down on
+    // suspend before the surface object destructor runs. If the display is
+    // uninitialized or the driver already reclaimed the native window,
+    // eglDestroySurface will safely return EGL_BAD_SURFACE or EGL_BAD_DISPLAY.
     if (display_->IsInitialized()) {
       if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
         EGLint error = eglGetError();
@@ -1048,6 +1052,10 @@ bool PbufferGLSurfaceEGL::Initialize(GLSurfaceFormat format) {
 void PbufferGLSurfaceEGL::Destroy() {
   if (surface_) {
 #if BUILDFLAG(IS_COBALT)
+    // On Starboard, the EGL display may be shut down during background
+    // cleanup before all offscreen surfaces are destroyed. Skip destroying
+    // if the display is uninitialized and ignore benign driver reclamation
+    // errors.
     if (display_->IsInitialized()) {
       if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
         EGLint error = eglGetError();

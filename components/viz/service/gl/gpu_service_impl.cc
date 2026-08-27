@@ -76,7 +76,13 @@
 #include "ui/base/ozone_buildflags.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/gl/gl_context.h"
+#if BUILDFLAG(IS_COBALT)
+#include "ui/gl/gl_display.h"
+#endif
 #include "ui/gl/gl_implementation.h"
+#if BUILDFLAG(IS_COBALT)
+#include "ui/gl/gl_surface_egl.h"
+#endif
 #include "ui/gl/gl_switches.h"
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/gpu_switching_manager.h"
@@ -1216,6 +1222,12 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
   DVLOG(1) << "GPU: Performing background cleanup";
   gpu_channel_manager_->OnBackgroundCleanup();
 #if BUILDFLAG(IS_COBALT)
+  // Shut down the GL display synchronously after all channels, shared contexts,
+  // and surfaces have been released so the barrier reply guarantees total teardown.
+  gl::GLDisplayEGL* display = gl::GLSurfaceEGL::GetGLDisplayEGL();
+  if (display && display->IsInitialized()) {
+    display->Shutdown();
+  }
   is_backgrounded_ = true;
 #endif
 #else
