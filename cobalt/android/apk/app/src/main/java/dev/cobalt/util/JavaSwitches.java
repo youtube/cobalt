@@ -76,12 +76,6 @@ public class JavaSwitches {
   /** flag to allow scaling clipped images in GpuImageDecodeCache */
   public static final String ENABLE_SCALING_CLIPPED_IMAGES = "EnableScalingClippedImages";
 
-  /** flag to reduce starboard thread stack size. */
-  public static final String REDUCE_STARBOARD_THREAD_STACK_SIZE = "ReduceStarboardThreadStackSize";
-
-  /** flag to reduce android thread stack size. */
-  public static final String REDUCE_ANDROID_THREAD_STACK_SIZE = "ReduceAndroidThreadStackSize";
-
   /** flag to enable dynamic mojo pipe sizing. */
   public static final String ENABLE_COBALT_DYNAMIC_MOJO_PIPE_SIZING =
       "EnableCobaltDynamicMojoPipeSizing";
@@ -295,16 +289,6 @@ public class JavaSwitches {
 
     if (jsFlags.length() > 0) {
       extraCommandLineArgs.add("--js-flags=" + jsFlags.toString());
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.REDUCE_STARBOARD_THREAD_STACK_SIZE);
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.REDUCE_ANDROID_THREAD_STACK_SIZE);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
