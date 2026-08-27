@@ -18,6 +18,7 @@
 
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/time/time.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
@@ -27,13 +28,15 @@ namespace browser {
 
 namespace {
 
-GetExtensionCallback g_get_extension_for_testing;
+GetExtensionCallback& GetTestingCallback() {
+  static base::NoDestructor<GetExtensionCallback> callback;
+  return *callback;
+}
 
 const StarboardExtensionLoaderAppMetricsApi* GetLoaderAppMetricsExtension() {
   const void* extension =
-      g_get_extension_for_testing
-          ? g_get_extension_for_testing.Run(
-                kStarboardExtensionLoaderAppMetricsName)
+      !GetTestingCallback().is_null()
+          ? GetTestingCallback().Run(kStarboardExtensionLoaderAppMetricsName)
           : SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName);
 
   const auto* metrics_extension =
@@ -121,7 +124,8 @@ void RecordLoaderAppSpaceMetrics(
 }  // namespace
 
 void SetGetExtensionForTesting(GetExtensionCallback get_extension_callback) {
-  g_get_extension_for_testing = std::move(get_extension_callback);
+  GetExtensionCallback& testing_callback = GetTestingCallback();
+  testing_callback = std::move(get_extension_callback);
 }
 
 void RecordLoaderAppMetrics() {
