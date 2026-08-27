@@ -197,10 +197,8 @@ const DrmSystem::Callbacks kStubDrmSystemCallbacks = {
 
 bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
                                       const Size& max_video_size) {
-  return std::max(frame_size.width, frame_size.height) >
-             std::max(max_video_size.width, max_video_size.height) ||
-         std::min(frame_size.width, frame_size.height) >
-             std::min(max_video_size.width, max_video_size.height);
+  return frame_size.width > max_video_size.width ||
+         frame_size.height > max_video_size.height;
 }
 
 }  // namespace
