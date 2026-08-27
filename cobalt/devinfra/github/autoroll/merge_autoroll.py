@@ -216,13 +216,13 @@ def rebase_and_push(target, pr, env):
     log('Rebasing...')
     git('rebase', f'origin/{target}')
 
-    log(f'Pushing {target}...')
-    log(f"PR URL: {pr['url']}")
+    log(f'PR URL: {pr["url"]}')
     response = input('Do you want to merge this PR? Type "yes" to confirm: ')
     if response.strip().lower() != 'yes':
       log('Aborting push.')
       return
 
+    log(f'Pushing {target}...')
     git('push',
         REPO_URL,
         f'HEAD:{target}',
