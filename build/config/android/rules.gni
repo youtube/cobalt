@@ -3930,6 +3930,13 @@ if (!is_robolectric && enable_java_templates) {
         _native_library_name = get_label_info(invoker.shared_library, "name")
         if (defined(invoker.android_manifest_template)) {
           input = invoker.android_manifest_template
+          if (defined(invoker.android_manifest_includes)) {
+            includes = invoker.android_manifest_includes
+          } else {
+            includes = [
+              "//testing/android/native_test/java/AndroidManifest.xml.jinja2",
+            ]
+          }
         } else {
           input =
               "//testing/android/native_test/java/AndroidManifest.xml.jinja2"

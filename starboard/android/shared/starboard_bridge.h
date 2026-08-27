@@ -43,8 +43,6 @@ class StarboardBridge {
 
   void AppendArgs(JNIEnv* env, std::vector<std::string>* args_vector);
 
-  jni_zero::ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(JNIEnv* env);
-
   void RaisePlatformError(JNIEnv* env,
                           jint errorType,
                           jlong data,
