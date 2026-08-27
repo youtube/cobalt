@@ -151,7 +151,7 @@ void TvosAudioDecoder::WriteEndOfStream() {
 
   stream_ended_ = true;
   // Put EOS into the queue.
-  decoded_audios_.push(DecodedAudio());
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
 
   audio_frame_discarder_.OnDecodedAudioEndOfStream();
 

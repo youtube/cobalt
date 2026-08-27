@@ -63,6 +63,11 @@ void ConvertSample(const float* source, int16_t* destination) {
 
 }  // namespace
 
+// static
+DecodedAudio DecodedAudio::CreateEOSBuffer() {
+  return DecodedAudio();
+}
+
 DecodedAudio::DecodedAudio()
     : channels_(0),
       sample_type_(kSbMediaAudioSampleTypeInt16Deprecated),
