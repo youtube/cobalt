@@ -317,7 +317,7 @@ DecodedAudio AudioChannelLayoutMixerImpl::Mix(DecodedAudio input) {
   if (!matrix) {
     SB_NOTREACHED() << "Mixing " << input.channels() << " channels to "
                     << output_channels_ << " channels is not supported.";
-    return DecodedAudio();
+    return DecodedAudio::CreateEOSBuffer();
   }
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {

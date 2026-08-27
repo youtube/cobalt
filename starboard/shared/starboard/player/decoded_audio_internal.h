@@ -28,7 +28,7 @@ namespace starboard {
 // frames with continuous timestamps.
 class DecodedAudio {
  public:
-  DecodedAudio();  // Signal an EOS.
+  static DecodedAudio CreateEOSBuffer();
   // TODO(b/272837615): Remove `storage_type` support and always store data in
   // interleaved. Refactor the places that store sample in planar to convert the
   // samples to interleaved on creation.
@@ -105,6 +105,8 @@ class DecodedAudio {
   DecodedAudio CloneForTesting() const;
 
  private:
+  DecodedAudio();
+
   DecodedAudio SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type,
                                   bool enable_simd) const;
   DecodedAudio SwitchStorageTypeTo(

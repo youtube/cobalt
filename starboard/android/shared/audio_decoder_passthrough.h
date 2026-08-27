@@ -81,7 +81,7 @@ class AudioDecoderPassthrough : public AudioDecoder {
     SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(output_cb_);
 
-    decoded_audios_.push(DecodedAudio());
+    decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
     output_cb_();
   }
 
