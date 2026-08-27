@@ -167,11 +167,18 @@ CobaltContentRendererClient::CobaltContentRendererClient()
 
 CobaltContentRendererClient::~CobaltContentRendererClient() {
   CHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
-  // In single-process mode, CobaltContentRendererClient is destroyed on the
-  // browser main thread during process termination.
-  // HangWatcher::UnregisterThread can only be called on the registered thread
-  // itself, so release the closure to avoid invoking it on the wrong thread
-  // during shutdown.
+  // In single-process mode, CobaltContentRendererClient is owned by
+  // CobaltMainDelegate and destroyed on the browser main thread during process
+  // termination. HangWatcher::UnregisterThread relies on TLS and can only be
+  // invoked on the registered thread itself, so we must not execute the closure
+  // on the browser main thread.
+  //
+  // Like the browser main thread and IO thread, the in-process renderer thread
+  // is a permanent thread that lives for the entire application lifetime.
+  // Releasing the closure without unregistering does not leak memory because
+  // this destructor only runs once immediately before process exit (where the
+  // OS reclaims all resources), and HangWatcher itself lives for the process
+  // duration as a base::NoDestructor singleton.
   std::ignore = unregister_thread_closure.Release();
 }
 
