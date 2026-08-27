@@ -198,8 +198,7 @@ class AudioTimeStretcher {
   // Auxiliary variables to avoid allocation in every iteration.
   // For now, we initialize DecodedAudio buffers with EOS to serve as
   // placeholders.
-  // TODO: go/cobalt-pr/12223 - Handle placeholders properly (e.g.
-  // std::optional).
+  // TODO: b/553577796 - Handle placeholders properly (e.g. std::optional).
 
   // Stores the optimal block in every iteration. This is the most
   // similar block to |target_block_| within |search_block_| and it is

@@ -317,6 +317,8 @@ DecodedAudio AudioChannelLayoutMixerImpl::Mix(DecodedAudio input) {
   if (!matrix) {
     SB_NOTREACHED() << "Mixing " << input.channels() << " channels to "
                     << output_channels_ << " channels is not supported.";
+    // TODO: b/553577796 - Refactor Mix() to return std::optional<DecodedAudio>
+    // to signal errors instead of returning an EOS buffer.
     return DecodedAudio::CreateEOSBuffer();
   }
 
