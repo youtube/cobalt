@@ -1286,6 +1286,14 @@ void GpuServiceImpl::OnForegrounded() {
 void GpuServiceImpl::OnForegroundedOnMainThread() {
 #if BUILDFLAG(IS_COBALT)
   is_backgrounded_ = false;
+  // Re-initialize the EGL display and default offscreen surface before servicing
+  // any channel establishment requests. On background cleanup, the display is
+  // shut down to release all GPU resources. Re-initializing the platform display
+  // here at the top-level service boundary ensures that GpuChannelManager has a
+  // valid default offscreen surface before any queued or new GPU channels
+  // attempt to initialize SharedContextState or bind textures. Doing this
+  // centrally in GpuServiceImpl keeps GpuChannelManager's offscreen surface
+  // accessor simple and avoids lazy-initialization races across client threads.
   gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
   if (display) {
     if (!display->IsInitialized()) {
