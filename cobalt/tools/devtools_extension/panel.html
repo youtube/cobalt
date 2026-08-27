@@ -26,23 +26,30 @@
       </div>
     </header>
 
-    <!-- Primary Section: Session Median Telemetry (12 Continuous P50 Allocators) -->
+    <!-- Primary Section: Session P50 Memory Breakdown (12 Continuous P50 Allocators) -->
     <section class="table-section">
       <div class="section-header">
         <div class="title-row">
-          <div class="section-title">📊 Session Median Telemetry (P50 Breakdown)</div>
+          <div class="section-title">📊 Session P50 Memory Breakdown</div>
           <div id="sampling-progress" class="sampling-badge">0 / 12 Reported</div>
         </div>
         <div class="section-instruction">
-          Aggregated median (P50) memory footprint across continuous native and managed allocators since launch,
-          mirroring production Kimono / PLX telemetry (<code>go/kimono-memory-metrics</code>).
-          Demonstrates physical memory distribution beyond the JavaScript heap.
+          Session steady-state median (P50) of total physical CPU RAM (RSS) broken down across native C++, V8, graphics, and system allocators, continuously updated in real time since app launch.
+          Mirrors production telemetry (<code>go/kimono-memory-metrics</code> and <code>go/evergreen-memory-metrics</code>).
         </div>
         <div id="sampling-hint" class="sampling-hint" style="display: none;">
           💡 <strong>Sampling Tip:</strong> P50 metrics are computed from background UMA memory dumps. To accelerate sampling to every 3 seconds during development, launch Cobalt with <code>--enable-features=CobaltMetricsInterval:memory-metrics-interval/3</code>.
         </div>
       </div>
 
+      <!-- Integrated Proportional Distribution Visualizer -->
+      <div class="distribution-bar-container">
+        <div id="distribution-bar" class="distribution-bar">
+          <div class="distribution-bar-empty">Waiting for memory telemetry...</div>
+        </div>
+      </div>
+
+      <!-- Breakdown Table with Color-Coded Allocator Mapping -->
       <table class="metrics-table" id="metrics-table">
         <thead>
           <tr>
@@ -57,6 +64,58 @@
           </tr>
         </tbody>
       </table>
+    </section>
+
+    <!-- Real-Time Live Memory Time Series Section (1 Hz Streaming) -->
+    <section class="chart-section">
+      <div class="section-header">
+        <div class="title-row">
+          <div class="section-title">📈 Real-Time Live Memory</div>
+          <div id="streaming-badge" class="streaming-badge inactive">● 1 Hz Inactive</div>
+        </div>
+        <div class="section-instruction">
+          Instantaneous physical memory footprint sampled at 1 Hz over a rolling 60-second window, displaying GC sawtooth patterns and live allocation spikes.
+        </div>
+      </div>
+
+      <!-- Time Series Canvas Visualizer -->
+      <div class="chart-canvas-container">
+        <canvas id="live-memory-chart" height="150"></canvas>
+        <div id="chart-tooltip" class="chart-tooltip" style="display: none;"></div>
+      </div>
+
+      <!-- Real-Time Live Meter Badges -->
+      <div class="live-legend-bar">
+        <div class="live-legend-chip chip-rss">
+          <span class="live-legend-dot dot-rss"></span>
+          <span class="live-legend-label">RSS (Live):</span>
+          <span id="live-val-rss" class="live-legend-val">-- MB</span>
+        </div>
+        <div class="live-legend-chip chip-pmf">
+          <span class="live-legend-dot dot-pmf"></span>
+          <span class="live-legend-label">PMF (Live):</span>
+          <span id="live-val-pmf" class="live-legend-val">-- MB</span>
+        </div>
+        <div class="live-legend-chip chip-v8">
+          <span class="live-legend-dot dot-v8"></span>
+          <span class="live-legend-label">V8 Heap (Live):</span>
+          <span id="live-val-v8" class="live-legend-val">-- MB</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lifecycle Peak Memory Section -->
+    <section class="guardrails-section">
+      <div class="section-header">
+        <div class="section-title">⏱ Lifecycle Peak Memory</div>
+        <div class="section-instruction">
+          Highest private memory footprint (PMF) peaks recorded across elapsed session duration windows and initial GPU page load.
+        </div>
+      </div>
+
+      <div class="guardrails-grid" id="guardrails-grid">
+        <!-- 4 Time-Windowed PMF Cards + 1 Peak GPU Card dynamically rendered by panel.js -->
+      </div>
     </section>
   </div>
 

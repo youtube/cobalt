@@ -234,13 +234,6 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
   AppendJavaStringArrayToStringVector(env, args_java, args_vector);
 }
 
-ScopedJavaLocalRef<jintArray> StarboardBridge::GetSupportedHdrTypes(
-    JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_BaseStarboardBridge_getSupportedHdrTypes(env,
-                                                       j_starboard_bridge_);
-}
-
 void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                          jint errorType,
                                          jlong data,

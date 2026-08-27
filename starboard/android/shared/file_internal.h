@@ -39,7 +39,11 @@ struct SbFilePrivate {
 
 namespace starboard {
 
+#if BUILDFLAG(IS_STARBOARD)
+inline constexpr char g_app_assets_dir[] = "/cobalt/assets";
+#else
 extern const char* g_app_assets_dir;
+#endif
 extern const char* g_app_files_dir;
 extern const char* g_app_cache_dir;
 extern const char* g_app_lib_dir;
@@ -54,6 +58,9 @@ void SbFileAndroidTeardown();
 bool IsAndroidAssetPath(const char* path);
 AAsset* OpenAndroidAsset(const char* path);
 AAssetDir* OpenAndroidAssetDir(const char* path);
+
+// Returns the fallback for the given asset path, or an empty string if none.
+std::string FallbackPath(const std::string& path);
 
 }  // namespace starboard
 

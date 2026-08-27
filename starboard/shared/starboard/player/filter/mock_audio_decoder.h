@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MOCK_AUDIO_DECODER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MOCK_AUDIO_DECODER_H_
 
+#include <optional>
+
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -34,7 +36,7 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD2(Initialize, void(const OutputCB&, const ErrorCB&));
   MOCK_METHOD2(Decode, void(const InputBuffers&, const ConsumedCB&));
   MOCK_METHOD0(WriteEndOfStream, void());
-  MOCK_METHOD1(Read, scoped_refptr<DecodedAudio>(int*));
+  MOCK_METHOD1(Read, std::optional<DecodedAudio>(int*));
   MOCK_METHOD0(Reset, void());
 };
 

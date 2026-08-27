@@ -5,6 +5,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_INSPECTOR_ACCESSIBILITY_AGENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_INSPECTOR_ACCESSIBILITY_AGENT_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "third_party/blink/renderer/modules/accessibility/cobalt/inspector_accessibility_agent_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include "third_party/blink/renderer/core/accessibility/ax_context.h"
 #include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
 #include "third_party/blink/renderer/core/inspector/protocol/accessibility.h"
@@ -181,5 +188,7 @@ class MODULES_EXPORT InspectorAccessibilityAgent
 };
 
 }  // namespace blink
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_ACCESSIBILITY_INSPECTOR_ACCESSIBILITY_AGENT_H_

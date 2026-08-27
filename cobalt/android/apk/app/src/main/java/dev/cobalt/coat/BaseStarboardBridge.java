@@ -28,7 +28,6 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
-import android.view.Display;
 import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
@@ -107,6 +106,26 @@ public class BaseStarboardBridge {
   private final long mTimeNanosecondsPerMicrosecond = 1000;
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
   private static final String DEFAULT_DEVICE_NAME = "Android";
+
+  /**
+   * Lightweight constructor used by test activities (e.g. CobaltTestActivity).
+   *
+   * <p>Initializes JNI bindings and AudioOutputManager without launching a secondary native
+   * Starboard main event loop.
+   */
+  protected BaseStarboardBridge(
+      Context appContext, Holder<Activity> activityHolder, Holder<Service> serviceHolder) {
+    Log.i(TAG, "BaseStarboardBridge test init.");
+    BaseStarboardBridgeJni.get().initJNI(this);
+
+    mAppContext = appContext;
+    mActivityHolder = activityHolder;
+    mServiceHolder = serviceHolder;
+    mArgs = new String[0];
+    mAudioOutputManager = new AudioOutputManager(appContext);
+    mIsAmatiDevice = false;
+    mNativeApp = 0;
+  }
 
   public BaseStarboardBridge(
       Context appContext,
@@ -621,24 +640,6 @@ public class BaseStarboardBridge {
     if (activity instanceof BaseCobaltActivity) {
       ((BaseCobaltActivity) activity).setVideoSurfaceBounds(x, y, width, height);
     }
-  }
-
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/media_capabilities_cache.cc
-  /** Return supported hdr types. */
-  @CalledByNative
-  public int[] getSupportedHdrTypes() {
-    Display defaultDisplay = DisplayUtil.getDefaultDisplay();
-    if (defaultDisplay == null) {
-      return null;
-    }
-
-    Display.HdrCapabilities hdrCapabilities = defaultDisplay.getHdrCapabilities();
-    if (hdrCapabilities == null) {
-      return null;
-    }
-
-    return hdrCapabilities.getSupportedHdrTypes();
   }
 
   public void registerCobaltService(CobaltService.Factory factory) {

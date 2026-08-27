@@ -18,6 +18,7 @@
 #include "media/mojo/services/mojo_cdm_service_context.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/mojo/common/starboard/empty_media_resource.h"
 #include "media/mojo/services/starboard/starboard_renderer_wrapper.h"
 #endif
 
@@ -66,6 +67,17 @@ void MojoRendererService::Initialize(
 
   client_.Bind(std::move(client));
   state_ = STATE_INITIALIZING;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (streams.has_value() && streams->empty()) {
+    media_resource_ = std::make_unique<EmptyMediaResource>();
+    renderer_->Initialize(
+        media_resource_.get(), this,
+        base::BindOnce(&MojoRendererService::OnRendererInitializeDone,
+                       weak_this_, std::move(callback)));
+    return;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   DCHECK(streams.has_value());
   media_resource_ = std::make_unique<MediaResourceShim>(

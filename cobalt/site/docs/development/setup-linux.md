@@ -143,19 +143,90 @@ To use this feature, build and run one of these configurations and monitor the t
 
 Because Evergreen support is required for certification, you can also run Cobalt in Evergreen mode on Linux.
 
-1. Initialize an Evergreen build directory for `evergreen-x64`:
+### Deploying Official Google Prebuilt CRX Packages
+
+In standard integration and certification testing, partners deploy official Google prebuilt `.crx` packages (available on [GitHub Releases](https://github.com/youtube/cobalt/releases)) instead of compiling Cobalt Core from source.
+
+1. **Ensure environment variables are set and initialize an Evergreen build directory**:
 
    ```bash
+   export PATH="$HOME/depot_tools:$PATH"
+
    cobalt/build/gn.py -p evergreen-x64 -c qa --no-rbe
    ```
 
-2. Compile the `cobalt_loader` target, which packages the compressed Evergreen library:
+2. **Download the Official Prebuilt CRX File**:
 
    ```bash
-   autoninja -C out/evergreen-x64_qa cobalt_loader
+   export LOCAL_CRX_DIR=/tmp/cobalt_dl
+   rm -rf $LOCAL_CRX_DIR && mkdir -p $LOCAL_CRX_DIR
+
+   COBALT_CRX_URL="https://github.com/youtube/cobalt/releases/download/<version>/cobalt_evergreen_<version>_x64_<config>.crx"
+   wget $COBALT_CRX_URL -O $LOCAL_CRX_DIR/cobalt_prebuilt.crx
    ```
 
-3. Launch Cobalt in Evergreen mode by running the generated helper script:
+3. **Unpack the CRX Package**:
+
+   ```bash
+   unzip $LOCAL_CRX_DIR/cobalt_prebuilt.crx -d $LOCAL_CRX_DIR/cobalt_prebuilt
+   ```
+
+4. **Stage Unpacked Files into Slot 0 (`app/cobalt/`) Layout**:
+
+   > [!IMPORTANT]
+   > In Cobalt 27.lts, all Slot 0 factory binaries must be located strictly under `<target_root>/app/cobalt/`.
+
+   ```bash
+   export EVERGREEN_DIR=out/evergreen-x64_qa
+   mkdir -p $EVERGREEN_DIR/app/cobalt/lib $EVERGREEN_DIR/app/cobalt/content
+
+   cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/manifest.json $EVERGREEN_DIR/app/cobalt/
+   cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* $EVERGREEN_DIR/app/cobalt/lib/
+   cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/content/* $EVERGREEN_DIR/app/cobalt/content/
+   ```
+
+5. **Build the Loader Executable**:
+
+   ```bash
+   autoninja -C out/evergreen-x64_qa loader_app
+   ```
+
+6. **Launch Cobalt in Evergreen Mode**:
+
+   ```bash
+   out/evergreen-x64_qa/cobalt_loader.py [--url=<url>]
+   ```
+
+---
+
+### Compiling Custom Cobalt Core from Source (For Core Engine Debugging Only)
+
+> [!CAUTION]
+> SoC and OEM partners are required to use official Google Prebuilt CRX packages for testing and certification. Compiling Cobalt Core (`libcobalt.so`) from source is intended only for core developers debugging internal engine changes.
+
+1. **Ensure environment variables are set and initialize an Evergreen build directory**:
+
+   ```bash
+   export PATH="$HOME/depot_tools:$PATH"
+
+   cobalt/build/gn.py -p evergreen-x64 -c qa --no-rbe
+   ```
+
+2. **Compile the Cobalt Core shared library and host compression tool**:
+
+   ```bash
+   autoninja -C out/evergreen-x64_qa cobalt lz4_compress loader_app
+   ```
+
+3. **(Optional) Compress the shared library for testing LZ4 compressed binary loading**:
+
+   ```bash
+   out/evergreen-x64_qa/clang_x64/lz4_compress \
+     out/evergreen-x64_qa/app/cobalt/lib/libcobalt.so \
+     out/evergreen-x64_qa/app/cobalt/lib/libcobalt.lz4
+   ```
+
+4. **Launch Cobalt in Evergreen Mode**:
 
    ```bash
    out/evergreen-x64_qa/cobalt_loader.py [--url=<url>]

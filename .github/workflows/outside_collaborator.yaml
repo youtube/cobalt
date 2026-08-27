@@ -1,6 +1,10 @@
+# Disable dangerous-triggers rule because this workflow uses pull_request_target
+# strictly to assign labels to PRs from outside collaborators
+# without checking out or executing untrusted code from PR branches.
+# actionlint: disable dangerous-triggers
 name: Outside Collaborator
 
-on:
+on: # zizmor: ignore[dangerous-triggers]
   pull_request_target:
     types:
       - opened
@@ -10,11 +14,15 @@ concurrency:
   group: '${{ github.workflow }}-${{ github.event_name }} @ ${{ github.event.pull_request.number || github.sha }}'
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   assign-reviewer:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      issues: write
     steps:
     - name: Check if PR author is outside collaborator
       env:
