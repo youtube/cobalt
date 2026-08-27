@@ -731,7 +731,7 @@ so you should still expect good performance using Cobalt Evergreen. That being
 said, the Cobalt Evergreen configuration allows you to customize Cobalt features
 and settings as before.
 
-### How to use mmap to save memory with more storage?
+### How can I trade storage space for lower memory consumption using mmap?
 
 On platforms with storage space to spare, memory can be saved by using memory mapping (`mmap`) to load the Cobalt shared library. To enable this feature:
 
