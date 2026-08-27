@@ -217,24 +217,17 @@ def rebase_and_push(target, pr, env):
     git('rebase', f'origin/{target}')
 
     log(f'Pushing {target}...')
-    pr_url = pr.get('url', 'URL not found')
-    log(f'PR URL: {pr_url}')
-    try:
-      response = input(
-          'Do you want to merge this PR? Type "yes" to confirm: '
-      )
-    except EOFError:
-      log('No input provided (EOF). Aborting.')
-      response = 'no'
-
-    if response.strip().lower() == 'yes':
-      git('push',
-          REPO_URL,
-          f'HEAD:{target}',
-          authenticated=True,
-          env=env)
-    else:
+    log(f"PR URL: {pr['url']}")
+    response = input('Do you want to merge this PR? Type "yes" to confirm: ')
+    if response.strip().lower() != 'yes':
       log('Aborting push.')
+      return
+
+    git('push',
+        REPO_URL,
+        f'HEAD:{target}',
+        authenticated=True,
+        env=env)
   finally:
     log('Cleaning up temporary worktree...')
     os.chdir(orig_cwd)

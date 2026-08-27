@@ -84,6 +84,7 @@ class TestMergeAutoroll(unittest.TestCase):
           'title': 'Autoroll from main to target',
           'headRefName': 'autoroll-main-to-target',
           'baseRefName': 'target',
+          'url': 'https://github.com/youtube/cobalt/pull/1',
       }]
 
     def run_side_effect(args, **kwargs):
