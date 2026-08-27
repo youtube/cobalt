@@ -1177,23 +1177,17 @@ TEST_F(WatchHangsInScopeBlockingTest, MAYBE_NewScopeDoesNotBlockDuringCapture) {
 class MockHangWatcherDelegate : public HangWatcher::Delegate {
  public:
   MOCK_METHOD(bool, IsHangReportingEnabled, (), (override));
-  MOCK_METHOD(void, RecordHangStarted, (const std::string&), (override));
-  MOCK_METHOD(void, RecordHangRecovered, (const std::string&), (override));
-  MOCK_METHOD(std::optional<base::TimeDelta>, GetHangWatchTime, (), (override));
-  MOCK_METHOD(std::optional<base::TimeDelta>,
-              GetHangWatchMonitoringPeriod,
-              (),
-              (override));
-  MOCK_METHOD(std::optional<bool>,
+  MOCK_METHOD(base::TimeDelta, GetHangWatchTime, (), (override));
+  MOCK_METHOD(base::TimeDelta, GetHangWatchMonitoringPeriod, (), (override));
+  MOCK_METHOD(bool,
               IsThreadDumpingEnabled,
               (base::HangWatcher::ThreadType),
               (override));
-  MOCK_METHOD(std::optional<bool>, IsLongHangDetectionEnabled, (), (override));
-  MOCK_METHOD(std::optional<bool>, IsLongHangKillEnabled, (), (override));
-  MOCK_METHOD(std::optional<base::TimeDelta>,
-              GetLongHangTimeout,
-              (),
-              (override));
+  MOCK_METHOD(bool, IsLongHangDetectionEnabled, (), (override));
+  MOCK_METHOD(bool, IsLongHangKillEnabled, (), (override));
+  MOCK_METHOD(base::TimeDelta, GetLongHangTimeout, (), (override));
+  MOCK_METHOD(void, RecordHangStarted, (const std::string&), (override));
+  MOCK_METHOD(void, RecordHangRecovered, (const std::string&), (override));
 };
 
 class HangWatcherCobaltTest : public testing::Test {
@@ -1234,17 +1228,17 @@ class HangWatcherCobaltTest : public testing::Test {
     EXPECT_CALL(mock_delegate, IsHangReportingEnabled())
         .WillRepeatedly(testing::Return(reporting_enabled));
     EXPECT_CALL(mock_delegate, GetHangWatchTime())
-        .WillRepeatedly(testing::Return(std::nullopt));
+        .WillRepeatedly(testing::Return(base::Seconds(10)));
     EXPECT_CALL(mock_delegate, GetHangWatchMonitoringPeriod())
         .WillRepeatedly(testing::Return(kVeryLongDelta));
     EXPECT_CALL(mock_delegate, IsThreadDumpingEnabled(testing::_))
-        .WillRepeatedly(testing::Return(std::nullopt));
+        .WillRepeatedly(testing::Return(true));
     EXPECT_CALL(mock_delegate, IsLongHangDetectionEnabled())
-        .WillRepeatedly(testing::Return(std::nullopt));
+        .WillRepeatedly(testing::Return(false));
     EXPECT_CALL(mock_delegate, IsLongHangKillEnabled())
-        .WillRepeatedly(testing::Return(std::nullopt));
+        .WillRepeatedly(testing::Return(false));
     EXPECT_CALL(mock_delegate, GetLongHangTimeout())
-        .WillRepeatedly(testing::Return(std::nullopt));
+        .WillRepeatedly(testing::Return(base::Seconds(20)));
   }
 
   void TriggerMonitorAndWait() {
@@ -1529,11 +1523,11 @@ TEST_F(HangWatcherCobaltTest, OverlappingHangsSingleUuid) {
   EXPECT_CALL(mock_delegate, IsHangReportingEnabled())
       .WillRepeatedly(testing::Return(true));
   EXPECT_CALL(mock_delegate, GetHangWatchTime())
-      .WillRepeatedly(testing::Return(std::nullopt));
+      .WillRepeatedly(testing::Return(base::Seconds(10)));
   EXPECT_CALL(mock_delegate, GetHangWatchMonitoringPeriod())
-      .WillRepeatedly(testing::Return(std::nullopt));
+      .WillRepeatedly(testing::Return(base::Seconds(10)));
   EXPECT_CALL(mock_delegate, IsThreadDumpingEnabled(testing::_))
-      .WillRepeatedly(testing::Return(std::nullopt));
+      .WillRepeatedly(testing::Return(true));
 
   // --- Thread B Recovers ---
   EXPECT_CALL(mock_delegate, RecordHangRecovered(captured_uuid)).Times(1);
