@@ -75,8 +75,7 @@ class TestSbMediaInterface : public media::SbMediaInterface {
     base::AutoLock lock(lock_);
     if (mime) {
       intercepted_mimes_.push_back(mime);
-      if (std::string_view(mime).find("unsupported") !=
-          std::string_view::npos) {
+      if (std::string_view(mime).contains("unsupported")) {
         return kSbMediaSupportTypeNotSupported;
       }
     }
