@@ -1302,7 +1302,8 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
           /*init_extensions=*/true,
           gl::GpuPreference::kDefault);
     }
-    if (display->IsInitialized()) {
+    if (display->IsInitialized() &&
+        !gpu_channel_manager_->default_offscreen_surface()) {
       scoped_refptr<gl::GLSurface> surface =
           gl::init::CreateOffscreenGLSurface(display, gfx::Size());
       gpu_channel_manager_->SetDefaultOffscreenSurface(std::move(surface));

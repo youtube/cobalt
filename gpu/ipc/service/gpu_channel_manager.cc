@@ -813,16 +813,11 @@ void GpuChannelManager::OnBackgroundCleanup() {
   if (program_cache_)
     program_cache_->Trim(0u);
 
-  // 3. Mark SharedContextState context lost and destroy the shared GL context
+  // 3. Mark SharedContextState context lost (which destroys the shared GL context)
   // so no active EGLContexts remain before shutting down the EGLDisplay.
   if (shared_context_state_) {
     shared_context_state_->ReleaseCurrent(nullptr);
     shared_context_state_->MarkContextLost();
-    if (shared_context_state_->real_context()) {
-      shared_context_state_->real_context()->Destroy();
-    } else if (shared_context_state_->context()) {
-      shared_context_state_->context()->Destroy();
-    }
     shared_context_state_.reset();
   }
 
