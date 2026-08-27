@@ -534,35 +534,6 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     video_mime_ = stream_info.mime;
   }
 
-  bool new_is_hdr = !IsIdentity(stream_info.color_metadata);
-  bool current_is_hdr =
-      color_metadata_.has_value() && !IsIdentity(*color_metadata_);
-
-  if (new_is_hdr != current_is_hdr &&
-      color_change_state_ == ColorChangeState::kNone) {
-    bool can_reinitialize_immediately =
-        !media_decoder_ || input_buffer_written_ == 0;
-
-    if (can_reinitialize_immediately) {
-      SB_LOG(INFO) << "Color space change detected (empty decoder). "
-                      "Re-initializing codec immediately...";
-      TeardownCodec();
-      color_metadata_ = new_is_hdr
-                            ? std::make_optional(stream_info.color_metadata)
-                            : std::nullopt;
-    } else {
-      SB_LOG(INFO) << "Color space change detected (HDR <-> SDR). "
-                      "Initiating EOS draining...";
-      color_change_state_ = ColorChangeState::kDraining;
-      pending_color_change_stream_info_ = stream_info;
-      pending_color_change_buffers_.insert(pending_color_change_buffers_.end(),
-                                           input_buffers.begin(),
-                                           input_buffers.end());
-      media_decoder_->WriteEndOfStream();
-      return;
-    }
-  }
-
   if (color_change_state_ != ColorChangeState::kNone) {
     pending_color_change_buffers_.insert(pending_color_change_buffers_.end(),
                                          input_buffers.begin(),
@@ -598,6 +569,22 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         return;
       }
     }
+  }
+
+  bool new_is_hdr = !IsIdentity(stream_info.color_metadata);
+  bool current_is_hdr =
+      color_metadata_.has_value() && !IsIdentity(*color_metadata_);
+
+  if (input_buffer_written_ > 0 && new_is_hdr != current_is_hdr) {
+    SB_LOG(INFO) << "Color space change detected (HDR <-> SDR). "
+                    "Initiating EOS draining...";
+    color_change_state_ = ColorChangeState::kDraining;
+    pending_color_change_stream_info_ = stream_info;
+    pending_color_change_buffers_.insert(pending_color_change_buffers_.end(),
+                                         input_buffers.begin(),
+                                         input_buffers.end());
+    media_decoder_->WriteEndOfStream();
+    return;
   }
 
   input_buffer_written_ += input_buffers.size();
@@ -1039,7 +1026,9 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
     media_codec_bridge->ReleaseOutputBuffer(dequeue_output_result.index, false);
     Schedule(std::bind(
         &MediaCodecVideoDecoder::PerformColorChangeReinitialization, this));
-    decoder_status_cb_(kNeedMoreInput, NULL);
+    if (decoder_status_cb_) {
+      decoder_status_cb_(kNeedMoreInput, NULL);
+    }
     return;
   }
 
