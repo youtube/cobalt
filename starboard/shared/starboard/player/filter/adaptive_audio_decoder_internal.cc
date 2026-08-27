@@ -143,7 +143,7 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   if (first_input_written_) {
     audio_decoder_->WriteEndOfStream();
   } else {
-    decoded_audios_.push(DecodedAudio());
+    decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
     Schedule(output_cb_);
   }
 }
