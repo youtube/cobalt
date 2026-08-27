@@ -24,14 +24,14 @@
 namespace {
 
 bool GetSwapFreeThreshold(uint64_t* threshold) {
-  base::SystemMemoryInfoKB memory_info;
+  base::SystemMemoryInfo memory_info;
   if (!base::GetSystemMemoryInfo(&memory_info)) {
     return false;
   }
 
   // If there is no swap (zram) the monitor doesn't work because we use
   // SwapFree as the tracking metric.
-  if (memory_info.swap_total == 0) {
+  if (memory_info.swap_total.is_zero()) {
     return false;
   }
 
@@ -41,7 +41,7 @@ bool GetSwapFreeThreshold(uint64_t* threshold) {
   }
 
   *threshold =
-      static_cast<uint64_t>(memory_info.swap_total * swap_memory_ratio);
+      static_cast<uint64_t>(memory_info.swap_total.InKiB() * swap_memory_ratio);
   return true;
 }
 
