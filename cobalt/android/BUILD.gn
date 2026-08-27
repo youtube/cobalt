@@ -73,7 +73,7 @@ android_library("cobalt_browser_java") {
   deps = [ "//third_party/jni_zero:jni_zero_java" ]
 }
 
-android_library("cobalt_main_java") {
+android_library("cobalt_main_java_impl") {
   resources_package = "dev.cobalt.coat"
   deps = [
     "//base:base_java",
@@ -210,6 +210,21 @@ android_library("cobalt_main_java") {
   }
 }
 
+dist_jar("cobalt_main_java") {
+  requires_android = true
+  direct_deps_only = true
+  deps = [
+    ":cobalt_main_java_impl",
+    "//third_party/androidx:androidx_media3_media3_common_java",
+    "//third_party/androidx:androidx_media3_media3_container_java",
+    "//third_party/androidx:androidx_media3_media3_datasource_java",
+    "//third_party/androidx:androidx_media3_media3_decoder_java",
+    "//third_party/androidx:androidx_media3_media3_exoplayer_java",
+    "//third_party/androidx:androidx_media3_media3_extractor_java",
+  ]
+  output = "$target_out_dir/cobalt_main_java.javac.jar"
+}
+
 generate_jni("pip_jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/CobaltPictureInPictureActivity.java",
@@ -222,7 +237,7 @@ android_library("cobalt_pip_java") {
   ]
   srcjar_deps = [ ":pip_jni_headers" ]
   deps = [
-    ":cobalt_main_java",
+    ":cobalt_main_java_impl",
     "//base:base_java",
     "//components/thin_webview:factory_java",
     "//components/thin_webview:java",
@@ -236,7 +251,7 @@ android_library("cobalt_apk_java") {
   resources_package = "dev.cobalt.coat"
 
   deps = [
-    ":cobalt_main_java",
+    ":cobalt_main_java_impl",
     ":cobalt_pip_java",
     "//base:base_java",
   ]
@@ -342,7 +357,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
   ]
   deps = [
     ":cobalt_apk_java",
-    ":cobalt_main_java",
+    ":cobalt_main_java_impl",
     ":cobalt_pip_java",
     "//base:base_java",
     "//base:base_java_test_support",
