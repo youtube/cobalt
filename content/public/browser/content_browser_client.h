@@ -84,6 +84,7 @@
 #include "services/network/public/mojom/websocket.mojom-forward.h"
 #include "services/video_effects/public/cpp/buildflags.h"
 #include "storage/browser/file_system/file_system_context.h"
+#include "storage/browser/quota/quota_settings.h"
 #include "third_party/blink/public/common/mediastream/media_devices.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom-forward.h"
@@ -1330,6 +1331,22 @@ class CONTENT_EXPORT ContentBrowserClient {
   // can be cached and the amount of disk space used for caching generated code.
   virtual GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       BrowserContext* context);
+
+  // Returns the cache storage directory path for the given BrowserContext,
+  // partition path, and relative partition path. If this returns an empty
+  // FilePath, Cache Storage will use the default partition path and share the
+  // primary QuotaManager.
+  virtual base::FilePath GetCacheStoragePath(
+      BrowserContext* browser_context,
+      const base::FilePath& partition_path,
+      const base::FilePath& relative_partition_path);
+
+  // Returns quota settings for Cache Storage when a custom cache storage path is
+  // used. By default, computes nominal dynamic settings on the cache directory.
+  virtual void GetCacheQuotaSettings(
+      BrowserContext* browser_context,
+      const base::FilePath& cache_path,
+      storage::OptionalQuotaSettingsCallback callback);
 
   // Gets the metrics appropriate hostname for a given WebUI URL for code cache
   // metrics. Returns an empty string if no relevant mapping has been defined.

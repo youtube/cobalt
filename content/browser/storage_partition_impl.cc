@@ -195,10 +195,6 @@
 #include "content/public/browser/cdm_storage_data_model.h"
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "base/path_service.h"
-#endif
-
 using CookieDeletionFilter = network::mojom::CookieDeletionFilter;
 using CookieDeletionFilterPtr = network::mojom::CookieDeletionFilterPtr;
 
@@ -925,9 +921,7 @@ class StoragePartitionImpl::DataDeletionHelper {
       const base::FilePath& path,
       DOMStorageContextWrapper* dom_storage_context,
       storage::QuotaManager* quota_manager,
-#if BUILDFLAG(IS_STARBOARD)
       storage::QuotaManager* cache_quota_manager,
-#endif
       storage::SpecialStoragePolicy* special_storage_policy,
       storage::FileSystemContext* filesystem_context,
       network::mojom::CookieManager* cookie_manager,
@@ -1403,13 +1397,12 @@ void StoragePartitionImpl::Initialize(
   base::FilePath cache_storage_path = path;
   scoped_refptr<storage::QuotaManagerProxy> cache_quota_manager_proxy =
       quota_manager_proxy;
-#if BUILDFLAG(IS_STARBOARD)
   if (!is_in_memory()) {
-    base::FilePath cache_dir;
-    if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
-      cache_storage_path = config_.partition_domain().empty()
-                               ? cache_dir
-                               : cache_dir.Append(relative_partition_path_);
+    base::FilePath custom_cache_path =
+        GetContentClient()->browser()->GetCacheStoragePath(
+            browser_context_, partition_path_, relative_partition_path_);
+    if (!custom_cache_path.empty()) {
+      cache_storage_path = custom_cache_path;
       cache_quota_context_ = base::MakeRefCounted<QuotaContext>(
           is_in_memory(), cache_storage_path,
           browser_context_->GetSpecialStoragePolicy(),
@@ -1424,7 +1417,6 @@ void StoragePartitionImpl::Initialize(
       }
     }
   }
-#endif
 
   cache_storage_control_wrapper_ = std::make_unique<CacheStorageControlWrapper>(
       GetIOThreadTaskRunner({}), cache_storage_path,
@@ -1782,16 +1774,10 @@ QuotaContext* StoragePartitionImpl::GetQuotaContext() {
   return quota_context_.get();
 }
 
-#if BUILDFLAG(IS_COBALT)
 bool StoragePartitionImpl::HasSplitQuota() {
   DCHECK(initialized_);
-#if BUILDFLAG(IS_STARBOARD)
   return cache_quota_context_ != nullptr;
-#else
-  return false;
-#endif  // BUILDFLAG(IS_STARBOARD)
 }
-#endif  // BUILDFLAG(IS_COBALT)
 
 storage::mojom::CacheStorageControl*
 StoragePartitionImpl::GetCacheStorageControl() {
@@ -2874,9 +2860,7 @@ void StoragePartitionImpl::ClearDataImpl(
       storage_key, filter_builder, std::move(storage_key_policy_matcher),
       std::move(cookie_deletion_filter), GetPath(), dom_storage_context_.get(),
       quota_manager_.get(),
-#if BUILDFLAG(IS_STARBOARD)
       cache_quota_manager_.get(),
-#endif
       special_storage_policy_.get(), filesystem_context_.get(),
       GetCookieManagerForBrowserProcess(),
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
@@ -3064,9 +3048,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
     const base::FilePath& path,
     DOMStorageContextWrapper* dom_storage_context,
     storage::QuotaManager* quota_manager,
-#if BUILDFLAG(IS_STARBOARD)
     storage::QuotaManager* cache_quota_manager,
-#endif
     storage::SpecialStoragePolicy* special_storage_policy,
     storage::FileSystemContext* filesystem_context,
     network::mojom::CookieManager* cookie_manager,
@@ -3204,7 +3186,6 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
                        storage_key, storage_policy_ref,
                        combined_storage_key_matcher, perform_storage_cleanup,
                        CreateTaskCompletionClosure(TracingDataType::kQuota)));
-#if BUILDFLAG(IS_STARBOARD)
     if (cache_quota_manager &&
         (remove_mask_ & REMOVE_DATA_MASK_CACHE_STORAGE)) {
       GetIOThreadTaskRunner({})->PostTask(
@@ -3216,7 +3197,6 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
                          combined_storage_key_matcher, perform_storage_cleanup,
                          CreateTaskCompletionClosure(TracingDataType::kQuota)));
     }
-#endif
   }
 
   if (remove_mask_ & REMOVE_DATA_MASK_LOCAL_STORAGE) {
@@ -3727,7 +3707,6 @@ void StoragePartitionImpl::GetQuotaSettings(
       storage::GetDefaultDeviceInfoHelper(), std::move(callback));
 }
 
-#if BUILDFLAG(IS_STARBOARD)
 void StoragePartitionImpl::GetCacheQuotaSettings(
     storage::OptionalQuotaSettingsCallback callback) {
   if (g_test_cache_quota_settings) {
@@ -3736,21 +3715,16 @@ void StoragePartitionImpl::GetCacheQuotaSettings(
     return;
   }
 
-  base::FilePath cache_path = GetPath();
-  if (!is_in_memory()) {
-    base::FilePath cache_dir;
-    if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
-      cache_path = config_.partition_domain().empty()
-                       ? cache_dir
-                       : cache_dir.Append(relative_partition_path_);
-    }
+  base::FilePath cache_path =
+      GetContentClient()->browser()->GetCacheStoragePath(
+          browser_context_, partition_path_, relative_partition_path_);
+  if (cache_path.empty()) {
+    cache_path = GetPath();
   }
 
-  storage::GetNominalDynamicSettings(
-      cache_path, browser_context_->IsOffTheRecord(),
-      storage::GetDefaultDeviceInfoHelper(), std::move(callback));
+  GetContentClient()->browser()->GetCacheQuotaSettings(
+      browser_context_, cache_path, std::move(callback));
 }
-#endif
 
 void StoragePartitionImpl::InitNetworkContext() {
   network::mojom::NetworkContextParamsPtr context_params =
