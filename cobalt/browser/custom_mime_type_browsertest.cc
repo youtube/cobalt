@@ -478,7 +478,7 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
               SbPlayerStatusFunc player_status_func,
               SbPlayerErrorFunc /*player_error_func*/, void* context,
               SbDecodeTargetGraphicsContextProvider* /*context_provider*/) {
-            auto* player = new SbPlayerPrivate();
+            auto player = reinterpret_cast<SbPlayer>(new media::MockSbPlayer());
             {
               base::AutoLock auto_lock(lock);
               if (creation_param && creation_param->video_stream_info.mime) {
