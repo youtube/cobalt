@@ -62,7 +62,6 @@ class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
 
  private:
   SbMediaAudioSampleType GetSampleType() const;
-  SbMediaAudioFrameStorageType GetStorageType() const;
 
   bool InitializeCodec();
   void TeardownCodec();
