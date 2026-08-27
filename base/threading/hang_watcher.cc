@@ -64,17 +64,19 @@ std::atomic<LoggingLevel> g_main_thread_log_level{LoggingLevel::kNone};
 std::atomic<LoggingLevel> g_compositor_thread_log_level{LoggingLevel::kNone};
 
 #if BUILDFLAG(IS_COBALT)
-std::atomic<LoggingLevel> g_browser_process_renderer_thread_log_level{LoggingLevel::kNone};
+std::atomic<bool> g_hang_reporting_enabled{true};
 
 std::atomic<int64_t> g_hang_watch_time_us{
     WatchHangsInScope::kDefaultHangWatchTime.InMicroseconds()};
 std::atomic<int64_t> g_hang_watch_monitoring_period_us{
     base::Seconds(10).InMicroseconds()};
 
-std::atomic<bool> g_hang_reporting_enabled{true};
 std::atomic<bool> g_enable_long_hang_detection{false};
 std::atomic<bool> g_enable_long_hang_kill{false};
 std::atomic<int> g_long_hang_timeout_seconds{20};
+
+std::atomic<LoggingLevel> g_browser_process_renderer_thread_log_level{
+    LoggingLevel::kNone};
 
 static std::atomic<HangWatcher::Delegate*> g_hang_watcher_delegate{nullptr};
 #endif
@@ -418,11 +420,6 @@ constexpr base::FeatureParam<base::TimeDelta> kHangWatcherMonitoringPeriod(
     kHangWatcherMonitoringPeriodParam,
     base::Seconds(10));
 
-#if BUILDFLAG(IS_COBALT)
-// The period after which continuous hang is considered and reported as "long"
-constexpr auto kDefaultLongHangTimeout = base::Seconds(20);
-#endif
-
 WatchHangsInScope::WatchHangsInScope(TimeDelta timeout) {
 #if BUILDFLAG(IS_COBALT)
   // Only override the timeout with the global configuration if the caller
@@ -534,7 +531,12 @@ WatchHangsInScope::~WatchHangsInScope() {
 }
 
 #if BUILDFLAG(IS_COBALT)
-// static
+LoggingLevel GetConfiguredLoggingLevel(HangWatcher::Delegate* delegate,
+                                       HangWatcher::ThreadType thread_type) {
+  return delegate->IsThreadDumpingEnabled(thread_type)
+             ? LoggingLevel::kUmaAndCrash
+             : LoggingLevel::kNone;
+}
 
 void HangWatcher::UpdateConfiguration() {
   auto* delegate = g_hang_watcher_delegate.load(std::memory_order_relaxed);
@@ -542,6 +544,7 @@ void HangWatcher::UpdateConfiguration() {
     return;
   }
 
+<<<<<<< HEAD
   if (auto configured_timeout = delegate->GetHangWatchTime()) {
     g_hang_watch_time_us.store(configured_timeout->InMicroseconds(),
                                std::memory_order_relaxed);
@@ -560,60 +563,46 @@ void HangWatcher::UpdateConfiguration() {
         std::memory_order_relaxed);
   }
 
+=======
+>>>>>>> 2041438482 (cobalt: Add Finch fallbacks for HangWatcher (#12164))
   g_hang_reporting_enabled.store(delegate->IsHangReportingEnabled(),
                                  std::memory_order_relaxed);
 
-  if (auto detection_enabled = delegate->IsLongHangDetectionEnabled()) {
-    g_enable_long_hang_detection.store(*detection_enabled,
-                                       std::memory_order_relaxed);
-  } else {
-    g_enable_long_hang_detection.store(false, std::memory_order_relaxed);
-  }
+  g_hang_watch_time_us.store(delegate->GetHangWatchTime().InMicroseconds(),
+                             std::memory_order_relaxed);
 
-  if (auto kill_enabled = delegate->IsLongHangKillEnabled()) {
-    g_enable_long_hang_kill.store(*kill_enabled, std::memory_order_relaxed);
-  } else {
-    g_enable_long_hang_kill.store(false, std::memory_order_relaxed);
-  }
-
-  if (auto configured_long_timeout = delegate->GetLongHangTimeout()) {
-    g_long_hang_timeout_seconds.store(
-        static_cast<int>(configured_long_timeout->InSeconds()),
-        std::memory_order_relaxed);
-  } else {
-    g_long_hang_timeout_seconds.store(kDefaultLongHangTimeout.InSeconds(),
-                                      std::memory_order_relaxed);
-  }
+  g_hang_watch_monitoring_period_us.store(
+      delegate->GetHangWatchMonitoringPeriod().InMicroseconds(),
+      std::memory_order_relaxed);
 
   // Update logging levels for thread scopes.
-  if (auto io_enabled = delegate->IsThreadDumpingEnabled(
-          HangWatcher::ThreadType::kIOThread)) {
-    LoggingLevel io_level =
-        *io_enabled ? LoggingLevel::kUmaAndCrash : LoggingLevel::kNone;
-    g_io_thread_log_level.store(io_level, std::memory_order_relaxed);
-  }
+  g_main_thread_log_level.store(
+      GetConfiguredLoggingLevel(delegate, HangWatcher::ThreadType::kMainThread),
+      std::memory_order_relaxed);
 
-  if (auto main_enabled = delegate->IsThreadDumpingEnabled(
-          HangWatcher::ThreadType::kMainThread)) {
-    LoggingLevel main_level =
-        *main_enabled ? LoggingLevel::kUmaAndCrash : LoggingLevel::kNone;
-    g_main_thread_log_level.store(main_level, std::memory_order_relaxed);
-  }
+  g_io_thread_log_level.store(
+      GetConfiguredLoggingLevel(delegate, HangWatcher::ThreadType::kIOThread),
+      std::memory_order_relaxed);
 
-  if (auto pool_enabled = delegate->IsThreadDumpingEnabled(
-          HangWatcher::ThreadType::kThreadPoolThread)) {
-    LoggingLevel pool_level =
-        *pool_enabled ? LoggingLevel::kUmaAndCrash : LoggingLevel::kNone;
-    g_threadpool_log_level.store(pool_level, std::memory_order_relaxed);
-  }
+  g_threadpool_log_level.store(
+      GetConfiguredLoggingLevel(delegate,
+                                HangWatcher::ThreadType::kThreadPoolThread),
+      std::memory_order_relaxed);
 
-  if (auto renderer_enabled = delegate->IsThreadDumpingEnabled(
-          HangWatcher::ThreadType::kRendererThread)) {
-    LoggingLevel renderer_level =
-        *renderer_enabled ? LoggingLevel::kUmaAndCrash : LoggingLevel::kNone;
-    g_browser_process_renderer_thread_log_level.store(
-        renderer_level, std::memory_order_relaxed);
-  }
+  g_browser_process_renderer_thread_log_level.store(
+      GetConfiguredLoggingLevel(delegate,
+                                HangWatcher::ThreadType::kRendererThread),
+      std::memory_order_relaxed);
+
+  g_enable_long_hang_detection.store(delegate->IsLongHangDetectionEnabled(),
+                                     std::memory_order_relaxed);
+
+  g_enable_long_hang_kill.store(delegate->IsLongHangKillEnabled(),
+                                std::memory_order_relaxed);
+
+  g_long_hang_timeout_seconds.store(
+      static_cast<int>(delegate->GetLongHangTimeout().InSeconds()),
+      std::memory_order_relaxed);
 }
 #endif
 
@@ -724,9 +713,17 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type,
 void HangWatcher::UninitializeOnMainThreadForTesting() {
 #if BUILDFLAG(IS_COBALT)
   g_hang_reporting_enabled.store(true, std::memory_order_relaxed);
+  g_hang_watch_time_us.store(
+      WatchHangsInScope::kDefaultHangWatchTime.InMicroseconds(),
+      std::memory_order_relaxed);
+  g_hang_watch_monitoring_period_us.store(kMonitoringPeriod.InMicroseconds(),
+                                          std::memory_order_relaxed);
   g_enable_long_hang_detection.store(false, std::memory_order_relaxed);
   g_enable_long_hang_kill.store(false, std::memory_order_relaxed);
   g_long_hang_timeout_seconds.store(20, std::memory_order_relaxed);
+
+  g_browser_process_renderer_thread_log_level.store(LoggingLevel::kNone,
+                                                    std::memory_order_relaxed);
 #endif
   g_use_hang_watcher.store(false, std::memory_order_relaxed);
   g_threadpool_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
@@ -735,10 +732,6 @@ void HangWatcher::UninitializeOnMainThreadForTesting() {
   g_compositor_thread_log_level.store(LoggingLevel::kNone,
                                       std::memory_order_relaxed);
   g_shutting_down.store(false, std::memory_order_relaxed);
-#if BUILDFLAG(IS_COBALT)
-  g_browser_process_renderer_thread_log_level.store(LoggingLevel::kNone,
-                                                    std::memory_order_relaxed);
-#endif
 }
 
 // static
