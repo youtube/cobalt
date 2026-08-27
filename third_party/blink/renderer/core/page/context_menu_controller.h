@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_CONTEXT_MENU_CONTROLLER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAGE_CONTEXT_MENU_CONTROLLER_H_
 
+#include "base/memory/scoped_refptr.h"
 #include "third_party/blink/public/common/input/web_menu_source_type.h"
 #include "third_party/blink/public/mojom/context_menu/context_menu.mojom-blink.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -43,8 +44,7 @@ class Page;
 struct ContextMenuData;
 struct Impression;
 
-// This class is not final to allow customization by embedders
-class CORE_EXPORT ContextMenuController
+class CORE_EXPORT ContextMenuController final
     : public GarbageCollected<ContextMenuController>,
       public mojom::blink::ContextMenuClient {
  public:
@@ -121,13 +121,11 @@ class CORE_EXPORT ContextMenuController
  private:
   friend class ContextMenuControllerTest;
 
-  // Returns whether a Context Menu was actually shown. Changing this is not
-  // recommended.
-  bool ShowContextMenu(LocalFrame*, const PhysicalOffset&, WebMenuSourceType);
-  virtual bool ShowContextMenu(LocalFrame*,
-                               const PhysicalOffset&,
-                               WebMenuSourceType,
-                               const MouseEvent* mouse_event);
+  // Returns whether a Context Menu was actually shown.
+  bool ShowContextMenu(LocalFrame*,
+                       const PhysicalOffset&,
+                       WebMenuSourceType,
+                       const MouseEvent* mouse_event = nullptr);
 
   bool ShouldShowContextMenuFromTouch(const ContextMenuData&);
 

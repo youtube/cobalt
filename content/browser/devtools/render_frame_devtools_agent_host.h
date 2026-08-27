@@ -13,12 +13,6 @@
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-#include "third_party/blink/public/common/buildflags.h"
-
-#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-#include "content/browser/devtools/cobalt/render_frame_devtools_agent_host_stub.h"
-#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/render_process_host_observer.h"
@@ -211,7 +205,5 @@ class CONTENT_EXPORT RenderFrameDevToolsAgentHost
 FrameTreeNode* GetFrameTreeNodeAncestor(FrameTreeNode* frame_tree_node);
 
 }  // namespace content
-
-#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_RENDER_FRAME_DEVTOOLS_AGENT_HOST_H_
