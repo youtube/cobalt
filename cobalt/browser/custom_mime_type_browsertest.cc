@@ -494,11 +494,18 @@ IN_PROC_BROWSER_TEST_F(CustomMimeTypeBrowserTest,
             }
             if (player_status_func) {
               base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-                  FROM_HERE, base::BindOnce(player_status_func, player, context,
-                                            kSbPlayerStateInitialized,
-                                            SB_PLAYER_INITIAL_TICKET));
+                  FROM_HERE,
+                  base::BindOnce(
+                      [](SbPlayerStatusFunc status_func, SbPlayer player,
+                         void* context, base::RepeatingClosure quit_closure) {
+                        status_func(player, context, kSbPlayerStateInitialized,
+                                    SB_PLAYER_INITIAL_TICKET);
+                        quit_closure.Run();
+                      },
+                      player_status_func, player, context, quit_closure));
+            } else {
+              quit_closure.Run();
             }
-            quit_closure.Run();
             return player;
           }));
 
