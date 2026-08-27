@@ -286,9 +286,13 @@ source_set("audio") {
       ]
     }
     # Cobalt uses the Starboard layer instead of AAudio. AAudio also breaks SDK 24 compatibility. See b/508072838.
-    if (!is_cobalt) {
-      libs += [ "aaudio" ]
-    }
+    # if (!is_cobalt) {
+    #   libs += [ "aaudio" ]
+    # }
+    #
+    # b/551753897 - 141.7351 rebase: link against AAudio unconditionally after
+    # https://crrev.com/c/6818228 to proceed with the rebase.
+    libs += [ "aaudio" ]
 
     deps += [ "//media/base/android:media_jni_headers" ]
 
