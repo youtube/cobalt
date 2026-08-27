@@ -39,7 +39,11 @@ struct SbFilePrivate {
 
 namespace starboard {
 
+#if BUILDFLAG(IS_STARBOARD)
 inline constexpr char g_app_assets_dir[] = "/cobalt/assets";
+#else
+extern const char* g_app_assets_dir;
+#endif
 extern const char* g_app_files_dir;
 extern const char* g_app_cache_dir;
 extern const char* g_app_lib_dir;
