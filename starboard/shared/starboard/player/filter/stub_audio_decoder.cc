@@ -118,7 +118,7 @@ void StubAudioDecoder::WriteEndOfStream() {
         std::bind(&StubAudioDecoder::DecodeEndOfStream, this));
     return;
   }
-  decoded_audios_.push(DecodedAudio());
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
   output_cb_();
 }
 
@@ -275,7 +275,7 @@ void StubAudioDecoder::DecodeEndOfStream() {
     Schedule(output_cb_);
   }
   std::lock_guard lock(decoded_audios_mutex_);
-  decoded_audios_.push(DecodedAudio());
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
   Schedule(output_cb_);
 }
 
