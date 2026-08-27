@@ -27,6 +27,9 @@
 
 namespace starboard {
 
+#if !BUILDFLAG(IS_STARBOARD)
+const char* g_app_assets_dir = "/cobalt/assets";
+#endif
 // Representing the absolute path to the application-specific directory
 // where persistent files should be stored
 // (Context.getFilesDir().getAbsolutePath()). This path is used
