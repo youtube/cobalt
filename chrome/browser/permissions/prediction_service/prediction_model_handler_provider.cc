@@ -10,6 +10,7 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
+#include "chrome/browser/passage_embeddings/chrome_passage_embeddings_service_controller.h"
 #include "chrome/browser/permissions/prediction_service/permissions_aiv1_handler.h"
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/permissions/features.h"
@@ -18,7 +19,6 @@
 #include "components/permissions/request_type.h"
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-#include "chrome/browser/passage_embeddings/chrome_passage_embeddings_service_controller.h"  // nogncheck
 #include "components/permissions/prediction_service/prediction_model_handler.h"
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 

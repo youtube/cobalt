@@ -43,17 +43,8 @@
 #include "media/audio/android/opensles_output.h"
 #endif
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "cobalt/media/audio/audio_input_constants.h"
-#include "media/audio/android/starboard_audio_input_stream.h"
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-function"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "media/base/android/media_jni_headers/AudioManagerAndroid_jni.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#pragma clang diagnostic pop
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
@@ -73,11 +64,7 @@ namespace {
 // Maximum number of output streams that can be open simultaneously.
 constexpr int kMaxOutputStreams = 10;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-[[maybe_unused]] constexpr int kDefaultInputBufferSize = 1024;
-#else
 constexpr int kDefaultInputBufferSize = 1024;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 constexpr int kDefaultOutputBufferSize = 2048;
 // Randomly picked up frame size which is close to return value on N4.
 // Return this value when getProperty(PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
@@ -90,9 +77,7 @@ class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
       : j_audio_manager_(Java_AudioManagerAndroid_createAudioManagerAndroid(
             AttachCurrentThread(),
             reinterpret_cast<jlong>(audio_manager))) {
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
     Java_AudioManagerAndroid_init(AttachCurrentThread(), j_audio_manager_);
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   ~JniDelegateImpl() override {
@@ -221,7 +206,6 @@ void AddDefaultDevice(AudioDeviceNames* device_names) {
   device_names->push_front(AudioDeviceName::CreateDefault());
 }
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 std::string GetFallbackDeviceNameForType(AudioDeviceType type) {
   switch (type) {
     case AudioDeviceType::kBuiltinEarpiece:
@@ -308,7 +292,6 @@ void CombineBluetoothClassicDevices(
       std::make_unique<AudioDevice>(std::move(sco_device->second)));
   devices.erase(sco_device);
 }
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool UseAAudioOutput() {
   return base::FeatureList::IsEnabled(features::kUseAAudioDriver);
@@ -397,20 +380,6 @@ void AudioManagerAndroid::InitializeIfNeeded() {
 }
 
 void AudioManagerAndroid::ShutdownOnAudioThread() {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Clean up any un-consumed pre-started streams.
-  base::flat_map<std::string, std::unique_ptr<PreStartedEntry>> streams_to_release;
-  {
-    base::AutoLock lock(pre_started_streams_lock_);
-    streams_to_release = std::move(pre_started_streams_);
-  }
-  for (auto& it : streams_to_release) {
-    if (it.second->stream) {
-      it.second->stream->Close();
-    }
-  }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   AudioManagerBase::ShutdownOnAudioThread();
 
   // Destroy the JNI delegate here because the Java AudioManagerAndroid can only
@@ -494,10 +463,6 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
   DCHECK(device_names->empty());
   AddDefaultDevice(device_names);
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // simplified flow - just return, device_names is set to default.
-  return;
-#else
   std::vector<JniAudioDevice> j_devices =
       GetJniDelegate().GetDevices(direction == AudioDeviceDirection::kInput);
 
@@ -554,7 +519,6 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
       output_device_cache_ = base::flat_map(devices);
       break;
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void AudioManagerAndroid::GetCommunicationDeviceNames(
@@ -566,10 +530,6 @@ void AudioManagerAndroid::GetCommunicationDeviceNames(
   DCHECK(device_names->empty());
   AddDefaultDevice(device_names);
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // simplified flow - just return, device_names is set to default.
-  return;
-#else
   std::optional<std::vector<JniAudioDevice>> j_devices =
       GetJniDelegate().GetCommunicationDevices();
   if (!j_devices) {
@@ -587,7 +547,6 @@ void AudioManagerAndroid::GetCommunicationDeviceNames(
     device_names->emplace_back(std::move(j_device.name).value(),
                                std::move(device_id_string));
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 const AudioManagerAndroid::DeviceCache& AudioManagerAndroid::GetDeviceCache(
@@ -625,19 +584,6 @@ std::optional<AudioDevice> AudioManagerAndroid::GetDeviceForAAudioStream(
 
 AudioParameters AudioManagerAndroid::GetInputStreamParameters(
     const std::string& device_id) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Hardcode Mono to bypass JNI/Probing overhead.
-  // This is now thread-safe and can be called from any thread to avoid hops.
-
-  AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                         ChannelLayoutConfig::FromLayout<CHANNEL_LAYOUT_MONO>(),
-                         cobalt::media::kSampleRate,
-                         cobalt::media::kSamplesPerBuffer);
-  params.set_effects(AudioParameters::NO_EFFECTS);
-  LOG(INFO) << "Starboard Input Stream:" << __func__ << "params="
-    << params.AsHumanReadableString();
-  return params;
-#else
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
   // Use mono as preferred number of input channels on Android to save
@@ -675,7 +621,6 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
                          channel_layout_config, sample_rate, buffer_size);
   params.set_effects(effects);
   return params;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 const std::string_view AudioManagerAndroid::GetName() {
@@ -700,53 +645,9 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     const std::string& device_id,
     const LogCallback& log_callback) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Check if this is a fast-track request by checking for our special prefix.
-  static constexpr char kFastTrackPrefix[] = "fast-track-";
-  if (base::StartsWith(device_id, kFastTrackPrefix)) {
-    std::string session_id = device_id.substr(sizeof(kFastTrackPrefix) -1);
-    std::unique_ptr<PreStartedEntry> entry;
-    {
-      base::AutoLock lock(pre_started_streams_lock_);
-      auto it = pre_started_streams_.find(session_id);
-      if (it != pre_started_streams_.end()) {
-        entry = std::move(it->second);
-        pre_started_streams_.erase(it);
-      }
-    }
-
-    if (entry) {
-      LOG(INFO) << "Cobalt: Found PRE-STARTED hardware stream for session "
-                << session_id;
-
-      // DEADLOCK PREVENTION: Do NOT call Wait() if we are on the same thread
-      // that is supposed to signal the event. Instead, check if it's already
-      // signaled.
-      if (entry->open_event.IsSignaled()) {
-        AudioInputStream* stream = entry->stream;
-        if (stream) {
-          LOG(INFO) << "Cobalt: Successfully re-used PRE-STARTED stream";
-          return stream;
-        }
-      } else {
-        LOG(WARNING) << "Cobalt: Pre-started stream not ready. Falling back "
-                        "to fresh creation to avoid deadlock.";
-      }
-    }
-  }
-#else
   bool has_input_streams = !HasNoAudioInputStreams();
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
       params, device_id, AudioManager::LogCallback());
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // For Cobalt, we always bypass the automatic "Communication Mode" switch.
-  // This avoids opening a redundant hardware output sink (speakers) just for
-  // hardware AEC/NS that Starboard doesn't use.
-  return stream;
-#else
   // Avoid changing the communication mode if there are existing input streams.
   if (!stream || has_input_streams || UseAAudioPerStreamDeviceSelection()) {
     return stream;
@@ -762,7 +663,6 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     GetJniDelegate().SetCommunicationAudioModeOn(true);
   }
   return stream;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void AudioManagerAndroid::ReleaseOutputStream(AudioOutputStream* stream) {
@@ -776,31 +676,14 @@ void AudioManagerAndroid::ReleaseOutputStream(AudioOutputStream* stream) {
 
 void AudioManagerAndroid::ReleaseInputStream(AudioInputStream* stream) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Remove from pre-started map if present.
-  {
-    base::AutoLock lock(pre_started_streams_lock_);
-    for (auto it = pre_started_streams_.begin();
-         it != pre_started_streams_.end(); ++it) {
-      if (it->second->stream == stream) {
-        pre_started_streams_.erase(it);
-        break;
-      }
-    }
-  }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   AudioManagerBase::ReleaseInputStream(stream);
 
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   // Restore the audio mode which was used before the first communication-
   // mode stream was created.
   if (HasNoAudioInputStreams() && communication_mode_is_on_) {
     communication_mode_is_on_ = false;
     GetJniDelegate().SetCommunicationAudioModeOn(false);
   }
-#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 AudioOutputStream* AudioManagerAndroid::MakeLinearOutputStream(
@@ -895,11 +778,6 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
     const LogCallback& log_callback) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  return new StarboardAudioInputStream(this, params);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   if (UseAAudioInput()) {
     std::optional<AudioDevice> device =
         GetDeviceForAAudioStream(device_id, AudioDeviceDirection::kInput);
@@ -914,7 +792,6 @@ AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
 #else
   return nullptr;
 #endif
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
@@ -924,11 +801,6 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  return new StarboardAudioInputStream(this, params);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   DLOG_IF(ERROR, device_id.empty()) << "Invalid device ID!";
 
   if (!UseAAudioPerStreamDeviceSelection()) {
@@ -959,8 +831,7 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   return new OpenSLESInputStream(this, params);
 #else
   return nullptr;
-#endif  // BUILDFLAG(USE_OPENSLES)
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif
 }
 
 void AudioManagerAndroid::OnStartAAudioInputStream(AAudioInputStream* stream) {
@@ -1143,71 +1014,6 @@ AudioManagerAndroid::JniDelegate& AudioManagerAndroid::GetJniDelegate() {
   }
   return *jni_delegate_;
 }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-void AudioManagerAndroid::PreStartStream(
-    const base::UnguessableToken& session_token,
-    const AudioParameters& params) {
-  std::string session_id = session_token.ToString();
-  LOG(INFO) << "Cobalt: AudioManagerAndroid::PreStartStream session=" << session_id;
-
-  // We must be on the audio thread to create the stream objects.
-  if (!GetTaskRunner()->BelongsToCurrentThread()) {
-    GetTaskRunner()->PostTask(
-        FROM_HERE, base::BindOnce(&AudioManagerAndroid::PreStartStream,
-                                  base::Unretained(this), session_token, params));
-    return;
-  }
-
-  // Create the entry and park it in the map before starting the slow Open()
-  // call. This allows MakeAudioInputStream to find it and WAIT for it.
-  {
-    base::AutoLock lock(pre_started_streams_lock_);
-    pre_started_streams_[session_id] = std::make_unique<PreStartedEntry>();
-  }
-
-  // Use the base class factory method so the stream is properly registered
-  // in the AudioManagerBase::input_streams_ list. This prevents the
-  // ReleaseInputStream crash.
-  AudioInputStream* stream =
-      AudioManagerBase::MakeAudioInputStream(params, "default", base::DoNothing());
-
-  if (!stream) {
-    LOG(ERROR) << "Cobalt: Failed to create hardware stream for pre-start";
-    base::AutoLock lock(pre_started_streams_lock_);
-    pre_started_streams_.erase(session_id);
-    return;
-  }
-
-  if (stream->Open() == AudioInputStream::OpenOutcome::kSuccess) {
-    base::AutoLock lock(pre_started_streams_lock_);
-    auto it = pre_started_streams_.find(session_id);
-    if (it != pre_started_streams_.end()) {
-      it->second->stream = stream;
-      it->second->open_event.Signal();
-      LOG(INFO) << "Cobalt: Hardware stream PRE-STARTED and PARKED for session="
-                << session_id;
-      return;
-    }
-    LOG(WARNING) << "Cobalt: Pre-started stream session=" << session_id
-                 << " was consumed or cancelled before it finished opening. "
-                    "Releasing stream.";
-  } else {
-    LOG(ERROR) << "Cobalt: Failed to pre-start hardware stream session="
-               << session_id;
-    base::AutoLock lock(pre_started_streams_lock_);
-    pre_started_streams_.erase(session_id);
-  }
-
-  // Release the stream outside the lock to avoid deadlock, as
-  // Close() eventually calls ReleaseInputStream which acquires
-  // pre_started_streams_lock_.
-  stream->Close();
-}
-
-AudioManagerAndroid::PreStartedEntry::PreStartedEntry() = default;
-AudioManagerAndroid::PreStartedEntry::~PreStartedEntry() = default;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 int AudioManagerAndroid::SelectSampleRate(
     const AudioDevice& device,

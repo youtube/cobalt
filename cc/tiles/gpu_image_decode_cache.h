@@ -27,7 +27,6 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/trace_event/memory_dump_provider.h"
-#include "build/build_config.h"
 #include "cc/cc_export.h"
 #include "cc/paint/image_transfer_cache_entry.h"
 #include "cc/tiles/image_decode_cache.h"
@@ -153,10 +152,6 @@ class CC_EXPORT GpuImageDecodeCache
                                SkColorType color_type,
                                size_t max_working_set_bytes,
                                int max_texture_size,
-#if BUILDFLAG(IS_COBALT)
-                               size_t max_persistent_cache_items,
-                               size_t max_persistent_cache_memory_size,
-#endif
                                RasterDarkModeFilter* const dark_mode_filter);
   ~GpuImageDecodeCache() override;
 
@@ -988,11 +983,6 @@ class CC_EXPORT GpuImageDecodeCache
   size_t working_set_bytes_ GUARDED_BY(lock_) = 0;
   size_t working_set_items_ GUARDED_BY(lock_) = 0;
   bool aggressively_freeing_resources_ GUARDED_BY(lock_) = false;
-
-#if BUILDFLAG(IS_COBALT)
-  const size_t max_persistent_cache_items_;
-  const size_t max_persistent_cache_memory_size_;
-#endif
 
   // This field is not a raw_ptr<> because of incompatibilities with tracing
   // (TRACE_EVENT*), perfetto::TracedDictionary::Add and gmock/EXPECT_THAT.
