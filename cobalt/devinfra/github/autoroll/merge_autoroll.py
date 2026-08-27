@@ -175,7 +175,7 @@ def has_conflicts(filepath):
   return False
 
 
-def rebase_and_push(target, pr, env, repo_url, dry_run=True):
+def rebase_and_push(target, pr, env, repo_url, apply=False):
   head = pr['headRefName']
   pr_number = pr['number']
   log(f'Found PR #{pr_number}: {head} -> {target}')
@@ -216,14 +216,14 @@ def rebase_and_push(target, pr, env, repo_url, dry_run=True):
     git('rebase', f'origin/{target}')
 
     log(f'Pushing {target}...')
-    if dry_run:
-      log(f'[DRY RUN] Would run: git push {repo_url} HEAD:{target}')
-    else:
+    if apply:
       git('push',
           repo_url,
           f'HEAD:{target}',
           authenticated=True,
           env=env)
+    else:
+      log(f'[DRY RUN] Would run: git push {repo_url} HEAD:{target}')
   finally:
     log('Cleaning up temporary worktree...')
     os.chdir(orig_cwd)
@@ -259,8 +259,6 @@ def main():
   repo = args.repo or DEFAULT_REPO
   repo_url = f'https://github.com/{repo}.git'
 
-  dry_run = not args.apply
-
   if not key_file:
     private_key = read_private_key()
     temp_fd, key_file = tempfile.mkstemp(suffix='.pem')
@@ -271,7 +269,7 @@ def main():
   env = {'GITHUB_TOKEN': token}
 
   pr = find_open_autoroll_pr(source, target, env, repo)
-  rebase_and_push(target, pr, env, repo_url, dry_run=dry_run)
+  rebase_and_push(target, pr, env, repo_url, apply=args.apply)
 
 
 if __name__ == '__main__':
