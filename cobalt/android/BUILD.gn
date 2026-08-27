@@ -347,3 +347,15 @@ robolectric_binary("cobalt_coat_junit_tests") {
   ]
   ignore_all_data_deps = false
 }
+
+android_library("cobalt_testing_java") {
+  testonly = true
+  sources =
+      [ "apk/app/src/main/java/dev/cobalt/testing/CobaltTestActivity.java" ]
+  deps = [
+    ":cobalt_main_java",
+    "//base:base_java",
+    "//testing/android/native_test:native_test_java",
+    "//third_party/jni_zero:jni_zero_java",
+  ]
+}
