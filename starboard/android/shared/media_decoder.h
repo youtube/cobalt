@@ -165,6 +165,7 @@ class MediaDecoder final
   void OnMediaCodecError(bool is_recoverable,
                          bool is_transient,
                          const std::string& diagnostic_info) override;
+  void OnMediaCodecCryptoError(int error_code) override;
   void OnMediaCodecInputBufferAvailable(int buffer_index) override;
   void OnMediaCodecOutputBufferAvailable(int buffer_index,
                                          int flags,

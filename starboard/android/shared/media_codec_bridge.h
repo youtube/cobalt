@@ -132,6 +132,7 @@ class MediaCodecBridge {
     virtual void OnMediaCodecError(bool is_recoverable,
                                    bool is_transient,
                                    const std::string& diagnostic_info) = 0;
+    virtual void OnMediaCodecCryptoError(int error_code) = 0;
     virtual void OnMediaCodecInputBufferAvailable(int buffer_index) = 0;
     virtual void OnMediaCodecOutputBufferAvailable(int buffer_index,
                                                    int flags,
@@ -208,6 +209,7 @@ class MediaCodecBridge {
   void OnMediaCodecError(bool is_recoverable,
                          bool is_transient,
                          const std::string& diagnostic_info);
+  void OnMediaCodecCryptoError(int error_code);
   void OnMediaCodecInputBufferAvailable(int buffer_index);
   void OnMediaCodecOutputBufferAvailable(int buffer_index,
                                          int flags,
