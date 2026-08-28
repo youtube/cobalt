@@ -77,10 +77,9 @@ ComponentStateToCobaltExtensionUpdaterNotificationState(
     case ComponentState::kUpdateError:
       return kCobaltExtensionUpdaterNotificationStateUpdateFailed;
     case ComponentState::kNew:
-    case ComponentState::kDownloadingDiff:
-    case ComponentState::kUpdatingDiff:
+    case ComponentState::kDecompressing:
+    case ComponentState::kPatching:
     case ComponentState::kRun:
-    case ComponentState::kLastStatus:
       return kCobaltExtensionUpdaterNotificationStateNone;
   }
 }
