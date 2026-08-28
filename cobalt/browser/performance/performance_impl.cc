@@ -75,8 +75,9 @@ void PerformanceImpl::MeasureAvailableCpuMemory(
   // Android.
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(
-          [] { return base::SysInfo::AmountOfAvailablePhysicalMemory(); }),
+      base::BindOnce([] {
+        return base::SysInfo::AmountOfAvailablePhysicalMemory().InBytes();
+      }),
       std::move(callback));
 }
 
@@ -204,7 +205,7 @@ void PerformanceImpl::MeasureUsedPssMemory(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
       base::BindOnce([]() -> uint64_t {
         auto smaps_rollup = base::debug::ReadAndParseSmapsRollup();
-        return smaps_rollup.has_value() ? smaps_rollup->pss : 0;
+        return smaps_rollup.has_value() ? smaps_rollup->pss.InBytes() : 0;
       }),
       std::move(callback));
 #else
