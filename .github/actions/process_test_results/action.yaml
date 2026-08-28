@@ -84,18 +84,20 @@ runs:
           echo "  |_| |_____|____/ |_|   |____/ |_|/_/   \_\|_|  \___/ |____/ "
           echo
 
-          if ! python3 cobalt/tools/junit_mini_parser.py "${result_xmls[@]}" > test_failures.json; then
-            jq -r '
-              .failing_tests | to_entries[] |
-              .key, (
-                .value[] |
-                "  [  FAILED  ] \(.name)",
-                (.message | select(. != "") | split("\n")[] | "    \(.)")
-              ),
-              ""
-            ' test_failures.json
+          if [[ ${#result_xmls[@]} -gt 0 && -f "${result_xmls[0]}" ]]; then
+            if ! python3 cobalt/tools/junit_mini_parser.py "${result_xmls[@]}" > test_failures.json; then
+              jq -r '
+                .failing_tests | to_entries[] |
+                .key, (
+                  .value[] |
+                  "  [  FAILED  ] \(.name)",
+                  (.message | select(. != "") | split("\n")[] | "    \(.)")
+                ),
+                ""
+              ' test_failures.json
+            fi
+            rm -f test_failures.json
           fi
-          rm -f test_failures.json
 
           echo "::error::${TARGET_NAME} has ${TESTS_FAILED} failed test(s)."
           exit_code=1

@@ -1082,7 +1082,7 @@ jobs:
           shopt -s globstar nullglob
           xml_files=(results/**/*.xml)
           failed=false
-          if [[ ${#xml_files[@]} -gt 0 ]]; then
+          if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
             if ! python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" > test_failures.json; then
               failed=true
               echo "Failing Tests Summary:"
