@@ -69,3 +69,9 @@
 # Keeps debugging information for stack traces for the ENTIRE app.
 # Without this dev.cobalt.coat.CobaltActivity.onStart() will be renamed to a.b.c.a()
 -keepattributes SourceFile,LineNumberTable
+
+# Explicitly keep the Crashpad Java Fallback entry point.
+-keep class org.chromium.components.crash.browser.CrashpadMainCobalt {
+  public static void main(java.lang.String[]);
+  private static native void nativeCrashpadMain(java.lang.String[]);
+}

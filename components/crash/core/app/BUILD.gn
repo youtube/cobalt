@@ -7,6 +7,7 @@ assert(!is_fuchsia)
 
 import("//components/gwp_asan/buildflags/buildflags.gni")
 import("//starboard/build/buildflags.gni")
+import("//cobalt/build/configs/cobalt_for_google.gni")
 
 if (is_android) {
   import("//build/config/android/config.gni")
@@ -90,6 +91,7 @@ static_library("app") {
     sources += [ "crashpad_android.cc" ]
     deps += [
       ":crashpad_handler_main",
+      "//base:cobalt_for_google3_buildflags",
       "//components/crash/android:jni_headers",
       "//third_party/crashpad/crashpad/handler",
       "//third_party/crashpad/crashpad/snapshot",
@@ -226,8 +228,13 @@ if (is_mac || is_android || is_linux || is_chromeos) {
   executable("chrome_crashpad_handler") {
     sources = [ "chrome_crashpad_handler.cc" ]
 
+    if (is_android) {
+      sources += [ "crashpad_handler_jni.cc" ]
+    }
+
     deps = [
       ":crashpad_handler_main",
+      "//base:cobalt_for_google3_buildflags",
       "//third_party/crashpad/crashpad/handler",
     ]
 

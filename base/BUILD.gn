@@ -213,6 +213,7 @@ buildflag_header("cobalt_for_google3_buildflags") {
   header = "cobalt_for_google3_buildflags.h"
   header_dir = "base/android"
   flags = [
+    "IS_COBALT=$is_cobalt",
     "IS_COBALT_ON_GOOGLE3=$is_cobalt_on_google3",
   ]
 }
