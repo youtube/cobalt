@@ -81,7 +81,7 @@ class AudioChannelLayoutMixerTest
     }
 
     DecodedAudio decoded_audio(
-        num_of_channels, sample_type_, storage_type_, 0,
+        num_of_channels, sample_type_, /*timestamp=*/0,
         kInputFrames * num_of_channels *
             (sample_type_ == kSbMediaAudioSampleTypeFloat32 ? 4 : 2));
 
