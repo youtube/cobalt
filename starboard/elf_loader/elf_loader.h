@@ -46,7 +46,14 @@ class ElfLoader {
             bool is_relative_path,
             const void* (*custom_get_extension)(const char* name) = NULL,
             bool use_compression = false,
-            bool use_memory_mapped_file = false);
+            bool use_memory_mapped_file = false,
+            bool use_streaming = false,
+            bool use_chunked = false,
+            bool use_parallel = false,
+            bool use_pipelined_parallel = false,
+            bool use_segment_decompression = false,
+            bool use_fully_deferred = false,
+            bool use_contention_diagnostic = false);
 
   // Looks up the symbol address in the
   // shared library.
