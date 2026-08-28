@@ -68,7 +68,9 @@ int64_t GetInt64Header(const network::SimpleURLLoader* simple_url_loader,
     return -1;
   }
 
-  return response_info->headers->GetInt64HeaderValue(header_name);
+  const auto header_value =
+      response_info->headers->GetInt64HeaderValue(header_name);
+  return header_value.value_or(-1);
 }
 
 }  // namespace
