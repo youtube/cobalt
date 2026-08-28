@@ -94,7 +94,3 @@ enable_backup_ref_ptr_feature_flag = false
 # Disable vectorized HTML scanning (SIMD speedups for HTML parsing
 # are not needed).
 enable_vectorized_html_scanning = false
-
-# TODO: b/553853122 - As of the 141.7364 rebase, this breaks the linux-x64x11
-# and evergreen-x64 builds for different reasons.
-use_clang_modules = false
