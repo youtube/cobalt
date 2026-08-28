@@ -23,9 +23,7 @@
 
 #include "starboard/android/shared/file_internal.h"
 
-#if BUILDFLAG(IS_STARBOARD)
 using starboard::FallbackPath;
-#endif
 using starboard::IsAndroidAssetPath;
 using starboard::OpenAndroidAsset;
 using starboard::OpenAndroidAssetDir;
@@ -90,12 +88,10 @@ int __wrap_fstatat(int dirfd, const char* path, struct stat* info, int flags) {
     return 0;
   }
 
-#if BUILDFLAG(IS_STARBOARD)
   std::string fallback_path = FallbackPath(path);
   if (!fallback_path.empty()) {
     return __real_fstatat(dirfd, fallback_path.c_str(), info, flags);
   }
-#endif
 
   errno = ENOENT;
   return -1;
