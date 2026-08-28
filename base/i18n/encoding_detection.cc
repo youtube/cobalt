@@ -22,7 +22,6 @@
 
 namespace base {
 
-<<<<<<< HEAD
 namespace {
 
 // Include 7-bit encodings
@@ -34,12 +33,7 @@ constexpr CompactEncDet::TextCorpusType kPlainTextCorpus =
 
 }  // namespace
 
-bool DetectEncoding(std::string_view text, std::string* encoding) {
-=======
-bool DetectEncoding(const std::string& text, std::string* encoding) {
-#if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of 7bfc9e85f0b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  int consumed_bytes;
+bool DetectEncoding(std::string_view text, std::string* encoding) {  int consumed_bytes;
   bool is_reliable;
   Encoding enc = CompactEncDet::DetectEncoding(
       /*text=*/text.data(), /*text_length=*/text.size(), /*url_hint=*/nullptr,

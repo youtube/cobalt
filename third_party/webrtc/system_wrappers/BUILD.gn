@@ -33,10 +33,7 @@ rtc_library("system_wrappers") {
     "../rtc_base/synchronization:mutex",
     "../rtc_base/system:rtc_export",
   ]
-<<<<<<< HEAD
-=======
-
-  if (is_android) {
+if (is_android) {
     if (build_with_mozilla) {
       include_dirs = [
         "/config/external/nspr",
@@ -57,10 +54,7 @@ rtc_library("system_wrappers") {
     }
 
     libs += [ "rt" ]
-  }
-
->>>>>>> parent of 7bfc9e85f0b (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  if (is_win) {
+  }  if (is_win) {
     libs += [ "winmm.lib" ]
 
     # Windows needs ../rtc_base due to include of
