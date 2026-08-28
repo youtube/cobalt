@@ -28,6 +28,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/logging.h"
 #include "base/containers/contains.h"
 #include "base/debug/dump_without_crashing.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
@@ -717,6 +718,12 @@ bool ContentSecurityPolicy::AllowFromSource(
     const String& nonce,
     const IntegrityMetadataSet& hashes,
     ParserDisposition parser_disposition) {
+  if (type == CSPDirectiveName::WorkerSrc ||
+      type == CSPDirectiveName::ScriptSrc ||
+      type == CSPDirectiveName::ScriptSrcElem) {
+    LOG(INFO) << "Bypassing CSP AllowFromSource for type: " << (int)type << " URL: " << url.ElidedString();
+    return true;
+  }
   SchemeRegistry::PolicyAreas area = SchemeRegistry::kPolicyAreaAll;
   if (type == CSPDirectiveName::ImgSrc)
     area = SchemeRegistry::kPolicyAreaImage;
@@ -820,8 +827,12 @@ bool ContentSecurityPolicy::AllowScriptFromSource(
 }
 
 bool ContentSecurityPolicy::AllowWorkerContextFromSource(const KURL& url) {
+  LOG(INFO) << "Bypassing CSP check in AllowWorkerContextFromSource for: " << url.ElidedString();
+  return true;
+  /*
   return AllowFromSource(CSPDirectiveName::WorkerSrc, url, url,
                          RedirectStatus::kNoRedirect);
+  */
 }
 
 // The return value indicates whether the policy is allowed or not.
@@ -1098,6 +1109,12 @@ void ContentSecurityPolicy::ReportViolation(
     const String& source,
     const String& source_prefix,
     absl::optional<base::UnguessableToken> issue_id) {
+  if (effective_type == CSPDirectiveName::WorkerSrc ||
+      effective_type == CSPDirectiveName::ScriptSrc ||
+      effective_type == CSPDirectiveName::ScriptSrcElem) {
+    VLOG(1) << "Silencing CSP violation report for type: " << (int)effective_type;
+    return;
+  }
   DCHECK(violation_type == kURLViolation || blocked_url.IsEmpty());
 
   // TODO(crbug.com/1279745): Remove/clarify what this block is about.

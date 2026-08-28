@@ -109,6 +109,9 @@ void ThreadedMessagingProxyBase::ReportConsoleMessage(
     mojom::ConsoleMessageLevel level,
     const String& message,
     std::unique_ptr<SourceLocation> location) {
+  LOG(INFO) << "[WORKER CONSOLE] " << message.Utf8() 
+            << " at " << location->Url().Utf8() 
+            << ":" << location->LineNumber();
   DCHECK(IsParentContextThread());
   if (asked_to_terminate_)
     return;

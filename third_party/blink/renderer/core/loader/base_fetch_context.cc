@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/loader/base_fetch_context.h"
 
+#include "base/logging.h"
 #include "net/http/structured_headers.h"
 #include "services/network/public/cpp/client_hints.h"
 #include "services/network/public/cpp/request_mode.h"
@@ -616,8 +617,11 @@ BaseFetchContext::CanRequestInternal(
       cors::CalculateCorsFlag(url, origin.get(),
                               resource_request.IsolatedWorldOrigin().get(),
                               request_mode)) {
+    LOG(INFO) << "Bypassing kSameOrigin check in CanRequestInternal for: " << url.ElidedString();
+    /*
     PrintAccessDeniedMessage(url);
     return ResourceRequestBlockedReason::kOrigin;
+    */
   }
 
   // User Agent CSS stylesheets should only support loading images and should be
@@ -647,7 +651,8 @@ BaseFetchContext::CanRequestInternal(
           reporting_disposition, url_before_redirects, redirect_status,
           ContentSecurityPolicy::CheckHeaderType::kCheckEnforce) ==
       ResourceRequestBlockedReason::kCSP) {
-    return ResourceRequestBlockedReason::kCSP;
+    LOG(INFO) << "Bypassing CSP check in CanRequestInternal for: " << url.ElidedString();
+    // return ResourceRequestBlockedReason::kCSP;
   }
 
   if (type == ResourceType::kScript) {

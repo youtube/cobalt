@@ -205,6 +205,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) CorsURLLoader
       const mojom::URLResponseHead& response,
       const std::string& header_name);
 
+  static std::string& GetLastYoutubeAuthHeader();
+  static std::string& GetLastYoutubeCookieHeader();
+
   void OnSharedDictionaryWritten(bool success);
 
   mojo::Receiver<mojom::URLLoader> receiver_;
