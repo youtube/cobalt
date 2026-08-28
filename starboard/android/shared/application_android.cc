@@ -21,13 +21,20 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdlib>
+#include <fstream>
 #include <limits>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "base/android/jni_string.h"
 #include "cobalt/android/jni_headers/CobaltSystemConfigChangeReceiver_jni.h"
 #include "cobalt/android/jni_headers/HTMLMediaElementExtension_jni.h"
+#include "partition_alloc/partition_stats.h"
+#include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/android/shared/window_internal.h"
@@ -53,6 +60,64 @@ using jni_zero::ScopedJavaLocalRef;
 // TODO(cobalt, b/378708359): Remove this dummy init.
 void stubSbEventHandle(const SbEvent* event) {
   SB_LOG(ERROR) << "Starboard event DISCARDED:" << event->type;
+}
+
+static std::atomic<bool> g_stop_thread{false};
+static std::thread g_logging_thread;
+
+static int64_t GetSelfPssKb() {
+  std::ifstream file("/proc/self/smaps_rollup");
+  if (!file.is_open()) {
+    return 0;
+  }
+  std::string line;
+  while (std::getline(file, line)) {
+    if (line.compare(0, 4, "Pss:") == 0) {
+      size_t start = line.find_first_of("0123456789");
+      if (start != std::string::npos) {
+        size_t end = line.find_first_not_of("0123456789", start);
+        std::string pss_str = line.substr(start, end - start);
+        return std::strtoll(pss_str.c_str(), nullptr, 10);
+      }
+    }
+  }
+  return 0;
+}
+
+static void LogPartitionAllocStats() {
+  auto* root = allocator_shim::internal::PartitionAllocMalloc::Allocator();
+  if (root) {
+    partition_alloc::SimplePartitionStatsDumper dumper;
+    root->DumpStats("main", /*is_light_dump=*/true, &dumper);
+    const auto& stats = dumper.stats();
+
+    double frag_ratio = 0.0;
+    if (stats.total_committed_bytes > 0) {
+      double committed = static_cast<double>(stats.total_committed_bytes);
+      double allocated = static_cast<double>(stats.total_allocated_bytes);
+      if (committed > allocated) {
+        frag_ratio = (committed - allocated) / committed;
+      }
+    }
+
+    SB_LOG(INFO) << "PA_STATS: mmapped=" << stats.total_mmapped_bytes
+                 << " committed=" << stats.total_committed_bytes
+                 << " allocated=" << stats.total_allocated_bytes
+                 << " frag_ratio=" << frag_ratio
+                 << " pss=" << (GetSelfPssKb() * 1024);
+  }
+}
+
+static void MemoryLoggingThreadLoop() {
+  while (!g_stop_thread.load(std::memory_order_relaxed)) {
+    LogPartitionAllocStats();
+    for (int i = 0; i < 50; ++i) {
+      if (g_stop_thread.load(std::memory_order_relaxed)) {
+        break;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+  }
 }
 
 ApplicationAndroid::ApplicationAndroid(
@@ -81,9 +146,19 @@ ApplicationAndroid::ApplicationAndroid(
   app_start_timestamp_ = starboard_bridge_->GetAppStartTimestamp(jni_env);
 
   starboard_bridge_->ApplicationStarted(jni_env);
+
+  // Start the periodic memory logging loop (every 5 seconds)
+  g_stop_thread.store(false, std::memory_order_relaxed);
+  g_logging_thread = std::thread(&MemoryLoggingThreadLoop);
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
+  // Stop and join the logging thread
+  g_stop_thread.store(true, std::memory_order_relaxed);
+  if (g_logging_thread.joinable()) {
+    g_logging_thread.join();
+  }
+
   JNIEnv* env = AttachCurrentThread();
   starboard_bridge_->ApplicationStopping(env);
 }
