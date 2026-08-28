@@ -212,7 +212,9 @@ class GNGenResolver(BaseResolver):
       self,
       diagnostic: Any,
       history_records: List[Dict[str, Any]],
-      use_pro: bool,
+      use_pro: bool = False,
+      use_expert: bool = False,
+      expert_guidance: str = "",
   ) -> Tuple[str, str, str]:
     if not isinstance(diagnostic, GNDiagnostic):
       return "", self.model, ""
@@ -279,7 +281,9 @@ class GNGenResolver(BaseResolver):
         file_context="\n\n".join(file_contexts),
         attempt_history=history_str,
         investigation_history=investigation_str,
+        expert_guidance=expert_guidance,
         use_pro=use_pro,
+        use_expert=use_expert,
     )
     patch = res.get("patch", "")
     model_used = res.get("model_used", self.model)

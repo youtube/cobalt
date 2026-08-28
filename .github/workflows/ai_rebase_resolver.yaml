@@ -164,35 +164,49 @@ jobs:
           fi
 
       - name: Commit, Push and Create/Update AI PR
-        if: steps.run_ai.outputs.resolved == 'true' && inputs.dry_run != true
+        if: inputs.dry_run != true
         working-directory: src
         env:
-          BASE_BRANCH: ${{ steps.branch_setup.outputs.base_branch }}
+          BASE_BRANCH: "staging"
           AI_BRANCH: ${{ steps.branch_setup.outputs.ai_branch }}
+          PR_NUM: ${{ steps.branch_setup.outputs.pr_num }}
+          IS_RESOLVED: ${{ steps.run_ai.outputs.resolved }}
+          GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -x
-          # Check if there are resolved changes
-          if [[ -n "$(git status --porcelain)" ]]; then
-            git add -A
-            git commit -m "RESOLVED: AI automated rebase conflict healing"
-            git push -u origin "${AI_BRANCH}" --force
-
-            # Create or update an isolated Draft PR for AI work
-            PR_TITLE="[AI-Resolved] Experimental roll for ${BASE_BRANCH}"
-            PR_BODY="**Vertex AI Rebase Agent Resolution**\n\nThis PR contains AI automated conflict healing branched from \`${BASE_BRANCH}\`."
-
-            PR_EXISTS=$(gh pr list --head "${AI_BRANCH}" --json number --jq '.[0].number // ""')
-            if [[ -n "${PR_EXISTS}" ]]; then
-              gh pr edit "${PR_EXISTS}" --title "${PR_TITLE}" --body "${PR_BODY}"
+          git add -A
+          if ! git diff --cached --quiet; then
+            if [[ "${IS_RESOLVED}" == "true" ]]; then
+              COMMIT_MSG="RESOLVED: AI automated rebase conflict healing"
             else
-              gh pr create \
-                --draft \
-                --base "${BASE_BRANCH}" \
-                --head "${AI_BRANCH}" \
-                --title "${PR_TITLE}" \
-                --body "${PR_BODY}" \
-                --assignee "${{ github.actor }}"
+              COMMIT_MSG="WIP: AI automated rebase partial progress (build unverified)"
             fi
+            echo "Committing and pushing changes: ${COMMIT_MSG}..."
+            git commit -m "${COMMIT_MSG}"
+            git push -u origin "${AI_BRANCH}" --force
           else
-            echo "No file changes to commit."
+            echo "No working tree diff to commit, pushing branch state..."
+            git push -u origin "${AI_BRANCH}" --force || true
+          fi
+
+          TARGET_PR="${PR_NUM:-custom}"
+          PR_TITLE="[AI] Fix conflicts and builds for PR #${TARGET_PR}"
+          PR_BODY="### Vertex AI Rebase Agent Resolution
+
+          Automated rebase resolution for target PR #${TARGET_PR}.
+          - **Status**: $([[ "${IS_RESOLVED}" == "true" ]] && echo "✅ Build Verified" || echo "⚠️ In Progress")
+          - **AI Branch**: \`${AI_BRANCH}\`
+          - **Target Base**: \`${BASE_BRANCH}\`"
+
+          EXISTING_PR=$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${AI_BRANCH}" --json number --jq '.[0].number // ""')
+          if [[ -n "${EXISTING_PR}" ]]; then
+            echo "Updating existing AI PR #${EXISTING_PR}..."
+            gh pr edit "${EXISTING_PR}" --repo "${GITHUB_REPOSITORY}" --title "${PR_TITLE}" --body "${PR_BODY}"
+          else
+            echo "Creating new AI PR for ${AI_BRANCH} against ${BASE_BRANCH}..."
+            gh pr create --repo "${GITHUB_REPOSITORY}" \
+              --base "${BASE_BRANCH}" \
+              --head "${AI_BRANCH}" \
+              --title "${PR_TITLE}" \
+              --body "${PR_BODY}"
           fi

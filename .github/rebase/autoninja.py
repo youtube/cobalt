@@ -390,7 +390,9 @@ class AutoninjaResolver(BaseResolver):
       self,
       diagnostic: Any,
       history_records: List[Dict[str, Any]],
-      use_pro: bool,
+      use_pro: bool = False,
+      use_expert: bool = False,
+      expert_guidance: str = "",
   ) -> Tuple[str, str, str]:
     if isinstance(diagnostic, str):
       error_trace = diagnostic[:32768]
@@ -407,7 +409,9 @@ class AutoninjaResolver(BaseResolver):
           file_context="",
           target_file="",
           history=history_str,
+          expert_guidance=expert_guidance,
           use_pro=use_pro,
+          use_expert=use_expert,
       )
       patch = res.get("patch", "")
       model_used = res.get("model_used", self.model)
@@ -503,7 +507,9 @@ class AutoninjaResolver(BaseResolver):
         target_file=diagnostic.file_path,
         history=history_str,
         investigation_history=investigation_str,
+        expert_guidance=expert_guidance,
         use_pro=use_pro,
+        use_expert=use_expert,
     )
     patch = res.get("patch", "")
     model_used = res.get("model_used", self.model)

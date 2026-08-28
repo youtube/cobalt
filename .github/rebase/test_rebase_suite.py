@@ -738,7 +738,9 @@ target("foo") {{}}
         source_contexts="",
         past_experience="",
         investigation_history="",
+        expert_guidance="",
         use_pro=False,
+        use_expert=False,
     )
 
 

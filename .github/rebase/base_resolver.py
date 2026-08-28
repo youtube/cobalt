@@ -494,6 +494,114 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
     except Exception as e:  # pylint: disable=broad-exception-caught
       return f"[ERROR] Git show failed: {e}"
 
+  if clean_cmd.startswith("TOOL_READ_PR:"):
+    pr_target = clean_cmd.split(":", 1)[1].strip().lstrip("#")
+    try:
+      res = subprocess.run(
+          [
+              "gh", "pr", "view", pr_target, "--json",
+              "number,title,body,commits"
+          ],
+          cwd=repo_path,
+          capture_output=True,
+          text=True,
+          check=False,
+      )
+      return (res.stdout[:8000] if res.stdout else
+              f"Could not view PR: {pr_target} ({res.stderr})")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] gh pr view failed: {e}"
+
+  if clean_cmd.startswith("TOOL_PR_DIFF:"):
+    pr_target = clean_cmd.split(":", 1)[1].strip().lstrip("#")
+    try:
+      res = subprocess.run(
+          ["gh", "pr", "diff", pr_target],
+          cwd=repo_path,
+          capture_output=True,
+          text=True,
+          check=False,
+      )
+      return (res.stdout[:16384] if res.stdout else
+              f"Could not diff PR: {pr_target} ({res.stderr})")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] gh pr diff failed: {e}"
+
+  if clean_cmd.startswith("TOOL_GIT_DIFF:"):
+    diff_args = clean_cmd.split(":", 1)[1].strip().split()
+    try:
+      res = subprocess.run(
+          ["git", "diff"] + diff_args,
+          cwd=repo_path,
+          capture_output=True,
+          text=True,
+          errors="replace",
+          check=False,
+      )
+      return (res.stdout[:16384]
+              if res.stdout else f"Git diff empty or failed for: {diff_args}")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] Git diff failed: {e}"
+
+  if clean_cmd.startswith("TOOL_GIT_LOG:"):
+    args = clean_cmd.split(":", 1)[1].strip().split()
+    try:
+      count = 5
+      target_path = ""
+      if args and args[0].isdigit():
+        count = int(args[0])
+        target_path = " ".join(args[1:])
+      else:
+        target_path = " ".join(args)
+      cmd = ["git", "log", f"-n{count}", "--oneline"]
+      if target_path:
+        cmd.extend(["--", target_path])
+      res = subprocess.run(
+          cmd,
+          cwd=repo_path,
+          capture_output=True,
+          text=True,
+          errors="replace",
+          check=False,
+      )
+      return (res.stdout[:4000]
+              if res.stdout else f"No git log found for: {target_path}")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] Git log failed: {e}"
+
+  if clean_cmd.startswith("TOOL_UPSTREAM_DIFF:"):
+    target_path = clean_cmd.split(":", 1)[1].strip()
+    try:
+      # Find commit with message "Update to 14" (Commit #3 containing pure Chromium changes)
+      log_res = subprocess.run(
+          ["git", "log", "-n20", "--grep=Update to 14", "--format=%H %s"],
+          cwd=repo_path,
+          capture_output=True,
+          text=True,
+          check=False,
+      )
+      lines = [
+          l for l in log_res.stdout.splitlines()
+          if not l.startswith("CONFLICTED")
+      ]
+      if lines:
+        upstream_sha = lines[0].split()[0]
+        cmd = (["git", "show", "--stat", "-p", upstream_sha, "--", target_path]
+               if target_path else ["git", "show", "--stat", upstream_sha])
+        diff_res = subprocess.run(
+            cmd,
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            errors="replace",
+            check=False,
+        )
+        return (diff_res.stdout[:8000] if diff_res.stdout else
+                f"No upstream changes in {upstream_sha} for: {target_path}")
+      return "Could not find upstream roll commit ('Update to 14...')"
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] Upstream diff failed: {e}"
+
   if clean_cmd.startswith("TOOL_GCLIENT_SYNC"):
     try:
       clean_env = get_clean_build_env()
@@ -629,7 +737,9 @@ class BaseResolver(abc.ABC):
       self,
       diagnostic: Any,
       history_records: List[Dict[str, Any]],
-      use_pro: bool,
+      use_pro: bool = False,
+      use_expert: bool = False,
+      expert_guidance: str = "",
   ) -> Tuple[str, str, str]:
     """Generates a patch. Returns (patch, model_used, target_file)."""
 
@@ -637,6 +747,24 @@ class BaseResolver(abc.ABC):
     """Hook called immediately after a patch is applied."""
     if self.on_patch_applied_fn:
       self.on_patch_applied_fn(modified_files)
+
+  def get_working_diff(self) -> str:
+    """Returns git diff of uncommitted modifications in repository."""
+    try:
+      proc = subprocess.run(
+          ["git", "diff", "--no-color", "HEAD"],
+          cwd=self.repo_path,
+          stdout=subprocess.PIPE,
+          stderr=subprocess.PIPE,
+          text=True,
+          timeout=15,
+          check=False,
+      )
+      if proc.returncode == 0 and proc.stdout:
+        return proc.stdout[:16384]
+    except Exception:  # pylint: disable=broad-exception-caught
+      pass
+    return ""
 
   def check_and_clean_stray_marker(
       self,
@@ -783,8 +911,77 @@ class BaseResolver(abc.ABC):
         stuck_count = 0
       last_error_summary = error_summary
 
-      use_pro = stuck_count >= 1 or hit_multi_errors
-      if use_pro:
+      use_expert = stuck_count >= 2 or self.file_error_counts.get(target_f,
+                                                                  0) >= 3
+      use_pro = stuck_count >= 1 or hit_multi_errors or use_expert
+      expert_guidance = ""
+
+      if use_expert:
+        print(
+            f"  [{self.name}] [TIER-2 ARCHITECT] Consulting Claude Sonnet for "
+            f"strategic guidance (repetition: {stuck_count}, file errors: "
+            f"{self.file_error_counts.get(target_f, 0)})...",
+            file=sys.stderr,
+        )
+        working_diff = self.get_working_diff()
+        history_lines = []
+        for h in history_records[-6:]:
+          it = h.get("iteration", "")
+          hf = h.get("file", "")
+          he = h.get("error", "")
+          history_lines.append(
+              f"- Iteration {it}: Modified {hf} -> Error: {he}")
+        traj_str = "\n".join(history_lines)
+
+        diag_trace = (
+            first_diag.error_message
+            if hasattr(first_diag, "error_message") else str(first_diag))
+        file_ctx = ""
+        if hasattr(first_diag, "file_path") and os.path.isfile(
+            first_diag.file_path):
+          try:
+            with open(
+                first_diag.file_path, "r", encoding="utf-8",
+                errors="replace") as f:
+              lines = f.readlines()
+            ln = getattr(first_diag, "line_number", 1) or 1
+            s_l = max(1, ln - 20)
+            e_l = min(len(lines), ln + 20)
+            file_ctx = "".join(
+                f"{s_l + i}: {l}" for i, l in enumerate(lines[s_l - 1:e_l]))
+          except OSError:
+            pass
+
+        try:
+          guidance_res = self.reasoning_engine.generate_expert_guidance(
+              target=getattr(first_diag, "file_path", self.name),
+              diagnostics=diag_trace,
+              source_contexts=file_ctx,
+              trajectory_history=traj_str,
+              working_diff=working_diff,
+              mode="gn" if "gn" in self.name.lower() else "compiler",
+          )
+          expert_guidance = guidance_res.get("guidance", "")
+          if expert_guidance and re.search(
+              r"^(TOOL_[A-Z_]+:.*)$", expert_guidance.strip(), re.MULTILINE):
+            expert_guidance, _ = self.execute_investigation_tools(
+                initial_patch=expert_guidance,
+                diagnostic=first_diag,
+            )
+          if expert_guidance:
+            first_g_line = expert_guidance.splitlines()[0][:100]
+            print(
+                f"  [{self.name}] [TIER-2 ARCHITECT] Received Guidance:\n"
+                f"  >>> {first_g_line}...",
+                file=sys.stderr,
+            )
+        except Exception as e:  # pylint: disable=broad-exception-caught
+          print(
+              f"  [{self.name}] Warning: Expert guidance query failed: {e}",
+              file=sys.stderr,
+          )
+
+      elif use_pro:
         reason = (f"file hit {self.file_error_counts.get(target_f, 0)} errors"
                   if hit_multi_errors else f"repetition count: {stuck_count}")
         print(
@@ -797,6 +994,8 @@ class BaseResolver(abc.ABC):
           diagnostic=first_diag,
           history_records=history_records,
           use_pro=use_pro,
+          use_expert=False,
+          expert_guidance=expert_guidance,
       )
 
       # Check for multi-turn tool commands

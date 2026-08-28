@@ -77,6 +77,12 @@ Determine why Chromium upstream modified the file, interface, or dependency:
    git log -n 5 -p origin/main -- <relative_filepath>
    ```
 
+4. **Pure Upstream Roll Commit (Commit #3 Inspection)**:
+   * In every Cobalt autoroll PR, **Commit #3 (e.g., `Update to 140.7298.` or `Update to 140.7339.`)** contains the **pure upstream Chromium changes**.
+   * Use this commit to see the exact changes upstream Chromium authors introduced before Cobalt conflicts were introduced:
+     * **Tool Command**: `TOOL_UPSTREAM_DIFF: <filepath>` (extracts pure upstream changes for that file)
+     * **Git CLI**: `git show $(git log -n20 --grep="Update to 14" --format=%H | grep -v CONFLICTED | head -n1) -- <filepath>`
+
 ---
 
 ### Step 3: Search Chromium's Public Issue Tracker (issues.chromium.org)

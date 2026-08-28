@@ -151,7 +151,9 @@ class GClientSyncResolver(BaseResolver):
       self,
       diagnostic: Any,
       history_records: List[Dict[str, Any]],
-      use_pro: bool,
+      use_pro: bool = False,
+      use_expert: bool = False,
+      expert_guidance: str = "",
   ) -> Tuple[str, str, str]:
     del history_records  # Unused for single DEPS resolution
     if not isinstance(diagnostic, GClientSyncDiagnostic):
@@ -180,7 +182,9 @@ class GClientSyncResolver(BaseResolver):
         language="Python",
         raw_conflict=current_deps,
         instruction=instruction,
+        expert_guidance=expert_guidance,
         use_pro=use_pro,
+        use_expert=use_expert,
     )
     raw_patch = res.get("patch", "")
     model_used = res.get("model_used", self.model)

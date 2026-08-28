@@ -68,6 +68,8 @@ def deploy_reasoning_engine(
     display_name: str = "CobaltReasoningEngine",
     flash_model: str = "gemini-2.5-flash",
     pro_model: str = "gemini-2.5-pro",
+    expert_model: Optional[str] = None,
+    expert_location: Optional[str] = None,
 ) -> str:
   """Deploys a new CobaltReasoningEngine instance to Vertex AI."""
   effective_bucket = _get_effective_staging_bucket(staging_bucket, project_id)
@@ -88,6 +90,8 @@ def deploy_reasoning_engine(
       location=location,
       flash_model=flash_model,
       pro_model=pro_model,
+      expert_model=expert_model,
+      expert_location=expert_location,
   )
 
   remote_app = reasoning_engines.ReasoningEngine.create(
@@ -96,6 +100,7 @@ def deploy_reasoning_engine(
           "google-genai",
           "google-cloud-aiplatform[reasoningengine,langchain]",
           "google-cloud-storage",
+          "anthropic[vertex]",
       ],
       display_name=display_name,
       description=(
@@ -120,6 +125,8 @@ def update_reasoning_engine(
     display_name: str = "CobaltReasoningEngine",
     flash_model: str = "gemini-2.5-flash",
     pro_model: str = "gemini-2.5-pro",
+    expert_model: Optional[str] = None,
+    expert_location: Optional[str] = None,
 ):
   """Updates an existing Reasoning Engine instance on Vertex AI."""
   effective_bucket = _get_effective_staging_bucket(staging_bucket, project_id)
@@ -140,6 +147,8 @@ def update_reasoning_engine(
       location=location,
       flash_model=flash_model,
       pro_model=pro_model,
+      expert_model=expert_model,
+      expert_location=expert_location,
   )
   existing_engine = reasoning_engines.ReasoningEngine(resource_name)
   existing_engine.update(
@@ -148,6 +157,7 @@ def update_reasoning_engine(
           "google-genai",
           "google-cloud-aiplatform[reasoningengine,langchain]",
           "google-cloud-storage",
+          "anthropic[vertex]",
       ],
       display_name=display_name,
   )
@@ -237,6 +247,16 @@ def main():
       default="gemini-2.5-pro",
       help="Default Pro model for complex escalations.",
   )
+  parser.add_argument(
+      "--expert-model",
+      default=os.environ.get("EXPERT_MODEL", "claude-sonnet-4-6"),
+      help="Expert LLM model (e.g. claude-sonnet-4-6).",
+  )
+  parser.add_argument(
+      "--expert-location",
+      default=os.environ.get("EXPERT_LOCATION", "us-east5"),
+      help="Vertex AI Region for Expert LLM (e.g. us-east5).",
+  )
   args = parser.parse_args()
 
   if not args.project_id:
@@ -255,6 +275,8 @@ def main():
         display_name=args.display_name,
         flash_model=args.flash_model,
         pro_model=args.pro_model,
+        expert_model=args.expert_model,
+        expert_location=args.expert_location,
     )
   elif args.action == "update":
     if not args.resource_id:
@@ -268,6 +290,8 @@ def main():
         display_name=args.display_name,
         flash_model=args.flash_model,
         pro_model=args.pro_model,
+        expert_model=args.expert_model,
+        expert_location=args.expert_location,
     )
   elif args.action == "list":
     list_reasoning_engines(

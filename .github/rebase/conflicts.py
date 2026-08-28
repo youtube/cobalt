@@ -533,9 +533,11 @@ class ConflictResolver(BaseResolver):
       self,
       diagnostic: Any,
       history_records: List[Dict[str, Any]],
-      use_pro: bool,
+      use_pro: bool = False,
+      use_expert: bool = False,
+      expert_guidance: str = "",
   ) -> Tuple[str, str, str]:
-    del history_records, use_pro
+    del history_records, use_pro, use_expert, expert_guidance
     tf = str(diagnostic)
     rel = os.path.relpath(tf, self.repo_path)
     ok = resolve_file_conflicts(

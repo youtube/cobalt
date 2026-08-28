@@ -179,6 +179,35 @@ class ReasoningEngineClient:
         failure_memory=failure_memory,
     )
 
+  def generate_expert_guidance(
+      self,
+      target: str = "",
+      diagnostics: str = "",
+      source_contexts: str = "",
+      *,
+      error_trace: str = "",
+      file_context: str = "",
+      target_file: str = "",
+      trajectory_history: str = "",
+      working_diff: str = "",
+      investigation_history: str = "",
+      mode: str = "compiler",
+  ) -> Dict[str, Any]:
+    """Requests Tier-2 Senior Architect (Claude Sonnet) strategic guidance."""
+    eff_target = target or target_file or "cobalt"
+    eff_diag = diagnostics or error_trace
+    eff_ctx = source_contexts or file_context
+    return self.query(
+        action="generate_expert_guidance",
+        target=eff_target,
+        diagnostics=eff_diag,
+        source_contexts=eff_ctx,
+        trajectory_history=trajectory_history,
+        working_diff=working_diff,
+        investigation_history=investigation_history,
+        mode=mode,
+    )
+
   def resolve_conflict(
       self,
       file_path: str,
@@ -191,7 +220,9 @@ class ReasoningEngineClient:
       past_experience: str = "",
       investigation_history: str = "",
       instruction: str = "",
+      expert_guidance: str = "",
       use_pro: bool = False,
+      use_expert: bool = False,
   ) -> Dict[str, Any]:
     """Resolves source/DEPS merge conflict via hosted Reasoning Engine."""
     return self.query(
@@ -205,7 +236,9 @@ class ReasoningEngineClient:
         past_experience=past_experience,
         investigation_history=investigation_history,
         instruction=instruction,
+        expert_guidance=expert_guidance,
         use_pro=use_pro,
+        use_expert=use_expert,
     )
 
   def heal_gn_error(
@@ -216,7 +249,9 @@ class ReasoningEngineClient:
       attempt_history: str = "",
       past_experience: str = "",
       investigation_history: str = "",
+      expert_guidance: str = "",
       use_pro: bool = False,
+      use_expert: bool = False,
   ) -> Dict[str, Any]:
     """Fixes GN build error via hosted Reasoning Engine."""
     return self.query(
@@ -226,7 +261,9 @@ class ReasoningEngineClient:
         attempt_history=attempt_history,
         past_experience=past_experience,
         investigation_history=investigation_history,
+        expert_guidance=expert_guidance,
         use_pro=use_pro,
+        use_expert=use_expert,
     )
 
   def heal_compiler_error(
@@ -241,7 +278,9 @@ class ReasoningEngineClient:
       history: str = "",
       past_experience: str = "",
       investigation_history: str = "",
+      expert_guidance: str = "",
       use_pro: bool = False,
+      use_expert: bool = False,
   ) -> Dict[str, Any]:
     """Fixes compiler / linker error via hosted Reasoning Engine."""
     eff_target = target or target_file or "cobalt"
@@ -256,7 +295,9 @@ class ReasoningEngineClient:
         source_contexts=eff_ctx,
         past_experience=past_experience,
         investigation_history=eff_inv,
+        expert_guidance=expert_guidance,
         use_pro=use_pro,
+        use_expert=use_expert,
     )
 
   def record_successful_fix(
