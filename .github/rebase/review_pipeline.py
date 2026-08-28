@@ -99,15 +99,28 @@ def partition_roll_commits(
   return [], commits
 
 
-def get_diff_for_commits(commits: List[Dict[str, Any]],
-                         repo_root: str,
-                         base_sha: Optional[str] = None) -> str:
-  """Calculates git diff across a list of commits."""
+def get_diff_for_commits(
+    commits: List[Dict[str, Any]],
+    repo_root: str,
+    base_sha: Optional[str] = None,
+    pr_num: str = "",
+) -> str:
+  """Calculates git diff across a list of commits with remote fallbacks."""
   if not commits:
     return ""
 
   first_sha = base_sha or commits[0].get("oid", "")
   last_sha = commits[-1].get("oid", "")
+
+  # Ensure commits exist locally if pr_num is given
+  if pr_num and (first_sha or last_sha):
+    clean_pr = str(pr_num).strip().lstrip("#")
+    if last_sha:
+      ok, _, _ = run_cmd(["git", "cat-file", "-e", f"{last_sha}^{{commit}}"],
+                         cwd=repo_root)
+      if not ok:
+        run_cmd(["git", "fetch", "origin", f"pull/{clean_pr}/head"],
+                cwd=repo_root)
 
   if first_sha and last_sha:
     diff_range = (f"{first_sha}..{last_sha}"
@@ -116,14 +129,24 @@ def get_diff_for_commits(commits: List[Dict[str, Any]],
     if ok and out:
       return out
 
-  # Fallback: git show individual commits
+  # Fallback: git show individual commits or fetch via GitHub API
   diff_chunks = []
   for c in commits:
     sha = c.get("oid", "")
     headline = c.get("messageHeadline", "")
+    if not sha:
+      continue
     ok, out, _ = run_cmd(["git", "show", "--stat", "-p", sha], cwd=repo_root)
     if ok and out:
       diff_chunks.append(f"Commit: {sha} ({headline})\n{out}")
+    else:
+      ok_api, out_api, _ = run_cmd([
+          "gh", "api", f"repos/youtube/cobalt/commits/{sha}", "-H",
+          "Accept: application/vnd.github.v3.diff"
+      ],
+                                   cwd=repo_root)
+      if ok_api and out_api:
+        diff_chunks.append(f"Commit: {sha} ({headline})\n{out_api}")
 
   return "\n\n".join(diff_chunks)
 
@@ -705,7 +728,8 @@ def main():
 
   # Diff of the human fix is from 5th commit (conflicted roll) to last commit
   base_sha = h_infra[-1].get("oid", "") if h_infra else None
-  human_diff = get_diff_for_commits(h_fixes, repo_root, base_sha=base_sha)
+  human_diff = get_diff_for_commits(
+      h_fixes, repo_root, base_sha=base_sha, pr_num=h_num)
   if not human_diff:
     _, human_diff, _ = run_cmd(["gh", "pr", "diff", h_num])
 
@@ -719,9 +743,10 @@ def main():
         file=sys.stderr,
     )
     a_base_sha = a_infra[-1].get("oid", "")
-    ai_diff = get_diff_for_commits(a_fixes, repo_root, base_sha=a_base_sha)
+    ai_diff = get_diff_for_commits(
+        a_fixes, repo_root, base_sha=a_base_sha, pr_num=a_num)
   else:
-    ai_diff = get_diff_for_commits(a_commits, repo_root)
+    ai_diff = get_diff_for_commits(a_commits, repo_root, pr_num=a_num)
   if not ai_diff:
     _, ai_diff, _ = run_cmd(["gh", "pr", "diff", a_num])
 
