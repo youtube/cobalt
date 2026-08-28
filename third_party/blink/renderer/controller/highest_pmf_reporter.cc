@@ -168,16 +168,11 @@ void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
   if (FirstNavigationStarted()) {
     task_runner_->PostDelayedTask(
         FROM_HERE,
-<<<<<<< HEAD
         blink::BindOnce(&HighestPmfReporter::OnReportMetrics,
                         blink::Unretained(this)),
-=======
-        WTF::BindOnce(&HighestPmfReporter::OnReportMetrics,
-                      WTF::Unretained(this)),
 #if BUILDFLAG(IS_COBALT)
         time_to_report_[0]);
 #else
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         kTimeToReport[0]);
 #endif
   }
