@@ -107,7 +107,6 @@ base::HeapArray<uint8_t> PrepareAACBuffer(
 }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
-<<<<<<< HEAD
 #if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 base::HeapArray<uint8_t> PrependIADescriptors(
     const IamfSpecificBox& iacb,
@@ -130,11 +129,7 @@ base::HeapArray<uint8_t> PrependIADescriptors(
 
   return output_buffer;
 }
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-
-=======
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}  // namespace
+#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)}  // namespace
 
 MP4StreamParser::MP4StreamParser(
     std::optional<base::flat_set<int>> strict_audio_object_types,

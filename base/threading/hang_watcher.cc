@@ -978,19 +978,14 @@ void HangWatcher::Run() {
 #endif
     Wait();
 
-<<<<<<< HEAD
-    if (IsWatchingThreads() &&
-=======
-    bool has_work = !IsWatchListEmpty();
+bool has_work = !IsWatchListEmpty();
 #if BUILDFLAG(IS_COBALT)
     // If the watch list is empty but we have an active hang UUID, we still
     // have work to do (cleaning up the recovery state).
     has_work = has_work || !active_hang_uuid_.empty();
 #endif
 
-    if (has_work &&
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-        g_keep_monitoring.load(std::memory_order_relaxed)) {
+    if (has_work &&        g_keep_monitoring.load(std::memory_order_relaxed)) {
       Monitor();
       if (after_monitor_closure_for_testing_) {
         after_monitor_closure_for_testing_.Run();
@@ -1381,9 +1376,6 @@ void HangWatcher::DoDumpWithoutCrashing(
 
   SCOPED_CRASH_KEY_BOOL("HangWatcher", "shutting-down",
                         g_shutting_down.load(std::memory_order_relaxed));
-<<<<<<< HEAD
-=======
-
 #if BUILDFLAG(IS_COBALT)
   int64_t configured_timeout =
       g_hang_watch_time_us.load(std::memory_order_relaxed);
@@ -1450,8 +1442,6 @@ void HangWatcher::DoDumpWithoutCrashing(
 #endif  // BUILDFLAG(IS_STARBOARD)
 #endif  // BUILDFLAG(IS_COBALT)
 #endif  // !BUILDFLAG(IS_NACL)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
   // To avoid capturing more than one hang that blames a subset of the same
   // threads it's necessary to keep track of what is the furthest deadline
   // that contributed to declaring a hang. Only once

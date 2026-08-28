@@ -2307,6 +2307,15 @@ static_library("test_support") {
     "//url",
   ]
 
+  if (is_cobalt) {
+    # The Cobalt-specific exclusion of "websockets/websocket_end_to_end_test.cc"
+    # is no longer necessary as the file was removed from this target upstream.
+  }
+
+
+
+
+
   deps = [
     ":quic_test_flags_utils",
     ":simple_quic_tools",
@@ -2341,9 +2350,7 @@ static_library("test_support") {
 
   public_configs = [ ":net_test_config" ]
 
-<<<<<<< HEAD
-=======
-  if (use_remote_test_server) {
+if (use_remote_test_server) {
     sources += [
       "test/spawned_test_server/remote_test_server.cc",
       "test/spawned_test_server/remote_test_server.h",
@@ -2360,10 +2367,7 @@ static_library("test_support") {
     } else if (is_posix || is_fuchsia) {
       sources += [ "test/spawned_test_server/local_test_server_posix.cc" ]
     }
-  }
-
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  if (enable_python_utils) {
+  }  if (enable_python_utils) {
     sources += [
       "test/python_utils.cc",
       "test/python_utils.h",
@@ -3164,6 +3168,9 @@ target(_test_target_type, "net_unittests") {
     "QuicVersionsFuzzTest.ParseSerializeParseIdentityProperty",
   ]
 
+  if (is_cobalt) {
+  }
+
   deps = [
     ":cronet_buildflags",
     ":isolation_info_proto",
@@ -3375,18 +3382,15 @@ target(_test_target_type, "net_unittests") {
       "websockets/websocket_test_util.cc",
       "websockets/websocket_test_util.h",
     ]
-<<<<<<< HEAD
-=======
-
-    if (!is_ios && !is_starboard) {
+if (!is_ios && !is_starboard) {
       # TODO(crbug.com/40812029): iOS does not have support for the spawned test
       # server, which is used by this test. The long term plan is to add
       # websocket support to the embedded test server and when that happens,
       # this test could be enabled.
+      if (is_android) {
       sources += [ "websockets/websocket_end_to_end_test.cc" ]
     }
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  }
+    }  }
 
   if (!disable_file_support) {
     sources += [

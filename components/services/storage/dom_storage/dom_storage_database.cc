@@ -8,8 +8,6 @@
 
 namespace storage {
 
-<<<<<<< HEAD
-=======
 namespace {
 
 // IOError message returned whenever a call is made on a DomStorageDatabase
@@ -105,10 +103,7 @@ DbStatus ForEachWithPrefix(leveldb::DB* db,
   return FromLevelDBStatus(iter->status());
 }
 
-}  // namespace
-
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-DomStorageDatabase::KeyValuePair::KeyValuePair() = default;
+}  // namespaceDomStorageDatabase::KeyValuePair::KeyValuePair() = default;
 
 DomStorageDatabase::KeyValuePair::~KeyValuePair() = default;
 
@@ -160,12 +155,7 @@ void DomStorageDatabaseFactory::Destroy(
     const base::FilePath& directory,
     const std::string& name,
     scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
-<<<<<<< HEAD
-    base::OnceCallback<void(DbStatus)> callback) {
-  DomStorageDatabaseLevelDB::Destroy(
-      directory, name, std::move(blocking_task_runner), std::move(callback));
-=======
-    StatusCallback callback) {
+StatusCallback callback) {
   blocking_task_runner->PostTask(
       FROM_HERE,
       base::BindOnce(
@@ -285,8 +275,6 @@ bool DomStorageDatabase::OnMemoryDump(
   global_dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
                          base::trace_event::MemoryAllocatorDump::kUnitsBytes,
                          dump->GetSizeInternal());
-  return true;
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+  return true;}
 
 }  // namespace storage

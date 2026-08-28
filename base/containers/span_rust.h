@@ -11,14 +11,9 @@
 #include "build/build_config.h"
 #include "third_party/rust/cxx/v1/cxx.h"
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_STARBOARD) && !defined(SB_IS_DEFAULT_TC)
 #error "span_rust.h included under IS_NACL"
-#endif
-
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-namespace base {
+#endifnamespace base {
 
 // Creates a Rust slice from a span.
 inline rust::Slice<const uint8_t> SpanToRustSlice(span<const uint8_t> span) {
