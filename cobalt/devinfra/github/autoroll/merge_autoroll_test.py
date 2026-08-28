@@ -142,8 +142,8 @@ class TestMergeAutoroll(unittest.TestCase):
 
     # Verify gh pr list call
     mock_run.assert_any_call([
-        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
-        '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
+        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH, '--state',
+        'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title,url'
     ],
                              capture_output=True,
@@ -209,8 +209,8 @@ class TestMergeAutoroll(unittest.TestCase):
         merge_autoroll.main()
     self.assertEqual(cm.exception.code, 0)
     mock_run.assert_called_once_with([
-        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
-        '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
+        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH, '--state',
+        'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title,url'
     ],
                                      capture_output=True,
@@ -236,8 +236,8 @@ class TestMergeAutoroll(unittest.TestCase):
 
     self.assertEqual(cm.exception.code, 1)
     mock_run.assert_called_once_with([
-        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
-        '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
+        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH, '--state',
+        'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title,url'
     ],
                                      capture_output=True,
@@ -279,8 +279,8 @@ class TestMergeAutoroll(unittest.TestCase):
       with self.assertRaises(subprocess.CalledProcessError):
         merge_autoroll.main()
     mock_run.assert_called_once_with([
-        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
-        '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
+        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH, '--state',
+        'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title,url'
     ],
                                      capture_output=True,
@@ -356,8 +356,7 @@ class TestAppCredentialExchange(unittest.TestCase):
 
     with patch('sys.stdout'), patch('sys.stderr'):
       with self.assertRaises(urllib.error.HTTPError):
-        merge_autoroll.get_installation_access_token(
-            '12345', '/tmp/fake.pem')
+        merge_autoroll.get_installation_access_token('12345', '/tmp/fake.pem')
 
   # pylint: enable=unused-argument
 
@@ -388,11 +387,10 @@ class TestWrappers(unittest.TestCase):
   def test_git_wrapper_authenticated(self, mock_run):
     merge_autoroll.git('status', authenticated=True)
     mock_run.assert_called_once_with([
-        'git',
-        '-c', 'credential.helper=',
-        '-c', 'credential.helper=!gh auth git-credential',
-        'status'
-    ], check=True)
+        'git', '-c', 'credential.helper=', '-c',
+        'credential.helper=!gh auth git-credential', 'status'
+    ],
+                                     check=True)
 
   @patch('subprocess.run')
   def test_gh_wrapper_default_check(self, mock_run):

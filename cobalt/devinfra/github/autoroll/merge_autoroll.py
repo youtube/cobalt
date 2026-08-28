@@ -55,8 +55,8 @@ def git(*args, authenticated=False, **kwargs):
   auth_args = []
   if authenticated:
     auth_args = [
-        '-c', 'credential.helper=',
-        '-c', 'credential.helper=!gh auth git-credential'
+        '-c', 'credential.helper=', '-c',
+        'credential.helper=!gh auth git-credential'
     ]
   return run_cmd(['git'] + auth_args + list(args), **kwargs)
 
@@ -197,11 +197,7 @@ def rebase_and_push(target, pr, env):
         env=env)
 
     log('Creating temporary worktree...')
-    git('worktree',
-        'add',
-        '--no-checkout',
-        tmpdir,
-        f'origin/{head}')
+    git('worktree', 'add', '--no-checkout', tmpdir, f'origin/{head}')
     worktree_added = True
 
     os.chdir(tmpdir)
@@ -213,7 +209,8 @@ def rebase_and_push(target, pr, env):
     autoroll_files = ['.github/AUTOROLL', '.github/AUTOROLL_CHROMIUM']
     for f in autoroll_files:
       if has_conflicts(f):
-        log(f'Error: Autoroll file {f} contains conflict markers or is marked CONFLICTED.')
+        log(f'Error: Autoroll file {f} contains conflict markers or is marked CONFLICTED.'
+           )
         sys.exit(1)
 
     log('Rebasing...')
@@ -226,11 +223,7 @@ def rebase_and_push(target, pr, env):
       return
 
     log(f'Pushing {target}...')
-    git('push',
-        REPO_URL,
-        f'HEAD:{target}',
-        authenticated=True,
-        env=env)
+    git('push', REPO_URL, f'HEAD:{target}', authenticated=True, env=env)
   finally:
     log('Cleaning up temporary worktree...')
     os.chdir(orig_cwd)
@@ -242,8 +235,9 @@ def rebase_and_push(target, pr, env):
 
 def main():
   parser = argparse.ArgumentParser(
-      description=('Merge autoroll PRs. Target repository can be configured via '
-                   'the GITHUB_REPOSITORY environment variable.'))
+      description=(
+          'Merge autoroll PRs. Target repository can be configured via '
+          'the GITHUB_REPOSITORY environment variable.'))
   parser.add_argument(
       '--source-branch', required=True, help='Source branch name')
   parser.add_argument(
