@@ -39,7 +39,7 @@ running `tools/buildstate.py`.
 
 Our bots run `ninjatracing` and `post_build_ninja_summary.py` as well.
 
-Find the trace at: `postprocess for reclient > gsutil upload ninja_log > ninja_log`:
+Find the trace at: `postprocess for reclient > gcloud storage cp ninja_log  gs://bucket_name/ninja_log`:
 
  * _".ninja_log in table format (full)"_ is for `post_build_ninja_summary.py`.
  * _"trace viewer (sort_by_end)"_ is for `ninjatracing`.
