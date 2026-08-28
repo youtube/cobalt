@@ -49,6 +49,7 @@ jobs:
               pr = prResponse.data;
             }
 
+            // TODO: Use commit status from the ci_shepherd to determine which workflows to restart instead.
             const logicalWorkflows = ['android', 'aosp', 'evergreen', 'linux', 'tvos'];
 
             // Get list of workflow files in the base branch
