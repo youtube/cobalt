@@ -82,41 +82,72 @@ SbSocket AcceptBySpinning(SbSocket server_socket, int64_t timeout) {
 }
 
 #if !USE_POSIX_PIPE
+// Per-attempt timeout for AcceptBySpinning. Increased from the original 66ms
+// (1s/15) to 500ms to reduce flakiness when the system is under load during
+// app startup or lifecycle transitions, where loopback accept may take longer
+// than expected.
+const int64_t kAcceptTimeoutUsec = 500 * 1000;
+
+// Maximum number of attempts to create the loopback socket pair before
+// aborting. The original code aborted on the first failure, which caused
+// crashes during stress conditions (see GOOGAMCONS-65 sibling tickets).
+const int kMaxGetSocketPipeAttempts = 5;
+
 void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
-  int result;
-  SbSocketError sb_socket_result;
-  const int64_t kTimeoutUsec = 1'000'000 / 15;
-  SbSocketAddress address = GetIpv4Localhost();
+  *client_socket = kSbSocketInvalid;
+  *server_socket = kSbSocketInvalid;
 
-  // Setup a listening socket.
-  SbSocket listen_socket =
-      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
-  SB_DCHECK(SbSocketIsValid(listen_socket));
-  result = SbSocketSetReuseAddress(listen_socket, true);
-  SB_DCHECK(result);
-  sb_socket_result = SbSocketBind(listen_socket, &address);
-  SB_DCHECK(sb_socket_result == kSbSocketOk);
-  sb_socket_result = SbSocketListen(listen_socket);
-  SB_DCHECK(sb_socket_result == kSbSocketOk);
-  // Update the address after a free port has been assigned.
-  SbSocketGetLocalAddress(listen_socket, &address);
+  for (int attempt = 0; attempt < kMaxGetSocketPipeAttempts; ++attempt) {
+    bool result;
+    SbSocketError sb_socket_result;
+    SbSocketAddress address = GetIpv4Localhost();
 
-  // Create a new socket to connect to the listening socket.
-  *client_socket =
-      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
-  SB_DCHECK(SbSocketIsValid(*client_socket));
-  // This connect will probably return pending, but we'll assume it will connect
-  // eventually.
-  sb_socket_result = SbSocketConnect(*client_socket, &address);
-  SB_DCHECK(sb_socket_result == kSbSocketOk ||
-            sb_socket_result == kSbSocketPending);
+    // Setup a listening socket.
+    SbSocket listen_socket =
+        SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+    SB_DCHECK(SbSocketIsValid(listen_socket));
+    result = SbSocketSetReuseAddress(listen_socket, true);
+    SB_DCHECK(result);
+    sb_socket_result = SbSocketBind(listen_socket, &address);
+    SB_DCHECK(sb_socket_result == kSbSocketOk);
+    sb_socket_result = SbSocketListen(listen_socket);
+    SB_DCHECK(sb_socket_result == kSbSocketOk);
+    // Update the address after a free port has been assigned.
+    SbSocketGetLocalAddress(listen_socket, &address);
 
-  // Spin until the accept happens (or we get impatient).
-  *server_socket = AcceptBySpinning(listen_socket, kTimeoutUsec);
-  SB_CHECK(SbSocketIsValid(*server_socket));
+    // Create a new socket to connect to the listening socket.
+    *client_socket =
+        SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+    SB_DCHECK(SbSocketIsValid(*client_socket));
+    // This connect will probably return pending, but we'll assume it will
+    // connect eventually.
+    sb_socket_result = SbSocketConnect(*client_socket, &address);
+    SB_DCHECK(sb_socket_result == kSbSocketOk ||
+              sb_socket_result == kSbSocketPending);
 
-  result = SbSocketDestroy(listen_socket);
-  SB_DCHECK(result);
+    // Spin until the accept happens (or we get impatient).
+    *server_socket = AcceptBySpinning(listen_socket, kAcceptTimeoutUsec);
+
+    result = SbSocketDestroy(listen_socket);
+    SB_DCHECK(result);
+
+    if (SbSocketIsValid(*server_socket)) {
+      // Success.
+      return;
+    }
+
+    // Accept timed out — clean up the half-built pair and retry.
+    SB_LOG(WARNING) << "GetSocketPipe: AcceptBySpinning timed out (attempt "
+                    << (attempt + 1) << "/" << kMaxGetSocketPipeAttempts
+                    << ")";
+    SbSocketDestroy(*client_socket);
+    *client_socket = kSbSocketInvalid;
+  }
+
+  // All attempts failed — abort. The caller (SbSocketWaiterPrivate ctor)
+  // cannot recover from this since it has no way to signal failure.
+  SB_CHECK(false) << "GetSocketPipe: failed to create loopback socket pair "
+                  << "after " << kMaxGetSocketPipeAttempts << " attempts";
 }
 #endif
 }  // namespace
