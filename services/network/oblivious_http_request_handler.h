@@ -13,14 +13,10 @@ namespace net {
 class HttpRequestHeaders;
 }
 
-#include "build/buildflag.h"
-
 namespace network {
 
 class NetworkContext;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 class TrustTokenStatusOrRequestHelper;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 // Handles the request based on the OHTTP specification:
 // https://ietf-wg-ohai.github.io/oblivious-http/draft-ietf-ohai-ohttp.html
@@ -60,7 +56,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ObliviousHttpRequestHandler {
  private:
   class RequestState;
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Callback from TrustTokenRequestHelperFactory during HandleRequest. Verifies
   // trust token helper was created correctly and calls Begin() on it to start
   // the trust token operation with headers stored in the RequestState.
@@ -74,7 +69,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ObliviousHttpRequestHandler {
       mojo::RemoteSetElementId id,
       std::optional<net::HttpRequestHeaders> headers,
       mojom::TrustTokenOperationStatus status);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // Constructs the binary HTTP request including any trust token headers in the
   // RequestState, encrypts the request, and starts the outer request's
@@ -94,7 +88,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ObliviousHttpRequestHandler {
   void OnRequestComplete(mojo::RemoteSetElementId id,
                          std::unique_ptr<std::string> response);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Callback from TrustTokenRequestHelper::Finalize. Checks that the trust
   // token operation completed successfully and calls the client with the
   // result.
@@ -104,7 +97,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) ObliviousHttpRequestHandler {
       scoped_refptr<net::HttpResponseHeaders> headers,
       std::string body,
       mojom::TrustTokenOperationStatus status);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // Notifies the client that the request completed successfully with the
   // provided response headers and body.
