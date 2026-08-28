@@ -85,17 +85,15 @@ runs:
           echo
 
           if ! python3 cobalt/tools/junit_mini_parser.py "${result_xmls[@]}" > test_failures.json; then
-            if [ -s test_failures.json ]; then
-              jq -r '
-                .failing_tests | to_entries[] |
-                .key, (
-                  .value[] |
-                  "  [  FAILED  ] \(.name)",
-                  (.message | select(. != "") | split("\n")[] | "    \(.)")
-                ),
-                ""
-              ' test_failures.json || true
-            fi
+            jq -r '
+              .failing_tests | to_entries[] |
+              .key, (
+                .value[] |
+                "  [  FAILED  ] \(.name)",
+                (.message | select(. != "") | split("\n")[] | "    \(.)")
+              ),
+              ""
+            ' test_failures.json
           fi
           rm -f test_failures.json
 

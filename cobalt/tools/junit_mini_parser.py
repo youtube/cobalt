@@ -18,7 +18,6 @@ standard library."""
 
 import collections
 import json
-import logging
 import os
 import sys
 import xml.etree.ElementTree
@@ -37,12 +36,7 @@ def find_failing_tests(
   """
   failing_tests = collections.defaultdict(list)
   for filename in junit_xml_files:
-    try:
-      tree = xml.etree.ElementTree.parse(filename)
-    except (xml.etree.ElementTree.ParseError, FileNotFoundError) as e:
-      logging.error('Failed to parse %s: %s', filename, e)
-      continue
-
+    tree = xml.etree.ElementTree.parse(filename)
     root = tree.getroot()
     for testsuite in root.findall('testsuite'):
       suite_name = testsuite.get('name', os.path.basename(filename))
@@ -78,11 +72,4 @@ def main(xml_files: list[str]) -> int:
 
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO, format='%(message)s')
-  if len(sys.argv) == 1:
-    logging.error('Usage: python junit_mini_parser.py '
-                  '<junit_xml_file1> <junit_xml_file2> ...')
-    logging.error('Please provide a list of JUnit XML files as command line '
-                  'arguments.')
-    sys.exit(2)
   sys.exit(main(sys.argv[1:]))
