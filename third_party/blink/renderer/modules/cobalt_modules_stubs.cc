@@ -365,6 +365,7 @@ void GPUDevice::Trace(Visitor* visitor) const {
   visitor->Trace(queue_);
   visitor->Trace(lost_property_);
   visitor->Trace(textures_with_mailbox_);
+  visitor->Trace(buffers_with_mailbox_);
   visitor->Trace(mappable_buffers_);
   visitor->Trace(external_texture_cache_);
   EventTarget::Trace(visitor);
