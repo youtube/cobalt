@@ -25,6 +25,7 @@ target(_benchmark_type, "benchmark") {
 
   sources = [
     "//starboard/common/benchmark_main.cc",
+    "log_benchmark.cc",
     "memory_benchmark.cc",
     "thread_benchmark.cc",
     "thread_id_benchmark.cc",
