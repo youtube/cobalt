@@ -331,3 +331,66 @@ class ReasoningEngineClient:
     if isinstance(res, dict):
       return str(res.get("experience", ""))
     return str(res)
+
+  def generate_expert_guidance(
+      self,
+      target: str = "",
+      diagnostics: str = "",
+      source_contexts: str = "",
+      *,
+      error_trace: str = "",
+      file_context: str = "",
+      target_file: str = "",
+      trajectory_history: str = "",
+      working_diff: str = "",
+      investigation_history: str = "",
+      mode: str = "compiler",
+      expert_model: Optional[str] = None,
+  ) -> Dict[str, Any]:
+    """Requests Tier-2 Senior Architect guidance via hosted Reasoning Engine."""
+    eff_target = target or target_file or "cobalt"
+    eff_diag = diagnostics or error_trace
+    eff_ctx = source_contexts or file_context
+    return self.query(
+        action="generate_expert_guidance",
+        target=eff_target,
+        diagnostics=eff_diag,
+        source_contexts=eff_ctx,
+        trajectory_history=trajectory_history,
+        working_diff=working_diff,
+        investigation_history=investigation_history,
+        mode=mode,
+        expert_model=expert_model,
+    )
+
+  def generate_comparative_review(
+      self,
+      human_pr_num: Any = "",
+      ai_pr_num: Any = "",
+      human_title: str = "",
+      ai_title: str = "",
+      human_diff: str = "",
+      ai_diff: str = "",
+      shared_files: Optional[List[str]] = None,
+      human_only_files: Optional[List[str]] = None,
+      ai_only_files: Optional[List[str]] = None,
+      repo_root: Optional[str] = None,
+      expert_model: Optional[str] = None,
+  ) -> str:
+    """Requests comparative review between Human PR and AI PR via hosted Reasoning Engine."""
+    res = self.query(
+        action="generate_comparative_review",
+        human_pr_num=human_pr_num,
+        ai_pr_num=ai_pr_num,
+        human_title=human_title,
+        ai_title=ai_title,
+        human_diff=human_diff,
+        ai_diff=ai_diff,
+        shared_files=shared_files or [],
+        human_only_files=human_only_files or [],
+        ai_only_files=ai_only_files or [],
+        expert_model=expert_model,
+    )
+    if isinstance(res, dict):
+      return str(res.get("review", ""))
+    return str(res)

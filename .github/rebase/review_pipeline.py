@@ -146,8 +146,9 @@ def generate_comparative_review(
     human_only_files: List[str],
     ai_only_files: List[str],
     repo_root: str = "",
+    expert_model: Optional[str] = None,
 ) -> str:
-  """Uses Tier-2 Claude Sonnet to perform deep comparative review and update skills."""
+  """Uses Tier-2 Expert Agent to perform deep comparative review and update skills."""
   h_num = human_pr_data.get("number", "")
   h_title = human_pr_data.get("title", "")
   a_num = ai_pr_data.get("number", "")
@@ -207,7 +208,7 @@ def generate_comparative_review(
   )
 
   print(
-      "  [REVIEW] Consulting Tier-2 Expert Agent (Claude Sonnet 4.6)...",
+      f"  [REVIEW] Consulting Tier-2 Expert Agent ({expert_model or 'Default'})...",
       file=sys.stderr)
   current_prompt = prompt
   accumulated_tool_context = []
@@ -215,7 +216,7 @@ def generate_comparative_review(
   for round_idx in range(1, 5):
     if hasattr(engine_or_client, "_generate_expert_content"):
       response = engine_or_client._generate_expert_content(
-          current_prompt, sys_inst)
+          current_prompt, sys_inst, expert_model=expert_model)
     elif hasattr(engine_or_client, "generate_expert_guidance"):
       res = engine_or_client.generate_expert_guidance(
           target=f"PR_{h_num}_vs_PR_{a_num}",
@@ -223,6 +224,7 @@ def generate_comparative_review(
           source_contexts=human_diff[:16384],
           trajectory_history=f"Shared Files:\n{both_summary}",
           working_diff=ai_diff[:8192],
+          expert_model=expert_model,
       )
       response = res.get("guidance", "")
     else:
@@ -364,8 +366,8 @@ def main():
       "--remote",
       "--resource-id",
       dest="resource_id",
-      default=os.environ.get("REASONING_ENGINE_ID"),
-      help="Optional remote Vertex AI Reasoning Engine Resource ID",
+      default=os.environ.get("REASONING_ENGINE_ID", "6638241529313886208"),
+      help="Hosted Vertex AI Reasoning Engine Resource ID (default: 6638241529313886208)",
   )
   parser.add_argument(
       "--project-id",
@@ -491,6 +493,7 @@ def main():
       human_only_files=human_only_files,
       ai_only_files=ai_only_files,
       repo_root=repo_root,
+      expert_model=args.expert_model,
   )
 
   print("\n" + "=" * 80)

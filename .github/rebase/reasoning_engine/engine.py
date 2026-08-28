@@ -366,13 +366,16 @@ class CobaltReasoningEngine:
       self,
       contents: Any,
       system_instruction: str,
+      expert_model: Optional[str] = None,
       temperature: float = 0.1,
   ) -> Optional[str]:
     """Generates content via Tier-2 Expert LLM (Claude Sonnet 5, Gemini 3.7 Thinking, or GLM 5.2)."""
-    expert_name = self.expert_model or "claude-sonnet-5"
+    expert_name = expert_model or self.expert_model or "claude-sonnet-5"
+    provider = ("anthropic" if "claude" in expert_name.lower()
+                else ("glm" if "glm" in expert_name.lower() else "gemini"))
 
     # 1. Anthropic Claude (e.g. Claude Sonnet 5 on Vertex AI)
-    if self.expert_provider == "anthropic" or "claude" in expert_name.lower():
+    if provider == "anthropic" or "claude" in expert_name.lower():
       aclient = self._get_anthropic_client()
       if aclient is not None:
         try:
@@ -531,6 +534,8 @@ class CobaltReasoningEngine:
     """Primary query dispatcher for Vertex AI Reasoning Engine."""
     if action in ("generate_expert_guidance", "expert_guidance"):
       return self.generate_expert_guidance(**kwargs)
+    if action in ("generate_comparative_review", "comparative_review"):
+      return {"review": self.generate_comparative_review(**kwargs)}
     if action == "resolve_conflict":
       return self.resolve_conflict(**kwargs)
     if action in ("heal_gn", "heal_gn_error"):
