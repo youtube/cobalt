@@ -12,7 +12,7 @@ import("//build/toolchain/toolchain.gni")
 import("//build_overrides/build.gni")
 =======
 import("//cobalt/build/configs/cobalt.gni")
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 default_clang_base_path = "//third_party/llvm-build/Release+Asserts"
 

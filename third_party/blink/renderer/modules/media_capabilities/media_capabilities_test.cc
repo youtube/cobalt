@@ -559,7 +559,7 @@ TEST(MediaCapabilitiesTests, CobaltMissingCodecsWithParameters) {
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Other tests will assume these match. Test to be sure they stay in sync.
 TEST(MediaCapabilitiesTests, ConfigMatchesFeatures) {
   test::TaskEnvironment task_environment;

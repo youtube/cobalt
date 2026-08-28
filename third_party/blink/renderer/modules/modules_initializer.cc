@@ -257,7 +257,7 @@ void ModulesInitializer::InitLocalFrame(LocalFrame& frame) const {
         &CobaltLifecycleController::BindReceiver, WrapWeakPersistent(&frame)));
 #endif
     frame.GetInterfaceRegistry()->AddInterface(WTF::BindRepeating(
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         &DocumentMetadataServer::BindReceiver, WrapWeakPersistent(&frame)));
   }
   if (frame.IsLocalRoot()) {
@@ -290,7 +290,7 @@ void ModulesInitializer::InitLocalFrame(LocalFrame& frame) const {
       WTF::BindRepeating(&PeerConnectionTracker::BindToFrame,
                          WrapCrossThreadWeakPersistent(&frame)));
 #endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   if (base::FeatureList::IsEnabled(kBlinkEnableInnerTextAgent)) {
     frame.GetInterfaceRegistry()->AddInterface(BindRepeating(

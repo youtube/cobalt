@@ -34,7 +34,7 @@ StringView MaybeStripFontationsSuffix(const String& font_name) {
 #endif
 }  // namespace
 
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 class FontCacheTest : public FontTestBase {};
 
 TEST_F(FontCacheTest, getLastResortFallbackFont) {

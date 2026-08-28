@@ -18,7 +18,7 @@
 #include "cc/base/switches.h"
 #endif
 
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/check.h"
 #include "cc/paint/paint_flags.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -67,7 +67,7 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
   return cobalt_decoded_image_working_set_budget_bytes;
 #else
   size_t decoded_image_working_set_budget_bytes = 128 * 1024 * 1024;
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if !BUILDFLAG(IS_ANDROID)
   if (for_renderer) {
     const bool using_low_memory_policy = base::SysInfo::IsLowEndDevice();
@@ -87,7 +87,7 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
 =======
   return decoded_image_working_set_budget_bytes;
 #endif
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 #if BUILDFLAG(IS_COBALT)

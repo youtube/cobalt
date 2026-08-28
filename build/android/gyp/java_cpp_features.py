@@ -34,7 +34,7 @@ class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   #   ExtractValue() -> '"StringNameOfTheFeature"'
   FEATURE_RE = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(k([^,]+),')
   VALUE_RE = re.compile(r'\s*("(?:\"|[^"])*")\s*,')
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   def ExtractConstantName(self, line):
     match = self._FEATURE_RE_3_ARGS.match(line)

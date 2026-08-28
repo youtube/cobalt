@@ -327,7 +327,7 @@ if (!is_cronet_build || is_ios) {
       ]
     }
 
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if (is_chromeos) {
       sources += [
         "call_stacks/stack_sampling_recorder.cc",

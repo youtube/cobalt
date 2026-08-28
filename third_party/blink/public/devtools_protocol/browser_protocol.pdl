@@ -13890,4 +13890,4 @@ experimental domain BluetoothEmulation
       string descriptorId
       DescriptorOperationType type
       optional binary data
->>>>>>> parent of d32796ef3d3 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
