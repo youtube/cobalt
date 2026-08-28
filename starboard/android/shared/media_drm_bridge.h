@@ -17,6 +17,7 @@
 
 #include <jni.h>
 
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -97,7 +98,7 @@ class MediaDrmBridge {
                                 std::string_view key,
                                 std::string_view session_id) const;
   void CloseSession(std::string_view session_id) const;
-  const void* GetMetrics(int* size);
+  std::optional<std::string_view> GetMetrics();
 
   void OnSessionMessage(JNIEnv* env,
                         jint ticket,
