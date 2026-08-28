@@ -60,7 +60,7 @@ class MODULES_EXPORT H5vccSystem final
   void exit();
   uint32_t userOnExitStrategy();
   void hideSplashScreen();
-  ScriptPromise<IDLBoolean> wasLowMemoryKilled(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLBoolean> wasLowMemoryKilled(ScriptState*);
 
   void Trace(Visitor*) const override;
 

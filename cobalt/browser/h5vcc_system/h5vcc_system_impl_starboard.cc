@@ -69,7 +69,7 @@ bool GetWasLowMemoryKilledShared() {
   const auto* low_memory_kill_extension =
       static_cast<const StarboardExtensionLowMemoryKillApi*>(
           SbSystemGetExtension(kStarboardExtensionLowMemoryKillName));
-  if (!low_memory_kill_extension ||
+  if (!low_memory_kill_extension || !low_memory_kill_extension->name ||
       strcmp(low_memory_kill_extension->name,
              kStarboardExtensionLowMemoryKillName) != 0 ||
       low_memory_kill_extension->version < 1 ||

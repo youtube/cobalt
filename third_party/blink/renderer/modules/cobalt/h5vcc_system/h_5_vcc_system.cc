@@ -204,10 +204,9 @@ void H5vccSystem::hideSplashScreen() {
 }
 
 ScriptPromise<IDLBoolean> H5vccSystem::wasLowMemoryKilled(
-    ScriptState* script_state,
-    ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
-      script_state, exception_state.GetContext());
+    ScriptState* script_state) {
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(script_state);
 
   EnsureReceiverIsBound();
 
