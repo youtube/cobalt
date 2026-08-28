@@ -47,7 +47,7 @@ class TestPlatformWindowDelegate : public ui::PlatformWindowDelegate {
   void OnWillDestroyAcceleratedWidget() override {}
   void OnAcceleratedWidgetDestroyed() override {}
   void OnActivationChanged(bool active) override {}
-  void OnMouseEnter() override {}
+  void OnCursorUpdate() override {}
   int bounds_changed_count() const { return bounds_changed_count_; }
   bool closed() const { return closed_; }
   std::optional<ui::EventType> dispatched_event_type() const {
