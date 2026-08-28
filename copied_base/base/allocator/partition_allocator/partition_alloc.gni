@@ -21,11 +21,8 @@ if (is_apple) {
 
 # Whether 64-bit pointers are used.
 # A static_assert in partition_alloc_config.h verifies that.
-if (is_nacl) {
-  # NaCl targets don't use 64-bit pointers.
-  has_64_bit_pointers = false
-} else if (current_cpu == "x64" || current_cpu == "arm64" ||
-           current_cpu == "loong64") {
+if (current_cpu == "x64" || current_cpu == "arm64" ||
+    current_cpu == "loong64") {
   has_64_bit_pointers = true
 } else if (current_cpu == "x86" || current_cpu == "arm") {
   has_64_bit_pointers = false
@@ -62,7 +59,7 @@ declare_args() {
   # the default allocator in components built by partners. We're considering
   # that change in b/447346129 but for now set this false in partner toolchains
   # so that PartitionAlloc is not even linked into partner built binaries.
-  use_partition_alloc = !is_nacl && !(is_cobalt && is_partner_toolchain)
+  use_partition_alloc = !(is_cobalt && is_partner_toolchain)
 }
 
 declare_args() {
@@ -216,11 +213,7 @@ pcscan_stack_supported =
 # We want to provide assertions that guard against inconsistent build
 # args, but there is no point in having them fire if we're not building
 # PartitionAlloc at all. If `use_partition_alloc` is false, we jam all
-# related args to `false`. The prime example is NaCl, where
-# PartitionAlloc doesn't build at all.
-if (is_nacl) {
-  assert(!use_partition_alloc, "PartitionAlloc doesn't build on NaCl")
-}
+# related args to `false`.
 if (!use_partition_alloc) {
   use_partition_alloc_as_malloc = false
   enable_backup_ref_ptr_support = false
