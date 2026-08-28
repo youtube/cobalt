@@ -18,6 +18,9 @@
 
 #include <alsa/asoundlib.h>
 
+#include <unistd.h>
+#include <cmath>
+
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/result.h"
@@ -118,7 +121,8 @@ Result<void> OpenPcm(snd_pcm_t*& handle) {
 
 class SbMicrophoneImpl : public SbMicrophonePrivate {
  public:
-  SbMicrophoneImpl() : handle_(nullptr) {}
+  SbMicrophoneImpl()
+      : handle_(nullptr), sine_index_(0), total_frames_produced_(0) {}
   ~SbMicrophoneImpl() override { Close(); }
 
   bool Open() override {
@@ -144,8 +148,11 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
     // Open the default capture device.
     if (Result<void> result = OpenPcm(handle_); !result) {
       SB_LOG(ERROR) << "OpenPcm failed: " << result.error();
-      Close();
-      return false;
+      SB_LOG(INFO) << "KJ: Falling back to VIRTUAL MOCK mic.";
+      handle_ = nullptr;
+      sine_index_ = 0;
+      total_frames_produced_ = 0;
+      return true;
     }
 
     return true;
@@ -173,9 +180,34 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   }
 
   int Read(void* out_audio_data, int audio_data_size) override {
-    if (!handle_ || !out_audio_data || audio_data_size <= 0) {
+    if (!out_audio_data || audio_data_size <= 0) {
       return -1;
     }
+
+    SB_LOG(INFO) << "KJ: Hardware Read Request - " << audio_data_size
+                 << " bytes";
+
+    if (!handle_) {
+      // KJ: Virtual Mock Mode Logic - Filling entire requested buffer.
+      int16_t* samples = static_cast<int16_t*>(out_audio_data);
+      int frames_to_read = audio_data_size / (kChannels * sizeof(int16_t));
+
+      for (int i = 0; i < frames_to_read; ++i) {
+        // Generate 1kHz sine wave: 32767 * sin(2 * pi * 1000 * t)
+        samples[i] = static_cast<int16_t>(
+            32767.0 *
+            sin(2.0 * 3.14159265358979323846 * 1000.0 * (sine_index_++) /
+                static_cast<double>(kSampleRateInHz)));
+      }
+
+      total_frames_produced_ += frames_to_read;
+
+      SB_LOG(INFO) << "KJ: Virtual Capture - Read(frames)=" << frames_to_read
+                   << ", sample rate=" << kSampleRateInHz
+                   << ", total frame produced=" << total_frames_produced_;
+      return frames_to_read * kChannels * sizeof(int16_t);
+    }
+
     snd_pcm_state_t state = snd_pcm_state(handle_);
     if (state != SND_PCM_STATE_PREPARED && state != SND_PCM_STATE_RUNNING) {
       SB_LOG(ERROR) << "SbMicrophoneImpl::Read - unexpected pcm state: "
@@ -220,6 +252,8 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
 
  private:
   snd_pcm_t* handle_;
+  int64_t sine_index_;
+  int64_t total_frames_produced_;
 };
 
 }  // namespace
@@ -279,6 +313,21 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
     }
   }
   snd_device_name_free_hint(hints);
+
+  if (count == 0) {
+    SB_LOG(INFO) << "KJ: No hardware mics found. Injecting Virtual Microphone "
+                    "into list.";
+    if (out_info_array && info_array_size > 0) {
+      SbMicrophoneInfo* info = &out_info_array[0];
+      info->id = reinterpret_cast<SbMicrophoneId>(1);
+      info->type = kSbMicrophoneUnknown;
+      info->max_sample_rate_hz = starboard::kSampleRateInHz;
+      info->min_read_size = starboard::kMinReadSizeBytes;
+      snprintf(info->label, kSbMicrophoneLabelSize, "KJ Virtual Microphone");
+    }
+    return 1;
+  }
+
   return count;
 }
 

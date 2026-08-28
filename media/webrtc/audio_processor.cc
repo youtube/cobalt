@@ -633,6 +633,8 @@ AudioParameters AudioProcessor::GetDefaultOutputFormat(
 #endif
                                    : input_format.sample_rate();
 
+  LOG(INFO) << __func__ << ":KJ: output_sample_rate=" << output_sample_rate;
+
   media::ChannelLayoutConfig output_channel_layout_config;
   if (!need_webrtc_audio_processing) {
     output_channel_layout_config = input_format.channel_layout_config();
