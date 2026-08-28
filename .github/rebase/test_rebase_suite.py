@@ -1023,9 +1023,9 @@ target("foo") {{}}
     self.assertIn("cobalt/media/sandbox.cc", media_diff)
     self.assertNotIn("DEPS", media_diff)
 
-    # 2. Test TOOL_DIFF_FILE execution
+    # 2. Test TOOL_DIFF_FILE execution with and without contaminated commentary
     tool_out = review_pipeline.execute_review_tool(
-        cmd="TOOL_DIFF_FILE: cobalt/media/sandbox.cc",
+        cmd="TOOL_DIFF_FILE: cobalt/media/sandbox.cc (inspect includes)",
         repo_root=".",
         human_diff=sample_diff,
         ai_diff=(
@@ -1038,6 +1038,32 @@ target("foo") {{}}
     self.assertIn("AI Rebase Attempt Diff", tool_out)
     self.assertIn("+  #include \"sandbox.h\"", tool_out)
     self.assertIn("+  ai_edit();", tool_out)
+
+  def test_tool_argument_hygiene_sanitization(self):
+    """Guards filepath token sanitization against argument contamination."""
+    raw1 = "base/threading/platform_thread_cobalt.cc (to inspect priority)"
+    self.assertEqual(
+        review_pipeline.sanitize_filepath_token(raw1),
+        "base/threading/platform_thread_cobalt.cc",
+    )
+
+    raw2 = "`base/BUILD.gn` - check if Starboard sources were included"
+    self.assertEqual(
+        review_pipeline.sanitize_filepath_token(raw2),
+        "base/BUILD.gn",
+    )
+
+    raw3 = "./content/browser/BUILD.gn: inspect targets"
+    self.assertEqual(
+        review_pipeline.sanitize_filepath_token(raw3),
+        "content/browser/BUILD.gn",
+    )
+
+    raw4 = "DEPS"
+    self.assertEqual(
+        review_pipeline.sanitize_filepath_token(raw4),
+        "DEPS",
+    )
 
 
 if __name__ == "__main__":

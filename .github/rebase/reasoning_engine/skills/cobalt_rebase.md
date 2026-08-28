@@ -231,4 +231,30 @@ If none of these are true, do **not** edit the file. Unrelated `third_party/*` d
 
 ### CONFLICTED File Manifest as Ground-Truth Checklist Source
 
-Every Cobalt bot roll PR commit message embeds an authoritative, explicit list of CONFLICTED files inside a fenced code block (e.g., "CONFLICTED files:\n
+Every Cobalt bot roll PR commit message embeds an authoritative, explicit list of CONFLICTED files inside a fenced code block (e.g., `CONFLICTED files:\n...`). Treat this manifest as the mandatory ground-truth checklist for the rebase session.
+
+---
+
+## Expert Review Insights
+
+### Pre-Submission Empty-Diff Hard Gate
+
+Before an AI rebase attempt is finalized, packaged, or surfaced as a completed PR, the pipeline MUST enforce the following hard gate:
+
+1. **Non-Empty Diff Check**: Compute `git diff --stat` against the merge-base. If the diff is empty (0 files changed) while the roll commit's CONFLICTED file manifest lists 1+ files, HALT and mark the attempt as **FAILED — no resolution attempted**, not as a completed (if minimal) rebase.
+2. **DEPS Canary Check**: For any named/versioned milestone roll (`Update to <milestone>.<build>`), require that `DEPS` appears in the produced diff. A missing `DEPS` diff on a named roll PR is near-certain evidence of an incomplete or aborted rebase — treat as a blocking defect requiring retry, not a silent pass.
+3. **AUTOROLL_CHROMIUM Canary Check**: Require `.github/AUTOROLL_CHROMIUM` to reflect the new target milestone/revision. Its absence is a fast, cheap signal that the roll was never actually advanced.
+4. **Cherry-Pick Revert Detection**: If the roll commit message contains `Cherry pick` and `Revert Cobalt`, explicitly flag this as a special-case conflict pattern (see Section 3.2, "Revert / Cherry-Pick Artifacts") requiring semantic (not wholesale ours/theirs) reconciliation of Cobalt-specific DEPS overrides (`siso_version`, `icu`, `perfetto`, `webrtc`, and similar `# Cobalt: imported` blocks).
+
+**Escalation**: If any of the above gates fail, the orchestrator must NOT close/merge the AI PR as a completed attempt. Instead, log a pipeline-failure diagnostic (last known state, last successful tool call, retry count) and either auto-retry within the budget (Section 1 iteration guidelines) or escalate to human review with an explicit "ZERO-DIFF FAILURE" tag.
+
+
+---
+
+## Expert Review Insights
+
+### Tool Dispatcher Argument Hygiene (Reviewer-Side Enforcement)
+
+Extending the existing Diff-Tooling Sanity Check Protocol: reviewers and orchestrators MUST treat any `TOOL_DIFF_FILE:` / `TOOL_UPSTREAM_DIFF:` invocation whose argument exceeds a plausible file path length (e.g., >120 characters, contains sentence punctuation, or contains markdown backticks/parentheses typical of prose) as **malformed at dispatch time**, and should refuse to issue the call rather than let the dispatcher silently echo a garbled header back.
+
+**Practical guard**: Before emitting a `TOOL_DIFF_FILE: <arg>` line, validate `<arg>` against a simple heuristic: it should look like a relative file path (contains `/` or a known root-level filename, no whitespace-separated prose words beyond directory/file tokens, no trailing period-terminated sentences). If the heuristic fails, split the call: emit the bare tool call first, and defer all commentary to the next turn.

@@ -36,6 +36,7 @@ if PARENT_DIR not in sys.path:
 
 # pylint: disable=wrong-import-position
 from base_resolver import execute_local_tool
+from base_resolver import sanitize_filepath_token
 from engine_client import ReasoningEngineClient
 from reasoning_engine.engine import CobaltReasoningEngine
 
@@ -267,13 +268,16 @@ def format_metrics_markdown(metrics: Dict[str, Any]) -> str:
 
 def extract_single_file_diff(diff_text: str, target_file: str) -> str:
   """Extracts diff block for a specific file from a multi-file diff."""
-  clean_target = target_file.strip().lstrip("./")
+  clean_target = sanitize_filepath_token(target_file)
+  if not clean_target:
+    return ""
   chunks = []
   capturing = False
 
   for line in diff_text.splitlines():
     if line.startswith("diff --git ") or line.startswith("+++ b/"):
-      if clean_target in line:
+      if (f"a/{clean_target} " in line or f"b/{clean_target}" in line or
+          clean_target in line):
         capturing = True
         chunks.append(line)
         continue
@@ -294,7 +298,8 @@ def execute_review_tool(
   """Executes safe read-only inspection tools for review pipeline."""
   clean_cmd = cmd.strip()
   if clean_cmd.startswith("TOOL_DIFF_FILE:"):
-    file_path = clean_cmd.split(":", 1)[1].strip()
+    raw_path = clean_cmd.split(":", 1)[1].strip()
+    file_path = sanitize_filepath_token(raw_path)
     if not file_path:
       return "[ERROR] No file path provided to TOOL_DIFF_FILE."
     h_file_diff = extract_single_file_diff(human_diff, file_path)

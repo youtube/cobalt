@@ -407,15 +407,34 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
   return apply_unified_diff(clean_text, repo_path)
 
 
+def sanitize_filepath_token(raw_target: str) -> str:
+  """Extracts a clean, valid repository file path token from model output.
+
+  Strips surrounding backticks, quotes, parenthetical/inline commentary,
+  and trailing punctuation.
+  """
+  clean = raw_target.strip().strip("`'\"[]()<>")
+  tokens = re.split(r"[\s\(\[\#]+", clean)
+  if tokens and tokens[0]:
+    token = tokens[0].strip("`'\"[]()<>,;:")
+    return token.lstrip("./")
+  return clean.lstrip("./")
+
+
 def execute_local_tool(cmd: str, repo_path: str) -> str:
   """Executes safe read-only multi-turn inspection tools for Gemini."""
   clean_cmd = cmd.strip()
   if clean_cmd.startswith("TOOL_READ_FILE:"):
-    parts = clean_cmd.split(":", 1)[1].strip().split()
-    if not parts:
+    raw_args = clean_cmd.split(":", 1)[1].strip()
+    tokens = re.findall(r"[^\s\(\)\[\]]+", raw_args)
+    if not tokens:
       return "[ERROR] No file path provided."
-    target_rel = parts[0]
-    line_range = parts[1] if len(parts) > 1 else ""
+    target_rel = tokens[0].strip("`'\"<>,;:")
+    line_range = ""
+    for t in tokens[1:]:
+      if re.match(r"^\d+-\d+$", t) or re.match(r"^\d+\.\.\d+$", t):
+        line_range = t.replace("..", "-")
+        break
     target_abs = resolve_repo_file_path(target_rel, repo_path)
     if not os.path.isfile(target_abs):
       return f"[ERROR] File does not exist: {target_rel}"
@@ -436,7 +455,9 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
       return f"[ERROR] Could not read {target_rel}: {e}"
 
   if clean_cmd.startswith("TOOL_FIND_FILE:"):
-    pattern = clean_cmd.split(":", 1)[1].strip()
+    raw_pat = clean_cmd.split(":", 1)[1].strip()
+    tokens = re.findall(r"[^\s\(\)\[\]]+", raw_pat)
+    pattern = tokens[0].strip("`'\"<>,;:") if tokens else raw_pat
     try:
       res = subprocess.run(
           ["find", ".", "-name", pattern, "-not", "-path", "*/.*"],
@@ -451,7 +472,8 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
       return f"[ERROR] Find failed: {e}"
 
   if clean_cmd.startswith("TOOL_GREP:"):
-    query = clean_cmd.split(":", 1)[1].strip()
+    raw_query = clean_cmd.split(":", 1)[1].strip()
+    query = re.sub(r"\s*\(.*?\)\s*$", "", raw_query).strip().strip("`'\"")
     try:
       res = subprocess.run(
           [
@@ -480,7 +502,9 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
       return f"[ERROR] Grep failed: {e}"
 
   if clean_cmd.startswith("TOOL_GIT_SHOW:"):
-    ref = clean_cmd.split(":", 1)[1].strip()
+    raw_ref = clean_cmd.split(":", 1)[1].strip()
+    tokens = re.findall(r"[^\s\(\)\[\]]+", raw_ref)
+    ref = tokens[0].strip("`'\"<>,;:") if tokens else raw_ref
     try:
       res = subprocess.run(
           ["git", "show", ref],
@@ -495,7 +519,11 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
       return f"[ERROR] Git show failed: {e}"
 
   if clean_cmd.startswith("TOOL_READ_PR:"):
-    pr_target = clean_cmd.split(":", 1)[1].strip().lstrip("#")
+    raw_pr = clean_cmd.split(":", 1)[1].strip()
+    match = re.search(r"(\d+)", raw_pr)
+    if not match:
+      return f"[ERROR] Could not extract PR number from: {raw_pr}"
+    pr_target = match.group(1)
     try:
       res = subprocess.run(
           [
@@ -513,7 +541,11 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
       return f"[ERROR] gh pr view failed: {e}"
 
   if clean_cmd.startswith("TOOL_PR_DIFF:"):
-    pr_target = clean_cmd.split(":", 1)[1].strip().lstrip("#")
+    raw_pr = clean_cmd.split(":", 1)[1].strip()
+    match = re.search(r"(\d+)", raw_pr)
+    if not match:
+      return f"[ERROR] Could not extract PR number from: {raw_pr}"
+    pr_target = match.group(1)
     try:
       res = subprocess.run(
           ["gh", "pr", "diff", pr_target],
@@ -570,9 +602,10 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
       return f"[ERROR] Git log failed: {e}"
 
   if clean_cmd.startswith("TOOL_UPSTREAM_DIFF:"):
-    target_path = clean_cmd.split(":", 1)[1].strip()
+    raw_path = clean_cmd.split(":", 1)[1].strip()
+    target_path = sanitize_filepath_token(raw_path)
     try:
-      # Find commit with message "Update to 14" (Commit #3 containing pure Chromium changes)
+      # Find commit with message "Update to 14" (Commit #3 pure changes)
       log_res = subprocess.run(
           ["git", "log", "-n20", "--grep=Update to 14", "--format=%H %s"],
           cwd=repo_path,
@@ -733,6 +766,7 @@ class BaseResolver(abc.ABC):
     """Parses output into a list of diagnostic error objects."""
 
   @abc.abstractmethod
+  # pylint: disable=too-many-positional-arguments,too-many-arguments
   def resolve_diagnostic(
       self,
       diagnostic: Any,
