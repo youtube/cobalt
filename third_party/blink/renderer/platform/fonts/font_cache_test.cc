@@ -19,22 +19,6 @@
 
 namespace blink {
 
-<<<<<<< HEAD
-=======
-namespace {
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)|| BUILDFLAG(IS_CHROMEOS)
-StringView MaybeStripFontationsSuffix(const String& font_name) {
-  wtf_size_t found_index = font_name.ReverseFind(" (Fontations)");
-  if (found_index != kNotFound) {
-    return StringView(font_name, 0, found_index);
-  } else {
-    return font_name;
-  }
-}
-#endif
-}  // namespace
-
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 class FontCacheTest : public FontTestBase {};
 
 TEST_F(FontCacheTest, getLastResortFallbackFont) {
