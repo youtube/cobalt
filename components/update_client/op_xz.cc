@@ -76,9 +76,7 @@ void Done(base::OnceCallback<
 base::OnceClosure XzOperation(
     std::unique_ptr<Unzipper> unzipper,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
-<<<<<<< HEAD
     base::RepeatingCallback<void(ComponentState)> state_tracker,
-=======
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& in_file_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
@@ -88,11 +86,11 @@ base::OnceClosure XzOperation(
   Done(in_file_result, std::move(callback), event_adder, base::FilePath(), false);
   return base::DoNothing();
 #else
+  state_tracker.Run(ComponentState::kDecompressing);
   const base::FilePath& in_file = in_file_result.response;
   base::FilePath dest_file = in_file.DirName().AppendUTF8("decoded_xz");
 #endif  // defined(IN_MEMORY_UPDATES)
 #else
->>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback) {
