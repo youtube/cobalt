@@ -180,20 +180,25 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
 
   gl::GLSurface* default_surface = manager->default_offscreen_surface();
 #if BUILDFLAG(IS_COBALT)
-  // In Cobalt, default_offscreen_surface_ is torn down during background
-  // conceal to free GPU resources. In-flight command buffer initialization
-  // requests arriving during the suspend transition may observe a null
-  // default_surface, requiring a fallback offscreen surface creation.
   if (default_surface && default_surface->GetGLDisplay() == display) {
+    surface_ = default_surface;
+  } else if (display && display->IsInitialized()) {
+    surface_ = gl::init::CreateOffscreenGLSurface(display, gfx::Size());
+  } else {
+    LOG(WARNING)
+        << "Cannot create offscreen surface while display is uninitialized / "
+           "backgrounded.";
+    return gpu::ContextResult::kTransientFailure;
+  }
 #else
   if (default_surface->GetGLDisplay() == display) {
-#endif
     surface_ = default_surface;
   } else {
     // The default surface was created on a different display, create a
     // new surface on the requested display.
     surface_ = gl::init::CreateOffscreenGLSurface(display, gfx::Size());
   }
+#endif
 
   if (context_group_->use_passthrough_cmd_decoder()) {
     // Virtualized contexts don't work with passthrough command decoder.
