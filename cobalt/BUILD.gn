@@ -173,8 +173,8 @@ test("cobalt_unittests") {
 
   deps = [
     ":common",
-    "//base/test:run_all_unittests",
     "//base/test:test_support",
+    "//mojo/core/test:run_all_unittests",
     "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser:command_line_logger",
     "//cobalt/browser:global_features",
