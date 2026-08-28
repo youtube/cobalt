@@ -10,12 +10,13 @@ In each merged **Bot Roll PR**, the initial commits represent the conflicted ups
 
 | Milestone | Roll Target | Bot Roll PR | Vertex AI PR |
 | :--- | :--- | :--- | :--- |
-| **M141** | **M141.7364** | [#12243](https://github.com/youtube/cobalt/pull/12243) *(Active)* | [#12243](https://github.com/youtube/cobalt/pull/12243) |
+| **M141** | **M141.7364** | [#12257](https://github.com/youtube/cobalt/pull/12257) *(Active)* | — |
 | | **M141.7351** | [#12228](https://github.com/youtube/cobalt/pull/12228) | [#12259](https://github.com/youtube/cobalt/pull/12259) |
 | **M140** | **M140.7339** | [#12161](https://github.com/youtube/cobalt/pull/12161) | [#12176](https://github.com/youtube/cobalt/pull/12176) |
+| | **M140.7318** | [#12155](https://github.com/youtube/cobalt/pull/12155) | — |
 | | **M140.7298** | [#12086](https://github.com/youtube/cobalt/pull/12086) | — |
 | | **M140.7278** | [#12051](https://github.com/youtube/cobalt/pull/12051) | [#12136](https://github.com/youtube/cobalt/pull/12136) |
-| **M139** | **M139.7244** | [#11722](https://github.com/youtube/cobalt/pull/11722) | [#12038](https://github.com/youtube/cobalt/pull/12038) |
+| **M139** | **M139.7244** | [#11890](https://github.com/youtube/cobalt/pull/11890) | [#12038](https://github.com/youtube/cobalt/pull/12038) |
 | | **M139.7217** | [#11722](https://github.com/youtube/cobalt/pull/11722) | [#12258](https://github.com/youtube/cobalt/pull/12258) |
 
 ---
