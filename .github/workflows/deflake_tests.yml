@@ -49,15 +49,20 @@ jobs:
           # retries in on_host_tests and on_device_tests actions.
           MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 3' .github/config/infra/deflake.json)
 
-          # This call fails until the workflow has run $MAX_ATTEMPTS times.
-          if gh run view --repo "${REPO}" "${WORKFLOW}" --attempt "${MAX_ATTEMPTS}"; then
-            echo "Done retrying ${WORKFLOW_NAME}. It is still failing after ${MAX_ATTEMPTS} attempts."
+          # Fetch run info (attempt and jobs) in a single call to optimize and ensure consistent attempt context.
+          if ! run_info=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json attempt,jobs 2>/dev/null); then
+            echo "Failed to fetch run info for ${WORKFLOW}."
+            exit 1
+          fi
+
+          attempt=$(echo "${run_info}" | jq -r '.attempt')
+          if [ "${attempt}" -ge "${MAX_ATTEMPTS}" ]; then
+            echo "Done retrying ${WORKFLOW_NAME}. It is still failing after ${attempt} attempts."
+            [ -n "${GITHUB_OUTPUT}" ] && echo "rerun_triggered=false" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
-          # Fetch failed jobs containing _tests.
-          failed_job_ids=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json jobs --jq '.jobs[] | select(.conclusion=="failure") | select(.name | contains("_tests")) | .databaseId')
-
+          failed_job_ids=$(echo "${run_info}" | jq -r '.jobs[] | select(.conclusion=="failure") | select(.name | contains("_tests")) | .databaseId')
           if [ -z "${failed_job_ids}" ]; then
             echo "No failing '_tests' jobs found to rerun."
             exit 0
