@@ -1334,11 +1334,21 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
 
   // Fulfill all channel establishment requests that arrived while backgrounded,
   // now that the display and default offscreen surface are re-initialized.
+  bool display_ready = display && display->IsInitialized();
   auto pending_requests = std::move(pending_establish_gpu_channel_requests_);
   pending_establish_gpu_channel_requests_.clear();
   for (auto& request : pending_requests) {
-    EstablishGpuChannel(request.client_id, request.client_tracing_id,
-                        request.is_gpu_host, std::move(request.callback));
+    if (display_ready) {
+      EstablishGpuChannel(request.client_id, request.client_tracing_id,
+                          request.is_gpu_host, std::move(request.callback));
+    } else {
+      LOG(ERROR)
+          << "Failed to initialize display on foreground, rejecting pending "
+             "GPU channel request.";
+      std::move(request.callback)
+          .Run(mojo::ScopedMessagePipeHandle(), gpu_info_, gpu_feature_info_,
+               gpu::SharedImageCapabilities());
+    }
   }
 #endif
 
