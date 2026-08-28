@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
@@ -36,11 +37,14 @@ void InterleavePlanarAudio(const uint8_t* const* planar_data,
                            int frames,
                            uint8_t* destination) {
   auto* dst = reinterpret_cast<SampleType*>(destination);
+  std::vector<const SampleType*> src_channels(channels);
+  for (int ch = 0; ch < channels; ++ch) {
+    src_channels[ch] = reinterpret_cast<const SampleType*>(planar_data[ch]);
+  }
+
   for (int frame = 0; frame < frames; ++frame) {
-    for (int ch = 0; ch < channels; ++ch) {
-      const auto* src_channel =
-          reinterpret_cast<const SampleType*>(planar_data[ch]);
-      *dst++ = src_channel[frame];
+    for (auto& src_channel : src_channels) {
+      *dst++ = *src_channel++;
     }
   }
 }
