@@ -38,7 +38,6 @@ void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
 }
 
 void AudioFrameDiscarder::AdjustForDiscardedDurations(
-    int sample_rate,
     DecodedAudio* decoded_audio) {
   if (!decoded_audio) {
     SB_LOG(ERROR) << "No input buffer to adjust.";
@@ -75,7 +74,7 @@ void AudioFrameDiscarder::AdjustForDiscardedDurations(
   }
 
   decoded_audio->AdjustForDiscardedDurations(
-      sample_rate, input_info.discarded_duration_from_front,
+      input_info.discarded_duration_from_front,
       input_info.discarded_duration_from_back);
   // `decoded_audio->frames()` might be 0 here.  We don't set it to nullptr
   // in this case so the DecodedAudio instance is always valid (but might be

@@ -61,7 +61,7 @@ class MediaCodecAudioDecoder : public AudioDecoder,
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  std::optional<DecodedAudio> Read(int* samples_per_second) override;
+  std::optional<DecodedAudio> Read() override;
   void Reset() override;
 
  private:

@@ -28,19 +28,21 @@ namespace starboard {
 // frames with continuous timestamps.
 class DecodedAudio {
  public:
-  static DecodedAudio CreateEOSBuffer();
+  static DecodedAudio CreateEOSBuffer(int sample_rate);
   // TODO(b/272837615): Remove `storage_type` support and always store data in
   // interleaved. Refactor the places that store sample in planar to convert the
   // samples to interleaved on creation.
   DecodedAudio(int channels,
                SbMediaAudioSampleType sample_type,
                SbMediaAudioFrameStorageType storage_type,
+               int sample_rate,
                int64_t timestamp,
                int size_in_bytes);
 
   DecodedAudio(int channels,
                SbMediaAudioSampleType sample_type,
                SbMediaAudioFrameStorageType storage_type,
+               int sample_rate,
                int64_t timestamp,
                int size_in_bytes,
                Buffer&& storage);
@@ -58,6 +60,7 @@ class DecodedAudio {
   int channels() const { return channels_; }
   SbMediaAudioSampleType sample_type() const { return sample_type_; }
   SbMediaAudioFrameStorageType storage_type() const { return storage_type_; }
+  int sample_rate() const { return sample_rate_; }
 
   bool is_end_of_stream() const { return channels_ == 0; }
   int64_t timestamp() const { return timestamp_; }
@@ -84,9 +87,8 @@ class DecodedAudio {
   // During seeking, the target time can be in the middle of the DecodedAudio
   // object.  This function will adjust the object to the seek target time by
   // removing the frames in the beginning that are before the seek target time.
-  void AdjustForSeekTime(int sample_rate, int64_t seeking_to_time);
-  void AdjustForDiscardedDurations(int sample_rate,
-                                   int64_t discarded_duration_from_front,
+  void AdjustForSeekTime(int64_t seeking_to_time);
+  void AdjustForDiscardedDurations(int64_t discarded_duration_from_front,
                                    int64_t discarded_duration_from_back);
 
   bool IsFormat(SbMediaAudioSampleType sample_type,
@@ -128,6 +130,7 @@ class DecodedAudio {
   int channels_;
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType storage_type_;
+  int sample_rate_ = 0;
   // The timestamp of the first audio frame in microseconds.
   int64_t timestamp_;
   Buffer storage_;

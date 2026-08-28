@@ -64,8 +64,10 @@ void ConvertSample(const float* source, int16_t* destination) {
 }  // namespace
 
 // static
-DecodedAudio DecodedAudio::CreateEOSBuffer() {
-  return DecodedAudio();
+DecodedAudio DecodedAudio::CreateEOSBuffer(int sample_rate) {
+  DecodedAudio res;
+  res.sample_rate_ = sample_rate;
+  return res;
 }
 
 DecodedAudio::DecodedAudio()
@@ -79,11 +81,13 @@ DecodedAudio::DecodedAudio()
 DecodedAudio::DecodedAudio(int channels,
                            SbMediaAudioSampleType sample_type,
                            SbMediaAudioFrameStorageType storage_type,
+                           int sample_rate,
                            int64_t timestamp,
                            int size_in_bytes)
     : channels_(channels),
       sample_type_(sample_type),
       storage_type_(storage_type),
+      sample_rate_(sample_rate),
       timestamp_(timestamp),
       storage_(size_in_bytes),
       offset_in_bytes_(0),
@@ -99,12 +103,14 @@ DecodedAudio::DecodedAudio(int channels,
 DecodedAudio::DecodedAudio(int channels,
                            SbMediaAudioSampleType sample_type,
                            SbMediaAudioFrameStorageType storage_type,
+                           int sample_rate,
                            int64_t timestamp,
                            int size_in_bytes,
                            Buffer&& storage)
     : channels_(channels),
       sample_type_(sample_type),
       storage_type_(storage_type),
+      sample_rate_(sample_rate),
       timestamp_(timestamp),
       storage_(std::move(storage)),
       offset_in_bytes_(0),
@@ -131,16 +137,15 @@ void DecodedAudio::ShrinkTo(int new_size_in_bytes) {
   size_in_bytes_ = new_size_in_bytes;
 }
 
-void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
+void DecodedAudio::AdjustForSeekTime(int64_t seeking_to_time) {
   SB_DCHECK(!is_end_of_stream());
-  SB_DCHECK_NE(sample_rate, 0);
 
   int frames_to_skip =
-      AudioDurationToFrames(seeking_to_time - timestamp(), sample_rate);
+      AudioDurationToFrames(seeking_to_time - timestamp(), sample_rate_);
 
-  if (sample_rate == 0 || frames_to_skip < 0 || frames_to_skip >= frames()) {
+  if (frames_to_skip < 0 || frames_to_skip >= frames()) {
     SB_LOG(WARNING) << "AdjustForSeekTime failed for seeking_to_time: "
-                    << seeking_to_time << ", sample_rate: " << sample_rate
+                    << seeking_to_time << ", sample_rate: " << sample_rate_
                     << ", timestamp: " << timestamp() << ", and there are "
                     << frames() << " frames in the DecodedAudio object.";
     return;
@@ -152,7 +157,7 @@ void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
   if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
     offset_in_bytes_ += frames_to_skip * bytes_per_frame;
     size_in_bytes_ -= frames_to_skip * bytes_per_frame;
-    timestamp_ += AudioFramesToDuration(frames_to_skip, sample_rate);
+    timestamp_ += AudioFramesToDuration(frames_to_skip, sample_rate_);
     return;
   }
 
@@ -165,19 +170,18 @@ void DecodedAudio::AdjustForSeekTime(int sample_rate, int64_t seeking_to_time) {
   uint8_t* dest_addr = new_storage.data();
   for (int channel = 0; channel < channels(); ++channel) {
     memcpy(dest_addr, source_addr + bytes_per_sample * frames_to_skip,
-           new_frames * bytes_per_frame);
+           new_frames * bytes_per_sample);
     source_addr += frames() * bytes_per_sample;
     dest_addr += new_frames * bytes_per_sample;
   }
 
   storage_ = std::move(new_storage);
-  timestamp_ += AudioFramesToDuration(frames_to_skip, sample_rate);
+  timestamp_ += AudioFramesToDuration(frames_to_skip, sample_rate_);
   offset_in_bytes_ = 0;
   size_in_bytes_ = new_frames * bytes_per_frame;
 }
 
 void DecodedAudio::AdjustForDiscardedDurations(
-    int sample_rate,
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back) {
   if (discarded_duration_from_front < 0) {
@@ -200,18 +204,18 @@ void DecodedAudio::AdjustForDiscardedDurations(
   int current_frames = frames();
   int discarded_frames_from_front =
       (discarded_duration_from_front >=
-       AudioFramesToDuration(current_frames, sample_rate))
+       AudioFramesToDuration(current_frames, sample_rate_))
           ? current_frames
-          : AudioDurationToFrames(discarded_duration_from_front, sample_rate);
+          : AudioDurationToFrames(discarded_duration_from_front, sample_rate_);
   offset_in_bytes_ += bytes_per_frame * discarded_frames_from_front;
   size_in_bytes_ -= bytes_per_frame * discarded_frames_from_front;
 
   current_frames = frames();
   int discarded_frames_from_back =
       (discarded_duration_from_back >=
-       AudioFramesToDuration(current_frames, sample_rate))
+       AudioFramesToDuration(current_frames, sample_rate_))
           ? current_frames
-          : AudioDurationToFrames(discarded_duration_from_back, sample_rate);
+          : AudioDurationToFrames(discarded_duration_from_back, sample_rate_);
   size_in_bytes_ -= bytes_per_frame * discarded_frames_from_back;
 }
 
@@ -245,7 +249,7 @@ DecodedAudio DecodedAudio::SwitchFormatTo(
   // Both sample types and storage types are different, use the slowest way.
   int new_size = GetBytesPerSample(new_sample_type) * frames() * channels();
   DecodedAudio new_decoded_audio(channels(), new_sample_type, new_storage_type,
-                                 timestamp(), new_size);
+                                 sample_rate(), timestamp(), new_size);
 
 #if defined(USE_NEON_FOR_AUDIO)
   if (enable_simd && channels() == 2 && IsAligned(frames(), 8)) {
@@ -315,8 +319,8 @@ DecodedAudio DecodedAudio::SwitchFormatTo(
 }
 
 DecodedAudio DecodedAudio::CloneForTesting() const {
-  DecodedAudio copy(channels(), sample_type(), storage_type(), timestamp(),
-                    size_in_bytes());
+  DecodedAudio copy(channels(), sample_type(), storage_type(), sample_rate(),
+                    timestamp(), size_in_bytes());
 
   if (size_in_bytes() > 0) {
     memcpy(copy.data(), data(), size_in_bytes());
@@ -330,7 +334,7 @@ DecodedAudio DecodedAudio::SwitchSampleTypeTo(
     bool enable_simd) const {
   int new_size = GetBytesPerSample(new_sample_type) * frames() * channels();
   DecodedAudio new_decoded_audio(channels(), new_sample_type, storage_type(),
-                                 timestamp(), new_size);
+                                 sample_rate(), timestamp(), new_size);
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
       new_sample_type == kSbMediaAudioSampleTypeFloat32) {
@@ -375,7 +379,7 @@ DecodedAudio DecodedAudio::SwitchStorageTypeTo(
     SbMediaAudioFrameStorageType new_storage_type,
     bool enable_simd) const {
   DecodedAudio new_decoded_audio(channels(), sample_type(), new_storage_type,
-                                 timestamp(), size_in_bytes());
+                                 sample_rate(), timestamp(), size_in_bytes());
   int bytes_per_sample = GetBytesPerSample(sample_type());
   const uint8_t* old_samples = this->data();
   uint8_t* new_samples = new_decoded_audio.data();
@@ -424,6 +428,7 @@ bool operator==(const DecodedAudio& left, const DecodedAudio& right) {
   }
 
   return left.timestamp() == right.timestamp() &&
+         left.sample_rate() == right.sample_rate() &&
          left.channels() == right.channels() &&
          left.sample_type() == right.sample_type() &&
          left.storage_type() == right.storage_type() &&
@@ -440,6 +445,7 @@ std::ostream& operator<<(std::ostream& os, const DecodedAudio& decoded_audio) {
     return os << "(eos)";
   }
   return os << "timestamp: " << decoded_audio.timestamp()
+            << ", sample rate: " << decoded_audio.sample_rate()
             << ", channels: " << decoded_audio.channels() << ", sample type: "
             << GetMediaAudioSampleTypeName(decoded_audio.sample_type())
             << ", storage type: "

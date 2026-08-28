@@ -95,6 +95,7 @@ void TvosAudioDecoder::Decode(const InputBuffers& input_buffers,
     DecodedAudio decoded_audio(audio_stream_info_.number_of_channels,
                                kSbMediaAudioSampleTypeFloat32,
                                kSbMediaAudioFrameStorageTypeInterleaved,
+                               audio_stream_info_.samples_per_second,
                                input_buffer->timestamp(), output_byte_size);
     audio_buffer_list_.mBuffers[0].mData = decoded_audio.data();
     audio_buffer_list_.mBuffers[0].mDataByteSize = output_byte_size;
@@ -134,8 +135,7 @@ void TvosAudioDecoder::Decode(const InputBuffers& input_buffers,
 
     Schedule(consumed_cb);
 
-    audio_frame_discarder_.AdjustForDiscardedDurations(
-        audio_stream_info_.samples_per_second, &decoded_audio);
+    audio_frame_discarder_.AdjustForDiscardedDurations(&decoded_audio);
 
     decoded_audios_.push(std::move(decoded_audio));
     Schedule(output_cb_);
@@ -151,14 +151,15 @@ void TvosAudioDecoder::WriteEndOfStream() {
 
   stream_ended_ = true;
   // Put EOS into the queue.
-  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
+  decoded_audios_.push(
+      DecodedAudio::CreateEOSBuffer(audio_stream_info_.samples_per_second));
 
   audio_frame_discarder_.OnDecodedAudioEndOfStream();
 
   Schedule(output_cb_);
 }
 
-std::optional<DecodedAudio> TvosAudioDecoder::Read(int* samples_per_second) {
+std::optional<DecodedAudio> TvosAudioDecoder::Read() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
@@ -168,7 +169,6 @@ std::optional<DecodedAudio> TvosAudioDecoder::Read(int* samples_per_second) {
     result = std::move(decoded_audios_.front());
     decoded_audios_.pop();
   }
-  *samples_per_second = audio_stream_info_.samples_per_second;
   return result;
 }
 

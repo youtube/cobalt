@@ -222,14 +222,12 @@ class AdaptiveAudioDecoderTest
   }
 
   void ReadFromDecoder() {
-    int samples_per_second;
-    std::optional<DecodedAudio> decoded_audio =
-        audio_decoder_->Read(&samples_per_second);
+    std::optional<DecodedAudio> decoded_audio = audio_decoder_->Read();
     ASSERT_TRUE(decoded_audio.has_value());
     if (first_output_received_) {
-      ASSERT_EQ(output_sample_rate_, samples_per_second);
+      ASSERT_EQ(output_sample_rate_, decoded_audio->sample_rate());
     } else {
-      output_sample_rate_ = samples_per_second;
+      output_sample_rate_ = decoded_audio->sample_rate();
       first_output_received_ = true;
     }
 

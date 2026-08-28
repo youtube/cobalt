@@ -67,8 +67,8 @@ class AudioDecoderPassthrough : public AudioDecoder {
     for (const auto& input_buffer : input_buffers) {
       DecodedAudio decoded_audio(
           kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
-          kSbMediaAudioFrameStorageTypePlanar, input_buffer->timestamp(),
-          input_buffer->size());
+          kSbMediaAudioFrameStorageTypePlanar, samples_per_second_,
+          input_buffer->timestamp(), input_buffer->size());
       memcpy(decoded_audio.data(), input_buffer->data(), input_buffer->size());
       decoded_audios_.push(std::move(decoded_audio));
       output_cb_();
@@ -81,16 +81,13 @@ class AudioDecoderPassthrough : public AudioDecoder {
     SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(output_cb_);
 
-    decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
+    decoded_audios_.push(DecodedAudio::CreateEOSBuffer(samples_per_second_));
     output_cb_();
   }
 
-  std::optional<DecodedAudio> Read(int* samples_per_second) override {
+  std::optional<DecodedAudio> Read() override {
     SB_CHECK(thread_checker_.CalledOnValidThread());
-    SB_DCHECK(samples_per_second);
     SB_DCHECK(!decoded_audios_.empty());
-
-    *samples_per_second = samples_per_second_;
 
     std::optional<DecodedAudio> decoded_audio =
         std::move(decoded_audios_.front());

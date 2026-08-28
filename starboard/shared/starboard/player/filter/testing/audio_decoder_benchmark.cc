@@ -75,8 +75,7 @@ class AudioDecoderHelper {
       job_queue_.Schedule(std::bind(&AudioDecoderHelper::OnOutput, this));
       return;
     }
-    int decoded_sample_rate;
-    auto decoded_audio = audio_decoder_->Read(&decoded_sample_rate);
+    auto decoded_audio = audio_decoder_->Read();
     end_of_stream_decoded_ = decoded_audio->is_end_of_stream();
   }
 

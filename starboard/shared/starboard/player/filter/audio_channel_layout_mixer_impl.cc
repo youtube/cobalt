@@ -319,7 +319,7 @@ DecodedAudio AudioChannelLayoutMixerImpl::Mix(DecodedAudio input) {
                     << output_channels_ << " channels is not supported.";
     // TODO: b/553577796 - Refactor Mix() to return std::optional<DecodedAudio>
     // to signal errors instead of returning an EOS buffer.
-    return DecodedAudio::CreateEOSBuffer();
+    return DecodedAudio::CreateEOSBuffer(input.sample_rate());
   }
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
@@ -334,7 +334,8 @@ DecodedAudio AudioChannelLayoutMixerImpl::Mix(const DecodedAudio& input,
                                               const float* matrix) {
   size_t frames = input.frames();
   DecodedAudio output(
-      output_channels_, sample_type_, storage_type_, input.timestamp(),
+      output_channels_, sample_type_, storage_type_, input.sample_rate(),
+      input.timestamp(),
       frames * output_channels_ * GetBytesPerSample(sample_type_));
   SampleType aux_buffer[8];
   SampleType output_buffer[8];
@@ -354,7 +355,8 @@ DecodedAudio AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
   SB_DCHECK_EQ(input.channels(), 1);
 
   DecodedAudio output(output_channels_, sample_type_, storage_type_,
-                      input.timestamp(), input.size_in_bytes() * 2);
+                      input.sample_rate(), input.timestamp(),
+                      input.size_in_bytes() * 2);
   if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
     size_t frames_left = input.frames();
     size_t bytes_per_sample = GetBytesPerSample(sample_type_);
