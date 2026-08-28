@@ -128,7 +128,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
   )
   parser.add_argument(
       "--gcs-memory-uri",
-      default=os.environ.get("GCS_MEMORY_URI"),
+      default=os.environ.get(
+          "GCS_MEMORY_URI",
+          "gs://lxn-test-vertex-staging/rebase_memory/knowledge_bank.json"),
       help=(
           "Optional GCS bucket URI (gs://bucket/path) to sync knowledge bank."),
   )

@@ -111,8 +111,8 @@ class CobaltReasoningEngine:
     self.skills_dir = skills_dir or SKILLS_DIR
     self.gcs_memory_uri = (
         gcs_memory_uri or os.environ.get("GCS_MEMORY_URI") or
-        (f"gs://{self.project_id}/rebase_memory/knowledge_bank.json"
-         if self.project_id else None))
+        (f"gs://{self.project_id}-vertex-staging/rebase_memory/knowledge_bank.json"
+         if self.project_id else "gs://lxn-test-vertex-staging/rebase_memory/knowledge_bank.json"))
     self.memory_cache: Optional[List[Dict[str, Any]]] = None
     self.storage_client: Any = None
     self.anthropic_client: Any = None

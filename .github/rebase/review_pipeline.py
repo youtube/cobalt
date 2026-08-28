@@ -397,6 +397,13 @@ def main():
       help="Automatically update skill docs in reasoning_engine/skills/ with lessons",
   )
   parser.add_argument(
+      "--gcs-memory-uri",
+      default=os.environ.get(
+          "GCS_MEMORY_URI",
+          "gs://lxn-test-vertex-staging/rebase_memory/knowledge_bank.json"),
+      help="GCS URI for knowledge memory bank (default: gs://lxn-test-vertex-staging/rebase_memory/knowledge_bank.json)",
+  )
+  parser.add_argument(
       "--out",
       default="",
       help="Optional path to save markdown review report",
@@ -481,6 +488,7 @@ def main():
         location=args.location,
         expert_model=args.expert_model,
         expert_location=args.expert_location,
+        gcs_memory_uri=args.gcs_memory_uri,
     )
 
   review_report = generate_comparative_review(
