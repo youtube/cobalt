@@ -9,6 +9,7 @@
 /third_party/blink/renderer/platform/media/ @youtube/cobalt-media
 
 /cobalt/android  @youtube/cobalt-androidtv
+/cobalt/android/apk/app/src/main/java/dev/cobalt/media/ @youtube/cobalt-androidtv @youtube/cobalt-media
 
 /starboard/  # no default owners
 /starboard/*.h                             @youtube/cobalt-starboard-owners
