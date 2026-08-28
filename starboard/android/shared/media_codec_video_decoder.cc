@@ -132,17 +132,17 @@ const int kNonInitialPrerollFrameCount = 1;
 // rendered, the rest of the playback should play without frame drops. So,
 // tunnel mode prerolling only needs 1 frame.
 const int kTunnelModePrerollFrameCount = 1;
-// The maximum number of pending inputs allowed in the decoder queue.
+// The default maximum number of pending inputs allowed in the decoder queue.
 // We set this to 128 frames (approx 2.1 seconds of 60fps video or 4.2 seconds
 // of 30fps video) to provide a buffer safety cushion that helps survive
 // V8 JavaScript main-thread congestion without video starvation.
-constexpr int kMaxPendingInputsSize = 128;
+constexpr int kDefaultMaxPendingInputsSize = 128;
 
 // VideoFrameTracker tracks frames in the entire media pipeline (decoder queue,
 // codec, and renderer). We set its capacity to accommodate the maximum input
-// queue size (`kMaxPendingInputsSize`) plus a margin of 100 frames for frames
-// in the codec and renderer.
-constexpr int kVideoFrameTrackerCapacity = kMaxPendingInputsSize + 100;
+// queue size (`max_pending_inputs_size_`) plus a margin of 100 frames for
+// frames in the codec and renderer.
+constexpr int kVideoFrameTrackerMargin = 100;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
@@ -386,6 +386,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       fix_need_more_input_backpressure_(
           pipeline_config.experimental_features.GetBool(
               kMediaFixNeedMoreInputBackpressure)),
+      max_pending_inputs_size_(pipeline_config.experimental_features
+                                   .Get(kMediaVideoDecoderMaxPendingInputsSize)
+                                   .value_or(kDefaultMaxPendingInputsSize)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -421,8 +424,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   }
 
   if (is_video_frame_tracker_enabled_) {
-    video_frame_tracker_ =
-        std::make_unique<VideoFrameTracker>(kVideoFrameTrackerCapacity);
+    video_frame_tracker_ = std::make_unique<VideoFrameTracker>(
+        max_pending_inputs_size_ + kVideoFrameTrackerMargin);
   }
 
   if (require_software_codec_) {
@@ -443,7 +446,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << GetMediaVideoCodecName(video_codec_)
                << ", with output mode=" << GetPlayerOutputModeName(output_mode_)
                << ", preroll count=" << number_of_preroll_frames_
-               << ", max pending input size=" << kMaxPendingInputsSize
+               << ", max pending input size=" << max_pending_inputs_size_
                << ", max video capabilities=\""
                << stream_config.max_video_capabilities
                << "\", tunnel mode audio session id="
@@ -993,7 +996,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+  if (media_decoder_->GetNumberOfPendingInputs() <
+      static_cast<size_t>(max_pending_inputs_size_)) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -1045,8 +1049,8 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   }
 
   if (fix_need_more_input_backpressure_) {
-    bool need_more_input =
-        !is_end_of_stream && number_of_pending_inputs < kMaxPendingInputsSize;
+    bool need_more_input = !is_end_of_stream &&
+                           number_of_pending_inputs < max_pending_inputs_size_;
     decoder_status_cb_(
         need_more_input ? kNeedMoreInput : kBufferFull,
         make_scoped_refptr<VideoFrameImpl>(
@@ -1189,7 +1193,8 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+  if (media_decoder_->GetNumberOfPendingInputs() <
+      static_cast<size_t>(max_pending_inputs_size_)) {
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
