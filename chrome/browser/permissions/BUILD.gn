@@ -65,6 +65,7 @@ source_set("permissions") {
     "//chrome/browser/media/webrtc",
     "//chrome/browser/permissions/system",
     "//chrome/browser/ui:browser_navigator_params_headers",
+    "//components/passage_embeddings:passage_embeddings_types", # Added for Error 1
   ]
 
   deps = [
@@ -115,6 +116,7 @@ source_set("permissions") {
     "//content/public/browser",
     "//extensions/buildflags",
     "//services/device/public/cpp/geolocation",
+    "//chrome/browser/passage_embeddings", # Added for Error 2
   ]
 
   if (is_android) {
@@ -169,7 +171,6 @@ source_set("permissions") {
       deps += [ "//third_party/tflite_support" ]
     }
     deps += [
-      "//chrome/browser/passage_embeddings",
       "//components/passage_embeddings",
       "//components/segmentation_platform/internal:optimization_guide_segmentation_handler",
     ]

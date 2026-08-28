@@ -154,18 +154,12 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
       const std::string& device_id,
       const LogCallback& log_callback) override;
 
-<<<<<<< HEAD
-  void SetMute(JNIEnv* env, jboolean muted);
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void PreStartStream(const base::UnguessableToken& session_id,
                       const AudioParameters& params) override;
 #endif
 
-  void SetMute(JNIEnv* env,
-               jboolean muted);
->>>>>>> parent of b388db2bb68 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
+  void SetMute(JNIEnv* env, jboolean muted);
   // Sets a volume that applies to all this manager's output audio streams.
   // This overrides other SetVolume calls (e.g. through AudioHostMsg_SetVolume).
   // TODO(https://crbug.com/422733084): this functionality is likely unused.

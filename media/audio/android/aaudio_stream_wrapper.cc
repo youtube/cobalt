@@ -34,7 +34,9 @@ class LOCKABLE AAudioDestructionHelper {
   ~AAudioDestructionHelper() {
     CHECK(is_closing_);
     if (aaudio_stream_) {
-      AAudioStream_close(aaudio_stream_);
+      if (__builtin_available(android 26, *)) {
+        AAudioStream_close(aaudio_stream_);
+      }
     }
   }
 
@@ -224,89 +226,101 @@ bool AAudioStreamWrapper::Open() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!is_closed_);
 
-  AAudioStreamBuilder* builder;
-  auto result = AAudio_createStreamBuilder(&builder);
-  if (AAUDIO_OK != result) {
-    return false;
-  }
-
-  // Parameters
-  AAudioStreamBuilder_setDirection(
-      builder, (stream_type_ == StreamType::kInput ? AAUDIO_DIRECTION_INPUT
-                                                   : AAUDIO_DIRECTION_OUTPUT));
-  AAudioStreamBuilder_setSampleRate(builder, params_.sample_rate());
-  AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
-  AAudioStreamBuilder_setUsage(builder, usage_);
-  AAudioStreamBuilder_setPerformanceMode(builder, performance_mode_);
-  AAudioStreamBuilder_setFramesPerDataCallback(builder,
-                                               params_.frames_per_buffer());
-  AAudioStreamBuilder_setDeviceId(builder, device_.GetId().ToAAudioDeviceId());
-
-  if (__builtin_available(android AAUDIO_CHANNEL_MASK_MIN_API, *)) {
-    SetChannelMask(builder, params_);
-  } else {
-    AAudioStreamBuilder_setChannelCount(builder, params_.channels());
-  }
-
-  if (stream_type_ == StreamType::kInput) {
-    // Set AAUDIO_INPUT_PRESET_VOICE_COMMUNICATION when we need echo
-    // cancellation. Otherwise, we use AAUDIO_INPUT_PRESET_CAMCORDER instead
-    // of the platform default of AAUDIO_INPUT_PRESET_VOICE_RECOGNITION, since
-    // it supposedly uses a wideband signal.
-    //
-    // We do not use AAUDIO_INPUT_PRESET_UNPROCESSED, even if
-    // `params_.effects() == AudioParameters::NO_EFFECTS` because the lack of
-    // automatic gain control results in quiet, sometimes silent, streams.
-    AAudioStreamBuilder_setInputPreset(
-        builder, params_.effects() & AudioParameters::ECHO_CANCELLER
-                     ? AAUDIO_INPUT_PRESET_VOICE_COMMUNICATION
-                     : AAUDIO_INPUT_PRESET_CAMCORDER);
-  }
-
-  // Callbacks
-  AAudioStreamBuilder_setDataCallback(builder, OnAudioDataRequestedCallback,
-                                      destruction_helper_.get());
-  AAudioStreamBuilder_setErrorCallback(builder, OnStreamErrorCallback,
-                                       destruction_helper_.get());
-
-  result = AAudioStreamBuilder_openStream(builder,
-                                          &aaudio_stream_.AsEphemeralRawAddr());
-
-  AAudioStreamBuilder_delete(builder);
-
-  if (AAUDIO_OK != result) {
-    CHECK(!aaudio_stream_);
-    return false;
-  }
-
-  CHECK_EQ(AAUDIO_FORMAT_PCM_FLOAT, AAudioStream_getFormat(aaudio_stream_));
-
-  if (!device_.GetId().IsDefault()) {
-    // `AAudioStreamBuilder_setDeviceId` is not guaranteed to set the specified
-    // device.
-    const int32_t expected_device_id = device_.GetId().ToAAudioDeviceId();
-    const int32_t actual_device_id = AAudioStream_getDeviceId(aaudio_stream_);
-    bool device_id_matches = expected_device_id == actual_device_id;
-    EmitSetDeviceIdResultToHistogram(device_id_matches);
-    if (!device_id_matches) {
-      DLOG(WARNING) << "Failed to set device ID for AAudio stream. Expected: "
-                    << expected_device_id << "; actual: " << actual_device_id;
+  if (__builtin_available(android 26, *)) {
+    AAudioStreamBuilder* builder;
+    auto result = AAudio_createStreamBuilder(&builder);
+    if (AAUDIO_OK != result) {
       return false;
     }
+
+    // Parameters
+    AAudioStreamBuilder_setDirection(
+        builder, (stream_type_ == StreamType::kInput ? AAUDIO_DIRECTION_INPUT
+                                                     : AAUDIO_DIRECTION_OUTPUT));
+    AAudioStreamBuilder_setSampleRate(builder, params_.sample_rate());
+    AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
+    if (__builtin_available(android 28, *)) {
+      AAudioStreamBuilder_setUsage(builder, usage_);
+    }
+    AAudioStreamBuilder_setPerformanceMode(builder, performance_mode_);
+    AAudioStreamBuilder_setFramesPerDataCallback(builder,
+                                                 params_.frames_per_buffer());
+    AAudioStreamBuilder_setDeviceId(builder,
+                                    device_.GetId().ToAAudioDeviceId());
+
+    if (__builtin_available(android AAUDIO_CHANNEL_MASK_MIN_API, *)) {
+      SetChannelMask(builder, params_);
+    } else {
+      AAudioStreamBuilder_setChannelCount(builder, params_.channels());
+    }
+
+    if (stream_type_ == StreamType::kInput) {
+      // Set AAUDIO_INPUT_PRESET_VOICE_COMMUNICATION when we need echo
+      // cancellation. Otherwise, we use AAUDIO_INPUT_PRESET_CAMCORDER instead
+      // of the platform default of AAUDIO_INPUT_PRESET_VOICE_RECOGNITION, since
+      // it supposedly uses a wideband signal.
+      //
+      // We do not use AAUDIO_INPUT_PRESET_UNPROCESSED, even if
+      // `params_.effects() == AudioParameters::NO_EFFECTS` because the lack of
+      // automatic gain control results in quiet, sometimes silent, streams.
+      if (__builtin_available(android 28, *)) {
+        AAudioStreamBuilder_setInputPreset(
+            builder, params_.effects() & AudioParameters::ECHO_CANCELLER
+                         ? AAUDIO_INPUT_PRESET_VOICE_COMMUNICATION
+                         : AAUDIO_INPUT_PRESET_CAMCORDER);
+      }
+    }
+
+    // Callbacks
+    AAudioStreamBuilder_setDataCallback(builder, OnAudioDataRequestedCallback,
+                                        destruction_helper_.get());
+    AAudioStreamBuilder_setErrorCallback(builder, OnStreamErrorCallback,
+                                         destruction_helper_.get());
+
+    result = AAudioStreamBuilder_openStream(
+        builder, &aaudio_stream_.AsEphemeralRawAddr());
+
+    AAudioStreamBuilder_delete(builder);
+
+    if (AAUDIO_OK != result) {
+      CHECK(!aaudio_stream_);
+      return false;
+    }
+
+    CHECK_EQ(AAUDIO_FORMAT_PCM_FLOAT, AAudioStream_getFormat(aaudio_stream_));
+
+    if (!device_.GetId().IsDefault()) {
+      // `AAudioStreamBuilder_setDeviceId` is not guaranteed to set the specified
+      // device.
+      const int32_t expected_device_id = device_.GetId().ToAAudioDeviceId();
+      const int32_t actual_device_id =
+          AAudioStream_getDeviceId(aaudio_stream_);
+      bool device_id_matches = expected_device_id == actual_device_id;
+      EmitSetDeviceIdResultToHistogram(device_id_matches);
+      if (!device_id_matches) {
+        DLOG(WARNING)
+            << "Failed to set device ID for AAudio stream. Expected: "
+            << expected_device_id << "; actual: " << actual_device_id;
+        return false;
+      }
+    }
+
+    // After opening the stream, sets the effective buffer size to 3X the burst
+    // size to prevent glitching if the burst is small (e.g. < 128). On some
+    // devices you can get by with 1X or 2X, but 3X is safer.
+    int32_t frames_per_burst = AAudioStream_getFramesPerBurst(aaudio_stream_);
+    int32_t size_requested =
+        frames_per_burst * (frames_per_burst < 128 ? 3 : 2);
+    AAudioStream_setBufferSizeInFrames(aaudio_stream_, size_requested);
+
+    TRACE_EVENT2("audio", "AAudioStreamWrapper::Open", "params",
+                 params_.AsHumanReadableString(), "requested buffer size",
+                 size_requested);
+
+    return true;
   }
 
-  // After opening the stream, sets the effective buffer size to 3X the burst
-  // size to prevent glitching if the burst is small (e.g. < 128). On some
-  // devices you can get by with 1X or 2X, but 3X is safer.
-  int32_t frames_per_burst = AAudioStream_getFramesPerBurst(aaudio_stream_);
-  int32_t size_requested = frames_per_burst * (frames_per_burst < 128 ? 3 : 2);
-  AAudioStream_setBufferSizeInFrames(aaudio_stream_, size_requested);
-
-  TRACE_EVENT2("audio", "AAudioStreamWrapper::Open", "params",
-               params_.AsHumanReadableString(), "requested buffer size",
-               size_requested);
-
-  return true;
+  return false;
 }
 
 void AAudioStreamWrapper::Close() {
@@ -329,13 +343,17 @@ bool AAudioStreamWrapper::Start() {
   CHECK(aaudio_stream_);
   CHECK(!is_closed_);
 
-  auto result = AAudioStream_requestStart(aaudio_stream_);
-  if (result != AAUDIO_OK) {
-    DLOG(ERROR) << "Failed to start audio stream, result: "
-                << AAudio_convertResultToText(result);
+  if (__builtin_available(android 26, *)) {
+    auto result = AAudioStream_requestStart(aaudio_stream_);
+    if (result != AAUDIO_OK) {
+      DLOG(ERROR) << "Failed to start audio stream, result: "
+                  << AAudio_convertResultToText(result);
+    }
+
+    return result == AAUDIO_OK;
   }
 
-  return result == AAUDIO_OK;
+  return false;
 }
 
 bool AAudioStreamWrapper::Stop() {
@@ -346,85 +364,101 @@ bool AAudioStreamWrapper::Stop() {
     return true;
   }
 
-  // Note: This call may or may not be asynchronous, depending on the Android
-  // version.
-  auto result = AAudioStream_requestStop(aaudio_stream_);
+  if (__builtin_available(android 26, *)) {
+    // Note: This call may or may not be asynchronous, depending on the Android
+    // version.
+    auto result = AAudioStream_requestStop(aaudio_stream_);
 
-  if (result != AAUDIO_OK) {
-    DLOG(ERROR) << "Failed to stop audio stream, result: "
-                << AAudio_convertResultToText(result);
-    return false;
+    if (result != AAUDIO_OK) {
+      DLOG(ERROR) << "Failed to stop audio stream, result: "
+                  << AAudio_convertResultToText(result);
+      return false;
+    }
+
+    // Wait for AAUDIO_STREAM_STATE_STOPPED, but do not explicitly check for the
+    // success of this wait.
+    aaudio_stream_state_t current_state = AAUDIO_STREAM_STATE_STOPPING;
+    aaudio_stream_state_t next_state = AAUDIO_STREAM_STATE_UNINITIALIZED;
+    static const int64_t kTimeoutNanoseconds = 1e8;
+    AAudioStream_waitForStateChange(aaudio_stream_, current_state, &next_state,
+                                    kTimeoutNanoseconds);
+
+    return true;
   }
 
-  // Wait for AAUDIO_STREAM_STATE_STOPPED, but do not explicitly check for the
-  // success of this wait.
-  aaudio_stream_state_t current_state = AAUDIO_STREAM_STATE_STOPPING;
-  aaudio_stream_state_t next_state = AAUDIO_STREAM_STATE_UNINITIALIZED;
-  static const int64_t kTimeoutNanoseconds = 1e8;
-  result = AAudioStream_waitForStateChange(aaudio_stream_, current_state,
-                                           &next_state, kTimeoutNanoseconds);
-
-  return true;
+  return false;
 }
 
 base::TimeDelta AAudioStreamWrapper::GetOutputDelay(
     base::TimeTicks delay_timestamp) {
   CHECK_EQ(stream_type_, AAudioStreamWrapper::StreamType::kOutput);
 
-  // Get the time that a known audio frame was presented for playing.
-  int64_t existing_frame_index;
-  int64_t existing_frame_pts;
-  auto result =
-      AAudioStream_getTimestamp(aaudio_stream_, CLOCK_MONOTONIC,
-                                &existing_frame_index, &existing_frame_pts);
+  if (__builtin_available(android 26, *)) {
+    // Get the time that a known audio frame was presented for playing.
+    int64_t existing_frame_index;
+    int64_t existing_frame_pts;
+    auto result =
+        AAudioStream_getTimestamp(aaudio_stream_, CLOCK_MONOTONIC,
+                                  &existing_frame_index, &existing_frame_pts);
 
-  if (result != AAUDIO_OK) {
-    DLOG(ERROR) << "Failed to get audio latency, result: "
-                << AAudio_convertResultToText(result);
-    return base::TimeDelta();
+    if (result != AAUDIO_OK) {
+      DLOG(ERROR) << "Failed to get audio latency, result: "
+                  << AAudio_convertResultToText(result);
+      return base::TimeDelta();
+    }
+
+    // Calculate the number of frames between our known frame and the write index.
+    const int64_t frame_index_delta =
+        AAudioStream_getFramesWritten(aaudio_stream_) - existing_frame_index;
+
+    // Calculate the time which the next frame will be presented.
+    const base::TimeDelta next_frame_pts = base::Nanoseconds(
+        existing_frame_pts + frame_index_delta * ns_per_frame_);
+
+    // Calculate the latency between write time and presentation time. At startup
+    // we may end up with negative values here.
+    return std::max(base::TimeDelta(),
+                    next_frame_pts - (delay_timestamp - base::TimeTicks()));
   }
 
-  // Calculate the number of frames between our known frame and the write index.
-  const int64_t frame_index_delta =
-      AAudioStream_getFramesWritten(aaudio_stream_) - existing_frame_index;
-
-  // Calculate the time which the next frame will be presented.
-  const base::TimeDelta next_frame_pts =
-      base::Nanoseconds(existing_frame_pts + frame_index_delta * ns_per_frame_);
-
-  // Calculate the latency between write time and presentation time. At startup
-  // we may end up with negative values here.
-  return std::max(base::TimeDelta(),
-                  next_frame_pts - (delay_timestamp - base::TimeTicks()));
+  DLOG(ERROR) << "Failed to get audio latency, result: "
+              << AAUDIO_ERROR_UNAVAILABLE;
+  return base::TimeDelta();
 }
 
 base::TimeTicks AAudioStreamWrapper::GetCaptureTimestamp() {
   CHECK_EQ(stream_type_, AAudioStreamWrapper::StreamType::kInput);
 
-  // Get the time that at which the last known audio frame was captured.
-  int64_t hw_capture_frame_index;
-  int64_t hw_capture_frame_pts;
-  auto result =
-      AAudioStream_getTimestamp(aaudio_stream_, CLOCK_MONOTONIC,
-                                &hw_capture_frame_index, &hw_capture_frame_pts);
+  if (__builtin_available(android 26, *)) {
+    // Get the time that at which the last known audio frame was captured.
+    int64_t hw_capture_frame_index;
+    int64_t hw_capture_frame_pts;
+    auto result = AAudioStream_getTimestamp(
+        aaudio_stream_, CLOCK_MONOTONIC, &hw_capture_frame_index,
+        &hw_capture_frame_pts);
 
-  if (result != AAUDIO_OK) {
-    DLOG(ERROR) << "Failed to get audio latency, result: "
-                << AAudio_convertResultToText(result);
-    return base::TimeTicks();
+    if (result != AAUDIO_OK) {
+      DLOG(ERROR) << "Failed to get audio latency, result: "
+                  << AAudio_convertResultToText(result);
+      return base::TimeTicks();
+    }
+
+    // Calculate the number of frames between our captured frame (the microphone
+    // write head) and the current read index.
+    const int64_t frame_index_delta =
+        hw_capture_frame_index - AAudioStream_getFramesRead(aaudio_stream_);
+
+    // Calculate the time at which the current frame (at the stream read head) was
+    // captured.
+    const base::TimeDelta current_frame_pts = base::Nanoseconds(
+        hw_capture_frame_pts - frame_index_delta * ns_per_frame_);
+
+    return current_frame_pts + base::TimeTicks();
   }
 
-  // Calculate the number of frames between our captured frame (the microphone
-  // write head) and the current read index.
-  const int64_t frame_index_delta =
-      hw_capture_frame_index - AAudioStream_getFramesRead(aaudio_stream_);
-
-  // Calculate the time at which the current frame (at the stream read head) was
-  // captured.
-  const base::TimeDelta current_frame_pts = base::Nanoseconds(
-      hw_capture_frame_pts - frame_index_delta * ns_per_frame_);
-
-  return current_frame_pts + base::TimeTicks();
+  DLOG(ERROR) << "Failed to get audio latency, result: "
+              << AAUDIO_ERROR_UNAVAILABLE;
+  return base::TimeTicks();
 }
 
 aaudio_data_callback_result_t AAudioStreamWrapper::OnAudioDataRequested(

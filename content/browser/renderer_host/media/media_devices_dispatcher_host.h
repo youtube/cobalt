@@ -81,6 +81,10 @@ class CONTENT_EXPORT MediaDevicesDispatcherHost
       override;
   void SetCaptureHandleConfig(
       blink::mojom::CaptureHandleConfigPtr config) override;
+  void CloseFocusWindowOfOpportunity(const std::string& label) override;
+  void ProduceSubCaptureTargetId(
+      ::media::mojom::SubCaptureTargetType type,
+      ProduceSubCaptureTargetIdCallback callback) override;
 
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   void CloseFocusWindowOfOpportunity(const std::string& label) override;

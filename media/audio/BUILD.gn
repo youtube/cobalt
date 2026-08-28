@@ -41,10 +41,6 @@ source_set("audio") {
     "//media/base/android",
   ]
 
-  if (is_cobalt) {
-    visibility -= [ ":flac_audio_handler_fuzzer" ]
-  }
-
   sources = [
     "aecdump_recording_manager.cc",
     "aecdump_recording_manager.h",
@@ -613,14 +609,6 @@ fuzzer_test("wav_audio_handler_fuzzer") {
   ]
 }
 
-<<<<<<< HEAD
-fuzzer_test("flac_audio_handler_fuzzer") {
-  sources = [ "flac_audio_handler_fuzzer.cc" ]
-  deps = [
-    "//base",
-    "//media:test_support",
-  ]
-=======
 if (!is_cobalt) {
   fuzzer_test("flac_audio_handler_fuzzer") {
     sources = [ "flac_audio_handler_fuzzer.cc" ]
@@ -630,5 +618,4 @@ if (!is_cobalt) {
       "//media:test_support",
     ]
   }
->>>>>>> parent of b388db2bb68 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
