@@ -209,10 +209,8 @@ def rebase_and_push(target, pr, env):
     autoroll_files = ['.github/AUTOROLL', '.github/AUTOROLL_CHROMIUM']
     for f in autoroll_files:
       if has_conflicts(f):
-        log(
-            f'Error: Autoroll file {f} contains conflict markers or is '
-            'marked CONFLICTED.'
-        )
+        log(f'Error: Autoroll file {f} contains conflict markers or is '
+            'marked CONFLICTED.')
         sys.exit(1)
 
     log('Rebasing...')
