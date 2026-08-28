@@ -106,28 +106,25 @@ def get_diff_for_commits(
     pr_num: str = "",
 ) -> str:
   """Calculates git diff across a list of commits with remote fallbacks."""
+  del pr_num
   if not commits:
     return ""
 
   first_sha = base_sha or commits[0].get("oid", "")
   last_sha = commits[-1].get("oid", "")
 
-  # Ensure commits exist locally if pr_num is given
-  if pr_num and (first_sha or last_sha):
-    clean_pr = str(pr_num).strip().lstrip("#")
-    if last_sha:
-      ok, _, _ = run_cmd(["git", "cat-file", "-e", f"{last_sha}^{{commit}}"],
-                         cwd=repo_root)
-      if not ok:
-        run_cmd(["git", "fetch", "origin", f"pull/{clean_pr}/head"],
-                cwd=repo_root)
-
+  # If both first_sha and last_sha exist locally, compute fast range diff
   if first_sha and last_sha:
-    diff_range = (f"{first_sha}..{last_sha}"
-                  if base_sha else f"{first_sha}^..{last_sha}")
-    ok, out, _ = run_cmd(["git", "diff", diff_range], cwd=repo_root)
-    if ok and out:
-      return out
+    ok1, _, _ = run_cmd(["git", "cat-file", "-e", f"{first_sha}^{{commit}}"],
+                        cwd=repo_root)
+    ok2, _, _ = run_cmd(["git", "cat-file", "-e", f"{last_sha}^{{commit}}"],
+                        cwd=repo_root)
+    if ok1 and ok2:
+      diff_range = (f"{first_sha}..{last_sha}"
+                    if base_sha else f"{first_sha}^..{last_sha}")
+      ok, out, _ = run_cmd(["git", "diff", diff_range], cwd=repo_root)
+      if ok and out:
+        return out
 
   # Fallback: git show individual commits or fetch via GitHub API
   diff_chunks = []
