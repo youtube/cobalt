@@ -14,21 +14,13 @@
 
 #include "starboard/linux/shared/low_memory_kill.h"
 
-#include <fcntl.h>
 #include <unistd.h>
 
-#include <fstream>
 #include <mutex>
 #include <string>
-#include <vector>
 
-#include "starboard/common/file.h"
-#include "starboard/common/log.h"
-#include "starboard/common/string.h"
-#include "starboard/configuration_constants.h"
 #include "starboard/extension/low_memory_kill.h"
 #include "starboard/shared/environment.h"
-#include "starboard/system.h"
 
 namespace starboard {
 

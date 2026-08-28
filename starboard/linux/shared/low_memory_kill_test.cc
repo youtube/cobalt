@@ -14,14 +14,13 @@
 
 #include "starboard/linux/shared/low_memory_kill.h"
 
+#include <stdlib.h>
 #include <unistd.h>
 
-#include <cstdlib>
 #include <fstream>
 #include <string>
 #include <vector>
 
-#include "starboard/configuration_constants.h"
 #include "starboard/extension/low_memory_kill.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
