@@ -303,6 +303,29 @@ GpuServiceImpl::GpuServiceImpl(
   weak_ptr_ = weak_ptr_factory_.GetWeakPtr();
 }
 
+#if BUILDFLAG(IS_COBALT)
+GpuServiceImpl::PendingEstablishGpuChannelRequest::
+    PendingEstablishGpuChannelRequest(int32_t client_id,
+                                      uint64_t client_tracing_id,
+                                      bool is_gpu_host,
+                                      EstablishGpuChannelCallback callback)
+    : client_id(client_id),
+      client_tracing_id(client_tracing_id),
+      is_gpu_host(is_gpu_host),
+      callback(std::move(callback)) {}
+
+GpuServiceImpl::PendingEstablishGpuChannelRequest::
+    PendingEstablishGpuChannelRequest(
+        PendingEstablishGpuChannelRequest&& other) = default;
+
+GpuServiceImpl::PendingEstablishGpuChannelRequest&
+GpuServiceImpl::PendingEstablishGpuChannelRequest::operator=(
+    PendingEstablishGpuChannelRequest&& other) = default;
+
+GpuServiceImpl::PendingEstablishGpuChannelRequest::
+    ~PendingEstablishGpuChannelRequest() = default;
+#endif  // BUILDFLAG(IS_COBALT)
+
 GpuServiceImpl::GpuServiceImpl()
     : clear_shader_cache_(base::FeatureList::IsEnabled(
           features::kClearGrShaderDiskCacheOnInvalidPrefix)) {}

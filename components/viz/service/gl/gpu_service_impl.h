@@ -618,6 +618,16 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   // Represents a deferred EstablishGpuChannel request received while the
   // application is backgrounded / concealed.
   struct PendingEstablishGpuChannelRequest {
+    PendingEstablishGpuChannelRequest(int32_t client_id,
+                                      uint64_t client_tracing_id,
+                                      bool is_gpu_host,
+                                      EstablishGpuChannelCallback callback);
+    PendingEstablishGpuChannelRequest(
+        PendingEstablishGpuChannelRequest&& other);
+    PendingEstablishGpuChannelRequest& operator=(
+        PendingEstablishGpuChannelRequest&& other);
+    ~PendingEstablishGpuChannelRequest();
+
     int32_t client_id;
     uint64_t client_tracing_id;
     bool is_gpu_host;
