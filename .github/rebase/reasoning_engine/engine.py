@@ -25,6 +25,8 @@ import re
 import sys
 import time
 from typing import Any, Dict, List, Optional
+import urllib.error
+import urllib.request
 import warnings
 
 from google import genai
@@ -93,11 +95,19 @@ class CobaltReasoningEngine:
     self.flash_model = flash_model or "gemini-2.5-flash"
     self.pro_model = pro_model
     self.expert_model = (
-        expert_model or os.environ.get("EXPERT_MODEL") or "claude-sonnet-4-6")
+        expert_model or os.environ.get("EXPERT_MODEL") or "claude-sonnet-5")
     self.expert_provider = (
-        expert_provider or os.environ.get("EXPERT_PROVIDER") or "anthropic")
+        expert_provider or os.environ.get("EXPERT_PROVIDER") or
+        ("anthropic" if "claude" in self.expert_model.lower()
+         else ("glm" if "glm" in self.expert_model.lower() else "gemini")))
     self.expert_location = (
-        expert_location or os.environ.get("EXPERT_LOCATION") or "us-east5")
+        expert_location or os.environ.get("EXPERT_LOCATION") or
+        ("global" if self.expert_provider == "anthropic" else self.location))
+    self.glm_api_key = (
+        os.environ.get("GLM_API_KEY") or os.environ.get("OPENAI_API_KEY"))
+    self.glm_base_url = (
+        os.environ.get("GLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL") or
+        "https://open.bigmodel.cn/api/paas/v4")
     self.skills_dir = skills_dir or SKILLS_DIR
     self.gcs_memory_uri = (
         gcs_memory_uri or os.environ.get("GCS_MEMORY_URI") or
@@ -266,26 +276,83 @@ class CobaltReasoningEngine:
         self.anthropic_client = None
     return self.anthropic_client
 
+  def _generate_openai_compatible_content(
+      self,
+      model: str,
+      contents: Any,
+      system_instruction: str,
+      temperature: float = 0.1,
+  ) -> Optional[str]:
+    """Generates content via GLM / OpenAI-compatible REST endpoint."""
+    if not self.glm_api_key:
+      print(
+          "  [REASONING_ENGINE] Notice: GLM_API_KEY or OPENAI_API_KEY not set. "
+          "Set GLM_API_KEY to enable GLM-5.2 service.",
+          file=sys.stderr,
+      )
+      return None
+    endpoint = f"{self.glm_base_url.rstrip('/')}/chat/completions"
+    prompt_text = str(contents) if not isinstance(contents, str) else contents
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": prompt_text},
+        ],
+        "temperature": temperature,
+        "max_tokens": 8192,
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        endpoint,
+        data=data,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.glm_api_key}",
+        },
+        method="POST",
+    )
+    try:
+      print(
+          f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to GLM/OpenAI "
+          f"{model} via {endpoint}...",
+          file=sys.stderr,
+      )
+      with urllib.request.urlopen(req, timeout=120) as resp:
+        res_data = json.loads(resp.read().decode("utf-8"))
+        if "choices" in res_data and res_data["choices"]:
+          return res_data["choices"][0]["message"]["content"]
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      print(
+          f"  [REASONING_ENGINE] Warning: GLM/OpenAI query failed: {e}. "
+          "Falling back to Gemini Expert...",
+          file=sys.stderr,
+      )
+    return None
+
   def _generate_expert_content(
       self,
       contents: Any,
       system_instruction: str,
       temperature: float = 0.1,
   ) -> Optional[str]:
-    """Generates content via Tier-2 Expert LLM (Anthropic Claude on Vertex or Gemini Thinking)."""
-    if self.expert_provider == "anthropic":
+    """Generates content via Tier-2 Expert LLM (Claude Sonnet 5, Gemini 3.7 Thinking, or GLM 5.2)."""
+    expert_name = self.expert_model or "claude-sonnet-5"
+
+    # 1. Anthropic Claude (e.g. Claude Sonnet 5 on Vertex AI)
+    if self.expert_provider == "anthropic" or "claude" in expert_name.lower():
       aclient = self._get_anthropic_client()
       if aclient is not None:
         try:
           prompt_text = str(contents) if not isinstance(contents,
                                                         str) else contents
           print(
-              f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to "
-              f"{self.expert_model} in {self.expert_location}...",
+              f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to Anthropic "
+              f"{expert_name} in {self.expert_location}...",
               file=sys.stderr,
           )
           resp = aclient.messages.create(
-              model=self.expert_model,
+              model=expert_name,
               max_tokens=8192,
               system=system_instruction,
               messages=[{
@@ -293,19 +360,38 @@ class CobaltReasoningEngine:
                   "content": prompt_text
               }],
           )
-          if resp and resp.content:
-            return resp.content[0].text
+          text_parts = []
+          for block in resp.content:
+            if hasattr(block, "text") and block.text:
+              text_parts.append(block.text)
+            elif getattr(block, "type", "") == "text":
+              text_parts.append(getattr(block, "text", ""))
+          full_text = "\n".join(text_parts).strip()
+          if full_text:
+            return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
           print(
               f"  [REASONING_ENGINE] Warning: Anthropic query failed: {e}. "
-              "Falling back to Gemini Pro...",
+              "Falling back to Gemini Expert...",
               file=sys.stderr,
           )
 
-    # Fallback to Pro model with extended thinking budget
+    # 2. GLM / OpenAI Compatible Service (e.g. GLM-5.2)
+    if self.expert_provider == "glm" or "glm" in expert_name.lower():
+      glm_resp = self._generate_openai_compatible_content(
+          model=expert_name,
+          contents=contents,
+          system_instruction=system_instruction,
+          temperature=temperature,
+      )
+      if glm_resp:
+        return glm_resp
+
+    # 3. Gemini Thinking Expert (e.g. gemini-3.7-flash or gemini-2.5-pro)
+    target_gemini_model = expert_name if "gemini" in expert_name.lower() else self.pro_model
     print(
         f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to "
-        f"{self.pro_model} with thinking...",
+        f"{target_gemini_model} with thinking...",
         file=sys.stderr,
     )
     cfg = types.GenerateContentConfig(
@@ -313,7 +399,7 @@ class CobaltReasoningEngine:
         thinking_config=types.ThinkingConfig(thinking_budget=2048),
     )
     resp = self._generate_content_with_retry(
-        model=self.pro_model,
+        model=target_gemini_model,
         contents=contents,
         config=cfg,
     )

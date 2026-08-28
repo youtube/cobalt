@@ -249,13 +249,15 @@ def main():
   )
   parser.add_argument(
       "--expert-model",
-      default=os.environ.get("EXPERT_MODEL", "claude-sonnet-4-6"),
-      help="Expert LLM model (e.g. claude-sonnet-4-6).",
+      default=os.environ.get("EXPERT_MODEL", "claude-sonnet-5"),
+      help=(
+          "Expert LLM model (default: claude-sonnet-5; supports "
+          "gemini-3.7-flash, gemini-2.5-pro, glm-5.2, claude-opus-5)"),
   )
   parser.add_argument(
       "--expert-location",
-      default=os.environ.get("EXPERT_LOCATION", "us-east5"),
-      help="Vertex AI Region for Expert LLM (e.g. us-east5).",
+      default=os.environ.get("EXPERT_LOCATION", "global"),
+      help="Vertex AI Region for Expert LLM (default: global).",
   )
   args = parser.parse_args()
 
