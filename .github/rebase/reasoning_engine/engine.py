@@ -283,18 +283,50 @@ class CobaltReasoningEngine:
       system_instruction: str,
       temperature: float = 0.1,
   ) -> Optional[str]:
-    """Generates content via GLM / OpenAI-compatible REST endpoint."""
-    if not self.glm_api_key:
-      print(
-          "  [REASONING_ENGINE] Notice: GLM_API_KEY or OPENAI_API_KEY not set. "
-          "Set GLM_API_KEY to enable GLM-5.2 service.",
-          file=sys.stderr,
+    """Generates content via Vertex AI Model Garden GLM-5.2 MaaS or OpenAI-compatible endpoint."""
+    headers = {"Content-Type": "application/json"}
+    eff_model = model
+
+    # 1. If using Vertex AI Model Garden GLM MaaS (zai-org/glm-5.2-maas)
+    if "zai-org" in model.lower() or "glm" in model.lower():
+      try:
+        import google.auth
+        import google.auth.transport.requests
+
+        credentials, _ = google.auth.default(
+            scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        auth_req = google.auth.transport.requests.Request()
+        credentials.refresh(auth_req)
+        token = credentials.token
+        headers["Authorization"] = f"Bearer {token}"
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        print(
+            "  [REASONING_ENGINE] Notice: Could not acquire Google Cloud token "
+            f"for GLM MaaS: {e}",
+            file=sys.stderr,
+        )
+        if self.glm_api_key:
+          headers["Authorization"] = f"Bearer {self.glm_api_key}"
+
+      reg = self.expert_location if self.expert_location not in ("us-east5", "") else "global"
+      endpoint = (
+          os.environ.get("GLM_ENDPOINT") or
+          f"https://aiplatform.googleapis.com/v1/projects/{self.project_id}/locations/{reg}/endpoints/openapi/chat/completions"
       )
-      return None
-    endpoint = f"{self.glm_base_url.rstrip('/')}/chat/completions"
+      eff_model = "zai-org/glm-5.2-maas"
+    else:
+      if not self.glm_api_key:
+        print(
+            "  [REASONING_ENGINE] Notice: GLM_API_KEY or OPENAI_API_KEY not set.",
+            file=sys.stderr,
+        )
+        return None
+      headers["Authorization"] = f"Bearer {self.glm_api_key}"
+      endpoint = f"{self.glm_base_url.rstrip('/')}/chat/completions"
+
     prompt_text = str(contents) if not isinstance(contents, str) else contents
     payload = {
-        "model": model,
+        "model": eff_model,
         "messages": [
             {"role": "system", "content": system_instruction},
             {"role": "user", "content": prompt_text},
@@ -306,22 +338,22 @@ class CobaltReasoningEngine:
     req = urllib.request.Request(
         endpoint,
         data=data,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.glm_api_key}",
-        },
+        headers=headers,
         method="POST",
     )
     try:
       print(
           f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to GLM/OpenAI "
-          f"{model} via {endpoint}...",
+          f"{eff_model} via {endpoint}...",
           file=sys.stderr,
       )
       with urllib.request.urlopen(req, timeout=120) as resp:
         res_data = json.loads(resp.read().decode("utf-8"))
         if "choices" in res_data and res_data["choices"]:
-          return res_data["choices"][0]["message"]["content"]
+          msg = res_data["choices"][0].get("message", {})
+          text = msg.get("content") or msg.get("reasoning_content") or ""
+          if text:
+            return text
     except Exception as e:  # pylint: disable=broad-exception-caught
       print(
           f"  [REASONING_ENGINE] Warning: GLM/OpenAI query failed: {e}. "
