@@ -105,7 +105,7 @@ int CompareEvergreenVersion(const std::vector<char>& v1,
 
 bool GetEvergreenVersionByIndex(int installation_index,
                                 char* version,
-                                int version_length) {
+                                int max_version_size) {
   std::vector<char> installation_path(kSbFileMaxPath);
   if (ImGetInstallationPath(installation_index, installation_path.data(),
                             kSbFileMaxPath) == IM_ERROR) {
@@ -116,7 +116,7 @@ bool GetEvergreenVersionByIndex(int installation_index,
   std::vector<char> manifest_file_path(kSbFileMaxPath);
   snprintf(manifest_file_path.data(), kSbFileMaxPath, "%s%s%s",
            installation_path.data(), kSbFileSepString, kManifestFileName);
-  if (!ReadEvergreenVersion(manifest_file_path, version, version_length)) {
+  if (!ReadEvergreenVersion(manifest_file_path, version, max_version_size)) {
     SB_LOG(WARNING)
         << "Failed to read the Evergreen version of installation index "
         << installation_index;
@@ -204,9 +204,9 @@ bool AdoptInstallation(int current_installation,
 }
 
 void InsertVersionAnnotationFromManifest(int installation_index) {
-  std::vector<char> version_to_load(kMaxEgVersionLength);
+  std::vector<char> version_to_load(kMaxEgVersionSize);
   if (!GetEvergreenVersionByIndex(installation_index, version_to_load.data(),
-                                  kMaxEgVersionLength)) {
+                                  kMaxEgVersionSize)) {
     SB_LOG(WARNING)
         << "Failed to get the Evergreen version of installation index "
         << installation_index << ", not adding to Crashpad";
@@ -239,18 +239,17 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
   // Check the system image. If it's newer than the current slot, update to
   // system image immediately.
   if (current_installation != 0) {
-    std::vector<char> current_version(kMaxEgVersionLength);
-    if (!GetEvergreenVersionByIndex(current_installation,
-                                    current_version.data(),
-                                    kMaxEgVersionLength)) {
+    std::vector<char> current_version(kMaxEgVersionSize);
+    if (!GetEvergreenVersionByIndex(
+            current_installation, current_version.data(), kMaxEgVersionSize)) {
       SB_LOG(WARNING)
           << "Failed to get the Evergreen version of installation index "
           << current_installation;
     }
 
-    std::vector<char> system_image_version(kMaxEgVersionLength);
+    std::vector<char> system_image_version(kMaxEgVersionSize);
     if (!GetEvergreenVersionByIndex(0, system_image_version.data(),
-                                    kMaxEgVersionLength)) {
+                                    kMaxEgVersionSize)) {
       SB_LOG(WARNING)
           << "Failed to get the Evergreen version of installation index " << 0;
     }
