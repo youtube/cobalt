@@ -16,6 +16,7 @@
 #define COBALT_BROWSER_USER_AGENT_USER_AGENT_PLATFORM_INFO_H_
 
 #include <map>
+#include <optional>
 #include <string>
 
 #include "build/build_config.h"
