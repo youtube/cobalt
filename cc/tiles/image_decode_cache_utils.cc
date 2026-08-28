@@ -7,9 +7,7 @@
 
 #include "cc/tiles/image_decode_cache_utils.h"
 
-<<<<<<< HEAD
 #include "base/byte_count.h"
-=======
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_COBALT)
@@ -18,7 +16,6 @@
 #include "cc/base/switches.h"
 #endif
 
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/check.h"
 #include "cc/paint/paint_flags.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -47,27 +44,23 @@ bool ImageDecodeCacheUtils::ShouldEvictCaches(
 // static
 size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     bool for_renderer) {
-<<<<<<< HEAD
-  base::ByteCount decoded_image_working_set_budget = base::MiB(128);
-=======
 #if BUILDFLAG(IS_COBALT)
-  static const size_t cobalt_decoded_image_working_set_budget_bytes = []() {
-    size_t budget = 128 * 1024 * 1024;
+  static const base::ByteCount cobalt_decoded_image_working_set_budget = []() {
+    base::ByteCount budget = base::MiB(128);
     auto* command_line = base::CommandLine::ForCurrentProcess();
     if (command_line->HasSwitch(switches::kDecodedImageWorkingSetBudgetBytes)) {
       std::string value = command_line->GetSwitchValueASCII(
           switches::kDecodedImageWorkingSetBudgetBytes);
       int64_t parsed_value;
       if (base::StringToInt64(value, &parsed_value) && parsed_value >= 0) {
-        budget = parsed_value;
+        budget = base::ByteCount(parsed_value);
       }
     }
     return budget;
   }();
-  return cobalt_decoded_image_working_set_budget_bytes;
+  return cobalt_decoded_image_working_set_budget.InBytesUnsigned();
 #else
-  size_t decoded_image_working_set_budget_bytes = 128 * 1024 * 1024;
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  base::ByteCount decoded_image_working_set_budget = base::MiB(128);
 #if !BUILDFLAG(IS_ANDROID)
   if (for_renderer) {
     const bool using_low_memory_policy = base::SysInfo::IsLowEndDevice();
@@ -82,12 +75,8 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     }
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
-<<<<<<< HEAD
   return decoded_image_working_set_budget.InBytesUnsigned();
-=======
-  return decoded_image_working_set_budget_bytes;
 #endif
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 #if BUILDFLAG(IS_COBALT)
