@@ -43,7 +43,10 @@ def log(msg):
 
 
 def run_cmd(cmd, check=True, **kwargs):
-  cmd_str = shlex.join(str(x) for x in cmd)
+  if isinstance(cmd, str):
+    cmd_str = cmd
+  else:
+    cmd_str = shlex.join(str(x) for x in cmd)
   print(f'+ {cmd_str}')
   return subprocess.run(cmd, check=check, **kwargs).stdout
 
