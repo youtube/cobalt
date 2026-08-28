@@ -386,13 +386,14 @@ class AutoninjaResolver(BaseResolver):
         diags = ["\n\n".join(raw_chunks)]
     return diags
 
+  # pylint: disable=unused-argument
   def resolve_diagnostic(
       self,
       diagnostic: Any,
       history_records: List[Dict[str, Any]],
-      use_pro: bool = False,
       use_expert: bool = False,
       expert_guidance: str = "",
+      **kwargs,
   ) -> Tuple[str, str, str]:
     if isinstance(diagnostic, str):
       error_trace = diagnostic[:32768]
@@ -410,7 +411,6 @@ class AutoninjaResolver(BaseResolver):
           target_file="",
           history=history_str,
           expert_guidance=expert_guidance,
-          use_pro=use_pro,
           use_expert=use_expert,
       )
       patch = res.get("patch", "")
@@ -444,7 +444,7 @@ class AutoninjaResolver(BaseResolver):
           is_build_file = diagnostic.file_path.endswith(BUILD_FILE_EXTENSIONS)
           send_full_file = is_build_file or (
               is_source_code and
-              (use_pro or
+              (use_expert or
                self.file_error_counts.get(diagnostic.file_path, 0) >= 3))
           if send_full_file:
             rel_path = os.path.relpath(diagnostic.file_path, self.repo_path)
@@ -508,7 +508,6 @@ class AutoninjaResolver(BaseResolver):
         history=history_str,
         investigation_history=investigation_str,
         expert_guidance=expert_guidance,
-        use_pro=use_pro,
         use_expert=use_expert,
     )
     patch = res.get("patch", "")

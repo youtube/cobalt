@@ -742,7 +742,39 @@ target("foo") {{}}
         past_experience="",
         investigation_history="",
         expert_guidance="",
-        use_pro=False,
+        use_expert=False,
+    )
+
+  def test_reasoning_engine_client_local_in_process(self):
+    """Tests ReasoningEngineClient with local=True uses in-process engine."""
+    client = ReasoningEngineClient(
+        project_id="test-p",
+        location="us-central1",
+        local=True,
+    )
+    self.assertTrue(client.local)
+    mock_local = mock.MagicMock()
+    mock_local.query.return_value = {
+        "status": "SUCCESS",
+        "patch": "LOCAL_PATCH",
+        "model_used": "gemini-3.7-flash",
+    }
+    client._local_engine = mock_local  # pylint: disable=protected-access
+
+    res = client.heal_compiler_error(
+        target="cobalt",
+        diagnostics="error: local_foo",
+    )
+    self.assertEqual(res["status"], "SUCCESS")
+    self.assertEqual(res["patch"], "LOCAL_PATCH")
+    mock_local.query.assert_called_once_with(
+        action="heal_compiler_error",
+        target="cobalt",
+        diagnostics="error: local_foo",
+        source_contexts="",
+        past_experience="",
+        investigation_history="",
+        expert_guidance="",
         use_expert=False,
     )
 

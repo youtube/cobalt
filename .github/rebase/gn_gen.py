@@ -208,13 +208,14 @@ class GNGenResolver(BaseResolver):
         )
     ]
 
+  # pylint: disable=unused-argument
   def resolve_diagnostic(
       self,
       diagnostic: Any,
       history_records: List[Dict[str, Any]],
-      use_pro: bool = False,
       use_expert: bool = False,
       expert_guidance: str = "",
+      **kwargs,
   ) -> Tuple[str, str, str]:
     if not isinstance(diagnostic, GNDiagnostic):
       return "", self.model, ""
@@ -225,7 +226,7 @@ class GNGenResolver(BaseResolver):
       if stray_res is not None:
         return stray_res
 
-    send_full_file = use_pro or diagnostic.is_structural_break
+    send_full_file = use_expert or diagnostic.is_structural_break
     file_contexts = []
     primary_target = ""
 
@@ -282,7 +283,6 @@ class GNGenResolver(BaseResolver):
         attempt_history=history_str,
         investigation_history=investigation_str,
         expert_guidance=expert_guidance,
-        use_pro=use_pro,
         use_expert=use_expert,
     )
     patch = res.get("patch", "")

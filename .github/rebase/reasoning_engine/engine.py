@@ -84,19 +84,18 @@ class CobaltReasoningEngine:
       project_id: Optional[str] = None,
       location: str = "us-central1",
       flash_model: Optional[str] = None,
-      pro_model: str = "gemini-2.5-pro",
       expert_model: Optional[str] = None,
       expert_provider: Optional[str] = None,
       expert_location: Optional[str] = None,
       skills_dir: Optional[str] = None,
       gcs_memory_uri: Optional[str] = None,
+      **kwargs,
   ):
     self.project_id = (
         project_id or os.environ.get("GCP_PROJECT") or
         os.environ.get("GOOGLE_CLOUD_PROJECT"))
     self.location = location
-    self.flash_model = flash_model or "gemini-2.5-flash"
-    self.pro_model = pro_model
+    self.flash_model = flash_model or "gemini-3.7-flash"
     self.expert_model = (
         expert_model or os.environ.get("EXPERT_MODEL") or "claude-sonnet-5")
     self.expert_provider = (
@@ -696,14 +695,13 @@ class CobaltReasoningEngine:
       investigation_history: str = "",
       instruction: str = "",
       expert_guidance: str = "",
-      use_pro: bool = False,
       use_expert: bool = False,
       expert_model: Optional[str] = None,
       **kwargs,
   ) -> Dict[str, Any]:
     """Resolves source/DEPS merge conflicts on Vertex AI."""
-    chosen_model = (expert_model or self.expert_model) if use_expert else (
-        self.pro_model if use_pro else self.flash_model)
+    chosen_model = (expert_model or
+                    self.expert_model) if use_expert else self.flash_model
     rebase_skill = self._get_skill("cobalt_rebase")
     conflict_skill = self._get_skill("conflict_resolution")
 
@@ -716,10 +714,11 @@ class CobaltReasoningEngine:
     investigation_section = (
         f"--- Investigation Tool Results ---\n{investigation_history}\n\n"
         if investigation_history else "")
-    expert_section = (f"=== TIER-2 SENIOR ARCHITECT STRATEGIC GUIDANCE ===\n"
-                      f"{expert_guidance}\n"
-                      f"==================================================\n\n"
-                      if expert_guidance else "")
+    expert_section = (
+        f"=== PRE-FLIGHT SENIOR ARCHITECT STRATEGIC GUIDANCE ===\n"
+        f"{expert_guidance}\n"
+        f"======================================================\n\n"
+        if expert_guidance else "")
 
     sys_inst = (
         f"You are an expert Chromium and Cobalt engineer ({language}).\n\n"
@@ -771,14 +770,13 @@ class CobaltReasoningEngine:
       past_experience: str = "",
       investigation_history: str = "",
       expert_guidance: str = "",
-      use_pro: bool = False,
       use_expert: bool = False,
       expert_model: Optional[str] = None,
       **kwargs,
   ) -> Dict[str, Any]:
     """Diagnoses and fixes GN generation errors on Vertex AI."""
-    chosen_model = (expert_model or self.expert_model) if use_expert else (
-        self.pro_model if use_pro else self.flash_model)
+    chosen_model = (expert_model or
+                    self.expert_model) if use_expert else self.flash_model
     rebase_skill = self._get_skill("cobalt_rebase")
     gn_skill = self._get_skill("gn_healing")
 
@@ -789,10 +787,11 @@ class CobaltReasoningEngine:
     investigation_section = (
         f"--- Investigation Tool Results ---\n{investigation_history}\n\n"
         if investigation_history else "")
-    expert_section = (f"=== TIER-2 SENIOR ARCHITECT STRATEGIC GUIDANCE ===\n"
-                      f"{expert_guidance}\n"
-                      f"==================================================\n\n"
-                      if expert_guidance else "")
+    expert_section = (
+        f"=== PRE-FLIGHT SENIOR ARCHITECT STRATEGIC GUIDANCE ===\n"
+        f"{expert_guidance}\n"
+        f"======================================================\n\n"
+        if expert_guidance else "")
 
     sys_inst = ("You are an expert Chromium and Cobalt GN build engineer.\n\n"
                 f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
@@ -849,7 +848,6 @@ class CobaltReasoningEngine:
       past_experience: str = "",
       investigation_history: str = "",
       expert_guidance: str = "",
-      use_pro: bool = False,
       use_expert: bool = False,
       expert_model: Optional[str] = None,
       **kwargs,
@@ -860,8 +858,8 @@ class CobaltReasoningEngine:
     eff_ctx = source_contexts or file_context
     eff_inv = investigation_history or history
 
-    chosen_model = (expert_model or self.expert_model) if use_expert else (
-        self.pro_model if use_pro else self.flash_model)
+    chosen_model = (expert_model or
+                    self.expert_model) if use_expert else self.flash_model
     rebase_skill = self._get_skill("cobalt_rebase")
     compiler_skill = self._get_skill("compiler_healing")
 

@@ -127,6 +127,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "or 'full-pipeline' (Phases 1-4)."),
   )
   parser.add_argument(
+      "--local",
+      action="store_true",
+      default=os.environ.get("REBASE_LOCAL", "").lower() in ("1", "true"),
+      help="Run Reasoning Engine in-process locally without hosted deployment.",
+  )
+  parser.add_argument(
       "--gcs-memory-uri",
       default=os.environ.get("GCS_MEMORY_URI",
                              "gs://lxn-test/rebase_memory/knowledge_bank.json"),
@@ -181,6 +187,10 @@ def run_pipeline(args: argparse.Namespace) -> int:
       resource_id=args.reasoning_engine_id,
       project_id=args.project_id,
       location=args.location,
+      flash_model=args.model or "gemini-3.7-flash",
+      skills_dir=args.skills_dir,
+      gcs_memory_uri=args.gcs_memory_uri,
+      local=args.local,
   )
 
   # Phase 1: Conflict Resolver

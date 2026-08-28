@@ -352,13 +352,51 @@ def resolve_file_conflicts(
         file=sys.stderr,
     )
 
+    # Step 1: Pre-Flight Strategic Review by Expert Agent
+    expert_guidance = ""
+    if engine is not None and not mock_mode:
+      try:
+        guidance_res = engine.generate_expert_guidance(
+            target=rel_path,
+            diagnostics=(f"Merge conflict in {rel_path} ({lang}):\n"
+                         f"{block.raw_block}"),
+            source_contexts=(
+                f"Context before conflict:\n{block.context_before}\n\n"
+                f"Context after conflict:\n{block.context_after}"),
+            trajectory_history=git_context,
+            mode="conflict",
+        )
+        expert_guidance = guidance_res.get("guidance", "")
+        if expert_guidance and re.search(r"^(TOOL_[A-Z_]+:.*)$",
+                                         expert_guidance.strip(), re.MULTILINE):
+          tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$",
+                                 expert_guidance.strip(), re.MULTILINE)
+          if tool_match:
+            t_cmd = tool_match.group(1).strip()
+            t_out = execute_local_tool(t_cmd, repo_path)
+            expert_guidance += (
+                f"\n\nTool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
+        if expert_guidance:
+          first_g_line = expert_guidance.splitlines()[0][:100]
+          print(
+              f"    [TIER-2 ARCHITECT] Pre-Flight Plan:\n"
+              f"    >>> {first_g_line}...",
+              file=sys.stderr,
+          )
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        print(
+            f"    [TIER-2 ARCHITECT] Notice: Pre-flight query: {e}",
+            file=sys.stderr,
+        )
+
     resolved_code: Optional[str] = None
     investigation_history = ""
     for attempt in range(2):
-      use_pro = attempt > 0
-      if use_pro:
+      use_expert = attempt > 0
+      if use_expert:
         print(
-            f"    [PRO_RETRY] Retrying Block #{block.index} with Pro model...",
+            f"    [EXPERT_RETRY] Retrying Block #{block.index} with Expert "
+            "Agent...",
             file=sys.stderr,
         )
       for _ in range(max_tool_rounds):
@@ -381,7 +419,8 @@ def resolve_file_conflicts(
               context_after=block.context_after,
               git_context=git_context,
               investigation_history=investigation_history,
-              use_pro=use_pro,
+              expert_guidance=expert_guidance,
+              use_expert=use_expert,
           )
         except Exception as e:  # pylint: disable=broad-exception-caught
           print(f"    [FAIL] Reasoning Engine Error: {e}", file=sys.stderr)
@@ -529,15 +568,16 @@ class ConflictResolver(BaseResolver):
         pass
     return remaining
 
+  # pylint: disable=unused-argument
   def resolve_diagnostic(
       self,
       diagnostic: Any,
       history_records: List[Dict[str, Any]],
-      use_pro: bool = False,
       use_expert: bool = False,
       expert_guidance: str = "",
+      **kwargs,
   ) -> Tuple[str, str, str]:
-    del history_records, use_pro, use_expert, expert_guidance
+    del history_records, use_expert, expert_guidance
     tf = str(diagnostic)
     rel = os.path.relpath(tf, self.repo_path)
     ok = resolve_file_conflicts(

@@ -30,8 +30,9 @@ class ModelResponseWrapper:
   usage_metadata: Optional[Any] = None
 
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments,unused-argument
 class ReasoningEngineClient:
-  """Client proxy that dispatches rebase tasks to hosted Reasoning Engine."""
+  """Client proxy that dispatches rebase tasks to hosted or local engine."""
 
   def __init__(
       self,
@@ -39,10 +40,16 @@ class ReasoningEngineClient:
       *,
       project_id: Optional[str] = None,
       location: str = "us-central1",
-      flash_model: str = "gemini-2.5-flash",
-      pro_model: str = "gemini-2.5-pro",
+      flash_model: str = "gemini-3.7-flash",
+      expert_model: Optional[str] = None,
+      expert_provider: Optional[str] = None,
+      expert_location: Optional[str] = None,
+      skills_dir: Optional[str] = None,
+      gcs_memory_uri: Optional[str] = None,
+      local: bool = False,
       max_connect_retries: int = 3,
       max_query_retries: int = 5,
+      **kwargs,
   ):
     self.resource_id = (
         resource_id or os.environ.get("REASONING_ENGINE_ID") or
@@ -52,15 +59,56 @@ class ReasoningEngineClient:
         os.environ.get("GOOGLE_CLOUD_PROJECT"))
     self.location = location
     self.flash_model = flash_model
-    self.pro_model = pro_model
+    self.expert_model = expert_model or os.environ.get("EXPERT_MODEL")
+    self.expert_provider = expert_provider or os.environ.get("EXPERT_PROVIDER")
+    self.expert_location = expert_location or os.environ.get("EXPERT_LOCATION")
+    self.skills_dir = skills_dir
+    self.gcs_memory_uri = gcs_memory_uri
+    self.local = (
+        local or os.environ.get("REBASE_LOCAL", "").lower() in ("1", "true") or
+        not self.resource_id)
     self.max_connect_retries = max_connect_retries
     self.max_query_retries = max_query_retries
     self._remote_engine: Any = None
+    self._local_engine: Any = None
 
-    if not self.resource_id:
+    if not self.local and not self.resource_id:
       raise ValueError(
           "ReasoningEngineClient requires a valid Reasoning Engine resource "
-          "ID (e.g. '--reasoning-engine-id <REASONING_ENGINE_ID>').")
+          "ID (e.g. '--reasoning-engine-id <REASONING_ENGINE_ID>') or "
+          "'--local' flag.")
+
+  def _get_engine(self) -> Any:
+    """Returns local in-process or hosted remote Reasoning Engine."""
+    if self.local:
+      if self._local_engine is not None:
+        return self._local_engine
+      try:
+        from reasoning_engine.engine import CobaltReasoningEngine  # pylint: disable=import-outside-toplevel
+      except ImportError:
+        pkg_dir = os.path.dirname(os.path.abspath(__file__))
+        if pkg_dir not in sys.path:
+          sys.path.insert(0, pkg_dir)
+        from reasoning_engine.engine import CobaltReasoningEngine  # pylint: disable=import-outside-toplevel
+
+      print(
+          "  [REASONING_ENGINE_CLIENT] Running Reasoning Engine locally "
+          "(in-process)...",
+          file=sys.stderr,
+      )
+      self._local_engine = CobaltReasoningEngine(
+          project_id=self.project_id,
+          location=self.location,
+          flash_model=self.flash_model,
+          expert_model=self.expert_model,
+          expert_provider=self.expert_provider,
+          expert_location=self.expert_location,
+          skills_dir=self.skills_dir,
+          gcs_memory_uri=self.gcs_memory_uri,
+      )
+      return self._local_engine
+
+    return self._get_remote_engine()
 
   def _get_remote_engine(self) -> Any:
     """Connects to the hosted Vertex AI Reasoning Engine with retries."""
@@ -106,8 +154,11 @@ class ReasoningEngineClient:
     raise RuntimeError(f"Could not connect to Reasoning Engine: {res_name}")
 
   def query(self, action: str, **kwargs) -> Any:
-    """Dispatches query to hosted Reasoning Engine with exponential backoff."""
-    engine = self._get_remote_engine()
+    """Dispatches query to hosted or in-process Reasoning Engine."""
+    engine = self._get_engine()
+    if self.local:
+      return engine.query(action=action, **kwargs)
+
     backoff = 2.0
     last_error: Optional[Exception] = None
 
@@ -192,8 +243,9 @@ class ReasoningEngineClient:
       working_diff: str = "",
       investigation_history: str = "",
       mode: str = "compiler",
+      expert_model: Optional[str] = None,
   ) -> Dict[str, Any]:
-    """Requests Tier-2 Senior Architect (Claude Sonnet) strategic guidance."""
+    """Requests Tier-2 Senior Architect guidance via Reasoning Engine."""
     eff_target = target or target_file or "cobalt"
     eff_diag = diagnostics or error_trace
     eff_ctx = source_contexts or file_context
@@ -206,8 +258,10 @@ class ReasoningEngineClient:
         working_diff=working_diff,
         investigation_history=investigation_history,
         mode=mode,
+        expert_model=expert_model,
     )
 
+  # pylint: disable=unused-argument
   def resolve_conflict(
       self,
       file_path: str,
@@ -221,8 +275,8 @@ class ReasoningEngineClient:
       investigation_history: str = "",
       instruction: str = "",
       expert_guidance: str = "",
-      use_pro: bool = False,
       use_expert: bool = False,
+      **kwargs,
   ) -> Dict[str, Any]:
     """Resolves source/DEPS merge conflict via hosted Reasoning Engine."""
     return self.query(
@@ -237,10 +291,10 @@ class ReasoningEngineClient:
         investigation_history=investigation_history,
         instruction=instruction,
         expert_guidance=expert_guidance,
-        use_pro=use_pro,
         use_expert=use_expert,
     )
 
+  # pylint: disable=unused-argument
   def heal_gn_error(
       self,
       error_trace: str,
@@ -250,8 +304,8 @@ class ReasoningEngineClient:
       past_experience: str = "",
       investigation_history: str = "",
       expert_guidance: str = "",
-      use_pro: bool = False,
       use_expert: bool = False,
+      **kwargs,
   ) -> Dict[str, Any]:
     """Fixes GN build error via hosted Reasoning Engine."""
     return self.query(
@@ -262,10 +316,10 @@ class ReasoningEngineClient:
         past_experience=past_experience,
         investigation_history=investigation_history,
         expert_guidance=expert_guidance,
-        use_pro=use_pro,
         use_expert=use_expert,
     )
 
+  # pylint: disable=unused-argument
   def heal_compiler_error(
       self,
       target: str = "",
@@ -279,8 +333,8 @@ class ReasoningEngineClient:
       past_experience: str = "",
       investigation_history: str = "",
       expert_guidance: str = "",
-      use_pro: bool = False,
       use_expert: bool = False,
+      **kwargs,
   ) -> Dict[str, Any]:
     """Fixes compiler / linker error via hosted Reasoning Engine."""
     eff_target = target or target_file or "cobalt"
@@ -296,7 +350,6 @@ class ReasoningEngineClient:
         past_experience=past_experience,
         investigation_history=eff_inv,
         expert_guidance=expert_guidance,
-        use_pro=use_pro,
         use_expert=use_expert,
     )
 
@@ -332,37 +385,7 @@ class ReasoningEngineClient:
       return str(res.get("experience", ""))
     return str(res)
 
-  def generate_expert_guidance(
-      self,
-      target: str = "",
-      diagnostics: str = "",
-      source_contexts: str = "",
-      *,
-      error_trace: str = "",
-      file_context: str = "",
-      target_file: str = "",
-      trajectory_history: str = "",
-      working_diff: str = "",
-      investigation_history: str = "",
-      mode: str = "compiler",
-      expert_model: Optional[str] = None,
-  ) -> Dict[str, Any]:
-    """Requests Tier-2 Senior Architect guidance via hosted Reasoning Engine."""
-    eff_target = target or target_file or "cobalt"
-    eff_diag = diagnostics or error_trace
-    eff_ctx = source_contexts or file_context
-    return self.query(
-        action="generate_expert_guidance",
-        target=eff_target,
-        diagnostics=eff_diag,
-        source_contexts=eff_ctx,
-        trajectory_history=trajectory_history,
-        working_diff=working_diff,
-        investigation_history=investigation_history,
-        mode=mode,
-        expert_model=expert_model,
-    )
-
+  # pylint: disable=too-many-arguments,unused-argument
   def generate_comparative_review(
       self,
       human_pr_num: Any = "",
@@ -377,7 +400,7 @@ class ReasoningEngineClient:
       repo_root: Optional[str] = None,
       expert_model: Optional[str] = None,
   ) -> str:
-    """Requests comparative review between Human PR and AI PR via hosted Reasoning Engine."""
+    """Requests comparative review between Human PR and AI PR."""
     res = self.query(
         action="generate_comparative_review",
         human_pr_num=human_pr_num,
