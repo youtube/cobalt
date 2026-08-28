@@ -195,9 +195,11 @@ bool UsePassthroughCommandDecoder() {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(crbug.com/41482978): Fix single process rendering on nvidia Shield.
-  if (base::MatchPattern(build_info->manufacturer(), "NVIDIA") &&
-      base::MatchPattern(build_info->model(), "SHIELD*"))
+  if (base::MatchPattern(base::android::android_info::manufacturer(),
+                         "NVIDIA") &&
+      base::MatchPattern(base::android::android_info::model(), "SHIELD*")) {
     return false;
+  }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_ANDROID)
 
