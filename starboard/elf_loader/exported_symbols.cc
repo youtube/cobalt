@@ -97,6 +97,7 @@
 namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
+  REGISTER_SYMBOL(kSbCanMapExecutableMemory);
   REGISTER_SYMBOL(kSbFileMaxName);
   REGISTER_SYMBOL(kSbFileMaxPath);
   REGISTER_SYMBOL(kSbFileSepChar);
@@ -106,7 +107,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMemoryPageSize);
-  REGISTER_SYMBOL(kSbCanMapExecutableMemory);
   REGISTER_SYMBOL(SbAudioSinkCreate);
   REGISTER_SYMBOL(SbAudioSinkDestroy);
   REGISTER_SYMBOL(SbAudioSinkGetMaxChannels);
@@ -212,20 +212,20 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
 
-  // POSIX APIs
+  // Standard POSIX or Linux symbols.
   REGISTER_SYMBOL(alarm);
   REGISTER_SYMBOL(aligned_alloc);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
-  REGISTER_SYMBOL(fdatasync);
   REGISTER_SYMBOL(dup);
   REGISTER_SYMBOL(dup2);
-  REGISTER_SYMBOL(epoll_create);
-  REGISTER_SYMBOL(epoll_create1);
-  REGISTER_SYMBOL(epoll_ctl);
-  REGISTER_SYMBOL(epoll_wait);
+  REGISTER_SYMBOL(epoll_create);   // Linux API
+  REGISTER_SYMBOL(epoll_create1);  // Linux API
+  REGISTER_SYMBOL(epoll_ctl);      // Linux API
+  REGISTER_SYMBOL(epoll_wait);     // Linux API
+  REGISTER_SYMBOL(fdatasync);
   REGISTER_SYMBOL(free);
-  REGISTER_SYMBOL(freeifaddrs);
+  REGISTER_SYMBOL(freeifaddrs);  // Linux API
   REGISTER_SYMBOL(fsync);
   REGISTER_SYMBOL(getcwd);
   REGISTER_SYMBOL(getpeername);
@@ -235,13 +235,13 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(link);
   REGISTER_SYMBOL(listen);
-  REGISTER_SYMBOL(madvise);
+  REGISTER_SYMBOL(madvise);  // Linux API
   REGISTER_SYMBOL(malloc);
-  REGISTER_SYMBOL(malloc_usable_size);
-  REGISTER_SYMBOL(mincore);
+  REGISTER_SYMBOL(malloc_usable_size);  // Linux API
+  REGISTER_SYMBOL(mincore);             // Linux API
   REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mkdtemp);
-  REGISTER_SYMBOL(mkostemp);
+  REGISTER_SYMBOL(mkostemp);  // Linux API
   REGISTER_SYMBOL(mkstemp);
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
@@ -258,6 +258,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(realpath);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(recvmmsg);  // Linux API
   REGISTER_SYMBOL(recvmsg);
   REGISTER_SYMBOL(rename);
   REGISTER_SYMBOL(sched_get_priority_max);
@@ -273,66 +274,60 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(write);
 
-  // Linux APIs
-  REGISTER_SYMBOL(recvmmsg);
-  REGISTER_WRAPPER(ioctl_FIONREAD);
-
-  // Custom mapped POSIX APIs to compatibility wrappers.
-  // These will rely on Starboard-side implementations that properly translate
-  // Platform-specific types with musl-based types. These wrappers are defined
-  // in //starboard/shared/modular.
-  // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
+  // Standard POSIX or Linux symbols with wrappers enforcing ABI compatibility.
+  // The implementation properly translates platform-specific types
+  // to musl-based types.
+  // All the wrappers are defined in //starboard/shared/modular.
 
   REGISTER_WRAPPER(_Exit);
-  REGISTER_WRAPPER(accept);
-  REGISTER_WRAPPER(access);
-  REGISTER_WRAPPER(bind);
-  REGISTER_WRAPPER(chmod);
-  REGISTER_WRAPPER(clock_gettime);
-  REGISTER_WRAPPER(closedir);
-  REGISTER_WRAPPER(clock_nanosleep);
-  REGISTER_WRAPPER(connect);
   if (errno_translation()) {
     REGISTER_WRAPPER(__errno_location);
   } else {
     REGISTER_SYMBOL(__errno_location);
   }
-  REGISTER_WRAPPER(eventfd);
+  REGISTER_WRAPPER(accept);
+  REGISTER_WRAPPER(access);
+  REGISTER_WRAPPER(bind);
+  REGISTER_WRAPPER(chmod);
+  REGISTER_WRAPPER(clock_gettime);
+  REGISTER_WRAPPER(clock_nanosleep);
+  REGISTER_WRAPPER(closedir);
+  REGISTER_WRAPPER(connect);
+  REGISTER_WRAPPER(eventfd);  // Linux API
   REGISTER_WRAPPER(fchmod);
   REGISTER_WRAPPER(fchown);
   REGISTER_WRAPPER(fcntl);
   REGISTER_WRAPPER(fdopendir);
+  REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(fstatat);
-  REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
   REGISTER_WRAPPER(gai_strerror);
   REGISTER_WRAPPER(getaddrinfo);
-  REGISTER_WRAPPER(getauxval);
+  REGISTER_WRAPPER(getauxval);  // Linux API
   REGISTER_WRAPPER(geteuid);
-  REGISTER_WRAPPER(getifaddrs);
+  REGISTER_WRAPPER(getifaddrs);  // Linux API
   REGISTER_WRAPPER(getpid);
-  REGISTER_WRAPPER(gettid);
-  REGISTER_WRAPPER(getuid);
   REGISTER_WRAPPER(getpriority);
-  REGISTER_WRAPPER(getrandom);
+  REGISTER_WRAPPER(getrandom);  // Linux API
   REGISTER_WRAPPER(getrlimit);
+  REGISTER_WRAPPER(gettid);  // Linux API
+  REGISTER_WRAPPER(getuid);
   REGISTER_WRAPPER(if_indextoname);
   REGISTER_WRAPPER(if_nametoindex);
-  REGISTER_WRAPPER(inotify_init1);
-  REGISTER_WRAPPER(inotify_add_watch);
-  REGISTER_WRAPPER(inotify_rm_watch);
+  REGISTER_WRAPPER(inotify_add_watch);  // Linux API
+  REGISTER_WRAPPER(inotify_init1);      // Linux API
+  REGISTER_WRAPPER(inotify_rm_watch);   // Linux API
+  REGISTER_WRAPPER(ioctl_FIONREAD);     // Linux API
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(openat);
   REGISTER_WRAPPER(opendir);
   REGISTER_WRAPPER(pathconf);
-  REGISTER_WRAPPER(pipe2);
+  REGISTER_WRAPPER(pipe2);  // Linux API
   REGISTER_WRAPPER(poll);
-  REGISTER_WRAPPER(prctl);
+  REGISTER_WRAPPER(prctl);  // Linux API
   REGISTER_WRAPPER(pread);
-  REGISTER_WRAPPER(pwrite);
-  REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
   REGISTER_WRAPPER(pthread_attr_getschedpolicy);
@@ -358,8 +353,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_create);
   REGISTER_WRAPPER(pthread_detach);
   REGISTER_WRAPPER(pthread_equal);
-  REGISTER_WRAPPER(pthread_getattr_np);
-  REGISTER_WRAPPER(pthread_getname_np);
+  REGISTER_WRAPPER(pthread_getattr_np);  // Linux API
+  REGISTER_WRAPPER(pthread_getname_np);  // Linux API
   REGISTER_WRAPPER(pthread_getschedparam);
   REGISTER_WRAPPER(pthread_getspecific);
   REGISTER_WRAPPER(pthread_join);
@@ -386,19 +381,19 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_rwlock_unlock);
   REGISTER_WRAPPER(pthread_rwlock_wrlock);
   REGISTER_WRAPPER(pthread_self);
-  REGISTER_WRAPPER(pthread_setname_np);
+  REGISTER_WRAPPER(pthread_setname_np);  // Linux API
   REGISTER_WRAPPER(pthread_setschedparam);
   REGISTER_WRAPPER(pthread_setspecific);
   REGISTER_WRAPPER(pthread_sigmask);
+  REGISTER_WRAPPER(pwrite);
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
-  REGISTER_WRAPPER(sched_getaffinity);
-  REGISTER_WRAPPER(sched_getparam);
-  REGISTER_WRAPPER(sched_setparam);
-  REGISTER_WRAPPER(sched_getscheduler);
-  REGISTER_WRAPPER(sched_setscheduler);
   REGISTER_WRAPPER(readv);
-  REGISTER_WRAPPER(setsockopt);
+  REGISTER_WRAPPER(sched_getaffinity);  // Linux API
+  REGISTER_WRAPPER(sched_getparam);
+  REGISTER_WRAPPER(sched_getscheduler);
+  REGISTER_WRAPPER(sched_setparam);
+  REGISTER_WRAPPER(sched_setscheduler);
   REGISTER_WRAPPER(sem_destroy);
   REGISTER_WRAPPER(sem_init);
   REGISTER_WRAPPER(sem_post);
@@ -406,6 +401,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sem_wait);
   REGISTER_WRAPPER(sendmsg);
   REGISTER_WRAPPER(setpriority);
+  REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(sigaction);
   REGISTER_WRAPPER(socketpair);
@@ -428,9 +424,13 @@ const void* ExportedSymbols::Lookup(const char* name) {
 
   // Not an error, as it could be a weak symbol.
   SB_DLOG(WARNING) << "Failed to retrieve the address of '" << name << "'.";
+<<<<<<< HEAD
 #if !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
   // potentially keep it behind a flag to help with future maintenance.
+=======
+#if !defined(OFFICIAL_BUILD)
+>>>>>>> 461d65425b (starboard/elf_loader: Clean up exported symbol definitions (#12269))
   address = dlsym(RTLD_DEFAULT, name);
   if (address == nullptr) {
     SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
