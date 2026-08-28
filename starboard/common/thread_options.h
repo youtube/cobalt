@@ -17,6 +17,7 @@
 
 #include <limits.h>
 
+#include <cstddef>
 #include <optional>
 
 namespace starboard {

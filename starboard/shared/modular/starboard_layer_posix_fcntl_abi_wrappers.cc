@@ -14,6 +14,7 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
 
