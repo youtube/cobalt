@@ -258,3 +258,16 @@ Before an AI rebase attempt is finalized, packaged, or surfaced as a completed P
 Extending the existing Diff-Tooling Sanity Check Protocol: reviewers and orchestrators MUST treat any `TOOL_DIFF_FILE:` / `TOOL_UPSTREAM_DIFF:` invocation whose argument exceeds a plausible file path length (e.g., >120 characters, contains sentence punctuation, or contains markdown backticks/parentheses typical of prose) as **malformed at dispatch time**, and should refuse to issue the call rather than let the dispatcher silently echo a garbled header back.
 
 **Practical guard**: Before emitting a `TOOL_DIFF_FILE: <arg>` line, validate `<arg>` against a simple heuristic: it should look like a relative file path (contains `/` or a known root-level filename, no whitespace-separated prose words beyond directory/file tokens, no trailing period-terminated sentences). If the heuristic fails, split the call: emit the bare tool call first, and defer all commentary to the next turn.
+
+
+---
+
+## Expert Review Insights
+
+### Section 5 Addendum: Reporting UNVERIFIED Reviews in result.md
+
+If the Pre-Submission Empty-Diff Hard Gate or Zero-Inventory Hard Stop conditions are triggered during a comparative post-mortem review (as opposed to during the AI rebase attempt itself), `result.md` (or the final review report) MUST:
+1. Tag the review status explicitly as `UNVERIFIED — TOOLING DEFECT`, distinct from `PASS`, `FAIL`, or `ZERO-DIFF FAILURE` (which apply to the rebase attempt itself, not the review process).
+2. Include the exact list of canary files probed and their zero-diff results as supporting evidence for the escalation.
+3. Avoid emitting any per-file "Divergence" or "Missed by AI" analysis sections with fabricated or assumed content — these sections must be explicitly marked UNVERIFIED rather than left silently blank or populated with speculative content.
+4. Include a fallback manual-verification checklist derived from the milestone's known Expert Review Insights (e.g., M140/M141 API migrations) so human reviewers retain actionable next steps despite the tooling failure.

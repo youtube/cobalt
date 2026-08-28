@@ -54,3 +54,23 @@ Before drawing any comparative conclusions from `TOOL_DIFF_FILE` or `TOOL_UPSTRE
 If a Modified Files Inventory for a named/versioned Chromium milestone roll PR (e.g., "Update to 140.7298") reports **0 files in all three categories** (Shared/Human-only/AI-only), this MUST be treated as a **blocking defect**, not merely a cautionary signal:
 
 1. Immediately cross-check against the bot roll commit's own CONFLICTED file manifest (present in every roll commit message under a fenced `
+
+
+---
+
+## Expert Review Insights
+
+### Zero-Inventory + Zero-Canary-Diff Compound Failure Signature
+
+When BOTH of the following occur simultaneously for a named/versioned milestone roll PR pair:
+1. The Modified Files Inventory reports 0 files across all three categories (Shared/Human-only/AI-only), AND
+2. Canary files (`DEPS`, `.github/AUTOROLL_CHROMIUM`, and at least one historically high-churn source file like `media/starboard/sbplayer_bridge.cc`) all report zero diff in both Human and AI PRs across repeated tool invocations,
+
+this is definitive evidence of an **incorrect commit-range or merge-base computation** in the review harness — not evidence of Human/AI parity, and not a partial/truncated diff issue.
+
+**Mandatory reviewer response:**
+- Do NOT produce a "no differences found" or "AI matched Human" conclusion under any framing.
+- Mark the entire comparative review as **UNVERIFIED** in the Executive Summary.
+- Still surface the milestone-appropriate known breaking-pattern checklist (from Section 4 of `cobalt_rebase.md`, extended by milestone-specific Expert Review Insights) as a manual fallback checklist.
+- Explicitly recommend escalation to fix PR ref/commit-range resolution (e.g., verify the diff tool is pointed at the correct base/head SHAs for both PR #s, not a stale or default branch) before any further automated comparative review is attempted for this PR pair.
+- Do not spend additional tool-call budget re-probing the same files with reworded arguments once this compound signature is detected after 2-3 corroborating probes; escalate immediately instead.
