@@ -121,20 +121,13 @@ def _Generate(args,
   native_sources_set = set(native_sources)
   java_sources_set = set(java_sources)
 
-<<<<<<< HEAD
   jni_objs_by_path = _LoadJniObjs(
       native_sources_set | java_sources_set,
       args.namespace,
       args.package_prefix,
       args.package_prefix_filter,
       enable_legacy_natives=args.enable_legacy_natives)
-  _FilterJniObjs(jni_objs_by_path, args.include_test_only, args.module_name)
-=======
-  jni_objs_by_path = _LoadJniObjs(native_sources_set | java_sources_set,
-                                  args.namespace, args.package_prefix,
-                                  args.package_prefix_filter)
   _FilterJniObjs(jni_objs_by_path, args.module_name)
->>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   present_jni_objs = list(
       _Flatten(jni_objs_by_path, native_sources_set & java_sources_set))
