@@ -1,3 +1,6 @@
+# Set owners for the CODEOWNERS file itself.
+/.github/CODEOWNERS @youtube/cobalt-starboard-owners
+
 /cobalt/media                               @youtube/cobalt-media
 /media/                                     @youtube/cobalt-media
 /starboard/shared/starboard/audio_sink      @youtube/cobalt-media
