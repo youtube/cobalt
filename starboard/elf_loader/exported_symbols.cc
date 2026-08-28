@@ -424,13 +424,7 @@ const void* ExportedSymbols::Lookup(const char* name) {
 
   // Not an error, as it could be a weak symbol.
   SB_DLOG(WARNING) << "Failed to retrieve the address of '" << name << "'.";
-<<<<<<< HEAD
 #if !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
-  // potentially keep it behind a flag to help with future maintenance.
-=======
-#if !defined(OFFICIAL_BUILD)
->>>>>>> 461d65425b (starboard/elf_loader: Clean up exported symbol definitions (#12269))
   address = dlsym(RTLD_DEFAULT, name);
   if (address == nullptr) {
     SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
