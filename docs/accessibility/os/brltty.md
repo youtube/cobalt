@@ -90,7 +90,7 @@ order to update Brltty, you will need to first get started with GCS.
 If you follow the alternative cli workflow, you should have the ability to
 list the Chrome OS GCS bucket:
 
-```gsutil ls gs://chromeos-localmirror/```
+```gcloud storage ls gs://chromeos-localmirror/```
 
 for example:
 gs://chromeos-localmirror/distfiles/brltty-5.6.tar.gz
@@ -104,12 +104,12 @@ And follow the instructions in the readme to configure/build.
 
 ### Upload the latest stable release of brltty.
 
-You can do this via ```gsutil cp```.
+You can do this via ```gcloud storage cp```.
 
 After copying, you will likely want the package to be world readable:
 
 ```
-gsutil acl ch -u AllUsers:R gs://chromeos-localmirror/distfiles/brltty-5.6.tar.gz
+gcloud storage objects update gs://chromeos-localmirror/distfiles/brltty-5.6.tar.gz --add-acl-grant=entity=AllUsers,role=READER
 
 ```
 
