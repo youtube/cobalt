@@ -553,19 +553,19 @@ void GetSmapsRollup(base::ProcessId pid,
   uint64_t total_pss_kb = 0;
   uint64_t total_rss_kb = 0;
   bool is_matching_region = false;
-  while (fgets(line, kMaxLineSize, smaps_file.get())) {
+  while (UNSAFE_TODO(fgets(line, kMaxLineSize, smaps_file.get()))) {
     if (base::IsHexDigit(static_cast<unsigned char>(line[0])) &&
         !base::IsAsciiUpper(static_cast<unsigned char>(line[0]))) {
-      const char* found = strstr(line, needle);
+      const char* found = UNSAFE_TODO(strstr(line, needle));
       is_matching_region = (found != nullptr);
     } else if (is_matching_region) {
       uint64_t value_kb = 0;
-      if (strncmp(line, "Pss:", 4) == 0) {
-        if (sscanf(line, "Pss: %" SCNu64 " kB", &value_kb) == 1) {
+      if (UNSAFE_TODO(strncmp(line, "Pss:", 4)) == 0) {
+        if (UNSAFE_TODO(sscanf(line, "Pss: %" SCNu64 " kB", &value_kb)) == 1) {
           total_pss_kb += value_kb;
         }
-      } else if (strncmp(line, "Rss:", 4) == 0) {
-        if (sscanf(line, "Rss: %" SCNu64 " kB", &value_kb) == 1) {
+      } else if (UNSAFE_TODO(strncmp(line, "Rss:", 4)) == 0) {
+        if (UNSAFE_TODO(sscanf(line, "Rss: %" SCNu64 " kB", &value_kb)) == 1) {
           total_rss_kb += value_kb;
         }
       }
