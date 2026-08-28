@@ -36,14 +36,11 @@ class Unzipper;
 base::OnceClosure XzOperation(
     std::unique_ptr<Unzipper> unzipper,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
-<<<<<<< HEAD
     base::RepeatingCallback<void(ComponentState)> state_tracker,
-=======
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& in_file_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
 #else
->>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
