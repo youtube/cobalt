@@ -82,8 +82,8 @@ base::FilePath GetProcPidDir(base::ProcessId pid) {
 
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 void GetSmapsRollup(base::ProcessHandle handle,
-                    size_t* pss,
-                    size_t* swap_pss) {
+                    base::ByteCount* pss,
+                    base::ByteCount* swap_pss) {
   std::string content;
   bool use_mock = false;
   {
@@ -102,33 +102,34 @@ void GetSmapsRollup(base::ProcessHandle handle,
                                             : base::NumberToString(handle)) +
         "/smaps_rollup";
     if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
-      *pss = size_t(0);
-      *swap_pss = size_t(0);
+      *pss = base::ByteCount(0);
+      *swap_pss = base::ByteCount(0);
       return;
     }
   }
 
   if (content.empty()) {
-    *pss = size_t(0);
-    *swap_pss = size_t(0);
+    *pss = base::ByteCount(0);
+    *swap_pss = base::ByteCount(0);
     return;
   }
 
   auto value = base::debug::ParseSmapsRollup(content);
   if (!value) {
-    *pss = size_t(0);
-    *swap_pss = size_t(0);
+    *pss = base::ByteCount(0);
+    *swap_pss = base::ByteCount(0);
     return;
   }
   *pss = value->pss;
   *swap_pss = value->swap_pss;
 }
 #else   // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-void GetSmapsRollup(size_t* pss, size_t* swap_pss) {
+// Get values from smaps_rollup for the current process.
+void GetSmapsRollup(base::ByteCount* pss, base::ByteCount* swap_pss) {
   auto value = base::debug::ReadAndParseSmapsRollup();
   if (!value) {
-    *pss = 0;
-    *swap_pss = 0;
+    *pss = base::ByteCount(0);
+    *swap_pss = base::ByteCount(0);
     return;
   }
   *pss = value->pss;
@@ -524,14 +525,6 @@ uint32_t CountMappings(base::ProcessId pid) {
   return newline_characters;
 }
 
-<<<<<<< HEAD
-// Get values from smaps_rollup for the current process.
-void GetSmapsRollup(base::ByteCount* pss, base::ByteCount* swap_pss) {
-  auto value = base::debug::ReadAndParseSmapsRollup();
-  if (!value) {
-    *pss = base::ByteCount(0);
-    *swap_pss = base::ByteCount(0);
-=======
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 #if !BUILDFLAG(IS_ANDROID)
 struct LibChrobaltMem {
@@ -553,7 +546,6 @@ void GetSmapsRollup(base::ProcessId pid,
       "/smaps";
   base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
   if (!smaps_file) {
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return;
   }
 
@@ -867,21 +859,14 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
     dump->mappings_count = CountMappings(handle);
   }
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PSS)) {
-<<<<<<< HEAD
     base::ByteCount pss, swap_pss;
-    GetSmapsRollup(&pss, &swap_pss);
-    dump->pss_kb = pss.InKiB();
-    dump->swap_pss_kb = swap_pss.InKiB();
-=======
-    size_t pss, swap_pss;
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
     GetSmapsRollup(handle, &pss, &swap_pss);
 #else
     GetSmapsRollup(&pss, &swap_pss);
 #endif
-    dump->pss_kb = base::saturated_cast<uint32_t>(pss / 1024);
-    dump->swap_pss_kb = base::saturated_cast<uint32_t>(swap_pss / 1024);
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+    dump->pss_kb = pss.InKiB();
+    dump->swap_pss_kb = swap_pss.InKiB();
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1065,7 +1050,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
   }
 
   // Validate against smaps_rollup.
-  size_t rollup_pss, rollup_swap_pss;
+  base::ByteCount rollup_pss, rollup_swap_pss;
   GetSmapsRollup(handle, &rollup_pss, &rollup_swap_pss);
 
   uint64_t total_pss_kb = 0;
@@ -1075,7 +1060,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
   }
 
   // If the difference is too large, we might have inconsistent data.
-  size_t rollup_pss_kb = rollup_pss / 1024;
+  size_t rollup_pss_kb = rollup_pss.InKiB();
   size_t abs_diff = (total_pss_kb > rollup_pss_kb) ? (total_pss_kb - rollup_pss_kb)
                                                   : (rollup_pss_kb - total_pss_kb);
 
@@ -1148,12 +1133,9 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
   // |entries| will be 2kB/MB (if |kPageSize| = 4096),
   // that would only be ~80kB on Android, and up to 200kB on Linux (for 100MB)
   std::vector<uint64_t> entries(total_pages);
-<<<<<<< HEAD
-  if (UNSAFE_TODO(fread(&entries[0], sizeof(uint64_t), total_pages,
-                        pagemap_file.get())) != total_pages) {
-=======
 #if BUILDFLAG(IS_COBALT)
-  size_t read_bytes = fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get());
+  size_t read_bytes = UNSAFE_TODO(
+      fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get()));
   if (read_bytes != total_pages) {
     PLOG(ERROR) << "Error in fread " << kPagemap << ", read " << read_bytes << " of " << total_pages << " entries";
     if (ferror(pagemap_file.get())) {
@@ -1165,9 +1147,8 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
     return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
 #else
-  if (fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get()) !=
-      total_pages) {
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  if (UNSAFE_TODO(fread(&entries[0], sizeof(uint64_t), total_pages,
+                        pagemap_file.get())) != total_pages) {
     return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
 #endif  // BUILDFLAG(IS_COBALT)
