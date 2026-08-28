@@ -32,9 +32,19 @@ jobs:
           REPO: ${{ github.repository }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
           WORKFLOW: ${{ github.event.workflow_run.id }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
           set +x
+          if [ -n "${HEAD_BRANCH}" ]; then
+            current_sha=$(git ls-remote origin "refs/heads/${HEAD_BRANCH}" | cut -f1)
+            if [ -n "${current_sha}" ] && [ "${current_sha}" != "${HEAD_SHA}" ]; then
+              echo "A newer commit (${current_sha}) exists on branch ${HEAD_BRANCH} than the run SHA (${HEAD_SHA}). Aborting re-run."
+              exit 0
+            fi
+          fi
+
           # Max number of times the tests should run. Must match number of
           # retries in on_host_tests and on_device_tests actions.
           MAX_ATTEMPTS=$(jq -r '.deflake_runs | tonumber? // 3' .github/config/infra/deflake.json)
