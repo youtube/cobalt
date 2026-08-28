@@ -38,7 +38,8 @@ constexpr char kTestEnvVar[] = "COBALT_WAS_LOW_MEMORY_KILLED";
 constexpr char kTmpMarkerPath[] = "/tmp/cobalt_was_low_memory_killed";
 constexpr char kMarkerFileName[] = "low_memory_kill_marker";
 constexpr char kDefaultCgroupEventsPath[] = "/sys/fs/cgroup/memory.events";
-static std::string g_cgroup_events_path = kDefaultCgroupEventsPath;
+// Allows override for testing.
+static std::string* g_cgroup_events_path;
 constexpr char kCgroupBaselineFileName[] = "cgroup_oom_baseline";
 
 std::string GetStoragePath(const char* filename) {
@@ -56,18 +57,18 @@ std::string GetStoragePath(const char* filename) {
 }
 
 bool CheckAndConsumeMarker(const std::string& path) {
-  if (path.empty()) {
-    return false;
+  return unlink(path.c_str()) == 0;
+}
+
+const std::string& GetCgroupEventsPath() {
+  if (!g_cgroup_events_path) {
+    g_cgroup_events_path = new std::string(kDefaultCgroupEventsPath);
   }
-  if (access(path.c_str(), F_OK) == 0) {
-    unlink(path.c_str());
-    return true;
-  }
-  return false;
+  return *g_cgroup_events_path;
 }
 
 int64_t ReadCgroupOomKills() {
-  std::ifstream events_file(g_cgroup_events_path);
+  std::ifstream events_file(GetCgroupEventsPath());
   if (!events_file.is_open()) {
     return -1;
   }
@@ -89,6 +90,13 @@ bool CheckCgroupOomKills() {
 
   std::string baseline_path = GetStoragePath(kCgroupBaselineFileName);
   if (baseline_path.empty()) {
+    return false;
+  }
+  if (struct stat info; stat(baseline_path.c_str(), &info) != 0) {
+    std::ofstream out_baseline(baseline_path, std::ios::trunc);
+    if (out_baseline.is_open()) {
+      out_baseline << current_kills << std::endl;
+    }
     return false;
   }
 
@@ -184,6 +192,7 @@ const void* GetLowMemoryKillApi() {
 namespace testing {
 
 bool EvaluateLowMemoryKill() {
+  std::lock_guard<std::mutex> lock(g_eval_mutex);
   return EvaluateWasLowMemoryKilled();
 }
 
@@ -195,10 +204,8 @@ void ResetLowMemoryKillStateForTesting() {
 
 void SetCgroupEventsPathForTesting(const char* path) {
   std::lock_guard<std::mutex> lock(g_eval_mutex);
-  if (path && *path != '\0') {
-    g_cgroup_events_path = path;
-  } else {
-    g_cgroup_events_path = kDefaultCgroupEventsPath;
+  if (path) {
+    *g_cgroup_events_path = path;
   }
 }
 
