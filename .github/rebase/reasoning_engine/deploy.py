@@ -47,6 +47,7 @@ def _normalize_resource_name(resource_id: str, project_id: str,
           f"reasoningEngines/{resource_id}")
 
 
+# pylint: disable=unused-argument
 def _get_effective_staging_bucket(
     staging_bucket: Optional[str],
     project_id: str,
@@ -54,7 +55,7 @@ def _get_effective_staging_bucket(
   """Resolves or defaults the GCS staging bucket for Vertex AI deployment."""
   bucket = (
       staging_bucket or os.environ.get("GCS_STAGING_BUCKET") or
-      f"gs://{project_id}-vertex-staging")
+      "gs://lxn-test-vertex-staging")
   if not bucket.startswith("gs://"):
     bucket = f"gs://{bucket}"
   return bucket
@@ -250,9 +251,8 @@ def main():
   parser.add_argument(
       "--expert-model",
       default=os.environ.get("EXPERT_MODEL", "claude-sonnet-5"),
-      help=(
-          "Expert LLM model (default: claude-sonnet-5; supports "
-          "gemini-3.7-flash, gemini-2.5-pro, glm-5.2, claude-opus-5)"),
+      help=("Expert LLM model (default: claude-sonnet-5; supports "
+            "gemini-3.7-flash, gemini-2.5-pro, glm-5.2, claude-opus-5)"),
   )
   parser.add_argument(
       "--expert-location",

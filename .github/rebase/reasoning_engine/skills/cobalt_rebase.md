@@ -146,3 +146,89 @@ Whenever the AI resolves conflicts or performs a rebase iteration, it **MUST gen
 3. Code diff summary.
 4. Token consumption metrics (prompt tokens, completion tokens, total tokens, model calls).
 5. Build and sync verification status.
+
+
+---
+
+## Expert Review Insights
+
+### M140 API Migrations & Behavioral Preservation
+
+1. **Privacy Sandbox Milestone Flag Shift**:
+   - In M140, update all `CHROMIUM_MILESTONE_LE_138` guards to `CHROMIUM_MILESTONE_LE_150` in `services/network/` files to preserve Cobalt's Privacy Sandbox behavior.
+   - Update `UpdateMaskedDomainList` to use the new flatbuffer signature (`base::File`, `uint64_t`).
+
+2. **`MediaClient` Allocator Initialization**:
+   - The `DecoderBuffer::Allocator` must no longer be installed in the `MediaClient` constructor.
+   - Add `void InstallDecoderBufferAllocator();` to `media/base/media_client.h`.
+   - Implement it in `media/base/media_client.cc` under `#if BUILDFLAG(USE_STARBOARD_MEDIA)`.
+   - Call `client->InstallDecoderBufferAllocator();` in `content/renderer/media/render_media_client.cc` inside `RenderMediaClient::Initialize()`.
+
+3. **`absl::optional` to `std::optional` Migration**:
+   - In Cobalt-specific Blink modules (e.g., `h5vcc_system`), replace `absl::optional` with `std::optional` and update includes from `"third_party/abseil-cpp/absl/types/optional.h"` to `<optional>`.
+
+4. **Android JNI `ScopedJavaGlobalRef` Safety**:
+   - In `starboard/android/shared/media_codec_video_decoder.cc`, add a `SurfaceViewToGlobalRef` helper to convert raw `jobject` to `jni_zero::ScopedJavaGlobalRef` via `NewLocalRef` to satisfy `jni_zero` type requirements.
+
+
+---
+
+## Expert Review Insights
+
+### Reviewer Fallback Procedure When Diff Tools Fail
+
+If the interactive diff/upstream-diff tools return empty or malformed results for all probed files (including historically high-conflict files like `DEPS`), the final `result.md` / post-mortem report MUST:
+- Explicitly state that file-level comparative analysis is **UNVERIFIED** due to tooling failure, rather than reporting a false "no differences found" or "parity" conclusion.
+- Still surface the empirically known M139/M140 breaking-pattern checklist (Section 4 of this skill) as a manual verification checklist for the reviewer/human to re-run once tooling is restored.
+- Recommend escalation to fix the dispatcher's argument-parsing (tool-call isolation from prose) before resuming automated comparative reviews.
+
+
+---
+
+## Expert Review Insights
+
+### Semantic Conflict Resolution vs. Cherry-Pick Artifacts
+
+1. **Standard Rolls (Default Policy)**:
+   - **Never** blindly choose `ours` (Cobalt HEAD) or `theirs` (Chromium upstream) wholesale.
+   - Perform **3-way semantic reconciliation**:
+     * Adopt upstream Chromium API signature evolutions, new source files, GN flag changes, and security updates.
+     * Strictly preserve Cobalt-specific architectural shims (`#if BUILDFLAG(USE_STARBOARD_MEDIA)`, `#if BUILDFLAG(IS_COBALT)`, Starboard decoders, and `# Cobalt: imported` DEPS markers).
+
+2. **Revert / Cherry-Pick Artifacts (Special Edge Case)**:
+   - When a commit explicitly indicates a mechanical cherry-pick or revert artifact (e.g. `CONFLICTED Chromium Cherry pick: Revert Cobalt.`):
+     * **Do not blindly discard all upstream changes.**
+     * Only reject incoming hunks that are demonstrably re-introducing stale/obsolete code that Cobalt or Chromium explicitly superseded.
+     * **Always Interleave Non-Overlapping Additions**: Independent additions in the same hunk (e.g. GN source lists, `TestExpectations`, new includes, feature flags) must be merged/interleaved together rather than discarded wholesale.
+
+### Post-Conflict-Resolution Checklist: Beyond Conflict Markers
+
+A rebase is not complete once every `<<<<<<<` marker is resolved and `autoninja` succeeds. The following categories of files historically require changes **with zero conflict-marker footprint and zero upstream diff overlap**, and must be checked explicitly every roll:
+
+| Category | Example paths | Verification method |
+|---|---|---|
+| Cobalt-only media/starboard logic | `media/starboard/*` | Run targeted USE_STARBOARD_MEDIA build + smoke test |
+| Cobalt runtime switch defaults | `cobalt/app/*switch_defaults*` | Diff against Human ground-truth commit range; run corresponding `_test.cc` |
+| Submodule gitlink pins | `third_party/fuzztest/src`, and any other gitlink dep | `git ls-files -s <path>` vs DEPS-pinned rev |
+| CI/CD roll-tracking infra | `.github/AUTOROLL_CHROMIUM`, `.github/actions/*`, `.github/workflows/main.yaml` | `git diff --stat .github/` against Human range; mirror version bumps |
+| Browser/unit test adaptations | `*_browsertest.cc`, `*_unittest.cc`, `*.filelist` | Run affected test binaries, not just compile |
+
+**Rule of thumb:** If the Human ground-truth PR touches a file that never appeared in `git status` conflict output and has zero lines in `TOOL_UPSTREAM_DIFF`, it is a downstream-behavioral fix triggered by testing — the AI process must extend past `autoninja`/`gclient sync` success into this checklist before declaring the rebase complete.
+
+### Edit Scope Guardrail (Anti-Hallucination)
+
+Before applying any file edit, confirm the file satisfies at least one of:
+- It appears in `git status` as conflicted (`UU`/`AA`/etc.), or
+- It is named explicitly in a build/test error log generated during this rebase session, or
+- It is identified in the post-conflict checklist above as an active Cobalt dependency.
+
+If none of these are true, do **not** edit the file. Unrelated `third_party/*` doc/library files (e.g., `third_party/six/src/documentation/index.rst`) have no business being touched in a Chromium version roll and are a known hallucination pattern — treat any such edit as a bug requiring justification. Fixes for API changes must be relevant to the specific set of changes introduced in the current Chromium roll, not future versions.
+
+
+---
+
+## Expert Review Insights
+
+### CONFLICTED File Manifest as Ground-Truth Checklist Source
+
+Every Cobalt bot roll PR commit message embeds an authoritative, explicit list of CONFLICTED files inside a fenced code block (e.g., "CONFLICTED files:\n

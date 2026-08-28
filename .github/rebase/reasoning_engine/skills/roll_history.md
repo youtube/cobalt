@@ -29,3 +29,28 @@ In each merged **Bot Roll PR**, the initial commits represent the conflicted ups
      - **Human Ground-Truth Fix Commits**: Trailing commits resolving merge conflicts, GN build breaks, and compiler errors.
 2. **AI Comparison**:
    - When a corresponding **Vertex AI PR** is listed, compare the AI's resolution diff against the trailing human fix commits of the **Bot Roll PR** to analyze discrepancies and extract reusable lessons.
+
+
+---
+
+## Expert Review Insights
+
+### Diff-Tooling Sanity Check Protocol
+
+Before drawing any comparative conclusions from `TOOL_DIFF_FILE` or `TOOL_UPSTREAM_DIFF` results, validate the tool dispatcher's health:
+
+1. **Argument Hygiene**: Issue tool calls as a single bare token (e.g. `TOOL_DIFF_FILE: DEPS`), never appended with analytical commentary on the same line.
+2. **Echo Verification**: Confirm the returned `=== Target File: <X> ===` header exactly matches the single-token argument supplied. If `<X>` contains prose, multi-sentence commentary, or run-on punctuation, the dispatcher mis-parsed the argument — discard the result and do not draw conclusions from it.
+3. **Implausibility Check for DEPS**: For any named/versioned Chromium milestone roll PR (e.g. `Update to 139.7217`), DEPS changes (submodule pins, `checkout_cobalt_internal`, Cobalt revision overrides) are near-certain. If both `TOOL_DIFF_FILE: DEPS` and `TOOL_UPSTREAM_DIFF: DEPS` report zero changes simultaneously across Human, AI, and upstream Commit #3, halt immediately and flag a probable commit-range/harness defect — do NOT report this as evidence of Human/AI equivalence.
+4. **Zero-Inventory Check**: If the pre-supplied Modified Files Inventory reports 0 files across all three categories (Shared/Human-only/AI-only) for a milestone roll PR, treat this as a strong signal of an incorrect merge-base or commit-range computation in the inventory-generation step, and request inventory regeneration before proceeding with file-level analysis.
+
+
+---
+
+## Expert Review Insights
+
+### Zero-Inventory Hard Stop (Enforcement Escalation)
+
+If a Modified Files Inventory for a named/versioned Chromium milestone roll PR (e.g., "Update to 140.7298") reports **0 files in all three categories** (Shared/Human-only/AI-only), this MUST be treated as a **blocking defect**, not merely a cautionary signal:
+
+1. Immediately cross-check against the bot roll commit's own CONFLICTED file manifest (present in every roll commit message under a fenced `

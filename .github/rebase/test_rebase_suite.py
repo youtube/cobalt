@@ -2,6 +2,7 @@
 """Comprehensive test suite for Cobalt Chromium rebase automation tools."""
 
 import ast
+import json
 import os
 import tempfile
 import unittest
@@ -28,6 +29,8 @@ from conflicts import (
 from engine_client import ReasoningEngineClient
 from gn_gen import GNDiagnostic, GNGenResolver, extract_gn_target_files
 from reasoning_engine import CobaltReasoningEngine
+from reasoning_engine import deploy
+import review_pipeline
 from token_usage import TokenUsage
 
 SAMPLE_DEPS_CONFLICT = """git_dependencies = "SYNC"
@@ -742,6 +745,299 @@ target("foo") {{}}
         use_pro=False,
         use_expert=False,
     )
+
+  def test_engine_kwargs_safety_and_tolerance(self):
+    """Guards kwargs safety when client sends unexpected arguments."""
+    # pylint: disable=protected-access
+    engine = CobaltReasoningEngine(project_id="test-proj")
+    engine._generate_content_with_retry = mock.MagicMock(
+        return_value=mock.MagicMock(text="SEARCH / REPLACE"))
+    engine._generate_expert_content = mock.MagicMock(
+        return_value="Strategic guidance")
+
+    # 1. generate_expert_guidance with unknown client kwargs and expert_model
+    res1 = engine.query(
+        action="generate_expert_guidance",
+        target="cobalt/media/sandbox.cc",
+        diagnostics="error: no member AddSample",
+        expert_model="claude-sonnet-5",
+        unexpected_future_flag="extra_value",
+        arbitrary_metadata={"client_ver": "2.0"},
+    )
+    self.assertEqual(res1["status"], "SUCCESS")
+    self.assertEqual(res1["model_used"], "claude-sonnet-5")
+
+    # 2. resolve_conflict with extra kwargs
+    res2 = engine.query(
+        action="resolve_conflict",
+        file_path="DEPS",
+        language="Python",
+        raw_conflict="conflict",
+        expert_model="gemini-3.7-flash",
+        use_expert=True,
+        unknown_kwarg_1=True,
+        unknown_kwarg_2=42,
+    )
+    self.assertEqual(res2["status"], "SUCCESS")
+
+    # 3. heal_gn_error with extra kwargs
+    res3 = engine.query(
+        action="heal_gn_error",
+        error_trace="gn error: undefined identifier",
+        expert_model="zai-org/glm-5.2-maas",
+        use_expert=True,
+        extra_server_option="test",
+    )
+    self.assertEqual(res3["status"], "SUCCESS")
+
+    # 4. heal_compiler_error with extra kwargs
+    res4 = engine.query(
+        action="heal_compiler_error",
+        target="cobalt",
+        diagnostics="error: undefined symbol",
+        expert_model="claude-sonnet-5",
+        use_expert=True,
+        client_timestamp=12345678,
+    )
+    self.assertEqual(res4["status"], "SUCCESS")
+
+    # 5. chat with extra kwargs
+    res5 = engine.query(
+        action="chat",
+        message="hello",
+        unexpected_field="xyz",
+    )
+    self.assertEqual(res5["status"], "SUCCESS")
+
+  def test_anthropic_thinking_block_parsing(self):
+    """Guards against AttributeError when Anthropic returns ThinkingBlock."""
+    # pylint: disable=protected-access
+    engine = CobaltReasoningEngine(project_id="test-proj")
+
+    class FakeThinkingBlock:
+      type = "thinking"
+      thinking = "Step 1: analyze root cause..."
+
+    class FakeTextBlock:
+      type = "text"
+      text = ("## Concrete Refactoring Directive\n"
+              "Replace AddSample with WriteSample.")
+
+    fake_response = mock.MagicMock()
+    fake_response.content = [FakeThinkingBlock(), FakeTextBlock()]
+
+    mock_anthropic = mock.MagicMock()
+    mock_anthropic.messages.create.return_value = fake_response
+    engine._get_anthropic_client = mock.MagicMock(return_value=mock_anthropic)
+
+    extracted_text = engine._generate_expert_content(
+        contents="Diagnose error",
+        system_instruction="You are Senior Architect",
+        expert_model="claude-sonnet-5",
+    )
+    self.assertIn("## Concrete Refactoring Directive", extracted_text)
+    self.assertIn("Replace AddSample with WriteSample.", extracted_text)
+
+  def test_glm_maas_content_and_reasoning_extraction(self):
+    """Guards OpenAI/GLM parsing when response has content or reasoning."""
+    # pylint: disable=protected-access
+    engine = CobaltReasoningEngine(project_id="test-proj")
+    engine.glm_api_key = "test_key"
+
+    fake_json_resp1 = json.dumps({
+        "choices": [{
+            "message": {
+                "role": "assistant",
+                "content": "GLM Final Solution",
+                "reasoning_content": "GLM Internal Reasoning"
+            }
+        }]
+    }).encode("utf-8")
+
+    with mock.patch(
+        "google.auth.default", return_value=(mock.MagicMock(), "proj")):
+      with mock.patch("urllib.request.urlopen") as mock_url:
+        mock_cm1 = mock.MagicMock()
+        mock_cm1.read.return_value = fake_json_resp1
+        mock_cm1.__enter__.return_value = mock_cm1
+        mock_url.return_value = mock_cm1
+
+        res1 = engine._generate_openai_compatible_content(
+            model="zai-org/glm-5.2-maas",
+            contents="Prompt",
+            system_instruction="Sys",
+        )
+        self.assertEqual(res1, "GLM Final Solution")
+
+    fake_json_resp2 = json.dumps({
+        "choices": [{
+            "message": {
+                "role": "assistant",
+                "content": "",
+                "reasoning_content": "GLM Reasoning Content"
+            }
+        }]
+    }).encode("utf-8")
+
+    with mock.patch(
+        "google.auth.default", return_value=(mock.MagicMock(), "proj")):
+      with mock.patch("urllib.request.urlopen") as mock_url:
+        mock_cm2 = mock.MagicMock()
+        mock_cm2.read.return_value = fake_json_resp2
+        mock_cm2.__enter__.return_value = mock_cm2
+        mock_url.return_value = mock_cm2
+
+        res2 = engine._generate_openai_compatible_content(
+            model="zai-org/glm-5.2-maas",
+            contents="Prompt",
+            system_instruction="Sys",
+        )
+        self.assertEqual(res2, "GLM Reasoning Content")
+
+  def test_gcs_memory_and_staging_bucket_isolation(self):
+    """Guards GCS bucket names are decoupled and independent of project_id."""
+    # pylint: disable=protected-access
+
+    # Verify engine memory bank default is independent of project_id
+    engine_custom_proj = CobaltReasoningEngine(
+        project_id="arbitrary-gcp-project-12345")
+    self.assertEqual(
+        engine_custom_proj.gcs_memory_uri,
+        "gs://lxn-test/rebase_memory/knowledge_bank.json",
+    )
+
+    # Verify deploy staging bucket helper does not synthesize gs://{project_id}
+    staging_b = deploy._get_effective_staging_bucket(
+        staging_bucket=None,
+        project_id="arbitrary-gcp-project-12345",
+    )
+    self.assertEqual(staging_b, "gs://lxn-test-vertex-staging")
+
+    # Verify explicit override works cleanly
+    staging_custom = deploy._get_effective_staging_bucket(
+        staging_bucket="gs://my-custom-bucket",
+        project_id="arbitrary-gcp-project-12345",
+    )
+    self.assertEqual(staging_custom, "gs://my-custom-bucket")
+
+  def test_ai_pr_metrics_calculation(self):
+    """Guards Jaccard similarity metrics calculation and comment filtering."""
+
+    # 1. Test comment & whitespace line filter
+    self.assertTrue(review_pipeline.is_comment_or_whitespace_line("   "))
+    self.assertTrue(
+        review_pipeline.is_comment_or_whitespace_line(
+            "+  // Cobalt: update macro"))
+    self.assertTrue(
+        review_pipeline.is_comment_or_whitespace_line("-  # Python comment"))
+    self.assertTrue(
+        review_pipeline.is_comment_or_whitespace_line(
+            "+  /* Block comment start"))
+    self.assertTrue(
+        review_pipeline.is_comment_or_whitespace_line(
+            "+   * Block comment body"))
+    self.assertFalse(
+        review_pipeline.is_comment_or_whitespace_line("+  int x = 42;"))
+    self.assertFalse(
+        review_pipeline.is_comment_or_whitespace_line("-  return false;"))
+
+    human_files = {"cobalt/media/sandbox.cc", "cobalt/media/sandbox.h", "DEPS"}
+    ai_files = {"cobalt/media/sandbox.cc", "DEPS", "cobalt/unnecessary.cc"}
+
+    human_diff = (
+        "diff --git a/cobalt/media/sandbox.cc b/cobalt/media/sandbox.cc\n"
+        "--- a/cobalt/media/sandbox.cc\n"
+        "+++ b/cobalt/media/sandbox.cc\n"
+        "+  // Human comment explaining rebase\n"
+        "+  #include \"new_header.h\"\n"
+        "-  old_call();\n"
+        "+  new_call();\n")
+    ai_diff = (
+        "diff --git a/cobalt/media/sandbox.cc b/cobalt/media/sandbox.cc\n"
+        "--- a/cobalt/media/sandbox.cc\n"
+        "+++ b/cobalt/media/sandbox.cc\n"
+        "+  // AI comment with different wording\n"
+        "+  #include \"new_header.h\"\n"
+        "-  old_call();\n"
+        "+  new_call();\n"
+        "+  extra_ai_workaround();\n")
+
+    metrics = review_pipeline.calculate_ai_pr_metrics(
+        human_files=human_files,
+        ai_files=ai_files,
+        human_diff=human_diff,
+        ai_diff=ai_diff,
+    )
+
+    # 4 union files (sandbox.cc, sandbox.h, DEPS, unnecessary.cc),
+    # 2 shared (sandbox.cc, DEPS)
+    self.assertEqual(metrics["total_human_files"], 3)
+    self.assertEqual(metrics["total_ai_files"], 3)
+    self.assertEqual(metrics["shared_files_count"], 2)
+    self.assertEqual(metrics["human_only_files_count"], 1)
+    self.assertEqual(metrics["ai_only_files_count"], 1)
+    self.assertAlmostEqual(
+        metrics["file_jaccard"], 50.0, places=1)  # 2 / 4 = 50.0%
+
+    # Functional code lines:
+    # Human: + #include "new_header.h", - old_call();, + new_call();
+    # AI: + #include "new_header.h", - old_call();, + new_call();,
+    #     + extra_ai_workaround();
+    # Intersection = 3 lines, Union = 4 lines -> 3/4 = 75.0%
+    self.assertAlmostEqual(metrics["code_jaccard"], 75.0, places=1)
+    self.assertEqual(metrics["shared_code_lines_count"], 3)
+    self.assertEqual(metrics["human_only_code_lines_count"], 0)
+    self.assertEqual(metrics["ai_only_code_lines_count"], 1)
+
+    # Overall similarity = (50.0 + 75.0) / 2 = 62.5%
+    self.assertAlmostEqual(metrics["overall_similarity"], 62.5, places=1)
+
+    # Test markdown formatting
+    md = review_pipeline.format_metrics_markdown(metrics)
+    self.assertIn("Jaccard Similarity & Divergence Scorecard", md)
+    self.assertIn("62.5%", md)
+    self.assertIn("50.0%", md)
+    self.assertIn("75.0%", md)
+
+  def test_interactive_review_tool_execution(self):
+    """Guards single-file diff extraction and review tool execution."""
+
+    sample_diff = (
+        "diff --git a/DEPS b/DEPS\n"
+        "--- a/DEPS\n"
+        "+++ b/DEPS\n"
+        "+  'cpuinfo': 'hash123',\n"
+        "diff --git a/cobalt/media/sandbox.cc b/cobalt/media/sandbox.cc\n"
+        "--- a/cobalt/media/sandbox.cc\n"
+        "+++ b/cobalt/media/sandbox.cc\n"
+        "+  #include \"sandbox.h\"\n")
+
+    # 1. Test single file diff extraction
+    deps_diff = review_pipeline.extract_single_file_diff(sample_diff, "DEPS")
+    self.assertIn("diff --git a/DEPS b/DEPS", deps_diff)
+    self.assertIn("+  'cpuinfo': 'hash123',", deps_diff)
+    self.assertNotIn("sandbox.cc", deps_diff)
+
+    media_diff = review_pipeline.extract_single_file_diff(
+        sample_diff, "cobalt/media/sandbox.cc")
+    self.assertIn("cobalt/media/sandbox.cc", media_diff)
+    self.assertNotIn("DEPS", media_diff)
+
+    # 2. Test TOOL_DIFF_FILE execution
+    tool_out = review_pipeline.execute_review_tool(
+        cmd="TOOL_DIFF_FILE: cobalt/media/sandbox.cc",
+        repo_root=".",
+        human_diff=sample_diff,
+        ai_diff=(
+            "diff --git a/cobalt/media/sandbox.cc b/cobalt/media/sandbox.cc\n"
+            "+++ b/cobalt/media/sandbox.cc\n"
+            "+  ai_edit();\n"),
+    )
+    self.assertIn("Target File: cobalt/media/sandbox.cc", tool_out)
+    self.assertIn("Human Ground-Truth Fix Diff", tool_out)
+    self.assertIn("AI Rebase Attempt Diff", tool_out)
+    self.assertIn("+  #include \"sandbox.h\"", tool_out)
+    self.assertIn("+  ai_edit();", tool_out)
 
 
 if __name__ == "__main__":

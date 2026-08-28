@@ -56,3 +56,36 @@ When a target definition in `BUILD.gn` fails or is suspected of merge/rebase ano
        <<<<<<< DELETE
        <exact lines to delete>
        >>>>>>> DELETE
+
+
+---
+
+## Expert Review Insights
+
+### Preserving Cobalt Sources in BUILD.gn Conflicts
+
+1. **iOS Source List Conflicts**:
+   - When resolving conflicts in `content/browser/BUILD.gn` involving iOS sources, carefully preserve Cobalt-specific files like `web_contents/web_contents_impl_ios.mm`.
+   - Only remove files that are explicitly deleted upstream (e.g., `speech/tts_ios.mm`).
+   - Do not blindly delete all files in the conflicted region.
+
+
+---
+
+## Expert Review Insights
+
+### Minimal-Diff Rule for Removed Dependencies
+
+When a merge conflict resolves to **removing** a `deps` entry (e.g., `"//gpu"`) rather than adding one, do not speculatively replace it with narrower sub-targets (e.g., `"//gpu/command_buffer/client"`, `"//gpu/ipc/client"`) unless:
+
+1. `autoninja`/GN actually fails with an **undefined symbol** or **missing target** error naming a specific dependency, AND
+2. That specific sub-target is confirmed (via `gn desc` or grep of the failing symbol's owning target) to resolve the failure.
+
+**Default behavior:** match the Human/upstream-aligned resolution exactly — if the conflict resolution is a clean removal with no accompanying build error, leave it as a removal. Inventing "defensive" narrower deps is a common AI over-engineering failure mode that introduces unverified build-graph risk and diverges from ground truth without evidence.
+
+**Checklist before adding any GN dep during conflict healing:**
+- [ ] Is there an actual build error citing a missing symbol/header from this dependency?
+- [ ] Does `gn desc <target> deps` confirm the sub-target (not the full target) is the minimal fix?
+- [ ] Does the Human ground-truth commit (if available) support this exact sub-target choice?
+
+If any answer is "no" or "unknown," prefer the minimal resolution (removal, or the broader original target) over a speculative graft.

@@ -29,6 +29,8 @@ import urllib.error
 import urllib.request
 import warnings
 
+import google.auth
+import google.auth.transport.requests
 from google import genai
 from google.cloud import storage
 from google.genai import types
@@ -72,6 +74,7 @@ def load_skill(skill_name: str, skills_dir: Optional[str] = None) -> str:
     return content
 
 
+# pylint: disable=unused-argument
 class CobaltReasoningEngine:
   """Hosted Vertex AI Reasoning Engine service for Cobalt rebase tasks."""
 
@@ -98,8 +101,8 @@ class CobaltReasoningEngine:
         expert_model or os.environ.get("EXPERT_MODEL") or "claude-sonnet-5")
     self.expert_provider = (
         expert_provider or os.environ.get("EXPERT_PROVIDER") or
-        ("anthropic" if "claude" in self.expert_model.lower()
-         else ("glm" if "glm" in self.expert_model.lower() else "gemini")))
+        ("anthropic" if "claude" in self.expert_model.lower() else
+         ("glm" if "glm" in self.expert_model.lower() else "gemini")))
     self.expert_location = (
         expert_location or os.environ.get("EXPERT_LOCATION") or
         ("global" if self.expert_provider == "anthropic" else self.location))
@@ -111,8 +114,7 @@ class CobaltReasoningEngine:
     self.skills_dir = skills_dir or SKILLS_DIR
     self.gcs_memory_uri = (
         gcs_memory_uri or os.environ.get("GCS_MEMORY_URI") or
-        (f"gs://{self.project_id}-vertex-staging/rebase_memory/knowledge_bank.json"
-         if self.project_id else "gs://lxn-test-vertex-staging/rebase_memory/knowledge_bank.json"))
+        "gs://lxn-test/rebase_memory/knowledge_bank.json")
     self.memory_cache: Optional[List[Dict[str, Any]]] = None
     self.storage_client: Any = None
     self.anthropic_client: Any = None
@@ -178,7 +180,12 @@ class CobaltReasoningEngine:
       )
     return self.memory_cache
 
-  def get_past_experience(self, query: str, max_items: int = 3) -> str:
+  def get_past_experience(
+      self,
+      query: str,
+      max_items: int = 3,
+      **kwargs,
+  ) -> str:
     """Retrieves relevant past fixes from knowledge bank."""
     memory = self._load_memory()
     if not memory:
@@ -214,6 +221,7 @@ class CobaltReasoningEngine:
       issue_description: str,
       solution_diff: str,
       target_file: str = "",
+      **kwargs,
   ) -> bool:
     """Records a verified fix into GCS knowledge memory bank."""
     memory = self._load_memory()
@@ -276,6 +284,21 @@ class CobaltReasoningEngine:
         self.anthropic_client = None
     return self.anthropic_client
 
+  def _normalize_anthropic_model_name(self, model_name: str) -> str:
+    """Normalizes friendly model aliases to official publisher IDs."""
+    m = model_name.strip().lower()
+    if m in ("claude-sonnet-5", "claude-3-7-sonnet", "claude-3.7-sonnet",
+             "sonnet-3.7", "sonnet-3.7-thinking"):
+      return "claude-3-7-sonnet@20250219"
+    if m in ("claude-3-5-sonnet", "claude-3.5-sonnet", "sonnet-3.5",
+             "claude-3-5-sonnet-v2"):
+      return "claude-3-5-sonnet-v2@20241022"
+    if m in ("claude-opus", "claude-3-opus", "claude-opus-5"):
+      return "claude-3-opus@20240229"
+    if m in ("claude-3-5-haiku", "claude-haiku"):
+      return "claude-3-5-haiku@20241022"
+    return model_name
+
   def _generate_openai_compatible_content(
       self,
       model: str,
@@ -283,16 +306,13 @@ class CobaltReasoningEngine:
       system_instruction: str,
       temperature: float = 0.1,
   ) -> Optional[str]:
-    """Generates content via Vertex AI Model Garden GLM-5.2 MaaS or OpenAI-compatible endpoint."""
+    """Generates content via Vertex AI Model Garden GLM-5.2 MaaS."""
     headers = {"Content-Type": "application/json"}
     eff_model = model
 
     # 1. If using Vertex AI Model Garden GLM MaaS (zai-org/glm-5.2-maas)
     if "zai-org" in model.lower() or "glm" in model.lower():
       try:
-        import google.auth
-        import google.auth.transport.requests
-
         credentials, _ = google.auth.default(
             scopes=["https://www.googleapis.com/auth/cloud-platform"])
         auth_req = google.auth.transport.requests.Request()
@@ -301,35 +321,44 @@ class CobaltReasoningEngine:
         headers["Authorization"] = f"Bearer {token}"
       except Exception as e:  # pylint: disable=broad-exception-caught
         print(
-            "  [REASONING_ENGINE] Notice: Could not acquire Google Cloud token "
+            "  [REASONING_ENGINE] Notice: Could not acquire Cloud token "
             f"for GLM MaaS: {e}",
             file=sys.stderr,
         )
         if self.glm_api_key:
           headers["Authorization"] = f"Bearer {self.glm_api_key}"
 
-      reg = self.expert_location if self.expert_location not in ("us-east5", "") else "global"
+      reg = (
+          self.expert_location
+          if self.expert_location not in ("us-east5", "") else "global")
       endpoint = (
           os.environ.get("GLM_ENDPOINT") or
-          f"https://aiplatform.googleapis.com/v1/projects/{self.project_id}/locations/{reg}/endpoints/openapi/chat/completions"
-      )
+          ("https://aiplatform.googleapis.com/v1/projects/"
+           f"{self.project_id}/locations/{reg}/"
+           "endpoints/openapi/chat/completions"))
       eff_model = "zai-org/glm-5.2-maas"
     else:
       if not self.glm_api_key:
         print(
-            "  [REASONING_ENGINE] Notice: GLM_API_KEY or OPENAI_API_KEY not set.",
+            "  [REASONING_ENGINE] Notice: GLM_API_KEY/OPENAI_API_KEY not set.",
             file=sys.stderr,
         )
         return None
       headers["Authorization"] = f"Bearer {self.glm_api_key}"
-      endpoint = f"{self.glm_base_url.rstrip('/')}/chat/completions"
+      endpoint = f'{self.glm_base_url.rstrip("/")}/chat/completions'
 
     prompt_text = str(contents) if not isinstance(contents, str) else contents
     payload = {
         "model": eff_model,
         "messages": [
-            {"role": "system", "content": system_instruction},
-            {"role": "user", "content": prompt_text},
+            {
+                "role": "system",
+                "content": system_instruction
+            },
+            {
+                "role": "user",
+                "content": prompt_text
+            },
         ],
         "temperature": temperature,
         "max_tokens": 8192,
@@ -369,47 +398,56 @@ class CobaltReasoningEngine:
       expert_model: Optional[str] = None,
       temperature: float = 0.1,
   ) -> Optional[str]:
-    """Generates content via Tier-2 Expert LLM (Claude Sonnet 5, Gemini 3.7 Thinking, or GLM 5.2)."""
+    """Generates content via Tier-2 Expert LLM (Sonnet 5, GLM 5.2)."""
     expert_name = expert_model or self.expert_model or "claude-sonnet-5"
-    provider = ("anthropic" if "claude" in expert_name.lower()
-                else ("glm" if "glm" in expert_name.lower() else "gemini"))
+    provider = ("anthropic" if "claude" in expert_name.lower() else
+                ("glm" if "glm" in expert_name.lower() else "gemini"))
 
     # 1. Anthropic Claude (e.g. Claude Sonnet 5 on Vertex AI)
     if provider == "anthropic" or "claude" in expert_name.lower():
       aclient = self._get_anthropic_client()
       if aclient is not None:
-        try:
-          prompt_text = str(contents) if not isinstance(contents,
-                                                        str) else contents
-          print(
-              f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to Anthropic "
-              f"{expert_name} in {self.expert_location}...",
-              file=sys.stderr,
-          )
-          resp = aclient.messages.create(
-              model=expert_name,
-              max_tokens=8192,
-              system=system_instruction,
-              messages=[{
-                  "role": "user",
-                  "content": prompt_text
-              }],
-          )
-          text_parts = []
-          for block in resp.content:
-            if hasattr(block, "text") and block.text:
-              text_parts.append(block.text)
-            elif getattr(block, "type", "") == "text":
-              text_parts.append(getattr(block, "text", ""))
-          full_text = "\n".join(text_parts).strip()
-          if full_text:
-            return full_text
-        except Exception as e:  # pylint: disable=broad-exception-caught
-          print(
-              f"  [REASONING_ENGINE] Warning: Anthropic query failed: {e}. "
-              "Falling back to Gemini Expert...",
-              file=sys.stderr,
-          )
+        prompt_text = str(contents) if not isinstance(contents,
+                                                      str) else contents
+        for attempt in range(1, 4):
+          try:
+            print(
+                f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to Anthropic "
+                f"{expert_name} in {self.expert_location} "
+                f"(attempt {attempt}/3)...",
+                file=sys.stderr,
+            )
+            resp = aclient.messages.create(
+                model=expert_name,
+                max_tokens=8192,
+                system=system_instruction,
+                messages=[{
+                    "role": "user",
+                    "content": prompt_text
+                }],
+            )
+            text_parts = []
+            for block in resp.content:
+              if hasattr(block, "text") and block.text:
+                text_parts.append(block.text)
+              elif getattr(block, "type", "") == "text":
+                text_parts.append(getattr(block, "text", ""))
+            full_text = "\n".join(text_parts).strip()
+            if full_text:
+              return full_text
+          except Exception as e:  # pylint: disable=broad-exception-caught
+            print(
+                f"  [REASONING_ENGINE] Warning: Anthropic attempt "
+                f"{attempt}/3 failed: {e}",
+                file=sys.stderr,
+            )
+            if attempt < 3:
+              time.sleep(attempt * 4.0)
+            else:
+              print(
+                  "  [REASONING_ENGINE] Falling back to Gemini Expert...",
+                  file=sys.stderr,
+              )
 
     # 2. GLM / OpenAI Compatible Service (e.g. GLM-5.2)
     if self.expert_provider == "glm" or "glm" in expert_name.lower():
@@ -423,7 +461,8 @@ class CobaltReasoningEngine:
         return glm_resp
 
     # 3. Gemini Thinking Expert (e.g. gemini-3.7-flash or gemini-2.5-pro)
-    target_gemini_model = expert_name if "gemini" in expert_name.lower() else self.pro_model
+    target_gemini_model = expert_name if "gemini" in expert_name.lower(
+    ) else self.pro_model
     print(
         f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to "
         f"{target_gemini_model} with thinking...",
@@ -564,8 +603,10 @@ class CobaltReasoningEngine:
       working_diff: str = "",
       investigation_history: str = "",
       mode: str = "compiler",
+      expert_model: Optional[str] = None,
+      **kwargs,
   ) -> Dict[str, Any]:
-    """Tier-2 Senior Architect (Claude Sonnet 4.6).
+    """Tier-2 Senior Architect (Claude Sonnet 5 / Gemini / GLM).
 
     Analyzes full failure trajectory, session git diffs, and diagnostics
     to produce strategic root-cause guidance and actionable refactoring
@@ -574,6 +615,7 @@ class CobaltReasoningEngine:
     eff_target = target or target_file or "cobalt"
     eff_diag = diagnostics or error_trace
     eff_ctx = source_contexts or file_context
+    chosen_expert = expert_model or self.expert_model or "claude-sonnet-5"
 
     rebase_skill = self._get_skill("cobalt_rebase")
     domain_skill = self._get_skill("gn_healing" if mode ==
@@ -586,30 +628,31 @@ class CobaltReasoningEngine:
         "complex build failures, V8/Blink/Starboard upstream refactorings, "
         "and multi-iteration loops.\n\n"
         "You will receive:\n"
-        "1. The full trajectory of what the Tier-1 Worker agent attempted so far.\n"
-        "2. The git diff of all modifications made in the working tree during this session.\n"
-        "3. The current compiler/GN error and offending source excerpt.\n\n"
+        "1. Trajectory of what Tier-1 Worker attempted so far.\n"
+        "2. Git diff of modifications made in working tree this session.\n"
+        "3. Current compiler/GN error and offending source excerpt.\n\n"
         "Responsibilities:\n"
-        "- Perform deep root-cause analysis: identify what upstream API/header/type changed.\n"
-        "- Note on Upstream Roll Commits: In Cobalt autoroll PRs, Commit #3 (e.g. 'Update to 140.7298.') contains pure Chromium changes. Use TOOL_UPSTREAM_DIFF to inspect how upstream Chromium authors evolved the subsystem.\n"
-        "- If you need to inspect files, symbols, past PRs, or git history, output an investigation tool command:\n"
+        "- Perform deep root-cause analysis: identify what upstream changed.\n"
+        "- Upstream Roll Commits: Commit #3 contains pure Chromium changes. "
+        "Use TOOL_UPSTREAM_DIFF to inspect upstream Chromium evolutions.\n"
+        "- If you need to inspect files, symbols, or git history, output:\n"
         "    TOOL_FIND_FILE: <pattern>\n"
         "    TOOL_GREP: <symbol>\n"
         "    TOOL_READ_FILE: <path> <start>-<end>\n"
-        "    TOOL_UPSTREAM_DIFF: <filepath> (inspects pure upstream Chromium changes from roll commit #3)\n"
+        "    TOOL_UPSTREAM_DIFF: <filepath>\n"
         "    TOOL_GIT_LOG: <count> <filepath>\n"
         "    TOOL_GIT_SHOW: <commit_hash>\n"
         "    TOOL_GIT_DIFF: <rev1>..<rev2>\n"
         "    TOOL_READ_PR: <pr_number>\n"
         "    TOOL_PR_DIFF: <pr_number>\n"
-        "- Explain why Tier 1 is stuck or oscillating and list anti-patterns to avoid.\n"
-        "- Provide clear, concrete, step-by-step instructions for Tier 1 (Worker Agent):\n"
-        "  * Exactly which first-party file(s) must be edited (and which 3rd-party files are strictly READ-ONLY).\n"
-        "  * The precise logic, type substitution, or header include to apply.\n\n"
+        "- Explain why Tier 1 is stuck and list anti-patterns to avoid.\n"
+        "- Provide clear, concrete, step-by-step instructions for Tier 1:\n"
+        "  * First-party file(s) to edit (3rd-party files are READ-ONLY).\n"
+        "  * Precise logic, type substitution, or header include to apply.\n\n"
         f"--- Rebase Guidelines ---\n{rebase_skill}\n\n"
         f"--- Domain Skill ---\n{domain_skill}\n\n"
-        f"--- Historical Ground-Truth Roll References (M139-M141) ---\n{roll_history_skill}\n"
-    )
+        f"--- Historical Ground-Truth Roll References (M139-M141) ---\n"
+        f"{roll_history_skill}\n")
 
     diff_section = (f"--- Git Diff of Modifications in Current Session ---\n"
                     f"{working_diff[:16384]}\n\n" if working_diff else "")
@@ -629,14 +672,15 @@ class CobaltReasoningEngine:
         f"{inv_section}"
         f"Offending Source Code:\n{eff_ctx}\n\n"
         "Architectural Directive Request:\n"
-        "Analyze root cause and provide clear Strategic Guidance & Directives for Tier-1 Worker (or TOOL_ command if investigation needed)."
-    )
+        "Analyze root cause and provide clear Strategic Guidance & Directives "
+        "for Tier-1 Worker (or TOOL_ command if investigation needed).")
 
-    guidance = self._generate_expert_content(prompt, sys_inst)
+    guidance = self._generate_expert_content(
+        prompt, sys_inst, expert_model=chosen_expert)
     return {
         "status": "SUCCESS" if guidance else "ERROR",
         "guidance": (guidance or "").strip(),
-        "model_used": self.expert_model,
+        "model_used": chosen_expert,
     }
 
   def resolve_conflict(
@@ -654,9 +698,11 @@ class CobaltReasoningEngine:
       expert_guidance: str = "",
       use_pro: bool = False,
       use_expert: bool = False,
+      expert_model: Optional[str] = None,
+      **kwargs,
   ) -> Dict[str, Any]:
     """Resolves source/DEPS merge conflicts on Vertex AI."""
-    chosen_model = self.expert_model if use_expert else (
+    chosen_model = (expert_model or self.expert_model) if use_expert else (
         self.pro_model if use_pro else self.flash_model)
     rebase_skill = self._get_skill("cobalt_rebase")
     conflict_skill = self._get_skill("conflict_resolution")
@@ -727,9 +773,11 @@ class CobaltReasoningEngine:
       expert_guidance: str = "",
       use_pro: bool = False,
       use_expert: bool = False,
+      expert_model: Optional[str] = None,
+      **kwargs,
   ) -> Dict[str, Any]:
     """Diagnoses and fixes GN generation errors on Vertex AI."""
-    chosen_model = self.expert_model if use_expert else (
+    chosen_model = (expert_model or self.expert_model) if use_expert else (
         self.pro_model if use_pro else self.flash_model)
     rebase_skill = self._get_skill("cobalt_rebase")
     gn_skill = self._get_skill("gn_healing")
@@ -769,7 +817,8 @@ class CobaltReasoningEngine:
               ">>>>>>> REPLACE")
 
     if use_expert:
-      patch_text = self._generate_expert_content(prompt, sys_inst)
+      patch_text = self._generate_expert_content(
+          prompt, sys_inst, expert_model=chosen_model)
       return {
           "status": "SUCCESS" if patch_text else "ERROR",
           "patch": (patch_text or "").strip(),
@@ -802,6 +851,8 @@ class CobaltReasoningEngine:
       expert_guidance: str = "",
       use_pro: bool = False,
       use_expert: bool = False,
+      expert_model: Optional[str] = None,
+      **kwargs,
   ) -> Dict[str, Any]:
     """Diagnoses and repairs C++/Java compilation errors on Vertex AI."""
     eff_target = target or target_file or "cobalt"
@@ -809,7 +860,7 @@ class CobaltReasoningEngine:
     eff_ctx = source_contexts or file_context
     eff_inv = investigation_history or history
 
-    chosen_model = self.expert_model if use_expert else (
+    chosen_model = (expert_model or self.expert_model) if use_expert else (
         self.pro_model if use_pro else self.flash_model)
     rebase_skill = self._get_skill("cobalt_rebase")
     compiler_skill = self._get_skill("compiler_healing")
@@ -822,9 +873,9 @@ class CobaltReasoningEngine:
     investigation_section = (
         f"--- Investigation Tool Results ---\n{eff_inv}\n\n" if eff_inv else "")
     expert_section = (
-        f"=== TIER-2 SENIOR ARCHITECT STRATEGIC GUIDANCE (CLAUDE SONNET) ===\n"
+        f"=== TIER-2 ARCHITECT GUIDANCE ({chosen_model.upper()}) ===\n"
         f"{expert_guidance}\n"
-        f"===================================================================\n\n"
+        f"============================================================\n\n"
         "CRITICAL: Adhere strictly to the Senior Architect's guidance above "
         "when writing your SEARCH/REPLACE or DELETE block.\n\n"
         if expert_guidance else "")
@@ -870,7 +921,8 @@ class CobaltReasoningEngine:
               "  >>>>>>> DELETE")
 
     if use_expert:
-      patch_text = self._generate_expert_content(prompt, sys_inst)
+      patch_text = self._generate_expert_content(
+          prompt, sys_inst, expert_model=chosen_model)
       return {
           "status": "SUCCESS" if patch_text else "ERROR",
           "patch": (patch_text or "").strip(),
@@ -896,9 +948,12 @@ class CobaltReasoningEngine:
       mode: str = "rebase",
       use_pro: bool = False,
       failure_memory: str = "",
+      expert_model: Optional[str] = None,
+      **kwargs,
   ) -> Dict[str, Any]:
     """Interactive conversational interface to Reasoning Engine."""
-    chosen_model = self.pro_model if use_pro else self.flash_model
+    chosen_model = (
+        expert_model or (self.pro_model if use_pro else self.flash_model))
     skill_map = {
         "rebase": "cobalt_rebase",
         "gn": "gn_healing",

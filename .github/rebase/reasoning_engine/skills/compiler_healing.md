@@ -92,3 +92,49 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
    - When `ld.lld: error: obj/... is incompatible with <arch>` occurs, the component target was excluded from compilation by a platform `if / else` condition (e.g. `if (is_starboard) ... else component(...)`), its visibility was restricted away from its caller, or `configs` was overwritten inside an intermediate helper scope.
    - Ensure the component target (e.g. `component("foo")`) is defined directly and unconditionally for all platforms with standard public visibility (e.g. `visibility = [ "//build/config/foo:foo" ]`), standard config adjustments (`configs -= [...]`, `configs += [...]`), and platform-specific flags/configs (`if (is_starboard) { ... }`) directly inside the target definition.
    - Do NOT use intermediate property scopes (`_foo_props = { ... }`), do NOT restrict visibility to obsolete wrapper targets (like `//third_party:freetype_harfbuzz`), and do NOT add hallucinated compiler flags.
+
+
+---
+
+## Expert Review Insights
+
+### M140 Constructor & API Signature Evolutions
+
+1. **WebGL Extension Constructors**:
+   - Upstream M140 adds `ExecutionContext*` to WebGL extension constructors.
+   - Update `OESEGLImageExternal(WebGLRenderingContextBase*, ExecutionContext*)` in both `.h` and `.cc`.
+   - Add `class ExecutionContext;` forward declaration in the header alongside other forward declarations (e.g., `class ExceptionState;`).
+
+2. **`DecoderBuffer::discard_padding()` Returns `std::optional`**:
+   - In `media/starboard/sbplayer_bridge.cc`, `buffer->discard_padding()` now returns `std::optional`.
+   - Cache the result: `const std::optional<::media::DecoderBuffer::DiscardPadding> discard_padding = buffer->discard_padding();`
+   - Only call `SetDiscardPadding` if `discard_padding.has_value()`.
+   - Ensure `#include <optional>` is added.
+
+3. **Avoid Macro Hacks for JNI**:
+   - Never use preprocessor macros (e.g., `#define SetPrimaryPageImportance...`) to intercept or redirect JNI generated calls.
+   - Always resolve API changes at the C++ method level by updating signatures in both `.h` and `.cc` files.
+
+
+---
+
+## Expert Review Insights
+
+### Include-Order Verification After Adding Headers
+
+When a missing-symbol/build error is resolved by adding a new `#include`, the insertion position matters for presubmit compliance (`checkincludeorder`), even though it will not fail `autoninja`.
+
+**Procedure:**
+1. Identify the include block the new header belongs to (C system / C++ system / same-component / other project headers — per Chromium style).
+2. Within that block, insert in strict ASCII alphabetical order by full path string (e.g., `base/task/thread_pool.h` sorts before `base/threading/...` before `base/timer/elapsed_timer.h` — note `k` < `r` < `i` positioning must be checked character-by-character, not just by top-level directory).
+3. After insertion, re-read the 3 lines immediately above and below to confirm ordering is preserved end-to-end, not just locally correct relative to the anchor point used for insertion.
+4. If uncertain, prefer running `git cl format` / clang-format include-sorting locally over manual placement.
+
+### DEPS / Large Multi-Hunk File Diff-Tooling Sanity Check
+
+Files like `DEPS` frequently exceed single-invocation diff-tool output limits, causing silent truncation before later hunks (e.g., `cpuinfo`, `perfetto`, `webrtc`, `internal`, `jszip` sections). This creates false confidence in resolution parity.
+
+**Procedure:**
+1. After resolving a large file, compare the tool's reported diff line count against `git diff --stat <file>` output.
+2. If the tool's returned diff is shorter than `--stat` indicates, do not assume the remainder is correct — re-run diffing in chunks (line-range limited) or use `git diff <file> | wc -l` cross-checks until every original conflict-marker region has been visually confirmed resolved.
+3. Never mark a large file "verified equivalent to Human ground truth" based on a partial/truncated diff view.
