@@ -220,7 +220,8 @@ class TestMergeAutoroll(unittest.TestCase):
 
   @patch('subprocess.run')
   def test_main_conflicted_pr(self, mock_run):
-    # Mock gh pr list returning a conflicted PR (using the actual format from workflow)
+    # Mock gh pr list returning a conflicted PR (using the actual format from
+    # workflow)
     self._setup_mock_run(
         mock_run,
         prs_list=[{
@@ -256,7 +257,7 @@ class TestMergeAutoroll(unittest.TestCase):
 
         os.makedirs(os.path.join(test_tmpdir, '.github'))
         autoroll_path = os.path.join(test_tmpdir, '.github/AUTOROLL')
-        with open(autoroll_path, 'w') as f:
+        with open(autoroll_path, 'w', encoding='utf-8') as f:
           f.write(conflict_content)
 
         # Reset mock_run call history for each iteration
