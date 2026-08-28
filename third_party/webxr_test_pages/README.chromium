@@ -64,11 +64,13 @@ which is stored in a Google cloud bucket. To verify if you have sufficient
 access to the cloud bucket:
 
 1. Run:
-     gsutil.py ls -d gs://chromium-webxr-test
+     # The gsutil ls -d flag is not supported in gcloud storage ls.
+     gcloud storage ls gs://chromium-webxr-test
 
 3. If you get authentication errors such as this one:
      Your credentials are invalid. For more help, see "gsutil help creds", or re-run the gsutil config command (see "gsutil help config").
    Try running:
+     # gsutil config has no direct gcloud storage equivalent. Functionality is split between 'gcloud config' and 'gcloud auth'.
      gsutil.py config
    and authenticate using your google.com identity. Use project ID 0.
    WARNING: make sure to use gsutil.py (note .py suffix) from depot_tools. Your
