@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for cobalt.tools.test_filter."""
+"""Tests for cobalt.devinfra.github.test_filter."""
 
 import io
 import json
@@ -23,8 +23,8 @@ from typing import Any, Mapping
 import unittest
 from unittest import mock
 
-from cobalt.tools.test_filter import get_gtest_filter
-from cobalt.tools.test_filter import main
+from cobalt.devinfra.github.test_filter import get_gtest_filter
+from cobalt.devinfra.github.test_filter import main
 
 
 class TestGetGtestFilter(unittest.TestCase):

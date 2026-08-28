@@ -139,7 +139,7 @@ runs:
         readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[]')
         for test_target_with_path in "${test_targets[@]}"; do
           test_target=${test_target_with_path#*:}
-          test_filter=$(python3 cobalt/tools/test_filter.py \
+          test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
               --filter-dir "${FILTER_DIR}" \
               --target "${test_target}")
           if [ "${test_filter}" == "-*" ]; then

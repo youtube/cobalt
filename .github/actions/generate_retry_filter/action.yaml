@@ -30,12 +30,8 @@ runs:
           local failed_tests_json
 
           # Extract failing test names from parser output. Prepend gtest fail prefix.
-          raw_json=$(python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" 2>/dev/null || true)
-          if [ -n "${raw_json}" ]; then
-            failed_tests_json=$(echo "${raw_json}" | jq -c '[.failing_tests[] | .[] | .name] | unique')
-          else
-            failed_tests_json="[]"
-          fi
+          raw_json=$(python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" || true)
+          failed_tests_json=$(echo "${raw_json}" | jq -c '[.failing_tests[] | .[] | .name] | unique')
 
           # Build filter JSON. If no failures, skip all (*).
           jq -n --argjson tests "${failed_tests_json:-[]}" '

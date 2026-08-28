@@ -106,7 +106,7 @@ runs:
 
           echo "Running tests for suite: ${test_executable_name}"
 
-          test_filter=$(python3 cobalt/tools/test_filter.py \
+          test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
               --filter-dir "${FILTER_DIR}" \
               --target "${test_executable_name}" \
               --shard "${GTEST_SHARD_INDEX}")
@@ -187,7 +187,7 @@ runs:
           # We use the test executable's base name for naming its logs and results.
           test_executable_name="${test_executable#run_}"
 
-          test_filter=$(python3 cobalt/tools/test_filter.py \
+          test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
               --filter-dir "${FILTER_DIR}" \
               --target "${test_executable_name}" \
               --shard "${GTEST_SHARD_INDEX}")
