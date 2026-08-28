@@ -26,10 +26,13 @@
 #include "media/base/media_switches.h"
 #include "media/gpu/buildflags.h"
 #include "media/media_buildflags.h"
-#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/gfx/switches.h"
 #include "ui/gl/gl_features.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "mojo/public/cpp/bindings/callback_helpers.h"
+#endif
 
 namespace {
 

@@ -61,11 +61,11 @@ struct TraceSwapEventsInitializer {
 static base::LazyInstance<TraceSwapEventsInitializer>::Leaky
     g_trace_swap_enabled = LAZY_INSTANCE_INITIALIZER;
 
+#if BUILDFLAG(IS_COBALT)
 void SafeDestroyEGLSurface(GLDisplayEGL* display, EGLSurface surface) {
   if (!surface) {
     return;
   }
-#if BUILDFLAG(IS_COBALT)
   // On Starboard, native windows and EGL displays may be torn down on
   // suspend before the surface object destructor runs. If the display is
   // uninitialized or the driver already reclaimed the native window,
@@ -79,13 +79,8 @@ void SafeDestroyEGLSurface(GLDisplayEGL* display, EGLSurface surface) {
       }
     }
   }
-#else
-  if (!eglDestroySurface(display->GetDisplay(), surface)) {
-    LOG(ERROR) << "eglDestroySurface failed with error "
-               << GetLastEGLErrorString();
-  }
-#endif
 }
+#endif
 
 class EGLSyncControlVSyncProvider : public SyncControlVSyncProvider {
  public:
@@ -564,7 +559,14 @@ void NativeViewGLSurfaceEGL::Destroy() {
   vsync_provider_internal_ = nullptr;
 
   if (surface_) {
+#if BUILDFLAG(IS_COBALT)
     SafeDestroyEGLSurface(display_, surface_);
+#else
+    if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
+      LOG(ERROR) << "eglDestroySurface failed with error "
+                 << GetLastEGLErrorString();
+    }
+#endif
     surface_ = NULL;
   }
 #if BUILDFLAG(IS_COBALT)
@@ -1062,7 +1064,14 @@ bool PbufferGLSurfaceEGL::Initialize(GLSurfaceFormat format) {
 
 void PbufferGLSurfaceEGL::Destroy() {
   if (surface_) {
+#if BUILDFLAG(IS_COBALT)
     SafeDestroyEGLSurface(display_, surface_);
+#else
+    if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
+      LOG(ERROR) << "eglDestroySurface failed with error "
+                 << GetLastEGLErrorString();
+    }
+#endif
     surface_ = NULL;
   }
 #if BUILDFLAG(IS_COBALT)

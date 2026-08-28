@@ -76,13 +76,7 @@
 #include "ui/base/ozone_buildflags.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/gl/gl_context.h"
-#if BUILDFLAG(IS_COBALT)
-#include "ui/gl/gl_display.h"
-#endif
 #include "ui/gl/gl_implementation.h"
-#if BUILDFLAG(IS_COBALT)
-#include "ui/gl/gl_surface_egl.h"
-#endif
 #include "ui/gl/gl_switches.h"
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/gpu_switching_manager.h"
@@ -148,6 +142,11 @@
 #if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_platform.h"
 #endif  // BUILDFLAG(IS_OZONE)
+
+#if BUILDFLAG(IS_COBALT)
+#include "ui/gl/gl_display.h"
+#include "ui/gl/gl_surface_egl.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace viz {
 
