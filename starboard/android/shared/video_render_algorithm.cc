@@ -51,6 +51,7 @@ void VideoRenderAlgorithm::Render(
   SB_CHECK(frames);
   SB_CHECK(draw_frame_cb);
 
+  int dropped_frames_start = dropped_frames_;
   while (frames->size() > 0) {
     if (frames->front()->is_end_of_stream()) {
       frames->pop_front();
@@ -114,6 +115,11 @@ void VideoRenderAlgorithm::Render(
     } else {
       break;
     }
+  }
+
+  if (int dropped_frames = (dropped_frames_ - dropped_frames_start);
+      dropped_frames > 0) {
+    SB_LOG(INFO) << __func__ << " > TTFF: dropped frames=" << dropped_frames;
   }
 }
 
