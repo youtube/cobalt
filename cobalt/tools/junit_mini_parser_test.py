@@ -17,7 +17,6 @@
 
 import io
 import json
-import logging
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -152,12 +151,6 @@ class TestFindFailingTests(unittest.TestCase):
 
 class TestMain(unittest.TestCase):
   """Test cases for main function in junit_mini_parser."""
-
-  def setUp(self) -> None:
-    logging.disable(logging.CRITICAL)
-
-  def tearDown(self) -> None:
-    logging.disable(logging.NOTSET)
 
   @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
   @patch('sys.stdout', new_callable=io.StringIO)
