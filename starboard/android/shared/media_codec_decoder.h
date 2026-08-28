@@ -149,6 +149,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   void WriteEndOfStream();
 
   void SetPlaybackRate(double playback_rate);
+  bool SetOutputSurface(const jni_zero::JavaRef<jobject>& j_surface);
 
   size_t GetNumberOfPendingInputs() const {
     return number_of_pending_inputs_.load();

@@ -168,6 +168,9 @@ class MediaCodec {
                                               jlong render_timestamp_ns) = 0;
 
   virtual void SetPlaybackRate(double playback_rate) = 0;
+  virtual bool SetOutputSurface(const jni_zero::JavaRef<jobject>& j_surface) {
+    return false;
+  }
   virtual bool Restart() = 0;
   virtual jint Flush() = 0;
   virtual std::optional<FrameSize> GetOutputSize() = 0;

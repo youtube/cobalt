@@ -150,6 +150,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // Attempt to initialize the codec.
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
+  void PreallocateNextCodec(const VideoStreamInfo& video_stream_info);
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
@@ -265,6 +266,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // media_codec_factory_ cannot be null.
   const std::unique_ptr<MediaCodec::Factory> media_codec_factory_;
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
+  std::unique_ptr<MediaCodecDecoder> next_media_decoder_;
 
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;
