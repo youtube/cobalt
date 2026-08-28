@@ -621,6 +621,11 @@ TEST(ExtensionTest, LowMemoryKillExtension) {
   EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->WasLowMemoryKilled, nullptr);
 
+  bool was_lmkd = extension_api->WasLowMemoryKilled();
+  EXPECT_EQ(extension_api->WasLowMemoryKilled(), was_lmkd)
+      << "WasLowMemoryKilled() should return the same result across multiple "
+         "calls";
+
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
   EXPECT_EQ(second_extension_api, extension_api)

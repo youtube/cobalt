@@ -19,6 +19,21 @@ namespace starboard {
 
 const void* GetLowMemoryKillApi();
 
+namespace testing {
+
+// Directly evaluates the multi-tier detection logic without reading/writing the
+// session cache.
+bool EvaluateLowMemoryKill();
+
+// Resets the cached WasLowMemoryKilled() session state for testing.
+void ResetLowMemoryKillStateForTesting();
+
+// Sets a custom cgroups memory.events path for testing counter logic.
+// Pass nullptr or empty string to restore the default path.
+void SetCgroupEventsPathForTesting(const char* path);
+
+}  // namespace testing
+
 }  // namespace starboard
 
 #endif  // STARBOARD_LINUX_SHARED_LOW_MEMORY_KILL_H_
