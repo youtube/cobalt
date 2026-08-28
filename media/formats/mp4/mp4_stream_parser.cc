@@ -1105,21 +1105,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 #else
       return ParseResult::kError;
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
-<<<<<<< HEAD
-    } else {
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-      if (runs_->audio_description().format == FOURCC_IAMF) {
-        heap_frame_buf =
-            PrependIADescriptors(runs_->audio_description().iacb,
-                                 buf.first(sample_size), &subsamples);
-        if (heap_frame_buf.empty()) {
-          MEDIA_LOG(ERROR, media_log_)
-              << "Failed to prepare IA sample for decode";
-        }
-      }
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-=======
->>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
   }
 
