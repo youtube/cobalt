@@ -1,7 +1,3 @@
 import("//cobalt/build/configs/linux_modular_common.gn")
 
 use_evergreen = true
-
-# TODO: b/553853122 - As of the 141.7364 rebase, this breaks evergreen-x64
-# builds and needs further investigation.
-use_clang_modules = false
