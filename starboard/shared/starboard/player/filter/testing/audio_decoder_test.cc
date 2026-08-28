@@ -55,8 +55,7 @@ const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
 DecodedAudio ConsolidateDecodedAudios(
     const std::vector<DecodedAudio>& decoded_audios) {
   if (decoded_audios.empty()) {
-    return DecodedAudio(2, kSbMediaAudioSampleTypeFloat32,
-                        kSbMediaAudioFrameStorageTypeInterleaved, 0, 0);
+    return DecodedAudio(2, kSbMediaAudioSampleTypeFloat32, 0, 0);
   }
 
   int total_size_in_bytes = 0;
@@ -66,14 +65,12 @@ DecodedAudio ConsolidateDecodedAudios(
   for (const auto& decoded_audio : decoded_audios) {
     SB_DCHECK_EQ(decoded_audio.channels(), channels);
     SB_DCHECK_EQ(decoded_audio.sample_type(), sample_type);
-    SB_DCHECK_EQ(decoded_audio.storage_type(),
-                 kSbMediaAudioFrameStorageTypeInterleaved);
     total_size_in_bytes += decoded_audio.size_in_bytes();
   }
 
-  DecodedAudio consolidated(
-      channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-      decoded_audios.front().timestamp(), total_size_in_bytes);
+  DecodedAudio consolidated(channels, sample_type,
+                            decoded_audios.front().timestamp(),
+                            total_size_in_bytes);
 
   int offset_in_bytes = 0;
   for (const auto& decoded_audio : decoded_audios) {
@@ -826,8 +823,6 @@ TEST_P(AudioDecoderTest, PartialAudio) {
 
     ASSERT_EQ(reference_decoded_audio.sample_type(),
               partial_decoded_audio.sample_type());
-    ASSERT_EQ(reference_decoded_audio.storage_type(),
-              partial_decoded_audio.storage_type());
     ASSERT_GT(reference_decoded_audio.frames(), partial_decoded_audio.frames());
 
     auto bytes_per_frame = reference_decoded_audio.size_in_bytes() /

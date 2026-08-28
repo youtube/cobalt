@@ -148,21 +148,19 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
   transition_window_.reset(new float[ola_window_size_ * 2]);
   GetPeriodicHanningWindow(2 * ola_window_size_, transition_window_.get());
 
-  wsola_output_ = DecodedAudio(
-      channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
-      (ola_window_size_ + ola_hop_size_) * bytes_per_frame_);
+  wsola_output_ =
+      DecodedAudio(channels_, sample_type_, 0,
+                   (ola_window_size_ + ola_hop_size_) * bytes_per_frame_);
   // Initialize for overlap-and-add of the first block.
   memset(wsola_output_.data(), 0, wsola_output_.size_in_bytes());
 
   // Auxiliary containers.
-  optimal_block_ = DecodedAudio(channels_, sample_type_,
-                                kSbMediaAudioFrameStorageTypeInterleaved, 0,
+  optimal_block_ = DecodedAudio(channels_, sample_type_, 0,
                                 ola_window_size_ * bytes_per_frame_);
   search_block_ = DecodedAudio(
-      channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
+      channels_, sample_type_, 0,
       (num_candidate_blocks_ + (ola_window_size_ - 1)) * bytes_per_frame_);
-  target_block_ = DecodedAudio(channels_, sample_type_,
-                               kSbMediaAudioFrameStorageTypeInterleaved, 0,
+  target_block_ = DecodedAudio(channels_, sample_type_, 0,
                                ola_window_size_ * bytes_per_frame_);
 }
 
@@ -171,8 +169,7 @@ DecodedAudio AudioTimeStretcher::Read(int requested_frames,
   SB_DCHECK_GT(bytes_per_frame_, 0);
   SB_DCHECK_GE(playback_rate, 0);
 
-  DecodedAudio dest(channels_, sample_type_,
-                    kSbMediaAudioFrameStorageTypeInterleaved, 0,
+  DecodedAudio dest(channels_, sample_type_, 0,
                     requested_frames * bytes_per_frame_);
 
   if (playback_rate == 0) {
@@ -277,9 +274,8 @@ void AudioTimeStretcher::GetOptimalBlock() {
 
     // |optimal_index| is in frames and it is relative to the beginning of the
     // |search_block_|.
-    optimal_index = OptimalIndex(&search_block_, &target_block_,
-                                 kSbMediaAudioFrameStorageTypeInterleaved,
-                                 exclude_interval);
+    optimal_index =
+        OptimalIndex(&search_block_, &target_block_, exclude_interval);
 
     // Translate |index| w.r.t. the beginning of |audio_buffer_| and extract the
     // optimal block.

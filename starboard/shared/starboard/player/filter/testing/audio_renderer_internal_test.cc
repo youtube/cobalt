@@ -52,21 +52,16 @@ class AudioRendererTest : public ::testing::Test {
   static const SbMediaAudioFrameStorageType kDefaultAudioFrameStorageType =
       kSbMediaAudioFrameStorageTypeInterleaved;
 
-  AudioRendererTest() {
-    ResetToFormat(kSbMediaAudioSampleTypeFloat32,
-                  kSbMediaAudioFrameStorageTypeInterleaved);
-  }
+  AudioRendererTest() { ResetToFormat(kSbMediaAudioSampleTypeFloat32); }
 
   // This function should be called in the fixture before any other functions
   // to set the desired format of the decoder.
-  void ResetToFormat(SbMediaAudioSampleType sample_type,
-                     SbMediaAudioFrameStorageType storage_type) {
+  void ResetToFormat(SbMediaAudioSampleType sample_type) {
     audio_renderer_.reset(NULL);
     sample_type_ = sample_type;
-    storage_type_ = storage_type;
     audio_renderer_sink_ = new ::testing::StrictMock<MockAudioRendererSink>;
-    audio_decoder_ = new MockAudioDecoder(sample_type_, storage_type_,
-                                          kDefaultSamplesPerSecond);
+    audio_decoder_ =
+        new MockAudioDecoder(sample_type_, kDefaultSamplesPerSecond);
 
     ON_CALL(*audio_decoder_, Read(_))
         .WillByDefault(DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
@@ -215,7 +210,7 @@ class AudioRendererTest : public ::testing::Test {
 
   DecodedAudio CreateDecodedAudio(int64_t timestamp, int frames) {
     DecodedAudio decoded_audio(
-        kDefaultNumberOfChannels, sample_type_, storage_type_, timestamp,
+        kDefaultNumberOfChannels, sample_type_, timestamp,
         frames * kDefaultNumberOfChannels * GetBytesPerSample(sample_type_));
     memset(decoded_audio.data(), 0, decoded_audio.size_in_bytes());
     return decoded_audio;
@@ -229,7 +224,6 @@ class AudioRendererTest : public ::testing::Test {
   void OnEnded() {}
 
   SbMediaAudioSampleType sample_type_;
-  SbMediaAudioFrameStorageType storage_type_;
 
   JobQueue job_queue_;
   std::set<const void*> buffers_in_decoder_;
@@ -394,8 +388,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   // Resets |audio_renderer_sink_|, so all the gtest codes need to be below
   // this line.
-  ResetToFormat(kSbMediaAudioSampleTypeInt16Deprecated,
-                kSbMediaAudioFrameStorageTypeInterleaved);
+  ResetToFormat(kSbMediaAudioSampleTypeInt16Deprecated);
 
   {
     ::testing::InSequence seq;
