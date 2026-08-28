@@ -16,7 +16,10 @@
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "components/sync/buildflags/buildflags.h"
+#if BUILDFLAG(ENABLE_SYNC)
 #include "components/sync/service/sync_service.h"
+#endif
 #include "components/variations/pref_names.h"
 #include "components/variations/service/google_groups_manager_prefs.h"
 #include "components/variations/variations_seed_processor.h"
@@ -97,9 +100,12 @@ bool GoogleGroupsManager::IsFeatureEnabledForProfile(
 }
 
 void GoogleGroupsManager::Shutdown() {
+#if BUILDFLAG(ENABLE_SYNC)
   sync_service_observation_.Reset();
+#endif
 }
 
+#if BUILDFLAG(ENABLE_SYNC)
 void GoogleGroupsManager::OnSyncServiceInitialized(
     syncer::SyncService* sync_service) {
   sync_service_observation_.Observe(sync_service);
@@ -126,6 +132,7 @@ void GoogleGroupsManager::OnStateChanged(syncer::SyncService* sync) {
 void GoogleGroupsManager::OnSyncShutdown(syncer::SyncService* sync) {
   sync_service_observation_.Reset();
 }
+#endif
 
 void GoogleGroupsManager::ClearSigninScopedState() {
   source_prefs_->ClearPref(

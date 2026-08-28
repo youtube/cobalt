@@ -4,14 +4,18 @@
 
 import("//build/config/features.gni")
 import("//testing/test.gni")
+import("//components/sync/features.gni")
 
 group("sync") {
-  public_deps = [
-    "//components/sync/engine",
-    "//components/sync/model",
-    "//components/sync/nigori",
-    "//components/sync/service",
-  ]
+  public_deps = []
+  if (enable_sync) {
+    public_deps += [
+      "//components/sync/engine",
+      "//components/sync/model",
+      "//components/sync/nigori",
+      "//components/sync/service",
+    ]
+  }
 }
 
 static_library("test_support") {
