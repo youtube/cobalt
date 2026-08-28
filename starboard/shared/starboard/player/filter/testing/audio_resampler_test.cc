@@ -96,6 +96,7 @@ class AudioResamplerTest
               : sizeof(float);
       int audio_size = kSamplesPerInput * channels_ * sample_size;
       DecodedAudio input(channels_, source_sample_type_, source_storage_type_,
+                         source_sample_rate_,
                          1'000'000LL * total_frames / source_sample_rate_,
                          audio_size);
       total_frames += kSamplesPerInput;

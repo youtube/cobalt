@@ -40,7 +40,7 @@ class FdkAacAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
-  std::optional<DecodedAudio> Read(int* samples_per_second) override;
+  std::optional<DecodedAudio> Read() override;
   void Reset() override;
   void WriteEndOfStream() override;
 

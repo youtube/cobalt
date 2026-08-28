@@ -61,7 +61,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  std::optional<DecodedAudio> Read(int* samples_per_second) override;
+  std::optional<DecodedAudio> Read() override;
   void Reset() override;
 
  private:
@@ -70,7 +70,6 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void OnDecoderOutput();
   void ResetInternal();
 
-  const uint32_t initial_samples_per_second_;
   const SbDrmSystem drm_system_;
   const AudioDecoderCreator audio_decoder_creator_;
   const OutputFormatAdjustmentCallback output_adjustment_callback_;

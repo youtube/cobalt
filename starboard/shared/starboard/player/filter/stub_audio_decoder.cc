@@ -54,11 +54,12 @@ int CalculateFramesPerInputBuffer(int sample_rate,
 DecodedAudio CreateDecodedAudio(int64_t timestamp,
                                 SbMediaAudioSampleType sample_type,
                                 int number_of_channels,
+                                int samples_per_second,
                                 int frames) {
   int sample_size = GetBytesPerSample(sample_type);
   DecodedAudio decoded_audio(
       number_of_channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-      timestamp, sample_size * number_of_channels * frames);
+      samples_per_second, timestamp, sample_size * number_of_channels * frames);
 
   for (int j = 0; j < decoded_audio.size_in_bytes() / sample_size; ++j) {
     if (sample_size == 2) {
@@ -118,14 +119,13 @@ void StubAudioDecoder::WriteEndOfStream() {
         std::bind(&StubAudioDecoder::DecodeEndOfStream, this));
     return;
   }
-  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer(samples_per_second_));
   output_cb_();
 }
 
-std::optional<DecodedAudio> StubAudioDecoder::Read(int* samples_per_second) {
+std::optional<DecodedAudio> StubAudioDecoder::Read() {
   SB_CHECK(BelongsToCurrentThread());
 
-  *samples_per_second = samples_per_second_;
   std::lock_guard lock(decoded_audios_mutex_);
   if (decoded_audios_.empty()) {
     return std::nullopt;
@@ -174,12 +174,11 @@ void StubAudioDecoder::DecodeOneBuffer(
       frames_per_input_ = frames_per_input;
     }
 
-    DecodedAudio decoded_audio =
-        CreateDecodedAudio(last_input_buffer_->timestamp(), sample_type_,
-                           number_of_channels_, *frames_per_input_);
+    DecodedAudio decoded_audio = CreateDecodedAudio(
+        last_input_buffer_->timestamp(), sample_type_, number_of_channels_,
+        samples_per_second_, *frames_per_input_);
 
     decoded_audio.AdjustForDiscardedDurations(
-        samples_per_second_,
         last_input_buffer_->audio_sample_info().discarded_duration_from_front,
         last_input_buffer_->audio_sample_info().discarded_duration_from_back);
 
@@ -218,8 +217,8 @@ void StubAudioDecoder::DecodeOneBuffer(
 
         DecodedAudio current_decoded_audio(
             number_of_channels_, sample_type_,
-            kSbMediaAudioFrameStorageTypeInterleaved, timestamp,
-            size_in_bytes_of_output);
+            kSbMediaAudioFrameStorageTypeInterleaved, samples_per_second_,
+            timestamp, size_in_bytes_of_output);
         memcpy(current_decoded_audio.data(),
                decoded_audio.data() + offset_in_bytes, size_in_bytes_of_output);
         offset_in_bytes += size_in_bytes_of_output;
@@ -253,9 +252,9 @@ void StubAudioDecoder::DecodeEndOfStream() {
 
     SB_DCHECK(frames_per_input_);
 
-    DecodedAudio decoded_audio =
-        CreateDecodedAudio(last_input_buffer_->timestamp(), sample_type_,
-                           number_of_channels_, *frames_per_input_);
+    DecodedAudio decoded_audio = CreateDecodedAudio(
+        last_input_buffer_->timestamp(), sample_type_, number_of_channels_,
+        samples_per_second_, *frames_per_input_);
 
     auto discarded_duration_from_front =
         last_input_buffer_->audio_sample_info().discarded_duration_from_front;
@@ -266,8 +265,7 @@ void StubAudioDecoder::DecodeEndOfStream() {
                   last_input_buffer_->audio_stream_info().samples_per_second) <=
               decoded_audio.frames());
 
-    decoded_audio.AdjustForDiscardedDurations(samples_per_second_,
-                                              discarded_duration_from_front,
+    decoded_audio.AdjustForDiscardedDurations(discarded_duration_from_front,
                                               discarded_duration_from_back);
 
     std::lock_guard lock(decoded_audios_mutex_);
@@ -275,7 +273,7 @@ void StubAudioDecoder::DecodeEndOfStream() {
     Schedule(output_cb_);
   }
   std::lock_guard lock(decoded_audios_mutex_);
-  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer(samples_per_second_));
   Schedule(output_cb_);
 }
 

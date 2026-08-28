@@ -56,7 +56,7 @@ DecodedAudio ConsolidateDecodedAudios(
     const std::vector<DecodedAudio>& decoded_audios) {
   if (decoded_audios.empty()) {
     return DecodedAudio(2, kSbMediaAudioSampleTypeFloat32,
-                        kSbMediaAudioFrameStorageTypeInterleaved, 0, 0);
+                        kSbMediaAudioFrameStorageTypeInterleaved, 48000, 0, 0);
   }
 
   int total_size_in_bytes = 0;
@@ -73,7 +73,8 @@ DecodedAudio ConsolidateDecodedAudios(
 
   DecodedAudio consolidated(
       channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-      decoded_audios.front().timestamp(), total_size_in_bytes);
+      decoded_audios.front().sample_rate(), decoded_audios.front().timestamp(),
+      total_size_in_bytes);
 
   int offset_in_bytes = 0;
   for (const auto& decoded_audio : decoded_audios) {
@@ -202,14 +203,12 @@ class AudioDecoderTest
   void ReadFromDecoder(bool* is_eos) {
     ASSERT_TRUE(is_eos);
 
-    int decoded_sample_rate;
-    std::optional<DecodedAudio> local_decoded_audio =
-        audio_decoder_->Read(&decoded_sample_rate);
+    std::optional<DecodedAudio> local_decoded_audio = audio_decoder_->Read();
     ASSERT_TRUE(local_decoded_audio.has_value());
     if (!first_output_received_) {
       first_output_received_ = true;
       decoded_audio_sample_type_ = local_decoded_audio->sample_type();
-      decoded_audio_sample_rate_ = decoded_sample_rate;
+      decoded_audio_sample_rate_ = local_decoded_audio->sample_rate();
     }
 
     *is_eos = local_decoded_audio->is_end_of_stream();
@@ -218,7 +217,7 @@ class AudioDecoderTest
     }
 
     ASSERT_EQ(decoded_audio_sample_type_, local_decoded_audio->sample_type());
-    ASSERT_EQ(decoded_audio_sample_rate_, decoded_sample_rate);
+    ASSERT_EQ(decoded_audio_sample_rate_, local_decoded_audio->sample_rate());
 
     if (!decoded_audios_.empty()) {
       ASSERT_LT(decoded_audios_.back().timestamp(),

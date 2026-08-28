@@ -39,7 +39,6 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
     const AudioDecoderCreator& audio_decoder_creator,
     const OutputFormatAdjustmentCallback& output_adjustment_callback)
     : JobOwner(job_queue),
-      initial_samples_per_second_(audio_stream_info.samples_per_second),
       drm_system_(drm_system),
       audio_decoder_creator_(audio_decoder_creator),
       output_adjustment_callback_(output_adjustment_callback),
@@ -143,13 +142,13 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   if (first_input_written_) {
     audio_decoder_->WriteEndOfStream();
   } else {
-    decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
+    decoded_audios_.push(DecodedAudio::CreateEOSBuffer(
+        input_audio_stream_info_.samples_per_second));
     Schedule(output_cb_);
   }
 }
 
-std::optional<DecodedAudio> AdaptiveAudioDecoder::Read(
-    int* samples_per_second) {
+std::optional<DecodedAudio> AdaptiveAudioDecoder::Read() {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!decoded_audios_.empty());
   if (decoded_audios_.empty()) {
@@ -167,8 +166,6 @@ std::optional<DecodedAudio> AdaptiveAudioDecoder::Read(
             ret->channels() == output_number_of_channels_);
 
   SB_DCHECK(first_output_received_ || ret->is_end_of_stream());
-  *samples_per_second = first_output_received_ ? output_samples_per_second_
-                                               : initial_samples_per_second_;
   return ret;
 }
 
@@ -209,6 +206,8 @@ void AdaptiveAudioDecoder::InitializeAudioDecoder(
 }
 
 void AdaptiveAudioDecoder::TeardownAudioDecoder() {
+  SB_DCHECK(audio_decoder_);
+
   audio_decoder_.reset();
   resampler_.reset();
   channel_mixer_.reset();
@@ -223,9 +222,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
-  int decoded_sample_rate;
-  std::optional<DecodedAudio> decoded_audio =
-      audio_decoder_->Read(&decoded_sample_rate);
+  std::optional<DecodedAudio> decoded_audio = audio_decoder_->Read();
 
   SB_DCHECK(decoded_audio.has_value());
 
@@ -238,7 +235,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     first_output_received_ = true;
     output_sample_type_ = decoded_audio->sample_type();
     output_storage_type_ = decoded_audio->storage_type();
-    output_samples_per_second_ = decoded_sample_rate;
+    output_samples_per_second_ = decoded_audio->sample_rate();
     if (output_adjustment_callback_) {
       output_adjustment_callback_(&output_sample_type_, &output_storage_type_,
                                   &output_samples_per_second_,
@@ -281,11 +278,11 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     output_format_checked_ = true;
     if (output_sample_type_ != decoded_audio->sample_type() ||
         output_storage_type_ != decoded_audio->storage_type() ||
-        output_samples_per_second_ != decoded_sample_rate) {
+        output_samples_per_second_ != decoded_audio->sample_rate()) {
       resampler_ = AudioResampler::Create(
           decoded_audio->sample_type(), decoded_audio->storage_type(),
-          decoded_sample_rate, output_sample_type_, output_storage_type_,
-          output_samples_per_second_,
+          decoded_audio->sample_rate(), output_sample_type_,
+          output_storage_type_, output_samples_per_second_,
           input_audio_stream_info_.number_of_channels);
     }
     if (input_audio_stream_info_.number_of_channels !=
@@ -299,8 +296,8 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     decoded_audio = resampler_->Resample(std::move(*decoded_audio));
   } else {
     // If |resampler_| is NULL, |output_samples_per_second_| should be the same
-    // as |decoded_sample_rate|.
-    SB_DCHECK_EQ(output_samples_per_second_, decoded_sample_rate);
+    // as |decoded_audio->sample_rate()|.
+    SB_DCHECK_EQ(output_samples_per_second_, decoded_audio->sample_rate());
   }
   if (decoded_audio && decoded_audio->size_in_bytes() > 0) {
     if (channel_mixer_) {

@@ -70,7 +70,7 @@ void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
   ReadFromFdkDecoder(kDecodeModeDoNotFlush);
 }
 
-std::optional<DecodedAudio> FdkAacAudioDecoder::Read(int* samples_per_second) {
+std::optional<DecodedAudio> FdkAacAudioDecoder::Read() {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
@@ -80,7 +80,6 @@ std::optional<DecodedAudio> FdkAacAudioDecoder::Read(int* samples_per_second) {
     result = std::move(decoded_audios_.front());
     decoded_audios_.pop();
   }
-  *samples_per_second = samples_per_second_;
   return result;
 }
 
@@ -116,8 +115,7 @@ void FdkAacAudioDecoder::WriteEndOfStream() {
     }
   }
   stream_ended_ = true;
-  // Put EOS into the queue.
-  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer(samples_per_second_));
   Schedule(output_cb_);
 }
 
@@ -218,11 +216,11 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
   while (size_in_bytes > 0 && !decoding_input_buffers_.empty()) {
     if (!partially_decoded_audio_) {
       SB_DCHECK_EQ(partially_decoded_audio_data_in_bytes_, 0);
-      partially_decoded_audio_ =
-          DecodedAudio(num_channels_, kSbMediaAudioSampleTypeInt16Deprecated,
-                       kSbMediaAudioFrameStorageTypeInterleaved,
-                       decoding_input_buffers_.front()->timestamp(),
-                       decoded_audio_size_in_bytes_);
+      partially_decoded_audio_ = DecodedAudio(
+          num_channels_, kSbMediaAudioSampleTypeInt16Deprecated,
+          kSbMediaAudioFrameStorageTypeInterleaved, samples_per_second_,
+          decoding_input_buffers_.front()->timestamp(),
+          decoded_audio_size_in_bytes_);
     }
     int freespace =
         static_cast<int>(partially_decoded_audio_->size_in_bytes()) -
@@ -239,7 +237,7 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
       const auto& sample_info =
           decoding_input_buffers_.front()->audio_sample_info();
       partially_decoded_audio_->AdjustForDiscardedDurations(
-          samples_per_second_, sample_info.discarded_duration_from_front,
+          sample_info.discarded_duration_from_front,
           sample_info.discarded_duration_from_back);
       decoding_input_buffers_.pop();
       decoded_audios_.push(std::move(*partially_decoded_audio_));

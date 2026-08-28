@@ -186,7 +186,7 @@ class AudioTimeStretcher {
   // number of requested samples. Furthermore, due to overlap-and-add,
   // the last half-window of the output is incomplete, which is stored in this
   // buffer.
-  DecodedAudio wsola_output_ = DecodedAudio::CreateEOSBuffer();
+  DecodedAudio wsola_output_ = DecodedAudio::CreateEOSBuffer(0);
 
   // Overlap-and-add window.
   std::unique_ptr<float[]> ola_window_;
@@ -203,15 +203,15 @@ class AudioTimeStretcher {
   // Stores the optimal block in every iteration. This is the most
   // similar block to |target_block_| within |search_block_| and it is
   // overlap-and-added to |wsola_output_|.
-  DecodedAudio optimal_block_ = DecodedAudio::CreateEOSBuffer();
+  DecodedAudio optimal_block_ = DecodedAudio::CreateEOSBuffer(0);
 
   // A block of data that search is performed over to find the |optimal_block_|.
-  DecodedAudio search_block_ = DecodedAudio::CreateEOSBuffer();
+  DecodedAudio search_block_ = DecodedAudio::CreateEOSBuffer(0);
 
   // Stores the target block, denoted as |target| above. |search_block_| is
   // searched for a block (|optimal_block_|) that is most similar to
   // |target_block_|.
-  DecodedAudio target_block_ = DecodedAudio::CreateEOSBuffer();
+  DecodedAudio target_block_ = DecodedAudio::CreateEOSBuffer(0);
 
   // The initial and maximum capacity calculated by Initialize().
   int initial_capacity_;

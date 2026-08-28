@@ -617,8 +617,7 @@ void AudioRendererPassthrough::OnDecoderConsumed() {
 
 // This function can be called from *any* threads.
 void AudioRendererPassthrough::OnDecoderOutput() {
-  int decoded_audio_sample_rate;
-  auto decoded_audio = decoder_->Read(&decoded_audio_sample_rate);
+  auto decoded_audio = decoder_->Read();
   SB_DCHECK(decoded_audio);
 
   if (!decoded_audio->is_end_of_stream()) {

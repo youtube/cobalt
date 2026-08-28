@@ -130,12 +130,13 @@ void OpusAudioDecoder::WriteEndOfStream() {
   }
 
   // Put EOS into the queue.
-  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
+  decoded_audios_.push(
+      DecodedAudio::CreateEOSBuffer(audio_stream_info_.samples_per_second));
 
   Schedule(output_cb_);
 }
 
-std::optional<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
+std::optional<DecodedAudio> OpusAudioDecoder::Read() {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
@@ -145,7 +146,6 @@ std::optional<DecodedAudio> OpusAudioDecoder::Read(int* samples_per_second) {
     result = std::move(decoded_audios_.front());
     decoded_audios_.pop();
   }
-  *samples_per_second = audio_stream_info_.samples_per_second;
   return result;
 }
 
@@ -240,7 +240,8 @@ bool OpusAudioDecoder::DecodeInternal(
 
   DecodedAudio decoded_audio(
       audio_stream_info_.number_of_channels, GetSampleType(),
-      kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
+      kSbMediaAudioFrameStorageTypeInterleaved,
+      audio_stream_info_.samples_per_second, input_buffer->timestamp(),
       audio_stream_info_.number_of_channels * frames_per_au_ *
           GetBytesPerSample(GetSampleType()));
 
@@ -275,7 +276,6 @@ bool OpusAudioDecoder::DecodeInternal(
                          frames_per_au_ * GetBytesPerSample(GetSampleType()));
   const auto& sample_info = input_buffer->audio_sample_info();
   decoded_audio.AdjustForDiscardedDurations(
-      audio_stream_info_.samples_per_second,
       sample_info.discarded_duration_from_front,
       sample_info.discarded_duration_from_back);
   decoded_audios_.push(std::move(decoded_audio));

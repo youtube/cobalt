@@ -64,7 +64,7 @@ class AudioDecoder {
   // combine multiple decoded audio access units into one.  The implementation
   // has to ensure that the particular resampler can handle such combined access
   // units as input.
-  virtual std::optional<DecodedAudio> Read(int* samples_per_second) = 0;
+  virtual std::optional<DecodedAudio> Read() = 0;
 
   // Clear any cached buffer of the codec and reset the state of the codec. This
   // function will be called during seek to ensure that the left over data from

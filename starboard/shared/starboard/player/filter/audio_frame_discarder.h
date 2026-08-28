@@ -34,8 +34,7 @@ namespace starboard {
 class AudioFrameDiscarder {
  public:
   void OnInputBuffers(const InputBuffers& input_buffers);
-  void AdjustForDiscardedDurations(int sample_rate,
-                                   DecodedAudio* decoded_audio);
+  void AdjustForDiscardedDurations(DecodedAudio* decoded_audio);
   void OnDecodedAudioEndOfStream();
 
   void Reset();

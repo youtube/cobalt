@@ -43,7 +43,8 @@ DecodedAudio CreateTestDecodedAudio(int frames,
   const int kBufferSize = frames * kBytesPerFrame;
 
   DecodedAudio audio(channels, kSbMediaAudioSampleTypeFloat32,
-                     kSbMediaAudioFrameStorageTypeInterleaved, 0, kBufferSize);
+                     kSbMediaAudioFrameStorageTypeInterleaved, sample_rate, 0,
+                     kBufferSize);
 
   float* data = audio.data_as_float32();
   for (int i = 0; i < frames; ++i) {
