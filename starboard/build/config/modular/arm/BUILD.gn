@@ -26,9 +26,4 @@ config("arm") {
     # Force char to be signed.
     "-fsigned-char",
   ]
-
-  # Force ARM 32-bit mode (-marm) instead of Thumb-2 mode for non-release builds.
-  if (!cobalt_is_release_build) {
-    cflags += [ "-marm" ]
-  }
 }
