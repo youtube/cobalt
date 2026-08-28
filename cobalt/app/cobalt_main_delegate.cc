@@ -56,6 +56,7 @@ absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
       ->SetStartupMilestone(14);
 #endif
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
+  cl->AppendSwitch(switches::kDisableWebSecurity);
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
   cl->AppendSwitch("cobalt-custom-should-disable-http-caching");
