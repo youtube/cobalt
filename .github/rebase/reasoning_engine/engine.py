@@ -82,7 +82,7 @@ class CobaltReasoningEngine:
       self,
       *,
       project_id: Optional[str] = None,
-      location: str = "us-central1",
+      location: str = "global",
       flash_model: Optional[str] = None,
       expert_model: Optional[str] = None,
       expert_provider: Optional[str] = None,
@@ -103,8 +103,7 @@ class CobaltReasoningEngine:
         ("anthropic" if "claude" in self.expert_model.lower() else
          ("glm" if "glm" in self.expert_model.lower() else "gemini")))
     self.expert_location = (
-        expert_location or os.environ.get("EXPERT_LOCATION") or
-        ("global" if self.expert_provider == "anthropic" else self.location))
+        expert_location or os.environ.get("EXPERT_LOCATION") or "global")
     self.glm_api_key = (
         os.environ.get("GLM_API_KEY") or os.environ.get("OPENAI_API_KEY"))
     self.glm_base_url = (
@@ -133,10 +132,12 @@ class CobaltReasoningEngine:
 
   def set_up(self):
     """Initializes Google GenAI client in remote Vertex AI container."""
+    loc = "global" if ("gemini-3" in self.flash_model.lower() or
+                       self.location == "global") else self.location
     self.client = genai.Client(
         vertexai=True,
         project=self.project_id,
-        location=self.location,
+        location=loc,
     )
 
   def _get_storage_client(self) -> Any:
@@ -270,9 +271,11 @@ class CobaltReasoningEngine:
     if self.anthropic_client is None:
       try:
         from anthropic import AnthropicVertex  # pylint: disable=import-outside-toplevel
+        anthropic_region = ("us-east5" if self.expert_location == "global" else
+                            self.expert_location)
         self.anthropic_client = AnthropicVertex(
             project_id=self.project_id,
-            region=self.expert_location,
+            region=anthropic_region,
         )
       except Exception as e:  # pylint: disable=broad-exception-caught
         print(
@@ -286,16 +289,10 @@ class CobaltReasoningEngine:
   def _normalize_anthropic_model_name(self, model_name: str) -> str:
     """Normalizes friendly model aliases to official publisher IDs."""
     m = model_name.strip().lower()
-    if m in ("claude-sonnet-5", "claude-3-7-sonnet", "claude-3.7-sonnet",
-             "sonnet-3.7", "sonnet-3.7-thinking"):
-      return "claude-3-7-sonnet@20250219"
-    if m in ("claude-3-5-sonnet", "claude-3.5-sonnet", "sonnet-3.5",
-             "claude-3-5-sonnet-v2"):
-      return "claude-3-5-sonnet-v2@20241022"
-    if m in ("claude-opus", "claude-3-opus", "claude-opus-5"):
-      return "claude-3-opus@20240229"
-    if m in ("claude-3-5-haiku", "claude-haiku"):
-      return "claude-3-5-haiku@20241022"
+    if m in ("claude-sonnet-5", "sonnet-5", "sonnet 5"):
+      return "claude-sonnet-5"
+    if m in ("claude-opus-5", "opus-5", "opus 5"):
+      return "claude-opus-5"
     return model_name
 
   def _generate_openai_compatible_content(
@@ -408,16 +405,16 @@ class CobaltReasoningEngine:
       if aclient is not None:
         prompt_text = str(contents) if not isinstance(contents,
                                                       str) else contents
+        normalized_model = self._normalize_anthropic_model_name(expert_name)
         for attempt in range(1, 4):
           try:
             print(
                 f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to Anthropic "
-                f"{expert_name} in {self.expert_location} "
-                f"(attempt {attempt}/3)...",
+                f"{normalized_model} (attempt {attempt}/3)...",
                 file=sys.stderr,
             )
             resp = aclient.messages.create(
-                model=expert_name,
+                model=normalized_model,
                 max_tokens=8192,
                 system=system_instruction,
                 messages=[{
@@ -496,6 +493,11 @@ class CobaltReasoningEngine:
     """Calls generate_content with exponential backoff for 429/503 errors."""
     client = self._get_client()
     backoff = initial_backoff
+    print(
+        f"  [REASONING_ENGINE] [WORKHORSE_TIER] Dispatching to {model} "
+        "(thinking tokens enabled)...",
+        file=sys.stderr,
+    )
     for attempt in range(1, max_retries + 1):
       try:
         return client.models.generate_content(
@@ -617,19 +619,21 @@ class CobaltReasoningEngine:
     chosen_expert = expert_model or self.expert_model or "claude-sonnet-5"
 
     rebase_skill = self._get_skill("cobalt_rebase")
-    domain_skill = self._get_skill("gn_healing" if mode ==
-                                   "gn" else "compiler_healing")
+    domain_skill = self._get_skill(
+        "conflict_resolution" if mode == "conflict" else (
+            "gn_healing" if mode == "gn" else "compiler_healing"))
     roll_history_skill = self._get_skill("roll_history")
 
     sys_inst = (
         "You are the Senior Principal Chromium and Cobalt Systems Architect.\n"
         "Your role is NOT to write syntax diffs, but to strategically diagnose "
-        "complex build failures, V8/Blink/Starboard upstream refactorings, "
+        "conflicts, complex build failures, V8/Blink/Starboard refactorings, "
         "and multi-iteration loops.\n\n"
         "You will receive:\n"
         "1. Trajectory of what Tier-1 Worker attempted so far.\n"
         "2. Git diff of modifications made in working tree this session.\n"
-        "3. Current compiler/GN error and offending source excerpt.\n\n"
+        "3. Current conflict block or compiler/GN diagnostic and source "
+        "context.\n\n"
         "Responsibilities:\n"
         "- Perform deep root-cause analysis: identify what upstream changed.\n"
         "- Upstream Roll Commits: Commit #3 contains pure Chromium changes. "
@@ -646,8 +650,10 @@ class CobaltReasoningEngine:
         "    TOOL_PR_DIFF: <pr_number>\n"
         "- Explain why Tier 1 is stuck and list anti-patterns to avoid.\n"
         "- Provide clear, concrete, step-by-step instructions for Tier 1:\n"
-        "  * First-party file(s) to edit (3rd-party files are READ-ONLY).\n"
-        "  * Precise logic, type substitution, or header include to apply.\n\n"
+        "  * For conflicts: state whether to choose HEAD, incoming (theirs), "
+        "or combine both.\n"
+        "  * For build breaks: first-party file(s) to edit, precise logic, "
+        "type substitution, or header include to apply.\n\n"
         f"--- Rebase Guidelines ---\n{rebase_skill}\n\n"
         f"--- Domain Skill ---\n{domain_skill}\n\n"
         f"--- Historical Ground-Truth Roll References (M139-M141) ---\n"
@@ -661,18 +667,35 @@ class CobaltReasoningEngine:
                    f"{investigation_history}\n\n"
                    if investigation_history else "")
 
-    prompt = (
-        f"Build Target: {eff_target}\n"
-        f"Mode: {mode}\n\n"
-        f"Compiler/Build Diagnostics:\n--------------------\n{eff_diag}\n"
-        f"--------------------\n\n"
-        f"{traj_section}"
-        f"{diff_section}"
-        f"{inv_section}"
-        f"Offending Source Code:\n{eff_ctx}\n\n"
-        "Architectural Directive Request:\n"
-        "Analyze root cause and provide clear Strategic Guidance & Directives "
-        "for Tier-1 Worker (or TOOL_ command if investigation needed).")
+    if mode == "conflict":
+      prompt = (
+          f"File Path: {eff_target}\n"
+          f"Mode: Merge Conflict Resolution\n\n"
+          f"Conflict Block:\n--------------------\n{eff_diag}\n"
+          f"--------------------\n\n"
+          f"Surrounding File Context:\n{eff_ctx}\n\n"
+          f"{traj_section}"
+          f"{inv_section}"
+          "Architectural Guidance Request:\n"
+          "1. Analyze what HEAD (our branch) vs incoming (theirs) are trying "
+          "to do.\n"
+          "2. State whether to take HEAD, take incoming, or combine both.\n"
+          "3. Provide step-by-step guidance for Tier-1 Worker to generate the "
+          "resolved code.")
+    else:
+      prompt = (
+          f"Build Target: {eff_target}\n"
+          f"Mode: {mode}\n\n"
+          f"Compiler/Build Diagnostics:\n--------------------\n{eff_diag}\n"
+          f"--------------------\n\n"
+          f"{traj_section}"
+          f"{diff_section}"
+          f"{inv_section}"
+          f"Offending Source Code:\n{eff_ctx}\n\n"
+          "Architectural Directive Request:\n"
+          "Analyze root cause and provide clear Strategic Guidance & "
+          "Directives for Tier-1 Worker (or TOOL_ command if investigation "
+          "needed).")
 
     guidance = self._generate_expert_content(
         prompt, sys_inst, expert_model=chosen_expert)

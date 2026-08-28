@@ -481,7 +481,7 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
               "grep",
               "-n",
               "-I",
-              "--max-count=15",
+              "--max-count=5",
               query,
               "--",
               "*.gn",
@@ -496,8 +496,9 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
           errors="replace",
           check=False,
       )
-      return (res.stdout.strip()
-              if res.stdout.strip() else f"No matches found for: {query}")
+      lines = res.stdout.splitlines()[:25]
+      text = "\n".join(lines)
+      return (text[:4000].strip() if text else f"No matches found for: {query}")
     except Exception as e:  # pylint: disable=broad-exception-caught
       return f"[ERROR] Grep failed: {e}"
 

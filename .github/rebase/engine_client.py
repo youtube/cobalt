@@ -39,7 +39,7 @@ class ReasoningEngineClient:
       resource_id: Optional[str] = None,
       *,
       project_id: Optional[str] = None,
-      location: str = "us-central1",
+      location: str = "global",
       flash_model: str = "gemini-3.7-flash",
       expert_model: Optional[str] = None,
       expert_provider: Optional[str] = None,

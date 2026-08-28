@@ -30,16 +30,20 @@ warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
 def build_arg_parser() -> argparse.ArgumentParser:
   """Constructs the CLI argument parser for the rebase pipeline."""
+  default_src_dir = os.path.abspath(
+      os.path.join(os.path.dirname(__file__), "..", ".."))
+  default_cobalt_root = os.path.abspath(os.path.join(default_src_dir, ".."))
+
   parser = argparse.ArgumentParser(
       description="Automated Cobalt Chromium Rebase Pipeline Runner.")
   parser.add_argument(
       "--repo-path",
-      default=os.path.expanduser("~/cobalt/src"),
+      default=default_src_dir,
       help="Path to Cobalt src repository.",
   )
   parser.add_argument(
       "--cobalt-root",
-      default=os.path.expanduser("~/cobalt"),
+      default=default_cobalt_root,
       help="Path to Cobalt workspace root.",
   )
   parser.add_argument(
