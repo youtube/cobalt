@@ -3584,6 +3584,7 @@ void NetworkContext::GetIpProxyStatus(GetIpProxyStatusCallback callback) {
   ip_protection::IpProxyStatus status =
       ip_protection::IpProxyStatus::kUnavailable;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!base::FeatureList::IsEnabled(net::features::kEnableIpProtectionProxy)) {
     status = ip_protection::IpProxyStatus::kFeatureNotEnabled;
     std::move(callback).Run(status);
@@ -3601,6 +3602,7 @@ void NetworkContext::GetIpProxyStatus(GetIpProxyStatusCallback callback) {
     std::move(callback).Run(status);
     return;
   }
+#endif
 
   std::move(callback).Run(status);
 }
