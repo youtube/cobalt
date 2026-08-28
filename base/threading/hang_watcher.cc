@@ -286,11 +286,6 @@ constexpr base::FeatureParam<int> kUIThreadLogLevel{
 constexpr base::FeatureParam<int> kThreadPoolLogLevel{
     &kEnableHangWatcher, "threadpool_log_level",
     static_cast<int>(LoggingLevel::kUmaOnly)};
-#if BUILDFLAG(IS_COBALT)
-constexpr base::FeatureParam<int> kBrowserProcessRendererThreadLogLevel{
-    &kEnableHangWatcher, "browser_process_renderer_thread_log_level",
-    static_cast<int>(LoggingLevel::kUmaAndCrash)};
-#endif
 
 // GPU process.
 // Note: Do not use the prepared macro as of no need for a local cache.
@@ -512,11 +507,13 @@ void HangWatcher::UpdateConfiguration() {
 void HangWatcher::InitializeOnMainThread(ProcessType process_type,
                                          bool emit_crashes) {
   DCHECK(!g_use_hang_watcher);
+
+#if !BUILDFLAG(IS_COBALT)
+  // Cobalt manages HangWatcher configuration in UpdateConfiguration()
+  // in addition to this initialization method.
   DCHECK(g_io_thread_log_level == LoggingLevel::kNone);
   DCHECK(g_main_thread_log_level == LoggingLevel::kNone);
   DCHECK(g_threadpool_log_level == LoggingLevel::kNone);
-#if BUILDFLAG(IS_COBALT)
-  DCHECK(g_browser_process_renderer_thread_log_level == LoggingLevel::kNone);
 #endif
 
   bool enable_hang_watcher = base::FeatureList::IsEnabled(kEnableHangWatcher);
@@ -565,12 +562,6 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type,
     g_threadpool_log_level.store(
         static_cast<LoggingLevel>(kThreadPoolLogLevel.Get()),
         std::memory_order_relaxed);
-#if BUILDFLAG(IS_COBALT)
-    g_browser_process_renderer_thread_log_level.store(
-        static_cast<LoggingLevel>(
-            kBrowserProcessRendererThreadLogLevel.Get()),
-        std::memory_order_relaxed);
-#endif
   } else if (process_type == HangWatcher::ProcessType::kGPUProcess) {
     g_threadpool_log_level.store(
         static_cast<LoggingLevel>(kGPUProcessThreadPoolLogLevel.Get()),
@@ -606,6 +597,12 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type,
         static_cast<LoggingLevel>(kUtilityProcessMainThreadLogLevel.Get()),
         std::memory_order_relaxed);
   }
+
+#if BUILDFLAG(IS_COBALT)
+  // Apply configured overrides from H5VCC or Finch, if any,
+  // and read Cobalt-specific configuration.
+  UpdateConfiguration();
+#endif
 }
 
 void HangWatcher::UninitializeOnMainThreadForTesting() {
