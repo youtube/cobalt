@@ -58,7 +58,6 @@ jobs:
           attempt=$(echo "${run_info}" | jq -r '.attempt')
           if [ "${attempt}" -ge "${MAX_ATTEMPTS}" ]; then
             echo "Done retrying ${WORKFLOW_NAME}. It is still failing after ${attempt} attempts."
-            echo "rerun_triggered=false" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
