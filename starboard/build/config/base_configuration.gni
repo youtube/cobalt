@@ -116,6 +116,9 @@ declare_args() {
   # Whether or not to disable run-time type information (adding no_rtti flag).
   sb_use_no_rtti = false
 
+  # Enables an NPLB audit of C++17 support.
+  sb_enable_cpp17_audit = true
+
   # Enables an NPLB audit of C++20 support.
   sb_enable_cpp20_audit = true
 
