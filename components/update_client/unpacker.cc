@@ -139,10 +139,6 @@ void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
 void Unpacker::BeginUnzipping() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   unzip_begin_time_ = base::TimeTicks::Now();
-<<<<<<< HEAD
-  if (!CreateTempDirectory(FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"),
-                           &unpack_path_)) {
-=======
 #if BUILDFLAG(IS_STARBOARD)
 #if defined(IN_MEMORY_UPDATES)
   unpack_path_ = result_.installation_dir;
@@ -151,9 +147,8 @@ void Unpacker::BeginUnzipping() {
   unpack_path_ = path_.DirName();
 #endif  // defined(IN_MEMORY_UPDATES)
 #else  // BUILDFLAG(IS_STARBOARD)
-  if (!base::CreateNewTempDirectory(
-          FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"), &unpack_path_)) {
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  if (!CreateTempDirectory(FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"),
+                           &unpack_path_)) {
     VLOG(1) << "Unable to create temporary directory for unpacking.";
     EndUnpacking(UnpackerError::kUnzipPathError,
                  ::logging::GetLastSystemErrorCode());
