@@ -12,12 +12,9 @@
 #include <vector>
 
 #include "base/base_export.h"
-<<<<<<< HEAD
 #include "base/byte_count.h"
-=======
 #include "build/buildflag.h"
 #include "build/build_config.h"
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 namespace base::debug {
 
