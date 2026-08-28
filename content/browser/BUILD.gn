@@ -351,10 +351,6 @@ source_set("browser") {
     "//v8:v8_version",
   ]
 
-  if (is_cobalt) {
-    deps -= [ "//components/language_detection/content/common" ]
-  }
-
   public_deps = [
     "//base",
     "//components/memory_pressure",
@@ -2518,6 +2514,29 @@ source_set("browser") {
     "worker_host/worker_script_loader_factory.cc",
     "worker_host/worker_script_loader_factory.h",
   ]
+
+  if (is_cobalt) {
+    deps -= [
+      "//components/language/core/common",
+      "//components/language_detection/content/common",
+      "//components/optimization_guide/core:features",
+      "//components/optimization_guide/public/mojom",
+    ]
+    sources -= [
+      "ai/echo_ai_language_model.cc",
+      "ai/echo_ai_language_model.h",
+      "ai/echo_ai_manager_impl.cc",
+      "ai/echo_ai_manager_impl.h",
+      "ai/echo_ai_proofreader.cc",
+      "ai/echo_ai_proofreader.h",
+      "ai/echo_ai_rewriter.cc",
+      "ai/echo_ai_rewriter.h",
+      "ai/echo_ai_summarizer.cc",
+      "ai/echo_ai_summarizer.h",
+      "ai/echo_ai_writer.cc",
+      "ai/echo_ai_writer.h",
+    ]
+  }
 
   if (is_android) {
     sources += [
