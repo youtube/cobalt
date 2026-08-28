@@ -68,6 +68,8 @@ void WebAudioMediaStreamAudioSink::OnSetFormat(
   DCHECK(params.IsValid());
 
   base::AutoLock auto_lock(lock_);
+  SB_LOG(INFO) << "KJ: WebAudio Sink - OnSetFormat: Input=" << params.AsHumanReadableString()
+               << ", Sink=" << sink_params_.AsHumanReadableString();
   DCHECK(sink_params_.IsValid());
 
   source_params_ = params;
@@ -147,6 +149,8 @@ void WebAudioMediaStreamAudioSink::ProvideInput(
     output_wrapper_->SetChannelData(static_cast<int>(i), audio_data[i]);
 
   base::AutoLock auto_lock(lock_);
+  SB_LOG(INFO) << "KJ: WebAudio Sink - Pulling " << number_of_frames
+               << " frames for JS @ " << sink_params_.sample_rate() << "Hz";
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("mediastream"),
                "WebAudioMediaStreamAudioSink::ProvideInput under lock");
 
@@ -170,8 +174,11 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
 
   lock_.AssertAcquired();
   if (fifo_->frames() >= audio_bus->frames()) {
+    SB_LOG(INFO) << "KJ: Sink Consumption - FIFO Level: " << fifo_->frames();
     fifo_->Consume(audio_bus, 0, audio_bus->frames());
   } else {
+    SB_LOG(INFO) << "KJ: Sink STARVATION - FIFO has " << fifo_->frames()
+                 << ", requested " << audio_bus->frames();
     audio_bus->Zero();
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("mediastream"),
                  "WebAudioMediaStreamAudioSink::ProvideInput underrun",
