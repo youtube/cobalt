@@ -17,24 +17,16 @@ import zip_helpers
 
 class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   # Ex. 'BASE_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
-<<<<<<< HEAD
   # or 'BASE_FEATURE(ConstantName, ...)'
-  # would parse as:
+  # or 'STARBOARD_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
+  # or 'STARBOARD_FEATURE(ConstantName, ...)'  # would parse as:
   #   ExtractConstantName() -> 'ConstantName'
   #   ExtractValue() -> '"StringNameOfTheFeature"' or '"ConstantName"'
   # For 3-arg macro: BASE_FEATURE(kMyFeature, "MyFeature", ...)
-  _FEATURE_RE_3_ARGS = re.compile(r'BASE_FEATURE\(k([^,]+),')
+  _FEATURE_RE_3_ARGS = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(k([^,]+),')
   # For 2-arg macro: BASE_FEATURE(MyFeature, ...)
-  _FEATURE_RE_2_ARGS = re.compile(r'BASE_FEATURE\(([^,]+),')
+  _FEATURE_RE_2_ARGS = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(([^,]+),')
   _VALUE_RE = re.compile(r'\s*("(?:\\"|[^"])*")\s*,')
-=======
-  # or 'STARBOARD_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
-  # would parse as:
-  #   ExtractConstantName() -> 'ConstantName'
-  #   ExtractValue() -> '"StringNameOfTheFeature"'
-  FEATURE_RE = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(k([^,]+),')
-  VALUE_RE = re.compile(r'\s*("(?:\"|[^"])*")\s*,')
->>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   def ExtractConstantName(self, line):
     match = self._FEATURE_RE_3_ARGS.match(line)
