@@ -36,99 +36,18 @@ namespace {
 
 constexpr char kTestEnvVar[] = "COBALT_WAS_LOW_MEMORY_KILLED";
 constexpr char kTmpMarkerPath[] = "/tmp/cobalt_was_low_memory_killed";
-constexpr char kMarkerFileName[] = "low_memory_kill_marker";
-constexpr char kDefaultCgroupEventsPath[] = "/sys/fs/cgroup/memory.events";
-// Allows override for testing.
-static std::string* g_cgroup_events_path;
-constexpr char kCgroupBaselineFileName[] = "cgroup_oom_baseline";
-
-std::string GetStoragePath(const char* filename) {
-  std::vector<char> path_buf(kSbFileMaxPath + 1, 0);
-  if (SbSystemGetPath(kSbSystemPathStorageDirectory, path_buf.data(),
-                      path_buf.size())) {
-    std::string path(path_buf.data());
-    if (!path.empty() && path.back() != '/') {
-      path += '/';
-    }
-    path += filename;
-    return path;
-  }
-  return "";
-}
 
 bool CheckAndConsumeMarker(const std::string& path) {
   return unlink(path.c_str()) == 0;
 }
 
-const std::string& GetCgroupEventsPath() {
-  if (!g_cgroup_events_path) {
-    g_cgroup_events_path = new std::string(kDefaultCgroupEventsPath);
-  }
-  return *g_cgroup_events_path;
-}
-
-int64_t ReadCgroupOomKills() {
-  std::ifstream events_file(GetCgroupEventsPath());
-  if (!events_file.is_open()) {
-    return -1;
-  }
-  std::string key;
-  int64_t value;
-  while (events_file >> key >> value) {
-    if (key == "oom_kill") {
-      return value;
-    }
-  }
-  return -1;
-}
-
-bool CheckCgroupOomKills() {
-  int64_t current_kills = ReadCgroupOomKills();
-  if (current_kills < 0) {
-    return false;
-  }
-
-  std::string baseline_path = GetStoragePath(kCgroupBaselineFileName);
-  if (baseline_path.empty()) {
-    return false;
-  }
-  if (struct stat info; stat(baseline_path.c_str(), &info) != 0) {
-    std::ofstream out_baseline(baseline_path, std::ios::trunc);
-    if (out_baseline.is_open()) {
-      out_baseline << current_kills << std::endl;
-    }
-    return false;
-  }
-
-  int64_t baseline_kills = 0;
-  std::ifstream baseline_file(baseline_path);
-  if (baseline_file.is_open()) {
-    baseline_file >> baseline_kills;
-    baseline_file.close();
-  }
-
-  bool oom_killed = (current_kills > baseline_kills);
-
-  // Update baseline
-  std::ofstream out_baseline(baseline_path, std::ios::trunc);
-  if (out_baseline.is_open()) {
-    out_baseline << current_kills << std::endl;
-  }
-
-  return oom_killed;
-}
-
-// Implements a multi-phase check for possible LMK signals. This is primarily
-// provided for demonstration purposes, and platforms are not generally expected
-// to implement more than one LMK signal.
+// Implements a two-phase check for possible LMK signals.
 //   1. Test Environment Variable Override - allows for easy testing of the LMK
 //      API.
 //   2. Supervisor/Watchdog Marker Files - checks for breadcrumb files left in
 //      /tmp or Cobalt storage by a memory watchdog process, then deletes the
 //      file.
-//   3. Cgroups OOM Kill Counter Tracking - counts memory events recorded by
-//      Linux cgroups v2, and compares to a previously stored count.
-// Note that (1) is an immediate override and does not clear the other signals.
+// Note that (1) does not clear any marker files that might exist.
 bool EvaluateWasLowMemoryKilled() {
   std::string env_val = starboard::GetEnvironment(kTestEnvVar);
   if (!env_val.empty()) {
@@ -142,23 +61,7 @@ bool EvaluateWasLowMemoryKilled() {
     }
   }
 
-  // Immediate return would prevent proper clearing of any lower priority
-  // signals that might be present.
-  bool ret = false;
-
-  if (CheckAndConsumeMarker(kTmpMarkerPath)) {
-    ret = true;
-  }
-  std::string storage_marker = GetStoragePath(kMarkerFileName);
-  if (CheckAndConsumeMarker(storage_marker)) {
-    ret = true;
-  }
-
-  if (CheckCgroupOomKills()) {
-    ret = true;
-  }
-
-  return ret;
+  return CheckAndConsumeMarker(kTmpMarkerPath);
 }
 
 // Since an LMK signal may be cleaned up after it is first read, we store the
@@ -200,13 +103,6 @@ void ResetLowMemoryKillStateForTesting() {
   std::lock_guard<std::mutex> lock(g_eval_mutex);
   g_evaluated = false;
   g_was_killed = false;
-}
-
-void SetCgroupEventsPathForTesting(const char* path) {
-  std::lock_guard<std::mutex> lock(g_eval_mutex);
-  if (path) {
-    *g_cgroup_events_path = path;
-  }
 }
 
 }  // namespace testing
