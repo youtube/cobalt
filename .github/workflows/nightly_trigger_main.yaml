@@ -22,5 +22,7 @@ jobs:
           set -x
           gh workflow run android.yaml --ref main -f nightly=true --repo "${GITHUB_REPO}"
           gh workflow run linux.yaml --ref main -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run aosp.yaml --ref main -f nightly=true --repo "${GITHUB_REPO}"
+          gh workflow run evergreen.yaml --ref main -f nightly=true --repo "${GITHUB_REPO}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
