@@ -253,7 +253,7 @@ std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
   std::vector<std::string_view> lines = base::SplitStringPiece(
       buffer, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
-  base::flat_map<std::string_view, size_t> tmp;
+  base::flat_map<std::string_view, ByteCount> tmp;
   for (const auto& line : lines) {
     std::vector<std::string_view> tokens = base::SplitStringPiece(
         line, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
@@ -272,9 +272,7 @@ std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
 
     size_t val;
     if (base::StringToSizeT(tokens[1], &val)) {
-      base::CheckedNumeric<size_t> val_bytes = val;
-      val_bytes *= 1024;
-      tmp[key] = val_bytes.ValueOrDefault(0);
+      tmp[key] = KiB(val);
     }
   }
 
