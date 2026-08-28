@@ -34,11 +34,12 @@ jobs:
           WORKFLOW: ${{ github.event.workflow_run.id }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
         shell: bash
         run: |
           set +x
           if [ -n "${HEAD_BRANCH}" ]; then
-            current_sha=$(git ls-remote origin "refs/heads/${HEAD_BRANCH}" | cut -f1)
+            current_sha=$(git ls-remote -- "https://github.com/${HEAD_REPO:-${REPO}}.git" "refs/heads/${HEAD_BRANCH}" 2>/dev/null | cut -f1) || true
             if [ -n "${current_sha}" ] && [ "${current_sha}" != "${HEAD_SHA}" ]; then
               echo "A newer commit (${current_sha}) exists on branch ${HEAD_BRANCH} than the run SHA (${HEAD_SHA}). Aborting re-run."
               exit 0
