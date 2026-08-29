@@ -22,7 +22,7 @@
     </style>
   </head>
   <body>
-    <video class="video" id="video" muted disableRemotePlayback></video>
+    <video class="video" id="video" disableRemotePlayback></video>
     <div class="placeholder" id="placeholder"></div>
   </body>
   <footer>
@@ -44,11 +44,13 @@
         const onSplashEnd = () => {
           onAnimationEnd && onAnimationEnd();
           window.close();
-        }
+        };
 
         videoEl.addEventListener('ended', () => {
           maybeDestroyVideoInstance();
-          onSplashEnd();
+          setTimeout(() => {
+            onSplashEnd();
+          }, 3000);  // Wait before closing to allow user to see the last frame.
         });
 
         const showPlaceholderImage = () => {
@@ -93,38 +95,109 @@
       }
 
       /**
-       * Plays the splash video based on resolution the device support
+       * Plays the splash video and audio using separate SourceBuffers.
        * @param urlParams URL parameters containing cache and fallback configuration
+       * @param splashTopic Topic prefix (e.g. 'music_' or '')
+       * @param afterVideoStart Callback function when playback starts
        */
-      function handleVideo(urlParams, splashTopic, afterVideoStart) {
+      function handleMedia(urlParams, splashTopic, afterVideoStart) {
         const videoEl = getVideoEl();
         if (!videoEl) {
           return;
         }
         const mediaSource = new MediaSource();
+
         mediaSource.addEventListener('sourceopen', async () => {
-          const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
-          const splashFormat = (MediaSource.isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160;")) ? '' : '_480';
-          urlParams.append('fallback', `${splashTopic}splash${splashFormat}.webm`);
+          // 1. Create Video SourceBuffer synchronously
+          let videoSourceBuffer = null;
           try {
-            const response = await fetch(
-                'h5vcc-embedded://splash.webm?' + urlParams.toString());
-            if (!response.ok) {
-              throw new Error('Network response was not ok');
+            videoSourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
+          } catch (e) {
+            console.error('Failed to add video SourceBuffer:', e);
+            return;
+          }
+
+          // 2. Create Audio SourceBuffer synchronously (if supported)
+          let audioSourceBuffer = null;
+          if (MediaSource.isTypeSupported('audio/webm; codecs="opus"')) {
+            try {
+              audioSourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs="opus"');
+            } catch (e) {
+              audioSourceBuffer = null;
             }
-            const data = await response.arrayBuffer();
-            sourceBuffer.addEventListener('updateend', () => {
-              if (!sourceBuffer.updating && mediaSource.readyState === 'open') {
+          }
+
+          // Video and Audio embedded resource URLs
+          const videoParams = new URLSearchParams(urlParams.toString());
+          const splashFormat = (MediaSource.isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160;")) ? '' : '_480';
+          videoParams.append('fallback', `${splashTopic}splash_test_video${splashFormat}.webm`);
+          const videoUrl = 'h5vcc-embedded://splash_test_video.webm?' + videoParams.toString();
+
+          const audioParams = new URLSearchParams(urlParams.toString());
+          audioParams.append('fallback', `${splashTopic}splash_test_audio.webm`);
+          const audioUrl = `h5vcc-embedded://${splashTopic}splash_test_audio.webm?` + audioParams.toString();
+
+          let videoAppended = false;
+          let audioAppended = !audioSourceBuffer;
+
+          const checkAllAppendedAndPlay = () => {
+            if (!videoAppended || !audioAppended) {
+              return;
+            }
+            if (mediaSource.readyState === 'open') {
+              try {
                 mediaSource.endOfStream();
-                videoEl.play();
-                afterVideoStart && afterVideoStart();
+              } catch (e) {
+                console.error('Error ending MediaSource stream:', e);
               }
-            }, {once: true});
-            sourceBuffer.appendBuffer(data);
-          } catch (error) {
-            console.error('Failed to fetch splash video:', error);
+              videoEl.play();
+              afterVideoStart && afterVideoStart();
+            }
+          };
+
+          // Fetch and append Video
+          fetch(videoUrl)
+            .then(response => {
+              if (!response.ok) throw new Error('Video fetch failed: ' + response.status);
+              return response.arrayBuffer();
+            })
+            .then(data => {
+              videoSourceBuffer.addEventListener('updateend', () => {
+                videoAppended = true;
+                checkAllAppendedAndPlay();
+              }, {once: true});
+              videoSourceBuffer.appendBuffer(data);
+            })
+            .catch(error => {
+              console.error('Failed to fetch or append splash video:', error);
+            });
+
+          // Fetch and append Audio
+          if (audioSourceBuffer) {
+            fetch(audioUrl)
+              .then(response => {
+                if (!response.ok) throw new Error('Audio fetch failed: ' + response.status);
+                return response.arrayBuffer();
+              })
+              .then(data => {
+                audioSourceBuffer.addEventListener('updateend', () => {
+                  audioAppended = true;
+                  checkAllAppendedAndPlay();
+                }, {once: true});
+                audioSourceBuffer.appendBuffer(data);
+              })
+              .catch(error => {
+                if (audioSourceBuffer && mediaSource.readyState === 'open') {
+                  try {
+                    mediaSource.removeSourceBuffer(audioSourceBuffer);
+                  } catch (e) {}
+                }
+                audioAppended = true;
+                checkAllAppendedAndPlay();
+              });
           }
         }, {once: true});
+
         videoEl.src = objectUrlFromSafeSource(mediaSource).toString();
       }
 
@@ -151,7 +224,7 @@
           return handleStaticImageFallback(params, splashTopic, afterImageLoad);
         }
 
-        return handleVideo(params, splashTopic, afterVideoStart);
+        return handleMedia(params, splashTopic, afterVideoStart);
       }
 
       animate(() => console.log('splash animation completed!'));
