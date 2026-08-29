@@ -181,6 +181,11 @@ void LogStatusHistogram(HangWatcher::ThreadType thread_type,
         case HangWatcher::ThreadType::kThreadPoolThread:
           // Not recorded for now.
           break;
+#if BUILDFLAG(IS_COBALT)
+        case HangWatcher::ThreadType::kRendererThread:
+          // Not recorded for now. This is used in single-process mode only.
+          break;
+#endif
       }
       break;
 
@@ -541,8 +546,9 @@ void HangWatcher::UpdateConfiguration() {
     g_hang_watch_monitoring_period_us.store(configured_period->InMicroseconds(),
                                             std::memory_order_relaxed);
   } else {
-    g_hang_watch_monitoring_period_us.store(kMonitoringPeriod.InMicroseconds(),
-                                            std::memory_order_relaxed);
+    g_hang_watch_monitoring_period_us.store(
+        kHangWatcherMonitoringPeriod.Get().InMicroseconds(),
+        std::memory_order_relaxed);
   }
 
   g_hang_reporting_enabled.store(delegate->IsHangReportingEnabled(),
@@ -978,19 +984,7 @@ void HangWatcher::Run() {
 #endif
     Wait();
 
-<<<<<<< HEAD
-    if (IsWatchingThreads() &&
-=======
-    bool has_work = !IsWatchListEmpty();
-#if BUILDFLAG(IS_COBALT)
-    // If the watch list is empty but we have an active hang UUID, we still
-    // have work to do (cleaning up the recovery state).
-    has_work = has_work || !active_hang_uuid_.empty();
-#endif
-
-    if (has_work &&
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-        g_keep_monitoring.load(std::memory_order_relaxed)) {
+if (IsWatchingThreads() &&        g_keep_monitoring.load(std::memory_order_relaxed)) {
       Monitor();
       if (after_monitor_closure_for_testing_) {
         after_monitor_closure_for_testing_.Run();
@@ -1381,76 +1375,6 @@ void HangWatcher::DoDumpWithoutCrashing(
 
   SCOPED_CRASH_KEY_BOOL("HangWatcher", "shutting-down",
                         g_shutting_down.load(std::memory_order_relaxed));
-<<<<<<< HEAD
-=======
-
-#if BUILDFLAG(IS_COBALT)
-  int64_t configured_timeout =
-      g_hang_watch_time_us.load(std::memory_order_relaxed);
-  char timeout_buf[32];
-  snprintf(timeout_buf, sizeof(timeout_buf), "%" PRId64,
-           static_cast<int64_t>(configured_timeout /
-                                base::Time::kMicrosecondsPerSecond));
-  SCOPED_CRASH_KEY_STRING32("HangWatcher", "hang-timeout-sec", timeout_buf);
-
-  int64_t configured_period =
-      g_hang_watch_monitoring_period_us.load(std::memory_order_relaxed);
-  char period_buf[32];
-  snprintf(period_buf, sizeof(period_buf), "%" PRId64,
-           static_cast<int64_t>(configured_period /
-                                base::Time::kMicrosecondsPerSecond));
-  SCOPED_CRASH_KEY_STRING32("HangWatcher", "hang-period-sec", period_buf);
-
-  bool main_enabled = g_main_thread_log_level.load(std::memory_order_relaxed) >=
-                      LoggingLevel::kUmaAndCrash;
-  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-main", main_enabled);
-
-  bool io_enabled = g_io_thread_log_level.load(std::memory_order_relaxed) >=
-                    LoggingLevel::kUmaAndCrash;
-  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-io", io_enabled);
-
-  bool pool_enabled = g_threadpool_log_level.load(std::memory_order_relaxed) >=
-                      LoggingLevel::kUmaAndCrash;
-  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-pool", pool_enabled);
-
-  bool renderer_enabled =
-      g_browser_process_renderer_thread_log_level.load(
-          std::memory_order_relaxed) >= LoggingLevel::kUmaAndCrash;
-  SCOPED_CRASH_KEY_BOOL("HangWatcher", "hang-dump-renderer", renderer_enabled);
-
-#if BUILDFLAG(IS_STARBOARD)
-  // Evergreen builds cannot currently use the crash key system directly and we
-  // instead use a Starboard extension to pass annotations from the Cobalt layer
-  // to Crashpad.
-  auto* crash_handler_extension =
-      static_cast<const CobaltExtensionCrashHandlerApi*>(
-          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
-  if (crash_handler_extension && crash_handler_extension->version >= 2 &&
-      crash_handler_extension->SetString) {
-    crash_handler_extension->SetString("list-of-hung-threads",
-                                       list_of_hung_thread_ids.c_str());
-    crash_handler_extension->SetString(
-        "seconds-since-last-resume",
-        GetTimeSinceLastSystemPowerResumeCrashKeyValue().c_str());
-    crash_handler_extension->SetString(
-        "shutting-down",
-        g_shutting_down.load(std::memory_order_relaxed) ? "true" : "false");
-
-    crash_handler_extension->SetString("hang-timeout-sec", timeout_buf);
-    crash_handler_extension->SetString("hang-period-sec", period_buf);
-    crash_handler_extension->SetString("hang-dump-main",
-                                       main_enabled ? "true" : "false");
-    crash_handler_extension->SetString("hang-dump-io",
-                                       io_enabled ? "true" : "false");
-    crash_handler_extension->SetString("hang-dump-pool",
-                                       pool_enabled ? "true" : "false");
-    crash_handler_extension->SetString("hang-dump-renderer",
-                                       renderer_enabled ? "true" : "false");
-  }
-#endif  // BUILDFLAG(IS_STARBOARD)
-#endif  // BUILDFLAG(IS_COBALT)
-#endif  // !BUILDFLAG(IS_NACL)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // To avoid capturing more than one hang that blames a subset of the same
   // threads it's necessary to keep track of what is the furthest deadline

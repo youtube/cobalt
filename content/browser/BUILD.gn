@@ -3748,6 +3748,14 @@ source_set("browser") {
       "//content/browser/private_aggregation:mojo_bindings",
       "//content/browser/private_aggregation/proto:private_aggregation_budgets_proto",
     ]
+
+    # Re-add fenced_frame_viewport_observer files needed by non-privacy-sandbox
+    # code (web_contents_impl, render_frame_host_impl, navigation_request,
+    # render_frame_host_manager).
+    sources += [
+      "fenced_frame/fenced_frame_viewport_observer.cc",
+      "fenced_frame/fenced_frame_viewport_observer.h",
+    ]
   }
 
   if (is_cobalt) {
