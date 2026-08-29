@@ -215,8 +215,8 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
   ongoing_requests_.insert(resolver);
   remote_h5vcc_settings_->SetValue(
       name, std::move(mojo_value),
-      WTF::BindOnce(&H5vccSettings::OnSetValueFinished, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&H5vccSettings::OnSetValueFinished, WrapPersistent(this),
+               WrapPersistent(resolver)));
   return promise;
 }
 
@@ -249,8 +249,8 @@ void H5vccSettings::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_settings_.BindNewPipeAndPassReceiver(task_runner));
-  remote_h5vcc_settings_.set_disconnect_handler(WTF::BindOnce(
-      &H5vccSettings::OnConnectionError, WrapWeakPersistent(this)));
+  remote_h5vcc_settings_.set_disconnect_handler(
+      BindOnce(&H5vccSettings::OnConnectionError, WrapWeakPersistent(this)));
 }
 
 void H5vccSettings::Trace(Visitor* visitor) const {

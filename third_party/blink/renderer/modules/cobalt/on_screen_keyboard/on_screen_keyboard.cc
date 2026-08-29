@@ -109,8 +109,8 @@ ScriptPromise<IDLUndefined> OnScreenKeyboard::show(
       script_state, exception_state.GetContext());
   on_screen_keyboard_remote_->Show(
       data_.IsNull() ? g_empty_string : data_, std::move(options),
-      WTF::BindOnce(&OnScreenKeyboard::DidShow, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&OnScreenKeyboard::DidShow, WrapPersistent(this),
+               WrapPersistent(resolver)));
   return resolver->Promise();
 }
 
@@ -121,9 +121,9 @@ ScriptPromise<IDLUndefined> OnScreenKeyboard::hide(
 
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
-  on_screen_keyboard_remote_->Hide(WTF::BindOnce(&OnScreenKeyboard::DidHide,
-                                                 WrapPersistent(this),
-                                                 WrapPersistent(resolver)));
+  on_screen_keyboard_remote_->Hide(BindOnce(&OnScreenKeyboard::DidHide,
+                                            WrapPersistent(this),
+                                            WrapPersistent(resolver)));
   return resolver->Promise();
 }
 
@@ -134,9 +134,9 @@ ScriptPromise<IDLUndefined> OnScreenKeyboard::focus(
 
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
-  on_screen_keyboard_remote_->Focus(WTF::BindOnce(&OnScreenKeyboard::DidFocus,
-                                                  WrapPersistent(this),
-                                                  WrapPersistent(resolver)));
+  on_screen_keyboard_remote_->Focus(BindOnce(&OnScreenKeyboard::DidFocus,
+                                             WrapPersistent(this),
+                                             WrapPersistent(resolver)));
   return resolver->Promise();
 }
 
@@ -147,9 +147,9 @@ ScriptPromise<IDLUndefined> OnScreenKeyboard::blur(
 
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
-  on_screen_keyboard_remote_->Blur(WTF::BindOnce(&OnScreenKeyboard::DidBlur,
-                                                 WrapPersistent(this),
-                                                 WrapPersistent(resolver)));
+  on_screen_keyboard_remote_->Blur(BindOnce(&OnScreenKeyboard::DidBlur,
+                                            WrapPersistent(this),
+                                            WrapPersistent(resolver)));
   return resolver->Promise();
 }
 
@@ -163,9 +163,8 @@ ScriptPromise<IDLUndefined> OnScreenKeyboard::updateSuggestions(
   if (suggestionsSupported()) {
     EnsureReceiverIsBound();
     on_screen_keyboard_remote_->UpdateSuggestions(
-        suggestions,
-        WTF::BindOnce(&OnScreenKeyboard::DidUpdateSuggestions,
-                      WrapPersistent(this), WrapPersistent(resolver)));
+        suggestions, BindOnce(&OnScreenKeyboard::DidUpdateSuggestions,
+                              WrapPersistent(this), WrapPersistent(resolver)));
   } else {
     LOG(WARNING)
         << "On-screen keyboard suggestions are not supported on this platform";

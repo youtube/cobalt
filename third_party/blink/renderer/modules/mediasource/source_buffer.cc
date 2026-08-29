@@ -2353,9 +2353,8 @@ void SourceBuffer::AppendBufferSyncPart() {
   // demuxer is protected from destruction (applicable especially for
   // MSE-in-Worker case).
   DCHECK(!IsRemoved());  // So must have |source_| and it must have attachment.
-  if (!source_->RunUnlessElementGoneOrClosingUs(
-          WTF::BindOnce(&SourceBuffer::AppendBufferSyncPart_Locked,
-                        WrapPersistent(this)))) {
+  if (!source_->RunUnlessElementGoneOrClosingUs(blink::BindOnce(
+          &SourceBuffer::AppendBufferSyncPart_Locked, WrapPersistent(this)))) {
     // TODO(crbug.com/878133): Determine in specification what the specific,
     // app-visible, behavior should be for this case. In this implementation,
     // the safest thing to do is nothing here now. See more verbose reason in
@@ -2397,8 +2396,8 @@ void SourceBuffer::AppendBufferSyncPart_Locked(
       append_buffer_async_task_handle_ = PostCancellableTask(
           *GetExecutionContext()->GetTaskRunner(TaskType::kMediaElementEvent),
           FROM_HERE,
-          WTF::BindOnce(&SourceBuffer::AppendBufferSyncPartFailed,
-                        WrapPersistent(this)));
+          BindOnce(&SourceBuffer::AppendBufferSyncPartFailed,
+                   WrapPersistent(this)));
       break;
     case media::StreamParser::ParseStatus::kSuccessHasMoreData:
       // The segments after the first one will be appended asynchronously
@@ -2406,8 +2405,7 @@ void SourceBuffer::AppendBufferSyncPart_Locked(
       append_buffer_async_task_handle_ = PostCancellableTask(
           *GetExecutionContext()->GetTaskRunner(TaskType::kMediaElementEvent),
           FROM_HERE,
-          WTF::BindOnce(&SourceBuffer::AppendBufferAsyncPart,
-                        WrapPersistent(this)));
+          BindOnce(&SourceBuffer::AppendBufferAsyncPart, WrapPersistent(this)));
       TRACE_EVENT_NESTABLE_ASYNC_END0("media", "appending",
                                       TRACE_ID_LOCAL(this));
       TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("media", "delay", TRACE_ID_LOCAL(this),
@@ -2420,8 +2418,8 @@ void SourceBuffer::AppendBufferSyncPart_Locked(
       append_buffer_async_task_handle_ = PostCancellableTask(
           *GetExecutionContext()->GetTaskRunner(TaskType::kMediaElementEvent),
           FROM_HERE,
-          WTF::BindOnce(&SourceBuffer::AppendBufferSyncPartSucceeded,
-                        WrapPersistent(this)));
+          BindOnce(&SourceBuffer::AppendBufferSyncPartSucceeded,
+                   WrapPersistent(this)));
       break;
   }
 
@@ -2441,8 +2439,8 @@ void SourceBuffer::AppendBufferSyncPartSucceeded() {
   LogFirstSegmentAppendDelay();
 
   if (!source_->RunUnlessElementGoneOrClosingUs(
-          WTF::BindOnce(&SourceBuffer::AppendBufferSyncPartSucceeded_Locked,
-                        WrapPersistent(this)))) {
+          blink::BindOnce(&SourceBuffer::AppendBufferSyncPartSucceeded_Locked,
+                          WrapPersistent(this)))) {
     // TODO(crbug.com/878133): Determine in specification what the specific,
     // app-visible, behavior should be for this case. In this implementation,
     // the safest thing to do is nothing here now. See more verbose reason in
@@ -2478,8 +2476,8 @@ void SourceBuffer::AppendBufferSyncPartFailed() {
   LogFirstSegmentAppendDelay();
 
   if (!source_->RunUnlessElementGoneOrClosingUs(
-          WTF::BindOnce(&SourceBuffer::AppendBufferSyncPartFailed_Locked,
-                        WrapPersistent(this)))) {
+          blink::BindOnce(&SourceBuffer::AppendBufferSyncPartFailed_Locked,
+                          WrapPersistent(this)))) {
     // TODO(crbug.com/878133): Determine in specification what the specific,
     // app-visible, behavior should be for this case. In this implementation,
     // the safest thing to do is nothing here now. See more verbose reason in

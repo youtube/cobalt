@@ -43,8 +43,8 @@ ScriptPromise<IDLBoolean> CrashLog::setString(ScriptState* script_state,
 
   remote_crash_annotator_->SetString(
       key, value,
-      WTF::BindOnce(&CrashLog::OnSetString, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      BindOnce(&CrashLog::OnSetString, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
