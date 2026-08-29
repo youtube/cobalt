@@ -455,11 +455,6 @@ source_set("ip_protection_performance_hooks_unittest") {
     ":ip_protection_performance_hooks",
     "//base",
     "//base/test:test_support",
-<<<<<<< HEAD
-    "//base/test:test_trace_processor",
-=======
-    "//testing/gtest",
->>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     "//testing/gmock",
     "//testing/gtest",
   ]
