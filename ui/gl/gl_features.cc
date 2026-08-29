@@ -201,7 +201,7 @@ bool UsePassthroughCommandDecoder() {
       base::MatchPattern(build_info->model(), "SHIELD*"))
     return false;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // BUILDFLAG(IS_ANDROID)
 
   return true;

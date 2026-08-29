@@ -553,7 +553,7 @@ void GetSmapsRollup(base::ProcessId pid,
       "/smaps";
   base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
   if (!smaps_file) {
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return;
   }
 
@@ -881,7 +881,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
 #endif
     dump->pss_kb = base::saturated_cast<uint32_t>(pss / 1024);
     dump->swap_pss_kb = base::saturated_cast<uint32_t>(swap_pss / 1024);
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1167,7 +1167,7 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
 #else
   if (fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get()) !=
       total_pages) {
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
 #endif  // BUILDFLAG(IS_COBALT)

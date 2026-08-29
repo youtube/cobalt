@@ -177,7 +177,7 @@ void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
 #if BUILDFLAG(IS_COBALT)
         time_to_report_[0]);
 #else
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         kTimeToReport[0]);
 #endif
   }

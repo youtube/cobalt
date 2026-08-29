@@ -153,7 +153,7 @@ void Unpacker::BeginUnzipping() {
 #else  // BUILDFLAG(IS_STARBOARD)
   if (!base::CreateNewTempDirectory(
           FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"), &unpack_path_)) {
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     VLOG(1) << "Unable to create temporary directory for unpacking.";
     EndUnpacking(UnpackerError::kUnzipPathError,
                  ::logging::GetLastSystemErrorCode());

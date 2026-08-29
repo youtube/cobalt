@@ -118,7 +118,7 @@ def main():
     if os.path.exists(_BACKEND_STAR):
       os.remove(_BACKEND_STAR)
     shutil.copy2(_GOOGLE_CROS_STAR, _BACKEND_STAR)
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   if not os.path.exists(_BACKEND_STAR):
     print('Need to provide {} for your backend {}'.format(

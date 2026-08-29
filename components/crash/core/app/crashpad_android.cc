@@ -328,7 +328,7 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
 #if BUILDFLAG(IS_COBALT)
     LOG(INFO) << "SDK version below Q: No linker support.";
 #endif
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of affc325d4eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return false;
   }
 
