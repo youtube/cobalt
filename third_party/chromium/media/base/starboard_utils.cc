@@ -92,9 +92,8 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
       return kSbMediaAudioCodecPcm;
 #endif  // SB_API_VERSION >= 14
 #if SB_API_VERSION >= 15
-    // TODO(b/271301103): Enable this once IAMF is added to Chromium.
-    // case AudioCodec::kIAMF:
-    //  return kSbMediaAudioCodecPcm;
+    case AudioCodec::kIAMF:
+     return kSbMediaAudioCodecIamf;
 #endif  // SB_API_VERSION >= 15
     default:
       // Cobalt only supports a subset of audio codecs defined by Chromium.
