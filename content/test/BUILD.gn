@@ -3223,7 +3223,7 @@ test("content_unittests") {
     ]
     if (is_cobalt) {
       sources -= [
-        "../browser/webid/digital_credentials/cross_device_transaction_impl_unittest.cc",
+        "../browser/digital_credentials/cross_device_transaction_impl_unittest.cc",
       ]
     }
   }
