@@ -63,21 +63,15 @@ class FrameAutoAttacher : public protocol::RendererAutoAttacherBase,
 
  private:
   raw_ptr<RenderFrameHostImpl> render_frame_host_ = nullptr;
-<<<<<<< HEAD
   base::ScopedObservation<ServiceWorkerDevToolsManager, FrameAutoAttacher>
       service_worker_devtools_manager_observation_{this};
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   base::ScopedObservation<SharedStorageWorkletDevToolsManager,
                           FrameAutoAttacher>
       shared_storage_worklet_devtools_manager_observation_{this};
   base::ScopedObservation<DebuggableAuctionWorkletTracker, FrameAutoAttacher>
       debuggable_auction_worklet_worklet_devtools_manager_observation_{this};
-=======
-  bool observing_service_workers_ = false;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-  bool observing_auction_worklets_ = false;
-  bool observing_shared_storage_worklets_ = false;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace content

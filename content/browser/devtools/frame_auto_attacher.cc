@@ -195,18 +195,12 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       // This is similar to frames and pages above.
       ReattachServiceWorkers();
     }
-<<<<<<< HEAD
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     if (render_frame_host_ &&
         !debuggable_auction_worklet_worklet_devtools_manager_observation_
              .IsObserving()) {
       debuggable_auction_worklet_worklet_devtools_manager_observation_.Observe(
           DebuggableAuctionWorkletTracker::GetInstance());
-=======
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-    if (render_frame_host_ && !observing_auction_worklets_) {
-      observing_auction_worklets_ = true;
-      DebuggableAuctionWorkletTracker::GetInstance()->AddObserver(this);
->>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
     if (render_frame_host_ &&
         !shared_storage_worklet_devtools_manager_observation_.IsObserving()) {
@@ -215,26 +209,11 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
     }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   } else {
-<<<<<<< HEAD
     service_worker_devtools_manager_observation_.Reset();
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     debuggable_auction_worklet_worklet_devtools_manager_observation_.Reset();
     shared_storage_worklet_devtools_manager_observation_.Reset();
-=======
-    if (observing_service_workers_) {
-      ServiceWorkerDevToolsManager::GetInstance()->RemoveObserver(this);
-      observing_service_workers_ = false;
-    }
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-    if (observing_auction_worklets_) {
-      DebuggableAuctionWorkletTracker::GetInstance()->RemoveObserver(this);
-      observing_auction_worklets_ = false;
-    }
-    if (observing_shared_storage_worklets_) {
-      SharedStorageWorkletDevToolsManager::GetInstance()->RemoveObserver(this);
-      observing_shared_storage_worklets_ = false;
-    }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 0537ddbf169 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
   RendererAutoAttacherBase::UpdateAutoAttach(std::move(callback));
 }
