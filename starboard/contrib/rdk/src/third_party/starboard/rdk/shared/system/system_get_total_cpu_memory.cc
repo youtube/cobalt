@@ -31,19 +31,59 @@
 
 #include "starboard/system.h"
 
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+
+#include <algorithm>
+#include <string>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-#include "starboard/common/string.h"
+
+
+namespace {
+
+std::string GetMemoryCgroupLimitPath() {
+  starboard::ScopedFile cgroup_file("/proc/self/cgroup", O_RDONLY);
+  if (!cgroup_file.IsValid()) {
+    return "/sys/fs/cgroup/memory/memory.limit_in_bytes";
+  }
+
+  const int kBufferSize = 4096;
+  char buffer[kBufferSize];
+  int bytes_read = cgroup_file.ReadAll(buffer, kBufferSize - 1);
+  if (bytes_read <= 0) {
+    return "/sys/fs/cgroup/memory/memory.limit_in_bytes";
+  }
+  buffer[bytes_read] = '\0';
+
+  const char* memory_subsys = strstr(buffer, ":memory:");
+  if (memory_subsys) {
+    const char* line_end = strchr(memory_subsys, '\n');
+    const char* path_start = strchr(memory_subsys + 8, '/');
+    if (path_start && (!line_end || path_start < line_end)) {
+      std::string path;
+      if (line_end) {
+        path = std::string(path_start, line_end - path_start);
+      } else {
+        path = std::string(path_start);
+      }
+      return "/sys/fs/cgroup/memory" + path + "/memory.limit_in_bytes";
+    }
+  }
+
+  return "/sys/fs/cgroup/memory/memory.limit_in_bytes";
+}
+
+}  // namespace
 
 int64_t SbSystemGetTotalCPUMemory() {
 
   int64_t limit_in_bytes = INT64_MAX;
 
-  starboard::ScopedFile status_file(
-    "/sys/fs/cgroup/memory/memory.limit_in_bytes",
-    O_RDONLY);
+  starboard::ScopedFile status_file(GetMemoryCgroupLimitPath().c_str(), O_RDONLY);
 
   if (status_file.IsValid()) {
     const int kBufferSize = 512;

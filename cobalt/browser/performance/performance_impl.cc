@@ -315,6 +315,27 @@ void PerformanceImpl::MeasureApplicationLimitMemory(
 #endif
 }
 
+void PerformanceImpl::MeasureApplicationUsageMemory(
+    MeasureApplicationUsageMemoryCallback callback) {
+#if BUILDFLAG(IS_STARBOARD)
+  int64_t usage = SbSystemGetUsedCPUMemory();
+  std::move(callback).Run(usage > 0 ? static_cast<uint64_t>(usage) : 0);
+#else
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([]() -> uint64_t {
+        auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+            base::GetCurrentProcessHandle());
+        if (!process_metrics) {
+          return 0;
+        }
+        auto info = process_metrics->GetMemoryInfo();
+        return info.has_value() ? info->resident_set_bytes : 0;
+      }),
+      std::move(callback));
+#endif
+}
+
 void PerformanceImpl::MeasureUsedGpuMemory(
     MeasureUsedGpuMemoryCallback callback) {
 #if BUILDFLAG(IS_STARBOARD)

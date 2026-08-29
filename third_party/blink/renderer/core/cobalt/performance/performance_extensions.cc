@@ -173,6 +173,15 @@ uint64_t PerformanceExtensions::measureApplicationLimitMemory(
   return app_limit_memory;
 }
 
+uint64_t PerformanceExtensions::measureApplicationUsageMemory(
+    ScriptState* script_state,
+    const Performance&) {
+  uint64_t usage_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureApplicationUsageMemory(&usage_memory);
+  return usage_memory;
+}
+
 uint64_t PerformanceExtensions::measureUsedGpuMemory(
     ScriptState* script_state,
     const Performance&,

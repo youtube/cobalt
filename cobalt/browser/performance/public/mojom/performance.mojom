@@ -76,6 +76,11 @@ interface CobaltPerformance {
   // Get the application CPU memory limit in bytes.
   [Sync]
   MeasureApplicationLimitMemory() => (uint64 bytes);
+
+  // Returns the application CPU memory usage in bytes.
+  [Sync]
+  MeasureApplicationUsageMemory() => (uint64 bytes);
+
   // Get the amount of GPU memory used by the application, in bytes.
   [Sync]
   MeasureUsedGpuMemory() => (bool is_supported, uint64 bytes);
