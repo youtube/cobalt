@@ -303,11 +303,17 @@ def launch_on_device(
         try:
             plugins_json = run_remote_command("curl -s http://127.0.0.1:9998/Service/Controller/Plugins", device_id, device_ip)
             plugins_data = json.loads(plugins_json)
-            plugin_list = plugins_data.get("plugins", []) if isinstance(plugins_data, dict) else plugins_data
-            for cand in ["YouTube", "Cobalt", "Cobalt_custom"]:
-                if any(p.get("callsign") == cand for p in plugin_list):
-                    callsign = cand
-                    break
+            plugin_list = []
+            if isinstance(plugins_data, dict):
+                plugin_list = plugins_data.get("plugins", [])
+            elif isinstance(plugins_data, list):
+                plugin_list = plugins_data
+
+            if isinstance(plugin_list, list):
+                for cand in ["YouTube", "Cobalt", "Cobalt_custom"]:
+                    if any(isinstance(p, dict) and p.get("callsign") == cand for p in plugin_list):
+                        callsign = cand
+                        break
         except Exception as e:
             print(f"[WARNING] Failed to fetch plugins list: {e}")
 
