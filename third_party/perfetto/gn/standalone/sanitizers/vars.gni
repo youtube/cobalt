@@ -65,5 +65,6 @@ declare_args() {
 assert(!using_sanitizer || is_clang || is_system_compiler,
        "is_*san requires is_clang=true'")
 assert(!is_msan || is_linux, "msan only supported on linux")
-assert(!is_tsan || (is_linux || is_mac), "tsan only supported on linux and mac")
+is_playstation = current_os == "playstation"
+assert(!is_tsan || (is_linux || is_mac || is_playstation), "tsan only supported on linux, ps5 and mac")
 assert(!is_fuzzer || use_libfuzzer || link_fuzzer != "")
