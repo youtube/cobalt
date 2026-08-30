@@ -19,6 +19,7 @@
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/media/media_module.h"
 #include "url/gurl.h"
 
@@ -66,6 +67,7 @@ class FormatGuesstimator {
   GURL progressive_url_;
   base::FilePath adaptive_path_;
   std::string mime_type_;
+  base::SequencedTaskRunner* task_runner_;
 };
 
 }  // namespace sandbox
