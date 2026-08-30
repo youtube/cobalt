@@ -81,7 +81,8 @@ class MP4StreamParserTest : public testing::Test {
         verifying_keyframeness_sequence_(false) {
     std::set<int> audio_object_types;
     audio_object_types.insert(kISO_14496_3);
-    parser_.reset(new MP4StreamParser(audio_object_types, false, false));
+    parser_.reset(
+        new MP4StreamParser(audio_object_types, false, false, false));
   }
 
  protected:
@@ -406,7 +407,8 @@ TEST_F(MP4StreamParserTest, MPEG2_AAC_LC) {
   InSequence s;
   std::set<int> audio_object_types;
   audio_object_types.insert(kISO_13818_7_AAC_LC);
-  parser_.reset(new MP4StreamParser(audio_object_types, false, false));
+  parser_.reset(
+      new MP4StreamParser(audio_object_types, false, false, false));
   auto params = GetDefaultInitParametersExpectations();
   params.detected_video_track_count = 0;
   InitializeParserWithInitParametersExpectations(params);
@@ -418,7 +420,8 @@ TEST_F(MP4StreamParserTest, MPEG4_XHE_AAC) {
   InSequence s;  // The keyframeness sequence matters for this test.
   std::set<int> audio_object_types;
   audio_object_types.insert(kISO_14496_3);
-  parser_.reset(new MP4StreamParser(audio_object_types, false, false));
+  parser_.reset(
+      new MP4StreamParser(audio_object_types, false, false, false));
   auto params = GetDefaultInitParametersExpectations();
   params.detected_video_track_count = 0;
 
@@ -623,7 +626,7 @@ TEST_F(MP4StreamParserTest, NaturalSizeWithPASP) {
 TEST_F(MP4StreamParserTest, DemuxingAC3) {
   std::set<int> audio_object_types;
   audio_object_types.insert(kAC3);
-  parser_.reset(new MP4StreamParser(audio_object_types, false, false));
+  parser_.reset(new MP4StreamParser(audio_object_types, false, false, false));
 
 #if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
   bool expect_success = true;
@@ -647,7 +650,7 @@ TEST_F(MP4StreamParserTest, DemuxingAC3) {
 TEST_F(MP4StreamParserTest, DemuxingEAC3) {
   std::set<int> audio_object_types;
   audio_object_types.insert(kEAC3);
-  parser_.reset(new MP4StreamParser(audio_object_types, false, false));
+  parser_.reset(new MP4StreamParser(audio_object_types, false, false, false));
 
 #if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
   bool expect_success = true;
@@ -669,7 +672,7 @@ TEST_F(MP4StreamParserTest, DemuxingEAC3) {
 }
 
 TEST_F(MP4StreamParserTest, Flac) {
-  parser_.reset(new MP4StreamParser(std::set<int>(), false, true));
+  parser_.reset(new MP4StreamParser(std::set<int>(), false, true, false));
 
   auto params = GetDefaultInitParametersExpectations();
   params.detected_video_track_count = 0;
@@ -680,7 +683,7 @@ TEST_F(MP4StreamParserTest, Flac) {
 }
 
 TEST_F(MP4StreamParserTest, Flac192kHz) {
-  parser_.reset(new MP4StreamParser(std::set<int>(), false, true));
+  parser_.reset(new MP4StreamParser(std::set<int>(), false, true, false));
 
   auto params = GetDefaultInitParametersExpectations();
   params.detected_video_track_count = 0;
@@ -834,7 +837,7 @@ class MP4StreamParserRotationMatrixEvaluatorTest
   MP4StreamParserRotationMatrixEvaluatorTest() {
     std::set<int> audio_object_types;
     audio_object_types.insert(kISO_14496_3);
-    parser_.reset(new MP4StreamParser(audio_object_types, false, false));
+    parser_.reset(new MP4StreamParser(audio_object_types, false, false, false));
   }
 
  protected:
