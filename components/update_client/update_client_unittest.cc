@@ -433,9 +433,9 @@ struct UpdateCheckerOptionsTwoCrxUpdateNoUpdate {
 };
 
 struct UpdateCheckerOptionsActionRunNoUpdate {
-  static constexpr int64_t kAvailableSpace = 0;
-  static constexpr size_t kComponentCount = 1;
-  static constexpr std::string_view kJson = R"()]}'
+  [[maybe_unused]] static constexpr int64_t kAvailableSpace = 0;
+  [[maybe_unused]] static constexpr size_t kComponentCount = 1;
+  [[maybe_unused]] static constexpr std::string_view kJson = R"()]}'
 {
   "response": {
     "protocol": "4.0",
