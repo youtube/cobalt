@@ -44,8 +44,8 @@ class DecodedAudio {
                Buffer&& storage);
 
   // Move-only semantics
-  DecodedAudio(DecodedAudio&& other);
-  DecodedAudio& operator=(DecodedAudio&& other);
+  DecodedAudio(DecodedAudio&& other) noexcept;
+  DecodedAudio& operator=(DecodedAudio&& other) noexcept;
 
   // Disable copy and assignment.
   DecodedAudio(const DecodedAudio&) = delete;
