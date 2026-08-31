@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//cobalt/build/modular_executable.gni")
+import("//testing/test.gni")
 
 if (is_cobalt_hermetic_build) {
   _benchmark_type = "modular_executable"
@@ -25,6 +26,8 @@ target(_benchmark_type, "benchmark") {
 
   sources = [
     "//starboard/common/benchmark_main.cc",
+    "//starboard/shared/starboard/features_test_util.cc",
+    "//starboard/shared/starboard/features_test_util.h",
     "memory_benchmark.cc",
     "player/player_benchmark_helper.cc",
     "player/player_benchmark_helper.h",
@@ -43,4 +46,37 @@ target(_benchmark_type, "benchmark") {
   deps = cobalt_platform_dependencies
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
+}
+
+test("player_benchmarks_gtest") {
+  testonly = true
+
+  sources = [
+    "player/player_benchmark_gtest_wrapper.cc",
+    "player/player_benchmark_helper.cc",
+    "player/player_benchmark_helper.h",
+    "player/player_create_benchmark.cc",
+    "player/player_destroy_benchmark.cc",
+  ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  public_deps = [
+    "//starboard:starboard_group",
+    "//starboard:starboard_test_main",
+    "//starboard/common",
+    "//starboard/testing:fake_graphics_context_provider",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/google_benchmark",
+  ]
+  deps = cobalt_platform_dependencies
+  if (is_android) {
+    deps += [
+      "//cobalt/android:cobalt_testing_java",
+      "//cobalt/android:jni_headers",
+    ]
+    android_manifest_template =
+        "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
+  }
 }
