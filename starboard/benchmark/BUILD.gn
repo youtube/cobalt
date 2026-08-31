@@ -33,6 +33,7 @@ target(_benchmark_type, "benchmark") {
     "player/player_benchmark_helper.h",
     "player/player_create_benchmark.cc",
     "player/player_destroy_benchmark.cc",
+    "player/player_seek_benchmark.cc",
     "thread_benchmark.cc",
     "thread_id_benchmark.cc",
   ]
@@ -40,6 +41,7 @@ target(_benchmark_type, "benchmark") {
   public_deps = [
     "//starboard:starboard_group",
     "//starboard/common",
+    "//starboard/shared/starboard/player:video_dmp",
     "//starboard/testing:fake_graphics_context_provider",
     "//third_party/google_benchmark",
   ]
@@ -57,6 +59,7 @@ test("player_benchmarks_gtest") {
     "player/player_benchmark_helper.h",
     "player/player_create_benchmark.cc",
     "player/player_destroy_benchmark.cc",
+    "player/player_seek_benchmark.cc",
   ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
@@ -65,12 +68,14 @@ test("player_benchmarks_gtest") {
     "//starboard:starboard_group",
     "//starboard:starboard_test_main",
     "//starboard/common",
+    "//starboard/shared/starboard/player:video_dmp",
     "//starboard/testing:fake_graphics_context_provider",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
+  deps += [ "//starboard/shared/starboard/player:player_test_data" ]
   if (is_android) {
     deps += [
       "//cobalt/android:cobalt_testing_java",

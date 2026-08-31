@@ -19,6 +19,12 @@
 
 namespace starboard {
 
+class CommandLine;
+
+namespace testing {
+const CommandLine* GetTestCommandLine();
+}
+
 using RunTestsCallback = std::function<int(int, char**)>;
 
 // Executes `action`. On platforms requiring main loop pumping (e.g. tvOS),

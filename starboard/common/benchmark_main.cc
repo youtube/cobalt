@@ -26,6 +26,7 @@ namespace starboard {
 namespace benchmark {
 void LinkPlayerCreateBenchmark();
 void LinkPlayerDestroyBenchmark();
+void LinkPlayerSeekBenchmark();
 }  // namespace benchmark
 }  // namespace starboard
 
@@ -39,6 +40,7 @@ int RunAllBenchmarks(int argc, char** argv) {
   starboard::features::InitializeStarboardFeatureListWithDefaults();
   starboard::benchmark::LinkPlayerCreateBenchmark();
   starboard::benchmark::LinkPlayerDestroyBenchmark();
+  starboard::benchmark::LinkPlayerSeekBenchmark();
   ::benchmark::Initialize(&argc, argv);
   ::benchmark::RunSpecifiedBenchmarks();
   return 0;

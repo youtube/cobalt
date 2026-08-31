@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/command_line.h"
+#include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
@@ -25,6 +27,7 @@ namespace benchmark {
 // Dummy functions to force linking of benchmark objects
 void LinkPlayerCreateBenchmark();
 void LinkPlayerDestroyBenchmark();
+void LinkPlayerSeekBenchmark();
 
 TEST(SbPlayerBenchmarkTest, RunPlayerBenchmarks) {
 #if BUILDFLAG(IS_ANDROID)
@@ -36,12 +39,20 @@ TEST(SbPlayerBenchmarkTest, RunPlayerBenchmarks) {
   // Force linking of benchmarks
   LinkPlayerCreateBenchmark();
   LinkPlayerDestroyBenchmark();
+  LinkPlayerSeekBenchmark();
 
   // Run only the player benchmarks.
   // Google Benchmark modifies argc/argv.
   int argc = 2;
+  std::string filter = "BM_Player";
+  const starboard::CommandLine* command_line =
+      starboard::testing::GetTestCommandLine();
+  if (command_line && command_line->HasSwitch("benchmark_filter")) {
+    filter = command_line->GetSwitchValue("benchmark_filter");
+  }
+  std::string filter_arg = "--benchmark_filter=" + filter;
   char* argv[] = {(char*)"player_benchmarks",
-                  (char*)"--benchmark_filter=BM_Player"};
+                  const_cast<char*>(filter_arg.c_str())};
 
   ::benchmark::Initialize(&argc, argv);
   ::benchmark::RunSpecifiedBenchmarks();

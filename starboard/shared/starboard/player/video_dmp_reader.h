@@ -170,6 +170,9 @@ class VideoDmpReader {
   VideoAccessUnit ReadVideoAccessUnit();
   static Registry* GetRegistry();
 
+  std::string audio_mime_;
+  std::string video_mime_;
+
   const bool allow_read_on_demand_;
 
   FileCacheReader file_reader_;
