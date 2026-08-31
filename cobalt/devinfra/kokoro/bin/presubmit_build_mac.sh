@@ -85,9 +85,6 @@ EOF
   local json_targets=""
   if ! is_nightly_build; then
     local test_targets_json="${WORKSPACE_COBALT}/cobalt/build/testing/targets/${TARGET_PLATFORM}/test_targets.json"
-    if [[ ! -f "${test_targets_json}" ]]; then
-      test_targets_json="${WORKSPACE_COBALT}/cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json"
-    fi
     if [[ -f "${test_targets_json}" ]]; then
       # Extract test targets from the JSON file (list of dicts schema)
       # and format them as a space-separated list of target names (after the colon).
