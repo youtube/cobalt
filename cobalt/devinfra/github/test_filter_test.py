@@ -124,7 +124,6 @@ class TestGetGtestFilter(unittest.TestCase):
         'Suite.TargetTest')
 
 
-
 class TestCli(unittest.TestCase):
   """Tests for CLI entry point in main()."""
 
