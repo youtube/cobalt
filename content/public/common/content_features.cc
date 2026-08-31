@@ -1335,7 +1335,7 @@ BASE_FEATURE(kDoNotGenerateChromiumA11yTree,
              "DoNotGenerateChromiumA11yTree",
              BUILDFLAG(IS_COBALT) ? base::FEATURE_ENABLED_BY_DEFAULT
                                    : base::FEATURE_DISABLED_BY_DEFAULT);
->>>>>>> parent of 035876acff5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)

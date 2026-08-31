@@ -43,7 +43,7 @@ base::OnceClosure XzOperation(
     const OperationResult& in_file_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
 #else
->>>>>>> parent of 035876acff5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif

@@ -277,7 +277,7 @@ vars = {
   # in favor of setting the '--reapi_backend_config_path' argument to
   # 'cobalt.star'
   'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
->>>>>>> parent of 035876acff5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # reclient options.
   # RBE project to download rewrapper config files for. Only needed if
@@ -2680,7 +2680,7 @@ deps = {
 # Cobalt: imported
 #  'src/third_party/perfetto':
 #    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'eaea6f0e8df6cd2c7a131058f8606a02d489e163',
->>>>>>> parent of 035876acff5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -3058,7 +3058,7 @@ deps = {
 # Cobalt: imported
 #  'src/third_party/webrtc':
 #    Var('webrtc_git') + '/src.git' + '@' + '771386d09d464bd2fd22205b629f9ac9356584c4',
->>>>>>> parent of 035876acff5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.

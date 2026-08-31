@@ -499,7 +499,7 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
 #else
   std::vector<JniAudioDevice> j_devices =
       GetJniDelegate().GetDevices(direction == AudioDeviceDirection::kInput);
->>>>>>> parent of 035876acff5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   for (auto& pair : devices) {
     const AudioDevice& device = pair.second;
