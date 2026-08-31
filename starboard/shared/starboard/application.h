@@ -40,7 +40,7 @@ namespace starboard {
 
 // A small application framework for managing the application life-cycle, and
 // dispatching events to the Starboard event handler, SbEventHandle.
-class SB_EXPORT_ANDROID Application {
+class SB_EXPORT Application {
  public:
   // Executes a SbEventHandle method callback.
   SbEventHandleCallback sb_event_handle_callback_ = NULL;

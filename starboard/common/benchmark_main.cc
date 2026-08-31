@@ -17,8 +17,17 @@
 #include "starboard/system.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
+namespace starboard {
+namespace benchmark {
+void LinkPlayerCreateBenchmark();
+void LinkPlayerDestroyBenchmark();
+}  // namespace benchmark
+}  // namespace starboard
+
 namespace {
 int RunAllBenchmarks(int argc, char** argv) {
+  starboard::benchmark::LinkPlayerCreateBenchmark();
+  starboard::benchmark::LinkPlayerDestroyBenchmark();
   ::benchmark::Initialize(&argc, argv);
   ::benchmark::RunSpecifiedBenchmarks();
   return 0;

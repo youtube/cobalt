@@ -30,7 +30,7 @@ namespace starboard {
 
 // An application implementation that uses a signaling thread-safe queue to
 // manage event dispatching.
-class QueueApplication : public Application {
+class SB_EXPORT QueueApplication : public Application {
  public:
   explicit QueueApplication(SbEventHandleCallback sb_event_handle_callback)
       : Application(sb_event_handle_callback) {}
