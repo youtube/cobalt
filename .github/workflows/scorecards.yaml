@@ -55,9 +55,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           PR_NUM="${{ github.event.pull_request.number }}"
-          echo "Fetching modified files for PR $PR_NUM..."
-          gh pr view "$PR_NUM" --json files --jq '[.files[].path | split("/") | .[:-1] | join("/")] | unique | .[] | select(. != "")' | \
-            xargs -r git sparse-checkout add
+          DIRS=$(gh pr view "$PR_NUM" --json files --jq '[.files[].path | split("/") | .[:-1] | join("/")] | unique | .[] | select(. != "")')
+          echo "$DIRS" | xargs -r git sparse-checkout add
 
       - name: "Run analysis"
         uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
