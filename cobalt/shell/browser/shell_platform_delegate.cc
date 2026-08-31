@@ -88,26 +88,16 @@ void ShellPlatformDelegate::TrackPreviouslyVisibleWebContents(
 void ShellPlatformDelegate::RemovePreviouslyVisibleWebContents(
     content::WebContents* web_contents) {
   previously_visible_web_contents_.erase(web_contents);
-  pending_conceal_web_contents_.erase(web_contents);
   pending_reveal_web_contents_.erase(web_contents);
+
   if (is_visible_ && IsWaitingForRevealAck() &&
       pending_reveal_web_contents_.empty()) {
-    ClearWaitingForRevealAck();
-    if (deferred_focus_) {
-      for (auto* w : Shell::windows()) {
-        w->Focus();
-      }
-      deferred_focus_ = false;
-    }
-    cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
-        static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
-  } else if (!is_visible_ && pending_conceal_web_contents_.empty()) {
-    cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
-        static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
-    content::CleanupGpuProcessOnUI(base::BindOnce([] {
-      cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
-          nullptr);
-    }));
+    OnAllFramesVisible(nullptr);
+  } else if (!is_visible_) {
+    // If concealing, delegate to OnAllFramesConcealed which handles erasing
+    // from pending_conceal_web_contents_, unregistering the observer, and
+    // triggering CleanupGpuProcessOnUI once all pending windows are gone.
+    OnAllFramesConcealed(web_contents);
   }
 }
 
