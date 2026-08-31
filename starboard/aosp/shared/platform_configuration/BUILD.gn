@@ -23,11 +23,16 @@ config("platform_configuration") {
       "-Wl,--wrap=access",
       "-Wl,--wrap=alarm",
       "-Wl,--wrap=close",
+      "-Wl,--wrap=closedir",
+      "-Wl,--wrap=fdopendir",
       "-Wl,--wrap=fstatat",
       "-Wl,--wrap=if_indextoname",
       "-Wl,--wrap=mkostemp",
       "-Wl,--wrap=open",
+      "-Wl,--wrap=opendir",
       "-Wl,--wrap=openat",
+      "-Wl,--wrap=readdir",
+      "-Wl,--wrap=readdir_r",
       "-Wl,--wrap=stat",
     ]
   }
