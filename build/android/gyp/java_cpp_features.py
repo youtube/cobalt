@@ -19,7 +19,8 @@ class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   # Ex. 'BASE_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
   # or 'BASE_FEATURE(ConstantName, ...)'
   # or 'STARBOARD_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
-  # or 'STARBOARD_FEATURE(ConstantName, ...)'  # would parse as:
+  # or 'STARBOARD_FEATURE(ConstantName, ...)'
+  # would parse as:
   #   ExtractConstantName() -> 'ConstantName'
   #   ExtractValue() -> '"StringNameOfTheFeature"' or '"ConstantName"'
   # For 3-arg macro: BASE_FEATURE(kMyFeature, "MyFeature", ...)
