@@ -29,7 +29,7 @@ namespace {
 void BM_PlayerDestroySync(::benchmark::State& state) {
   SbPlayerBenchmarkHelper helper;
   SbPlayerCreationParam creation_param;
-  helper.GetCreationParam(&creation_param, kSbPlayerOutputModePunchOut);
+  helper.GetCreationParam(&creation_param, kSbPlayerOutputModeDecodeToTexture);
 
   for (auto _ : state) {
     // 1. Create player (not timed)

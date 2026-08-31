@@ -133,6 +133,21 @@ class FeatureList {
   bool is_initialized_ = false;
 };
 
+template <typename T>
+constexpr SbFeatureParamType GetSbFeatureParamType() {
+  if constexpr (std::is_same_v<bool, T>) {
+    return SbFeatureParamTypeBool;
+  } else if constexpr (std::is_same_v<int, T>) {
+    return SbFeatureParamTypeInt;
+  } else if constexpr (std::is_same_v<double, T>) {
+    return SbFeatureParamTypeDouble;
+  } else if constexpr (std::is_same_v<std::string, T>) {
+    return SbFeatureParamTypeString;
+  } else if constexpr (std::is_same_v<int64_t, T>) {
+    return SbFeatureParamTypeTime;
+  }
+}
+
 // SbFeatureParamExt is a bridge structure used in starboard to support params
 // of different data types, like base::FeatureParam.
 template <typename T>
