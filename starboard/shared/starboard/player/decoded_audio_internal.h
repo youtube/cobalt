@@ -49,7 +49,7 @@ class DecodedAudio {
 
   // Disable copy and assignment.
   DecodedAudio(const DecodedAudio&) = delete;
-  void operator=(const DecodedAudio&) = delete;
+  DecodedAudio& operator=(const DecodedAudio&) = delete;
 
   static void EnableSimdBasedAudioFormatSwitching();
 
