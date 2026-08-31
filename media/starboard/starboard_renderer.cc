@@ -617,7 +617,9 @@ void StarboardRenderer::UpdateUrlPlayerVideoResolution() {
 
   url_player_video_size_ = size;
   client_->OnVideoNaturalSizeChange(size);
-  paint_video_hole_frame_cb_.Run(size);
+  if (player_bridge_->GetSbPlayerOutputMode() == kSbPlayerOutputModePunchOut) {
+    paint_video_hole_frame_cb_.Run(size);
+  }
 }
 
 void StarboardRenderer::OnUrlPlayerPresenting() {
@@ -883,8 +885,11 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     }
 #endif  // 0
     color_space_ = decoder_config.color_space_info().ToGfxColorSpace();
-    paint_video_hole_frame_cb_.Run(
-        stream->video_decoder_config().visible_rect().size());
+    if (player_bridge_->GetSbPlayerOutputMode() ==
+        kSbPlayerOutputModePunchOut) {
+      paint_video_hole_frame_cb_.Run(
+          stream->video_decoder_config().visible_rect().size());
+    }
   }
 }
 
@@ -965,8 +970,11 @@ void StarboardRenderer::OnDemuxerStreamRead(
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
           stream->video_decoder_config().visible_rect().size());
-      paint_video_hole_frame_cb_.Run(
-          stream->video_decoder_config().visible_rect().size());
+      if (player_bridge_->GetSbPlayerOutputMode() ==
+          kSbPlayerOutputModePunchOut) {
+        paint_video_hole_frame_cb_.Run(
+            stream->video_decoder_config().visible_rect().size());
+      }
     }
     UpdateDecoderConfig(stream);
     stream->Read(
