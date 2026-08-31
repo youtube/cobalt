@@ -845,7 +845,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   /** Overridden by Kimono to provide specific Java switch configurations. */
   protected Map<String, String> getJavaSwitches() {
-    mJavaSwitches.put(JavaSwitches.ENABLE_FREEZE, "");
     return this.mJavaSwitches;
   }
 
