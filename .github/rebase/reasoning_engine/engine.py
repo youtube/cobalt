@@ -87,6 +87,7 @@ class CobaltReasoningEngine:
       expert_model: Optional[str] = None,
       expert_provider: Optional[str] = None,
       expert_location: Optional[str] = None,
+      pro_model: Optional[str] = None,
       skills_dir: Optional[str] = None,
       gcs_memory_uri: Optional[str] = None,
       **kwargs,
@@ -97,7 +98,9 @@ class CobaltReasoningEngine:
     self.location = location
     self.flash_model = flash_model or "gemini-3.7-flash"
     self.expert_model = (
-        expert_model or os.environ.get("EXPERT_MODEL") or "claude-sonnet-5")
+        expert_model or pro_model or os.environ.get("EXPERT_MODEL") or
+        "claude-sonnet-5")
+    self.pro_model = pro_model or self.expert_model
     self.expert_provider = (
         expert_provider or os.environ.get("EXPERT_PROVIDER") or
         ("anthropic" if "claude" in self.expert_model.lower() else
@@ -378,7 +381,11 @@ class CobaltReasoningEngine:
           msg = res_data["choices"][0].get("message", {})
           text = msg.get("content") or msg.get("reasoning_content") or ""
           if text:
-            return text
+            cleaned = re.sub(
+                r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+            if not cleaned and ("<think>" in text or "</think>" in text):
+              cleaned = re.sub(r"</?think>", "", text).strip()
+            return cleaned or text
     except Exception as e:  # pylint: disable=broad-exception-caught
       print(
           f"  [REASONING_ENGINE] Warning: GLM/OpenAI query failed: {e}. "
@@ -456,9 +463,11 @@ class CobaltReasoningEngine:
       if glm_resp:
         return glm_resp
 
-    # 3. Gemini Thinking Expert (e.g. gemini-3.7-flash or gemini-2.5-pro)
-    target_gemini_model = expert_name if "gemini" in expert_name.lower(
-    ) else self.pro_model
+    # 3. Gemini Thinking Expert (e.g. gemini-3.7-flash)
+    target_gemini_model = (
+        expert_name if "gemini" in expert_name.lower() else
+        (self.flash_model
+         if "gemini" in self.flash_model.lower() else "gemini-3.7-flash"))
     print(
         f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to "
         f"{target_gemini_model} with thinking...",
@@ -819,24 +828,30 @@ class CobaltReasoningEngine:
     sys_inst = ("You are an expert Chromium and Cobalt GN build engineer.\n\n"
                 f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
                 f"--- GN Healing Skill ---\n{gn_skill}\n")
-    prompt = (f"GN Build Error:\n--------------------\n{error_trace}\n"
-              "--------------------\n\n"
-              f"{expert_section}"
-              f"{investigation_section}"
-              f"{past_lessons_section}"
-              f"Prior Attempt History:\n{attempt_history}\n\n"
-              f"Relevant File Definitions:\n{file_context}\n\n"
-              "Instructions:\n"
-              "- If you need to inspect files or search paths, output a single "
-              "TOOL_ command (e.g. `TOOL_READ_FILE: <path> <start>-<end>` or "
-              "`TOOL_FIND_FILE: <pattern>`).\n"
-              "- Otherwise output the final SEARCH / REPLACE block:\n"
-              "FILE: <relative_filepath>\n"
-              "<<<<<<< SEARCH\n"
-              "<exact lines to replace>\n"
-              "=======\n"
-              "<fixed replacement lines>\n"
-              ">>>>>>> REPLACE")
+    prompt = (
+        f"GN Build Error:\n--------------------\n{error_trace}\n"
+        "--------------------\n\n"
+        f"{expert_section}"
+        f"{investigation_section}"
+        f"{past_lessons_section}"
+        f"Prior Attempt History:\n{attempt_history}\n\n"
+        f"Relevant File Definitions:\n{file_context}\n\n"
+        "Instructions:\n"
+        "- If you need to inspect files or search paths, output TOOL_ "
+        "commands (e.g. `TOOL_READ_FILE: <path> <start>-<end>`, "
+        "`TOOL_GREP: <query> [path]`, `TOOL_FIND_FILE: <pattern>`).\n"
+        "- Otherwise output the final SEARCH / REPLACE block:\n"
+        "FILE: <relative_filepath>\n"
+        "<<<<<<< SEARCH\n"
+        "<exact lines to replace WITHOUT line numbers>\n"
+        "=======\n"
+        "<fixed replacement lines WITHOUT line numbers>\n"
+        ">>>>>>> REPLACE\n\n"
+        "CRITICAL RULES:\n"
+        "- DO NOT attach line numbers (e.g. `1060: `) inside SEARCH or "
+        "REPLACE blocks. Include only clean code lines.\n"
+        "- Code formatting/linting is not required; automated tools handle "
+        "formatting post-patch.")
 
     if use_expert:
       patch_text = self._generate_expert_content(
@@ -912,34 +927,40 @@ class CobaltReasoningEngine:
                 f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
                 f"--- Compiler Healing Skill ---\n{compiler_skill}"
                 f"{gn_skill_section}\n")
-    prompt = (f"autoninja build for \"{eff_target}\" failed.\n\n"
-              f"{expert_section}"
-              f"Compiler Diagnostics:\n--------------------\n{eff_diag}\n"
-              "--------------------\n\n"
-              f"{investigation_section}"
-              f"{past_lessons_section}"
-              f"Offending Source Code Excerpts:\n{eff_ctx}\n\n"
-              "Instructions:\n"
-              "- When encountering undeclared identifiers, unknown types, or "
-              "incomplete types, DO NOT guess namespaces. Use TOOL_GREP to "
-              "find the defining header in Chromium:\n"
-              "  TOOL_GREP: <symbol>\n"
-              "- If you need to inspect referencing BUILD.gn files or read "
-              "headers, output a single TOOL_ command (e.g. `TOOL_READ_FILE: "
-              "<path> <start>-<end>` or `TOOL_FIND_FILE: <pattern>`).\n"
-              "- Otherwise output the final SEARCH / REPLACE or DELETE block:\n"
-              "  * To replace / add include:\n"
-              "  FILE: <relative_filepath>\n"
-              "  <<<<<<< SEARCH\n"
-              "  <exact lines to replace>\n"
-              "  =======\n"
-              "  <fixed replacement lines>\n"
-              "  >>>>>>> REPLACE\n"
-              "  * To delete obsolete code:\n"
-              "  FILE: <relative_filepath>\n"
-              "  <<<<<<< DELETE\n"
-              "  <exact lines to delete>\n"
-              "  >>>>>>> DELETE")
+    prompt = (
+        f"autoninja build for \"{eff_target}\" failed.\n\n"
+        f"{expert_section}"
+        f"Compiler Diagnostics:\n--------------------\n{eff_diag}\n"
+        "--------------------\n\n"
+        f"{investigation_section}"
+        f"{past_lessons_section}"
+        f"Offending Source Code Excerpts:\n{eff_ctx}\n\n"
+        "Instructions:\n"
+        "- When encountering undeclared identifiers, unknown types, or "
+        "incomplete types, DO NOT guess namespaces. Use TOOL_GREP to "
+        "find the defining header in Chromium:\n"
+        "  TOOL_GREP: <symbol>\n"
+        "- If you need to inspect referencing BUILD.gn files or read "
+        "headers, output TOOL_ commands (e.g. `TOOL_READ_FILE: <path> "
+        "<start>-<end>`, `TOOL_GREP: <query>`, `TOOL_FIND_FILE: <pattern>`).\n"
+        "- Otherwise output the final SEARCH / REPLACE or DELETE block:\n"
+        "  * To replace / add include / modify BUILD.gn:\n"
+        "  FILE: <relative_filepath>\n"
+        "  <<<<<<< SEARCH\n"
+        "  <exact lines to replace WITHOUT line numbers>\n"
+        "  =======\n"
+        "  <fixed replacement lines WITHOUT line numbers>\n"
+        "  >>>>>>> REPLACE\n"
+        "  * To delete obsolete code:\n"
+        "  FILE: <relative_filepath>\n"
+        "  <<<<<<< DELETE\n"
+        "  <exact lines to delete WITHOUT line numbers>\n"
+        "  >>>>>>> DELETE\n\n"
+        "CRITICAL RULES:\n"
+        "- DO NOT attach line numbers (e.g. `1060: `) inside SEARCH or "
+        "REPLACE blocks. Include only clean code lines.\n"
+        "- Code formatting/linting is not required; automated tools handle "
+        "formatting post-patch.")
 
     if use_expert:
       patch_text = self._generate_expert_content(

@@ -33,10 +33,12 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
    - Use `TOOL_READ_FILE: <caller_header.h>` and `TOOL_READ_FILE: <caller.cc>` to inspect the C++ class declaration.
    - Update the C++ class declaration and definition (or add missing native methods) to match the signature expected by the generated bindings.
 6. Linker Errors (`ld.lld: error: undefined symbol: Class::Method`):
-   - When encountering an undefined symbol error during linking, do NOT assume it is solely a `BUILD.gn` dependency issue.
-   - Use `TOOL_GREP: Class` or `TOOL_GREP: Method` to locate the class declaration (`.h`) and implementation (`.cc`) files.
-   - Use `TOOL_READ_FILE: <path/to/header.h>` and `TOOL_READ_FILE: <path/to/source.cc>` to verify if the method/constructor was declared in the header but its implementation is missing in the `.cc` file.
-   - If the implementation is missing in `.cc`, provide the definition in the `.cc` file (`FILE: path/to/source.cc`) instead of modifying GN build files.
+   - When encountering an undefined symbol error during linking, locate the class declaration (`.h`) and implementation (`.cc`) files using `TOOL_FIND_FILE` or `TOOL_GREP`.
+   - If the implementation exists in a `.cc` file:
+     * Check if the `.cc` file is in `sources` of its parent subsystem `BUILD.gn`.
+     * CRITICAL: Check whether downstream rules in that `BUILD.gn` (such as `sources -= [...]`, `filter_exclude(sources, [...])`, or `if (!enable_privacy_sandbox_apis)` / `if (is_cobalt)`) unintentionally strip or exclude the `.cc` file!
+     * If a wildcard exclusion (e.g. `"fenced_frame/*"`) accidentally strips necessary files like `fenced_frame_viewport_observer.cc`, refine the `filter_exclude` list in that `BUILD.gn` to preserve the needed source files.
+   - If the implementation is actually missing in `.cc`, provide the definition in the `.cc` file (`FILE: path/to/source.cc`).
 7. Missing Include Headers ('<header.h>' file not found):
    - When Clang reports `'<header.h>' file not found`:
    - NEVER guess or invent alternative include paths or namespaces.
@@ -62,18 +64,20 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
    - `#if defined(STARBOARD)`
 3. MINIMAL SURGICAL FIXES: Fix only the root cause of the reported error.
 4. STRICT MACHINE-READABLE OUTPUT: Return ONLY standard SEARCH / REPLACE or DELETE blocks:
+   - DO NOT include line numbers (e.g. `1060:`) in SEARCH/REPLACE blocks. Include only clean code lines.
+   - Code formatting/linting is not required; automated formatters handle formatting post-patch.
    - For code replacements / modifications:
      FILE: <relative_filepath>
      <<<<<<< SEARCH
-     <exact lines to replace>
+     <exact lines to replace WITHOUT line numbers>
      =======
-     <fixed replacement lines>
+     <fixed replacement lines WITHOUT line numbers>
      >>>>>>> REPLACE
 
    - For code deletions (intentional removal of obsolete stubs or APIs):
      FILE: <relative_filepath>
      <<<<<<< DELETE
-     <exact lines to delete>
+     <exact lines to delete WITHOUT line numbers>
      >>>>>>> DELETE
 
 ## Universal Rebase Healing Principles
@@ -92,6 +96,28 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
    - When `ld.lld: error: obj/... is incompatible with <arch>` occurs, the component target was excluded from compilation by a platform `if / else` condition (e.g. `if (is_starboard) ... else component(...)`), its visibility was restricted away from its caller, or `configs` was overwritten inside an intermediate helper scope.
    - Ensure the component target (e.g. `component("foo")`) is defined directly and unconditionally for all platforms with standard public visibility (e.g. `visibility = [ "//build/config/foo:foo" ]`), standard config adjustments (`configs -= [...]`, `configs += [...]`), and platform-specific flags/configs (`if (is_starboard) { ... }`) directly inside the target definition.
    - Do NOT use intermediate property scopes (`_foo_props = { ... }`), do NOT restrict visibility to obsolete wrapper targets (like `//third_party:freetype_harfbuzz`), and do NOT add hallucinated compiler flags.
+5. ROOT CAUSE LOCALIZATION: MAPPING `obj/` AND `gen/` PATHS TO REAL SOURCE FILES:
+   - When error logs or linker outputs reference `obj/`, `gen/`, or `out/` paths, NEVER attempt to edit generated files directly. Deduce and locate the real source file or `BUILD.gn`:
+     * Mapping `obj/` object paths to real C++ sources:
+       `obj/content/browser/browser/web_contents_impl.o` ➡️ Strip `obj/` and intermediate target names ➡️ Real source: `content/browser/web_contents/web_contents_impl.cc`
+       `obj/components/update_client/update_client/op_install.o` ➡️ Strip `obj/` and target name ➡️ Real source: `components/update_client/op_install.cc`
+       Target `BUILD.gn`: Located in the directory enclosing the source (e.g. `content/browser/BUILD.gn`).
+     * Mapping `gen/` generated code to source definitions:
+       `gen/.../v8_custom_element.h` ➡️ Generated from IDL ➡️ Find real source: `TOOL_FIND_FILE: *custom_element*.idl`
+       `gen/.../ip_address_space.mojom.h` ➡️ Generated from Mojom ➡️ Find real source: `TOOL_FIND_FILE: *ip_address_space*.mojom`
+       Generated JNI headers (`gen/.../jni/..._jni.h`) ➡️ Find real Java source: `TOOL_FIND_FILE: *Classname*.java`
+     * Linker errors (`ld.lld: error: undefined symbol: Foo::Bar`):
+       - Step 1: Identify the referenced object in `>>> referenced by obj/.../caller.o` ➡️ Real caller: `caller.cc`.
+       - Step 2: Use `TOOL_GREP: "Foo::Bar" <subsystem>/` to find where the definition lives in `.cc`.
+       - Step 3: Check if the definition file was excluded from `BUILD.gn` or if the caller needs `#if BUILDFLAG(...)` macro guards.
+     * Investigation workflow:
+       - Use `TOOL_FIND_FILE: *<basename>*` to locate the real file on disk.
+       - Use `TOOL_UPSTREAM_DIFF: <path>` to see what upstream Chromium changed.
+       - Output the fix targeting the real `.cc`, `.h`, `.idl`, or `BUILD.gn` file.
+6. COBALT BINARY SIZE & FEATURE STRIPPING POLICY:
+   - When a feature is disabled via GN flags (e.g., `enable_privacy_sandbox_apis = false`, `enable_vulkan = false`):
+     * DO NOT re-add excluded sources to `BUILD.gn` to satisfy linker errors.
+     * DO wrap referencing call sites in core C++ files with `#if BUILDFLAG(...)` to completely strip dead code and minimize `libchrobalt.so` binary footprint.
 
 
 ---

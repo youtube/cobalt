@@ -42,19 +42,21 @@ When a target definition in `BUILD.gn` fails or is suspected of merge/rebase ano
    - Ensure `visibility` includes the standard configuration wrapper (e.g. `visibility = [ "//build/config/foo:foo" ]`) rather than obsolete targets (like `//third_party:freetype_harfbuzz`).
    - Do NOT add non-existent, hallucinated targets to `deps`.
 6. STRICT OUTPUT:
+   - DO NOT include line numbers (e.g. `1060:`) in SEARCH/REPLACE blocks. Include only clean code lines.
+   - Code formatting/linting is not required; automated formatters handle formatting post-patch.
    - When returning the fix, output ONLY standard SEARCH / REPLACE or DELETE blocks:
      * For replacements:
        FILE: <relative_filepath>
        <<<<<<< SEARCH
-       <exact lines to replace>
+       <exact lines to replace WITHOUT line numbers>
        =======
-       <fixed replacement lines>
+       <fixed replacement lines WITHOUT line numbers>
        >>>>>>> REPLACE
 
      * For deletions (e.g. removing obsolete flags):
        FILE: <relative_filepath>
        <<<<<<< DELETE
-       <exact lines to delete>
+       <exact lines to delete WITHOUT line numbers>
        >>>>>>> DELETE
 
 

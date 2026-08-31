@@ -18,8 +18,8 @@ from base_resolver import (
     apply_patch_or_replacement,
     execute_local_tool,
     extract_build_progress,
+    extract_tool_commands,
     get_chromium_milestone,
-    is_unmodified_third_party,
 )
 from conflicts import (
     detect_language,
@@ -549,25 +549,86 @@ void Foo() {{}}
       if os.path.exists(tmp_path):
         os.remove(tmp_path)
 
-  def test_is_unmodified_third_party_allows_cobalt_stubs(self):
-    """Tests that Cobalt stubs under third_party are not blocked by guard."""
+  def test_execute_local_tool_multi_arg_grep_and_list_dir(self):
+    """Tests execute_local_tool with path filter and list_dir."""
     with tempfile.TemporaryDirectory() as tmp_dir:
-      cobalt_stub = os.path.join(
-          tmp_dir,
-          "third_party/blink/renderer/platform/graphics/gpu",
-          "cobalt_webgpu_stubs.cc",
-      )
-      os.makedirs(os.path.dirname(cobalt_stub), exist_ok=True)
-      with open(cobalt_stub, "w", encoding="utf-8") as f:
-        f.write("// Fake webgpu stub\n")
+      sub_dir = os.path.join(tmp_dir, "content", "browser")
+      os.makedirs(sub_dir, exist_ok=True)
+      gn_file = os.path.join(sub_dir, "BUILD.gn")
+      with open(gn_file, "w", encoding="utf-8") as f:
+        f.write('sources = [ "fenced_frame/observer.cc" ]\n')
 
-      pure_third_party = os.path.join(tmp_dir, "third_party/xnnpack/src/xnn.h")
-      os.makedirs(os.path.dirname(pure_third_party), exist_ok=True)
-      with open(pure_third_party, "w", encoding="utf-8") as f:
-        f.write("// Pure upstream xnnpack\n")
+      # Test TOOL_LIST_DIR
+      list_res = execute_local_tool("TOOL_LIST_DIR: content/browser", tmp_dir)
+      self.assertIn("BUILD.gn", list_res)
 
-      self.assertFalse(is_unmodified_third_party(cobalt_stub, tmp_dir))
-      self.assertTrue(is_unmodified_third_party(pure_third_party, tmp_dir))
+      # Test TOOL_READ_FILE with line numbers
+      read_res = execute_local_tool(
+          "TOOL_READ_FILE: content/browser/BUILD.gn 1-1", tmp_dir)
+      self.assertIn('1: sources = [ "fenced_frame/observer.cc" ]', read_res)
+
+  def test_extract_tool_commands_multi_tool_and_think_tags(self):
+    """Tests that extract_tool_commands parses tools and strips think tags."""
+    glm_output = (
+        "<think>\n"
+        "I need to read BUILD.gn around line 1060 and check filter_exclude.\n"
+        "</think>\n"
+        "TOOL_READ_FILE: content/browser/BUILD.gn 1060-1075\n"
+        "TOOL_READ_FILE: content/browser/BUILD.gn 3720-3750\n"
+        "TOOL_GREP: fenced_frame content/browser/BUILD.gn\n")
+    cmds = extract_tool_commands(glm_output)
+    self.assertEqual(len(cmds), 3)
+    self.assertEqual(cmds[0],
+                     "TOOL_READ_FILE: content/browser/BUILD.gn 1060-1075")
+    self.assertEqual(cmds[1],
+                     "TOOL_READ_FILE: content/browser/BUILD.gn 3720-3750")
+    self.assertEqual(cmds[2],
+                     "TOOL_GREP: fenced_frame content/browser/BUILD.gn")
+
+    # Test inline tag leak
+    inline_leak = ("TOOL_READ_FILE: content/browser/BUILD.gn 1060-1075</think>"
+                   "The results confirm\n")
+    cmds2 = extract_tool_commands(inline_leak)
+    self.assertEqual(len(cmds2), 1)
+    self.assertEqual(cmds2[0],
+                     "TOOL_READ_FILE: content/browser/BUILD.gn 1060-1075")
+
+  def test_parse_linker_undefined_symbol_ignores_command_line_noise(self):
+    """Tests that linker parser does not match noise in command line."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      content_dir = os.path.join(tmp_dir, "content", "browser")
+      os.makedirs(content_dir, exist_ok=True)
+      gn_file = os.path.join(content_dir, "BUILD.gn")
+      with open(gn_file, "w", encoding="utf-8") as f:
+        f.write('source_set("browser") {}\n')
+
+      noisy_output = (
+          "FAILED: ./libchrobalt.so\n"
+          "clang++ -o ./libchrobalt.so "
+          "obj/third_party/rust/cxx/v1/lib/libcxx.rlib\n"
+          "ld.lld: error: undefined symbol: "
+          "content::FencedFrameViewportObserver::"
+          "FencedFrameViewportObserver()\n"
+          ">>> referenced by web_contents_impl.cc:1405\n"
+          ">>>               obj/content/browser/browser/web_contents_impl.o\n")
+      diags = parse_compiler_errors(noisy_output, tmp_dir)
+      self.assertEqual(len(diags), 1)
+      self.assertEqual(diags[0].file_path, os.path.abspath(gn_file))
+      self.assertIn("undefined symbol", diags[0].error_message)
+
+  def test_parse_compiler_errors_universal_catch_all(self):
+    """Tests that arbitrary non-standard errors trigger catch-all."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      java_output = (
+          "FAILED: obj/cobalt/android/cobalt_apk.javac.jar\n"
+          "Traceback (most recent call last):\n"
+          "  File '../../build/android/gyp/javac.py', line 45, in <module>\n"
+          "    sys.exit(main())\n"
+          "Java compilation failed with 2 errors in CobaltActivity.java\n")
+      diags = parse_compiler_errors(java_output, tmp_dir)
+      self.assertEqual(len(diags), 1)
+      self.assertIn("Build failure", diags[0].error_message)
+      self.assertIn("Java compilation failed", diags[0].raw_snippet)
 
   def test_record_and_load_memory(self):
     """Tests recording and loading knowledge memory bank entries on engine."""

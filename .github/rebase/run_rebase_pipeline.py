@@ -91,6 +91,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
       help="Optional Gemini model override (e.g. gemini-3.7-flash).",
   )
   parser.add_argument(
+      "--expert-model",
+      default=os.environ.get("EXPERT_MODEL", "claude-sonnet-5"),
+      help="Optional Tier-2 Expert model override (e.g. zai-org/glm-5.2-maas).",
+  )
+  parser.add_argument(
       "--skip-conflicts",
       action="store_true",
       help="Skip Phase 1 (Conflict resolution).",
@@ -192,6 +197,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
       project_id=args.project_id,
       location=args.location,
       flash_model=args.model or "gemini-3.7-flash",
+      expert_model=args.expert_model,
       skills_dir=args.skills_dir,
       gcs_memory_uri=args.gcs_memory_uri,
       local=args.local,

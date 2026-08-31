@@ -130,6 +130,9 @@ def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
                 l.startswith("======="))
     ]
     content = "".join(code_lines)
+    content_lower = content.lower()
+    if "cobalt" in content_lower or "starboard" in content_lower:
+      return False
     if any(
         m in content for m in (
             "BUILDFLAG(IS_COBALT)",
@@ -219,6 +222,17 @@ def apply_search_replace(file_path: str, search_block: str,
   clean_replace = "\n".join(sanitized_lines)
   if replace_block.endswith("\n"):
     clean_replace += "\n"
+
+  # Strip leading line numbers (e.g. `1060: `) if model attached them
+  cleaned_search_lines = [
+      re.sub(r"^\s*\d+:\s*", "", l) for l in search_block.splitlines()
+  ]
+  search_block = "\n".join(cleaned_search_lines)
+
+  cleaned_replace_lines = [
+      re.sub(r"^\s*\d+:\s*", "", l) for l in clean_replace.splitlines()
+  ]
+  clean_replace = "\n".join(cleaned_replace_lines)
 
   with open(file_path, "r", encoding="utf-8", errors="replace") as f:
     content = f.read()
@@ -349,8 +363,10 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
   # 1. Explicit DELETE block: <<<<<<< DELETE ... >>>>>>> DELETE
   if "<<<<<<< DELETE" in clean_text and ">>>>>>> DELETE" in clean_text:
     del_pattern = re.compile(
-        r"(?:FILE|Target File):\s*([a-zA-Z0-9_/\.\-]+)\s*\n"
-        r"<<<<<<<\s*DELETE\n(.*?)\n>>>>>>>\s*DELETE",
+        r"(?:FILE|Target File|\*\*FILE\*\*|\*\*Target File\*\*):\s*"
+        r"[`'\"]*([a-zA-Z0-9_/\.\-]+)[`'\"]*\s*[\r\n]+"
+        r"(?:\s*[\r\n]+)*"
+        r"<<<<<<<\s*DELETE\r?\n(.*?)\r?\n>>>>>>>\s*DELETE",
         re.DOTALL,
     )
     matches = del_pattern.findall(clean_text)
@@ -371,8 +387,11 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
   # 2. SEARCH / REPLACE format: <<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE
   if "<<<<<<< SEARCH" in clean_text and "=======" in clean_text:
     sr_pattern = re.compile(
-        r"(?:FILE|Target File):\s*([a-zA-Z0-9_/\.\-]+)\s*\n"
-        r"<<<<<<<\s*SEARCH\n(.*?)\n=======\n(.*?)\n>>>>>>>\s*REPLACE",
+        r"(?:FILE|Target File|\*\*FILE\*\*|\*\*Target File\*\*):\s*"
+        r"[`'\"]*([a-zA-Z0-9_/\.\-]+)[`'\"]*\s*[\r\n]+"
+        r"(?:\s*[\r\n]+)*"
+        r"<<<<<<<\s*SEARCH\r?\n(.*?)\r?\n"
+        r"=======\r?\n(.*?)\r?\n>>>>>>>\s*REPLACE",
         re.DOTALL,
     )
     matches = sr_pattern.findall(clean_text)
@@ -421,20 +440,49 @@ def sanitize_filepath_token(raw_target: str) -> str:
   return clean.lstrip("./")
 
 
+def extract_tool_commands(text: str) -> List[str]:
+  """Extracts all TOOL_ commands, stripping think tags/backticks."""
+  clean = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+  clean = re.sub(r"</?think>.*$", "", clean, flags=re.MULTILINE)
+  clean = re.sub(r"</?think>", "", clean)
+  commands: List[str] = []
+  seen = set()
+  for line in clean.splitlines():
+    l_strip = line.strip()
+    if m := re.match(r"^(TOOL_[A-Z_]+:\s*[^\n<`]+)", l_strip):
+      cmd = m.group(1).strip()
+      cmd = re.sub(r"[`'\"]+$", "", cmd).strip()
+      if cmd and cmd not in seen:
+        seen.add(cmd)
+        commands.append(cmd)
+  return commands
+
+
 def execute_local_tool(cmd: str, repo_path: str) -> str:
-  """Executes safe read-only multi-turn inspection tools for Gemini."""
+  """Executes safe read-only multi-turn inspection tools for LLM."""
   clean_cmd = cmd.strip()
+
+  # 1. TOOL_READ_FILE: <path> [line_range]
   if clean_cmd.startswith("TOOL_READ_FILE:"):
     raw_args = clean_cmd.split(":", 1)[1].strip()
-    tokens = re.findall(r"[^\s\(\)\[\]]+", raw_args)
+    tokens = [
+        t.strip("`'\"<>,;:") for t in raw_args.split() if t.strip("`'\"<>,;:")
+    ]
     if not tokens:
       return "[ERROR] No file path provided."
-    target_rel = tokens[0].strip("`'\"<>,;:")
+    target_rel = tokens[0]
     line_range = ""
     for t in tokens[1:]:
       if re.match(r"^\d+-\d+$", t) or re.match(r"^\d+\.\.\d+$", t):
         line_range = t.replace("..", "-")
         break
+    if ":" in target_rel and not line_range:
+      parts = target_rel.split(":", 1)
+      target_rel = parts[0]
+      if (re.match(r"^\d+-\d+$", parts[1]) or
+          re.match(r"^\d+\.\.\d+$", parts[1])):
+        line_range = parts[1].replace("..", "-")
+
     target_abs = resolve_repo_file_path(target_rel, repo_path)
     if not os.path.isfile(target_abs):
       return f"[ERROR] File does not exist: {target_rel}"
@@ -448,74 +496,134 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
         selected = lines[s_line - 1:e_line]
         numbered = [f"{s_line + i}: {l}" for i, l in enumerate(selected)]
         return "".join(numbered)
-      preview = lines[:100]
+      if len(lines) <= 250:
+        numbered = [f"{i + 1}: {l}" for i, l in enumerate(lines)]
+        return "".join(numbered)
+      preview = lines[:150]
       numbered = [f"{i + 1}: {l}" for i, l in enumerate(preview)]
+      numbered.append(
+          f"\n[... Truncated {len(lines) - 150} lines. Use TOOL_READ_FILE: "
+          f"{target_rel} <start>-<end> to view specific lines]\n")
       return "".join(numbered)
     except Exception as e:  # pylint: disable=broad-exception-caught
       return f"[ERROR] Could not read {target_rel}: {e}"
 
-  if clean_cmd.startswith("TOOL_FIND_FILE:"):
-    raw_pat = clean_cmd.split(":", 1)[1].strip()
-    tokens = re.findall(r"[^\s\(\)\[\]]+", raw_pat)
-    pattern = tokens[0].strip("`'\"<>,;:") if tokens else raw_pat
+  # 2. TOOL_GREP: <query> [path_or_glob]
+  if clean_cmd.startswith("TOOL_GREP:"):
+    raw_args = clean_cmd.split(":", 1)[1].strip()
+    query = ""
+    path_filter = ""
+    q_match = re.match(r'^([\'"])(.*?)\1(?:\s+(.*))?$', raw_args)
+    if q_match:
+      query = q_match.group(2).strip()
+      path_filter = (q_match.group(3) or "").strip().strip("`'\"")
+    else:
+      parts = raw_args.split(None, 1)
+      if len(parts) == 2:
+        query = parts[0].strip("`'\"")
+        path_filter = parts[1].strip("`'\"")
+      elif len(parts) == 1:
+        query = parts[0].strip("`'\"")
+      else:
+        return "[ERROR] No query provided to TOOL_GREP."
+
+    query = re.sub(r"\s*\(\s*\)\s*$", "", query).strip()
+    if not query:
+      return "[ERROR] Empty query in TOOL_GREP."
+
+    grep_cmd = ["git", "grep", "-n", "-I", "--max-count=15", query]
+    if path_filter:
+      grep_cmd.extend(["--", path_filter])
+    else:
+      grep_cmd.extend([
+          "--",
+          "*.gn",
+          "*.gni",
+          "*.h",
+          "*.cc",
+          "*.cpp",
+          "*.inc",
+          "*.java",
+          "*.rs",
+          "*.py",
+      ])
     try:
       res = subprocess.run(
-          ["find", ".", "-name", pattern, "-not", "-path", "*/.*"],
+          grep_cmd,
+          cwd=repo_path,
+          capture_output=True,
+          text=True,
+          errors="replace",
+          check=False,
+      )
+      lines = res.stdout.splitlines()[:30]
+      text = "\n".join(lines)
+      filt_desc = path_filter or "codebase"
+      return (text[:6000].strip() if text else
+              f"No matches found for: {query} (filter: {filt_desc})")
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      return f"[ERROR] Grep failed: {e}"
+
+  # 3. TOOL_FIND_FILE: <pattern>
+  if clean_cmd.startswith("TOOL_FIND_FILE:"):
+    raw_pat = clean_cmd.split(":", 1)[1].strip()
+    tokens = [
+        t.strip("`'\"<>,;:") for t in raw_pat.split() if t.strip("`'\"<>,;:")
+    ]
+    pattern = tokens[0] if tokens else raw_pat.strip("`'\"")
+    if not pattern.startswith("*") and not pattern.endswith("*"):
+      pattern = f"*{pattern}*"
+    try:
+      res = subprocess.run(
+          ["find", ".", "-iname", pattern, "-not", "-path", "*/.*"],
           cwd=repo_path,
           capture_output=True,
           text=True,
           check=False,
       )
-      lines = res.stdout.splitlines()[:20]
+      lines = [l.lstrip("./") for l in res.stdout.splitlines()[:25]]
       return "\n".join(lines) if lines else f"No matches found for: {pattern}"
     except Exception as e:  # pylint: disable=broad-exception-caught
       return f"[ERROR] Find failed: {e}"
 
-  if clean_cmd.startswith("TOOL_GREP:"):
-    raw_query = clean_cmd.split(":", 1)[1].strip()
-    query = re.sub(r"\s*\(.*?\)\s*$", "", raw_query).strip().strip("`'\"")
+  # 4. TOOL_LIST_DIR: <dir_path>
+  if clean_cmd.startswith("TOOL_LIST_DIR:"):
+    raw_dir = clean_cmd.split(":", 1)[1].strip()
+    tokens = [
+        t.strip("`'\"<>,;:") for t in raw_dir.split() if t.strip("`'\"<>,;:")
+    ]
+    dir_rel = tokens[0] if tokens else "."
+    dir_abs = resolve_repo_file_path(dir_rel, repo_path)
+    if not os.path.isdir(dir_abs):
+      return f"[ERROR] Directory does not exist: {dir_rel}"
     try:
-      res = subprocess.run(
-          [
-              "git",
-              "grep",
-              "-n",
-              "-I",
-              "--max-count=5",
-              query,
-              "--",
-              "*.gn",
-              "*.gni",
-              "*.h",
-              "*.cc",
-              "*.java",
-          ],
-          cwd=repo_path,
-          capture_output=True,
-          text=True,
-          errors="replace",
-          check=False,
-      )
-      lines = res.stdout.splitlines()[:25]
-      text = "\n".join(lines)
-      return (text[:4000].strip() if text else f"No matches found for: {query}")
+      entries = sorted(os.listdir(dir_abs))[:50]
+      formatted = []
+      for e in entries:
+        full_e = os.path.join(dir_abs, e)
+        is_d = "/" if os.path.isdir(full_e) else ""
+        formatted.append(f"{e}{is_d}")
+      return "\n".join(formatted) if formatted else "(Directory is empty)"
     except Exception as e:  # pylint: disable=broad-exception-caught
-      return f"[ERROR] Grep failed: {e}"
+      return f"[ERROR] List directory failed: {e}"
 
+  # 5. TOOL_GIT_SHOW: <ref>
   if clean_cmd.startswith("TOOL_GIT_SHOW:"):
     raw_ref = clean_cmd.split(":", 1)[1].strip()
-    tokens = re.findall(r"[^\s\(\)\[\]]+", raw_ref)
-    ref = tokens[0].strip("`'\"<>,;:") if tokens else raw_ref
+    tokens = [
+        t.strip("`'\"<>,;:") for t in raw_ref.split() if t.strip("`'\"<>,;:")
+    ]
+    ref = tokens[0] if tokens else raw_ref
     try:
       res = subprocess.run(
-          ["git", "show", ref],
+          ["git", "show", "--no-color", ref],
           cwd=repo_path,
           capture_output=True,
           text=True,
           errors="replace",
           check=False,
       )
-      return (res.stdout[:3000] if res.stdout else f"Could not show ref: {ref}")
+      return (res.stdout[:4000] if res.stdout else f"Could not show ref: {ref}")
     except Exception as e:  # pylint: disable=broad-exception-caught
       return f"[ERROR] Git show failed: {e}"
 
@@ -829,36 +937,51 @@ class BaseResolver(abc.ABC):
       self,
       initial_patch: str,
       diagnostic: Any,
-      max_rounds: int = 4,
+      max_rounds: int = 30,
   ) -> Tuple[str, str]:
-    """Runs multi-turn tool loop if model requested a TOOL_ command."""
+    """Runs multi-turn tool loop supporting batch tool requests from LLM."""
     current_patch = initial_patch
     model_used = self.model
     history_records: List[Dict[str, Any]] = []
 
     for round_idx in range(1, max_rounds + 1):
-      tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", current_patch.strip(),
-                             re.MULTILINE)
-      if not tool_match:
+      tool_cmds = extract_tool_commands(current_patch)
+      if not tool_cmds:
         break
 
-      tool_cmd = tool_match.group(1).strip()
-      print(
-          f"  [{self.name}] [Investigation Round {round_idx}/{max_rounds}] "
-          f"Model requested: {tool_cmd}",
-          file=sys.stderr,
-      )
-      tool_output = execute_local_tool(tool_cmd, self.repo_path)
+      batch_outputs: List[str] = []
+      for cmd_idx, tool_cmd in enumerate(tool_cmds, 1):
+        prefix = (f"[{cmd_idx}/{len(tool_cmds)}] "
+                  if len(tool_cmds) > 1 else "")
+        print(
+            f"  [{self.name}] [Investigation Round {round_idx}/{max_rounds}] "
+            f"{prefix}Model requested: {tool_cmd}",
+            file=sys.stderr,
+        )
+        tool_output = execute_local_tool(tool_cmd, self.repo_path)
+        if len(tool_cmds) > 1:
+          batch_outputs.append(
+              f"=== Result for {tool_cmd} ===\n{tool_output}\n")
+        else:
+          batch_outputs.append(tool_output)
+
+        read_m = re.search(r"TOOL_READ_FILE:\s*([^\s]+)", tool_cmd)
+        if read_m and hasattr(diagnostic, "file_path"):
+          cand_path = resolve_repo_file_path(read_m.group(1), self.repo_path)
+          if os.path.isfile(cand_path):
+            diagnostic.file_path = cand_path
+
+      combined_output = "\n".join(batch_outputs)
       history_records.append({
           "iteration": f"Tool-{round_idx}",
-          "file": tool_cmd,
-          "error": tool_output,
+          "file": " | ".join(tool_cmds),
+          "error": combined_output,
       })
 
       patch_res, m_used, _ = self.resolve_diagnostic(
           diagnostic=diagnostic,
           history_records=history_records,
-          use_pro=True,
+          use_expert=True,
       )
       current_patch = patch_res
       model_used = m_used
@@ -1063,7 +1186,9 @@ class BaseResolver(abc.ABC):
         })
       else:
         print(
-            f"[{self.name}] [FAIL] Could not apply patch to {rel_target}.",
+            f"[{self.name}] [FAIL] Could not apply patch to {rel_target}.\n"
+            f"  [AI Patch Preview]:\n"
+            f"  {patch[:300].strip()}",
             file=sys.stderr,
         )
         history_records.append({

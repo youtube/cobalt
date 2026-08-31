@@ -123,142 +123,107 @@ def find_build_file_for_object(
 
 def parse_compiler_errors(build_output: str,
                           repo_path: str) -> List[CompilerDiagnostic]:
-  """Parses Clang/GCC/TypeScript compiler and action diagnostics."""
+  """Parses compiler/linker/action diagnostics with universal catch-all."""
   diagnostics: List[CompilerDiagnostic] = []
+  clean_output = re.sub(r"\x1b\[[0-9;]*m", "", build_output)
+  lines = clean_output.splitlines()
+
+  # 1. Fast Path: Standard Clang / GCC error format
+  standard_error_pattern = re.compile(
+      r"^([a-zA-Z0-9_/\.\-]+\.[a-zA-Z0-9_]+):(\d+):(?:(\d+):)?\s*"
+      r"(?:fatal\s+)?error:\s*(.+)$")
   clang_error_pattern = re.compile(
       r"^\s*(?:\d+\.\d+s\s+)?(?:fatal\s+)?"
       r"(?:error|Error|ERROR):\s*(?:@config//|//)?"
       r"([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+(.+)$")
-  standard_error_pattern = re.compile(
-      r"^([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+(?:fatal\s+)?error:\s+(.+)$")
-  ts_error_pattern = re.compile(
-      r"^([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+-\s+error\s+(TS\d+:\s+.+)$")
-  note_pattern = re.compile(
-      r"^([a-zA-Z0-9_/\.\-]+):(\d+):(?:(\d+):)?\s+note:\s+(.+)$")
 
-  lines = build_output.splitlines()
-  i = 0
-  while i < len(lines):
-    line = re.sub(r"\x1b\[[0-9;]*m", "", lines[i])
-    match = (
-        standard_error_pattern.match(line) or clang_error_pattern.match(line) or
-        ts_error_pattern.match(line))
+  for idx, line in enumerate(lines):
+    l_strip = line.strip()
+    match = standard_error_pattern.match(l_strip) or clang_error_pattern.match(
+        l_strip)
     if match:
       raw_path, line_str, col_str, error_msg = match.groups()
       line_no = int(line_str)
       col_no = int(col_str) if col_str else 0
-
       abs_path = resolve_repo_file_path(raw_path, repo_path)
 
-      # Capture preceding "In file included from ..." include stack trace
-      include_stack = []
-      lookback = i - 1
-      while lookback >= 0 and lookback >= i - 12:
-        prev_l = re.sub(r"\x1b\[[0-9;]*m", "", lines[lookback]).strip()
-        if prev_l.startswith("In file included from"):
-          include_stack.insert(0, prev_l)
-          lookback -= 1
-        elif not prev_l:
-          lookback -= 1
-        else:
-          break
-
-      snippet_lines = list(include_stack)
-      snippet_lines.append(line)
-      notes = list(include_stack)
-      i += 1
-      while i < len(lines):
-        next_line = re.sub(r"\x1b\[[0-9;]*m", "", lines[i])
-        if (standard_error_pattern.match(next_line) or
-            clang_error_pattern.match(next_line) or
-            ts_error_pattern.match(next_line)):
-          break
-        if next_line.startswith("[") and "]" in next_line:
-          break
-        note_match = note_pattern.match(next_line)
-        if note_match:
-          notes.append(next_line)
-        snippet_lines.append(next_line)
-        i += 1
-
+      # Grab surrounding lines as snippet
+      snippet_lines = lines[max(0, idx - 4):min(len(lines), idx + 16)]
       diagnostics.append(
           CompilerDiagnostic(
               file_path=abs_path,
               line_number=line_no,
               column=col_no,
               error_message=error_msg.strip(),
-              raw_snippet="\n".join(snippet_lines[:20]),
-              notes=notes,
+              raw_snippet="\n".join(snippet_lines),
+              notes=[],
           ))
-    else:
-      i += 1
+      break
 
-  # Fallback 1: Parse Ninja missing dependency / missing rule graph errors
+  # 2. Fast Path: Linker errors (ld.lld / lld-link / gold / ld)
   if not diagnostics:
-    ninja_missing_pattern = re.compile(
-        r"[\"']([^\"']+)[\"'],\s+needed by\s+[\"']([^\"']+)[\"'],"
-        r"\s+missing and no known rule to make it")
-    for line in lines:
-      if m := ninja_missing_pattern.search(line):
-        missing_file, _ = m.groups()
-        ref_file, ref_line = find_referencing_build_file(
-            missing_file, repo_path)
-        target_file = ref_file or os.path.join(repo_path, "BUILD.gn")
-
-        clean_rel = missing_file.strip("\"'").lstrip("./")
-        abs_missing = (
-            os.path.join(repo_path, clean_rel)
-            if not os.path.isabs(clean_rel) else clean_rel)
-        missing_dir = os.path.dirname(abs_missing)
-        diag_notes = [f"Referenced at: {target_file}:{ref_line}"]
-        if os.path.isdir(missing_dir):
-          existing_files = os.listdir(missing_dir)
-          rel_dir = os.path.relpath(missing_dir, repo_path)
-          diag_notes.append(
-              f"Actual files on disk in '{rel_dir}': {existing_files}")
-
-        diagnostics.append(
-            CompilerDiagnostic(
-                file_path=target_file,
-                line_number=ref_line,
-                column=1,
-                error_message=(
-                    f"Missing build dependency or rule for: {missing_file}"),
-                raw_snippet=line.strip(),
-                notes=diag_notes,
-            ))
-        break
-
-  # Fallback 2: Parse linker errors (ld.lld, lld-link, clang++ linker errors)
-  if not diagnostics:
-    lld_error_pattern = re.compile(
+    lld_pattern = re.compile(
         r"(?:ld\.lld|lld-link|lld|gold|ld):\s+error:\s+(.+)$")
-    obj_match_pattern = re.compile(
+    obj_pattern = re.compile(
         r"obj/([a-zA-Z0-9_/\.\-]+(?:\([a-zA-Z0-9_/\.\-]+\))?)")
+    ref_file_pattern = re.compile(
+        r"referenced by\s+([a-zA-Z0-9_/\.\-]+\.[a-zA-Z0-9_]+):(\d+)")
     linker_lines = []
     primary_err = ""
     target_build_file = None
+    ref_file = None
+    ref_line = 1
 
     for line in lines:
-      clean_l = re.sub(r"\x1b\[[0-9;]*m", "", line).strip()
-      if m := lld_error_pattern.search(clean_l):
+      l_strip = line.strip()
+      if m := lld_pattern.search(l_strip):
         if not primary_err:
           primary_err = m.group(1).strip()
-        linker_lines.append(clean_l)
+        linker_lines.append(l_strip)
         if not target_build_file:
-          if obj_m := obj_match_pattern.search(clean_l):
+          if obj_m := obj_pattern.search(l_strip):
             target_build_file = find_build_file_for_object(
                 obj_m.group(0), repo_path)
+      elif primary_err and (l_strip.startswith(">>>") or
+                            "referenced by" in l_strip):
+        linker_lines.append(l_strip)
+        if not target_build_file:
+          if obj_m := obj_pattern.search(l_strip):
+            target_build_file = find_build_file_for_object(
+                obj_m.group(0), repo_path)
+        if not ref_file:
+          if ref_m := ref_file_pattern.search(l_strip):
+            cand_ref = resolve_repo_file_path(ref_m.group(1), repo_path)
+            if os.path.isfile(cand_ref):
+              ref_file = cand_ref
+              ref_line = int(ref_m.group(2))
 
     if primary_err:
-      target_f = target_build_file or os.path.join(repo_path, "BUILD.gn")
+      target_f = target_build_file or ref_file or os.path.join(
+          repo_path, "BUILD.gn")
       diagnostics.append(
           CompilerDiagnostic(
               file_path=target_f,
-              line_number=1,
+              line_number=ref_line if target_f == ref_file else 1,
               column=1,
               error_message=f"Linker error: {primary_err}",
-              raw_snippet="\n".join(linker_lines[:20]),
+              raw_snippet="\n".join(linker_lines[:30]),
+              notes=[],
+          ))
+
+  # 3. Universal Catch-All Fallback (Python actions, AIDL, Mojo, Java, Rust)
+  # If build failed but didn't match standard syntax, hand failure tail to LLM
+  if not diagnostics and lines:
+    failure_tail = "\n".join(lines[-60:]).strip()
+    if failure_tail:
+      diagnostics.append(
+          CompilerDiagnostic(
+              file_path=os.path.join(repo_path, "BUILD.gn"),
+              line_number=1,
+              column=1,
+              error_message=(
+                  "Build failure in compilation / linking / action step"),
+              raw_snippet=failure_tail,
               notes=[],
           ))
 
@@ -427,10 +392,11 @@ class AutoninjaResolver(BaseResolver):
       return stray_res
 
     file_context = ""
-    is_source_code = diagnostic.file_path.endswith(SOURCE_CODE_EXTENSIONS)
     is_text_file = diagnostic.file_path.endswith(TEXT_FILE_EXTENSIONS)
+    is_linker_error = diagnostic.error_message.startswith("Linker error:")
 
-    if is_text_file and os.path.isfile(diagnostic.file_path):
+    if not is_linker_error and is_text_file and os.path.isfile(
+        diagnostic.file_path):
       try:
         # Protect against opening abnormally huge files into memory
         if os.path.getsize(diagnostic.file_path) <= MAX_CONTEXT_FILE_SIZE_BYTES:
@@ -442,10 +408,10 @@ class AutoninjaResolver(BaseResolver):
           ) as f:
             lines = f.readlines()
           is_build_file = diagnostic.file_path.endswith(BUILD_FILE_EXTENSIONS)
-          send_full_file = is_build_file or (
-              is_source_code and
-              (use_expert or
-               self.file_error_counts.get(diagnostic.file_path, 0) >= 3))
+          # Send full context for small build files or repeated errors (>= 3)
+          send_full_file = (len(lines) <= 250 and is_build_file) or (
+              len(lines) <= 250 and
+              self.file_error_counts.get(diagnostic.file_path, 0) >= 3)
           if send_full_file:
             rel_path = os.path.relpath(diagnostic.file_path, self.repo_path)
             label = "build" if is_build_file else "source"
@@ -456,8 +422,8 @@ class AutoninjaResolver(BaseResolver):
             )
             file_context = "".join(f"{i + 1}: {l}" for i, l in enumerate(lines))
           else:
-            s_line = max(1, diagnostic.line_number - 30)
-            e_line = min(len(lines), diagnostic.line_number + 30)
+            s_line = max(1, diagnostic.line_number - 35)
+            e_line = min(len(lines), diagnostic.line_number + 35)
             file_context = "".join(
                 f"{s_line + i}: {l}" for i, l in enumerate(lines[s_line -
                                                                  1:e_line]))

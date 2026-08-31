@@ -200,6 +200,13 @@ If the interactive diff/upstream-diff tools return empty or malformed results fo
      * **Do not blindly discard all upstream changes.**
      * Only reject incoming hunks that are demonstrably re-introducing stale/obsolete code that Cobalt or Chromium explicitly superseded.
      * **Always Interleave Non-Overlapping Additions**: Independent additions in the same hunk (e.g. GN source lists, `TestExpectations`, new includes, feature flags) must be merged/interleaved together rather than discarded wholesale.
+     * **Union Merge for Test Expectations**: For `third_party/blink/web_tests/TestExpectations`, never drop incoming upstream Gardener entries (`crbug.com/...`); always keep all upstream additions and append Cobalt expectations (`wpt_internal/cobalt/...`) directly below.
+
+3. **Detecting Upstream Code Relocation & Class Splits (e.g. `dom_storage_database_leveldb.cc`)**:
+   - When resolving a conflict where upstream removed or refactored methods that previously contained Cobalt-specific logic (e.g. `#if BUILDFLAG(IS_COBALT)`, `CreateSyncWriteOptions()`, Starboard shims):
+     * **Do NOT assume the code was simply deleted or obsolete**: Check if upstream extracted or refactored the logic into a new implementation file (e.g. `_leveldb.cc`, `_impl.cc`, `_util.cc`, `_helper.cc`).
+     * **Locate the New Home**: Use `TOOL_FIND_FILE: *<base_name>*` or `TOOL_GREP: "<method_name>"` across the subsystem to find where the implementation was moved.
+     * **Port the Cobalt Patch**: Port Cobalt's custom macros and behaviors (e.g. `CreateSyncWriteOptions()` into `dom_storage_database_leveldb.cc`) into the new implementation file so silent regressions are avoided.
 
 ### Post-Conflict-Resolution Checklist: Beyond Conflict Markers
 
