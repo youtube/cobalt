@@ -156,7 +156,6 @@ template("write_build_config") {
                                  ".rtxt.build_config.json") ]
   }
 
-<<<<<<< HEAD
   # ParamsJson.is_compile_type()
   if (_type == "android_apk" || _type == "android_app_bundle_module" ||
       _type == "java_annotation_processor" || _type == "java_binary" ||
@@ -180,10 +179,7 @@ template("write_build_config") {
                                  ".targets.build_config.json") ]
   }
 
-  if (current_toolchain == default_toolchain) {
-=======
   if (current_toolchain == android_toolchain) {
->>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     # Ensure targets match naming patterns so that __assetres, __header, __host,
     # and __validate targets work properly.
     if (filter_exclude([ _type ], _java_resource_types) == []) {
