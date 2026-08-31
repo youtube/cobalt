@@ -35,6 +35,7 @@
 #include "cobalt/browser/memory_ablation.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/metrics/cobalt_startup_tombstone.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -204,6 +205,8 @@ void LogStabilityMetricsCapacity(const char* stage_label) {
   base::UmaHistogramCounts1000("Cobalt.StabilityMetrics.UsedKilobytes",
                                static_cast<int>(used / 1024));
 
+  CobaltStartupTombstone::GetInstance()->UpdatePmaStats(used, total);
+
   if (mem_allocator->IsFull() || percent_full >= 90) {
     LOG(WARNING) << "Cobalt Stability Metrics PMA approaching capacity at "
                  << stage_label << "! Used: " << (used / 1024) << "KB / "
@@ -258,6 +261,10 @@ int CobaltBrowserMainParts::PreEarlyInitialization() {
         kBrowserStabilityMetricsName);
   }
 
+  // Initialize 4KB memory-mapped startup tombstone
+  CobaltStartupTombstone::GetInstance()->Initialize(metrics_dir);
+  CobaltStartupTombstone::GetInstance()->ProcessPriorRunTombstone();
+
   return content::RESULT_CODE_NORMAL_EXIT;
 }
 
@@ -283,6 +290,9 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 #if BUILDFLAG(IS_ANDROIDTV)
   starboard::StarboardBridge::GetInstance()->SetStartupMilestone(17);
 #endif
+  CobaltStartupTombstone::GetInstance()->SetMilestone(17);
+  CobaltStartupTombstone::GetInstance()->SetStage(
+      StartupTombstoneState::kPreCreateThreads, "PreCreateThreads");
   base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 17);
   LogStabilityMetricsCapacity("PreCreateThreads");
   SetupMetrics();
@@ -346,6 +356,9 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     return result;
   }
 
+  CobaltStartupTombstone::GetInstance()->SetStage(
+      StartupTombstoneState::kPreMainLoop, "PreMainMessageLoopRun");
+
   StartStorageMigration();
 
   return result;
@@ -402,6 +415,7 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
+  CobaltStartupTombstone::GetInstance()->MarkCleanShutdown();
   GlobalFeatures::GetInstance()->Shutdown();
   ShellBrowserMainParts::PostDestroyThreads();
 }

@@ -21,6 +21,7 @@
 #include "base/timer/timer.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
+#include "cobalt/browser/metrics/cobalt_startup_tombstone.h"
 #include "cobalt/build/configs/buildflags.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
@@ -141,6 +142,9 @@ void CobaltWebContentsObserver::DidStartNavigation(
 
   latest_navigation_id_ = handle->GetNavigationId();
   navigation_start_ticks_ = base::TimeTicks::Now();
+  CobaltStartupTombstone::GetInstance()->SetMilestone(22);
+  CobaltStartupTombstone::GetInstance()->SetStage(
+      StartupTombstoneState::kNavigationStarted, "NavigationStarted");
   base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 22);
 
   // Start a navigation timer with a timeout callback to raise a
@@ -168,6 +172,9 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   }
 
   timeout_timer_->Stop();
+  CobaltStartupTombstone::GetInstance()->SetMilestone(26);
+  CobaltStartupTombstone::GetInstance()->SetStage(
+      StartupTombstoneState::kNavigationCommitted, "NavigationCommitted");
   base::UmaHistogramSparse("Cobalt.Startup.MilestoneReached", 26);
   if (!navigation_start_ticks_.is_null()) {
     base::TimeDelta nav_duration =
@@ -189,6 +196,7 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     RaisePlatformError(navigation_handle->GetNavigationId(),
                        navigation_handle->GetURL().spec());
   } else if (net_error_code == net::OK) {
+    CobaltStartupTombstone::GetInstance()->MarkStartupComplete();
     base::UmaHistogramBoolean("Cobalt.WebContentsObserver.FailedNavigation",
                               false);
 #if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)

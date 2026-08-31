@@ -29,6 +29,7 @@
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/browser/metrics/cobalt_startup_tombstone.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/file_metrics_provider.h"
@@ -466,6 +467,181 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_TRUE(
       local_state->FindPreference(metrics::prefs::kMetricsLastSeenPrefix +
                                   std::string("BrowserStabilityMetrics")));
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       StartupTombstoneHeaderAndIntegrity) {
+  auto* tombstone = CobaltStartupTombstone::GetInstance();
+  ASSERT_TRUE(tombstone);
+  EXPECT_TRUE(tombstone->IsInitializedForTesting());
+
+  const auto* header = tombstone->GetHeaderForTesting();
+  ASSERT_NE(header, nullptr);
+
+  // Check magic 'STMB' and version 1
+  EXPECT_EQ(header->magic, kStartupTombstoneMagic);
+  EXPECT_EQ(header->version, kStartupTombstoneVersion);
+  EXPECT_EQ(header->process_id,
+            static_cast<uint32_t>(base::GetCurrentProcId()));
+
+  // Milestone 17 (PreCreateThreads) should be set in bitmask
+  EXPECT_TRUE((header->milestone_bitmask & (1ULL << 17)) != 0);
+
+  // Verify memory mapped capacity is 512KB
+  EXPECT_EQ(header->pma_capacity_bytes, 512u * 1024u);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       StartupTombstonePriorRunCrashDetection) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  // Construct a simulated prior tombstone file that crashed at milestone 22
+  StartupTombstoneHeader simulated_hdr = {};
+  simulated_hdr.magic = kStartupTombstoneMagic;
+  simulated_hdr.version = kStartupTombstoneVersion;
+  simulated_hdr.state =
+      static_cast<uint32_t>(StartupTombstoneState::kNavigationStarted);
+  simulated_hdr.process_id = 12345;
+  simulated_hdr.start_time_us = 1000000;
+  simulated_hdr.last_update_time_us = 1500000;  // 500 ms elapsed
+  simulated_hdr.milestone_bitmask = (1ULL << 17) | (1ULL << 22);
+  simulated_hdr.crash_signal = 11;  // SIGSEGV
+  strncpy(simulated_hdr.last_stage_name, "NavigationStarted",
+          sizeof(simulated_hdr.last_stage_name) - 1);
+  strncpy(simulated_hdr.crash_reason, "SIGSEGV",
+          sizeof(simulated_hdr.crash_reason) - 1);
+
+  // Compute checksum
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(&simulated_hdr);
+  size_t size = offsetof(StartupTombstoneHeader, checksum);
+  uint32_t hash = 2166136261u;
+  for (size_t i = 0; i < size; ++i) {
+    hash ^= data[i];
+    hash *= 16777619u;
+  }
+  simulated_hdr.checksum = hash;
+
+  base::FilePath tombstone_file =
+      temp_dir.GetPath().AppendASCII("startup_tombstone.dat");
+  base::File file(tombstone_file,
+                  base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
+  ASSERT_TRUE(file.IsValid());
+  ASSERT_TRUE(file.SetLength(kStartupTombstoneFileSize));
+  file.Write(0, reinterpret_cast<const char*>(&simulated_hdr),
+             sizeof(simulated_hdr));
+  file.Close();
+
+  // Instantiate an isolated CobaltStartupTombstone to process the simulated
+  // file
+  base::HistogramTester histogram_tester;
+  CobaltStartupTombstone test_tombstone;
+  EXPECT_TRUE(test_tombstone.Initialize(temp_dir.GetPath()));
+  EXPECT_TRUE(test_tombstone.HasPriorTombstoneForTesting());
+
+  test_tombstone.ProcessPriorRunTombstone();
+
+  // Verify PriorRunStatus is IncompleteStartup
+  EXPECT_EQ(histogram_tester.GetBucketCount(
+                "Cobalt.Startup.Tombstone.PriorRunStatus",
+                static_cast<int>(PriorRunStatus::kIncompleteStartup)),
+            1);
+
+  // Verify LastMilestone is 22
+  EXPECT_EQ(histogram_tester.GetBucketCount(
+                "Cobalt.Startup.Tombstone.LastMilestone", 22),
+            1);
+
+  // Verify DurationBeforeCrash was recorded
+  EXPECT_GE(
+      histogram_tester
+              .GetAllSamples("Cobalt.Startup.Time.NavigationDispatchToCommit")
+              .size() +
+          histogram_tester
+              .GetAllSamples("Cobalt.Startup.Tombstone.DurationBeforeCrash")
+              .size(),
+      1u);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       StartupTombstonePriorRunCleanShutdownDetection) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  // Construct a simulated prior tombstone file that exited cleanly
+  StartupTombstoneHeader simulated_hdr = {};
+  simulated_hdr.magic = kStartupTombstoneMagic;
+  simulated_hdr.version = kStartupTombstoneVersion;
+  simulated_hdr.state =
+      static_cast<uint32_t>(StartupTombstoneState::kCleanShutdown);
+  simulated_hdr.process_id = 12345;
+  simulated_hdr.start_time_us = 1000000;
+  simulated_hdr.last_update_time_us = 2000000;
+  simulated_hdr.milestone_bitmask = (1ULL << 17) | (1ULL << 22) | (1ULL << 26);
+  strncpy(simulated_hdr.last_stage_name, "CleanShutdown",
+          sizeof(simulated_hdr.last_stage_name) - 1);
+
+  // Compute checksum
+  const uint8_t* data = reinterpret_cast<const uint8_t*>(&simulated_hdr);
+  size_t size = offsetof(StartupTombstoneHeader, checksum);
+  uint32_t hash = 2166136261u;
+  for (size_t i = 0; i < size; ++i) {
+    hash ^= data[i];
+    hash *= 16777619u;
+  }
+  simulated_hdr.checksum = hash;
+
+  base::FilePath tombstone_file =
+      temp_dir.GetPath().AppendASCII("startup_tombstone.dat");
+  base::File file(tombstone_file,
+                  base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
+  ASSERT_TRUE(file.IsValid());
+  ASSERT_TRUE(file.SetLength(kStartupTombstoneFileSize));
+  file.Write(0, reinterpret_cast<const char*>(&simulated_hdr),
+             sizeof(simulated_hdr));
+  file.Close();
+
+  base::HistogramTester histogram_tester;
+  CobaltStartupTombstone test_tombstone;
+  EXPECT_TRUE(test_tombstone.Initialize(temp_dir.GetPath()));
+  EXPECT_TRUE(test_tombstone.HasPriorTombstoneForTesting());
+
+  test_tombstone.ProcessPriorRunTombstone();
+
+  // Verify PriorRunStatus is CleanShutdown
+  EXPECT_EQ(histogram_tester.GetBucketCount(
+                "Cobalt.Startup.Tombstone.PriorRunStatus",
+                static_cast<int>(PriorRunStatus::kCleanShutdown)),
+            1);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       StartupTombstoneCorruptedFileHandledSafely) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  // Write corrupted garbage data to tombstone file
+  base::FilePath tombstone_file =
+      temp_dir.GetPath().AppendASCII("startup_tombstone.dat");
+  base::File file(tombstone_file,
+                  base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
+  ASSERT_TRUE(file.IsValid());
+  std::vector<char> junk(kStartupTombstoneFileSize, 0xAA);
+  file.Write(0, junk.data(), junk.size());
+  file.Close();
+
+  CobaltStartupTombstone test_tombstone;
+  // Initialization should overwrite the junk safely with a fresh header
+  EXPECT_TRUE(test_tombstone.Initialize(temp_dir.GetPath()));
+  EXPECT_FALSE(test_tombstone.HasPriorTombstoneForTesting());
+
+  const auto* header = test_tombstone.GetHeaderForTesting();
+  ASSERT_NE(header, nullptr);
+  EXPECT_EQ(header->magic, kStartupTombstoneMagic);
+  EXPECT_EQ(header->version, kStartupTombstoneVersion);
 }
 
 }  // namespace cobalt
