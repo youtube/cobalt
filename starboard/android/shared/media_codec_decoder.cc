@@ -987,6 +987,8 @@ void MediaCodecDecoder::OnMediaCodecError(bool is_recoverable,
 
 void MediaCodecDecoder::OnMediaCodecInputBufferAvailable(int32_t buffer_index) {
   SB_CHECK_GE(buffer_index, 0);
+  SB_LOG(INFO) << (media_type_ == kSbMediaTypeAudio ? "audio" : "video")
+               << " input buffer available: " << buffer_index;
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
@@ -1012,6 +1014,10 @@ void MediaCodecDecoder::OnMediaCodecOutputBufferAvailable(
     int64_t presentation_time_us,
     int32_t size) {
   SB_CHECK_GE(buffer_index, 0);
+  SB_LOG(INFO) << (media_type_ == kSbMediaTypeAudio ? "audio" : "video")
+               << " output buffer available: " << buffer_index
+               << ", size=" << size
+               << ", presentation_time_us=" << presentation_time_us;
 
   // TODO(b/291959069): After the output thread is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.

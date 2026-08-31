@@ -30,7 +30,9 @@ import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
+import org.chromium.base.CommandLine;
 
 /**
  * Base Activity shared by all Cobalt embedders. It owns the StarboardBridge lifecycle
@@ -146,6 +148,19 @@ public abstract class BaseCobaltActivity extends Activity {
     ArrayList<String> args = new ArrayList<>();
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
+    }
+
+    if (CommandLine.isInitialized()) {
+      CommandLine commandLine = CommandLine.getInstance();
+      for (Map.Entry<String, String> entry : commandLine.getSwitches().entrySet()) {
+        String key = entry.getKey();
+        String value = entry.getValue();
+        if (value != null && !value.isEmpty()) {
+          args.add("--" + key + "=" + value);
+        } else {
+          args.add("--" + key);
+        }
+      }
     }
 
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
