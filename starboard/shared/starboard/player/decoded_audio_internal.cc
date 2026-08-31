@@ -115,7 +115,7 @@ DecodedAudio::DecodedAudio(DecodedAudio&& other) noexcept
     : channels_(std::exchange(other.channels_, 0)),
       sample_type_(other.sample_type_),
       storage_type_(other.storage_type_),
-      timestamp_(other.timestamp_),
+      timestamp_(std::exchange(other.timestamp_, 0)),
       storage_(std::move(other.storage_)),
       offset_in_bytes_(std::exchange(other.offset_in_bytes_, 0)),
       size_in_bytes_(std::exchange(other.size_in_bytes_, 0)) {}
@@ -127,7 +127,7 @@ DecodedAudio& DecodedAudio::operator=(DecodedAudio&& other) noexcept {
   channels_ = std::exchange(other.channels_, 0);
   sample_type_ = other.sample_type_;
   storage_type_ = other.storage_type_;
-  timestamp_ = other.timestamp_;
+  timestamp_ = std::exchange(other.timestamp_, 0);
   storage_ = std::move(other.storage_);
   offset_in_bytes_ = std::exchange(other.offset_in_bytes_, 0);
   size_in_bytes_ = std::exchange(other.size_in_bytes_, 0);

@@ -450,6 +450,7 @@ TEST(DecodedAudioTest, MoveConstructor) {
   EXPECT_TRUE(original.is_end_of_stream());
   EXPECT_EQ(original.channels(), 0);
   EXPECT_EQ(original.size_in_bytes(), 0);
+  EXPECT_EQ(original.timestamp(), 0);
   EXPECT_EQ(original.data(), nullptr);
 }
 
@@ -479,6 +480,7 @@ TEST(DecodedAudioTest, MoveAssignment) {
   EXPECT_TRUE(original.is_end_of_stream());
   EXPECT_EQ(original.channels(), 0);
   EXPECT_EQ(original.size_in_bytes(), 0);
+  EXPECT_EQ(original.timestamp(), 0);
   EXPECT_EQ(original.data(), nullptr);
 }
 
