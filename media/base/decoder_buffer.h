@@ -196,8 +196,6 @@ class MEDIA_EXPORT DecoderBuffer
     duration_ = duration;
   }
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   Allocator::Handle handle() const {
     if (allocator_data_) {
@@ -208,14 +206,12 @@ class MEDIA_EXPORT DecoderBuffer
     }
     return Allocator::kInvalidHandle;
   }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // The pointer to the start of the buffer. Prefer to construct a span around
   // the buffer, such as `base::span(decoder_buffer)`.
   // TODO(crbug.com/365814210): Remove in favor of AsSpan().
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
     if (allocator_data_) {
       // The function is used by unit tests and Chromium media stack, so we keep
       // it but CHECK() when the handle is annotated (e.g. cannot be converted
@@ -226,13 +222,12 @@ class MEDIA_EXPORT DecoderBuffer
 #endif  // !defined(OFFICIAL_BUILD)
       return reinterpret_cast<const uint8_t*>(allocator_data_->handle);
     }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     if (external_memory_)
       return external_memory_->Span().data();
     return data_.data();
   }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
->>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // The number of bytes in the buffer.
   size_t size() const {
     DCHECK(!end_of_stream());
