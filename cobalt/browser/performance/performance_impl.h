@@ -42,7 +42,10 @@ class PerformanceImpl
   PerformanceImpl(const PerformanceImpl&) = delete;
   PerformanceImpl& operator=(const PerformanceImpl&) = delete;
 
+  void MeasureSystemMemoryInfo(MeasureSystemMemoryInfoCallback) override;
+  void MeasureFreeRssMemory(MeasureFreeRssMemoryCallback) override;
   void MeasureAvailableCpuMemory(MeasureAvailableCpuMemoryCallback) override;
+  void MeasureUsedRssMemory(MeasureUsedRssMemoryCallback) override;
   void MeasureUsedCpuMemory(MeasureUsedCpuMemoryCallback) override;
   void MeasureUsedSwapMemory(MeasureUsedSwapMemoryCallback) override;
   void MeasureReservedVirtualMemory(

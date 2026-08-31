@@ -26,13 +26,18 @@ namespace blink {
 class ExceptionState;
 class Performance;
 class ScriptState;
+class SystemMemoryInfo;
 
 class CORE_EXPORT PerformanceExtensions final {
   STATIC_ONLY(PerformanceExtensions);
 
  public:
   // Web-exposed interface:
+  static SystemMemoryInfo* measureSystemMemoryInfo(ScriptState*,
+                                                   const Performance&);
+  static uint64_t measureFreeRssMemory(ScriptState*, const Performance&);
   static uint64_t measureAvailableCpuMemory(ScriptState*, const Performance&);
+  static uint64_t measureUsedRssMemory(ScriptState*, const Performance&);
   static uint64_t measureUsedCpuMemory(ScriptState*, const Performance&);
   static uint64_t measureUsedSwapMemory(ScriptState*, const Performance&);
   static uint64_t measureReservedVirtualMemory(ScriptState*,
