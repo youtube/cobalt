@@ -19,6 +19,7 @@
 #include <mutex>
 #include <string>
 
+#include "starboard/common/log.h"
 #include "starboard/extension/low_memory_kill.h"
 #include "starboard/shared/environment.h"
 
@@ -40,17 +41,20 @@ bool CheckAndConsumeMarker(const std::string& path) {
 //      /tmp or Cobalt storage by a memory watchdog process, then deletes the
 //      file.
 // Note that (1) does not clear any marker files that might exist.
+// The caller must hold a lock on GetMutex() to prevent races for
+// CheckAndConsumeMarker().
 bool EvaluateWasLowMemoryKilled() {
   std::string env_val = starboard::GetEnvironment(kTestEnvVar);
   if (!env_val.empty()) {
-    if (env_val == "1" || env_val == "true" || env_val == "TRUE" ||
-        env_val == "True") {
+    if (env_val == "1" || env_val == "true") {
       return true;
     }
-    if (env_val == "0" || env_val == "false" || env_val == "FALSE" ||
-        env_val == "False") {
+    if (env_val == "0" || env_val == "false") {
       return false;
     }
+    SB_LOG(WARNING)
+        << "Ignoring unrecognized COBALT_WAS_LOW_MEMORY_KILLED value: \""
+        << env_val << "\".";
   }
 
   return CheckAndConsumeMarker(kTmpMarkerPath);
@@ -59,12 +63,17 @@ bool EvaluateWasLowMemoryKilled() {
 // Since an LMK signal may be cleaned up after it is first read, we store the
 // results of the first call to WasLowMemoryKilled() here and retain them for
 // the life of the current process.
-static std::mutex g_eval_mutex;
+// These global variables are protected by the mutex in GetMutex().
 static bool g_evaluated = false;
 static bool g_was_killed = false;
 
+std::mutex& GetMutex() {
+  static auto* const mutex = new std::mutex();
+  return *mutex;
+}
+
 bool WasLowMemoryKilled() {
-  std::lock_guard<std::mutex> lock(g_eval_mutex);
+  auto lock = std::lock_guard(GetMutex());
   if (!g_evaluated) {
     g_was_killed = EvaluateWasLowMemoryKilled();
     g_evaluated = true;
@@ -87,12 +96,12 @@ const void* GetLowMemoryKillApi() {
 namespace testing {
 
 bool EvaluateLowMemoryKill() {
-  std::lock_guard<std::mutex> lock(g_eval_mutex);
+  auto lock = std::lock_guard(GetMutex());
   return EvaluateWasLowMemoryKilled();
 }
 
 void ResetLowMemoryKillStateForTesting() {
-  std::lock_guard<std::mutex> lock(g_eval_mutex);
+  auto lock = std::lock_guard(GetMutex());
   g_evaluated = false;
   g_was_killed = false;
 }

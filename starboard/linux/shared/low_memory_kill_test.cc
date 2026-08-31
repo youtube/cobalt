@@ -67,8 +67,7 @@ TEST_F(LowMemoryKillTest, DefaultReturnsFalse) {
 }
 
 TEST_F(LowMemoryKillTest, Env_PositiveValues) {
-  const std::vector<std::string> positive_values = {"1", "true", "TRUE",
-                                                    "True"};
+  const std::vector<std::string> positive_values = {"1", "true"};
   for (const auto& val : positive_values) {
     SetEnv(val.c_str());
     EXPECT_TRUE(testing::EvaluateLowMemoryKill())
@@ -77,8 +76,7 @@ TEST_F(LowMemoryKillTest, Env_PositiveValues) {
 }
 
 TEST_F(LowMemoryKillTest, Env_NegativeValues) {
-  const std::vector<std::string> negative_values = {"0", "false", "FALSE",
-                                                    "False"};
+  const std::vector<std::string> negative_values = {"0", "false"};
   for (const auto& val : negative_values) {
     SetEnv(val.c_str());
     EXPECT_FALSE(testing::EvaluateLowMemoryKill())

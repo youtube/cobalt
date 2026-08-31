@@ -621,8 +621,8 @@ TEST(ExtensionTest, LowMemoryKillExtension) {
   EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->WasLowMemoryKilled, nullptr);
 
-  bool was_lmkd = extension_api->WasLowMemoryKilled();
-  EXPECT_EQ(extension_api->WasLowMemoryKilled(), was_lmkd)
+  bool was_low_memory_killed = extension_api->WasLowMemoryKilled();
+  EXPECT_EQ(extension_api->WasLowMemoryKilled(), was_low_memory_killed)
       << "WasLowMemoryKilled() should return the same result across multiple "
          "calls";
 
